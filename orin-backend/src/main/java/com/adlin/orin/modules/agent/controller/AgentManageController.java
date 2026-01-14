@@ -1,0 +1,157 @@
+package com.adlin.orin.modules.agent.controller;
+
+import com.adlin.orin.modules.agent.dto.AgentOnboardRequest;
+import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
+import com.adlin.orin.modules.agent.service.AgentManageService;
+import com.adlin.orin.modules.agent.service.SiliconFlowAgentManageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/agents")
+@Tag(name = "Phase 1: Agent Onboarding", description = "智能体接入与管理")
+@CrossOrigin(origins = "*")
+public class AgentManageController {
+
+    private final AgentManageService agentManageService;
+    private final SiliconFlowAgentManageService siliconFlowAgentManageService;
+    private final com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService;
+
+    @Autowired
+    public AgentManageController(AgentManageService agentManageService,
+            SiliconFlowAgentManageService siliconFlowAgentManageService,
+            com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService) {
+        this.agentManageService = agentManageService;
+        this.siliconFlowAgentManageService = siliconFlowAgentManageService;
+        this.agentVersionService = agentVersionService;
+    }
+
+    @Operation(summary = "接入新智能体(Dify)")
+    @PostMapping("/onboard")
+    public AgentMetadata onboardAgent(@RequestBody AgentOnboardRequest request) {
+        return agentManageService.onboardAgent(request.getEndpointUrl(), request.getApiKey(),
+                request.getDatasetApiKey());
+    }
+
+    @Operation(summary = "接入硅基流动智能体")
+    @PostMapping("/onboard-silicon-flow")
+    public AgentMetadata onboardSiliconFlowAgent(
+            @RequestParam String endpointUrl,
+            @RequestParam String apiKey,
+            @RequestParam String model,
+            @RequestParam(required = false) String name) {
+        return siliconFlowAgentManageService.onboardAgent(endpointUrl, apiKey, model, name);
+    }
+
+    @Operation(summary = "更新智能体配置")
+    @PutMapping("/{agentId}")
+    public void updateAgent(
+            @PathVariable String agentId,
+            @RequestBody AgentOnboardRequest request) {
+        agentManageService.updateAgent(agentId, request);
+    }
+
+    @Operation(summary = "与智能体对话 (Multipart)")
+    @PostMapping(value = "/{agentId}/chat", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Object chat(
+            @PathVariable String agentId,
+            @RequestPart("message") String message,
+            @RequestPart(value = "file", required = false) MultipartFile file) {
+        return agentManageService.chat(agentId, message, file)
+                .orElseThrow(() -> new RuntimeException("Chat failed"));
+    }
+
+    @Operation(summary = "与智能体对话 (JSON)")
+    @PostMapping(value = "/{agentId}/chat", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public Object chatJson(
+            @PathVariable String agentId,
+            @RequestBody ChatRequest request) {
+        return agentManageService.chat(agentId, request.getMessage(), request.getFileId())
+                .orElseThrow(() -> new RuntimeException("Chat failed"));
+    }
+
+    @lombok.Data
+    public static class ChatRequest {
+        private String message;
+        private String fileId; // Can be "file_id" or "fileId" depending on parsing, but standard camelCase is
+                               // better for Java DTO usually.
+        // But frontend sends snake_case `file_id` if I used snake case there?
+        // Let's check frontend.
+        // Frontend: `data.file_id = fileId;`
+        // So here I need @JsonProperty("file_id")
+    }
+
+    @Operation(summary = "获取所有已接入的智能体档案")
+    @GetMapping
+    public List<AgentMetadata> listAgents() {
+        return agentManageService.getAllAgents();
+    }
+
+    @Operation(summary = "获取智能体元数据详情")
+    @GetMapping("/{agentId}/metadata")
+    public AgentMetadata getAgentMetadata(@PathVariable String agentId) {
+        return agentManageService.getAgentMetadata(agentId);
+    }
+
+    @Operation(summary = "获取智能体接入配置详情")
+    @GetMapping("/{agentId}/access-profile")
+    public AgentAccessProfile getAgentAccessProfile(@PathVariable String agentId) {
+        return agentManageService.getAgentAccessProfile(agentId);
+    }
+
+    @Operation(summary = "删除智能体")
+    @DeleteMapping("/{agentId}")
+    public void deleteAgent(@PathVariable String agentId) {
+        agentManageService.deleteAgent(agentId);
+    }
+
+    // ==================== 版本管理 API ====================
+
+    @Operation(summary = "获取智能体版本列表")
+    @GetMapping("/{agentId}/versions")
+    public List<com.adlin.orin.modules.agent.entity.AgentVersion> getVersions(@PathVariable String agentId) {
+        return agentVersionService.getVersions(agentId);
+    }
+
+    @Operation(summary = "创建新版本")
+    @PostMapping("/{agentId}/versions")
+    public com.adlin.orin.modules.agent.entity.AgentVersion createVersion(
+            @PathVariable String agentId,
+            @RequestBody java.util.Map<String, String> body) {
+        String description = body.getOrDefault("description", "Manual version creation");
+        String createdBy = body.getOrDefault("createdBy", "system");
+        return agentVersionService.createVersion(agentId, description, createdBy);
+    }
+
+    @Operation(summary = "获取指定版本详情")
+    @GetMapping("/{agentId}/versions/{versionNumber}")
+    public com.adlin.orin.modules.agent.entity.AgentVersion getVersion(
+            @PathVariable String agentId,
+            @PathVariable Integer versionNumber) {
+        return agentVersionService.getVersion(agentId, versionNumber);
+    }
+
+    @Operation(summary = "回滚到指定版本")
+    @PostMapping("/{agentId}/versions/{versionId}/rollback")
+    public AgentMetadata rollbackToVersion(
+            @PathVariable String agentId,
+            @PathVariable String versionId) {
+        return agentVersionService.rollbackToVersion(agentId, versionId);
+    }
+
+    @Operation(summary = "对比两个版本")
+    @GetMapping("/{agentId}/versions/compare")
+    public java.util.Map<String, Object> compareVersions(
+            @PathVariable String agentId,
+            @RequestParam Integer version1,
+            @RequestParam Integer version2) {
+        return agentVersionService.compareVersions(agentId, version1, version2);
+    }
+}

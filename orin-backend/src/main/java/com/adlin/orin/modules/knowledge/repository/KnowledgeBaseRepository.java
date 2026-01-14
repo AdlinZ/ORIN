@@ -1,0 +1,12 @@
+package com.adlin.orin.modules.knowledge.repository;
+
+import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBase, String> {
+    List<KnowledgeBase> findBySourceAgentId(String sourceAgentId);
+}

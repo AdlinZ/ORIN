@@ -1,0 +1,126 @@
+package com.adlin.orin.modules.model.service.impl;
+
+import com.adlin.orin.modules.agent.service.DifyIntegrationService;
+import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
+import com.adlin.orin.modules.model.entity.ModelConfig;
+import com.adlin.orin.modules.model.repository.ModelConfigRepository;
+import com.adlin.orin.modules.model.service.ModelConfigService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Optional;
+
+@Slf4j
+@Service
+public class ModelConfigServiceImpl implements ModelConfigService {
+
+    private final ModelConfigRepository modelConfigRepository;
+    private final DifyIntegrationService difyIntegrationService;
+    private final SiliconFlowIntegrationService siliconFlowIntegrationService;
+
+    @Autowired
+    public ModelConfigServiceImpl(ModelConfigRepository modelConfigRepository,
+            DifyIntegrationService difyIntegrationService,
+            SiliconFlowIntegrationService siliconFlowIntegrationService) {
+        this.modelConfigRepository = modelConfigRepository;
+        this.difyIntegrationService = difyIntegrationService;
+        this.siliconFlowIntegrationService = siliconFlowIntegrationService;
+    }
+
+    @Override
+    public ModelConfig getConfig() {
+        Optional<ModelConfig> existingConfig = modelConfigRepository.findFirstByOrderByIdDesc();
+        if (existingConfig.isPresent()) {
+            return existingConfig.get();
+        }
+
+        // Create default configuration if none exists
+        ModelConfig defaultConfig = new ModelConfig();
+        defaultConfig.setBaseUrl("http://localhost:3000");
+        defaultConfig.setUsername("admin");
+        defaultConfig.setApiPath("/api/v1");
+        defaultConfig.setTimeout(30000);
+        defaultConfig.setLlamaFactoryPath("/usr/local/bin/llama-factory");
+        defaultConfig.setLlamaFactoryWebUI("http://localhost:7860");
+        defaultConfig.setModelSavePath("/app/models/checkpoints");
+        defaultConfig.setRemark("核心大模型调度中枢配置");
+        defaultConfig.setDifyEndpoint("http://localhost:3000/v1");
+        defaultConfig.setDifyApiKey("");
+        defaultConfig.setSiliconFlowEndpoint("https://api.siliconflow.cn/v1");
+        defaultConfig.setSiliconFlowApiKey("");
+        defaultConfig.setSiliconFlowModel("Qwen/Qwen2-7B-Instruct");
+
+        return modelConfigRepository.save(defaultConfig);
+    }
+
+    @Override
+    public ModelConfig updateConfig(ModelConfig config) {
+        Optional<ModelConfig> existingConfig = modelConfigRepository.findFirstByOrderByIdDesc();
+
+        if (existingConfig.isPresent()) {
+            ModelConfig existing = existingConfig.get();
+            // Update existing config with new values
+            existing.setBaseUrl(config.getBaseUrl());
+            existing.setUsername(config.getUsername());
+            // Only update password if provided (not empty)
+            if (config.getPassword() != null && !config.getPassword().isEmpty()) {
+                existing.setPassword(config.getPassword());
+            }
+            existing.setApiPath(config.getApiPath());
+            existing.setTimeout(config.getTimeout());
+            existing.setLlamaFactoryPath(config.getLlamaFactoryPath());
+            existing.setLlamaFactoryWebUI(config.getLlamaFactoryWebUI());
+            existing.setModelSavePath(config.getModelSavePath());
+            existing.setRemark(config.getRemark());
+            existing.setDifyEndpoint(config.getDifyEndpoint());
+            // Only update Dify API key if provided
+            if (config.getDifyApiKey() != null) {
+                existing.setDifyApiKey(config.getDifyApiKey());
+            }
+
+            // Update SiliconFlow configuration
+            existing.setSiliconFlowEndpoint(config.getSiliconFlowEndpoint());
+            if (config.getSiliconFlowApiKey() != null) {
+                existing.setSiliconFlowApiKey(config.getSiliconFlowApiKey());
+            }
+            existing.setSiliconFlowModel(config.getSiliconFlowModel());
+
+            return modelConfigRepository.save(existing);
+        } else {
+            // If no config exists, save the new one
+            return modelConfigRepository.save(config);
+        }
+    }
+
+    @Override
+    public boolean testDifyConnection(String endpoint, String apiKey) {
+        try {
+            return difyIntegrationService.testConnection(endpoint, apiKey);
+        } catch (Exception e) {
+            log.error("Error testing Dify connection: ", e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean testSiliconFlowConnection(String endpoint, String apiKey, String model) {
+        try {
+            return testSiliconFlowConnectionInternal(endpoint, apiKey, model);
+        } catch (Exception e) {
+            log.error("Error testing SiliconFlow connection: ", e);
+            return false;
+        }
+    }
+
+    private boolean testSiliconFlowConnectionInternal(String endpoint, String apiKey, String model) {
+        try {
+            siliconFlowIntegrationService.testConnection(endpoint, apiKey, model);
+            return true;
+        } catch (Exception e) {
+            log.error("SiliconFlow connection test internal failed: ", e);
+            return false;
+        }
+    }
+}

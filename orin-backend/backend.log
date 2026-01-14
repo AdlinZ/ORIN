@@ -1,0 +1,735 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -----------------------< com.adlin:orin-backend >-----------------------
+[INFO] Building orin-backend 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.2.1:run (default-cli) > test-compile @ orin-backend >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ orin-backend ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 2 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ orin-backend ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ orin-backend ---
+[INFO] skip non existing resourceDirectory /Users/adlin/Desktop/JAVA/orin-backend/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ orin-backend ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] <<< spring-boot:3.2.1:run (default-cli) < test-compile @ orin-backend <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.2.1:run (default-cli) @ orin-backend ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.1)
+
+2026-01-14T16:37:39.790+08:00  INFO 72565 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Starting OrinApplication using Java 17.0.17 with PID 72565 (/Users/adlin/Desktop/JAVA/orin-backend/target/classes started by adlin in /Users/adlin/Desktop/JAVA/orin-backend)
+2026-01-14T16:37:39.790+08:00 DEBUG 72565 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-01-14T16:37:39.790+08:00  INFO 72565 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : No active profile set, falling back to 1 default profile: "default"
+2026-01-14T16:37:39.805+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-01-14T16:37:39.805+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-01-14T16:37:40.067+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-01-14T16:37:40.067+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-01-14T16:37:40.133+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 64 ms. Found 20 JPA repository interfaces.
+2026-01-14T16:37:40.314+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-01-14T16:37:40.314+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentVersionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertRuleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiEndpointRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiKeyRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.324+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.audit.repository.AuditLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentMetricRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.runtime.repository.AgentLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.LogConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-14T16:37:40.325+08:00  INFO 72565 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 7 ms. Found 0 Redis repository interfaces.
+2026-01-14T16:37:40.638+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-01-14T16:37:40.643+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-01-14T16:37:40.643+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.17]
+2026-01-14T16:37:40.660+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-01-14T16:37:40.661+08:00  INFO 72565 --- [orin-backend] [  restartedMain] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 856 ms
+2026-01-14T16:37:40.718+08:00  INFO 72565 --- [orin-backend] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-01-14T16:37:40.781+08:00  INFO 72565 --- [orin-backend] [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@283552c
+2026-01-14T16:37:40.781+08:00  INFO 72565 --- [orin-backend] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-01-14T16:37:40.784+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.s.b.a.h2.H2ConsoleAutoConfiguration    : H2 console available at '/h2-console'. Database available at 'jdbc:mysql://localhost:3306/orindb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC'
+2026-01-14T16:37:40.831+08:00 DEBUG 72565 --- [orin-backend] [  restartedMain] .JwtAuthenticationFilter$$SpringCGLIB$$0 : Filter 'jwtAuthenticationFilter' configured for use
+2026-01-14T16:37:40.870+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-01-14T16:37:40.890+08:00  INFO 72565 --- [orin-backend] [  restartedMain] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.1.Final
+2026-01-14T16:37:40.900+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-01-14T16:37:40.971+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-01-14T16:37:40.996+08:00  WARN 72565 --- [orin-backend] [  restartedMain] org.hibernate.orm.deprecation            : HHH90000025: MySQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-01-14T16:37:41.337+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-01-14T16:37:41.372+08:00  INFO 72565 --- [orin-backend] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-01-14T16:37:41.599+08:00 ERROR 72565 --- [orin-backend] [  restartedMain] i.n.r.d.DnsServerAddressStreamProviders  : Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
+2026-01-14T16:37:41.768+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+Hibernate: 
+    select
+        count(*) 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+Hibernate: 
+    select
+        count(*) 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+Hibernate: 
+    select
+        count(*) 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+2026-01-14T16:37:42.320+08:00  WARN 72565 --- [orin-backend] [  restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-01-14T16:37:42.339+08:00  WARN 72565 --- [orin-backend] [  restartedMain] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 1fdb1429-a339-42e5-b6fa-ac4f85431b25
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-01-14T16:37:42.519+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 5 endpoint(s) beneath base path '/actuator'
+2026-01-14T16:37:42.566+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@3d210e4d, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@470c9e28, org.springframework.security.web.context.SecurityContextHolderFilter@1b8c0734, org.springframework.security.web.header.HeaderWriterFilter@2f5bf7a, org.springframework.web.filter.CorsFilter@7bd53751, org.springframework.security.web.authentication.logout.LogoutFilter@5271845d, com.adlin.orin.security.JwtAuthenticationFilter$$SpringCGLIB$$0@4242e4c3, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@53d0a457, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@29648116, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@250f5231, org.springframework.security.web.session.SessionManagementFilter@22100286, org.springframework.security.web.access.ExceptionTranslationFilter@35ed467a, org.springframework.security.web.access.intercept.AuthorizationFilter@43835ba]
+2026-01-14T16:37:42.832+08:00  WARN 72565 --- [orin-backend] [  restartedMain] o.s.b.d.a.OptionalLiveReloadServer       : Unable to start LiveReload server
+2026-01-14T16:37:42.856+08:00  INFO 72565 --- [orin-backend] [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
+2026-01-14T16:37:42.864+08:00  INFO 72565 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Started OrinApplication in 3.182 seconds (process running for 3.322)
+2026-01-14T16:37:42.866+08:00  INFO 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Starting agent health check...
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0
+2026-01-14T16:37:42.879+08:00  INFO 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Checking health for 3 agents
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        su1_0.user_id,
+        su1_0.avatar,
+        su1_0.create_time,
+        su1_0.email,
+        su1_0.nickname,
+        su1_0.password,
+        su1_0.status,
+        su1_0.username 
+    from
+        sys_user su1_0 
+    where
+        su1_0.username=?
+Hibernate: 
+    select
+        count(*) 
+    from
+        model_metadata mm1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=? 
+    where
+        agent_id=?
+2026-01-14T16:37:43.473+08:00 DEBUG 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 3812330f is healthy
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=? 
+    where
+        agent_id=?
+2026-01-14T16:37:43.779+08:00 DEBUG 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 47d290f7 is healthy
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=? 
+    where
+        agent_id=?
+2026-01-14T16:37:44.110+08:00 DEBUG 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent e3d59846 is healthy
+2026-01-14T16:37:44.110+08:00  INFO 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed
+2026-01-14T16:37:46.582+08:00  INFO 72565 --- [orin-backend] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-01-14T16:37:46.583+08:00  INFO 72565 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-01-14T16:37:46.586+08:00  INFO 72565 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 3 ms
+2026-01-14T16:37:46.634+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id 
+    from
+        audit_logs al1_0 
+    order by
+        al1_0.created_at desc 
+    limit
+        ?, ?
+Hibernate: 
+    select
+        count(al1_0.id) 
+    from
+        audit_logs al1_0
+2026-01-14T16:37:50.358+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-3] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-01-14T16:37:50.359+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ?
+2026-01-14T16:37:50.388+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-4] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+Hibernate: 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id=? 
+        and al1_0.created_at between ? and ? 
+    order by
+        al1_0.created_at
+2026-01-14T16:37:50.396+08:00  INFO 72565 --- [orin-backend] [nio-8080-exec-4] c.a.o.m.r.s.i.RuntimeManageServiceImpl   : Retrieving logs for agent: 3812330f, found 13 audit logs from 2025-12-15T16:37:50.393273
+2026-01-14T16:37:54.077+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-5] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0
+2026-01-14T16:38:03.751+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-6] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+Hibernate: 
+    select
+        am1_0.agent_id,
+        am1_0.description,
+        am1_0.icon,
+        am1_0.max_tokens,
+        am1_0.mode,
+        am1_0.model_name,
+        am1_0.name,
+        am1_0.provider_type,
+        am1_0.sync_time,
+        am1_0.system_prompt,
+        am1_0.temperature,
+        am1_0.topp 
+    from
+        agent_metadata am1_0
+2026-01-14T16:38:03.781+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-7] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-01-14T16:38:03.781+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-8] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-01-14T16:38:03.781+08:00 DEBUG 72565 --- [orin-backend] [nio-8080-exec-9] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+Hibernate: 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+Hibernate: 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+Hibernate: 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id=? 
+        and al1_0.created_at between ? and ? 
+    order by
+        al1_0.created_at
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id=? 
+        and al1_0.created_at between ? and ? 
+    order by
+        al1_0.created_at
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id=? 
+        and al1_0.created_at between ? and ? 
+    order by
+        al1_0.created_at
+2026-01-14T16:38:03.788+08:00  INFO 72565 --- [orin-backend] [nio-8080-exec-8] c.a.o.m.r.s.i.RuntimeManageServiceImpl   : Retrieving logs for agent: 47d290f7, found 0 audit logs from 2025-12-15T16:38:03.786085
+2026-01-14T16:38:03.789+08:00  INFO 72565 --- [orin-backend] [nio-8080-exec-9] c.a.o.m.r.s.i.RuntimeManageServiceImpl   : Retrieving logs for agent: e3d59846, found 8 audit logs from 2025-12-15T16:38:03.786130
+2026-01-14T16:38:03.789+08:00  INFO 72565 --- [orin-backend] [nio-8080-exec-7] c.a.o.m.r.s.i.RuntimeManageServiceImpl   : Retrieving logs for agent: 3812330f, found 13 audit logs from 2025-12-15T16:38:03.786207
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-01-14T16:38:03.840+08:00  WARN 72565 --- [orin-backend] [nio-8080-exec-8] c.a.o.m.a.s.DifyIntegrationService       : Failed to fetch conversations from Dify: 404 Not Found: "Not Found"
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.agent_id,
+        al1_0.content,
+        al1_0.duration,
+        al1_0.response,
+        al1_0.session_id,
+        al1_0.status,
+        al1_0.timestamp,
+        al1_0.tokens,
+        al1_0.type 
+    from
+        agent_logs al1_0 
+    where
+        al1_0.agent_id=? 
+    order by
+        al1_0.timestamp desc
+2026-01-14T16:42:42.870+08:00  INFO 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Starting agent health check...
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0
+2026-01-14T16:42:42.894+08:00  INFO 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Checking health for 3 agents
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=? 
+    where
+        agent_id=?
+2026-01-14T16:42:43.449+08:00 DEBUG 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 3812330f is healthy
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=? 
+    where
+        agent_id=?
+2026-01-14T16:42:43.787+08:00 DEBUG 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 47d290f7 is healthy
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=? 
+    where
+        agent_id=?
+2026-01-14T16:42:44.084+08:00 DEBUG 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent e3d59846 is healthy
+2026-01-14T16:42:44.085+08:00  INFO 72565 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed

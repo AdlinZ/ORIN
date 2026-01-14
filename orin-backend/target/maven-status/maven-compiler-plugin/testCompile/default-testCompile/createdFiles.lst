@@ -1,0 +1,4 @@
+com/adlin/orin/modules/multimodal/service/MultimodalFileServiceTest.class
+com/adlin/orin/modules/knowledge/service/DocumentManageServiceTest.class
+com/adlin/orin/modules/alert/service/AlertServiceTest.class
+com/adlin/orin/modules/system/service/DynamicLoggerServiceTest.class
