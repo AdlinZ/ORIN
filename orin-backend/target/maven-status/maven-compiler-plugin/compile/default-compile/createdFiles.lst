@@ -138,7 +138,9 @@ com/adlin/orin/modules/agent/controller/AgentManageController.class
 com/adlin/orin/modules/knowledge/entity/KnowledgeBase$KnowledgeBaseBuilder.class
 com/adlin/orin/modules/runtime/service/impl/RuntimeManageServiceImpl.class
 com/adlin/orin/gateway/dto/EmbeddingResponse$EmbeddingData$EmbeddingDataBuilder.class
+com/adlin/orin/modules/model/controller/SiliconFlowProxyController.class
 com/adlin/orin/modules/knowledge/service/DocumentManageService$DocumentStats.class
+com/adlin/orin/modules/agent/controller/AgentManageController$ChatRequest.class
 com/adlin/orin/modules/apikey/service/ApiKeyService.class
 com/adlin/orin/modules/apikey/repository/ApiEndpointRepository.class
 com/adlin/orin/gateway/dto/EmbeddingResponse$Usage.class
@@ -154,6 +156,7 @@ com/adlin/orin/modules/monitor/entity/AgentMetric.class
 com/adlin/orin/modules/knowledge/entity/KnowledgeBase.class
 com/adlin/orin/modules/agent/repository/AgentMetadataRepository.class
 com/adlin/orin/modules/multimodal/entity/MultimodalFile$MultimodalFileBuilder.class
+com/adlin/orin/modules/monitor/task/AgentHealthCheckTask.class
 com/adlin/orin/modules/system/service/RoleService.class
 com/adlin/orin/gateway/service/RouterService$RoutingStrategy.class
 com/adlin/orin/modules/monitor/controller/DataFlowController$TraceView$TraceViewBuilder.class

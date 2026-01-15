@@ -1,8 +1,10 @@
 <template>
+  <TokenExpiryWarning />
   <router-view />
 </template>
 
 <script setup>
+import TokenExpiryWarning from '@/components/TokenExpiryWarning.vue';
 </script>
 
 <style>

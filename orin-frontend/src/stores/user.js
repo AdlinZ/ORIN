@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import Cookies from 'js-cookie'
+import { isTokenExpired, getTokenRemainingTime, formatRemainingTime } from '@/utils/jwt'
 
 /**
  * 用户状态管理Store
@@ -94,7 +95,18 @@ export const useUserStore = defineStore('user', () => {
         const savedRoles = Cookies.get('orin_roles')
 
         if (savedToken) {
+            // 检查 Token 是否过期
+            if (isTokenExpired(savedToken)) {
+                console.warn('Token has expired, clearing user data')
+                logout() // 清除过期的 Token
+                return
+            }
+
             token.value = savedToken
+
+            // 输出 Token 剩余有效时间（用于调试）
+            const remaining = getTokenRemainingTime(savedToken)
+            console.log(`Token is valid, remaining time: ${formatRemainingTime(remaining)}`)
         }
 
         if (savedUserInfo) {
@@ -111,6 +123,33 @@ export const useUserStore = defineStore('user', () => {
             } catch (e) {
                 console.error('Failed to parse roles from cookie:', e)
             }
+        }
+    }
+
+    /**
+     * 检查当前 Token 是否有效
+     */
+    function isTokenValid() {
+        if (!token.value) return false
+        return !isTokenExpired(token.value)
+    }
+
+    /**
+     * 获取 Token 剩余时间信息
+     */
+    function getTokenInfo() {
+        if (!token.value) {
+            return { valid: false, remaining: 0, formatted: '无 Token' }
+        }
+
+        const expired = isTokenExpired(token.value)
+        const remaining = getTokenRemainingTime(token.value)
+        const formatted = formatRemainingTime(remaining)
+
+        return {
+            valid: !expired,
+            remaining,
+            formatted
         }
     }
 
@@ -138,6 +177,8 @@ export const useUserStore = defineStore('user', () => {
         hasRole,
         hasAnyRole,
         hasAllRoles,
-        restoreFromCookies
+        restoreFromCookies,
+        isTokenValid,
+        getTokenInfo
     }
 })

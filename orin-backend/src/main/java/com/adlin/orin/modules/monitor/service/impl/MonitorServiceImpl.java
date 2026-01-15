@@ -14,12 +14,16 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import com.adlin.orin.modules.audit.entity.AuditLog;
 
 @Slf4j
 @Service
@@ -170,5 +174,219 @@ public class MonitorServiceImpl implements MonitorService {
         public Object getDifyApps(String endpointUrl, String apiKey) {
                 return difyIntegrationService.getApplications(endpointUrl, apiKey)
                                 .orElse(null);
+        }
+
+        @Override
+        public Map<String, Long> getTokenStats() {
+                Map<String, Long> stats = new HashMap<>();
+                LocalDateTime now = LocalDateTime.now();
+
+                // 今日
+                LocalDateTime startOfDay = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
+                Long daily = auditLogRepository.sumTotalTokensAfter(startOfDay);
+                stats.put("daily", daily != null ? daily : 0L);
+
+                // 本周
+                LocalDateTime startOfWeek = startOfDay.minusDays(now.getDayOfWeek().getValue() - 1);
+                Long weekly = auditLogRepository.sumTotalTokensAfter(startOfWeek);
+                stats.put("weekly", weekly != null ? weekly : 0L);
+
+                // 本月
+                LocalDateTime startOfMonth = startOfDay.withDayOfMonth(1);
+                Long monthly = auditLogRepository.sumTotalTokensAfter(startOfMonth);
+                stats.put("monthly", monthly != null ? monthly : 0L);
+
+                // 总计
+                Long total = auditLogRepository.sumTotalTokensAll();
+                stats.put("total", total != null ? total : 0L);
+
+                return stats;
+        }
+
+        @Override
+        public List<Map<String, Object>> getTokenTrend(String period) {
+                LocalDateTime end = LocalDateTime.now();
+                LocalDateTime start;
+                String formatPattern;
+                ChronoUnit groupingUnit;
+
+                if ("weekly".equals(period)) {
+                        start = end.minusWeeks(12); // Past 12 weeks
+                        formatPattern = "yyyy-MM-dd"; // 使用周一开始的日期
+                        groupingUnit = ChronoUnit.WEEKS;
+                } else if ("monthly".equals(period)) {
+                        start = end.minusMonths(12); // Past 12 months
+                        formatPattern = "yyyy-MM";
+                        groupingUnit = ChronoUnit.MONTHS;
+                } else {
+                        // Default to daily
+                        start = end.minusDays(30); // Past 30 days
+                        formatPattern = "yyyy-MM-dd";
+                        groupingUnit = ChronoUnit.DAYS;
+                }
+
+                // 获取时间范围内的所有日志
+                List<AuditLog> logs = auditLogRepository.findByCreatedAtBetween(start, end);
+
+                // 在内存中分组统计
+                Map<String, Long> groupedData = new TreeMap<>(); // 使用 TreeMap 保持顺序
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(formatPattern);
+
+                // 初始化所有时间点为 0，防止只有数据的日期才显示
+                LocalDateTime current = start;
+                while (!current.isAfter(end)) {
+                        String key = current.format(formatter);
+                        groupedData.put(key, 0L);
+
+                        if (groupingUnit == ChronoUnit.DAYS)
+                                current = current.plusDays(1);
+                        else if (groupingUnit == ChronoUnit.WEEKS)
+                                current = current.plusWeeks(1);
+                        else if (groupingUnit == ChronoUnit.MONTHS)
+                                current = current.plusMonths(1);
+                }
+
+                // 填充实际数据
+                for (AuditLog log : logs) {
+                        if (log.getTotalTokens() != null) {
+                                String key = log.getCreatedAt().format(formatter);
+                                // 对于 weekly，我们需要找到该周的 key。简单起见，如果 format 是 yyyy-MM-dd，我们不做复杂周对齐，
+                                // 而是依靠 TreeMap 的 containsKey (如果初始化正确)。
+                                // 这里的简单实现：仅仅依靠 formatter。对于 daily 和 monthly 没问题。
+                                // 对于 weekly，formatter pattern 需要能区分周。
+
+                                // 修正：更简单的聚合逻辑
+                                if (groupedData.containsKey(key)) {
+                                        groupedData.put(key, groupedData.get(key) + log.getTotalTokens());
+                                }
+                        }
+                }
+
+                // 转换为 List
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (Map.Entry<String, Long> entry : groupedData.entrySet()) {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("date", entry.getKey());
+                        item.put("tokens", entry.getValue());
+                        result.add(item);
+                }
+
+                return result;
+        }
+
+        @Override
+        public Page<AuditLog> getTokenHistory(int page, int size, Long startDate, Long endDate) {
+                Pageable pageable = PageRequest.of(page, size);
+                LocalDateTime start;
+                LocalDateTime end;
+
+                if (startDate != null && endDate != null) {
+                        start = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneId.systemDefault());
+                        end = LocalDateTime.ofInstant(Instant.ofEpochMilli(endDate), ZoneId.systemDefault());
+                } else {
+                        // 默认最近 30 天
+                        end = LocalDateTime.now();
+                        start = end.minusDays(30);
+                }
+
+                return auditLogRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end, pageable);
+        }
+
+        @Override
+        public Map<String, Object> getLatencyStats() {
+                Map<String, Object> stats = new HashMap<>();
+                LocalDateTime now = LocalDateTime.now();
+
+                // Today Avg
+                LocalDateTime startOfDay = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
+                Double daily = auditLogRepository.avgResponseTimeAfter(startOfDay);
+                stats.put("daily", daily != null ? Math.round(daily) : 0L);
+
+                // Week Avg
+                LocalDateTime startOfWeek = startOfDay.minusDays(now.getDayOfWeek().getValue() - 1);
+                Double weekly = auditLogRepository.avgResponseTimeAfter(startOfWeek);
+                stats.put("weekly", weekly != null ? Math.round(weekly) : 0L);
+
+                // Month Avg
+                LocalDateTime startOfMonth = startOfDay.withDayOfMonth(1);
+                Double monthly = auditLogRepository.avgResponseTimeAfter(startOfMonth);
+                stats.put("monthly", monthly != null ? Math.round(monthly) : 0L);
+
+                // Max
+                Long max = auditLogRepository.maxResponseTimeAll();
+                stats.put("max", max != null ? max : 0L);
+
+                return stats;
+        }
+
+        @Override
+        public List<Map<String, Object>> getLatencyTrend(String period) {
+                LocalDateTime end = LocalDateTime.now();
+                LocalDateTime start;
+                String formatPattern;
+                ChronoUnit groupingUnit;
+
+                if ("weekly".equals(period)) {
+                        start = end.minusWeeks(12);
+                        formatPattern = "yyyy-MM-dd";
+                        groupingUnit = ChronoUnit.WEEKS;
+                } else if ("monthly".equals(period)) {
+                        start = end.minusMonths(12);
+                        formatPattern = "yyyy-MM";
+                        groupingUnit = ChronoUnit.MONTHS;
+                } else {
+                        start = end.minusDays(30);
+                        formatPattern = "yyyy-MM-dd";
+                        groupingUnit = ChronoUnit.DAYS;
+                }
+
+                List<AuditLog> logs = auditLogRepository.findByCreatedAtBetween(start, end);
+
+                Map<String, Long> sumMap = new TreeMap<>();
+                Map<String, Integer> countMap = new HashMap<>();
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(formatPattern);
+
+                // Initialize
+                LocalDateTime current = start;
+                while (!current.isAfter(end)) {
+                        String key = current.format(formatter);
+                        sumMap.put(key, 0L);
+                        countMap.put(key, 0);
+                        if (groupingUnit == ChronoUnit.DAYS)
+                                current = current.plusDays(1);
+                        else if (groupingUnit == ChronoUnit.WEEKS)
+                                current = current.plusWeeks(1);
+                        else if (groupingUnit == ChronoUnit.MONTHS)
+                                current = current.plusMonths(1);
+                }
+
+                // Aggregate
+                for (AuditLog log : logs) {
+                        if (log.getResponseTime() != null) {
+                                String key = log.getCreatedAt().format(formatter);
+                                if (sumMap.containsKey(key)) {
+                                        sumMap.put(key, sumMap.get(key) + log.getResponseTime());
+                                        countMap.put(key, countMap.get(key) + 1);
+                                }
+                        }
+                }
+
+                // Result
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (Map.Entry<String, Long> entry : sumMap.entrySet()) {
+                        String key = entry.getKey();
+                        Integer count = countMap.get(key);
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("date", key);
+                        item.put("latency", count > 0 ? entry.getValue() / count : 0);
+                        result.add(item);
+                }
+
+                return result;
+        }
+
+        @Override
+        public Page<AuditLog> getLatencyHistory(int page, int size, Long startDate, Long endDate) {
+                return getTokenHistory(page, size, startDate, endDate);
         }
 }

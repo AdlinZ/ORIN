@@ -83,11 +83,11 @@ const handleUpload = () => {
   padding: 0;
 }
 .table-card {
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 .stat-card {
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--radius-lg) !important;
   display: flex;
   justify-content: space-between;
   align-items: center;

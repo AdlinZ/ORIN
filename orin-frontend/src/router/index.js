@@ -113,6 +113,18 @@ const routes = [
                 meta: { title: '请求链路追踪' }
             },
             {
+                path: 'monitor/tokens',
+                name: 'TokenStats',
+                component: () => import('../views/Monitor/TokenStats.vue'),
+                meta: { title: 'Token 统计分析', icon: 'Cpu' }
+            },
+            {
+                path: 'monitor/latency',
+                name: 'LatencyStats',
+                component: () => import('../views/Monitor/LatencyStats.vue'),
+                meta: { title: '延迟分析', icon: 'Connection' }
+            },
+            {
                 path: 'model',
                 meta: { title: '模型管理' },
                 children: [

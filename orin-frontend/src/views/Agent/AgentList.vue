@@ -268,10 +268,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { getAgentList } from '@/api/monitor'; 
 import { updateAgent, getAgentAccessProfile, getAgentMetadata, chatAgent, deleteAgent, controlAgent, uploadFile } from '@/api/agent';
+import { useRefreshStore } from '@/stores/refresh';
 import PageHeader from '@/components/PageHeader.vue';
 import { 
   Plus, Edit, Delete, Monitor, Search, ChatLineSquare, 
@@ -281,6 +282,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
+const refreshStore = useRefreshStore();
 const loading = ref(false);
 const rawAgentList = ref([]);
 const searchQuery = ref('');
@@ -406,14 +408,51 @@ const paginatedAgentList = computed(() => {
 });
 
 const fetchData = async () => {
+  // 注册刷新操作并获取 AbortController
+  const controller = refreshStore.registerRefresh('agent-list');
+  
   loading.value = true;
   try {
-    const res = await getAgentList();
-    rawAgentList.value = res.data; 
+    const res = await getAgentList({ signal: controller.signal });
+    if (res && res.data) {
+      rawAgentList.value = res.data;
+      
+      // 显示刷新成功提示
+      ElMessage({
+        message: '智能体列表已刷新',
+        type: 'success',
+        duration: 2000,
+        showClose: true
+      });
+    }
   } catch (error) {
-    console.error(error);
+    // 如果是取消错误，不显示错误消息
+    if (error.name === 'CanceledError' || error.name === 'AbortError') {
+      console.log('智能体列表刷新已取消');
+      return;
+    }
+    
+    console.error('获取智能体列表失败:', error);
+    
+    // 显示具体错误信息
+    let errorMsg = '获取智能体列表失败';
+    if (error.response) {
+      if (error.response.status === 403) {
+        errorMsg = '权限不足，请重新登录';
+      } else if (error.response.status === 401) {
+        errorMsg = '登录已过期，请重新登录';
+      } else if (error.response.data && error.response.data.message) {
+        errorMsg = error.response.data.message;
+      }
+    } else if (error.message) {
+      errorMsg = error.message;
+    }
+    
+    ElMessage.error(errorMsg);
   } finally {
     loading.value = false;
+    // 注销刷新操作
+    refreshStore.unregisterRefresh('agent-list');
   }
 };
 
@@ -646,6 +685,17 @@ const handleDelete = (row) => {
 
 onMounted(() => {
   fetchData();
+  
+  // 监听全局刷新事件（来自Navbar的刷新按钮）
+  window.addEventListener('global-refresh', fetchData);
+});
+
+onUnmounted(() => {
+  // 清理全局刷新事件监听器
+  window.removeEventListener('global-refresh', fetchData);
+  
+  // 注销刷新操作（如果还在进行中）
+  refreshStore.unregisterRefresh('agent-list');
 });
 </script>
 
@@ -689,7 +739,7 @@ onMounted(() => {
   justify-content: flex-end;
 }
 .table-card {
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--radius-lg) !important;
   border: 1px solid var(--neutral-gray-100) !important;
   background: var(--neutral-white) !important;
   box-shadow: var(--shadow-sm) !important;
@@ -704,7 +754,7 @@ onMounted(() => {
 
 .el-table {
   --el-table-header-bg-color: var(--neutral-gray-50);
-  border-radius: var(--border-radius-base);
+  border-radius: var(--radius-base);
 }
 
 .el-table th.el-table__cell {
@@ -716,7 +766,7 @@ onMounted(() => {
 }
 
 .action-button {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--radius-base) !important;
   font-weight: 600;
 }
 

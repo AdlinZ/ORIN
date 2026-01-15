@@ -27,8 +27,15 @@
           <el-icon class="action-icon" @click="toggleFullScreen"><FullScreen /></el-icon>
         </el-tooltip>
 
-        <el-tooltip content="刷新数据" placement="bottom">
-          <el-icon class="action-icon" @click="handleRefresh"><Refresh /></el-icon>
+        <el-tooltip :content="refreshTooltip" placement="bottom">
+          <el-icon 
+            class="action-icon refresh-icon" 
+            :class="{ 'is-refreshing': refreshStore.refreshStatus === 'refreshing' }"
+            @click="handleRefresh"
+          >
+            <Refresh v-if="refreshStore.refreshStatus !== 'refreshing'" />
+            <Close v-else />
+          </el-icon>
         </el-tooltip>
       </div>
 
@@ -75,17 +82,19 @@ import Cookies from 'js-cookie';
 import { ElMessage } from 'element-plus';
 import { useAppStore } from '@/stores/app';
 import { useUserStore } from '@/stores/user';
+import { useRefreshStore } from '@/stores/refresh';
 import { useRoute } from 'vue-router';
 import { useDark, useToggle, useFullscreen } from '@vueuse/core';
 import { 
   Fold, Expand, Refresh, CaretBottom, Moon, 
-  Sunny, FullScreen, User, Setting, SwitchButton 
+  Sunny, FullScreen, User, Setting, SwitchButton, Close
 } from '@element-plus/icons-vue';
 
 const router = useRouter();
 
 const appStore = useAppStore();
 const userStore = useUserStore();
+const refreshStore = useRefreshStore();
 const route = useRoute();
 
 // 用户信息状态
@@ -181,8 +190,30 @@ const toggleDarkMode = () => {
 // Fullscreen logic
 const { isFullscreen, toggle: toggleFullScreen } = useFullscreen();
 
+// 刷新提示文本
+const refreshTooltip = computed(() => {
+  if (refreshStore.refreshStatus === 'refreshing') {
+    return `取消刷新 (${refreshStore.activeRefreshCount} 个任务进行中)`;
+  }
+  return '刷新所有数据';
+});
+
 const handleRefresh = () => {
-  window.location.reload();
+  const result = refreshStore.triggerGlobalRefresh();
+  
+  if (result === 'cancelled') {
+    ElMessage({
+      message: '已取消所有刷新任务',
+      type: 'warning',
+      duration: 2000
+    });
+  } else {
+    ElMessage({
+      message: '正在刷新所有页面数据...',
+      type: 'info',
+      duration: 1500
+    });
+  }
 };
 
 const handleLogout = () => {
@@ -262,6 +293,22 @@ const handleCommand = (command) => {
 .action-icon:hover {
   color: var(--primary-color);
   transform: translateY(-1px);
+}
+
+.refresh-icon.is-refreshing {
+  color: var(--error-color);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
 }
 
 .user-control {

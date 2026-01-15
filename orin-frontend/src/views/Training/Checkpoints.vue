@@ -59,6 +59,6 @@ const checkpointList = ref([
   padding: 0;
 }
 .table-card {
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--radius-lg) !important;
 }
 </style>

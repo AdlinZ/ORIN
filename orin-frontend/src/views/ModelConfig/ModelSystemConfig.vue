@@ -349,7 +349,7 @@ onMounted(() => {
 .header-banner {
   background: linear-gradient(135deg, var(--neutral-white) 0%, var(--neutral-gray-50) 100%);
   border: 1px solid var(--neutral-gray-100);
-  border-radius: var(--border-radius-xl);
+  border-radius: var(--radius-xl);
   padding: 32px;
   margin-bottom: 32px;
   box-shadow: var(--shadow-sm);
@@ -440,7 +440,7 @@ onMounted(() => {
 /* Card Styling */
 .premium-card {
   border: 1px solid var(--neutral-gray-100) !important;
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--radius-lg) !important;
   transition: all 0.3s ease;
 }
 
@@ -476,7 +476,7 @@ onMounted(() => {
   background: #fdfdfd;
   border: 1px dashed var(--neutral-gray-200);
   margin-top: 24px;
-  border-radius: var(--border-radius-lg);
+  border-radius: var(--radius-lg);
 }
 
 .help-content h4 {

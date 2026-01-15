@@ -36,8 +36,13 @@ public class LogConfigController {
 
     @Operation(summary = "手动清理日志")
     @PostMapping("/cleanup")
-    public void manualCleanup(@RequestParam(defaultValue = "0") int days) {
-        auditLogService.manualCleanup(days);
+    public Map<String, Object> manualCleanup(@RequestParam(defaultValue = "0") int days) {
+        int deletedCount = auditLogService.manualCleanup(days);
+        return Map.of(
+                "success", true,
+                "deletedCount", deletedCount,
+                "days", days,
+                "message", String.format("Successfully deleted %d log records older than %d days", deletedCount, days));
     }
 
     @Operation(summary = "更新日志配置")

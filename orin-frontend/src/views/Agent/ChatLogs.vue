@@ -6,7 +6,6 @@
       icon="ChatLineRound"
     >
       <template #actions>
-        <el-button @click="loadChatLogs" type="primary" :icon="Search">刷新列表</el-button>
         <el-button :icon="Download" @click="handleExport">导出报告</el-button>
       </template>
       <template #filters>
@@ -95,8 +94,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
-import { Search, Download, User, Cpu, ChatLineRound } from '@element-plus/icons-vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { Download, User, Cpu, ChatLineRound } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { getAgentList, getAgentLogs } from '@/api/agent';
 import { ElMessage } from 'element-plus';
@@ -255,6 +254,14 @@ watch([filterAgent, searchQuery], () => {
 
 onMounted(() => {
   loadChatLogs();
+  
+  // 监听全局刷新事件
+  window.addEventListener('global-refresh', loadChatLogs);
+});
+
+onUnmounted(() => {
+  // 清理全局刷新事件监听器
+  window.removeEventListener('global-refresh', loadChatLogs);
 });
 </script>
 

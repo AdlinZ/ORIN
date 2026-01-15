@@ -116,19 +116,47 @@
                 <div class="op-info">
                   <div class="op-title">即时存储优化</div>
                   <div class="op-desc">立即删除指定日期前的历史日志，释放数据库碎片。</div>
+                  <div class="op-hint" v-if="stats.oldestLog">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>最早日志: {{ formatSimpleDate(stats.oldestLog) }}</span>
+                  </div>
                 </div>
                 <div class="op-action">
-                  <el-popover placement="top" :width="200" trigger="click">
+                  <el-popover placement="top" :width="280" trigger="click" v-model:visible="cleanupPopoverVisible">
                     <template #reference>
                       <el-button type="danger" plain class="w-100" :icon="Delete">手动清理</el-button>
                     </template>
-                    <div style="text-align: center">
-                       <p style="margin-bottom: 15px">确定清理 {{ config.retentionDays }} 天前的日志吗？</p>
-                       <el-button size="small" @click="handleManualCleanup" type="danger">确认清理</el-button>
+                    <div class="cleanup-popover">
+                       <p class="cleanup-title">清理历史日志</p>
+                       <el-form label-width="80px" size="small">
+                         <el-form-item label="清理范围">
+                           <el-input-number 
+                             v-model="cleanupDays" 
+                             :min="0" 
+                             :max="365" 
+                             controls-position="right"
+                             style="width: 100%"
+                           />
+                           <span class="unit-hint">天前</span>
+                         </el-form-item>
+                         <el-form-item>
+                           <el-alert 
+                             :title="`将删除 ${cleanupDays} 天前的所有日志`" 
+                             type="warning" 
+                             :closable="false"
+                             show-icon
+                           />
+                         </el-form-item>
+                       </el-form>
+                       <div class="cleanup-actions">
+                         <el-button size="small" @click="cleanupPopoverVisible = false">取消</el-button>
+                         <el-button size="small" @click="handleManualCleanup" type="danger">确认清理</el-button>
+                       </div>
                     </div>
                   </el-popover>
                 </div>
               </div>
+
 
               <el-divider />
 
@@ -237,12 +265,14 @@ import PageHeader from '@/components/PageHeader.vue';
 import { 
   Setting, Check, Document, Coin, Calendar, 
   Filter, Timer, Connection, Delete, Refresh,
-  DataLine, RefreshLeft
+  DataLine, RefreshLeft, InfoFilled
 } from '@element-plus/icons-vue';
 
 const activeTab = ref('audit');
 const saving = ref(false);
 const loadingLoggers = ref(false);
+const cleanupPopoverVisible = ref(false);
+const cleanupDays = ref(30);
 
 const config = reactive({
   auditEnabled: true,
@@ -318,10 +348,34 @@ const saveAll = async () => {
 
 const handleManualCleanup = async () => {
   try {
-    await request.post('/system/log-config/cleanup', null, { params: { days: config.retentionDays } });
-    ElMessage.success('手动清理任务已启动');
+    const res = await request.post('/system/log-config/cleanup', null, { params: { days: cleanupDays.value } });
+    const result = res.data;
+    
+    // 关闭弹窗
+    cleanupPopoverVisible.value = false;
+    
+    if (result.success) {
+      if (result.deletedCount === 0) {
+        ElMessage.info({
+          message: `没有找到 ${result.days} 天前的日志记录`,
+          duration: 3000
+        });
+      } else {
+        ElMessage.success({
+          message: `清理完成！已删除 ${result.deletedCount} 条日志记录（${result.days} 天前）`,
+          duration: 5000
+        });
+      }
+    } else {
+      ElMessage.warning('清理任务已启动，但未返回结果');
+    }
+    
+    // 刷新统计数据
     await fetchStats();
-  } catch (e) { ElMessage.error('清理失败'); }
+  } catch (e) { 
+    console.error('清理失败:', e);
+    ElMessage.error('清理失败: ' + (e.response?.data?.message || e.message)); 
+  }
 };
 
 // ========== 动态日志级别管理功能 ==========
@@ -525,5 +579,51 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.op-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--primary-color);
+}
+
+.op-hint .el-icon {
+  font-size: 14px;
+}
+
+.cleanup-popover {
+  padding: 4px 0;
+}
+
+.cleanup-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--neutral-gray-800);
+}
+
+.cleanup-popover .el-form {
+  margin-bottom: 12px;
+}
+
+.cleanup-popover .el-form-item {
+  margin-bottom: 12px;
+}
+
+.unit-hint {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--neutral-gray-600);
+}
+
+.cleanup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--neutral-gray-100);
 }
 </style>

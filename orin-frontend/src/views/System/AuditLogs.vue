@@ -6,7 +6,6 @@
       icon="List"
     >
       <template #actions>
-        <el-button @click="fetchLogs" type="primary" :icon="Refresh">刷新日志</el-button>
         <el-button :icon="Download" @click="handleExport" :disabled="logs.length === 0">导出审计报告</el-button>
       </template>
     </PageHeader>
@@ -88,8 +87,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { Refresh, Download, List } from '@element-plus/icons-vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { Download, List } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
@@ -156,7 +155,17 @@ const handleExport = () => {
   document.body.removeChild(link);
 };
 
-onMounted(fetchLogs);
+onMounted(() => {
+  fetchLogs();
+  
+  // 监听全局刷新事件
+  window.addEventListener('global-refresh', fetchLogs);
+});
+
+onUnmounted(() => {
+  // 清理全局刷新事件监听器
+  window.removeEventListener('global-refresh', fetchLogs);
+});
 </script>
 
 <style scoped>

@@ -143,7 +143,7 @@ const handleLogin = async () => {
   max-width: 90%;
   height: 600px;
   background: var(--neutral-white);
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   box-shadow: 0 40px 100px rgba(0,0,0,0.08);
   display: flex;
   overflow: hidden;
@@ -179,7 +179,7 @@ const handleLogin = async () => {
 .form-title { font-size: 28px; font-weight: 700; color: var(--neutral-black); margin-bottom: 8px; }
 .form-subtitle { color: var(--neutral-gray-4); margin-bottom: 35px; font-size: 14px; }
 
-.login-btn { width: 100%; height: 48px; font-size: 16px; font-weight: 600; border-radius: 10px; margin-top: 20px; }
+.login-btn { width: 100%; height: 48px; font-size: 16px; font-weight: 600; border-radius: var(--radius-lg); margin-top: 20px; }
 .extra-actions { display: flex; justify-content: space-between; align-items: center; margin-top: -10px; margin-bottom: 10px; }
 
 .social-login { margin-top: 40px; text-align: center; }

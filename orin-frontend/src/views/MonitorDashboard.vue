@@ -6,15 +6,20 @@
       icon="Monitor"
     >
       <template #tag-content>
-        <span class="status-dot online"></span> 系统就绪
+        <el-tag 
+          :type="systemStatus.type" 
+          effect="plain"
+          size="small"
+        >
+          <el-icon style="margin-right: 4px;"><component :is="systemStatus.icon" /></el-icon>
+          {{ systemStatus.text }}
+        </el-tag>
       </template>
       <template #actions>
         <el-button :icon="Setting" @click="showCardConfig = true" class="action-button">自定义面板</el-button>
         <el-divider direction="vertical" />
         <span class="text-secondary">自动刷新</span>
         <el-switch v-model="autoRefresh" active-color="var(--primary-color)" @change="handleRefreshToggle" />
-        <el-divider direction="vertical" />
-        <el-button :loading="refreshLoading" :icon="Refresh" @click="fetchData" class="action-button">手动同步</el-button>
       </template>
     </PageHeader>
 
@@ -30,12 +35,18 @@
     <el-skeleton :loading="loading" animated :rows="2" v-if="enabledCards.some(c => c.startsWith('stat-'))">
       <template #template>
         <el-row :gutter="20" class="stats-row">
-           <el-col :span="6" v-for="i in 4" :key="i"><el-skeleton-item variant="rect" style="height: 110px; border-radius: 8px" /></el-col>
+           <el-col :span="6" v-for="i in 4" :key="i"><el-skeleton-item variant="rect" style="height: 110px; border-radius: var(--radius-base)" /></el-col>
         </el-row>
       </template>
       <el-row :gutter="20" class="stats-row">
         <el-col :span="6" v-for="(item, index) in statItems" :key="index" v-show="isCardEnabled(item.cardId)">
-          <el-card shadow="hover" class="stat-card" :body-style="{ padding: '24px' }">
+          <el-card 
+            shadow="hover" 
+            class="stat-card" 
+            :class="{ 'clickable': item.clickable }"
+            :body-style="{ padding: '24px' }"
+            @click="handleCardClick(item)"
+          >
             <div class="stat-card-inner">
               <div class="stat-icon" :style="{ backgroundColor: item.bgColor }">
                 <el-icon :style="{ color: item.color }"><component :is="item.icon" /></el-icon>
@@ -67,8 +78,8 @@
           <el-skeleton :loading="loading" animated :count="3">
             <template #template>
                <div style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                  <el-skeleton-item variant="rect" style="height: 120px; border-radius: 10px" />
-                  <el-skeleton-item variant="rect" style="height: 120px; border-radius: 10px" />
+                  <el-skeleton-item variant="rect" style="height: 120px; border-radius: var(--radius-lg)" />
+                  <el-skeleton-item variant="rect" style="height: 120px; border-radius: var(--radius-lg)" />
                </div>
             </template>
             
@@ -223,18 +234,26 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useDark } from '@vueuse/core';
 const isDark = useDark();
 import { getGlobalSummary, getAgentList, getAgentMetrics } from '../api/monitor';
 import { controlAgent, getAgentLogs } from '../api/runtime'; 
 import { getAgentKnowledge } from '../api/knowledge';
+import { useRefreshStore } from '@/stores/refresh';
 import LineChart from '../components/LineChart.vue';
 import PieChart from '../components/PieChart.vue';
 import PageHeader from '../components/PageHeader.vue';
 import DashboardCardConfig from '../components/DashboardCardConfig.vue';
 import ServerHardwareCard from '../components/ServerHardwareCard.vue';
-import { VideoPlay, VideoPause, Refresh, Monitor, Cpu, Connection, Tickets, ArrowRight, Setting } from '@element-plus/icons-vue';
+import { 
+  VideoPlay, VideoPause, Refresh, Monitor, Cpu, Connection, Tickets, ArrowRight, Setting,
+  CircleCheck, CircleClose, Warning 
+} from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+
+const router = useRouter();
+const refreshStore = useRefreshStore();
 
 const summary = ref({});
 const agents = ref([]);
@@ -250,6 +269,32 @@ const activeTab = ref('monitor');
 const showCardConfig = ref(false);
 const cardConfigRef = ref(null);
 const enabledCards = ref([]);
+const serverConnected = ref(false); // 服务器连接状态
+
+// 系统状态计算
+const systemStatus = computed(() => {
+  if (!serverConnected.value) {
+    return {
+      text: '服务器未连接',
+      type: 'danger',
+      icon: CircleClose
+    };
+  }
+  
+  if (agents.value.length === 0) {
+    return {
+      text: '无活跃智能体',
+      type: 'warning',
+      icon: Warning
+    };
+  }
+  
+  return {
+    text: '系统运行中',
+    type: 'success',
+    icon: CircleCheck
+  };
+});
 
 // Initialize enabled cards from config
 const initCardConfig = () => {
@@ -294,38 +339,130 @@ const statusDistribution = computed(() => [
   { value: agents.value.filter(a => a.status === 'HIGH_LOAD').length, name: '高负载' }
 ]);
 
-const statItems = computed(() => [
-  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--primary-color)', bgColor: 'var(--primary-light-1)' },
-  { cardId: 'stat-requests', label: '今日请求', key: 'daily_requests', defaultValue: '0', icon: Tickets, color: '#05c1af', bgColor: 'rgba(5, 193, 175, 0.1)' },
-  { cardId: 'stat-tokens', label: 'Token 消耗', key: 'total_tokens', defaultValue: '0', icon: Cpu, color: 'var(--warning-color)', bgColor: 'rgba(250, 173, 20, 0.1)' },
-  { cardId: 'stat-latency', label: '平均延迟', key: 'avg_latency', defaultValue: '0ms', icon: Connection, color: 'var(--success-color)', bgColor: 'rgba(76, 175, 80, 0.1)' },
-]);
-
 let pollTimer = null;
 let detailPollTimer = null;
 
+// 显示 Token 统计详情
+const handleCardClick = (item) => {
+  if (!item.clickable) return;
+  
+  if (item.cardId === 'stat-tokens') {
+    router.push('/dashboard/monitor/tokens');
+  } else if (item.cardId === 'stat-latency') {
+    router.push('/dashboard/monitor/latency');
+  }
+};
+
+const statItems = computed(() => [
+  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--primary-color)', bgColor: 'var(--primary-light-1)' },
+  { cardId: 'stat-requests', label: '今日请求', key: 'daily_requests', defaultValue: '0', icon: Tickets, color: '#05c1af', bgColor: 'rgba(5, 193, 175, 0.1)' },
+  { 
+    cardId: 'stat-tokens', 
+    label: 'Token 消耗', 
+    key: 'total_tokens', 
+    defaultValue: '0', 
+    icon: Cpu, 
+    color: 'var(--warning-color)', 
+    bgColor: 'rgba(250, 173, 20, 0.1)',
+    clickable: true
+  },
+  { 
+    cardId: 'stat-latency', 
+    label: '平均延迟', 
+    key: 'avg_latency', 
+    defaultValue: '0ms', 
+    icon: Connection, 
+    color: 'var(--success-color)', 
+    bgColor: 'rgba(76, 175, 80, 0.1)',
+    clickable: true
+  },
+]);
+
+
 const fetchData = async () => {
+  // 注册刷新操作并获取 AbortController
+  const controller = refreshStore.registerRefresh('monitor-dashboard');
+  
   // Only show full loading on first fetch
   if (agents.value.length === 0) loading.value = true;
+  
+  // 记录是否是手动刷新
+  const isManualRefresh = refreshLoading.value === false && !autoRefresh.value;
+  
   refreshLoading.value = true;
   try {
-    const [sumRes, listRes] = await Promise.all([getGlobalSummary(), getAgentList()]);
-    summary.value = sumRes.data;
-    agents.value = listRes.data;
+    const [sumRes, listRes] = await Promise.all([
+      getGlobalSummary({ signal: controller.signal }),
+      getAgentList({ signal: controller.signal })
+    ]);
     
-    // Add Dify connection status
-    summary.value.dify_connection = '已连接';
+    // 检查响应数据
+    if (sumRes && sumRes.data) {
+      summary.value = sumRes.data;
+      // 成功获取数据，说明服务器已连接
+      serverConnected.value = true;
+    }
     
-    // Also pull some global logs for the activity feed from first agent if exists
-    if (agents.value.length > 0) {
-       const logRes = await getAgentLogs(agents.value[0].agentId);
-       logs.value = logRes.data;
+    if (listRes && listRes.data) {
+      agents.value = listRes.data;
+      
+      // Also pull some global logs for the activity feed from first agent if exists
+      if (agents.value.length > 0) {
+        try {
+          const logRes = await getAgentLogs(agents.value[0].agentId, { signal: controller.signal });
+          if (logRes && logRes.data) {
+            logs.value = logRes.data;
+          }
+        } catch (logError) {
+          // 如果是取消错误，不显示警告
+          if (logError.name !== 'CanceledError' && logError.name !== 'AbortError') {
+            console.warn('获取日志失败:', logError);
+          }
+        }
+      }
+    }
+    
+    // 刷新成功提示（手动刷新时显示更明显的提示）
+    if (isManualRefresh) {
+      ElMessage({
+        message: '监控数据已刷新',
+        type: 'success',
+        duration: 2000,
+        showClose: true
+      });
     }
   } catch (e) {
-    console.error(e);
+    // 如果是取消错误，不显示错误消息
+    if (e.name === 'CanceledError' || e.name === 'AbortError') {
+      console.log('监控数据刷新已取消');
+      return;
+    }
+    
+    // 请求失败，设置服务器未连接
+    serverConnected.value = false;
+    
+    console.error('获取监控数据失败:', e);
+    
+    // 显示具体错误信息
+    let errorMsg = '获取监控数据失败';
+    if (e.response) {
+      if (e.response.status === 403) {
+        errorMsg = '权限不足，请重新登录';
+      } else if (e.response.status === 401) {
+        errorMsg = '登录已过期，请重新登录';
+      } else if (e.response.data && e.response.data.message) {
+        errorMsg = e.response.data.message;
+      }
+    } else if (e.message) {
+      errorMsg = e.message;
+    }
+    
+    ElMessage.error(errorMsg);
   } finally {
     loading.value = false;
     refreshLoading.value = false;
+    // 注销刷新操作
+    refreshStore.unregisterRefresh('monitor-dashboard');
   }
 };
 
@@ -389,11 +526,20 @@ onMounted(() => {
   initCardConfig();
   fetchData();
   pollTimer = setInterval(fetchData, 5000);
+  
+  // 监听全局刷新事件（来自Navbar的刷新按钮）
+  window.addEventListener('global-refresh', fetchData);
 });
 
 onUnmounted(() => {
   clearInterval(pollTimer);
   clearInterval(detailPollTimer);
+  
+  // 清理全局刷新事件监听器
+  window.removeEventListener('global-refresh', fetchData);
+  
+  // 注销刷新操作（如果还在进行中）
+  refreshStore.unregisterRefresh('monitor-dashboard');
 });
 </script>
 
@@ -411,7 +557,7 @@ onUnmounted(() => {
 .stats-row { margin-bottom: 24px; }
 
 .stat-card {
-  border-radius: var(--border-radius-xl) !important;
+  border-radius: var(--radius-xl) !important;
   border: 1px solid var(--neutral-gray-100) !important;
   background: var(--neutral-white) !important;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -431,7 +577,7 @@ onUnmounted(() => {
 .stat-icon {
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -462,12 +608,12 @@ onUnmounted(() => {
 }
 
 .action-button {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--radius-base) !important;
   font-weight: 600;
 }
 
 .grid-card {
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--radius-lg) !important;
   border: 1px solid var(--neutral-gray-100) !important;
   background: var(--neutral-white) !important;
   box-shadow: var(--shadow-sm) !important;
@@ -486,7 +632,7 @@ onUnmounted(() => {
   padding: 15px;
   font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
-  border-radius: var(--border-radius-base);
+  border-radius: var(--radius-base);
   height: 400px;
   overflow-y: auto;
   line-height: 1.6;
@@ -545,7 +691,7 @@ onUnmounted(() => {
 .agent-item {
   background: var(--neutral-white);
   border: 1px solid var(--neutral-gray-2);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -577,7 +723,7 @@ onUnmounted(() => {
 .activity-text { font-size: 13px; line-height: 1.4; color: var(--neutral-gray-6); }
 .activity-time { font-size: 11px; color: var(--neutral-gray-4); margin-top: 4px; }
 
-.detail-header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--neutral-bg); padding: 15px; border-radius: 8px; }
+.detail-header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--neutral-bg); padding: 15px; border-radius: var(--radius-base); }
 .status-badge { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
 .status-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
 .status-badge.running { color: #67C23A; }
@@ -585,7 +731,7 @@ onUnmounted(() => {
 .status-badge.stopped { color: #909399; }
 .status-badge.stopped .dot { background: #909399; }
 
-.log-stream { background: #1e1e1e; color: #d4d4d4; padding: 15px; font-family: 'Courier New', Courier, monospace; font-size: 12px; border-radius: 4px; height: 400px; overflow-y: auto; line-height: 1.6; }
+.log-stream { background: #1e1e1e; color: #d4d4d4; padding: 15px; font-family: 'Courier New', Courier, monospace; font-size: 12px; border-radius: var(--radius-xs); height: 400px; overflow-y: auto; line-height: 1.6; }
 .log-entry { margin-bottom: 8px; display: flex; gap: 10px; }
 .log-entry.ERROR { color: #f44747; }
 .log-time { color: #c586c0; flex-shrink: 0; }
@@ -623,4 +769,17 @@ html.dark .log-stream { background: var(--neutral-gray-900); color: var(--neutra
 html.dark .activity-item { border-bottom: 1px solid var(--neutral-gray-600); }
 html.dark .activity-text { color: var(--neutral-gray-300); }
 html.dark .activity-time { color: var(--neutral-gray-500); }
+
+/* Clickable stat card */
+.stat-card.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stat-card.clickable:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.12) !important;
+}
+
+
 </style>

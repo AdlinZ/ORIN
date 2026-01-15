@@ -136,7 +136,7 @@ html.dark .page-title {
 }
 
 .header-description {
-  margin-top: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
   color: var(--neutral-gray-500);
   font-size: var(--text-sm);
   max-width: 600px;

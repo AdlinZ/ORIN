@@ -171,7 +171,7 @@ const stopTrain = () => {
 }
 
 .config-card {
-  border-radius: var(--border-radius-xl) !important;
+  border-radius: var(--radius-xl) !important;
 }
 
 .card-header {

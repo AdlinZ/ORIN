@@ -1,7 +1,9 @@
 package com.adlin.orin.modules.monitor.service;
 
+import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 import java.util.Map;
@@ -35,14 +37,46 @@ public interface MonitorService {
      * 触发模拟数据生成 (开发调试用)
      */
     void triggerMockDataGeneration();
-    
+
     /**
      * 测试与Dify服务的连接
      */
     boolean testDifyConnection(String endpointUrl, String apiKey);
-    
+
     /**
      * 获取Dify应用信息
      */
     Object getDifyApps(String endpointUrl, String apiKey);
+
+    /**
+     * 获取Token消耗统计数据 (今日、本周、本月、总计)
+     */
+    Map<String, Long> getTokenStats();
+
+    /**
+     * 获取Token消耗趋势
+     * 
+     * @param period 周期: daily, weekly, monthly
+     */
+    List<Map<String, Object>> getTokenTrend(String period);
+
+    /**
+     * 获取Token消耗历史记录
+     */
+    Page<AuditLog> getTokenHistory(int page, int size, Long startDate, Long endDate);
+
+    /**
+     * 获取延迟统计数据
+     */
+    Map<String, Object> getLatencyStats();
+
+    /**
+     * 获取延迟趋势
+     */
+    List<Map<String, Object>> getLatencyTrend(String period);
+
+    /**
+     * 获取延迟历史记录
+     */
+    Page<AuditLog> getLatencyHistory(int page, int size, Long startDate, Long endDate);
 }

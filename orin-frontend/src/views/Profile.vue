@@ -306,7 +306,7 @@ const handleSave = () => {
 .header-banner {
   background: linear-gradient(135deg, var(--neutral-white) 0%, var(--neutral-gray-50) 100%);
   border: 1px solid var(--neutral-gray-100);
-  border-radius: var(--border-radius-xl);
+  border-radius: var(--radius-xl);
   padding: 32px;
   margin-bottom: 24px;
   box-shadow: var(--shadow-sm);
@@ -342,7 +342,7 @@ const handleSave = () => {
   width: 56px;
   height: 56px;
   background: linear-gradient(135deg, var(--primary-color), #4f46e5);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -390,7 +390,7 @@ const handleSave = () => {
 /* Premium Card Overrides */
 .premium-card {
   border: 1px solid var(--neutral-gray-100) !important;
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--radius-lg) !important;
   background: var(--neutral-white) !important;
 }
 
@@ -503,7 +503,7 @@ const handleSave = () => {
   width: 100%;
   height: 46px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 /* Tabs Styling */
@@ -570,7 +570,7 @@ const handleSave = () => {
 .item-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -602,7 +602,7 @@ const handleSave = () => {
   margin-top: 24px;
   background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
   border: none;
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   padding: 24px;
   color: white;
 }

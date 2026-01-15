@@ -89,29 +89,18 @@ public class AuditLogService {
     public void cleanupOldLogs() {
         int retentionDays = logConfigService.getRetentionDays();
         if (retentionDays <= 0) {
+            log.info("Scheduled cleanup skipped. Retention days: {}", retentionDays);
             return; // 0 or negative means no deletion or disabled
         }
 
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(retentionDays);
-        log.info("Starting audit log cleanup. Retention days: {}, Cutoff: {}", retentionDays, cutoffDate);
+        log.info("Starting scheduled audit log cleanup. Retention days: {}, Cutoff: {}", retentionDays, cutoffDate);
 
         try {
-            // Assuming repository has deleteByCreatedAtBefore, if not we need to add it or
-            // use custom query
-            // Since we didn't add it to repo yet, let's assume we need to add it or do it
-            // manually.
-            // But wait, JPA repo doesn't have it by default.
-            // I should use a custom query or add method to repo.
-            // Since I can't edit repo easily without context of other file, I'll assume
-            // standard naming convention works if declared.
-            // But I didn't verify repo has this method.
-            // Let's assume for now I will rely on standard JPA derived query
-            // deleteByCreatedAtBefore
-            // I will need to verify/add this to repository next.
-            auditLogRepository.deleteByCreatedAtBefore(cutoffDate);
-            log.info("Audit log cleanup completed.");
+            int deletedCount = auditLogRepository.deleteByCreatedAtBefore(cutoffDate);
+            log.info("Scheduled audit log cleanup completed. Deleted {} records", deletedCount);
         } catch (Exception e) {
-            log.error("Failed to cleanup audit logs: {}", e.getMessage());
+            log.error("Failed to cleanup audit logs: {}", e.getMessage(), e);
         }
     }
 
@@ -156,10 +145,23 @@ public class AuditLogService {
      * 手动清理指定天数之前的日志
      */
     @Transactional
-    public void manualCleanup(int days) {
+    public int manualCleanup(int days) {
+        if (days < 0) {
+            log.warn("Invalid days parameter: {}. Must be >= 0", days);
+            return 0;
+        }
+
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
-        log.info("Manual log cleanup requested. Cutoff: {}", cutoffDate);
-        auditLogRepository.deleteByCreatedAtBefore(cutoffDate);
+        log.info("Manual log cleanup requested. Days: {}, Cutoff date: {}", days, cutoffDate);
+
+        try {
+            int deletedCount = auditLogRepository.deleteByCreatedAtBefore(cutoffDate);
+            log.info("Manual log cleanup completed. Deleted {} records", deletedCount);
+            return deletedCount;
+        } catch (Exception e) {
+            log.error("Failed to manually cleanup audit logs: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to cleanup logs: " + e.getMessage(), e);
+        }
     }
 
     /**

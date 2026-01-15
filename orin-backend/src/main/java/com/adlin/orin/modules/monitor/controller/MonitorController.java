@@ -1,10 +1,12 @@
 package com.adlin.orin.modules.monitor.controller;
 
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
+import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import com.adlin.orin.modules.monitor.service.MonitorService;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.data.domain.Page;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -66,5 +68,49 @@ public class MonitorController {
     @GetMapping("/dify/apps")
     public Object getDifyApps(@RequestParam String endpointUrl, @RequestParam String apiKey) {
         return monitorService.getDifyApps(endpointUrl, apiKey);
+    }
+
+    @Operation(summary = "获取Token消耗统计")
+    @GetMapping("/tokens/stats")
+    public Map<String, Long> getTokenStats() {
+        return monitorService.getTokenStats();
+    }
+
+    @Operation(summary = "获取Token消耗趋势")
+    @GetMapping("/tokens/trend")
+    public List<Map<String, Object>> getTokenTrend(@RequestParam(defaultValue = "daily") String period) {
+        return monitorService.getTokenTrend(period);
+    }
+
+    @Operation(summary = "获取Token消耗历史")
+    @GetMapping("/tokens/history")
+    public Page<AuditLog> getTokenHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long startDate,
+            @RequestParam(required = false) Long endDate) {
+        return monitorService.getTokenHistory(page, size, startDate, endDate);
+    }
+
+    @Operation(summary = "获取延迟统计")
+    @GetMapping("/latency/stats")
+    public Map<String, Object> getLatencyStats() {
+        return monitorService.getLatencyStats();
+    }
+
+    @Operation(summary = "获取延迟趋势")
+    @GetMapping("/latency/trend")
+    public List<Map<String, Object>> getLatencyTrend(@RequestParam(defaultValue = "daily") String period) {
+        return monitorService.getLatencyTrend(period);
+    }
+
+    @Operation(summary = "获取延迟历史")
+    @GetMapping("/latency/history")
+    public Page<AuditLog> getLatencyHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long startDate,
+            @RequestParam(required = false) Long endDate) {
+        return monitorService.getLatencyHistory(page, size, startDate, endDate);
     }
 }

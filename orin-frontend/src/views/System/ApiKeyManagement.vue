@@ -6,7 +6,6 @@
       icon="Key"
     >
       <template #actions>
-        <el-button @click="fetchApiKeys" type="primary" :icon="Refresh">刷新</el-button>
         <el-button @click="showCreateDialog" type="success" :icon="Plus">创建密钥</el-button>
       </template>
     </PageHeader>
@@ -173,8 +172,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { Refresh, Plus, CopyDocument } from '@element-plus/icons-vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { Plus, CopyDocument } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -324,6 +323,14 @@ const getQuotaColor = (percentage) => {
 
 onMounted(() => {
   fetchApiKeys();
+  
+  // 监听全局刷新事件
+  window.addEventListener('global-refresh', fetchApiKeys);
+});
+
+onUnmounted(() => {
+  // 清理全局刷新事件监听器
+  window.removeEventListener('global-refresh', fetchApiKeys);
 });
 </script>
 

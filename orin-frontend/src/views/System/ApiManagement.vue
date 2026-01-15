@@ -6,7 +6,6 @@
       icon="Connection"
     >
       <template #actions>
-        <el-button @click="fetchEndpoints" type="primary" :icon="Refresh">刷新</el-button>
         <el-button @click="initializeDefaults" :icon="MagicStick">初始化默认端点</el-button>
         <el-button @click="showCreateDialog" type="success" :icon="Plus">创建端点</el-button>
       </template>
@@ -203,9 +202,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { 
-  Refresh, Plus, Connection, Checked, DataLine, TrendCharts, MagicStick 
+  Plus, Connection, Checked, DataLine, TrendCharts, MagicStick 
 } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -395,6 +394,17 @@ const getLatencyType = (ms) => {
 onMounted(() => {
   fetchEndpoints();
   fetchStats();
+  
+  // 监听全局刷新事件
+  window.addEventListener('global-refresh', () => {
+    fetchEndpoints();
+    fetchStats();
+  });
+});
+
+onUnmounted(() => {
+  // 清理全局刷新事件监听器
+  window.removeEventListener('global-refresh', fetchEndpoints);
 });
 </script>
 
