@@ -45,7 +45,7 @@
          </div>
       </div>
 
-      <el-table v-loading="loading" :data="filteredList" stripe>
+      <ResizableTable v-loading="loading" :data="filteredList">
         <el-table-column label="模型名称" min-width="220">
           <template #default="{ row }">
             <div class="model-info">
@@ -93,7 +93,7 @@
              <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </ResizableTable>
     </el-card>
 
     <!-- Form Dialog -->
@@ -173,6 +173,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { Plus, Edit, Delete, Search, Box } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
+import ResizableTable from '@/components/ResizableTable.vue';
 import { getModelList, saveModel, deleteModel, toggleModelStatus } from '@/api/model';
 import { ElMessage, ElMessageBox } from 'element-plus';
 

@@ -39,14 +39,43 @@ public class ModelConfigController {
     @Operation(summary = "测试硅基流动连接")
     @PostMapping("/test-silicon-flow-connection")
     public Boolean testSiliconFlowConnection(
-            @RequestParam String endpoint, 
-            @RequestParam String apiKey, 
+            @RequestParam String endpoint,
+            @RequestParam String apiKey,
             @RequestParam(required = false) String model) {
         try {
-            return modelConfigService.testSiliconFlowConnection(endpoint, apiKey, model != null ? model : "Qwen/Qwen2-7B-Instruct");
+            return modelConfigService.testSiliconFlowConnection(endpoint, apiKey,
+                    model != null ? model : "Qwen/Qwen2-7B-Instruct");
         } catch (Exception e) {
             log.error("测试硅基流动连接时发生错误: ", e);
-            return false; // 返回false而不是抛出异常
+            return false;
+        }
+    }
+
+    @Operation(summary = "测试智谱AI连接")
+    @PostMapping("/test-zhipu-connection")
+    public Boolean testZhipuConnection(
+            @RequestParam String endpoint,
+            @RequestParam String apiKey,
+            @RequestParam(required = false) String model) {
+        try {
+            return modelConfigService.testZhipuConnection(endpoint, apiKey, model != null ? model : "glm-4");
+        } catch (Exception e) {
+            log.error("测试智谱AI连接时发生错误: ", e);
+            return false;
+        }
+    }
+
+    @Operation(summary = "测试DeepSeek连接")
+    @PostMapping("/test-deepseek-connection")
+    public Boolean testDeepSeekConnection(
+            @RequestParam String endpoint,
+            @RequestParam String apiKey,
+            @RequestParam(required = false) String model) {
+        try {
+            return modelConfigService.testDeepSeekConnection(endpoint, apiKey, model != null ? model : "deepseek-chat");
+        } catch (Exception e) {
+            log.error("测试DeepSeek连接时发生错误: ", e);
+            return false;
         }
     }
 }

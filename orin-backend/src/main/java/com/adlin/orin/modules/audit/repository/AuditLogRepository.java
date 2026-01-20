@@ -98,4 +98,19 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          */
         @Query("SELECT MAX(a.responseTime) FROM AuditLog a")
         Long maxResponseTimeAll();
+
+        /**
+         * Find recent logs by provider ID (for chat history context)
+         */
+        Page<AuditLog> findByProviderIdOrderByCreatedAtDesc(String providerId, Pageable pageable);
+
+        /**
+         * Find all logs in a conversation by conversation ID (ordered chronologically)
+         */
+        List<AuditLog> findByConversationIdOrderByCreatedAtAsc(String conversationId);
+
+        /**
+         * Find all logs in a conversation by conversation ID (paginated)
+         */
+        Page<AuditLog> findByConversationIdOrderByCreatedAtAsc(String conversationId, Pageable pageable);
 }

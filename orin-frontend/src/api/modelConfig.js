@@ -1,21 +1,48 @@
-import request from '@/utils/request';
+import request from '@/utils/request'
 
-export const getModelConfig = () => {
-    return request.get('/model-config');
-};
+export function getConfig() {
+    return request({
+        url: '/model-config',
+        method: 'get'
+    })
+}
 
-export const updateModelConfig = (data) => {
-    return request.put('/model-config', data);
-};
+export function updateConfig(data) {
+    return request({
+        url: '/model-config',
+        method: 'put',
+        data
+    })
+}
 
-export const testDifyConnection = (endpoint, apiKey) => {
-    return request.post('/model-config/test-dify-connection', null, {
+export function testDifyConnection(endpoint, apiKey) {
+    return request({
+        url: '/model-config/test-dify-connection',
+        method: 'post',
         params: { endpoint, apiKey }
-    });
-};
+    })
+}
 
-export const testSiliconFlowConnection = (endpoint, apiKey, model) => {
-    return request.post('/model-config/test-silicon-flow-connection', null, {
+export function testSiliconFlowConnection(endpoint, apiKey, model) {
+    return request({
+        url: '/model-config/test-silicon-flow-connection',
+        method: 'post',
         params: { endpoint, apiKey, model }
-    });
-};
+    })
+}
+
+export function testZhipuConnection(endpoint, apiKey, model) {
+    return request({
+        url: '/model-config/test-zhipu-connection',
+        method: 'post',
+        params: { endpoint, apiKey, model }
+    })
+}
+
+export function testDeepSeekConnection(endpoint, apiKey, model) {
+    return request({
+        url: '/model-config/test-deepseek-connection',
+        method: 'post',
+        params: { endpoint, apiKey, model }
+    })
+}

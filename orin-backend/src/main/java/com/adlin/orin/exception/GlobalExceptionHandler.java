@@ -37,4 +37,26 @@ public class GlobalExceptionHandler {
         body.put("message", "An unexpected error occurred: " + e.getMessage());
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(WorkflowExecutionException.class)
+    public ResponseEntity<Map<String, Object>> handleWorkflowException(WorkflowExecutionException e) {
+        log.error("Workflow execution failed: ", e);
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        body.put("error", "Workflow Execution Error");
+        body.put("message", e.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(VectorizationException.class)
+    public ResponseEntity<Map<String, Object>> handleVectorizationException(VectorizationException e) {
+        log.error("Vectorization failed: ", e);
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.UNPROCESSABLE_ENTITY.value());
+        body.put("error", "Vectorization Error");
+        body.put("message", e.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
 }

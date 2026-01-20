@@ -40,9 +40,20 @@
       <el-sub-menu index="/dashboard/knowledge">
         <template #title>
           <el-icon><Collection /></el-icon>
-          <span>知识库管理</span>
+          <span>知识管理</span>
         </template>
-        <el-menu-item index="/dashboard/knowledge/list">知识库列表</el-menu-item>
+        <el-menu-item index="/dashboard/knowledge/unstructured">非结构化知识</el-menu-item>
+        <el-menu-item index="/dashboard/knowledge/structured">结构化知识</el-menu-item>
+        <el-menu-item index="/dashboard/knowledge/procedural">程序化知识</el-menu-item>
+        <el-menu-item index="/dashboard/knowledge/meta">元知识与记忆</el-menu-item>
+      </el-sub-menu>
+
+      <el-sub-menu index="/dashboard/workflow">
+        <template #title>
+          <el-icon><Connection /></el-icon>
+          <span>工作流管理</span>
+        </template>
+        <el-menu-item index="/dashboard/workflow/list">工作流列表</el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="/dashboard/model">
@@ -86,7 +97,7 @@ import { useAppStore } from '@/stores/app';
 import { useUserStore } from '@/stores/user';
 import { 
   Monitor, Cpu, Collection, Operation, HomeFilled, 
-  Aim, FolderOpened, LocationInformation, ChatLineSquare, Setting
+  Aim, FolderOpened, LocationInformation, ChatLineSquare, Setting, Connection
 } from '@element-plus/icons-vue';
 
 const appStore = useAppStore();

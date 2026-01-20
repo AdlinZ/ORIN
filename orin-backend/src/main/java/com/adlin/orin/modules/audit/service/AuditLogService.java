@@ -34,6 +34,28 @@ public class AuditLogService {
             String userAgent, String requestParams, String responseContent, Integer statusCode,
             Long responseTime, Integer promptTokens, Integer completionTokens,
             Double estimatedCost, Boolean success, String errorMessage) {
+        logApiCall(userId, apiKeyId, providerId, providerType, endpoint, method, model, ipAddress, userAgent,
+                requestParams, responseContent, statusCode, responseTime, promptTokens, completionTokens, estimatedCost,
+                success, errorMessage, null, null);
+    }
+
+    @Async
+    public void logApiCall(String userId, String apiKeyId, String providerId, String providerType,
+            String endpoint, String method, String model, String ipAddress,
+            String userAgent, String requestParams, String responseContent, Integer statusCode,
+            Long responseTime, Integer promptTokens, Integer completionTokens,
+            Double estimatedCost, Boolean success, String errorMessage, String workflowId) {
+        logApiCall(userId, apiKeyId, providerId, providerType, endpoint, method, model, ipAddress, userAgent,
+                requestParams, responseContent, statusCode, responseTime, promptTokens, completionTokens, estimatedCost,
+                success, errorMessage, workflowId, null);
+    }
+
+    @Async
+    public void logApiCall(String userId, String apiKeyId, String providerId, String providerType,
+            String endpoint, String method, String model, String ipAddress,
+            String userAgent, String requestParams, String responseContent, Integer statusCode,
+            Long responseTime, Integer promptTokens, Integer completionTokens,
+            Double estimatedCost, Boolean success, String errorMessage, String workflowId, String conversationId) {
 
         // Check config
         if (!logConfigService.isAuditEnabled()) {
@@ -41,11 +63,21 @@ public class AuditLogService {
         }
 
         String logLevel = logConfigService.getLogLevel();
-        if ("NONE".equalsIgnoreCase(logLevel)) {
-            return;
+
+        // Dynamic Log Level for Workflow
+        // If workflowId is present and in debug list, force log
+        boolean forceLog = false;
+        if (workflowId != null && logConfigService.isWorkflowDebugEnabled(workflowId)) {
+            forceLog = true;
         }
-        if ("ERROR_ONLY".equalsIgnoreCase(logLevel) && Boolean.TRUE.equals(success)) {
-            return;
+
+        if (!forceLog) {
+            if ("NONE".equalsIgnoreCase(logLevel)) {
+                return;
+            }
+            if ("ERROR_ONLY".equalsIgnoreCase(logLevel) && Boolean.TRUE.equals(success)) {
+                return;
+            }
         }
 
         try {
@@ -70,12 +102,15 @@ public class AuditLogService {
                     .estimatedCost(estimatedCost != null ? estimatedCost : 0.0)
                     .success(success)
                     .errorMessage(errorMessage)
+                    .workflowId(workflowId)
+                    .conversationId(conversationId)
                     .createdAt(LocalDateTime.now())
                     .build();
 
             auditLogRepository.save(auditLog);
-            log.info("Audit log saved successfully: id={}, providerId={}, endpoint={}", auditLog.getId(), providerId,
-                    endpoint);
+            log.info("Audit log saved successfully: id={}, providerId={}, conversationId={}, endpoint={}",
+                    auditLog.getId(),
+                    providerId, conversationId, endpoint);
         } catch (Exception e) {
             log.error("Failed to save audit log: {}", e.getMessage(), e);
         }
@@ -181,5 +216,20 @@ public class AuditLogService {
                 .getContent().stream().findFirst().ifPresent(oldest -> stats.put("oldestLog", oldest.getCreatedAt()));
 
         return stats;
+    }
+
+    /**
+     * Get recent N logs for a specific agent (providerId)
+     */
+    public java.util.List<AuditLog> getRecentAgentLogs(String agentId, int limit) {
+        Page<AuditLog> page = auditLogRepository.findByProviderIdOrderByCreatedAtDesc(
+                agentId,
+                org.springframework.data.domain.PageRequest.of(0, limit));
+
+        // Reverse the list so it's in chronological order (oldest -> newest) for the
+        // context window
+        java.util.List<AuditLog> logs = new java.util.ArrayList<>(page.getContent());
+        java.util.Collections.reverse(logs);
+        return logs;
     }
 }

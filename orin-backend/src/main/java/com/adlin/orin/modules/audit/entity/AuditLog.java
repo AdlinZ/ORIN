@@ -16,7 +16,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_user_id", columnList = "userId"),
         @Index(name = "idx_api_key_id", columnList = "apiKeyId"),
         @Index(name = "idx_created_at", columnList = "createdAt"),
-        @Index(name = "idx_endpoint", columnList = "endpoint")
+        @Index(name = "idx_endpoint", columnList = "endpoint"),
+        @Index(name = "idx_conversation_id", columnList = "conversationId")
 })
 @Data
 @Builder
@@ -43,6 +44,18 @@ public class AuditLog {
      * Provider ID
      */
     private String providerId;
+
+    /**
+     * Conversation ID (for grouping messages in the same conversation session)
+     */
+    @Column(name = "conversation_id", length = 100)
+    private String conversationId;
+
+    /**
+     * Workflow ID (if part of a workflow execution)
+     */
+    @Column(name = "workflow_id")
+    private String workflowId;
 
     /**
      * Provider类型

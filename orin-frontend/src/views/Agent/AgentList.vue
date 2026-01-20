@@ -51,10 +51,9 @@
 
     <!-- Table -->
     <el-card class="table-card">
-      <el-table 
+      <ResizableTable 
         v-loading="loading" 
-        :data="paginatedAgentList" 
-        style="width: 100%"
+        :data="paginatedAgentList"
         row-key="agentId"
         @selection-change="handleSelectionChange"
       >
@@ -126,7 +125,7 @@
              <el-button type="primary" @click="$router.push('/dashboard/agent/onboard')">立刻接入新 Agent</el-button>
            </el-empty>
         </template>
-      </el-table>
+      </ResizableTable>
 
       <!-- Pagination -->
       <div class="pagination-container">
@@ -156,12 +155,31 @@
         </el-form-item>
 
         <el-form-item label="System Prompt">
-           <el-input 
-             v-model="editForm.systemPrompt" 
-             type="textarea" 
-             :rows="3" 
-             placeholder="输入系统提示词 (Instruction)..." 
-           />
+           <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+              <el-select 
+                  v-model="selectedPromptTemplate" 
+                  placeholder="选择 Prompt 模板" 
+                  style="width: 100%;" 
+                  @change="applyPromptTemplate"
+                  clearable
+              >
+                 <el-option
+                    v-for="item in promptTemplates"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.content"
+                 >
+                   <span style="float: left">{{ item.name }}</span>
+                   <span style="float: right; color: #8492a6; font-size: 13px">{{ item.type }}</span>
+                 </el-option>
+              </el-select>
+              <el-input 
+                 v-model="editForm.systemPrompt" 
+                 type="textarea" 
+                 :rows="5" 
+                 placeholder="输入系统提示词 (Instruction)..." 
+               />
+           </div>
         </el-form-item>
         
         <el-row :gutter="20">
@@ -274,12 +292,24 @@ import { getAgentList } from '@/api/monitor';
 import { updateAgent, getAgentAccessProfile, getAgentMetadata, chatAgent, deleteAgent, controlAgent, uploadFile } from '@/api/agent';
 import { useRefreshStore } from '@/stores/refresh';
 import PageHeader from '@/components/PageHeader.vue';
+import ResizableTable from '@/components/ResizableTable.vue';
 import { 
   Plus, Edit, Delete, Monitor, Search, ChatLineSquare, 
   User, Cpu, Position, UserFilled, Setting,
   VideoPlay, VideoPause, ArrowDown, Paperclip, Close
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import request from '@/utils/request';
+
+// Prompt Templates
+const promptTemplates = ref([]);
+const selectedPromptTemplate = ref('');
+
+const applyPromptTemplate = (content) => {
+    if(content) {
+        editForm.value.systemPrompt = content;
+    }
+};
 
 const router = useRouter();
 const refreshStore = useRefreshStore();
@@ -497,6 +527,15 @@ const handleEdit = async (row) => {
     maxTokens: row.maxTokens !== undefined ? row.maxTokens : 512,
     systemPrompt: row.systemPrompt || ''
   };
+  
+  // Load templates
+  selectedPromptTemplate.value = '';
+  try {
+      const res = await request.get(`/knowledge/agents/${row.agentId}/meta/prompts`);
+      promptTemplates.value = res.data || [];
+  } catch (e) {
+      console.warn('Failed to load prompt templates');
+  }
 
   try {
     const [profileRes, metadataRes] = await Promise.all([

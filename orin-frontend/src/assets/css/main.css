@@ -317,19 +317,86 @@ code {
   --el-table-header-bg-color: var(--neutral-gray-50);
   border-radius: var(--radius-base);
   overflow: hidden;
+  font-size: 14px;
 }
 
 .el-table th.el-table__cell {
   font-weight: var(--font-bold);
   color: var(--neutral-gray-900);
-  text-transform: uppercase;
-  font-size: var(--text-xs);
-  letter-spacing: 0.05em;
+  font-size: 13px;
+  letter-spacing: 0.02em;
   background: var(--neutral-gray-50);
+  padding: 14px 0;
+  border-bottom: 2px solid var(--neutral-gray-200);
+  transition: background-color var(--transition-fast);
+  position: relative;
+}
+
+.el-table th.el-table__cell:hover {
+  background: var(--neutral-gray-100);
+}
+
+.el-table td.el-table__cell {
+  padding: 12px 0;
+  color: var(--neutral-gray-700);
+  border-bottom: 1px solid var(--neutral-gray-100);
+  transition: all var(--transition-fast);
 }
 
 .el-table tr:hover {
-  background: var(--neutral-gray-50);
+  background: var(--neutral-gray-50) !important;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td {
+  background-color: #fafafa;
+}
+
+/* Table column resizer visual feedback */
+.column-resizer {
+  transition: background-color var(--transition-fast);
+}
+
+.column-resizer:hover {
+  background: var(--primary-light) !important;
+  opacity: 0.5;
+}
+
+/* Table fixed columns shadow */
+.el-table__fixed,
+.el-table__fixed-right {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+}
+
+/* Table loading overlay */
+.el-table .el-loading-mask {
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+}
+
+/* Table empty state */
+.el-table__empty-block {
+  padding: 40px 0;
+}
+
+/* Table card wrapper */
+.table-card {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--neutral-gray-100) !important;
+  background: var(--neutral-white) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all var(--transition-base);
+}
+
+.table-card:hover {
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Pagination container */
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 16px 16px;
 }
 
 /* Tags */

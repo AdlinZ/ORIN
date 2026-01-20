@@ -69,7 +69,7 @@
 
     <!-- API端点列表 -->
     <el-card shadow="never" class="table-card premium-card">
-      <el-table :data="endpoints" style="width: 100%" v-loading="loading" stripe>
+      <ResizableTable :data="endpoints" v-loading="loading">
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="expand-content">
@@ -146,7 +146,7 @@
             <el-button size="small" type="danger" @click="handleDelete(row)" link>删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </ResizableTable>
     </el-card>
 
     <!-- 创建/编辑对话框 -->
@@ -207,6 +207,7 @@ import {
   Plus, Connection, Checked, DataLine, TrendCharts, MagicStick 
 } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
+import ResizableTable from '@/components/ResizableTable.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   getAllEndpoints,

@@ -60,13 +60,43 @@ const routes = [
             },
             {
                 path: 'knowledge',
-                meta: { title: '知识库管理' },
+                meta: { title: '知识管理' },
+                children: [
+                    {
+                        path: 'unstructured',
+                        name: 'KnowledgeUnstructured',
+                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        meta: { title: '非结构化知识', type: 'DOCUMENT' }
+                    },
+                    {
+                        path: 'structured',
+                        name: 'KnowledgeStructured',
+                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        meta: { title: '结构化知识', type: 'STRUCTURED' }
+                    },
+                    {
+                        path: 'procedural',
+                        name: 'KnowledgeProcedural',
+                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        meta: { title: '程序化知识', type: 'API' }
+                    },
+                    {
+                        path: 'meta',
+                        name: 'KnowledgeMeta',
+                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        meta: { title: '元知识与记忆', type: 'META' }
+                    }
+                ]
+            },
+            {
+                path: 'workflow',
+                meta: { title: '工作流管理' },
                 children: [
                     {
                         path: 'list',
-                        name: 'KnowledgeList',
-                        component: () => import('../views/Knowledge/KnowledgeList.vue'),
-                        meta: { title: '知识库列表' }
+                        name: 'WorkflowList',
+                        component: () => import('../views/Workflow/WorkflowList.vue'),
+                        meta: { title: '工作流列表' }
                     }
                 ]
             },

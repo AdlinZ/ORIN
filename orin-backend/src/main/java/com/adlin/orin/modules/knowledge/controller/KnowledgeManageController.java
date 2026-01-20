@@ -14,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
+import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
+
 @RestController
 @RequestMapping("/api/v1/knowledge")
 @RequiredArgsConstructor
@@ -23,6 +25,7 @@ public class KnowledgeManageController {
 
     private final KnowledgeManageService knowledgeManageService;
     private final DocumentManageService documentManageService;
+    private final MetaKnowledgeService metaKnowledgeService;
 
     @Operation(summary = "获取智能体绑定的知识库")
     @GetMapping("/agents/{agentId}")
@@ -44,6 +47,12 @@ public class KnowledgeManageController {
             throw new IllegalArgumentException("Payload must contain 'enabled' boolean field");
         }
         return knowledgeManageService.updateStatus(kbId, enabled);
+    }
+
+    @Operation(summary = "创建本地/外部知识库")
+    @PostMapping
+    public KnowledgeBase createKnowledgeBase(@RequestBody com.adlin.orin.modules.knowledge.entity.KnowledgeBase kb) {
+        return knowledgeManageService.createKnowledgeBase(kb);
     }
 
     // ==================== 文档管理 API ====================
@@ -108,5 +117,68 @@ public class KnowledgeManageController {
     @GetMapping("/documents/pending")
     public List<KnowledgeDocument> getPendingDocuments() {
         return documentManageService.getPendingDocuments();
+    }
+
+    // ==================== 向量检索调优 API ====================
+
+    @Operation(summary = "获取文档的分片详情")
+    @GetMapping("/documents/{docId}/chunks")
+    public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.DocumentChunk> getDocumentChunks(
+            @PathVariable String docId) {
+        // Assume default collection or look up based on doc's KB
+        // For simplicity, using a default name or derived from logic
+        String collectionName = "default";
+        return knowledgeManageService.getDocumentChunks(collectionName, docId);
+    }
+
+    @Operation(summary = "检索效果测试")
+    @PostMapping("/retrieve/test")
+    public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.SearchResult> testRetrieval(
+            @RequestBody Map<String, Object> payload) {
+        String query = (String) payload.get("query");
+        String kbId = (String) payload.get("kbId");
+        Integer topK = (Integer) payload.getOrDefault("topK", 3);
+
+        return knowledgeManageService.testRetrieval(kbId, query, topK);
+    }
+
+    @Operation(summary = "获取元知识 (Prompt模板)")
+    @GetMapping("/agents/{agentId}/meta/prompts")
+    public List<Map<String, Object>> getAgentPrompts(@PathVariable String agentId) {
+        return metaKnowledgeService.getPromptTemplates(agentId);
+    }
+
+    @Operation(summary = "创建 Prompt 模板")
+    @PostMapping("/agents/{agentId}/meta/prompts")
+    public com.adlin.orin.modules.knowledge.entity.meta.PromptTemplate createPromptTemplate(
+            @PathVariable String agentId,
+            @RequestBody com.adlin.orin.modules.knowledge.entity.meta.PromptTemplate template) {
+        template.setAgentId(agentId);
+        return metaKnowledgeService.savePromptTemplate(template);
+    }
+
+    @Operation(summary = "获取记忆知识")
+    @GetMapping("/agents/{agentId}/meta/memory")
+    public List<Map<String, Object>> getAgentMemory(@PathVariable String agentId) {
+        return metaKnowledgeService.getAgentMemory(agentId);
+    }
+
+    private final com.adlin.orin.modules.agent.service.AgentManageService agentManageService;
+
+    @Operation(summary = "从对话中提取记忆")
+    @PostMapping("/agents/{agentId}/meta/extract_memory")
+    public Map<String, String> extractMemory(
+            @PathVariable String agentId,
+            @RequestBody Map<String, String> payload) {
+        String content = payload.get("content");
+        if (content == null || content.isEmpty()) {
+            throw new IllegalArgumentException("Content cannot be empty");
+        }
+
+        var metadata = agentManageService.getAgentMetadata(agentId);
+        String modelName = metadata.getModelName();
+
+        metaKnowledgeService.extractMemory(agentId, content, modelName);
+        return Map.of("status", "success", "message", "Memory extracted successfully");
     }
 }

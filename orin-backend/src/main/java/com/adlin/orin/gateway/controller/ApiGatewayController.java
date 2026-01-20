@@ -236,6 +236,28 @@ public class ApiGatewayController {
         }
     }
 
+    private final com.adlin.orin.modules.workflow.service.WorkflowExecutor workflowExecutor;
+
+    /**
+     * 执行工作流
+     * POST /v1/workflows/{workflowId}/execute
+     */
+    @Operation(summary = "执行工作流", description = "执行指定的工作流编排")
+    @PostMapping("/workflows/{workflowId}/execute")
+    public Mono<ResponseEntity<Map<String, Object>>> executeWorkflow(
+            @PathVariable String workflowId,
+            @RequestBody Map<String, Object> input) {
+
+        return Mono.fromCallable(() -> workflowExecutor.executeWorkflow(workflowId, input))
+                .map(result -> ResponseEntity.ok(result))
+                .onErrorResume(e -> {
+                    log.error("Workflow execution error: {}", e.getMessage(), e);
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("error", e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                });
+    }
+
     /**
      * 创建错误响应
      */

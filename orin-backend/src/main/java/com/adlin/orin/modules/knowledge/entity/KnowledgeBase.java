@@ -25,6 +25,11 @@ public class KnowledgeBase {
     @Column(name = "name")
     private String name;
 
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "type")
+    @Builder.Default
+    private KnowledgeType type = KnowledgeType.DOCUMENT;
+
     @Column(name = "description")
     private String description;
 
@@ -45,4 +50,11 @@ public class KnowledgeBase {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    /**
+     * Store type-specific configuration (JSON).
+     * e.g., SQL Connection String, Graph DB Endpoint, or custom Tool definitions.
+     */
+    @Column(name = "configuration", columnDefinition = "TEXT")
+    private String configuration;
 }

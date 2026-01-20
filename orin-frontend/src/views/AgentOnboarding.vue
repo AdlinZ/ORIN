@@ -248,6 +248,172 @@
           </el-form-item>
         </template>
 
+        <template v-else-if="form.providerType === 'zhipu'">
+          <el-form-item label="智谱 API Endpoint" prop="endpointUrl">
+            <el-input 
+              v-model.trim="form.endpointUrl" 
+              placeholder="https://open.bigmodel.cn/api/paas/v4"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Link /></el-icon>
+              </template>
+            </el-input>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                智谱AI官方API地址，支持GLM系列模型
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="API Key" prop="apiKey">
+            <el-input 
+              v-model.trim="form.apiKey" 
+              type="password" 
+              show-password 
+              placeholder="YOUR_API_KEY"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Key /></el-icon>
+              </template>
+            </el-input>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                在智谱AI开放平台获取您的API Key
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="模型名称" prop="model">
+            <el-input 
+              v-model.trim="form.model" 
+              placeholder="glm-4"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Service /></el-icon>
+              </template>
+            </el-input>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                可选模型：glm-4、glm-4-flash、glm-4-air、glm-3-turbo 等
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="智能体名称（可选）" prop="agentName">
+            <el-input 
+              v-model.trim="form.agentName" 
+              placeholder="自定义智能体名称，留空则自动生成"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><User /></el-icon>
+              </template>
+            </el-input>
+          </el-form-item>
+
+          <el-form-item label="Temperature（可选）">
+            <el-slider 
+              v-model="form.temperature" 
+              :min="0" 
+              :max="2" 
+              :step="0.1" 
+              show-input
+              :marks="{ 0: '精确', 1: '平衡', 2: '创造' }"
+            />
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                控制输出的随机性，范围 0-2，默认 1.0
+              </span>
+            </template>
+          </el-form-item>
+        </template>
+
+        <template v-else-if="form.providerType === 'deepseek'">
+          <el-form-item label="DeepSeek API Endpoint" prop="endpointUrl">
+            <el-input 
+              v-model.trim="form.endpointUrl" 
+              placeholder="https://api.deepseek.com"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Link /></el-icon>
+              </template>
+            </el-input>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                DeepSeek官方API地址，也支持任何兼容OpenAI接口的代理地址
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="API Key" prop="apiKey">
+            <el-input 
+              v-model.trim="form.apiKey" 
+              type="password" 
+              show-password 
+              placeholder="YOUR_API_KEY"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Key /></el-icon>
+              </template>
+            </el-input>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                在DeepSeek开放平台获取您的API Key
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="模型名称" prop="model">
+            <el-input 
+              v-model.trim="form.model" 
+              placeholder="deepseek-chat"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Service /></el-icon>
+              </template>
+            </el-input>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                可选模型：deepseek-chat (V3.2)、deepseek-reasoner (R1)
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="智能体名称（可选）" prop="agentName">
+            <el-input 
+              v-model.trim="form.agentName" 
+              placeholder="自定义智能体名称，留空则自动生成"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><User /></el-icon>
+              </template>
+            </el-input>
+          </el-form-item>
+
+          <el-form-item label="Temperature（可选）">
+            <el-slider 
+              v-model="form.temperature" 
+              :min="0" 
+              :max="2" 
+              :step="0.1" 
+              show-input
+              :marks="{ 0: '精确', 1: '平衡', 2: '创造' }"
+            />
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                控制输出的随机性，范围 0-2，默认 1.0
+              </span>
+            </template>
+          </el-form-item>
+        </template>
+
         <!-- 操作按钮 -->
         <div v-if="form.providerType" class="action-bar" style="margin-top: var(--spacing-2xl); gap: var(--spacing-md);">
           <el-button 
@@ -294,14 +460,16 @@
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { onboardAgent } from '../api/agent';
-import { testDifyConnection, testSiliconFlowConnection } from '../api/modelConfig';
+import { testDifyConnection, testSiliconFlowConnection, testZhipuConnection, testDeepSeekConnection } from '../api/modelConfig';
 import { onboardSiliconFlowAgent } from '../api/siliconFlowAgent';
+import { onboardZhipuAgent } from '../api/zhipuAgent';
+import { onboardDeepSeekAgent } from '../api/deepseekAgent';
 import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage } from 'element-plus';
 import { 
   Link, Key, InfoFilled, Collection, Service, OfficeBuilding,
   Connection, Check, RefreshLeft, Platform, Cpu, Document, Monitor, CirclePlus,
-  Opportunity, Star, Sunrise, Moon
+  Opportunity, Star, Sunrise, Moon, User
 } from '@element-plus/icons-vue';
 
 const router = useRouter();
@@ -381,7 +549,9 @@ const form = reactive({
   apiKey: '',
   datasetApiKey: '',
   model: '',
-  organizationId: ''
+  organizationId: '',
+  agentName: '',
+  temperature: 1.0
 });
 
 // 验证规则
@@ -398,7 +568,7 @@ const rules = computed(() => {
     ]
   };
 
-  if (form.providerType === 'siliconflow' || form.providerType === 'local') {
+  if (['siliconflow', 'local', 'zhipu', 'deepseek'].includes(form.providerType)) {
     baseRules.model = [
       { required: true, message: '请输入模型名称', trigger: 'blur' }
     ];
@@ -487,6 +657,8 @@ const handleProviderChange = () => {
   form.datasetApiKey = '';
   form.model = '';
   form.organizationId = '';
+  form.agentName = '';
+  form.temperature = 1.0;
   
   // 设置默认值
   if (form.providerType === 'dify') {
@@ -554,6 +726,30 @@ const testConnection = async () => {
           } else {
             ElMessage.error('硅基流动连接测试失败，请检查配置信息');
           }
+        } else if (form.providerType === 'zhipu') {
+          const response = await testZhipuConnection(
+            form.endpointUrl, 
+            form.apiKey, 
+            form.model
+          );
+          if (response) {
+            ElMessage.success('智谱AI 连接测试成功！');
+            connectionTested.value = true;
+          } else {
+            ElMessage.error('智谱AI 连接测试失败，请检查配置信息');
+          }
+        } else if (form.providerType === 'deepseek') {
+          const response = await testDeepSeekConnection(
+            form.endpointUrl, 
+            form.apiKey, 
+            form.model
+          );
+          if (response) {
+            ElMessage.success('DeepSeek 连接测试成功！');
+            connectionTested.value = true;
+          } else {
+            ElMessage.error('DeepSeek 连接测试失败，请检查配置信息');
+          }
         } else {
           ElMessage.warning('该Provider暂不支持连接测试');
         }
@@ -589,6 +785,33 @@ const onSubmit = async () => {
             form.agentName
           );
           ElMessage.success('硅基流动 Agent 接入成功！');
+        } else if (form.providerType === 'zhipu') {
+          await onboardZhipuAgent(
+            form.endpointUrl, 
+            form.apiKey, 
+            form.model,
+            form.agentName,
+            form.temperature
+          );
+          ElMessage.success('智谱AI Agent 接入成功！');
+        } else if (form.providerType === 'zhipu') {
+          await onboardZhipuAgent(
+            form.endpointUrl, 
+            form.apiKey, 
+            form.model,
+            form.agentName,
+            form.temperature
+          );
+          ElMessage.success('智谱AI Agent 接入成功！');
+        } else if (form.providerType === 'deepseek') {
+          await onboardDeepSeekAgent({
+            endpointUrl: form.endpointUrl, 
+            apiKey: form.apiKey, 
+            model: form.model,
+            agentName: form.agentName,
+            temperature: form.temperature
+          });
+          ElMessage.success('DeepSeek Agent 接入成功！');
         } else {
           ElMessage.warning('该Provider接入功能正在开发中');
           loading.value = false;

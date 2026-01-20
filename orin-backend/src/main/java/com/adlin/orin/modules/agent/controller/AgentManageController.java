@@ -22,14 +22,20 @@ public class AgentManageController {
 
     private final AgentManageService agentManageService;
     private final SiliconFlowAgentManageService siliconFlowAgentManageService;
+    private final com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService;
+    private final com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService;
     private final com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService;
 
     @Autowired
     public AgentManageController(AgentManageService agentManageService,
             SiliconFlowAgentManageService siliconFlowAgentManageService,
+            com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
+            com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService,
             com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService) {
         this.agentManageService = agentManageService;
         this.siliconFlowAgentManageService = siliconFlowAgentManageService;
+        this.zhipuAgentManageService = zhipuAgentManageService;
+        this.deepSeekAgentManageService = deepSeekAgentManageService;
         this.agentVersionService = agentVersionService;
     }
 
@@ -48,6 +54,28 @@ public class AgentManageController {
             @RequestParam String model,
             @RequestParam(required = false) String name) {
         return siliconFlowAgentManageService.onboardAgent(endpointUrl, apiKey, model, name);
+    }
+
+    @Operation(summary = "接入智谱AI智能体")
+    @PostMapping("/onboard-zhipu")
+    public AgentMetadata onboardZhipuAgent(
+            @RequestParam String endpointUrl,
+            @RequestParam String apiKey,
+            @RequestParam String model,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false, defaultValue = "1.0") Double temperature) {
+        return zhipuAgentManageService.onboardAgent(endpointUrl, apiKey, model, name, temperature);
+    }
+
+    @Operation(summary = "接入DeepSeek智能体")
+    @PostMapping("/onboard-deepseek")
+    public AgentMetadata onboardDeepSeekAgent(
+            @RequestParam String endpointUrl,
+            @RequestParam String apiKey,
+            @RequestParam String model,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false, defaultValue = "1.0") Double temperature) {
+        return deepSeekAgentManageService.onboardAgent(endpointUrl, apiKey, model, name, temperature);
     }
 
     @Operation(summary = "更新智能体配置")

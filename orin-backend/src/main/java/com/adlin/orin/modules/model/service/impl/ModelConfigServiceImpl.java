@@ -2,13 +2,14 @@ package com.adlin.orin.modules.model.service.impl;
 
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
+import com.adlin.orin.modules.model.service.ZhipuIntegrationService;
+import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
 import com.adlin.orin.modules.model.repository.ModelConfigRepository;
 import com.adlin.orin.modules.model.service.ModelConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
 
@@ -19,14 +20,20 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     private final ModelConfigRepository modelConfigRepository;
     private final DifyIntegrationService difyIntegrationService;
     private final SiliconFlowIntegrationService siliconFlowIntegrationService;
+    private final ZhipuIntegrationService zhipuIntegrationService;
+    private final DeepSeekIntegrationService deepSeekIntegrationService;
 
     @Autowired
     public ModelConfigServiceImpl(ModelConfigRepository modelConfigRepository,
             DifyIntegrationService difyIntegrationService,
-            SiliconFlowIntegrationService siliconFlowIntegrationService) {
+            SiliconFlowIntegrationService siliconFlowIntegrationService,
+            ZhipuIntegrationService zhipuIntegrationService,
+            DeepSeekIntegrationService deepSeekIntegrationService) {
         this.modelConfigRepository = modelConfigRepository;
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
+        this.zhipuIntegrationService = zhipuIntegrationService;
+        this.deepSeekIntegrationService = deepSeekIntegrationService;
     }
 
     @Override
@@ -114,9 +121,29 @@ public class ModelConfigServiceImpl implements ModelConfigService {
         }
     }
 
+    @Override
+    public boolean testZhipuConnection(String endpoint, String apiKey, String model) {
+        try {
+            return zhipuIntegrationService.testConnection(endpoint, apiKey, model);
+        } catch (Exception e) {
+            log.error("Error testing Zhipu AI connection: ", e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean testDeepSeekConnection(String endpoint, String apiKey, String model) {
+        try {
+            return deepSeekIntegrationService.testConnection(endpoint, apiKey, model);
+        } catch (Exception e) {
+            log.error("Error testing DeepSeek connection: ", e);
+            return false;
+        }
+    }
+
     private boolean testSiliconFlowConnectionInternal(String endpoint, String apiKey, String model) {
         try {
-            siliconFlowIntegrationService.testConnection(endpoint, apiKey, model);
+            siliconFlowIntegrationService.testConnection(endpoint, apiKey);
             return true;
         } catch (Exception e) {
             log.error("SiliconFlow connection test internal failed: ", e);

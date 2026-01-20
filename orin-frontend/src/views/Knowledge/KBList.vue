@@ -44,12 +44,10 @@
     </el-row>
 
     <el-card shadow="never" class="table-card">
-      <el-table 
+      <ResizableTable 
         v-loading="loading" 
-        :data="tableData" 
-        style="width: 100%"
+        :data="tableData"
         @selection-change="handleSelectionChange"
-        :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
       >
         <el-table-column type="selection" width="55" />
         <el-table-column type="index" label="序号" width="80" align="center" />
@@ -85,7 +83,7 @@
              <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </ResizableTable>
 
       <div class="pagination-container">
         <el-pagination
@@ -142,7 +140,7 @@
         <el-button class="add-doc-btn" @click="handleDocUpload" :disabled="!selectedFileName">新增</el-button>
       </div>
 
-      <el-table :data="mockDocs" class="doc-table" v-loading="docLoading">
+      <ResizableTable :data="mockDocs" table-class="doc-table" v-loading="docLoading">
         <el-table-column prop="filename" label="名称" min-width="280" />
         <el-table-column prop="charCount" label="字符数" width="120" align="center" />
         <el-table-column prop="createTime" label="创建时间" width="200" align="center" />
@@ -152,7 +150,7 @@
             <el-button link type="danger" class="operation-link red" @click="() => ElMessage.warning('模拟删除文档')">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </ResizableTable>
     </el-dialog>
 
     <!-- Recall Test Dialog (Redesigned) -->
@@ -246,6 +244,7 @@
 import { ref, onMounted, reactive, computed } from 'vue';
 import { Plus, Delete, Download, Reading, Document, Edit, Search } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
+import ResizableTable from '@/components/ResizableTable.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getKnowledgeList, addKnowledge, deleteKnowledge } from '@/api/knowledge';
 

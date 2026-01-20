@@ -19,7 +19,7 @@ public class SiliconFlowIntegrationService {
     /**
      * 测试硅基流动API连接性
      */
-    public void testConnection(String endpointUrl, String apiKey, String model) {
+    public boolean testConnection(String endpointUrl, String apiKey) {
         String trimmedUrl = endpointUrl != null ? endpointUrl.trim() : "";
         String trimmedKey = apiKey != null ? apiKey.trim() : "";
 
@@ -36,7 +36,7 @@ public class SiliconFlowIntegrationService {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", model != null ? model : "Qwen/Qwen2-7B-Instruct");
+            requestBody.put("model", "Qwen/Qwen2-7B-Instruct"); // 使用默认模型
             requestBody.put("messages", Arrays.asList(
                     Map.of("role", "user", "content", "Hello, are you available?")));
             requestBody.put("temperature", 0.7);
@@ -51,19 +51,22 @@ public class SiliconFlowIntegrationService {
                     Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new RuntimeException("API error: " + response.getStatusCode());
+                log.error("API error: {}", response.getStatusCode());
+                return false;
             }
+            return true;
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             log.error("SiliconFlow auth error: {}", e.getResponseBodyAsString());
             String errorMsg = e.getStatusCode() + " " + e.getStatusText();
             if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
                 errorMsg = "API Key 认证失败 (401)，请检查秘钥是否正确且具有该模型权限";
             }
-            throw new RuntimeException("硅基流动连接失败: " + errorMsg, e);
+            log.error("硅基流动连接失败: {}", errorMsg);
+            return false;
         } catch (Exception e) {
             log.error("SiliconFlow connection test failed: ", e);
-            throw new RuntimeException("服务连接异常: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()),
-                    e);
+            log.error("服务连接异常: {}", (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
+            return false;
         }
     }
 

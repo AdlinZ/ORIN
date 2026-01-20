@@ -11,7 +11,7 @@
     </PageHeader>
 
     <el-card shadow="never" class="table-card premium-card">
-      <el-table :data="logs" style="width: 100%" v-loading="loading" stripe>
+      <ResizableTable :data="logs" v-loading="loading">
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="expand-content">
@@ -69,7 +69,7 @@
             </el-tag>
           </template>
         </el-table-column>
-      </el-table>
+      </ResizableTable>
 
       <div class="pagination-container">
         <el-pagination
@@ -90,6 +90,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Download, List } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
+import ResizableTable from '@/components/ResizableTable.vue';
 import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
 

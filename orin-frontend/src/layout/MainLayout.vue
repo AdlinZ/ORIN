@@ -32,13 +32,14 @@ const appStore = useAppStore();
 
 .main-container {
   min-height: 100vh;
-  width: 100%;
-  transition: margin-left 0.3s;
+  width: calc(100% - var(--sidebar-width));
+  transition: width 0.3s, margin-left 0.3s;
   margin-left: var(--sidebar-width);
   background-color: var(--neutral-bg);
 }
 
 .main-container.collapsed {
+  width: calc(100% - var(--sidebar-width-collapsed));
   margin-left: var(--sidebar-width-collapsed);
 }
 

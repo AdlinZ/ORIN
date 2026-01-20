@@ -25,6 +25,7 @@ public class KnowledgeManageService {
         private final AgentAccessProfileRepository profileRepository;
         private final KnowledgeBaseRepository knowledgeBaseRepository;
         private final RestTemplate restTemplate;
+        private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorStoreProvider;
 
         /**
          * 获取指定 Agent 绑定的知识库 (优先从本地库取，如果为空则尝试同步)
@@ -123,6 +124,19 @@ public class KnowledgeManageService {
                 return syncedKbs;
         }
 
+        public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.DocumentChunk> getDocumentChunks(
+                        String collectionName, String docId) {
+                return vectorStoreProvider.getDocumentChunks(collectionName, docId);
+        }
+
+        public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.SearchResult> testRetrieval(
+                        String kbId, String query, Integer topK) {
+                // Logic to determine collection name from kbId
+                String collectionName = "kb_" + kbId; // Example convention
+                // For mock/simple implementation we might just use "default" or pass kbId
+                return vectorStoreProvider.search(collectionName, query, topK);
+        }
+
         /**
          * 更新知识库状态
          */
@@ -134,6 +148,21 @@ public class KnowledgeManageService {
                 // In a real scenario, we might also want to call Dify API to disable it there
                 // if supported
 
+                return knowledgeBaseRepository.save(kb);
+        }
+
+        /**
+         * 创建知识库
+         */
+        public KnowledgeBase createKnowledgeBase(KnowledgeBase kb) {
+                if (kb.getId() == null) {
+                        kb.setId(UUID.randomUUID().toString());
+                }
+                if (kb.getCreatedAt() == null) {
+                        kb.setCreatedAt(LocalDateTime.now());
+                }
+                kb.setSyncTime(LocalDateTime.now());
+                // Default values if needed
                 return knowledgeBaseRepository.save(kb);
         }
 }

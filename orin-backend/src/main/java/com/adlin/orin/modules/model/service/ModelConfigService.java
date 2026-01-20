@@ -10,4 +10,8 @@ public interface ModelConfigService {
     boolean testDifyConnection(String endpoint, String apiKey);
 
     boolean testSiliconFlowConnection(String endpoint, String apiKey, String model);
+
+    boolean testZhipuConnection(String endpoint, String apiKey, String model);
+
+    boolean testDeepSeekConnection(String endpoint, String apiKey, String model);
 }

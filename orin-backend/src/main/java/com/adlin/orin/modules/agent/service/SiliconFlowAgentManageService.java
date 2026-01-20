@@ -45,7 +45,7 @@ public class SiliconFlowAgentManageService implements AgentManageService {
 
     public AgentMetadata onboardAgent(String endpointUrl, String apiKey, String model, String agentName) {
         String modelName = model != null && !model.isEmpty() ? model : "Qwen/Qwen2-7B-Instruct";
-        siliconFlowIntegrationService.testConnection(endpointUrl, apiKey, modelName);
+        siliconFlowIntegrationService.testConnection(endpointUrl, apiKey);
 
         String generatedId = UUID.randomUUID().toString().substring(0, 8);
 

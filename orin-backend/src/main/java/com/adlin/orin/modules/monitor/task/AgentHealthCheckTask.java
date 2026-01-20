@@ -6,6 +6,8 @@ import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
+import com.adlin.orin.modules.model.service.ZhipuIntegrationService;
+import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -24,16 +26,22 @@ public class AgentHealthCheckTask {
     private final AgentAccessProfileRepository accessProfileRepository;
     private final DifyIntegrationService difyIntegrationService;
     private final SiliconFlowIntegrationService siliconFlowIntegrationService;
+    private final ZhipuIntegrationService zhipuIntegrationService;
+    private final DeepSeekIntegrationService deepSeekIntegrationService;
 
     public AgentHealthCheckTask(
             AgentHealthStatusRepository healthStatusRepository,
             AgentAccessProfileRepository accessProfileRepository,
             DifyIntegrationService difyIntegrationService,
-            SiliconFlowIntegrationService siliconFlowIntegrationService) {
+            SiliconFlowIntegrationService siliconFlowIntegrationService,
+            ZhipuIntegrationService zhipuIntegrationService,
+            DeepSeekIntegrationService deepSeekIntegrationService) {
         this.healthStatusRepository = healthStatusRepository;
         this.accessProfileRepository = accessProfileRepository;
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
+        this.zhipuIntegrationService = zhipuIntegrationService;
+        this.deepSeekIntegrationService = deepSeekIntegrationService;
     }
 
     /**
@@ -81,6 +89,10 @@ public class AgentHealthCheckTask {
                 isHealthy = checkSiliconFlowAgent(profile);
             } else if ("Dify".equalsIgnoreCase(providerType)) {
                 isHealthy = checkDifyAgent(profile);
+            } else if ("Zhipu".equalsIgnoreCase(providerType)) {
+                isHealthy = checkZhipuAgent(profile, agent);
+            } else if ("DeepSeek".equalsIgnoreCase(providerType)) {
+                isHealthy = checkDeepSeekAgent(profile, agent);
             } else {
                 log.warn("Unknown provider type for agent {}: {}", agentId, providerType);
                 updateAgentStatus(agent, AgentHealthStatus.Status.UNKNOWN, 50);
@@ -110,9 +122,7 @@ public class AgentHealthCheckTask {
             // 使用 testConnection 方法检查连接
             siliconFlowIntegrationService.testConnection(
                     profile.getEndpointUrl(),
-                    profile.getApiKey(),
-                    "Qwen/Qwen2-7B-Instruct" // 使用默认模型测试
-            );
+                    profile.getApiKey());
             return true;
         } catch (Exception e) {
             log.debug("SiliconFlow agent {} connection test failed: {}",
@@ -132,6 +142,46 @@ public class AgentHealthCheckTask {
                     profile.getApiKey());
         } catch (Exception e) {
             log.debug("Dify agent {} connection test failed: {}",
+                    profile.getAgentId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 检查智谱AI智能体健康状况
+     */
+    private boolean checkZhipuAgent(AgentAccessProfile profile, AgentHealthStatus agent) {
+        try {
+            // 使用 testConnection 方法检查连接
+            // 需要传入模型名称，从 agent 的 modelName 获取
+            String modelName = agent.getModelName() != null ? agent.getModelName() : "glm-4";
+            zhipuIntegrationService.testConnection(
+                    profile.getEndpointUrl(),
+                    profile.getApiKey(),
+                    modelName);
+            return true;
+        } catch (Exception e) {
+            log.debug("Zhipu AI agent {} connection test failed: {}",
+                    profile.getAgentId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 检查DeepSeek智能体健康状况
+     */
+    private boolean checkDeepSeekAgent(AgentAccessProfile profile, AgentHealthStatus agent) {
+        try {
+            // 使用 testConnection 方法检查连接
+            // 需要传入模型名称，从 agent 的 modelName 获取
+            String modelName = agent.getModelName() != null ? agent.getModelName() : "deepseek-chat";
+            deepSeekIntegrationService.testConnection(
+                    profile.getEndpointUrl(),
+                    profile.getApiKey(),
+                    modelName);
+            return true;
+        } catch (Exception e) {
+            log.debug("DeepSeek agent {} connection test failed: {}",
                     profile.getAgentId(), e.getMessage());
             return false;
         }

@@ -51,6 +51,7 @@ public class DocumentManageService {
         // 生成唯一文件名
         String fileExtension = getFileExtension(originalFilename);
         String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
+        String mimeType = file.getContentType();
 
         // 创建存储目录
         Path uploadPath = Paths.get(UPLOAD_DIR, knowledgeBaseId);
@@ -63,6 +64,23 @@ public class DocumentManageService {
         // 读取内容预览
         String contentPreview = extractContentPreview(file, fileExtension);
 
+        // Metadata processing
+        String metadata = "{}";
+        if (mimeType != null && mimeType.startsWith("image/")) {
+            try {
+                java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(filePath.toFile());
+                if (image != null) {
+                    metadata = String.format("{\"width\": %d, \"height\": %d, \"format\": \"%s\"}",
+                            image.getWidth(), image.getHeight(), fileExtension);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to process image metadata", e);
+            }
+        } else if (mimeType != null && mimeType.startsWith("audio/")) {
+            // Placeholder for audio metadata (e.g. duration)
+            metadata = "{\"type\": \"audio\", \"format\": \"" + fileExtension + "\"}";
+        }
+
         // 创建文档记录
         KnowledgeDocument document = KnowledgeDocument.builder()
                 .knowledgeBaseId(knowledgeBaseId)
@@ -74,6 +92,7 @@ public class DocumentManageService {
                 .vectorStatus("PENDING")
                 .charCount(contentPreview != null ? contentPreview.length() : 0)
                 .uploadedBy(uploadedBy != null ? uploadedBy : "system")
+                .metadata(metadata)
                 .build();
 
         document = documentRepository.save(document);

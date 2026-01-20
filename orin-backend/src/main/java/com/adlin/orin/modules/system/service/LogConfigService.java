@@ -64,6 +64,40 @@ public class LogConfigService {
         return getConfigValue(KEY_LOG_LEVEL, "ALL");
     }
 
+    public boolean isWorkflowDebugEnabled(String workflowId) {
+        String debugIds = getConfigValue("log.debug.workflows", "");
+        if (debugIds.isEmpty())
+            return false;
+        return java.util.Arrays.asList(debugIds.split(",")).contains(workflowId);
+    }
+
+    public void setWorkflowDebug(String workflowId, boolean enabled) {
+        String current = getConfigValue("log.debug.workflows", "");
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        if (!current.isEmpty()) {
+            ids.addAll(java.util.Arrays.asList(current.split(",")));
+        }
+
+        if (enabled) {
+            ids.add(workflowId);
+        } else {
+            ids.remove(workflowId);
+        }
+
+        String newValue = String.join(",", ids);
+        // Create if not exists or update
+        if (!logConfigRepository.existsById("log.debug.workflows")) {
+            logConfigRepository.save(LogConfig.builder()
+                    .configKey("log.debug.workflows")
+                    .configValue(newValue)
+                    .description("Debug enabled workflow IDs")
+                    .updatedAt(LocalDateTime.now())
+                    .build());
+        } else {
+            updateConfig("log.debug.workflows", newValue);
+        }
+    }
+
     private String getConfigValue(String key, String defaultValue) {
         return logConfigRepository.findById(key)
                 .map(LogConfig::getConfigValue)
