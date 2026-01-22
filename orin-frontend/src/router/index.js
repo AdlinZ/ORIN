@@ -219,42 +219,6 @@ const routes = [
                         meta: { title: '检查点' }
                     }
                 ]
-            },
-            {
-                path: 'skill',
-                meta: { title: '技能中心' },
-                children: [
-                    {
-                        path: 'management',
-                        name: 'SkillManagement',
-                        component: () => import('../views/Skill/SkillManagement.vue'),
-                        meta: { title: '技能管理' }
-                    }
-                ]
-            },
-            {
-                path: 'workflow',
-                meta: { title: '工作流' },
-                children: [
-                    {
-                        path: 'management',
-                        name: 'WorkflowManagement',
-                        component: () => import('../views/Workflow/WorkflowManagement.vue'),
-                        meta: { title: '工作流管理' }
-                    },
-                    {
-                        path: 'list',
-                        name: 'WorkflowList',
-                        component: () => import('../views/Workflow/WorkflowList.vue'),
-                        meta: { title: '工作流列表' }
-                    }
-                ]
-            },
-            {
-                path: 'trace/:traceId',
-                name: 'TraceViewer',
-                component: () => import('../views/Trace/TraceViewer.vue'),
-                meta: { title: '调用链路追踪' }
             }
         ]
     },

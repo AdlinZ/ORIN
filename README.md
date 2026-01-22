@@ -81,9 +81,48 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 - Java 17+
 - Node.js 16+
 - npm 或 yarn
-- MySQL (可选)
+- MySQL 8.0+
+- Redis 6.0+ (可选，用于缓存和限流)
+
+### 环境配置
+
+> [!IMPORTANT]
+> 首次运行前，必须配置环境变量。详细说明请参考 [环境配置指南](ENVIRONMENT_SETUP.md)
+
+#### 1. 配置后端环境变量
+
+```bash
+cd orin-backend
+
+# 复制环境变量示例文件
+cp .env.example .env
+
+# 编辑.env文件，填入实际配置
+# 至少需要配置：DB_PASSWORD 和 JWT_SECRET
+nano .env
+```
+
+**生成安全的JWT密钥**:
+```bash
+# 生成256位随机密钥
+openssl rand -base64 64
+```
+
+#### 2. 创建数据库
+
+```bash
+mysql -u root -p
+```
+
+```sql
+CREATE DATABASE orindb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'orin_user'@'localhost' IDENTIFIED BY 'your_secure_password';
+GRANT ALL PRIVILEGES ON orindb.* TO 'orin_user'@'localhost';
+FLUSH PRIVILEGES;
+```
 
 ### 一键启动
+
 项目根目录下提供了 `manage.sh` 脚本用于一键管理：
 
 ```bash
@@ -103,29 +142,61 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 ### 手动启动
 
 #### 后端启动
+
+**开发环境**:
 ```bash
 cd orin-backend
 mvn spring-boot:run
 ```
-或打包后运行：
+
+**生产环境**:
 ```bash
+cd orin-backend
 mvn clean package -DskipTests
-java -jar target/orin-backend-0.0.1-SNAPSHOT.jar
+
+# 设置环境变量
+export SPRING_PROFILES_ACTIVE=prod
+export DB_PASSWORD=your_secure_password
+export JWT_SECRET=your_jwt_secret
+
+java -jar target/orin-backend-1.0.0-SNAPSHOT.jar
 ```
 
 #### 前端启动
+
 ```bash
 cd orin-frontend
 npm install
 npm run dev
 ```
 
+访问 http://localhost:5173 查看前端界面。
+
 ## 部署说明
 
+> [!CAUTION]
+> 生产环境部署前，请务必阅读 [环境配置指南](ENVIRONMENT_SETUP.md) 和以下安全注意事项。
+
+### 安全检查清单
+
+部署到生产环境前，请确认：
+
+- [ ] 已修改默认的JWT密钥（使用强随机密钥）
+- [ ] 数据库密码足够强壮（至少16位）
+- [ ] 已设置 `SPRING_PROFILES_ACTIVE=prod`
+- [ ] JPA配置为 `validate` 模式（不会修改数据库结构）
+- [ ] 日志级别设置为 `WARN` 或 `INFO`
+- [ ] `.env` 文件未提交到版本控制
+- [ ] 已配置防火墙规则
+- [ ] 已启用HTTPS
+
 ### 前端生产环境部署
+
 ```bash
+cd orin-frontend
 npm run build
 ```
+
 将生成的 `dist/` 目录内容部署到 Web 服务器（如 Nginx）
 
 Nginx 示例配置：
