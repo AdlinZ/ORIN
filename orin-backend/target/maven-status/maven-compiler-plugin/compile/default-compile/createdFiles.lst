@@ -1,3 +1,4 @@
+com/adlin/orin/modules/knowledge/service/MilvusVectorService.class
 com/adlin/orin/security/ApiKeyAuthInterceptor.class
 com/adlin/orin/config/RestConfig.class
 com/adlin/orin/modules/agent/dto/AgentOnboardRequest.class
@@ -92,7 +93,6 @@ com/adlin/orin/exception/WorkflowExecutionException.class
 com/adlin/orin/modules/knowledge/service/DocumentManageService$DocumentStats.class
 com/adlin/orin/modules/agent/controller/AgentManageController$ChatRequest.class
 com/adlin/orin/modules/apikey/service/ApiKeyService.class
-com/adlin/orin/modules/skill/service/impl/SkillServiceImpl.class
 com/adlin/orin/gateway/dto/EmbeddingResponse$Usage.class
 com/adlin/orin/modules/agent/entity/AgentMetadata.class
 com/adlin/orin/modules/monitor/entity/AgentHealthStatus$Status.class
@@ -111,13 +111,13 @@ com/adlin/orin/modules/system/controller/LoginController.class
 com/adlin/orin/modules/workflow/entity/WorkflowStepEntity.class
 com/adlin/orin/modules/skill/entity/SkillEntity$SkillType.class
 com/adlin/orin/modules/workflow/entity/WorkflowNode$WorkflowNodeBuilder.class
-com/adlin/orin/modules/skill/service/impl/SkillServiceImpl$1.class
 com/adlin/orin/modules/apikey/controller/ApiKeyController$ApiKeyResponse.class
 com/adlin/orin/modules/agent/entity/AgentMetadata$AgentMetadataBuilder.class
 com/adlin/orin/modules/model/repository/ModelConfigRepository.class
 com/adlin/orin/modules/agent/entity/AgentAccessProfile.class
 com/adlin/orin/modules/runtime/repository/AgentLogRepository.class
 com/adlin/orin/modules/workflow/repository/WorkflowNodeRepository.class
+com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced$1.class
 com/adlin/orin/modules/knowledge/repository/meta/AgentMemoryRepository.class
 com/adlin/orin/modules/model/ModelDataInitializer.class
 com/adlin/orin/modules/apikey/controller/ApiKeyController$ApiKeyResponse$ApiKeyResponseBuilder.class
@@ -161,6 +161,7 @@ com/adlin/orin/modules/workflow/dto/WorkflowResponse.class
 com/adlin/orin/modules/monitor/service/impl/RealMetricsCollector.class
 com/adlin/orin/modules/knowledge/entity/KnowledgeDocument$KnowledgeDocumentBuilder.class
 com/adlin/orin/modules/workflow/entity/WorkflowInstanceEntity$WorkflowInstanceEntityBuilder.class
+com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced.class
 com/adlin/orin/modules/runtime/entity/AgentLog.class
 com/adlin/orin/modules/skill/entity/SkillEntity$SkillStatus.class
 com/adlin/orin/modules/workflow/entity/WorkflowEntity$WorkflowEntityBuilder.class
@@ -177,6 +178,7 @@ com/adlin/orin/modules/workflow/entity/WorkflowEntity.class
 com/adlin/orin/modules/knowledge/component/VectorStoreProvider.class
 com/adlin/orin/modules/system/repository/SysRoleRepository.class
 com/adlin/orin/modules/workflow/entity/WorkflowDefinition$WorkflowDefinitionBuilder.class
+com/adlin/orin/modules/skill/controller/McpController.class
 com/adlin/orin/modules/knowledge/entity/meta/PromptTemplate$PromptTemplateBuilder.class
 com/adlin/orin/modules/apikey/controller/ApiEndpointController.class
 com/adlin/orin/modules/model/service/ModelConfigService.class

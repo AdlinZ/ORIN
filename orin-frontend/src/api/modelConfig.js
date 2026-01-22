@@ -1,13 +1,13 @@
 import request from '@/utils/request'
 
-export function getConfig() {
+export function getModelConfig() {
     return request({
         url: '/model-config',
         method: 'get'
     })
 }
 
-export function updateConfig(data) {
+export function updateModelConfig(data) {
     return request({
         url: '/model-config',
         method: 'put',

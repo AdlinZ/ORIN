@@ -54,6 +54,8 @@
           <span>工作流管理</span>
         </template>
         <el-menu-item index="/dashboard/workflow/list">工作流列表</el-menu-item>
+        <el-menu-item index="/dashboard/skill/management">技能管理</el-menu-item>
+        <el-menu-item index="/dashboard/workflow/management">工作流编排</el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="/dashboard/model">
