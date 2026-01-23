@@ -33,6 +33,11 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 │   ├── public/             # 静态资源
 │   ├── package.json
 │   └── vite.config.js
+├── docs/                   # 项目文档
+│   ├── dev/                # 开发指南
+│   ├── archive/            # 历史记录
+│   └── 部署指南.md          # 详细部署文档
+├── scripts/                # 辅助脚本
 └── manage.sh               # 一键管理脚本
 ```
 
@@ -233,6 +238,20 @@ java -jar target/orin-backend-0.0.1-SNAPSHOT.jar
 - `/api/models` - 模型管理
 - `/api/monitor` - 监控接口
 - `/api/runtime` - 运行时接口
+
+## 文档资源
+
+- **部署与运维**:
+  - [部署指南](docs/部署指南.md)
+  - [环境配置指南](ENVIRONMENT_SETUP.md)
+  - [使用指南](docs/使用指南.md)
+
+- **开发指南**:
+  - [API文档](docs/API文档.md)
+  - [DTO转换指南](docs/dev/DTO_MAPPING_GUIDE.md)
+  - [异常处理指南](docs/dev/EXCEPTION_HANDLING_GUIDE.md)
+  - [Flyway迁移指南](docs/dev/FLYWAY_MIGRATION_GUIDE.md)
+
 
 ## 开发规范
 

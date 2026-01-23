@@ -1,5 +1,10 @@
 package com.adlin.orin.modules.agent.service.impl;
 
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
@@ -24,6 +29,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @Primary
+@CacheConfig(cacheNames = "agents")
 public class AgentManageServiceImpl implements AgentManageService {
 
     private final DifyIntegrationService difyIntegrationService;
@@ -57,6 +63,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
+    @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardAgent(String endpointUrl, String apiKey, String datasetApiKey) {
         log.info("Attempting to onboard agent from: {}", endpointUrl);
 
@@ -157,6 +164,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
+    @Cacheable(value = "agent_list")
     public java.util.List<AgentMetadata> getAllAgents() {
         return metadataRepository.findAll();
     }
@@ -169,6 +177,10 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(key = "#agentId"),
+            @CacheEvict(value = "agent_list", allEntries = true)
+    })
     public java.util.Optional<AgentMetadata> updateAgentConfig(String agentId, AgentMetadata config) {
         return metadataRepository.findById(agentId).map(existing -> {
             boolean metadataChanged = false;
@@ -231,6 +243,10 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(key = "#agentId"),
+            @CacheEvict(value = "agent_list", allEntries = true)
+    })
     public void deleteAgent(String agentId) {
         accessProfileRepository.deleteById(agentId);
         metadataRepository.deleteById(agentId);
@@ -245,6 +261,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
+    @Cacheable(key = "#agentId")
     public AgentMetadata getAgentMetadata(String agentId) {
         return metadataRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));

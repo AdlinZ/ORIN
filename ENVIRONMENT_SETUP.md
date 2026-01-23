@@ -292,7 +292,7 @@ curl http://localhost:8080/actuator/env
 
 - [部署指南](docs/部署指南.md)
 - [API文档](docs/API文档.md)
-- [数据库迁移](DATABASE.md)
+
 
 ---
 

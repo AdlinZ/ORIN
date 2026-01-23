@@ -3,6 +3,7 @@ package com.adlin.orin.modules.system.service;
 import com.adlin.orin.modules.system.entity.SysUser;
 import com.adlin.orin.modules.system.repository.SysUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -19,6 +20,9 @@ public class AuthService {
     @Autowired
     private UserRoleService userRoleService;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     /**
      * 用户登录
      * 
@@ -28,8 +32,8 @@ public class AuthService {
         Optional<SysUser> userOpt = userRepository.findByUsername(username);
         if (userOpt.isPresent()) {
             SysUser user = userOpt.get();
-            // In a real app, use BCryptPasswordEncoder
-            if (user.getPassword().equals(password)) {
+
+            if (passwordEncoder.matches(password, user.getPassword())) {
                 // 加载用户角色
                 List<String> roles = userRoleService.getUserRoleCodes(user.getUserId());
 
