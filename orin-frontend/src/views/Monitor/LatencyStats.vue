@@ -120,7 +120,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue';
-import { Download, Refresh, Timer, TrendCharts, WarnTriangle, Connection } from '@element-plus/icons-vue';
+import { Download, Refresh, Timer, TrendCharts, WarningFilled, Connection } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { getLatencyStats, getLatencyHistory, getLatencyTrend } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
@@ -177,7 +177,7 @@ const statsCards = computed(() => [
     label: '历史峰值延迟', 
     key: 'max', 
     unit: 'ms',
-    icon: WarnTriangle, 
+    icon: WarningFilled, 
     color: '#F56C6C', 
     bgColor: 'rgba(245, 108, 108, 0.1)' 
   }

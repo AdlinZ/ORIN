@@ -17,10 +17,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 数据库配置
-DB_NAME="orindb"
-DB_USER="root"
-DB_PASS="password"
+# 数据库配置 (支持环境变量覆盖)
+# 使用方法: export ORIN_DB_PASS="your_password" 后再运行脚本
+DB_NAME="${ORIN_DB_NAME:-orindb}"
+DB_USER="${ORIN_DB_USER:-root}"
+DB_PASS="${ORIN_DB_PASS:-password}"
 
 function check_mysql() {
     echo -e "${BLUE}检查 MySQL 连接...${NC}"

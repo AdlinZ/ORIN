@@ -7,6 +7,9 @@
 [INFO] 
 [INFO] >>> spring-boot:3.2.1:run (default-cli) > test-compile @ orin-backend >>>
 [INFO] 
+[INFO] --- jacoco:0.8.11:prepare-agent (default) @ orin-backend ---
+[INFO] argLine set to -javaagent:/Users/adlin/.m2/repository/org/jacoco/org.jacoco.agent/0.8.11/org.jacoco.agent-0.8.11-runtime.jar=destfile=/Users/adlin/Documents/Code/ORIN/orin-backend/target/jacoco.exec
+[INFO] 
 [INFO] --- resources:3.3.1:resources (default-resources) @ orin-backend ---
 [INFO] Copying 3 resources from src/main/resources to target/classes
 [INFO] Copying 6 resources from src/main/resources to target/classes
@@ -15,7 +18,7 @@
 [INFO] Nothing to compile - all classes are up to date
 [INFO] 
 [INFO] --- resources:3.3.1:testResources (default-testResources) @ orin-backend ---
-[INFO] skip non existing resourceDirectory /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/resources
+[INFO] Copying 1 resource from src/test/resources to target/test-classes
 [INFO] 
 [INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ orin-backend ---
 [INFO] Nothing to compile - all classes are up to date
@@ -34,504 +37,107 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.1)
 
-2026-01-23T10:36:33.904+08:00  INFO 57548 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Starting OrinApplication using Java 17.0.17 with PID 57548 (/Users/adlin/Documents/Code/ORIN/orin-backend/target/classes started by adlin in /Users/adlin/Documents/Code/ORIN/orin-backend)
-2026-01-23T10:36:33.905+08:00 DEBUG 57548 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Running with Spring Boot v3.2.1, Spring v6.1.2
-2026-01-23T10:36:33.905+08:00  INFO 57548 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : The following 1 profile is active: "dev"
-2026-01-23T10:36:33.923+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
-2026-01-23T10:36:33.923+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
-2026-01-23T10:36:34.325+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-01-23T10:36:34.325+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-01-23T10:36:34.421+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 92 ms. Found 29 JPA repository interfaces.
-2026-01-23T10:36:34.624+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-01-23T10:36:34.624+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-01-23T10:36:34.636+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.636+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentVersionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertRuleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiEndpointRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiKeyRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.audit.repository.AuditLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.AgentMemoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.PromptTemplateRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.637+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentMetricRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.runtime.repository.AgentLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.skill.repository.SkillRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.LogConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.trace.repository.WorkflowTraceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.638+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowDefinitionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.639+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.639+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowNodeRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.639+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.639+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowStepRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-01-23T10:36:34.639+08:00  INFO 57548 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 11 ms. Found 0 Redis repository interfaces.
-2026-01-23T10:36:35.022+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
-2026-01-23T10:36:35.027+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-01-23T10:36:35.027+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.17]
-2026-01-23T10:36:35.045+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-01-23T10:36:35.045+08:00  INFO 57548 --- [orin-backend] [  restartedMain] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1122 ms
-2026-01-23T10:36:35.156+08:00 DEBUG 57548 --- [orin-backend] [  restartedMain] .JwtAuthenticationFilter$$SpringCGLIB$$0 : Filter 'jwtAuthenticationFilter' configured for use
-2026-01-23T10:36:35.201+08:00  INFO 57548 --- [orin-backend] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-01-23T10:36:35.263+08:00  INFO 57548 --- [orin-backend] [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@23dcc39d
-2026-01-23T10:36:35.263+08:00  INFO 57548 --- [orin-backend] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-01-23T10:36:35.301+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
-2026-01-23T10:36:35.301+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
-2026-01-23T10:36:35.301+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.f.c.internal.license.VersionPrinter    : 
-2026-01-23T10:36:35.314+08:00  INFO 57548 --- [orin-backend] [  restartedMain] org.flywaydb.core.FlywayExecutor         : Database: jdbc:mysql://localhost:3306/orindb (MySQL 8.4)
-2026-01-23T10:36:35.321+08:00  WARN 57548 --- [orin-backend] [  restartedMain] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: MySQL 8.4 is newer than this version of Flyway and support has not been tested. The latest supported version of MySQL is 8.0.
-2026-01-23T10:36:35.340+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.f.core.internal.command.DbValidate     : Successfully validated 3 migrations (execution time 00:00.012s)
-2026-01-23T10:36:35.348+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.f.core.internal.command.DbMigrate      : Current version of schema `orindb`: 3
-2026-01-23T10:36:35.350+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.f.core.internal.command.DbMigrate      : Schema `orindb` is up to date. No migration necessary.
-2026-01-23T10:36:35.408+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-01-23T10:36:35.427+08:00  INFO 57548 --- [orin-backend] [  restartedMain] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.1.Final
-2026-01-23T10:36:35.438+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
-2026-01-23T10:36:35.509+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-01-23T10:36:35.530+08:00  WARN 57548 --- [orin-backend] [  restartedMain] org.hibernate.orm.deprecation            : HHH90000025: MySQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-01-23T10:36:35.989+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-01-23T10:36:36.030+08:00  INFO 57548 --- [orin-backend] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-01-23T10:36:36.086+08:00 ERROR 57548 --- [orin-backend] [  restartedMain] i.n.r.d.DnsServerAddressStreamProviders  : Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
-2026-01-23T10:36:36.525+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-01-23T10:36:36.728+08:00 DEBUG 57548 --- [orin-backend] [  restartedMain] org.hibernate.SQL                        : 
-    select
-        count(*) 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-Hibernate: 
-    select
-        count(*) 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-2026-01-23T10:36:36.736+08:00 DEBUG 57548 --- [orin-backend] [  restartedMain] org.hibernate.SQL                        : 
-    select
-        count(*) 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-Hibernate: 
-    select
-        count(*) 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-2026-01-23T10:36:36.738+08:00 DEBUG 57548 --- [orin-backend] [  restartedMain] org.hibernate.SQL                        : 
-    select
-        count(*) 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-Hibernate: 
-    select
-        count(*) 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-2026-01-23T10:36:37.453+08:00  WARN 57548 --- [orin-backend] [  restartedMain] .s.s.UserDetailsServiceAutoConfiguration : 
+2026-01-23T11:33:00.865+08:00  INFO 64917 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Starting OrinApplication using Java 17.0.17 with PID 64917 (/Users/adlin/Documents/Code/ORIN/orin-backend/target/classes started by adlin in /Users/adlin/Documents/Code/ORIN/orin-backend)
+2026-01-23T11:33:00.866+08:00 DEBUG 64917 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-01-23T11:33:00.867+08:00  INFO 64917 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : The following 1 profile is active: "dev"
+2026-01-23T11:33:00.898+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-01-23T11:33:00.898+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-01-23T11:33:01.512+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-01-23T11:33:01.512+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-01-23T11:33:01.628+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 111 ms. Found 29 JPA repository interfaces.
+2026-01-23T11:33:01.966+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-01-23T11:33:01.967+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-01-23T11:33:01.996+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.996+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.997+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentVersionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.997+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.997+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertRuleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.997+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiEndpointRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.997+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiKeyRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.997+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.audit.repository.AuditLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.998+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.998+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.998+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.AgentMemoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.999+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.PromptTemplateRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.999+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.999+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.999+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:01.999+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentMetricRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.000+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.000+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.runtime.repository.AgentLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.000+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.skill.repository.SkillRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.000+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.LogConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.trace.repository.WorkflowTraceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowDefinitionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowNodeRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.001+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.002+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowStepRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-01-23T11:33:02.002+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 26 ms. Found 0 Redis repository interfaces.
+2026-01-23T11:33:02.300+08:00  WARN 64917 --- [orin-backend] [  restartedMain] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: java.lang.IllegalStateException: Unable to load cache item
+2026-01-23T11:33:02.333+08:00  INFO 64917 --- [orin-backend] [  restartedMain] .s.b.a.l.ConditionEvaluationReportLogger : 
 
-Using generated security password: da0d0790-a946-4fc4-b297-50ce38c36ba4
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-01-23T11:33:02.349+08:00 ERROR 64917 --- [orin-backend] [  restartedMain] o.s.boot.SpringApplication               : Application run failed
 
-This generated password is for development use only. Your security configuration must be updated before running your application in production.
+java.lang.IllegalStateException: Unable to load cache item
+	at org.springframework.cglib.core.internal.LoadingCache.createEntry(LoadingCache.java:75) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.internal.LoadingCache.get(LoadingCache.java:34) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.AbstractClassGenerator$ClassLoaderData.get(AbstractClassGenerator.java:130) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.AbstractClassGenerator.create(AbstractClassGenerator.java:317) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.proxy.Enhancer.createHelper(Enhancer.java:562) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.proxy.Enhancer.createClass(Enhancer.java:407) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.context.annotation.ConfigurationClassEnhancer.createClass(ConfigurationClassEnhancer.java:138) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.context.annotation.ConfigurationClassEnhancer.enhance(ConfigurationClassEnhancer.java:109) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.context.annotation.ConfigurationClassPostProcessor.enhanceConfigurationClasses(ConfigurationClassPostProcessor.java:533) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanFactory(ConfigurationClassPostProcessor.java:310) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:363) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:153) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:789) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:606) ~[spring-context-6.1.2.jar:6.1.2]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.1.jar:3.2.1]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:762) ~[spring-boot-3.2.1.jar:3.2.1]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:464) ~[spring-boot-3.2.1.jar:3.2.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.1.jar:3.2.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1358) ~[spring-boot-3.2.1.jar:3.2.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1347) ~[spring-boot-3.2.1.jar:3.2.1]
+	at com.adlin.orin.OrinApplication.main(OrinApplication.java:15) ~[classes/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.boot.devtools.restart.RestartLauncher.run(RestartLauncher.java:50) ~[spring-boot-devtools-3.2.1.jar:3.2.1]
+Caused by: java.lang.NoClassDefFoundError: JwtAuthenticationFilter
+	at java.base/java.lang.Class.getDeclaredConstructors0(Native Method) ~[na:na]
+	at java.base/java.lang.Class.privateGetDeclaredConstructors(Class.java:3375) ~[na:na]
+	at java.base/java.lang.Class.getDeclaredConstructors(Class.java:2557) ~[na:na]
+	at org.springframework.cglib.proxy.Enhancer.generateClass(Enhancer.java:655) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.transform.TransformingClassGenerator.generateClass(TransformingClassGenerator.java:35) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.DefaultGeneratorStrategy.generate(DefaultGeneratorStrategy.java:26) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.ClassLoaderAwareGeneratorStrategy.generate(ClassLoaderAwareGeneratorStrategy.java:57) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.AbstractClassGenerator.generate(AbstractClassGenerator.java:366) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.proxy.Enhancer.generate(Enhancer.java:575) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.AbstractClassGenerator$ClassLoaderData.lambda$new$1(AbstractClassGenerator.java:107) ~[spring-core-6.1.2.jar:6.1.2]
+	at org.springframework.cglib.core.internal.LoadingCache.lambda$createEntry$1(LoadingCache.java:52) ~[spring-core-6.1.2.jar:6.1.2]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264) ~[na:na]
+	at org.springframework.cglib.core.internal.LoadingCache.createEntry(LoadingCache.java:57) ~[spring-core-6.1.2.jar:6.1.2]
+	... 25 common frames omitted
+Caused by: java.lang.ClassNotFoundException: JwtAuthenticationFilter
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:641) ~[na:na]
+	at java.base/jdk.internal.loader.ClassLoaders$AppClassLoader.loadClass(ClassLoaders.java:188) ~[na:na]
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:525) ~[na:na]
+	at java.base/java.lang.Class.forName0(Native Method) ~[na:na]
+	at java.base/java.lang.Class.forName(Class.java:469) ~[na:na]
+	at org.springframework.boot.devtools.restart.classloader.RestartClassLoader.loadClass(RestartClassLoader.java:121) ~[spring-boot-devtools-3.2.1.jar:3.2.1]
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:525) ~[na:na]
+	... 38 common frames omitted
 
-2026-01-23T10:36:37.709+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 15 endpoint(s) beneath base path '/actuator'
-2026-01-23T10:36:37.776+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@6d419dc1, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@4228a170, org.springframework.security.web.context.SecurityContextHolderFilter@60d78b94, org.springframework.security.web.header.HeaderWriterFilter@4ba2c01a, org.springframework.web.filter.CorsFilter@140eca68, org.springframework.security.web.authentication.logout.LogoutFilter@1464dc74, com.adlin.orin.security.JwtAuthenticationFilter$$SpringCGLIB$$0@2ae5fd4, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@6d39491d, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@7f4dcc8d, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@318d1a8a, org.springframework.security.web.session.SessionManagementFilter@272fa6c0, org.springframework.security.web.access.ExceptionTranslationFilter@60b9bd6c, org.springframework.security.web.access.intercept.AuthorizationFilter@329e99e6]
-2026-01-23T10:36:38.146+08:00  WARN 57548 --- [orin-backend] [  restartedMain] o.s.b.d.a.OptionalLiveReloadServer       : Unable to start LiveReload server
-2026-01-23T10:36:38.176+08:00  INFO 57548 --- [orin-backend] [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
-2026-01-23T10:36:38.186+08:00  INFO 57548 --- [orin-backend] [  restartedMain] c.adlin.orin.config.CacheMetricsConfig   : === Available Caches ===
-2026-01-23T10:36:38.186+08:00  INFO 57548 --- [orin-backend] [  restartedMain] c.adlin.orin.config.CacheMetricsConfig   :   - knowledge_bases
-2026-01-23T10:36:38.186+08:00  INFO 57548 --- [orin-backend] [  restartedMain] c.adlin.orin.config.CacheMetricsConfig   :   - agent_list
-2026-01-23T10:36:38.186+08:00  INFO 57548 --- [orin-backend] [  restartedMain] c.adlin.orin.config.CacheMetricsConfig   :   - agents
-2026-01-23T10:36:38.186+08:00  INFO 57548 --- [orin-backend] [  restartedMain] c.adlin.orin.config.CacheMetricsConfig   : Cache metrics will be available at /actuator/metrics/cache.*
-2026-01-23T10:36:38.186+08:00  INFO 57548 --- [orin-backend] [  restartedMain] c.adlin.orin.config.CacheMetricsConfig   : ========================
-2026-01-23T10:36:38.187+08:00  INFO 57548 --- [orin-backend] [  restartedMain] com.adlin.orin.OrinApplication           : Started OrinApplication in 4.434 seconds (process running for 4.589)
-2026-01-23T10:36:38.189+08:00  INFO 57548 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Starting agent health check...
-2026-01-23T10:36:38.198+08:00 DEBUG 57548 --- [orin-backend] [   scheduling-1] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-2026-01-23T10:36:38.200+08:00  INFO 57548 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Checking health for 0 agents
-2026-01-23T10:36:38.200+08:00  INFO 57548 --- [orin-backend] [   scheduling-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed
-2026-01-23T10:36:38.206+08:00 DEBUG 57548 --- [orin-backend] [  restartedMain] org.hibernate.SQL                        : 
-    select
-        count(*) 
-    from
-        model_metadata mm1_0
-Hibernate: 
-    select
-        count(*) 
-    from
-        model_metadata mm1_0
-2026-01-23T10:36:38.223+08:00 DEBUG 57548 --- [orin-backend] [  restartedMain] org.hibernate.SQL                        : 
-    select
-        su1_0.user_id,
-        su1_0.avatar,
-        su1_0.create_time,
-        su1_0.email,
-        su1_0.nickname,
-        su1_0.password,
-        su1_0.status,
-        su1_0.username 
-    from
-        sys_user su1_0 
-    where
-        su1_0.username=?
-Hibernate: 
-    select
-        su1_0.user_id,
-        su1_0.avatar,
-        su1_0.create_time,
-        su1_0.email,
-        su1_0.nickname,
-        su1_0.password,
-        su1_0.status,
-        su1_0.username 
-    from
-        sys_user su1_0 
-    where
-        su1_0.username=?
-2026-01-23T10:36:40.786+08:00  INFO 57548 --- [orin-backend] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-01-23T10:36:40.786+08:00  INFO 57548 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-01-23T10:36:40.792+08:00  INFO 57548 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 5 ms
-2026-01-23T10:36:40.822+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/api-keys
-2026-01-23T10:36:40.878+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-01-23T10:36:40.880+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/api-keys
-2026-01-23T10:36:40.891+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-1] horizationManagerBeforeMethodInterceptor : Authorizing method invocation ReflectiveMethodInvocation: public org.springframework.http.ResponseEntity com.adlin.orin.modules.apikey.controller.ApiKeyController.getApiKeys(java.lang.String); target is of class [com.adlin.orin.modules.apikey.controller.ApiKeyController]
-2026-01-23T10:36:40.899+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-1] horizationManagerBeforeMethodInterceptor : Authorized method invocation ReflectiveMethodInvocation: public org.springframework.http.ResponseEntity com.adlin.orin.modules.apikey.controller.ApiKeyController.getApiKeys(java.lang.String); target is of class [com.adlin.orin.modules.apikey.controller.ApiKeyController]
-2026-01-23T10:36:40.900+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-1] org.hibernate.SQL                        : 
-    select
-        ak1_0.id,
-        ak1_0.created_at,
-        ak1_0.description,
-        ak1_0.enabled,
-        ak1_0.expires_at,
-        ak1_0.key_hash,
-        ak1_0.key_prefix,
-        ak1_0.last_used_at,
-        ak1_0.monthly_token_quota,
-        ak1_0.name,
-        ak1_0.permissions,
-        ak1_0.rate_limit_per_day,
-        ak1_0.rate_limit_per_minute,
-        ak1_0.updated_at,
-        ak1_0.used_tokens,
-        ak1_0.user_id 
-    from
-        api_keys ak1_0 
-    where
-        ak1_0.user_id=?
-Hibernate: 
-    select
-        ak1_0.id,
-        ak1_0.created_at,
-        ak1_0.description,
-        ak1_0.enabled,
-        ak1_0.expires_at,
-        ak1_0.key_hash,
-        ak1_0.key_prefix,
-        ak1_0.last_used_at,
-        ak1_0.monthly_token_quota,
-        ak1_0.name,
-        ak1_0.permissions,
-        ak1_0.rate_limit_per_day,
-        ak1_0.rate_limit_per_minute,
-        ak1_0.updated_at,
-        ak1_0.used_tokens,
-        ak1_0.user_id 
-    from
-        api_keys ak1_0 
-    where
-        ak1_0.user_id=?
-2026-01-23T10:36:43.461+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/dashboard/summary
-2026-01-23T10:36:43.461+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/agents/list
-2026-01-23T10:36:43.463+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-01-23T10:36:43.463+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-3] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-01-23T10:36:43.464+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/agents/list
-2026-01-23T10:36:43.464+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/dashboard/summary
-2026-01-23T10:36:43.466+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-2026-01-23T10:36:43.466+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-2026-01-23T10:36:43.470+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
-    select
-        al1_0.id,
-        al1_0.api_key_id,
-        al1_0.completion_tokens,
-        al1_0.conversation_id,
-        al1_0.created_at,
-        al1_0.endpoint,
-        al1_0.error_message,
-        al1_0.estimated_cost,
-        al1_0.ip_address,
-        al1_0.method,
-        al1_0.model,
-        al1_0.prompt_tokens,
-        al1_0.provider_id,
-        al1_0.provider_type,
-        al1_0.request_params,
-        al1_0.response_content,
-        al1_0.response_time,
-        al1_0.status_code,
-        al1_0.success,
-        al1_0.total_tokens,
-        al1_0.user_agent,
-        al1_0.user_id,
-        al1_0.workflow_id 
-    from
-        audit_logs al1_0 
-    where
-        al1_0.created_at between ? and ?
-Hibernate: 
-    select
-        al1_0.id,
-        al1_0.api_key_id,
-        al1_0.completion_tokens,
-        al1_0.conversation_id,
-        al1_0.created_at,
-        al1_0.endpoint,
-        al1_0.error_message,
-        al1_0.estimated_cost,
-        al1_0.ip_address,
-        al1_0.method,
-        al1_0.model,
-        al1_0.prompt_tokens,
-        al1_0.provider_id,
-        al1_0.provider_type,
-        al1_0.request_params,
-        al1_0.response_content,
-        al1_0.response_time,
-        al1_0.status_code,
-        al1_0.success,
-        al1_0.total_tokens,
-        al1_0.user_agent,
-        al1_0.user_id,
-        al1_0.workflow_id 
-    from
-        audit_logs al1_0 
-    where
-        al1_0.created_at between ? and ?
-2026-01-23T10:36:45.413+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/agents
-2026-01-23T10:36:45.417+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-4] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-01-23T10:36:45.419+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/agents
-2026-01-23T10:36:45.577+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
-    select
-        am1_0.agent_id,
-        am1_0.description,
-        am1_0.icon,
-        am1_0.max_tokens,
-        am1_0.mode,
-        am1_0.model_name,
-        am1_0.name,
-        am1_0.provider_type,
-        am1_0.sync_time,
-        am1_0.system_prompt,
-        am1_0.temperature,
-        am1_0.topp 
-    from
-        agent_metadata am1_0
-Hibernate: 
-    select
-        am1_0.agent_id,
-        am1_0.description,
-        am1_0.icon,
-        am1_0.max_tokens,
-        am1_0.mode,
-        am1_0.model_name,
-        am1_0.name,
-        am1_0.provider_type,
-        am1_0.sync_time,
-        am1_0.system_prompt,
-        am1_0.temperature,
-        am1_0.topp 
-    from
-        agent_metadata am1_0
-2026-01-23T10:36:48.282+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/dashboard/summary
-2026-01-23T10:36:48.282+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/agents/list
-2026-01-23T10:36:48.285+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-5] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-01-23T10:36:48.285+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-6] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-01-23T10:36:48.286+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/dashboard/summary
-2026-01-23T10:36:48.286+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/agents/list
-2026-01-23T10:36:48.290+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-6] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-2026-01-23T10:36:48.290+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-5] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status 
-    from
-        agent_health_status ahs1_0
-2026-01-23T10:36:48.295+08:00 DEBUG 57548 --- [orin-backend] [nio-8080-exec-5] org.hibernate.SQL                        : 
-    select
-        al1_0.id,
-        al1_0.api_key_id,
-        al1_0.completion_tokens,
-        al1_0.conversation_id,
-        al1_0.created_at,
-        al1_0.endpoint,
-        al1_0.error_message,
-        al1_0.estimated_cost,
-        al1_0.ip_address,
-        al1_0.method,
-        al1_0.model,
-        al1_0.prompt_tokens,
-        al1_0.provider_id,
-        al1_0.provider_type,
-        al1_0.request_params,
-        al1_0.response_content,
-        al1_0.response_time,
-        al1_0.status_code,
-        al1_0.success,
-        al1_0.total_tokens,
-        al1_0.user_agent,
-        al1_0.user_id,
-        al1_0.workflow_id 
-    from
-        audit_logs al1_0 
-    where
-        al1_0.created_at between ? and ?
-Hibernate: 
-    select
-        al1_0.id,
-        al1_0.api_key_id,
-        al1_0.completion_tokens,
-        al1_0.conversation_id,
-        al1_0.created_at,
-        al1_0.endpoint,
-        al1_0.error_message,
-        al1_0.estimated_cost,
-        al1_0.ip_address,
-        al1_0.method,
-        al1_0.model,
-        al1_0.prompt_tokens,
-        al1_0.provider_id,
-        al1_0.provider_type,
-        al1_0.request_params,
-        al1_0.response_content,
-        al1_0.response_time,
-        al1_0.status_code,
-        al1_0.success,
-        al1_0.total_tokens,
-        al1_0.user_agent,
-        al1_0.user_id,
-        al1_0.workflow_id 
-    from
-        audit_logs al1_0 
-    where
-        al1_0.created_at between ? and ?
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.015 s
+[INFO] Finished at: 2026-01-23T11:33:02+08:00
+[INFO] ------------------------------------------------------------------------

@@ -45,7 +45,9 @@ public class SecurityConfig {
                                 "/actuator/**")
                         .permitAll()
                         // 统一API网关端点（需要API密钥）
-                        .requestMatchers("/v1/**").permitAll() // 暂时允许，后续通过拦截器验证API密钥
+                        // TODO: [SECURITY] 生产环境上线前，需确保 /v1/** 端点通过 ApiKeyAuthInterceptor 验证
+                        // 当前暂时 permitAll，实际由 WebConfig 中的拦截器进行 API 密钥校验
+                        .requestMatchers("/v1/**").permitAll()
                         // 管理端点（需要JWT认证）
                         // 管理端点（需要JWT认证）
                         .requestMatchers("/api/v1/**").authenticated()
@@ -58,6 +60,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        // TODO: [SECURITY] 生产环境部署到 orin.asia 时，需限制允许的域名
+        // 示例: configuration.setAllowedOrigins(List.of("https://orin.asia",
+        // "https://www.orin.asia"));
         configuration.setAllowedOrigins(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
