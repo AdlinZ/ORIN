@@ -2,7 +2,7 @@ package com.adlin.orin.modules.model.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -44,11 +44,12 @@ public class SiliconFlowIntegrationService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
-                    Map.class);
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (!response.getStatusCode().is2xxSuccessful()) {
                 log.error("API error: {}", response.getStatusCode());
@@ -83,11 +84,12 @@ public class SiliconFlowIntegrationService {
 
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     entity,
-                    Map.class);
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -118,11 +120,12 @@ public class SiliconFlowIntegrationService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
-                    Map.class);
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -160,11 +163,12 @@ public class SiliconFlowIntegrationService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
-                    Map.class);
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -195,7 +199,9 @@ public class SiliconFlowIntegrationService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.POST, entity, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -223,11 +229,12 @@ public class SiliconFlowIntegrationService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
-                    Map.class);
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -277,11 +284,12 @@ public class SiliconFlowIntegrationService {
 
             HttpEntity<org.springframework.util.MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
-                    Map.class);
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());

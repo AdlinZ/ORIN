@@ -172,6 +172,10 @@ public class AgentMetadata {
         private String mode;
         private String modelName;
         private String providerType;
+        private Double temperature;
+        private Double topP;
+        private Integer maxTokens;
+        private String systemPrompt;
         private LocalDateTime syncTime;
 
         public AgentMetadataBuilder agentId(String agentId) {
@@ -209,13 +213,39 @@ public class AgentMetadata {
             return this;
         }
 
+        public AgentMetadataBuilder temperature(Double temperature) {
+            this.temperature = temperature;
+            return this;
+        }
+
+        public AgentMetadataBuilder topP(Double topP) {
+            this.topP = topP;
+            return this;
+        }
+
+        public AgentMetadataBuilder maxTokens(Integer maxTokens) {
+            this.maxTokens = maxTokens;
+            return this;
+        }
+
+        public AgentMetadataBuilder systemPrompt(String systemPrompt) {
+            this.systemPrompt = systemPrompt;
+            return this;
+        }
+
         public AgentMetadataBuilder syncTime(LocalDateTime syncTime) {
             this.syncTime = syncTime;
             return this;
         }
 
         public AgentMetadata build() {
-            return new AgentMetadata(agentId, name, description, icon, mode, modelName, providerType, syncTime);
+            AgentMetadata metadata = new AgentMetadata(agentId, name, description, icon, mode, modelName, providerType,
+                    syncTime);
+            metadata.setTemperature(temperature);
+            metadata.setTopP(topP);
+            metadata.setMaxTokens(maxTokens);
+            metadata.setSystemPrompt(systemPrompt);
+            return metadata;
         }
     }
 }

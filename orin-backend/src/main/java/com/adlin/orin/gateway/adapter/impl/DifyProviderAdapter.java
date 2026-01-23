@@ -7,8 +7,6 @@ import com.adlin.orin.gateway.dto.EmbeddingRequest;
 import com.adlin.orin.gateway.dto.EmbeddingResponse;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -23,15 +21,13 @@ public class DifyProviderAdapter implements ProviderAdapter {
     private final String providerId;
     private final String endpointUrl;
     private final String apiKey;
-    private final RestTemplate restTemplate;
     private final DifyIntegrationService difyService;
 
     public DifyProviderAdapter(String providerId, String endpointUrl, String apiKey,
-            RestTemplate restTemplate, DifyIntegrationService difyService) {
+            DifyIntegrationService difyService) {
         this.providerId = providerId;
         this.endpointUrl = endpointUrl;
         this.apiKey = apiKey;
-        this.restTemplate = restTemplate;
         this.difyService = difyService;
     }
 

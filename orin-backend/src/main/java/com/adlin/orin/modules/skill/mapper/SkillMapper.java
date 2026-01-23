@@ -42,5 +42,6 @@ public interface SkillMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "skillMdContent", ignore = true)
     void updateEntityFromRequest(SkillRequest request, @MappingTarget SkillEntity entity);
 }

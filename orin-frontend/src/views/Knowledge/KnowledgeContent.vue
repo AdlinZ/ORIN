@@ -48,7 +48,7 @@
           v-if="activeType !== 'META'"
           :data="filteredData" 
           @status-change="handleStatusChange" 
-          @view-chunks="viewChunks"
+          @view-chunks="viewDocuments"
           @test-retrieve="testRetrieve" 
           :type="tableType"
         />
@@ -88,6 +88,19 @@
         </span>
       </template>
     </el-dialog>
+    
+    <!-- Document Manager Drawer -->
+    <document-list 
+        v-model="documentDrawerVisible" 
+        :kb-id="currentKbId" 
+        @change="loadKnowledge"
+    />
+    
+    <!-- Retrieval Test Dialog -->
+    <retrieval-test 
+        v-model="retrievalTestVisible" 
+        :kb-id="currentKbId"
+    />
   </div>
 </template>
 
@@ -99,6 +112,8 @@ import { Refresh, Plus } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import KnowledgeTable from './components/KnowledgeTable.vue'
 import KnowledgeMeta from './components/KnowledgeMeta.vue'
+import DocumentList from './components/DocumentList.vue'
+import RetrievalTest from './components/RetrievalTest.vue'
 
 const route = useRoute()
 const loading = ref(false)
@@ -113,6 +128,11 @@ const createForm = ref({
   description: '',
   configuration: ''
 })
+
+// Dialog States
+const documentDrawerVisible = ref(false)
+const retrievalTestVisible = ref(false)
+const currentKbId = ref('')
 
 // Determine Type from Route
 const activeType = computed(() => route.meta.type || 'DOCUMENT')
@@ -281,12 +301,15 @@ const handleStatusChange = async (row, newVal) => {
     }
 }
 
-const viewChunks = (row) => {
-    ElMessage.info('查看分片功能即将上线: ' + row.name)
+// View Documents (Chunks replaced by Document Management in this phase)
+const viewDocuments = (row) => {
+    currentKbId.value = row.id
+    documentDrawerVisible.value = true
 }
 
 const testRetrieve = (row) => {
-    ElMessage.info('检索测试功能即将上线: ' + row.name)
+    currentKbId.value = row.id
+    retrievalTestVisible.value = true
 }
 
 onMounted(() => {

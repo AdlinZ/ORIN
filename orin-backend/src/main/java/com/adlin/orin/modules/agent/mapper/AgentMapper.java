@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * Agent实体与DTO转换Mapper
  */
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE, builder = @Builder(disableBuilder = true))
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface AgentMapper {
 
     /**
@@ -94,6 +94,7 @@ public interface AgentMapper {
     @Mapping(target = "topP", ignore = true)
     @Mapping(target = "maxTokens", ignore = true)
     @Mapping(target = "systemPrompt", ignore = true)
+    @Mapping(target = "modelName", ignore = true)
     void updateMetadataFromRequest(AgentUpdateRequest request, @MappingTarget AgentMetadata metadata);
 
     /**

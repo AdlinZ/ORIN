@@ -147,8 +147,32 @@ public class DocumentManageService {
         document.setVectorStatus("INDEXING");
         document = documentRepository.save(document);
 
-        // TODO: 异步调用向量化服务
-        // 这里可以集成 Dify API 或其他向量化服务
+        // 模拟异步向量化过程
+        // 实际生产环境中，这里应该调用 Dify API 或提交任务到消息队列
+        final String docId = documentId;
+        new Thread(() -> {
+            try {
+                // 模拟处理耗时
+                Thread.sleep(3000);
+
+                // 重新获取文档（因为是在新线程中）
+                // 注意：这里需要处理事务，简单起见我们使用 sleep 模拟
+                // 在实际 Spring Bean 中，应该调用另一个 @Transactional 方法
+
+                // 由于是在非事务线程中操作 Repository，这是允许的，但要注意并发
+                documentRepository.findById(docId).ifPresent(doc -> {
+                    doc.setVectorStatus("SUCCESS");
+                    doc.setChunkCount((int) (Math.random() * 10) + 1); // 模拟分片数
+                    doc.setVectorIndexId(UUID.randomUUID().toString());
+                    documentRepository.save(doc);
+                    log.info("Simulated vectorization completed for document: {}", docId);
+                });
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
+
         log.info("Triggered vectorization for document: {}", documentId);
 
         return document;

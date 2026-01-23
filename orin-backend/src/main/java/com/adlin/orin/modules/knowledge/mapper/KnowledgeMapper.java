@@ -38,5 +38,6 @@ public interface KnowledgeMapper {
     @Mapping(target = "docCount", constant = "0")
     @Mapping(target = "totalSizeMb", constant = "0.0")
     @Mapping(target = "syncTime", ignore = true)
+    @Mapping(target = "configuration", ignore = true)
     KnowledgeBase toEntity(KnowledgeBaseCreateRequest request);
 }

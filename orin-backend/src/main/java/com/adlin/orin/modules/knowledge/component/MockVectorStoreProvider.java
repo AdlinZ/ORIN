@@ -26,11 +26,29 @@ public class MockVectorStoreProvider implements VectorStoreProvider {
         // Return dummy results
         System.out.println("Mock searching collection: " + collectionName + " for query: " + query);
         List<SearchResult> results = new ArrayList<>();
-        results.add(SearchResult.builder()
-                .content("Mock result for: " + query)
-                .score(0.95)
-                .metadata(Collections.emptyMap())
-                .build());
+
+        // Return dynamic results based on query for better demo experience
+        if (query != null && query.toLowerCase().contains("dify")) {
+            results.add(SearchResult.builder()
+                    .content("Dify 是一个开源的 LLM 应用开发平台。接入 Dify 需要获取 API Key 和 API Base URL。")
+                    .score(0.92)
+                    .metadata(Collections.singletonMap("source", "dify_docs.md"))
+                    .build());
+            results.add(SearchResult.builder()
+                    .content("在 ORIN 中配置 Dify 接入，请前往系统设置 -> 模型设置页面。")
+                    .score(0.85)
+                    .metadata(Collections.singletonMap("page", "12"))
+                    .build());
+        } else {
+            for (int i = 1; i <= k; i++) {
+                results.add(SearchResult.builder()
+                        .content("这是一个模拟的检索结果片段 " + i + "，针对查询: " + query + "。\n这里包含了一些相关的上下文信息，用于测试 RAG 检索效果。")
+                        .score(0.95 - (i * 0.1))
+                        .metadata(Collections.singletonMap("chunk_id", "chunk_" + i))
+                        .build());
+            }
+        }
+
         return results;
     }
 

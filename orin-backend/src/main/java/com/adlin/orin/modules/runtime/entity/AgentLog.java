@@ -37,6 +37,11 @@ public class AgentLog {
     private String type;
 
     /**
+     * 日志级别: INFO, WARN, ERROR
+     */
+    private String level;
+
+    /**
      * 日志内容 (摘要)
      */
     private String content;

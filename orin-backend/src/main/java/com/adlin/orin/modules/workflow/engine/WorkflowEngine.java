@@ -1,10 +1,8 @@
 package com.adlin.orin.modules.workflow.engine;
 
-import com.adlin.orin.modules.skill.entity.SkillEntity;
-import com.adlin.orin.modules.skill.repository.SkillRepository;
 import com.adlin.orin.modules.skill.service.SkillService;
 import com.adlin.orin.modules.trace.interceptor.SkillTraceInterceptor;
-import com.adlin.orin.modules.trace.service.TraceService;
+
 import com.adlin.orin.modules.workflow.entity.WorkflowInstanceEntity;
 import com.adlin.orin.modules.workflow.entity.WorkflowStepEntity;
 import com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository;
@@ -19,8 +17,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 /**
  * 工作流编排引擎
@@ -33,11 +29,8 @@ public class WorkflowEngine {
 
     private final WorkflowStepRepository stepRepository;
     private final WorkflowInstanceRepository instanceRepository;
-    private final SkillRepository skillRepository;
     private final SkillService skillService;
-    private final TraceService traceService;
     private final ExpressionParser expressionParser = new SpelExpressionParser();
-    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     /**
      * 执行工作流
@@ -196,6 +189,7 @@ public class WorkflowEngine {
             String stepId = parts[0];
             String key = parts.length > 1 ? parts[1] : null;
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> stepOutput = (Map<String, Object>) stepOutputs.get(stepId);
             if (stepOutput != null && key != null) {
                 return stepOutput.get(key);

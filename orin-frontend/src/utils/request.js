@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
+import Cookies from 'js-cookie';
 
 // Create Axios Instance
 const service = axios.create({
@@ -12,8 +13,56 @@ const service = axios.create({
 const MAX_RETRIES = 2; // 最大重试次数
 const RETRY_DELAY = 1000; // 重试延迟（毫秒）
 
+// Token 刷新状态
+let isRefreshing = false;
+let refreshSubscribers = [];
+
 // 延迟函数
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 订阅 Token 刷新完成
+function subscribeTokenRefresh(callback) {
+    refreshSubscribers.push(callback);
+}
+
+// 通知所有订阅者 Token 已刷新
+function onTokenRefreshed(newToken) {
+    refreshSubscribers.forEach(callback => callback(newToken));
+    refreshSubscribers = [];
+}
+
+// 通知订阅者刷新失败
+function onTokenRefreshFailed() {
+    refreshSubscribers.forEach(callback => callback(null));
+    refreshSubscribers = [];
+}
+
+// 刷新 Token
+async function refreshToken() {
+    const userStore = useUserStore();
+    const currentToken = userStore.token;
+
+    if (!currentToken) {
+        throw new Error('No token available');
+    }
+
+    // 直接调用刷新 API
+    const response = await axios.post('/api/v1/auth/refresh', null, {
+        headers: {
+            'Authorization': `Bearer ${currentToken}`
+        }
+    });
+
+    const newToken = response.data.token;
+    if (newToken) {
+        // 更新 Cookie 和 Store
+        Cookies.set('orin_token', newToken, { expires: 7 });
+        userStore.token = newToken;
+        return newToken;
+    }
+
+    throw new Error('Refresh token failed');
+}
 
 // Request Interceptor
 service.interceptors.request.use(
@@ -54,7 +103,61 @@ service.interceptors.response.use(
         console.error('Request Error:', error);
         const config = error.config;
 
-        // 判断是否应该重试
+        // 防止刷新请求本身进入无限循环
+        if (config.url === '/auth/refresh') {
+            return Promise.reject(error);
+        }
+
+        // 处理 401 错误 - 尝试刷新 Token
+        if (error.response && error.response.status === 401 && !config._retry) {
+            config._retry = true;
+
+            if (!isRefreshing) {
+                isRefreshing = true;
+
+                try {
+                    const newToken = await refreshToken();
+                    isRefreshing = false;
+                    onTokenRefreshed(newToken);
+
+                    // 使用新 Token 重试原请求
+                    config.headers['Authorization'] = `Bearer ${newToken}`;
+                    return service(config);
+
+                } catch (refreshError) {
+                    isRefreshing = false;
+                    onTokenRefreshFailed();
+
+                    // 刷新失败，需要重新登录
+                    const userStore = useUserStore();
+                    userStore.logout();
+
+                    ElMessage.error('登录已过期，请重新登录');
+
+                    setTimeout(() => {
+                        if (window.location.pathname !== '/login') {
+                            window.location.href = '/login';
+                        }
+                    }, 1500);
+
+                    return Promise.reject(refreshError);
+                }
+            } else {
+                // 正在刷新中，等待刷新完成
+                return new Promise((resolve, reject) => {
+                    subscribeTokenRefresh((newToken) => {
+                        if (newToken) {
+                            config.headers['Authorization'] = `Bearer ${newToken}`;
+                            resolve(service(config));
+                        } else {
+                            reject(error);
+                        }
+                    });
+                });
+            }
+        }
+
+        // 判断是否应该重试（非401错误）
         const shouldRetry = (
             error.message.includes('Network Error') ||
             error.message.includes('timeout') ||
@@ -75,7 +178,6 @@ service.interceptors.response.use(
 
         // 如果重试失败或不需要重试，显示错误消息
         let message = '请求失败，请稍后重试';
-        let shouldLogout = false;
 
         if (error.response) {
             const status = error.response.status;
@@ -83,22 +185,8 @@ service.interceptors.response.use(
                 case 400:
                     message = '请求参数错误';
                     break;
-                case 401:
-                    message = '登录已过期，请重新登录';
-                    shouldLogout = true;
-                    break;
                 case 403:
-                    // 403 可能是 Token 过期或权限不足
-                    // 检查错误信息中是否包含 Token 相关关键词
-                    const errorMsg = error.response.data?.message || '';
-                    if (errorMsg.toLowerCase().includes('token') ||
-                        errorMsg.toLowerCase().includes('expired') ||
-                        errorMsg.toLowerCase().includes('invalid')) {
-                        message = '登录已过期，请重新登录';
-                        shouldLogout = true;
-                    } else {
-                        message = '权限不足，拒绝访问';
-                    }
+                    message = '权限不足，拒绝访问';
                     break;
                 case 404:
                     message = '请求资源不存在';
@@ -120,22 +208,9 @@ service.interceptors.response.use(
             ElMessage.error(message);
         }
 
-        // 如果需要登出，清除 Token 并跳转到登录页
-        if (shouldLogout) {
-            const userStore = useUserStore();
-            userStore.logout();
-
-            // 延迟跳转，让用户看到错误提示
-            setTimeout(() => {
-                // 使用 window.location 确保完全刷新
-                if (window.location.pathname !== '/login') {
-                    window.location.href = '/login';
-                }
-            }, 1500);
-        }
-
         return Promise.reject(error);
     }
 );
 
 export default service;
+

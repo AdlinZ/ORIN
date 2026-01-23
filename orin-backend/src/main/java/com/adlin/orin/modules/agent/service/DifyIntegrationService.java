@@ -1,12 +1,11 @@
 package com.adlin.orin.modules.agent.service;
 
-import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -19,7 +18,7 @@ import java.util.Optional;
 public class DifyIntegrationService {
 
     private final RestTemplate difyRestTemplate;
-    
+
     @Value("${dify.default.endpoint:http://localhost:3000/v1}")
     private String defaultEndpoint;
 
@@ -29,19 +28,19 @@ public class DifyIntegrationService {
     public boolean testConnection(String endpointUrl, String apiKey) {
         try {
             String url = buildUrl(endpointUrl, "/console/api/workspaces");
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(apiKey);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                Map.class
-            );
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {
@@ -63,12 +62,12 @@ public class DifyIntegrationService {
 
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                Map.class
-            );
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -92,12 +91,12 @@ public class DifyIntegrationService {
 
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                Map.class
-            );
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -128,12 +127,12 @@ public class DifyIntegrationService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                entity,
-                Map.class
-            );
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -157,12 +156,12 @@ public class DifyIntegrationService {
 
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = difyRestTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                Map.class
-            );
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(response.getBody());
@@ -178,19 +177,19 @@ public class DifyIntegrationService {
      */
     private String buildUrl(String endpointUrl, String path) {
         String base = endpointUrl != null ? endpointUrl : defaultEndpoint;
-        
+
         // 确保基础URL格式正确
         if (!base.startsWith("http")) {
             base = "http://" + base;
         }
-        
+
         // 处理路径拼接
         if (base.endsWith("/") && path.startsWith("/")) {
             base = base.substring(0, base.length() - 1);
         } else if (!base.endsWith("/") && !path.startsWith("/")) {
             base += "/";
         }
-        
+
         return base + path;
     }
 }

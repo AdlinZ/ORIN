@@ -1,7 +1,7 @@
-import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import Cookies from 'js-cookie'
 import { isTokenExpired, getTokenRemainingTime, formatRemainingTime } from '@/utils/jwt'
+import { refreshToken as refreshTokenApi } from '@/api/auth'
 
 /**
  * 用户状态管理Store
@@ -153,6 +153,26 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
+    /**
+     * 手动刷新 Token
+     */
+    async function refreshToken() {
+        try {
+            const response = await refreshTokenApi()
+            const newToken = response.token // request.js 拦截器可能已经返回了 data 或者 response
+
+            if (newToken) {
+                token.value = newToken
+                Cookies.set('orin_token', newToken, { expires: 7 })
+                return true
+            }
+            return false
+        } catch (error) {
+            console.error('Manual token refresh failed:', error)
+            return false
+        }
+    }
+
     // 初始化时从Cookie恢复
     restoreFromCookies()
 
@@ -179,6 +199,7 @@ export const useUserStore = defineStore('user', () => {
         hasAllRoles,
         restoreFromCookies,
         isTokenValid,
-        getTokenInfo
+        getTokenInfo,
+        refreshToken
     }
 })

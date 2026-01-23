@@ -227,7 +227,7 @@ server {
 使用 Maven 打包后直接运行：
 ```bash
 mvn clean package -DskipTests
-java -jar target/orin-backend-0.0.1-SNAPSHOT.jar
+java -jar target/orin-backend-1.0.0-SNAPSHOT.jar
 ```
 
 ## API 接口

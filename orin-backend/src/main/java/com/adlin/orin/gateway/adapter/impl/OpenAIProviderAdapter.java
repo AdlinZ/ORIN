@@ -57,11 +57,13 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
 
                 HttpEntity<?> entity = new HttpEntity<>(headers);
 
-                ResponseEntity<Map> response = restTemplate.exchange(
-                        baseUrl + "/models",
-                        HttpMethod.GET,
-                        entity,
-                        Map.class);
+                @SuppressWarnings("unchecked")
+                ResponseEntity<Map<String, Object>> response = (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate
+                        .exchange(
+                                baseUrl + "/models",
+                                HttpMethod.GET,
+                                entity,
+                                Map.class);
 
                 return response.getStatusCode().is2xxSuccessful();
             } catch (Exception e) {
@@ -83,11 +85,13 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    baseUrl + "/chat/completions",
-                    HttpMethod.POST,
-                    entity,
-                    Map.class);
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map<String, Object>> response = (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate
+                    .exchange(
+                            baseUrl + "/chat/completions",
+                            HttpMethod.POST,
+                            entity,
+                            Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 throw new RuntimeException("OpenAI API call failed");
@@ -117,11 +121,13 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    baseUrl + "/embeddings",
-                    HttpMethod.POST,
-                    entity,
-                    Map.class);
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map<String, Object>> response = (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate
+                    .exchange(
+                            baseUrl + "/embeddings",
+                            HttpMethod.POST,
+                            entity,
+                            Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 throw new RuntimeException("OpenAI embedding API call failed");
@@ -142,11 +148,12 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
 
                 HttpEntity<?> entity = new HttpEntity<>(headers);
 
-                ResponseEntity<Map> response = restTemplate.exchange(
-                        baseUrl + "/models",
-                        HttpMethod.GET,
-                        entity,
-                        Map.class);
+                ResponseEntity<Map<String, Object>> response = (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate
+                        .exchange(
+                                baseUrl + "/models",
+                                HttpMethod.GET,
+                                entity,
+                                Map.class);
 
                 if (response.getBody() != null) {
                     return (Map<String, Object>) response.getBody();

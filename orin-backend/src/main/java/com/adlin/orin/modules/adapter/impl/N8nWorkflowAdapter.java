@@ -7,6 +7,7 @@ import com.adlin.orin.gateway.dto.EmbeddingRequest;
 import com.adlin.orin.gateway.dto.EmbeddingResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -58,8 +59,9 @@ public class N8nWorkflowAdapter implements ProviderAdapter {
                 }
                 HttpEntity<?> entity = new HttpEntity<>(headers);
 
-                ResponseEntity<Map> response = restTemplate.exchange(
-                        url, HttpMethod.GET, entity, Map.class);
+                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                        url, HttpMethod.GET, entity, new ParameterizedTypeReference<Map<String, Object>>() {
+                        });
                 return response.getStatusCode().is2xxSuccessful();
             } catch (Exception e) {
                 log.error("n8n health check failed: {}", e.getMessage());
@@ -85,8 +87,9 @@ public class N8nWorkflowAdapter implements ProviderAdapter {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(inputs, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, Map.class);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.POST, entity, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return response.getBody();

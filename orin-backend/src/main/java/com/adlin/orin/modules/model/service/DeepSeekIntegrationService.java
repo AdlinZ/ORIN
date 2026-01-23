@@ -2,8 +2,10 @@ package com.adlin.orin.modules.model.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -42,7 +44,9 @@ public class DeepSeekIntegrationService {
             requestBody.put("max_tokens", 10);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             log.info("DeepSeek connection test successful: {}", response.getStatusCode());
             return response.getStatusCode().is2xxSuccessful();
@@ -72,7 +76,9 @@ public class DeepSeekIntegrationService {
             requestBody.put("stream", false);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             return Optional.ofNullable(response.getBody());
         } catch (Exception e) {
@@ -106,7 +112,9 @@ public class DeepSeekIntegrationService {
             requestBody.put("stream", false);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             return Optional.ofNullable(response.getBody());
         } catch (Exception e) {
@@ -140,7 +148,9 @@ public class DeepSeekIntegrationService {
             requestBody.put("stream", true);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             return Optional.ofNullable(response.getBody());
         } catch (Exception e) {

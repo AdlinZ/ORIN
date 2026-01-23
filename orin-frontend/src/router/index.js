@@ -61,6 +61,7 @@ const routes = [
             {
                 path: 'knowledge',
                 meta: { title: '知识管理' },
+                redirect: '/dashboard/knowledge/unstructured',
                 children: [
                     {
                         path: 'unstructured',
@@ -91,6 +92,7 @@ const routes = [
             {
                 path: 'workflow',
                 meta: { title: '工作流管理' },
+                redirect: '/dashboard/workflow/list',
                 children: [
                     {
                         path: 'list',
@@ -109,6 +111,7 @@ const routes = [
             {
                 path: 'skill',
                 meta: { title: '技能管理' },
+                redirect: '/dashboard/skill/management',
                 children: [
                     {
                         path: 'management',
@@ -181,6 +184,7 @@ const routes = [
             {
                 path: 'model',
                 meta: { title: '模型管理' },
+                redirect: '/dashboard/model/config',
                 children: [
                     {
                         path: 'config',
@@ -199,6 +203,7 @@ const routes = [
             {
                 path: 'training',
                 meta: { title: '模型训练' },
+                redirect: '/dashboard/training/files',
                 children: [
                     {
                         path: 'files',

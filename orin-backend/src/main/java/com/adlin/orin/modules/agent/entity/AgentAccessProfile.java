@@ -129,6 +129,7 @@ public class AgentAccessProfile {
         private String datasetApiKey;
         private LocalDateTime createdAt;
         private String connectionStatus;
+        private LocalDateTime updatedAt;
 
         public AgentAccessProfileBuilder agentId(String agentId) {
             this.agentId = agentId;
@@ -160,8 +161,16 @@ public class AgentAccessProfile {
             return this;
         }
 
+        public AgentAccessProfileBuilder updatedAt(LocalDateTime updatedAt) {
+            this.updatedAt = updatedAt;
+            return this;
+        }
+
         public AgentAccessProfile build() {
-            return new AgentAccessProfile(agentId, endpointUrl, apiKey, datasetApiKey, createdAt, connectionStatus);
+            AgentAccessProfile profile = new AgentAccessProfile(agentId, endpointUrl, apiKey, datasetApiKey, createdAt,
+                    connectionStatus);
+            profile.setUpdatedAt(updatedAt);
+            return profile;
         }
     }
 }

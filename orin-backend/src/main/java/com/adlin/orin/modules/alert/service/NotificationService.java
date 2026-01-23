@@ -14,6 +14,9 @@ import java.util.Arrays;
 @Slf4j
 public class NotificationService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.mail.javamail.JavaMailSender mailSender;
+
     /**
      * 发送通知
      */
@@ -46,17 +49,32 @@ public class NotificationService {
      * 发送邮件通知
      */
     private void sendEmail(AlertRule rule, String message) {
-        // TODO: 实现邮件发送
-        // 需要配置 Spring Boot Mail Starter
-        log.info("EMAIL notification: [{}] {}", rule.getSeverity(), message);
-        log.info("Recipients: {}", rule.getRecipientList());
+        if (rule.getRecipientList() == null || rule.getRecipientList().isEmpty()) {
+            log.warn("No recipients configured for email notification: {}", rule.getRuleName());
+            return;
+        }
 
-        // 示例实现：
-        // SimpleMailMessage mailMessage = new SimpleMailMessage();
-        // mailMessage.setTo(rule.getRecipientList().split(","));
-        // mailMessage.setSubject("[ORIN Alert] " + rule.getRuleName());
-        // mailMessage.setText(message);
-        // mailSender.send(mailMessage);
+        try {
+            // Check if mailSender is available (it might be null if no config provided)
+            if (mailSender == null) {
+                log.warn("JavaMailSender is not available. Please configure spring.mail properties.");
+                log.info("MOCK EMAIL SENT TO: {} | SUBJECT: [ORIN Alert] {} | CONTENT: {}",
+                        rule.getRecipientList(), rule.getRuleName(), message);
+                return;
+            }
+
+            org.springframework.mail.SimpleMailMessage mailMessage = new org.springframework.mail.SimpleMailMessage();
+            mailMessage.setTo(rule.getRecipientList().split(","));
+            mailMessage.setSubject("[ORIN Alert] " + rule.getSeverity() + " - " + rule.getRuleName());
+            mailMessage.setText(String.format("Alert Rule: %s\nSeverity: %s\nTime: %s\n\nMessage:\n%s",
+                    rule.getRuleName(), rule.getSeverity(), java.time.LocalDateTime.now(), message));
+
+            mailSender.send(mailMessage);
+            log.info("Email sent to: {}", rule.getRecipientList());
+
+        } catch (Exception e) {
+            log.error("Failed to send email notification", e);
+        }
     }
 
     /**

@@ -50,4 +50,72 @@ public class LoginController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
     }
+
+    @Operation(summary = "刷新Token", description = "使用当前有效的Token获取新Token，延长登录有效期")
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestHeader("Authorization") String authHeader) {
+        try {
+            // 验证 Authorization header
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "无效的Authorization头");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            String oldToken = authHeader.substring(7);
+
+            // 验证Token是否有效
+            if (!jwtService.validateToken(oldToken)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Token已过期或无效");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+
+            // 使用JwtService刷新Token
+            String newToken = jwtService.refreshToken(oldToken);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", newToken);
+            response.put("message", "Token刷新成功");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Token刷新失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+    }
+
+    @Operation(summary = "验证Token", description = "检查当前Token是否有效")
+    @GetMapping("/validate")
+    public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader) {
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("valid", false);
+                response.put("message", "无效的Authorization头");
+                return ResponseEntity.ok(response);
+            }
+
+            String token = authHeader.substring(7);
+            boolean isValid = jwtService.validateToken(token);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("valid", isValid);
+            if (isValid) {
+                response.put("userId", jwtService.extractUserId(token));
+                response.put("username", jwtService.extractUsername(token));
+                response.put("expiration", jwtService.extractExpiration(token));
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("valid", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.ok(response);
+        }
+    }
 }
