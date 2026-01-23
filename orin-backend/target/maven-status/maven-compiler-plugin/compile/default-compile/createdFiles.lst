@@ -3,6 +3,7 @@ com/adlin/orin/modules/knowledge/service/MilvusVectorService.class
 com/adlin/orin/common/dto/ErrorResponse$ErrorResponseBuilder.class
 com/adlin/orin/modules/knowledge/mapper/KnowledgeMapper.class
 com/adlin/orin/security/ApiKeyAuthInterceptor.class
+com/adlin/orin/modules/workflow/engine/GraphExecutor.class
 com/adlin/orin/config/RestConfig.class
 com/adlin/orin/modules/agent/dto/AgentOnboardRequest.class
 com/adlin/orin/modules/workflow/repository/WorkflowInstanceRepository.class
@@ -71,6 +72,7 @@ com/adlin/orin/modules/knowledge/dto/KnowledgeBaseResponse$KnowledgeBaseResponse
 com/adlin/orin/modules/monitor/controller/DataFlowController.class
 com/adlin/orin/common/exception/ResourceNotFoundException.class
 com/adlin/orin/modules/skill/dto/SkillRequest.class
+com/adlin/orin/modules/workflow/entity/WorkflowStepEntity$StepType.class
 com/adlin/orin/modules/workflow/service/WorkflowService.class
 com/adlin/orin/modules/agent/entity/AgentVersion.class
 com/adlin/orin/modules/apikey/entity/ApiKey$ApiKeyBuilder.class
@@ -151,6 +153,7 @@ com/adlin/orin/modules/workflow/repository/WorkflowNodeRepository.class
 com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced$1.class
 com/adlin/orin/modules/knowledge/repository/meta/AgentMemoryRepository.class
 com/adlin/orin/modules/model/ModelDataInitializer.class
+com/adlin/orin/modules/agent/service/AgentExecutor.class
 com/adlin/orin/modules/adapter/impl/N8nWorkflowAdapter$2.class
 com/adlin/orin/modules/apikey/controller/ApiKeyController$ApiKeyResponse$ApiKeyResponseBuilder.class
 com/adlin/orin/modules/alert/controller/AlertController.class

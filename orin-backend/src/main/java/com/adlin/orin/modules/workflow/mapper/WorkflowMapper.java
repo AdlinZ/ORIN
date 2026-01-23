@@ -33,6 +33,8 @@ public interface WorkflowMapper {
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    // WorkflowEntity actually does not have 'steps' field, it is a separate table,
+    // so we ignore it here
     WorkflowEntity toEntity(WorkflowRequest request);
 
     /**
@@ -54,6 +56,7 @@ public interface WorkflowMapper {
     @Mapping(target = "workflowId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "stepType", expression = "java(com.adlin.orin.modules.workflow.entity.WorkflowStepEntity.StepType.valueOf(request.getStepType() != null ? request.getStepType() : \"SKILL\"))")
     WorkflowStepEntity stepRequestToEntity(WorkflowStepRequest request);
 
     /**

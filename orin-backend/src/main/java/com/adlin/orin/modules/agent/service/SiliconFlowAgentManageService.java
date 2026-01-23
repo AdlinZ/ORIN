@@ -232,7 +232,8 @@ public class SiliconFlowAgentManageService implements AgentManageService {
         AgentMetadata metadata = metadataRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
 
-        // Note: Currently SiliconFlow integration does not support direct file upload
+        // TODO: [Plan] Integrate Multimodal File Upload (Currently SiliconFlow
+        // integration does not support direct file upload)
         // in this MVP path
         // We just ignore the file or could append a notification if we had the
         // Multimodal service here.

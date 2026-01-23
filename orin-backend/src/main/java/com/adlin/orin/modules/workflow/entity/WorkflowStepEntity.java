@@ -36,8 +36,16 @@ public class WorkflowStepEntity {
     @Column(name = "step_name", nullable = false, length = 100)
     private String stepName;
 
-    @Column(name = "skill_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "step_type", length = 20, nullable = false)
+    @Builder.Default
+    private StepType stepType = StepType.SKILL;
+
+    @Column(name = "skill_id")
     private Long skillId;
+
+    @Column(name = "agent_id")
+    private Long agentId;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "input_mapping", columnDefinition = "JSON")
@@ -69,5 +77,14 @@ public class WorkflowStepEntity {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 步骤类型枚举
+     */
+    public enum StepType {
+        SKILL, // 技能调用
+        AGENT, // 智能体调用
+        LOGIC // 逻辑控制
     }
 }

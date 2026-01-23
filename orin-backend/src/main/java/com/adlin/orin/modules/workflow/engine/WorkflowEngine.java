@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.workflow.engine;
 
+import com.adlin.orin.modules.agent.service.AgentExecutor;
 import com.adlin.orin.modules.skill.service.SkillService;
 import com.adlin.orin.modules.trace.interceptor.SkillTraceInterceptor;
 
@@ -30,6 +31,9 @@ public class WorkflowEngine {
     private final WorkflowStepRepository stepRepository;
     private final WorkflowInstanceRepository instanceRepository;
     private final SkillService skillService;
+    private final AgentExecutor agentExecutor;
+    private final GraphExecutor graphExecutor;
+    private final com.adlin.orin.modules.workflow.repository.WorkflowRepository workflowRepository;
     private final ExpressionParser expressionParser = new SpelExpressionParser();
 
     /**
@@ -47,41 +51,35 @@ public class WorkflowEngine {
         WorkflowInstanceEntity instance = createInstance(workflowId, inputs, triggeredBy);
 
         try {
-            // 获取所有步骤
-            List<WorkflowStepEntity> steps = stepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId);
-            if (steps.isEmpty()) {
-                throw new IllegalStateException("Workflow has no steps: " + workflowId);
-            }
+            // 获取工作流定义
+            com.adlin.orin.modules.workflow.entity.WorkflowEntity workflow = this.workflowRepository
+                    .findById(workflowId)
+                    .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowId));
 
-            // 执行工作流
+            Map<String, Object> workflowDefinition = workflow.getWorkflowDefinition();
+
+            // 检查是否为图结构工作流
+            boolean isGraphBased = workflowDefinition != null &&
+                    workflowDefinition.containsKey("nodes") &&
+                    workflowDefinition.get("nodes") != null;
+
             Map<String, Object> context = new HashMap<>(inputs);
             context.put("__traceId", instance.getTraceId());
             context.put("__instanceId", instance.getId());
-            Map<String, Object> stepOutputs = new HashMap<>();
+            Map<String, Object> outputs;
 
-            for (WorkflowStepEntity step : steps) {
-                // 检查依赖
-                if (!checkDependencies(step, stepOutputs)) {
-                    log.warn("Step dependencies not met, skipping: {}", step.getStepName());
-                    continue;
-                }
-
-                // 评估条件
-                if (!evaluateCondition(step, context)) {
-                    log.info("Step condition not met, skipping: {}", step.getStepName());
-                    continue;
-                }
-
-                // 执行步骤
-                Map<String, Object> stepResult = executeStep(step, context, stepOutputs);
-                stepOutputs.put(step.getId().toString(), stepResult);
-
-                // 更新上下文
-                context.putAll(stepResult);
+            if (isGraphBased) {
+                // 使用图执行器
+                log.info("Executing graph-based workflow");
+                outputs = graphExecutor.executeGraph(workflowDefinition, context);
+            } else {
+                // 使用传统步骤执行器
+                log.info("Executing step-based workflow");
+                outputs = executeStepBasedWorkflow(workflowId, context);
             }
 
             // 更新实例状态为成功
-            completeInstance(instance, stepOutputs, null);
+            completeInstance(instance, outputs, null);
             log.info("Workflow execution completed successfully: instanceId={}", instance.getId());
 
         } catch (Exception e) {
@@ -94,6 +92,42 @@ public class WorkflowEngine {
     }
 
     /**
+     * 执行基于步骤的工作流（传统模式）
+     */
+    private Map<String, Object> executeStepBasedWorkflow(Long workflowId, Map<String, Object> context) {
+        // 获取所有步骤
+        List<WorkflowStepEntity> steps = stepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId);
+        if (steps.isEmpty()) {
+            throw new IllegalStateException("Workflow has no steps: " + workflowId);
+        }
+
+        Map<String, Object> stepOutputs = new HashMap<>();
+
+        for (WorkflowStepEntity step : steps) {
+            // 检查依赖
+            if (!checkDependencies(step, stepOutputs)) {
+                log.warn("Step dependencies not met, skipping: {}", step.getStepName());
+                continue;
+            }
+
+            // 评估条件
+            if (!evaluateCondition(step, context)) {
+                log.info("Step condition not met, skipping: {}", step.getStepName());
+                continue;
+            }
+
+            // 执行步骤
+            Map<String, Object> stepResult = executeStep(step, context, stepOutputs);
+            stepOutputs.put(step.getId().toString(), stepResult);
+
+            // 更新上下文
+            context.putAll(stepResult);
+        }
+
+        return stepOutputs;
+    }
+
+    /**
      * 执行单个步骤
      */
     private Map<String, Object> executeStep(
@@ -101,7 +135,7 @@ public class WorkflowEngine {
             Map<String, Object> context,
             Map<String, Object> stepOutputs) {
 
-        log.info("Executing step: {}", step.getStepName());
+        log.info("Executing step: {} (type: {})", step.getStepName(), step.getStepType());
 
         // 设置追踪上下文
         String traceId = (String) context.get("__traceId");
@@ -118,8 +152,34 @@ public class WorkflowEngine {
             // 解析输入参数
             Map<String, Object> inputs = resolveParameters(step.getInputMapping(), context, stepOutputs);
 
-            // 执行技能
-            Map<String, Object> result = skillService.executeSkill(step.getSkillId(), inputs);
+            Map<String, Object> result;
+
+            // 根据步骤类型选择执行器
+            if (step.getStepType() == WorkflowStepEntity.StepType.AGENT) {
+                // 执行智能体
+                if (step.getAgentId() == null) {
+                    throw new IllegalStateException("Agent ID is required for AGENT step: " + step.getStepName());
+                }
+                log.info("Invoking agent: agentId={}", step.getAgentId());
+                result = agentExecutor.executeAgent(step.getAgentId(), inputs);
+
+            } else if (step.getStepType() == WorkflowStepEntity.StepType.SKILL) {
+                // 执行技能
+                if (step.getSkillId() == null) {
+                    throw new IllegalStateException("Skill ID is required for SKILL step: " + step.getStepName());
+                }
+                log.info("Invoking skill: skillId={}", step.getSkillId());
+                result = skillService.executeSkill(step.getSkillId(), inputs);
+
+            } else if (step.getStepType() == WorkflowStepEntity.StepType.LOGIC) {
+                // 逻辑控制步骤 (暂时返回输入)
+                log.info("Executing LOGIC step (pass-through)");
+                result = new HashMap<>(inputs);
+                result.put("success", true);
+
+            } else {
+                throw new IllegalStateException("Unsupported step type: " + step.getStepType());
+            }
 
             // 应用输出映射
             if (step.getOutputMapping() != null) {

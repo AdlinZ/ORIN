@@ -23,6 +23,8 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
     private final String apiKey;
     private final String baseUrl;
     private final RestTemplate restTemplate;
+    private final org.springframework.web.reactive.function.client.WebClient webClient;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // OpenAI价格表（每1000 tokens）
     private static final Map<String, Double[]> MODEL_PRICING = Map.of(
@@ -35,6 +37,13 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl != null ? baseUrl : "https://api.openai.com/v1";
         this.restTemplate = restTemplate;
+        this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        this.webClient = org.springframework.web.reactive.function.client.WebClient.builder()
+                .baseUrl(this.baseUrl)
+                .defaultHeader("Authorization", "Bearer " + apiKey)
+                .defaultHeader("Content-Type", "application/json")
+                .build();
     }
 
     @Override
@@ -104,8 +113,64 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
 
     @Override
     public Flux<ChatCompletionResponse> chatCompletionStream(ChatCompletionRequest request) {
-        // TODO: 实现流式响应
-        return chatCompletion(request).flux();
+        request.setStream(true);
+        Map<String, Object> requestBody = buildOpenAIRequest(request);
+
+        return webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToFlux(String.class)
+                .filter(line -> line.startsWith("data: "))
+                .map(line -> line.substring(6).trim())
+                .filter(content -> !content.equals("[DONE]"))
+                .flatMap(content -> {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> chunk = objectMapper.readValue(content, Map.class);
+                        return Mono.just(convertToStandardResponseFromChunk(chunk));
+                    } catch (Exception e) {
+                        log.error("Error parsing OpenAI stream chunk: {}", e.getMessage());
+                        return Mono.empty();
+                    }
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    private ChatCompletionResponse convertToStandardResponseFromChunk(Map<String, Object> chunk) {
+        ChatCompletionResponse.ChatCompletionResponseBuilder builder = ChatCompletionResponse.builder()
+                .id((String) chunk.get("id"))
+                .object((String) chunk.get("object"))
+                .created(((Number) chunk.get("created")).longValue())
+                .model((String) chunk.get("model"))
+                .provider("openai");
+
+        List<Map<String, Object>> choices = (List<Map<String, Object>>) chunk.get("choices");
+        List<ChatCompletionResponse.Choice> convertedChoices = new ArrayList<>();
+
+        if (choices != null) {
+            for (Map<String, Object> choice : choices) {
+                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+
+                ChatCompletionResponse.Choice.ChoiceBuilder choiceBuilder = ChatCompletionResponse.Choice.builder()
+                        .index(((Number) choice.get("index")).intValue())
+                        .finishReason((String) choice.get("finish_reason"));
+
+                if (delta != null) {
+                    ChatCompletionRequest.Message.MessageBuilder msgBuilder = ChatCompletionRequest.Message.builder();
+                    if (delta.containsKey("role"))
+                        msgBuilder.role((String) delta.get("role"));
+                    if (delta.containsKey("content"))
+                        msgBuilder.content((String) delta.get("content"));
+                    choiceBuilder.message(msgBuilder.build());
+                }
+
+                convertedChoices.add(choiceBuilder.build());
+            }
+        }
+        builder.choices(convertedChoices);
+
+        return builder.build();
     }
 
     @Override

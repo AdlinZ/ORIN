@@ -15,6 +15,9 @@ import org.springframework.web.client.RestTemplate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.adlin.orin.modules.knowledge.service.MilvusVectorService;
+import org.springframework.beans.factory.annotation.Value;
+
 /**
  * 技能服务实现类 - 增强版
  * 包含完整的 API 调用和知识库检索逻辑
@@ -26,6 +29,16 @@ public class SkillServiceImplEnhanced implements SkillService {
 
     private final SkillRepository skillRepository;
     private final RestTemplate restTemplate;
+    private final MilvusVectorService milvusVectorService;
+
+    @Value("${milvus.host:localhost}")
+    private String milvusHost;
+
+    @Value("${milvus.port:19530}")
+    private int milvusPort;
+
+    @Value("${milvus.token:}")
+    private String milvusToken;
 
     @Override
     @Transactional
@@ -361,25 +374,32 @@ public class SkillServiceImplEnhanced implements SkillService {
             int topK = (int) inputs.getOrDefault("topK", 5);
             double threshold = (double) inputs.getOrDefault("threshold", 0.7);
 
-            // TODO: 实际的向量检索逻辑需要集成 Milvus/Pinecone
-            // 这里提供一个框架实现
+            // 1. Convert text to vector
+            String embeddingModel = (String) inputs.getOrDefault("embeddingModel", "text-embedding-ada-002");
+            List<Float> queryVector = milvusVectorService.textToVector(query, embeddingModel);
+
+            // 2. Search in Milvus
+            String collectionName = "kb_" + knowledgeConfigId;
+            List<Map<String, Object>> searchResults = milvusVectorService.search(
+                    milvusHost, milvusPort, milvusToken,
+                    collectionName,
+                    queryVector,
+                    topK,
+                    threshold);
+
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
             result.put("query", query);
             result.put("knowledgeConfigId", knowledgeConfigId);
             result.put("topK", topK);
             result.put("threshold", threshold);
+            result.put("documents", searchResults);
 
-            // 模拟检索结果
-            List<Map<String, Object>> documents = new ArrayList<>();
-            Map<String, Object> doc = new HashMap<>();
-            doc.put("content", "This is a placeholder result. Integrate with vector database for real results.");
-            doc.put("score", 0.85);
-            doc.put("metadata", Map.of("source", "knowledge_base"));
-            documents.add(doc);
-
-            result.put("documents", documents);
-            result.put("message", "Knowledge retrieval completed (using mock data - integrate Milvus for production)");
+            if (searchResults.isEmpty()) {
+                result.put("message", "No relevant documents found.");
+            } else {
+                result.put("message", "Found " + searchResults.size() + " relevant documents.");
+            }
 
             return result;
 
@@ -398,9 +418,12 @@ public class SkillServiceImplEnhanced implements SkillService {
     private Map<String, Object> executeCompositeSkill(SkillEntity skill, Map<String, Object> inputs) {
         log.info("Executing composite skill: {}", skill.getSkillName());
 
-        // TODO: 实现工作流调用逻辑
+        // TODO: [Plan] Integrate Workflow Engine (e.g. LiteFlow/Flowable) to support
+        // composite skills
         Map<String, Object> result = new HashMap<>();
-        result.put("message", "Composite skill execution not yet implemented");
+        result.put("success", false);
+        result.put("message", "Composite skill execution is not supported yet (Workflow Engine missing).");
+        result.put("workflowId", skill.getWorkflowId());
 
         return result;
     }

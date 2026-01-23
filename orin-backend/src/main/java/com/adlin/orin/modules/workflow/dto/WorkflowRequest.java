@@ -34,4 +34,7 @@ public class WorkflowRequest {
     private Integer timeoutSeconds;
     private Map<String, Object> retryPolicy;
     private String createdBy;
+
+    // Optional: Create steps along with workflow
+    private java.util.List<WorkflowStepRequest> steps;
 }

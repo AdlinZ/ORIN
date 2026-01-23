@@ -105,6 +105,30 @@ const routes = [
                         name: 'WorkflowManagement',
                         component: () => import('../views/Workflow/WorkflowManagement.vue'),
                         meta: { title: '工作流编排' }
+                    },
+                    {
+                        path: 'create',
+                        name: 'WorkflowCreate',
+                        component: () => import('../views/Workflow/WorkflowEditor.vue'),
+                        meta: { title: '创建工作流' }
+                    },
+                    {
+                        path: 'edit/:id',
+                        name: 'WorkflowEdit',
+                        component: () => import('../views/Workflow/WorkflowEditor.vue'),
+                        meta: { title: '编辑工作流' }
+                    },
+                    {
+                        path: 'visual',
+                        name: 'VisualWorkflowCreate',
+                        component: () => import('../views/Workflow/VisualWorkflowEditor.vue'),
+                        meta: { title: '可视化工作流编辑器' }
+                    },
+                    {
+                        path: 'visual/:id',
+                        name: 'VisualWorkflowEdit',
+                        component: () => import('../views/Workflow/VisualWorkflowEditor.vue'),
+                        meta: { title: '编辑可视化工作流' }
                     }
                 ]
             },

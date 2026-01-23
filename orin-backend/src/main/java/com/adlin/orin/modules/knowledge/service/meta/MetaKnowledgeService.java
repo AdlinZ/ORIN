@@ -116,7 +116,8 @@ public class MetaKnowledgeService {
                 }
 
                 // B. Vector Retrieval Memory (Placeholder for RAG)
-                // TODO: Integrate Embedding Model search here
+                // TODO: [Plan] Implement RAG pipeline: 1. Vector Search, 2. Re-ranking, 3.
+                // Context Window Management
                 // List<String> relevantDocs = vectorService.search(agentId, query);
                 // if (!relevantDocs.isEmpty()) {
                 // systemPrompt.append("\n## Context / Relevant Docs (Vector)\n");

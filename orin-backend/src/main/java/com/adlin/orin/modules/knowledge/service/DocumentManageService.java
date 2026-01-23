@@ -232,7 +232,25 @@ public class DocumentManageService {
                 String content = new String(bytes);
                 return content.length() > 500 ? content.substring(0, 500) : content;
             }
-            // TODO: 支持 PDF, DOCX 等格式的文本提取
+
+            // 支持 PDF 格式的文本提取
+            if (fileType.equals("pdf")) {
+                try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader
+                        .loadPDF(file.getBytes())) {
+                    org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+                    // 仅提取前几页作为预览
+                    stripper.setSortByPosition(true);
+                    stripper.setStartPage(1);
+                    stripper.setEndPage(3);
+                    String text = stripper.getText(document).trim();
+                    return text.length() > 500 ? text.substring(0, 500) : text;
+                } catch (Exception e) {
+                    log.warn("Failed to extract PDF content: {}", e.getMessage());
+                    return "[PDF Extraction Failed]";
+                }
+            }
+
+            // TODO: [Plan] Add Apache POI dependency and implement DOCX parser
             return null;
         } catch (IOException e) {
             log.warn("Failed to extract content preview", e);

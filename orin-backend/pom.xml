@@ -59,6 +59,12 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
+        <!-- WebSocket for Real-time Communication -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
         <!-- JWT Authentication -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

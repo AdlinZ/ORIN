@@ -55,6 +55,13 @@ public class WorkflowService {
         WorkflowEntity saved = workflowRepository.save(entity);
         log.info("Workflow created with ID: {}", saved.getId());
 
+        // Create steps if provided
+        if (request.getSteps() != null && !request.getSteps().isEmpty()) {
+            for (WorkflowStepRequest stepRequest : request.getSteps()) {
+                addStep(saved.getId(), stepRequest);
+            }
+        }
+
         return WorkflowResponse.fromEntity(saved);
     }
 
@@ -66,11 +73,22 @@ public class WorkflowService {
             throw new IllegalArgumentException("Workflow not found: " + workflowId);
         }
 
+        WorkflowStepEntity.StepType type = WorkflowStepEntity.StepType.SKILL;
+        if (request.getStepType() != null) {
+            try {
+                type = WorkflowStepEntity.StepType.valueOf(request.getStepType());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid step type: {}, defaulting to SKILL", request.getStepType());
+            }
+        }
+
         WorkflowStepEntity step = WorkflowStepEntity.builder()
                 .workflowId(workflowId)
                 .stepOrder(request.getStepOrder())
                 .stepName(request.getStepName())
+                .stepType(type)
                 .skillId(request.getSkillId())
+                .agentId(request.getAgentId())
                 .inputMapping(request.getInputMapping())
                 .outputMapping(request.getOutputMapping())
                 .conditionExpression(request.getConditionExpression())

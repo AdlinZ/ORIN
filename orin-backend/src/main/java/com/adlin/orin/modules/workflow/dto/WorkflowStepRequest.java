@@ -25,8 +25,9 @@ public class WorkflowStepRequest {
     @Size(max = 100, message = "步骤名称长度不能超过100个字符")
     private String stepName;
 
-    @NotNull(message = "技能ID不能为空")
+    private String stepType; // SKILL, AGENT, LOGIC
     private Long skillId;
+    private Long agentId;
     private Map<String, Object> inputMapping;
     private Map<String, Object> outputMapping;
     private String conditionExpression;

@@ -177,7 +177,13 @@ public class RouterService {
             return Optional.empty();
         }
 
-        // TODO: 实现基于配置的优先级排序
+        // TODO: [Plan] Integrate with Configuration Center (e.g. Nacos/Consul) for
+        // dynamic priority rules
+        // 目前简单实现：按 Provider ID 字母顺序排序，确保确定性
+        // 实际生产中可从配置中心获取优先级列表
+        providers.sort(
+                java.util.Comparator.comparing(p -> (String) p.getProviderConfig().getOrDefault("providerId", "")));
+
         ProviderAdapter selected = providers.get(0);
         log.debug("Priority selected provider: {}", selected.getProviderName());
         return Optional.of(selected);

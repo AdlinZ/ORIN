@@ -9,6 +9,9 @@
         <el-button type="primary" :icon="Plus" @click="handleCreate">
           新建工作流
         </el-button>
+        <el-button type="success" :icon="Connection" @click="handleCreateVisual">
+          可视化编辑器
+        </el-button>
       </div>
     </div>
 
@@ -66,7 +69,7 @@
           <template #default="{ row }">
             <div class="workflow-name">
               <el-icon class="flow-icon"><Connection /></el-icon>
-              <span>{{ row.name }}</span>
+              <span>{{ row.workflowName }}</span>
             </div>
           </template>
         </el-table-column>
@@ -101,40 +104,48 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { Plus, Search, VideoPlay, DataLine, Timer, Connection } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import dayjs from 'dayjs';
+import { getWorkflows } from '@/api/workflow';
 
+const router = useRouter();
 const searchQuery = ref('');
 const loading = ref(false);
-const workflows = ref([
-  // Mock data for demo
-  {
-    id: '1',
-    name: '客服自动回复流',
-    description: '自动分析用户意图并调用知识库回复，若未知则转人工',
-    status: 'PUBLISHED',
-    updatedAt: '2026-01-18T10:00:00',
-  },
-  {
-    id: '2',
-    name: '每日财报分析',
-    description: '定时抓取财经新闻，生成摘要并发送邮件',
-    status: 'DRAFT',
-    updatedAt: '2026-01-19T09:30:00',
+const workflows = ref([]);
+
+const fetchData = async () => {
+  loading.value = true;
+  try {
+    const res = await getWorkflows();
+    workflows.value = res || [];
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('加载工作流列表失败');
+  } finally {
+    loading.value = false;
   }
-]);
+};
+
+onMounted(() => {
+  fetchData();
+});
 
 const handleCreate = () => {
-  ElMessage.info('创建功能开发中...');
+  router.push('/dashboard/workflow/create');
+};
+
+const handleCreateVisual = () => {
+  router.push('/dashboard/workflow/visual');
 };
 
 const handleEdit = (row) => {
-  ElMessage.info(`正在打开 ${row.name} 的编排画布...`);
+  router.push(`/dashboard/workflow/edit/${row.id}`);
 };
 
 const handleRun = (row) => {
-  ElMessage.success(`已触发测试运行: ${row.name}`);
+  ElMessage.success(`已触发测试运行: ${row.workflowName}`); // Updated property name
 };
 
 const handleDelete = (row) => {
@@ -142,6 +153,7 @@ const handleDelete = (row) => {
 };
 
 const formatTime = (time) => {
+  if (!time) return '-';
   return dayjs(time).format('YYYY-MM-DD HH:mm');
 };
 </script>

@@ -80,30 +80,70 @@ public class NotificationService {
     /**
      * 发送钉钉通知
      */
-    private void sendDingTalk(AlertRule rule, String message) {
-        // TODO: 实现钉钉 Webhook 通知
-        log.info("DINGTALK notification: [{}] {}", rule.getSeverity(), message);
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.web.client.RestTemplate restTemplate;
 
-        // 示例实现：
-        // String webhook = dingTalkWebhook;
-        // Map<String, Object> payload = new HashMap<>();
-        // payload.put("msgtype", "text");
-        // payload.put("text", Map.of("content", message));
-        // restTemplate.postForObject(webhook, payload, String.class);
+    // ... existing code ...
+
+    /**
+     * 发送钉钉通知
+     */
+    private void sendDingTalk(AlertRule rule, String message) {
+        if (rule.getRecipientList() == null || rule.getRecipientList().isEmpty()) {
+            return;
+        }
+
+        String[] webhooks = rule.getRecipientList().split(",");
+        for (String webhook : webhooks) {
+            webhook = webhook.trim();
+            if (!webhook.startsWith("http")) {
+                continue;
+            }
+
+            try {
+                java.util.Map<String, Object> text = new java.util.HashMap<>();
+                text.put("content", "[ORIN " + rule.getSeverity() + "] " + message);
+
+                java.util.Map<String, Object> body = new java.util.HashMap<>();
+                body.put("msgtype", "text");
+                body.put("text", text);
+
+                restTemplate.postForEntity(webhook, body, String.class);
+                log.info("DingTalk notification sent: {}", rule.getRuleName());
+            } catch (Exception e) {
+                log.error("Failed to send DingTalk notification: {}", e.getMessage());
+            }
+        }
     }
 
     /**
      * 发送企业微信通知
      */
     private void sendWeChat(AlertRule rule, String message) {
-        // TODO: 实现企业微信 Webhook 通知
-        log.info("WECHAT notification: [{}] {}", rule.getSeverity(), message);
+        if (rule.getRecipientList() == null || rule.getRecipientList().isEmpty()) {
+            return;
+        }
 
-        // 示例实现：
-        // String webhook = weChatWebhook;
-        // Map<String, Object> payload = new HashMap<>();
-        // payload.put("msgtype", "text");
-        // payload.put("text", Map.of("content", message));
-        // restTemplate.postForObject(webhook, payload, String.class);
+        String[] webhooks = rule.getRecipientList().split(",");
+        for (String webhook : webhooks) {
+            webhook = webhook.trim();
+            if (!webhook.startsWith("http")) {
+                continue;
+            }
+
+            try {
+                java.util.Map<String, Object> text = new java.util.HashMap<>();
+                text.put("content", "[ORIN " + rule.getSeverity() + "] " + message);
+
+                java.util.Map<String, Object> body = new java.util.HashMap<>();
+                body.put("msgtype", "text");
+                body.put("text", text);
+
+                restTemplate.postForEntity(webhook, body, String.class);
+                log.info("WeChat notification sent: {}", rule.getRuleName());
+            } catch (Exception e) {
+                log.error("Failed to send WeChat notification: {}", e.getMessage());
+            }
+        }
     }
 }
