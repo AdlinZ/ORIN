@@ -2,9 +2,12 @@ package com.adlin.orin.modules.monitor.service.impl;
 
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
+import com.adlin.orin.modules.monitor.entity.PrometheusConfig;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.monitor.repository.AgentMetricRepository;
+import com.adlin.orin.modules.monitor.repository.PrometheusConfigRepository;
 import com.adlin.orin.modules.monitor.service.MonitorService;
+import com.adlin.orin.modules.monitor.service.PrometheusService;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -34,6 +38,15 @@ public class MonitorServiceImpl implements MonitorService {
         private final AgentMetricRepository metricRepository;
         private final AuditLogRepository auditLogRepository;
         private final DifyIntegrationService difyIntegrationService;
+        private final PrometheusService prometheusService;
+        private final PrometheusConfigRepository prometheusConfigRepository;
+
+        // Dedicated thread pool for Prometheus queries to avoid using the common
+        // ForkJoinPool
+        // which might have limited parallelism (e.g. 1 thread) in some containerized
+        // environments.
+        private final java.util.concurrent.ExecutorService prometheusExecutor = java.util.concurrent.Executors
+                        .newCachedThreadPool();
 
         @Override
         public Map<String, Object> getGlobalSummary() {
@@ -120,8 +133,8 @@ public class MonitorServiceImpl implements MonitorService {
                                         .responseLatency(l.getResponseTime() != null ? l.getResponseTime().intValue()
                                                         : 0)
                                         .tokenCost(l.getTotalTokens())
-                                        .cpuUsage(0.0) // 外部模型无法获取瞬时 CPU
-                                        .memoryUsage(0.0)
+                                        .cpuUsage(fetchRealTimeCpu(agentId)) // 尝试获取实时 CPU
+                                        .memoryUsage(fetchRealTimeMemory(agentId))
                                         .build()).collect(Collectors.toList());
 
                         metrics.addAll(logMetrics);
@@ -388,5 +401,171 @@ public class MonitorServiceImpl implements MonitorService {
         @Override
         public Page<AuditLog> getLatencyHistory(int page, int size, Long startDate, Long endDate) {
                 return getTokenHistory(page, size, startDate, endDate);
+        }
+
+        @Override
+        public Map<String, Object> getServerHardware() {
+                PrometheusConfig config = getPrometheusConfig();
+                Map<String, Object> status = new HashMap<>();
+
+                if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
+                        String url = config.getPrometheusUrl();
+
+                        status.put("online", true);
+
+                        try {
+                                CompletableFuture<Double> cpuFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getCpuUsage(url),
+                                                                prometheusExecutor);
+                                CompletableFuture<Double> memFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getMemoryUsage(url),
+                                                                prometheusExecutor);
+                                CompletableFuture<Double> diskFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getDiskUsage(url),
+                                                                prometheusExecutor);
+                                CompletableFuture<Integer> coresFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getCpuCores(url),
+                                                                prometheusExecutor);
+                                CompletableFuture<Long> totalMemFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getTotalMemory(url),
+                                                                prometheusExecutor);
+                                CompletableFuture<Double> netInFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getNetworkReceiveRate(url),
+                                                                prometheusExecutor);
+                                CompletableFuture<Double> netOutFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getNetworkTransmitRate(url),
+                                                                prometheusExecutor);
+
+                                CompletableFuture<String> osFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getOsName(url),
+                                                                prometheusExecutor);
+
+                                CompletableFuture<Double> diskTotalFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getTotalDiskSpace(url),
+                                                                prometheusExecutor);
+
+                                CompletableFuture<String> cpuModelFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getCpuModel(url),
+                                                                prometheusExecutor);
+
+                                CompletableFuture<Double> gpuUsageFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getGpuUsage(url),
+                                                                prometheusExecutor);
+
+                                CompletableFuture<Double> gpuMemFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getGpuMemoryUsage(url),
+                                                                prometheusExecutor);
+
+                                CompletableFuture<String> gpuModelFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getGpuModel(url),
+                                                                prometheusExecutor);
+
+                                // Wait for all with a strict timeout of 4 seconds (safer than Frontend 5s
+                                // timeout)
+                                CompletableFuture.allOf(cpuFuture, memFuture, diskFuture, coresFuture, totalMemFuture,
+                                                netInFuture, netOutFuture, osFuture, diskTotalFuture, cpuModelFuture,
+                                                gpuUsageFuture, gpuMemFuture, gpuModelFuture)
+                                                .get(10, java.util.concurrent.TimeUnit.SECONDS);
+
+                                status.put("cpuUsage", cpuFuture.get());
+                                status.put("memoryUsage", memFuture.get());
+                                status.put("diskUsage", diskFuture.get());
+                                status.put("cpuCores", coresFuture.get());
+                                status.put("os", osFuture.get());
+                                status.put("cpuModel", cpuModelFuture.get());
+
+                                // GPU
+                                status.put("gpuUsage", gpuUsageFuture.get());
+                                status.put("gpuMemoryUsage", gpuMemFuture.get());
+                                status.put("gpuModel", gpuModelFuture.get());
+
+                                // Format Memory
+                                long totalMemBytes = totalMemFuture.get();
+                                status.put("memoryTotal", formatBytes(totalMemBytes));
+
+                                // Calculate Used Memory (Available is not fetched directly but derived from
+                                // usage % is possible,
+                                // but better to just show total and usage %.
+                                // Let's estimate used for display: Total * (Usage%/100))
+                                long usedMemBytes = (long) (totalMemBytes * (memFuture.get() / 100.0));
+                                status.put("memoryUsed", formatBytes(usedMemBytes));
+
+                                // Format Disk (Calc Used from Total * Usage)
+                                long totalDiskBytes = diskTotalFuture.get().longValue();
+                                status.put("diskTotal", formatBytes(totalDiskBytes));
+                                long usedDiskBytes = (long) (totalDiskBytes * (diskFuture.get() / 100.0));
+                                status.put("diskUsed", formatBytes(usedDiskBytes));
+
+                                // Format Network
+                                status.put("networkDownload", formatSpeed(netInFuture.get()));
+                                status.put("networkUpload", formatSpeed(netOutFuture.get()));
+
+                        } catch (Exception e) {
+                                log.error("Error fetching Prometheus metrics: {}", e.getMessage());
+                                status.put("cpuUsage", 0.0);
+                                status.put("memoryUsage", 0.0);
+                                status.put("diskUsage", 0.0);
+                                status.put("cpuCores", 0);
+                                status.put("memoryTotal", "N/A");
+                                status.put("memoryUsed", "N/A"); // Just in case
+                                status.put("diskTotal", "N/A");
+                                status.put("diskUsed", "N/A");
+                                status.put("networkDownload", "0 KB/s");
+                                status.put("networkUpload", "0 KB/s");
+                                status.put("cpuModel", "Unknown");
+                                status.put("gpuModel", "N/A");
+                        }
+                } else {
+                        status.put("online", false);
+                }
+                return status;
+        }
+
+        private String formatBytes(long bytes) {
+                if (bytes <= 0)
+                        return "0 B";
+                String[] units = new String[] { "B", "KB", "MB", "GB", "TB" };
+                int digitGroups = (int) (Math.log10(bytes) / Math.log10(1024));
+                return String.format("%.1f %s", bytes / Math.pow(1024, digitGroups), units[digitGroups]);
+        }
+
+        private String formatSpeed(Double bytesPerSec) {
+                if (bytesPerSec == null || bytesPerSec < 0)
+                        return "0 B/s";
+                String[] units = new String[] { "B/s", "KB/s", "MB/s", "GB/s" };
+                int digitGroups = (int) (Math.log10(bytesPerSec) / Math.log10(1024));
+                if (digitGroups < 0)
+                        digitGroups = 0;
+                if (digitGroups >= units.length)
+                        digitGroups = units.length - 1;
+                return String.format("%.1f %s", bytesPerSec / Math.pow(1024, digitGroups), units[digitGroups]);
+        }
+
+        @Override
+        public void updatePrometheusConfig(PrometheusConfig config) {
+                config.setId("DEFAULT");
+                prometheusConfigRepository.save(config);
+        }
+
+        @Override
+        public PrometheusConfig getPrometheusConfig() {
+                return prometheusConfigRepository.findById("DEFAULT").orElse(null);
+        }
+
+        private Double fetchRealTimeCpu(String agentId) {
+                // 简单逻辑：如果是主服务器相关的 Agent，获取物理 CPU
+                PrometheusConfig config = getPrometheusConfig();
+                if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
+                        return prometheusService.getCpuUsage(config.getPrometheusUrl());
+                }
+                return 0.0;
+        }
+
+        private Double fetchRealTimeMemory(String agentId) {
+                PrometheusConfig config = getPrometheusConfig();
+                if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
+                        return prometheusService.getMemoryUsage(config.getPrometheusUrl());
+                }
+                return 0.0;
         }
 }

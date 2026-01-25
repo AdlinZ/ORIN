@@ -3,20 +3,60 @@
     <template #header>
       <div class="card-header">
         <div class="header-left">
-          <el-icon class="header-icon"><Setting /></el-icon>
+          <el-icon class="header-icon"><Cpu /></el-icon>
           <span class="module-title">服务器硬件监控</span>
         </div>
-        <el-tag type="success" size="small" effect="plain" v-if="serverInfo.online">
-          <el-icon><CircleCheck /></el-icon> 在线
-        </el-tag>
-        <el-tag type="danger" size="small" effect="plain" v-else>
-          <el-icon><CircleClose /></el-icon> 离线
-        </el-tag>
+        <div class="header-right">
+          <span v-if="serverInfo.lastUpdated" class="last-updated">
+            更新于 {{ new Date(serverInfo.lastUpdated).toLocaleTimeString() }}
+          </span>
+          
+          <el-tag 
+            v-if="serverInfo.online" 
+            type="success" 
+            size="small" 
+            effect="plain" 
+            class="status-tag"
+          >
+            在线
+          </el-tag>
+          
+          <el-tag 
+            v-else 
+            type="info" 
+            size="small" 
+            effect="plain" 
+            class="status-tag"
+          >
+            离线
+          </el-tag>
+
+          <div class="actions">
+            <el-button 
+              :icon="Setting" 
+              circle 
+              size="small" 
+              @click="openConfig"
+            />
+            <el-button 
+              :icon="Refresh" 
+              circle 
+              size="small" 
+              :loading="loading"
+              @click="fetchServerInfo"
+            />
+          </div>
+        </div>
       </div>
     </template>
 
     <el-skeleton :loading="loading" animated :rows="3">
-      <div class="hardware-grid">
+      <div v-if="!serverInfo.online && !loading" class="offline-placeholder">
+        <el-empty description="Prometheus 未配置或无法连接">
+           <el-button type="primary" @click="openConfig">去配置</el-button>
+        </el-empty>
+      </div>
+      <div v-else class="hardware-grid">
         <!-- CPU Usage -->
         <div class="hardware-item">
           <div class="item-header">
@@ -30,7 +70,24 @@
             :status="getProgressStatus(serverInfo.cpuUsage)"
             :show-text="false"
           />
-          <div class="item-detail">{{ serverInfo.cpuCores }} 核心 @ {{ serverInfo.cpuFreq }}</div>
+          <div class="item-detail">{{ serverInfo.cpuCores }} 核心 @ {{ serverInfo.cpuModel || 'N/A' }}</div>
+        </div>
+
+        <!-- GPU Usage (Optional) -->
+        <!-- GPU Usage -->
+        <div class="hardware-item">
+          <div class="item-header">
+            <el-icon class="item-icon" color="#7B1FA2"><VideoPlay /></el-icon>
+            <span class="item-label">GPU 使用率</span>
+          </div>
+          <div class="item-value">{{ serverInfo.gpuUsage }}%</div>
+          <el-progress 
+            :percentage="serverInfo.gpuUsage" 
+            :stroke-width="8"
+            :status="getProgressStatus(serverInfo.gpuUsage)"
+            :show-text="false"
+          />
+          <div class="item-detail">{{ (serverInfo.gpuModel && serverInfo.gpuModel !== 'N/A' && serverInfo.gpuModel !== 'Unknown') ? serverInfo.gpuModel : '无 GPU 数据' }} (显存: {{ serverInfo.gpuMemoryUsage }}%)</div>
         </div>
 
         <!-- Memory Usage -->
@@ -46,7 +103,7 @@
             :status="getProgressStatus(serverInfo.memoryUsage)"
             :show-text="false"
           />
-          <div class="item-detail">{{ serverInfo.memoryUsed }} / {{ serverInfo.memoryTotal }}</div>
+          <div class="item-detail">{{ serverInfo.memoryUsed || '0' }} / {{ serverInfo.memoryTotal || '0' }}</div>
         </div>
 
         <!-- Disk Usage -->
@@ -62,7 +119,7 @@
             :status="getProgressStatus(serverInfo.diskUsage)"
             :show-text="false"
           />
-          <div class="item-detail">{{ serverInfo.diskUsed }} / {{ serverInfo.diskTotal }}</div>
+          <div class="item-detail">{{ serverInfo.diskUsed || '0' }} / {{ serverInfo.diskTotal || '0' }}</div>
         </div>
 
         <!-- Network Traffic -->
@@ -74,11 +131,11 @@
           <div class="item-value-small">
             <div class="traffic-row">
               <el-icon><Top /></el-icon>
-              <span>{{ serverInfo.networkUpload }}</span>
+              <span>{{ serverInfo.networkUpload || '0 KB/s' }}</span>
             </div>
             <div class="traffic-row">
               <el-icon><Bottom /></el-icon>
-              <span>{{ serverInfo.networkDownload }}</span>
+              <span>{{ serverInfo.networkDownload || '0 KB/s' }}</span>
             </div>
           </div>
           <div class="item-detail">实时速率</div>
@@ -88,19 +145,41 @@
         <div class="hardware-item system-info">
           <div class="info-row">
             <span class="info-label">操作系统</span>
-            <span class="info-value">{{ serverInfo.os }}</span>
+            <span class="info-value">{{ serverInfo.os || 'Unknown' }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">运行时长</span>
-            <span class="info-value">{{ serverInfo.uptime }}</span>
+            <span class="info-label">采集来源</span>
+            <span class="info-value">Prometheus (Node Exporter)</span>
           </div>
           <div class="info-row">
-            <span class="info-label">服务器地址</span>
-            <span class="info-value">{{ serverInfo.host }}</span>
+            <span class="info-label">监控实例</span>
+            <span class="info-value">{{ serverInfo.host || 'Not set' }}</span>
           </div>
         </div>
       </div>
     </el-skeleton>
+
+    <!-- Prometheus Config Dialog -->
+    <el-dialog
+      v-model="configVisible"
+      title="Prometheus 监控配置"
+      width="450px"
+      append-to-body
+    >
+      <el-form :model="configForm" label-position="top">
+        <el-form-item label="启用监控">
+          <el-switch v-model="configForm.enabled" />
+        </el-form-item>
+        <el-form-item label="Prometheus 地址" v-if="configForm.enabled">
+          <el-input v-model="configForm.prometheusUrl" placeholder="http://1.2.3.4:9090" />
+          <div class="form-tip">Prometheus 服务器的可访问 URL</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="configVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveConfig">保存并刷新</el-button>
+      </template>
+    </el-dialog>
   </el-card>
 </template>
 
@@ -108,56 +187,87 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { 
   Setting, Cpu, Memo, FolderOpened, Connection, 
-  CircleCheck, CircleClose, Top, Bottom 
+  SuccessFilled, CircleCloseFilled, Top, Bottom, Refresh, VideoPlay 
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
+import { ElMessage } from 'element-plus';
 
 const loading = ref(true);
+const saving = ref(false);
+const configVisible = ref(false);
 const serverInfo = ref({
   online: false,
   cpuUsage: 0,
   cpuCores: 0,
-  cpuFreq: '',
+  cpuModel: '', // Add cpuModel here
+  gpuUsage: 0,
+  gpuMemoryUsage: 0,
+  gpuModel: '',
   memoryUsage: 0,
-  memoryUsed: '',
-  memoryTotal: '',
   diskUsage: 0,
-  diskUsed: '',
-  diskTotal: '',
-  networkUpload: '',
-  networkDownload: '',
   os: '',
-  uptime: '',
-  host: ''
+  host: '',
+  lastUpdated: null // Add timestamp
+});
+
+const configForm = ref({
+  prometheusUrl: '',
+  enabled: false
 });
 
 let refreshTimer = null;
 
+const fetchConfig = async () => {
+  try {
+    const res = await request.get('/monitor/prometheus/config');
+    if (res.data) {
+      configForm.value = res.data;
+    }
+  } catch (e) {
+    console.error('Failed to fetch config', e);
+  }
+};
+
+const openConfig = async () => {
+  await fetchConfig();
+  configVisible.value = true;
+};
+
+const saveConfig = async () => {
+  saving.value = true;
+  try {
+    await request.post('/monitor/prometheus/config', configForm.value);
+    ElMessage.success('配置已保存');
+    configVisible.value = false;
+    fetchServerInfo();
+  } catch (e) {
+    ElMessage.error('保存失败: ' + e.message);
+  } finally {
+    saving.value = false;
+  }
+};
+
 const fetchServerInfo = async () => {
   try {
     const res = await request.get('/monitor/server-hardware');
-    serverInfo.value = res.data;
-    loading.value = false;
+    if (res.data) {
+      serverInfo.value = {
+        ...res.data,
+        lastUpdated: Date.now()
+      };
+      // Save local cache
+      localStorage.setItem('orin_server_hardware', JSON.stringify(serverInfo.value));
+    }
   } catch (error) {
     console.error('Failed to fetch server info:', error);
-    // 使用模拟数据
-    serverInfo.value = {
-      online: true,
-      cpuUsage: Math.floor(Math.random() * 60) + 20,
-      cpuCores: 8,
-      cpuFreq: '3.2 GHz',
-      memoryUsage: Math.floor(Math.random() * 50) + 30,
-      memoryUsed: '12.5 GB',
-      memoryTotal: '32 GB',
-      diskUsage: Math.floor(Math.random() * 40) + 40,
-      diskUsed: '256 GB',
-      diskTotal: '512 GB',
-      networkUpload: '2.3 MB/s',
-      networkDownload: '5.7 MB/s',
-      os: 'Ubuntu 22.04 LTS',
-      uptime: '15天 8小时',
-      host: '192.168.1.100'
-    };
+    // Don't set online=false immediately if we have cache, just show error toast maybe?
+    // actually, let's keep the cache displayed but maybe show offline indicator if needed.
+    // user wants to see data even if network fluctuation.
+    if (!serverInfo.value.lastUpdated) {
+        serverInfo.value.online = false;
+    }
+    ElMessage.warning('获取最新数据失败，显示缓存数据');
+  } finally {
     loading.value = false;
   }
 };
@@ -169,9 +279,18 @@ const getProgressStatus = (percentage) => {
 };
 
 onMounted(() => {
+  // Load cache first
+  const cached = localStorage.getItem('orin_server_hardware');
+  if (cached) {
+    try {
+      serverInfo.value = JSON.parse(cached);
+      loading.value = false; // Show cached data immediately
+    } catch (e) { /* ignore */ }
+  }
+
   fetchServerInfo();
-  // 每30秒刷新一次
-  refreshTimer = setInterval(fetchServerInfo, 30000);
+  // 每5秒刷新一次
+  refreshTimer = setInterval(fetchServerInfo, 15000);
 });
 
 onUnmounted(() => {
@@ -317,4 +436,40 @@ onUnmounted(() => {
     grid-column: span 1;
   }
 }
+
+.form-tip {
+  font-size: 12px;
+  color: var(--neutral-gray-500);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.offline-placeholder {
+  padding: 40px 0;
+  background: var(--neutral-gray-50);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--neutral-gray-300);
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.last-updated {
+  font-size: 12px;
+  color: var(--neutral-gray-400);
+}
+
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
 </style>

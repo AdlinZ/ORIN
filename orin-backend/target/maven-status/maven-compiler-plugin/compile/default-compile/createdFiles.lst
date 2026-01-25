@@ -203,7 +203,6 @@ com/adlin/orin/modules/agent/dto/AgentUpdateRequest.class
 com/adlin/orin/modules/system/service/UserRoleService.class
 com/adlin/orin/modules/workflow/dto/WorkflowResponse.class
 com/adlin/orin/modules/model/service/SiliconFlowIntegrationService$6.class
-com/adlin/orin/modules/monitor/service/impl/RealMetricsCollector.class
 com/adlin/orin/modules/knowledge/entity/KnowledgeDocument$KnowledgeDocumentBuilder.class
 com/adlin/orin/modules/workflow/entity/WorkflowInstanceEntity$WorkflowInstanceEntityBuilder.class
 com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced.class

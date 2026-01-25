@@ -79,4 +79,19 @@ public interface MonitorService {
      * 获取延迟历史记录
      */
     Page<AuditLog> getLatencyHistory(int page, int size, Long startDate, Long endDate);
+
+    /**
+     * 获取服务器硬件监控数据
+     */
+    Map<String, Object> getServerHardware();
+
+    /**
+     * 更新 Prometheus 配置
+     */
+    void updatePrometheusConfig(com.adlin.orin.modules.monitor.entity.PrometheusConfig config);
+
+    /**
+     * 获取 Prometheus 配置
+     */
+    com.adlin.orin.modules.monitor.entity.PrometheusConfig getPrometheusConfig();
 }

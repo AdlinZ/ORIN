@@ -113,4 +113,22 @@ public class MonitorController {
             @RequestParam(required = false) Long endDate) {
         return monitorService.getLatencyHistory(page, size, startDate, endDate);
     }
+
+    @Operation(summary = "获取服务器硬件状态")
+    @GetMapping("/server-hardware")
+    public Map<String, Object> getServerHardware() {
+        return monitorService.getServerHardware();
+    }
+
+    @Operation(summary = "获取Prometheus配置")
+    @GetMapping("/prometheus/config")
+    public com.adlin.orin.modules.monitor.entity.PrometheusConfig getPrometheusConfig() {
+        return monitorService.getPrometheusConfig();
+    }
+
+    @Operation(summary = "更新Prometheus配置")
+    @PostMapping("/prometheus/config")
+    public void updatePrometheusConfig(@RequestBody com.adlin.orin.modules.monitor.entity.PrometheusConfig config) {
+        monitorService.updatePrometheusConfig(config);
+    }
 }
