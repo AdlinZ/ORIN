@@ -17,10 +17,6 @@
       unique-opened
       class="el-menu-vertical"
     >
-      <el-menu-item index="/">
-        <el-icon><HomeFilled /></el-icon>
-        <template #title>首页</template>
-      </el-menu-item>
 
       <el-menu-item index="/dashboard/monitor">
         <el-icon><Monitor /></el-icon>
@@ -35,6 +31,8 @@
         <el-menu-item index="/dashboard/agent/list">智能体列表</el-menu-item>
         <el-menu-item index="/dashboard/agent/onboard">接入新 Agent</el-menu-item>
         <el-menu-item index="/dashboard/agent/logs">会话记录</el-menu-item>
+        <el-menu-item index="/dashboard/agent/model-list">模型列表</el-menu-item>
+        <el-menu-item index="/dashboard/agent/model-config">模型基础项</el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="/dashboard/knowledge">
@@ -56,25 +54,6 @@
         <el-menu-item index="/dashboard/workflow/list">工作流列表</el-menu-item>
         <el-menu-item index="/dashboard/skill/management">技能管理</el-menu-item>
         <el-menu-item index="/dashboard/workflow/management">工作流编排</el-menu-item>
-      </el-sub-menu>
-
-      <el-sub-menu index="/dashboard/model">
-        <template #title>
-          <el-icon><Operation /></el-icon>
-          <span>模型管理</span>
-        </template>
-        <el-menu-item index="/dashboard/model/config">系统配置</el-menu-item>
-        <el-menu-item index="/dashboard/model/list">模型列表</el-menu-item>
-      </el-sub-menu>
-
-      <el-sub-menu index="/dashboard/training">
-        <template #title>
-          <el-icon><Aim /></el-icon>
-          <span>模型训练</span>
-        </template>
-        <el-menu-item index="/dashboard/training/files">训练文件管理</el-menu-item>
-        <el-menu-item index="/dashboard/training/train">训练模型</el-menu-item>
-        <el-menu-item index="/dashboard/training/checkpoints">检查点</el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="/dashboard/system" v-if="isAdmin">

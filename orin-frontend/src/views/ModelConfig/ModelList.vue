@@ -3,8 +3,8 @@
 
 
     <PageHeader 
-      title="模型管理" 
-      description="纳管并调度各种 LLM、Embedding 及 Rerank 模型资源"
+      title="模型列表" 
+      description="连接并调度第三方 API (OpenAI, Claude, Dify等) 及本地部署的模型资源"
       icon="Box"
     >
       <template #actions>
@@ -113,9 +113,12 @@
               <el-select v-model="form.provider" placeholder="请选择" style="width: 100%">
                 <el-option label="OpenAI" value="OpenAI" />
                 <el-option label="Anthropic" value="Anthropic" />
+                <el-option label="Dify (External)" value="Dify" />
+                <el-option label="SiliconFlow" value="SiliconFlow" />
                 <el-option label="Ollama" value="Ollama" />
                 <el-option label="HuggingFace" value="HuggingFace" />
                 <el-option label="DashScope" value="DashScope" />
+                <el-option label="DeepSeek" value="DeepSeek" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -209,7 +212,7 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const res = await getModelList();
-    modelList.value = res.data;
+    modelList.value = res;
   } catch (e) {
     console.error(e);
   } finally {
@@ -360,6 +363,9 @@ onMounted(() => {
 .provider-tag.openai { background: #10a37f; color: #fff; }
 .provider-tag.anthropic { background: #d97757; color: #fff; }
 .provider-tag.ollama { background: #000; color: #fff; }
+.provider-tag.dify { background: #155eef; color: #fff; }
+.provider-tag.siliconflow { background: #6b46c1; color: #fff; }
+.provider-tag.deepseek { background: #2f54eb; color: #fff; }
 
 .name { font-weight: 600; color: var(--neutral-black); }
 </style>

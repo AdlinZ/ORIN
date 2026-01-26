@@ -17,6 +17,7 @@
             <div class="expand-content">
               <el-descriptions title="详细请求参数" :column="2" border>
                 <el-descriptions-item label="端点 (Endpoint)">{{ row.endpoint }}</el-descriptions-item>
+                <el-descriptions-item label="Conversation ID">{{ row.conversationId || '-' }}</el-descriptions-item>
                 <el-descriptions-item label="方法 (Method)">{{ row.method }}</el-descriptions-item>
                 <el-descriptions-item label="请求 IP">{{ row.ipAddress }}</el-descriptions-item>
                 <el-descriptions-item label="User Agent">{{ row.userAgent }}</el-descriptions-item>
@@ -111,8 +112,8 @@ const fetchLogs = async () => {
         direction: 'desc'
       }
     });
-    logs.value = res.data.content;
-    total.value = res.data.totalElements;
+    logs.value = res.content;
+    total.value = res.totalElements;
   } catch (error) {
     ElMessage.error('获取审计日志失败');
   } finally {

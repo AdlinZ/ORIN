@@ -96,4 +96,12 @@ public class WorkflowController {
         List<WorkflowInstanceEntity> instances = workflowService.getWorkflowInstances(id);
         return ResponseEntity.ok(instances);
     }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除工作流")
+    public ResponseEntity<Void> deleteWorkflow(@PathVariable Long id) {
+        log.info("REST request to delete workflow: {}", id);
+        workflowService.deleteWorkflow(id);
+        return ResponseEntity.noContent().build();
+    }
 }

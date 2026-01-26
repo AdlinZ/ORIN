@@ -103,7 +103,17 @@ const handleLogin = async () => {
       loading.value = true;
       try {
         const res = await login(loginForm);
-        const { token, user, roles } = res.data;
+        // The interceptor returns response.data directly, so 'res' IS the data object
+        console.log('Login response:', res); 
+        
+        // Check if res contains the token directly or if it's nested
+        const token = res.token || (res.data && res.data.token);
+        const user = res.user || (res.data && res.data.user);
+        const roles = res.roles || (res.data && res.data.roles);
+        
+        if (!token) {
+           throw new Error('Invalid login response: missing token');
+        }
         
         ElMessage.success('登录成功,欢迎回来!');
         

@@ -150,9 +150,9 @@
 import { ref, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { Plus, Search, VideoPlay, DataLine, Timer, Connection, Upload } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import dayjs from 'dayjs';
-import { getWorkflows, importWorkflow } from '@/api/workflow';
+import { getWorkflows, importWorkflow, deleteWorkflow } from '@/api/workflow';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -197,7 +197,26 @@ const handleRun = (row) => {
 };
 
 const handleDelete = (row) => {
-  ElMessage.warning('删除功能暂未开放');
+  ElMessageBox.confirm(
+    `确定要删除工作流 "${row.workflowName}" 吗？此操作不可撤销。`,
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+    try {
+      await deleteWorkflow(row.id);
+      ElMessage.success('删除成功');
+      fetchData(); // Refresh the list
+    } catch (error) {
+      console.error(error);
+      ElMessage.error('删除失败');
+    }
+  }).catch(() => {
+    // Cancelled
+  });
 };
 
 // Import Logic

@@ -62,6 +62,41 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.metaKnowledgeService = metaKnowledgeService;
     }
 
+    @jakarta.annotation.PostConstruct
+    public void fixLegacyProviderTypes() {
+        log.info("Checking for legacy provider type 'SILICONGFLOW'...");
+        try {
+            // Fix Metadata
+            java.util.List<AgentMetadata> metadataList = metadataRepository.findAll();
+            boolean fixedMeta = false;
+            for (AgentMetadata meta : metadataList) {
+                if ("SILICONGFLOW".equals(meta.getProviderType())) {
+                    meta.setProviderType("SiliconFlow");
+                    metadataRepository.save(meta);
+                    fixedMeta = true;
+                }
+            }
+            if (fixedMeta)
+                log.info("Fixed legacy provider types in AgentMetadata.");
+
+            // Fix Health Status
+            java.util.List<AgentHealthStatus> healthList = healthStatusRepository.findAll();
+            boolean fixedHealth = false;
+            for (AgentHealthStatus status : healthList) {
+                if ("SILICONGFLOW".equals(status.getProviderType())) {
+                    status.setProviderType("SiliconFlow");
+                    healthStatusRepository.save(status);
+                    fixedHealth = true;
+                }
+            }
+            if (fixedHealth)
+                log.info("Fixed legacy provider types in AgentHealthStatus.");
+
+        } catch (Exception e) {
+            log.warn("Failed to migrate legacy provider types: {}", e.getMessage());
+        }
+    }
+
     @Override
     @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardAgent(String endpointUrl, String apiKey, String datasetApiKey) {
@@ -97,7 +132,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                 agentName = "Dify Agent (Unreachable)";
                 modelName = "unknown";
             }
-        } else if ("SILICONGFLOW".equals(provider)) {
+        } else if ("SiliconFlow".equals(provider)) {
             if (!siliconFlowIntegrationService.testConnection(endpointUrl, apiKey)) {
                 throw new RuntimeException("Failed to connect to SiliconFlow agent");
             }
@@ -158,9 +193,9 @@ public class AgentManageServiceImpl implements AgentManageService {
             // Simple heuristic, can be improved
             return "DIFY";
         } else if (url.contains("siliconflow") || url.contains("deepseek")) {
-            return "SILICONGFLOW";
+            return "SiliconFlow";
         }
-        return "SILICONGFLOW"; // Default fallback for now as per requirements
+        return "SiliconFlow"; // Default fallback for now as per requirements
     }
 
     @Override

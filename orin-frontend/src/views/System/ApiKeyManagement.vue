@@ -210,7 +210,7 @@ const fetchApiKeys = async () => {
   loading.value = true;
   try {
     const res = await getAllApiKeys();
-    apiKeys.value = res.data;
+    apiKeys.value = res;
   } catch (error) {
     ElMessage.error('获取API密钥列表失败');
   } finally {
@@ -237,7 +237,7 @@ const handleCreate = async () => {
   submitting.value = true;
   try {
     const res = await createApiKey(formData.value);
-    createdSecretKey.value = res.data.secretKey;
+    createdSecretKey.value = res.secretKey;
     ElMessage.success('创建成功');
     dialogVisible.value = false;
     secretDialogVisible.value = true;

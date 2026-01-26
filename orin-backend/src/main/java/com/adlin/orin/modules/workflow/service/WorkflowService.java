@@ -148,4 +148,20 @@ public class WorkflowService {
     public List<WorkflowInstanceEntity> getWorkflowInstances(Long workflowId) {
         return instanceRepository.findByWorkflowIdOrderByStartedAtDesc(workflowId);
     }
+
+    @Transactional
+    public void deleteWorkflow(Long id) {
+        log.info("Deleting workflow: {}", id);
+        if (!workflowRepository.existsById(id)) {
+            throw new IllegalArgumentException("Workflow not found: " + id);
+        }
+
+        // Delete associated steps and instances
+        stepRepository.deleteByWorkflowId(id);
+        instanceRepository.deleteByWorkflowId(id);
+
+        // Delete the workflow itself
+        workflowRepository.deleteById(id);
+        log.info("Workflow deleted: {}", id);
+    }
 }

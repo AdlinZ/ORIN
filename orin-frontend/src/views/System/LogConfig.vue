@@ -304,14 +304,14 @@ const formatSimpleDate = (val) => {
 const fetchStats = async () => {
   try {
     const res = await request.get('/system/log-config/stats');
-    stats.value = res.data;
+    stats.value = res;
   } catch (e) { console.error(e); }
 };
 
 const loadConfig = async () => {
     try {
         const res = await request.get('/system/log-config');
-        const data = res.data;
+        const data = res;
         if (Array.isArray(data)) {
             data.forEach(item => {
                 if (item.configKey === CONFIG_KEYS.AUDIT_ENABLED) {
@@ -349,7 +349,7 @@ const saveAll = async () => {
 const handleManualCleanup = async () => {
   try {
     const res = await request.post('/system/log-config/cleanup', null, { params: { days: cleanupDays.value } });
-    const result = res.data;
+    const result = res;
     
     // 关闭弹窗
     cleanupPopoverVisible.value = false;
@@ -384,7 +384,7 @@ const loadLoggers = async () => {
   loadingLoggers.value = true;
   try {
     const res = await request.get('/system/log-config/loggers');
-    loggers.value = Object.entries(res.data || {}).map(([name, level]) => ({
+    loggers.value = Object.entries(res || {}).map(([name, level]) => ({
       name,
       level,
       newLevel: level

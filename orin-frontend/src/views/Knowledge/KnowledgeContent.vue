@@ -176,9 +176,9 @@ const tableType = computed(() => {
 const loadAgents = async () => {
   try {
     const res = await request.get('/agents')
-    if (res.data && res.data.length > 0) {
-      agentList.value = res.data
-      selectedAgentId.value = res.data[0].agentId
+    if (res && res.length > 0) {
+      agentList.value = res
+      selectedAgentId.value = res[0].agentId
       loadKnowledge() 
     }
   } catch (error) {
@@ -192,7 +192,7 @@ const loadKnowledge = async () => {
   loading.value = true
   try {
     const res = await request.get(`/knowledge/agents/${selectedAgentId.value}`)
-    tableData.value = res.data
+    tableData.value = res;
   } catch (error) {
     console.error(error)
   } finally {
@@ -229,7 +229,7 @@ const handleSync = async () => {
     syncLoading.value = true
     try {
         const res = await request.post(`/knowledge/agents/${selectedAgentId.value}/sync`)
-        tableData.value = res.data
+        tableData.value = res;
         ElMessage.success('同步成功')
     } catch (error) {
         ElMessage.error('同步失败')

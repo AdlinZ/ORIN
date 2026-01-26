@@ -225,8 +225,8 @@ const calculateCost = (tokens) => {
 const fetchData = async () => {
   try {
     const res = await getTokenStats();
-    if (res && res.data) {
-      tokenStats.value = res.data;
+    if (res) {
+      tokenStats.value = res;
     }
   } catch (error) {
     console.warn('获取 Token 统计失败，使用模拟数据:', error);
@@ -249,8 +249,8 @@ const fetchTrendData = async () => {
   trendLoading.value = true;
   try {
     const res = await getTokenTrend(trendPeriod.value);
-    if (res && res.data) {
-      renderTrendChart(res.data);
+    if (res) {
+      renderTrendChart(res);
     }
   } catch (error) {
     console.warn('获取趋势数据失败，使用模拟数据:', error);
@@ -371,13 +371,13 @@ const fetchHistoryData = async () => {
     }
 
     const res = await getTokenHistory(params);
-    if (res && res.data) {
-      historyData.value = res.data.content || [];
-      total.value = res.data.totalElements || 0;
+    if (res) {
+      historyData.value = res.content || [];
+      total.value = res.totalElements || 0;
 
       // 同时获取分布数据
-      if (res.data.distribution) {
-        renderDistributionChart(res.data.distribution);
+      if (res.distribution) {
+        renderDistributionChart(res.distribution);
       }
     }
   } catch (error) {

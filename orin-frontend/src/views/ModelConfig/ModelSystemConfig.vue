@@ -277,7 +277,7 @@ const onTestDifyConnection = async () => {
   difyTestLoading.value = true;
   try {
     const response = await testDifyConnection(form.difyEndpoint, form.difyApiKey);
-    if (response.data) {
+    if (response) {
       ElMessage.success('Dify 连接测试成功！');
       lastTestSuccess.value = true;
     } else {
@@ -295,9 +295,9 @@ const onTestDifyConnection = async () => {
 const fetchData = async () => {
   try {
     const res = await getModelConfig();
-    Object.assign(form, res.data);
+    Object.assign(form, res);
     form.password = ''; 
-    initialForm.value = JSON.parse(JSON.stringify(res.data));
+    initialForm.value = JSON.parse(JSON.stringify(res));
     delete initialForm.value.password;
   } catch (e) {
     ElMessage.error('配置加载失败');

@@ -55,6 +55,18 @@ const routes = [
                         name: 'AgentLogs',
                         component: () => import('../views/Agent/ChatLogs.vue'),
                         meta: { title: '会话记录' }
+                    },
+                    {
+                        path: 'model-list',
+                        name: 'ModelList',
+                        component: () => import('../views/ModelConfig/ModelList.vue'),
+                        meta: { title: '模型列表' }
+                    },
+                    {
+                        path: 'model-config',
+                        name: 'ModelConfig',
+                        component: () => import('../views/ModelConfig/ModelSystemConfig.vue'),
+                        meta: { title: '模型系统项' }
                     }
                 ]
             },
@@ -204,50 +216,6 @@ const routes = [
                 name: 'LatencyStats',
                 component: () => import('../views/Monitor/LatencyStats.vue'),
                 meta: { title: '延迟分析', icon: 'Connection' }
-            },
-            {
-                path: 'model',
-                meta: { title: '模型管理' },
-                redirect: '/dashboard/model/config',
-                children: [
-                    {
-                        path: 'config',
-                        name: 'ModelConfig',
-                        component: () => import('../views/ModelConfig/ModelSystemConfig.vue'),
-                        meta: { title: '系统配置' }
-                    },
-                    {
-                        path: 'list',
-                        name: 'ModelList',
-                        component: () => import('../views/ModelConfig/ModelList.vue'),
-                        meta: { title: '模型列表' }
-                    }
-                ]
-            },
-            {
-                path: 'training',
-                meta: { title: '模型训练' },
-                redirect: '/dashboard/training/files',
-                children: [
-                    {
-                        path: 'files',
-                        name: 'TrainingFiles',
-                        component: () => import('../views/Training/FileList.vue'),
-                        meta: { title: '训练文件管理' }
-                    },
-                    {
-                        path: 'train',
-                        name: 'ModelTrain',
-                        component: () => import('../views/Training/ModelTrain.vue'),
-                        meta: { title: '训练模型' }
-                    },
-                    {
-                        path: 'checkpoints',
-                        name: 'Checkpoints',
-                        component: () => import('../views/Training/Checkpoints.vue'),
-                        meta: { title: '检查点' }
-                    }
-                ]
             }
         ]
     },

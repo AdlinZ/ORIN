@@ -117,8 +117,8 @@ onMounted(async () => {
 
     // 2. Load Agents
     const res = await getAgentList({ size: 100 })
-    if (res && res.data) {
-        agentList.value = res.data
+    if (res) {
+        agentList.value = res
         
         // 3. Priority: Query Param > First Agent
         if (route.query.agentId) {

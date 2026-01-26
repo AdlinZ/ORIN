@@ -245,7 +245,7 @@ const loadRules = async () => {
   loading.value = true
   try {
     const res = await request.get('/alerts/rules')
-    rules.value = res.data || []
+    rules.value = res || []
   } catch (error) {
     ElMessage.error('加载告警规则失败')
   } finally {
@@ -262,8 +262,8 @@ const loadHistory = async () => {
         size: pageSize.value
       }
     })
-    history.value = res.data.content || []
-    totalHistory.value = res.data.totalElements || 0
+    history.value = res.content || []
+    totalHistory.value = res.totalElements || 0
   } catch (error) {
     ElMessage.error('加载告警历史失败')
   } finally {
@@ -274,7 +274,7 @@ const loadHistory = async () => {
 const loadStats = async () => {
   try {
     const res = await request.get('/alerts/stats')
-    stats.value = res.data || {}
+    stats.value = res || {}
   } catch (error) {
     console.error('加载统计信息失败', error)
   }

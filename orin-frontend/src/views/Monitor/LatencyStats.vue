@@ -207,8 +207,8 @@ const getLatencyClass = (val) => {
 const fetchData = async () => {
   try {
     const res = await getLatencyStats();
-    if (res && res.data) {
-      latencyStats.value = res.data;
+    if (res) {
+      latencyStats.value = res;
     }
   } catch (error) {
     console.warn('获取延迟统计失败，使用模拟数据:', error);
@@ -230,8 +230,8 @@ const fetchTrendData = async () => {
   trendLoading.value = true;
   try {
     const res = await getLatencyTrend(trendPeriod.value);
-    if (res && res.data) {
-      renderTrendChart(res.data);
+    if (res) {
+      renderTrendChart(res);
     }
   } catch (error) {
     console.warn('获取趋势数据失败，使用模拟数据:', error);
@@ -338,9 +338,9 @@ const fetchHistoryData = async () => {
     }
 
     const res = await getLatencyHistory(params);
-    if (res && res.data) {
-      historyData.value = res.data.content || [];
-      total.value = res.data.totalElements || 0;
+    if (res) {
+      historyData.value = res.content || [];
+      total.value = res.totalElements || 0;
       updateDistribution(historyData.value);
     }
   } catch (error) {

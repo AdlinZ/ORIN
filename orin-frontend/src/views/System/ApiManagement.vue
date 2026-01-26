@@ -250,7 +250,7 @@ const fetchEndpoints = async () => {
   loading.value = true;
   try {
     const res = await getAllEndpoints();
-    endpoints.value = res.data;
+    endpoints.value = res;
   } catch (error) {
     ElMessage.error('获取API端点列表失败');
   } finally {
@@ -261,7 +261,7 @@ const fetchEndpoints = async () => {
 const fetchStats = async () => {
   try {
     const res = await getEndpointStats();
-    stats.value = res.data;
+    stats.value = res;
   } catch (error) {
     console.error('获取统计信息失败', error);
   }

@@ -18,4 +18,6 @@ public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstan
     Optional<WorkflowInstanceEntity> findByTraceId(String traceId);
 
     List<WorkflowInstanceEntity> findByStatus(WorkflowInstanceEntity.InstanceStatus status);
+
+    void deleteByWorkflowId(Long workflowId);
 }

@@ -102,7 +102,7 @@ const loadDocuments = async () => {
   loading.value = true
   try {
     const res = await request.get(`/knowledge/${props.kbId}/documents`)
-    documents.value = res.data || []
+    documents.value = res || []
   } catch (error) {
     console.error(error)
     ElMessage.error('加载文档失败')

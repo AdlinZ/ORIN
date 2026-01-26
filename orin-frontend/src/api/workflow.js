@@ -53,3 +53,11 @@ export function importWorkflow(formData) {
         }
     })
 }
+
+export function deleteWorkflow(id) {
+    return request({
+        baseURL: '',
+        url: `/api/workflows/${id}`,
+        method: 'delete'
+    })
+}

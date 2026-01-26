@@ -117,7 +117,7 @@ const currentChat = ref([]);
 const loadAgents = async () => {
   try {
     const response = await getAgentList();
-    agents.value = response.data || [];
+    agents.value = response || [];
   } catch (error) {
     ElMessage.error('获取智能体列表失败: ' + error.message);
   }
@@ -134,8 +134,8 @@ const loadChatLogs = async () => {
     const logPromises = agents.value.map(async (agent) => {
       try {
         const response = await getAgentLogs(agent.agentId);
-        if (response.data && response.data.length > 0) {
-          return response.data.map(log => ({
+        if (response && response.length > 0) {
+          return response.map(log => ({
             id: log.id,
             agentId: agent.agentId,
             sessionId: log.sessionId || `LOG-${log.id}`,

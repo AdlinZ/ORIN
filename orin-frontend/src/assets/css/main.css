@@ -313,6 +313,34 @@ code {
   border: 1px solid var(--neutral-gray-200);
 }
 
+/* Link-style Button Reset */
+.el-button.is-link {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px 6px !important;
+  height: auto !important;
+  font-weight: var(--font-medium);
+  margin-left: 0 !important;
+}
+
+.el-button.is-link+.el-button.is-link {
+  margin-left: 0 !important;
+}
+
+.el-button.is-link:hover {
+  background: var(--orin-primary-soft) !important;
+  text-decoration: none;
+}
+
+.el-button--primary.is-link {
+  color: var(--orin-primary) !important;
+}
+
+.el-button--danger.is-link {
+  color: var(--error-color) !important;
+}
+
 .el-button--primary {
   background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%) !important;
   border: none !important;

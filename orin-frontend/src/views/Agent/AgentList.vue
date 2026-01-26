@@ -52,18 +52,20 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="updatedAt" label="最后活跃" width="180" align="center">
+        <el-table-column prop="lastHeartbeat" label="最后活跃" width="180" align="center">
           <template #default="{ row }">
-            {{ formatTime(row.updatedAt) }}
+            {{ formatTime(row.lastHeartbeat) }}
           </template>
         </el-table-column>
 
         <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
-             <el-button link type="primary" @click.stop="handleChat(row)">对话</el-button>
-             <el-button link type="primary" @click.stop="goToMonitor(row)">监控</el-button>
-             <el-button link type="primary" @click.stop="handleEdit(row)">配置</el-button>
-             <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+             <div class="row-actions">
+                <el-button link type="primary" @click.stop="handleChat(row)">对话</el-button>
+                <el-button link type="primary" @click.stop="goToMonitor(row)">监控</el-button>
+                <el-button link type="primary" @click.stop="handleEdit(row)">配置</el-button>
+                <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+             </div>
           </template>
         </el-table-column>
       </el-table>
@@ -225,7 +227,7 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const res = await getMonitorAgentList(); 
-    rawAgentList.value = res.data || [];
+    rawAgentList.value = res || [];
   } catch (error) {
     ElMessage.error('无法同步智能体实时状态');
   } finally {
@@ -279,12 +281,12 @@ const handleEdit = async (row) => {
       request.get(`/knowledge/agents/${row.agentId}/meta/prompts`)
     ]);
 
-    if (metaRes.data) {
-      editForm.value = { ...editForm.value, ...metaRes.data };
-      editForm.value.name = metaRes.data.name; // Mapping backend 'name' to frontend 'name'
-      editForm.value.model = metaRes.data.modelName;
+    if (metaRes) {
+      editForm.value = { ...editForm.value, ...metaRes };
+      editForm.value.name = metaRes.name; // Mapping backend 'name' to frontend 'name'
+      editForm.value.model = metaRes.modelName;
     }
-    promptTemplates.value = promptRes.data || [];
+    promptTemplates.value = promptRes || [];
   } catch (e) {
     console.warn('Config fetch failure');
   } finally {
@@ -341,7 +343,9 @@ const sendMessage = async () => {
   
   try {
     const res = await chatAgent(currentChatAgent.value.agentId, msg);
-    chatMessages.value.push({ role: 'assistant', content: res.data?.answer || '处理完成' });
+    // Handle both Dify (answer) and OpenAI/SiliconFlow (choices) formats
+    const answer = res.answer || res.choices?.[0]?.message?.content || JSON.stringify(res);
+    chatMessages.value.push({ role: 'assistant', content: answer || '处理完成' });
   } catch (e) {
     chatMessages.value.push({ role: 'assistant', content: '（交互异常，请检查智能体服务状态）' });
   } finally {
@@ -395,6 +399,14 @@ onMounted(() => {
 
 .table-card {
   margin-top: 5px;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .agent-name-info {

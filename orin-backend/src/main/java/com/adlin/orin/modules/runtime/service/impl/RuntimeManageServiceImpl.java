@@ -1,18 +1,24 @@
 package com.adlin.orin.modules.runtime.service.impl;
 
+import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
+import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
+import com.adlin.orin.modules.audit.entity.AuditLog;
+import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.runtime.entity.AgentLog;
 import com.adlin.orin.modules.runtime.repository.AgentLogRepository;
 import com.adlin.orin.modules.runtime.service.RuntimeManageService;
-import com.adlin.orin.modules.audit.repository.AuditLogRepository;
+import com.adlin.orin.modules.system.service.LogConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -22,10 +28,10 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
 
     private final AgentHealthStatusRepository healthStatusRepository;
     private final AgentLogRepository logRepository;
-    private final com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository profileRepository;
+    private final AgentAccessProfileRepository profileRepository;
     private final DifyIntegrationService difyIntegrationService;
     private final AuditLogRepository auditLogRepository;
-    private final com.adlin.orin.modules.system.service.LogConfigService logConfigService;
+    private final LogConfigService logConfigService;
 
     @Override
     public void controlAgent(String agentId, String action) {
@@ -69,8 +75,8 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
         int retentionDays = logConfigService.getRetentionDays();
         LocalDateTime startTime = LocalDateTime.now().minusDays(Math.max(retentionDays, 7)); // At least 7 days default
 
-        List<com.adlin.orin.modules.audit.entity.AuditLog> auditLogs = auditLogRepository
-                .findByProviderIdAndCreatedAtBetweenOrderByCreatedAtAsc(agentId, startTime, LocalDateTime.now());
+        List<AuditLog> auditLogs = auditLogRepository
+                .findByProviderIdAndCreatedAtBetweenOrderByCreatedAtDesc(agentId, startTime, LocalDateTime.now());
 
         log.info("Retrieving logs for agent: {}, found {} audit logs from {}", agentId, auditLogs.size(), startTime);
 
@@ -83,7 +89,7 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
                         .status(audit.getSuccess() ? "SUCCESS" : "FAILED")
                         .duration(audit.getResponseTime() != null ? audit.getResponseTime().intValue() : 0)
                         .tokens(audit.getTotalTokens())
-                        .sessionId(audit.getId())
+                        .sessionId(audit.getConversationId() != null ? audit.getConversationId() : audit.getId())
                         .response(audit.getResponseContent())
                         .timestamp(audit.getCreatedAt())
                         .build())
@@ -94,7 +100,7 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
         }
 
         // 尝试从Dify获取对话历史
-        java.util.Optional<com.adlin.orin.modules.agent.entity.AgentAccessProfile> profileOpt = profileRepository
+        Optional<AgentAccessProfile> profileOpt = profileRepository
                 .findById(agentId);
         if (profileOpt.isPresent()) {
             String apiKey = profileOpt.get().getApiKey();
@@ -104,10 +110,10 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
                 var conversationsResult = difyIntegrationService.getConversations(endpoint, apiKey, agentId);
                 if (conversationsResult.isPresent()) {
                     @SuppressWarnings("unchecked")
-                    var conversationsData = (java.util.Map<String, Object>) conversationsResult.get();
+                    Map<String, Object> conversationsData = (Map<String, Object>) conversationsResult.get();
                     if (conversationsData.containsKey("data")) {
                         @SuppressWarnings("unchecked")
-                        var conversationsList = (java.util.List<java.util.Map<String, Object>>) conversationsData
+                        List<Map<String, Object>> conversationsList = (List<Map<String, Object>>) conversationsData
                                 .get("data");
                         if (!conversationsList.isEmpty()) {
                             return conversationsList.stream().map(conv -> AgentLog.builder()

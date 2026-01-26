@@ -326,7 +326,7 @@ const isCardEnabled = (cardId) => {
 
 const formatTime = (ts) => new Date(ts).toLocaleTimeString();
 
-const sortedLogs = computed(() => [...logs.value].sort((a, b) => b.timestamp - a.timestamp));
+const sortedLogs = computed(() => [...logs.value].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 
 const typeDistribution = computed(() => [
   { value: agents.value.filter(a => a.mode === 'chat' || !a.mode).length, name: '对话型 (Chat)' },
@@ -397,21 +397,21 @@ const fetchData = async () => {
     ]);
     
     // 检查响应数据
-    if (sumRes && sumRes.data) {
-      summary.value = sumRes.data;
+    if (sumRes) {
+      summary.value = sumRes;
       // 成功获取数据，说明服务器已连接
       serverConnected.value = true;
     }
     
-    if (listRes && listRes.data) {
-      agents.value = listRes.data;
+    if (listRes) {
+      agents.value = listRes;
       
       // Also pull some global logs for the activity feed from first agent if exists
       if (agents.value.length > 0) {
         try {
           const logRes = await getAgentLogs(agents.value[0].agentId, { signal: controller.signal });
-          if (logRes && logRes.data) {
-            logs.value = logRes.data;
+          if (logRes) {
+            logs.value = logRes;
           }
         } catch (logError) {
           // 如果是取消错误，不显示警告

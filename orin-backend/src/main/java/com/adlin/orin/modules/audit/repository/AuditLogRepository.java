@@ -57,6 +57,12 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
                         LocalDateTime end);
 
         /**
+         * 获取指定智能体时间范围内的审计日志 (最近时间在前)
+         */
+        List<AuditLog> findByProviderIdAndCreatedAtBetweenOrderByCreatedAtDesc(String providerId, LocalDateTime start,
+                        LocalDateTime end);
+
+        /**
          * 删除指定时间之前的日志
          */
         @Modifying(clearAutomatically = true)

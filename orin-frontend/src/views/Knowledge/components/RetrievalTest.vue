@@ -112,7 +112,7 @@ const handleSearch = async () => {
         query: query.value,
         topK: topK.value
     })
-    results.value = res.data || []
+    results.value = res || []
   } catch (error) {
     console.error(error)
     ElMessage.error('检索失败')
