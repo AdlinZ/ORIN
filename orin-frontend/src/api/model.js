@@ -28,3 +28,10 @@ export function toggleModelStatus(id) {
         method: 'patch'
     });
 }
+export function fetchModels(baseUrl, apiKey) {
+    return request({
+        url: '/models/fetch',
+        method: 'get',
+        params: { baseUrl, apiKey }
+    });
+}

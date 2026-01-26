@@ -100,13 +100,29 @@ const updateOption = () => {
         type: 'line',
         smooth: true,
         showSymbol: false,
+        symbol: 'circle',
+        symbolSize: 8,
+        emphasis: {
+          focus: 'series',
+          itemStyle: {
+            borderWidth: 2,
+            borderColor: '#fff'
+          }
+        },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: props.color + '44' },
+            { offset: 0, color: props.color + '66' },
+            { offset: 0.5, color: props.color + '22' },
             { offset: 1, color: props.color + '00' }
           ])
         },
-        lineStyle: { width: 3, color: props.color },
+        lineStyle: { 
+          width: 4, 
+          color: props.color,
+          shadowBlur: 10,
+          shadowColor: props.color + '66',
+          shadowOffsetY: 5
+        },
         itemStyle: { color: props.color },
         data: values
       }

@@ -71,6 +71,22 @@
           show-icon
           style="margin-bottom: var(--spacing-lg);"
         />
+        <el-form-item v-if="form.providerType" label="使用已保存密钥" class="saved-key-selector">
+          <el-select 
+            v-model="selectedSavedKeyId" 
+            placeholder="快速填写：选择已保存的外部供应商密钥" 
+            size="large" 
+            clearable 
+            @change="handleSavedKeySelect"
+          >
+            <el-option 
+              v-for="key in providerKeys" 
+              :key="key.id" 
+              :label="`${key.name} (${key.provider})`" 
+              :value="key.id" 
+            />
+          </el-select>
+        </el-form-item>
 
         <!-- 动态表单字段 -->
         <template v-if="form.providerType === 'dify'">
@@ -160,15 +176,24 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-input 
-              v-model.trim="form.model" 
-              placeholder="Qwen/Qwen2-7B-Instruct"
+            <el-select 
+              v-model="form.model" 
+              placeholder="请选择或输入模型名称"
               size="large"
+              filterable
+              allow-create
+              default-first-option
             >
+              <el-option
+                v-for="model in filteredModels"
+                :key="model.modelId"
+                :label="model.name"
+                :value="model.modelId"
+              />
               <template #prefix>
                 <el-icon><Service /></el-icon>
               </template>
-            </el-input>
+            </el-select>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
                 例如：Pro/zai-org/GLM-4.7 或 Qwen/Qwen2-7B-Instruct
@@ -236,15 +261,24 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-input 
-              v-model.trim="form.model" 
-              placeholder="llama2"
+            <el-select 
+              v-model="form.model" 
+              placeholder="请选择或输入模型名称"
               size="large"
+              filterable
+              allow-create
+              default-first-option
             >
+              <el-option
+                v-for="model in filteredModels"
+                :key="model.modelId"
+                :label="model.name"
+                :value="model.modelId"
+              />
               <template #prefix>
                 <el-icon><Service /></el-icon>
               </template>
-            </el-input>
+            </el-select>
           </el-form-item>
         </template>
 
@@ -286,15 +320,24 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-input 
-              v-model.trim="form.model" 
-              placeholder="glm-4"
+            <el-select 
+              v-model="form.model" 
+              placeholder="请选择或输入模型名称"
               size="large"
+              filterable
+              allow-create
+              default-first-option
             >
+              <el-option
+                v-for="model in filteredModels"
+                :key="model.modelId"
+                :label="model.name"
+                :value="model.modelId"
+              />
               <template #prefix>
                 <el-icon><Service /></el-icon>
               </template>
-            </el-input>
+            </el-select>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
                 可选模型：glm-4、glm-4-flash、glm-4-air、glm-3-turbo 等
@@ -369,15 +412,24 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-input 
-              v-model.trim="form.model" 
-              placeholder="deepseek-chat"
+            <el-select 
+              v-model="form.model" 
+              placeholder="请选择或输入模型名称"
               size="large"
+              filterable
+              allow-create
+              default-first-option
             >
+              <el-option
+                v-for="model in filteredModels"
+                :key="model.modelId"
+                :label="model.name"
+                :value="model.modelId"
+              />
               <template #prefix>
                 <el-icon><Service /></el-icon>
               </template>
-            </el-input>
+            </el-select>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
                 可选模型：deepseek-chat (V3.2)、deepseek-reasoner (R1)
@@ -464,6 +516,8 @@ import { testDifyConnection, testSiliconFlowConnection, testZhipuConnection, tes
 import { onboardSiliconFlowAgent } from '../api/siliconFlowAgent';
 import { onboardZhipuAgent } from '../api/zhipuAgent';
 import { onboardDeepSeekAgent } from '../api/deepseekAgent';
+import { getModelList } from '../api/model';
+import { getExternalKeys } from '../api/apiKey';
 import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage } from 'element-plus';
 import { 
@@ -477,6 +531,54 @@ const formRef = ref(null);
 const loading = ref(false);
 const testLoading = ref(false);
 const connectionTested = ref(false);
+const allModels = ref([]);
+const providerKeys = ref([]);
+const selectedSavedKeyId = ref(null);
+
+import { onMounted } from 'vue';
+
+onMounted(async () => {
+  try {
+    const [models, keys] = await Promise.all([
+      getModelList(),
+      getExternalKeys()
+    ]);
+    allModels.value = models || [];
+    providerKeys.value = keys || [];
+  } catch (e) {
+    console.error('Failed to fetch data:', e);
+  }
+});
+
+const handleSavedKeySelect = (id) => {
+  const keyMatch = providerKeys.value.find(k => k.id === id);
+  if (keyMatch) {
+    form.apiKey = keyMatch.apiKey;
+    if (keyMatch.baseUrl) form.endpointUrl = keyMatch.baseUrl;
+    // Map provider name to select value if needed, or just warn mismatch
+    ElMessage.info(`已应用保存的密钥: ${keyMatch.name}`);
+  }
+};
+
+const filteredModels = computed(() => {
+  if (!form.providerType) return allModels.value;
+  
+  // Try to match providerType with model provider
+  const mapping = {
+    'siliconflow': 'SiliconFlow',
+    'deepseek': 'DeepSeek',
+    'zhipu': 'Zhipu', // Need to check backend exact spelling, assuming title case
+    'openai': 'OpenAI',
+    'anthropic': 'Anthropic',
+    'local': 'Ollama' // Local usually maps to Ollama in current common use
+  };
+  
+  const targetProvider = mapping[form.providerType];
+  return allModels.value.filter(m => {
+    if (!targetProvider) return true;
+    return m.provider.toLowerCase() === targetProvider.toLowerCase();
+  });
+});
 
 const currentStepIndex = computed(() => {
   if (loading.value) return 2; // Step 03: 完成接入

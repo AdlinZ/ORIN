@@ -6,97 +6,179 @@
       icon="Key"
     >
       <template #actions>
-        <el-button @click="showCreateDialog" type="success" :icon="Plus">创建密钥</el-button>
+        <el-button v-if="activeTab === 'platform'" @click="showCreateDialog" type="success" :icon="Plus">创建平台密钥</el-button>
+        <el-button v-else @click="showExternalCreate" type="primary" :icon="Plus">添加供应商密钥</el-button>
       </template>
     </PageHeader>
 
-    <!-- API密钥列表 -->
-    <el-card shadow="never" class="table-card premium-card">
-      <el-table :data="apiKeys" style="width: 100%" v-loading="loading" stripe>
-        <el-table-column type="expand">
-          <template #default="{ row }">
-            <div class="expand-content">
-              <el-descriptions title="密钥详情" :column="2" border>
-                <el-descriptions-item label="密钥ID">{{ row.id }}</el-descriptions-item>
-                <el-descriptions-item label="密钥前缀">{{ row.keyPrefix }}</el-descriptions-item>
-                <el-descriptions-item label="创建时间">{{ formatDateTime(row.createdAt) }}</el-descriptions-item>
-                <el-descriptions-item label="最后使用">{{ formatDateTime(row.lastUsedAt) || '从未使用' }}</el-descriptions-item>
-                <el-descriptions-item label="过期时间">{{ formatDateTime(row.expiresAt) || '永不过期' }}</el-descriptions-item>
-                <el-descriptions-item label="状态">
-                  <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-                    {{ row.enabled ? '启用' : '禁用' }}
-                  </el-tag>
-                </el-descriptions-item>
-                <el-descriptions-item label="速率限制">
-                  {{ row.rateLimitPerMinute }}/分钟, {{ row.rateLimitPerDay }}/天
-                </el-descriptions-item>
-                <el-descriptions-item label="Token配额">
-                  {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
-                  ({{ row.quotaPercentage.toFixed(1) }}%)
-                </el-descriptions-item>
-                <el-descriptions-item label="描述" :span="2">
-                  {{ row.description || '无描述' }}
-                </el-descriptions-item>
-              </el-descriptions>
-            </div>
-          </template>
-        </el-table-column>
+    <el-tabs v-model="activeTab" class="api-key-tabs">
+      <el-tab-pane label="平台访问密钥" name="platform">
+        <el-card shadow="never" class="table-card premium-card">
+          <el-table :data="apiKeys" style="width: 100%" v-loading="loading" stripe>
+            <!-- ... existing platform table columns (truncated for brevity in ReplacementContent but will be kept in full file) ... -->
+            <el-table-column type="expand">
+              <template #default="{ row }">
+                <div class="expand-content">
+                  <el-descriptions title="密钥详情" :column="2" border>
+                    <el-descriptions-item label="密钥ID">{{ row.id }}</el-descriptions-item>
+                    <el-descriptions-item label="密钥前缀">{{ row.keyPrefix }}</el-descriptions-item>
+                    <el-descriptions-item label="创建时间">{{ formatDateTime(row.createdAt) }}</el-descriptions-item>
+                    <el-descriptions-item label="最后使用">{{ formatDateTime(row.lastUsedAt) || '从未使用' }}</el-descriptions-item>
+                    <el-descriptions-item label="过期时间">{{ formatDateTime(row.expiresAt) || '永不过期' }}</el-descriptions-item>
+                    <el-descriptions-item label="状态">
+                      <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+                        {{ row.enabled ? '启用' : '禁用' }}
+                      </el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="速率限制">
+                      {{ row.rateLimitPerMinute }}/分钟, {{ row.rateLimitPerDay }}/天
+                    </el-descriptions-item>
+                    <el-descriptions-item label="Token配额">
+                      {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
+                      ({{ row.quotaPercentage.toFixed(1) }}%)
+                    </el-descriptions-item>
+                    <el-descriptions-item label="描述" :span="2">
+                      {{ row.description || '无描述' }}
+                    </el-descriptions-item>
+                  </el-descriptions>
+                </div>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="name" label="名称" width="140" show-overflow-tooltip />
+            <el-table-column prop="name" label="名称" width="140" show-overflow-tooltip />
 
-        <el-table-column prop="keyPrefix" label="密钥前缀" width="160">
-          <template #default="{ row }">
-            <code class="key-prefix">{{ row.keyPrefix }}...</code>
-          </template>
-        </el-table-column>
+            <el-table-column prop="keyPrefix" label="密钥前缀" width="160">
+              <template #default="{ row }">
+                <code class="key-prefix">{{ row.keyPrefix }}...</code>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="enabled" label="状态" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-              {{ row.enabled ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            <el-table-column prop="enabled" label="状态" width="80" align="center">
+              <template #default="{ row }">
+                <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+                  {{ row.enabled ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
 
-        <el-table-column label="配额使用" min-width="180">
-          <template #default="{ row }">
-            <div class="quota-bar">
-              <el-progress 
-                :percentage="row.quotaPercentage" 
-                :color="getQuotaColor(row.quotaPercentage)"
-                :stroke-width="8"
-              />
-              <div class="quota-text">
-                {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
-              </div>
-            </div>
-          </template>
-        </el-table-column>
+            <el-table-column label="配额使用" min-width="180">
+              <template #default="{ row }">
+                <div class="quota-bar">
+                  <el-progress 
+                    :percentage="row.quotaPercentage" 
+                    :color="getQuotaColor(row.quotaPercentage)"
+                    :stroke-width="8"
+                  />
+                  <div class="quota-text">
+                    {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="rateLimitPerMinute" label="限流" width="90" align="center">
-          <template #default="{ row }">
-            {{ row.rateLimitPerMinute }}/分
-          </template>
-        </el-table-column>
+            <el-table-column prop="rateLimitPerMinute" label="限流" width="90" align="center">
+              <template #default="{ row }">
+                {{ row.rateLimitPerMinute }}/分
+              </template>
+            </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button 
-              size="small" 
-              :type="row.enabled ? 'warning' : 'success'" 
-              @click="toggleApiKey(row)"
-              link
-            >
-              {{ row.enabled ? '禁用' : '启用' }}
-            </el-button>
-            <el-button size="small" type="primary" @click="handleResetQuota(row)" link>
-              重置配额
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)" link>删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+            <el-table-column label="操作" width="200" fixed="right">
+              <template #default="{ row }">
+                <el-button 
+                  size="small" 
+                  :type="row.enabled ? 'warning' : 'success'" 
+                  @click="toggleApiKey(row)"
+                  link
+                >
+                  {{ row.enabled ? '禁用' : '启用' }}
+                </el-button>
+                <el-button size="small" type="primary" @click="handleResetQuota(row)" link>
+                  重置配额
+                </el-button>
+                <el-button size="small" type="danger" @click="handleDelete(row)" link>删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+
+      <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
+        <el-card shadow="never" class="table-card premium-card">
+          <el-table :data="externalKeys" style="width: 100%" v-loading="loading" stripe>
+            <el-table-column prop="name" label="密钥名称" min-width="150" />
+            <el-table-column prop="provider" label="供应商" width="150">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ row.provider }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="API密钥" min-width="200">
+              <template #default="{ row }">
+                <code class="key-prefix">
+                  {{ isKeyVisible(row.id) ? row.apiKey : maskKey(row.apiKey) }}
+                </code>
+                <el-button link :icon="isKeyVisible(row.id) ? Hide : View" @click="toggleKeyVisibility(row.id)" />
+              </template>
+            </el-table-column>
+            <el-table-column prop="baseUrl" label="端点地址" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="enabled" label="状态" width="100" align="center">
+              <template #default="{ row }">
+                <el-switch v-model="row.enabled" @change="handleToggleExternal(row)" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150" fixed="right">
+              <template #default="{ row }">
+                <el-button size="small" type="primary" @click="handleEditExternal(row)" link>编辑</el-button>
+                <el-button size="small" type="danger" @click="handleDeleteExternal(row)" link>删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+    </el-tabs>
+
+    <!-- 已存在的创建密钥对话框 (平台) - Truncated for diff but preserved in file -->
+
+    <!-- 新增外部供应商密钥对话框 -->
+    <el-dialog 
+      v-model="externalDialogVisible" 
+      :title="externalFormData.id ? '编辑供应商密钥' : '添加供应商密钥'"
+      width="550px"
+    >
+      <el-form :model="externalFormData" :rules="externalRules" ref="externalFormRef" label-position="top">
+        <el-form-item label="密钥名称" prop="name">
+          <el-input v-model="externalFormData.name" placeholder="例如: 我的 OpenAI 主密钥" />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="供应商" prop="provider">
+              <el-select v-model="externalFormData.provider" style="width: 100%">
+                <el-option label="OpenAI" value="OpenAI" />
+                <el-option label="DeepSeek" value="DeepSeek" />
+                <el-option label="SiliconFlow" value="SiliconFlow" />
+                <el-option label="Anthropic" value="Anthropic" />
+                <el-option label="Groq" value="Groq" />
+                <el-option label="Ollama (Local)" value="Ollama" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+             <el-form-item label="Base URL (可选)">
+              <el-input v-model="externalFormData.baseUrl" placeholder="默认官方地址" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="API Key" prop="apiKey">
+          <el-input v-model="externalFormData.apiKey" type="password" show-password placeholder="sk-..." />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="externalFormData.description" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="externalDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveExternal" :loading="submitting">保存</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 创建密钥对话框 -->
     <el-dialog 
@@ -182,8 +264,19 @@ import {
   enableApiKey,
   disableApiKey,
   deleteApiKey,
-  resetQuota
+  resetQuota,
+  getExternalKeys,
+  saveExternalKey,
+  deleteExternalKey,
+  toggleExternalKeyStatus
 } from '@/api/apiKey';
+import { View, Hide } from '@element-plus/icons-vue';
+
+const activeTab = ref('platform');
+const externalKeys = ref([]);
+const externalDialogVisible = ref(false);
+const visibleKeys = ref(new Set());
+const externalFormRef = ref(null);
 
 const loading = ref(false);
 const apiKeys = ref([]);
@@ -202,6 +295,22 @@ const formData = ref({
   expiresAt: null
 });
 
+const externalFormData = ref({
+  id: null,
+  name: '',
+  provider: 'OpenAI',
+  apiKey: '',
+  baseUrl: '',
+  description: '',
+  enabled: true
+});
+
+const externalRules = {
+  name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+  provider: [{ required: true, message: '请选择供应商', trigger: 'change' }],
+  apiKey: [{ required: true, message: '请输入 API Key', trigger: 'blur' }]
+};
+
 const rules = {
   name: [{ required: true, message: '请输入密钥名称', trigger: 'blur' }]
 };
@@ -209,10 +318,14 @@ const rules = {
 const fetchApiKeys = async () => {
   loading.value = true;
   try {
-    const res = await getAllApiKeys();
-    apiKeys.value = res;
+    const [platformRes, externalRes] = await Promise.all([
+      getAllApiKeys(),
+      getExternalKeys()
+    ]);
+    apiKeys.value = platformRes;
+    externalKeys.value = externalRes;
   } catch (error) {
-    ElMessage.error('获取API密钥列表失败');
+    ElMessage.error('获取密钥列表失败');
   } finally {
     loading.value = false;
   }
@@ -319,6 +432,77 @@ const getQuotaColor = (percentage) => {
   if (percentage >= 90) return '#f56c6c';
   if (percentage >= 70) return '#e6a23c';
   return '#67c23a';
+};
+
+// --- External Key Handlers ---
+
+const showExternalCreate = () => {
+  externalFormData.value = {
+    id: null,
+    name: '',
+    provider: 'OpenAI',
+    apiKey: '',
+    baseUrl: '',
+    description: '',
+    enabled: true
+  };
+  externalDialogVisible.value = true;
+};
+
+const handleSaveExternal = async () => {
+  const valid = await externalFormRef.value.validate();
+  if (!valid) return;
+
+  submitting.value = true;
+  try {
+    await saveExternalKey(externalFormData.value);
+    ElMessage.success('保存成功');
+    externalDialogVisible.value = false;
+    fetchApiKeys();
+  } catch (error) {
+    ElMessage.error('保存失败');
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const handleEditExternal = (row) => {
+  externalFormData.value = { ...row };
+  externalDialogVisible.value = true;
+};
+
+const handleDeleteExternal = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要删除此供应商密钥吗?', '警告', { type: 'warning' });
+    await deleteExternalKey(row.id);
+    ElMessage.success('已删除');
+    fetchApiKeys();
+  } catch (e) { /* cancel */ }
+};
+
+const handleToggleExternal = async (row) => {
+  try {
+    await toggleExternalKeyStatus(row.id);
+    ElMessage.success('状态已更新');
+  } catch (e) {
+    row.enabled = !row.enabled; // rollback
+  }
+};
+
+const maskKey = (key) => {
+  if (!key) return '';
+  if (key.length <= 8) return '********';
+  return key.substring(0, 4) + '****************' + key.substring(key.length - 4);
+};
+
+const isKeyVisible = (id) => visibleKeys.value.has(id);
+
+const toggleKeyVisibility = (id) => {
+  if (visibleKeys.value.has(id)) {
+    visibleKeys.value.delete(id);
+  } else {
+    visibleKeys.value.add(id);
+  }
 };
 
 onMounted(() => {

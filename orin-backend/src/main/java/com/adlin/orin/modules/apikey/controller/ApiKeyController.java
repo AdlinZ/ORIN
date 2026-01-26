@@ -1,7 +1,9 @@
 package com.adlin.orin.modules.apikey.controller;
 
 import com.adlin.orin.modules.apikey.entity.ApiKey;
+import com.adlin.orin.modules.apikey.entity.ExternalProviderKey;
 import com.adlin.orin.modules.apikey.service.ApiKeyService;
+import com.adlin.orin.modules.apikey.service.ProviderKeyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
+    private final ProviderKeyService providerKeyService;
 
     /**
      * 创建API密钥
@@ -203,5 +206,31 @@ public class ApiKeyController {
         private LocalDateTime expiresAt;
         private LocalDateTime lastUsedAt;
         private LocalDateTime createdAt;
+    }
+
+    // --- External Provider Keys ---
+
+    @Operation(summary = "获取外部供应商密钥列表")
+    @GetMapping("/external")
+    public List<ExternalProviderKey> listExternalKeys() {
+        return providerKeyService.getAllKeys();
+    }
+
+    @Operation(summary = "新建/编辑外部供应商密钥")
+    @PostMapping("/external")
+    public ExternalProviderKey saveExternalKey(@RequestBody ExternalProviderKey key) {
+        return providerKeyService.saveKey(key);
+    }
+
+    @Operation(summary = "删除外部供应商密钥")
+    @DeleteMapping("/external/{id}")
+    public void deleteExternalKey(@PathVariable Long id) {
+        providerKeyService.deleteKey(id);
+    }
+
+    @Operation(summary = "切换外部密钥启用状态")
+    @PatchMapping("/external/{id}/toggle")
+    public ExternalProviderKey toggleExternalStatus(@PathVariable Long id) {
+        return providerKeyService.toggleStatus(id);
     }
 }

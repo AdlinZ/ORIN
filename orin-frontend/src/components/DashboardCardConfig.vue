@@ -50,22 +50,37 @@
         <div 
           v-for="card in availableCards.modules" 
           :key="card.id"
-          class="card-item"
-          :class="{ disabled: !isCardEnabled(card.id) }"
-          @click="toggleCard(card.id)"
+          class="module-item-wrapper"
         >
-          <div class="card-info">
-            <el-icon :style="{ color: card.color }"><component :is="card.icon" /></el-icon>
-            <div class="card-text">
-              <div class="card-name">{{ card.name }}</div>
-              <div class="card-desc">{{ card.description }}</div>
+          <div 
+            class="card-item"
+            :class="{ disabled: !isCardEnabled(card.id) }"
+            @click="toggleCard(card.id)"
+          >
+            <div class="card-info">
+              <el-icon :style="{ color: card.color }"><component :is="card.icon" /></el-icon>
+              <div class="card-text">
+                <div class="card-name">{{ card.name }}</div>
+                <div class="card-desc">{{ card.description }}</div>
+              </div>
             </div>
+            <el-switch 
+              :model-value="isCardEnabled(card.id)" 
+              @change="toggleCard(card.id)"
+              @click.stop
+            />
           </div>
-          <el-switch 
-            :model-value="isCardEnabled(card.id)" 
-            @change="toggleCard(card.id)"
-            @click.stop
-          />
+          
+          <div v-if="isCardEnabled(card.id) && card.sizes" class="size-config animated-fade-in">
+            <span class="size-label">显示宽度 (1-24)</span>
+            <el-radio-group 
+              v-model="detailedConfig[card.id].size" 
+              size="small"
+              @change="(val) => updateCardSize(card.id, val)"
+            >
+              <el-radio-button v-for="s in card.sizes" :key="s" :label="s">{{ s }}</el-radio-button>
+            </el-radio-group>
+          </div>
         </div>
       </div>
 
@@ -107,12 +122,15 @@ const availableCards = {
     { id: 'stat-latency', name: '平均延迟', description: '系统响应时间', icon: Connection, color: '#F56C6C' }
   ],
   modules: [
-    { id: 'module-agents', name: '智能体实例', description: '活跃智能体列表与状态', icon: Cpu, color: 'var(--orin-primary)' },
-    { id: 'module-distribution', name: '分布统计', description: '智能体类型与状态分布', icon: Histogram, color: '#67C23A' },
-    { id: 'module-activity', name: '活动日志', description: '最近系统活动记录', icon: Monitor, color: '#E6A23C' },
-    { id: 'module-server', name: '服务器硬件', description: 'Dify 服务器 CPU/内存/磁盘', icon: Setting, color: '#909399', optional: true }
+    { id: 'module-agents', name: '智能体实例', description: '活跃智能体列表与状态', icon: Cpu, color: 'var(--orin-primary)', defaultSize: 17, sizes: [8, 12, 16, 17, 24] },
+    { id: 'module-distribution', name: '分布统计', description: '智能体类型与状态分布', icon: Histogram, color: '#67C23A', defaultSize: 24, sizes: [12, 18, 24] },
+    { id: 'module-activity', name: '活动日志', description: '最近系统活动记录', icon: Monitor, color: '#E6A23C', defaultSize: 7, sizes: [6, 7, 8, 12] },
+    { id: 'module-server', name: '服务器硬件', description: 'Dify 服务器 CPU/内存/磁盘', icon: Setting, color: '#909399', optional: true, defaultSize: 24, sizes: [12, 24] }
   ]
 };
+
+// 存储详细配置 (id -> { enabled, size })
+const detailedConfig = ref({});
 
 // 默认启用的卡片
 const defaultEnabledCards = [
@@ -125,43 +143,61 @@ const enabledCards = ref([]);
 
 // 初始化配置
 const initConfig = () => {
-  const saved = localStorage.getItem('dashboard_card_config');
+  const saved = localStorage.getItem('dashboard_card_config_v2');
   if (saved) {
     try {
-      enabledCards.value = JSON.parse(saved);
+      detailedConfig.value = JSON.parse(saved);
     } catch (e) {
-      enabledCards.value = [...defaultEnabledCards];
+      resetToDefault();
     }
   } else {
-    enabledCards.value = [...defaultEnabledCards];
+    resetToDefault();
   }
 };
 
-initConfig();
-
 const isCardEnabled = (cardId) => {
-  return enabledCards.value.includes(cardId);
+  return detailedConfig.value[cardId]?.enabled;
+};
+
+const getCardSize = (cardId) => {
+  return detailedConfig.value[cardId]?.size;
 };
 
 const toggleCard = (cardId) => {
-  const index = enabledCards.value.indexOf(cardId);
-  if (index > -1) {
-    enabledCards.value.splice(index, 1);
-  } else {
-    enabledCards.value.push(cardId);
+  if (detailedConfig.value[cardId]) {
+    detailedConfig.value[cardId].enabled = !detailedConfig.value[cardId].enabled;
+    saveConfig();
   }
-  saveConfig();
+};
+
+const updateCardSize = (cardId, size) => {
+  if (detailedConfig.value[cardId]) {
+    detailedConfig.value[cardId].size = size;
+    saveConfig();
+  }
 };
 
 const saveConfig = () => {
-  localStorage.setItem('dashboard_card_config', JSON.stringify(enabledCards.value));
-  emit('config-change', enabledCards.value);
+  localStorage.setItem('dashboard_card_config_v2', JSON.stringify(detailedConfig.value));
+  
+  // Also keep v1 compatible for simple checks (just an array of enabled ids)
+  const enabledIds = Object.keys(detailedConfig.value).filter(id => detailedConfig.value[id].enabled);
+  localStorage.setItem('dashboard_card_config', JSON.stringify(enabledIds));
+  
+  emit('config-change', detailedConfig.value);
 };
 
 const resetToDefault = () => {
-  enabledCards.value = [...defaultEnabledCards];
+  const newConfig = {};
+  [...availableCards.stats, ...availableCards.modules].forEach(card => {
+    newConfig[card.id] = {
+      enabled: defaultEnabledCards.includes(card.id),
+      size: card.defaultSize || 6 // stats are 6 by default in rows of 4
+    };
+  });
+  detailedConfig.value = newConfig;
   saveConfig();
-  ElMessage.success('已恢复默认配置');
+  if (props.modelValue) ElMessage.success('已恢复默认配置');
 };
 
 const handleClose = () => {
@@ -205,6 +241,8 @@ defineExpose({
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.3s;
+  position: relative;
+  z-index: 2;
 }
 
 .card-item:hover {
@@ -254,5 +292,37 @@ defineExpose({
 
 .action-buttons .el-button {
   flex: 1;
+}
+
+.module-item-wrapper {
+  margin-bottom: 8px;
+}
+
+.size-config {
+  background: var(--neutral-gray-50);
+  padding: 12px 16px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border: 1px solid var(--neutral-gray-200);
+  border-top: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: -4px;
+  position: relative;
+  z-index: 1;
+}
+
+.size-label {
+  font-size: 12px;
+  color: var(--neutral-gray-600);
+}
+
+.animated-fade-in {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.model.controller;
 
 import com.adlin.orin.modules.model.entity.ModelMetadata;
+import com.adlin.orin.modules.model.service.ModelFetchService;
 import com.adlin.orin.modules.model.service.ModelManageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +18,7 @@ import java.util.List;
 public class ModelManageController {
 
     private final ModelManageService modelManageService;
+    private final ModelFetchService modelFetchService;
 
     @Operation(summary = "获取所有模型列表")
     @GetMapping
@@ -40,5 +42,13 @@ public class ModelManageController {
     @PatchMapping("/{id}/toggle")
     public ModelMetadata toggleStatus(@PathVariable Long id) {
         return modelManageService.toggleStatus(id);
+    }
+
+    @Operation(summary = "从 API 获取可用模型列表 (OpenAI 兼容)")
+    @GetMapping("/fetch")
+    public List<java.util.Map<String, Object>> fetchModels(
+            @RequestParam String baseUrl,
+            @RequestParam String apiKey) {
+        return modelFetchService.fetchModelsFromApi(baseUrl, apiKey);
     }
 }

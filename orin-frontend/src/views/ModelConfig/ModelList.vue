@@ -28,10 +28,13 @@
       <div class="table-toolbar" style="margin-bottom: 24px;">
          <div class="header-left">
            <el-radio-group v-model="typeFilter" @change="handleTabChange">
-              <el-radio-button label="ALL">全部</el-radio-button>
-              <el-radio-button label="LLM">语言模型 (LLM)</el-radio-button>
-              <el-radio-button label="EMBEDDING">向量模型</el-radio-button>
-           </el-radio-group>
+          <el-radio-button label="ALL">全部</el-radio-button>
+          <el-radio-button label="CHAT">Chat</el-radio-button>
+          <el-radio-button label="EMBEDDING">Embedding</el-radio-button>
+          <el-radio-button label="RERANKER">Reranker</el-radio-button>
+          <el-radio-button label="TEXT_TO_IMAGE">Text2Img</el-radio-button>
+          <el-radio-button label="SPEECH_TO_TEXT">Speech2Text</el-radio-button>
+        </el-radio-group>
          </div>
          <div class="action-bar">
            <el-input 
@@ -42,10 +45,21 @@
              class="search-input"
              style="width: 280px"
            />
+           <el-button 
+             v-if="selectedIds.length > 0" 
+             type="danger" 
+             plain 
+             :icon="Delete" 
+             style="margin-left: 12px"
+             @click="handleBatchDelete"
+           >
+             批量删除 ({{ selectedIds.length }})
+           </el-button>
          </div>
       </div>
 
-      <ResizableTable v-loading="loading" :data="filteredList">
+      <ResizableTable v-loading="loading" :data="filteredList" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" align="center" fixed="left" />
         <el-table-column label="模型名称" min-width="220">
           <template #default="{ row }">
             <div class="model-info">
@@ -125,9 +139,13 @@
           <el-col :span="12">
             <el-form-item label="模型类型" prop="type">
               <el-select v-model="form.type" placeholder="请选择" style="width: 100%">
-                <el-option label="LLM" value="LLM" />
+                <el-option label="Chat (LLM)" value="CHAT" />
                 <el-option label="Embedding" value="EMBEDDING" />
-                <el-option label="Rerank" value="RERANK" />
+                <el-option label="Reranker" value="RERANKER" />
+                <el-option label="Text to Image" value="TEXT_TO_IMAGE" />
+                <el-option label="Image to Image" value="IMAGE_TO_IMAGE" />
+                <el-option label="Speech to Text" value="SPEECH_TO_TEXT" />
+                <el-option label="Text to Video" value="TEXT_TO_VIDEO" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -136,8 +154,51 @@
           <el-input v-model="form.modelId" placeholder="例如: gpt-4o 或 llama3:8b" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" :rows="3" />
+          <el-input v-model="form.description" type="textarea" :rows="2" />
         </el-form-item>
+
+        <el-divider>API 自动获取 (可选)</el-divider>
+        <div class="api-fetch-section">
+          <p class="section-tip">提供 API 信息后，可一键获取供应商提供的所有模型</p>
+          
+          <el-form-item label="使用已保存密钥" class="mini-form-item">
+            <el-select v-model="selectedSavedKeyId" placeholder="选择已保存的凭据" size="small" style="width: 100%" clearable @change="onSavedKeyChange">
+              <el-option v-for="key in savedKeys" :key="key.id" :label="`${key.name} (${key.provider})`" :value="key.id" />
+            </el-select>
+          </el-form-item>
+          <el-row :gutter="10">
+            <el-col :span="16">
+              <el-input v-model="fetchConfig.baseUrl" placeholder="API Base URL (e.g. https://api.openai.com/v1)" size="small" />
+            </el-col>
+            <el-col :span="8">
+              <el-button type="primary" plain size="small" :loading="isFetchingModels" @click="handleFetchFromApi" style="width: 100%">
+                获取全部模型
+              </el-button>
+            </el-col>
+          </el-row>
+          <el-input v-model="fetchConfig.apiKey" type="password" show-password placeholder="API Key" size="small" style="margin-top: 10px;" />
+          
+          <div v-if="availableModels.length > 0" class="fetched-list">
+            <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0 8px;">
+              <p class="label-mini" style="margin: 0;">发现 {{ availableModels.length }} 个模型：</p>
+              <el-button type="success" size="small" link :loading="submitting" @click="handleImportAll">
+                一键全部导入
+              </el-button>
+            </div>
+            <div class="model-tags">
+              <el-tag 
+                v-for="m in availableModels.slice(0, 30)" 
+                :key="m.id" 
+                size="small" 
+                class="fetched-tag"
+                @click="onSelectFetchedModel(m)"
+              >
+                {{ m.id }}
+              </el-tag>
+              <span v-if="availableModels.length > 30" class="more-text">...等共 {{ availableModels.length }} 个</span>
+            </div>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -177,11 +238,22 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { Plus, Edit, Delete, Search, Box } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ResizableTable from '@/components/ResizableTable.vue';
-import { getModelList, saveModel, deleteModel, toggleModelStatus } from '@/api/model';
+import { getModelList, saveModel, deleteModel, toggleModelStatus, fetchModels } from '@/api/model';
+import { getModelConfig } from '@/api/modelConfig';
+import { getExternalKeys } from '@/api/apiKey';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const loading = ref(false);
 const submitting = ref(false);
+const isFetchingModels = ref(false);
+const availableModels = ref([]);
+const savedKeys = ref([]);
+const selectedSavedKeyId = ref(null);
+const selectedIds = ref([]);
+const fetchConfig = reactive({
+  baseUrl: '',
+  apiKey: ''
+});
 const testResultVisible = ref(false);
 const testResult = ref(null);
 const modelList = ref([]);
@@ -195,7 +267,7 @@ const form = reactive({
   id: null,
   name: '',
   provider: '',
-  type: 'LLM',
+  type: 'CHAT',
   modelId: '',
   description: '',
   status: 'ENABLED'
@@ -241,14 +313,108 @@ const filteredList = computed(() => {
 
 const stats = computed(() => [
   { label: '纳管模型总数', value: modelList.value.length },
-  { label: '已启用 LLM', value: modelList.value.filter(m => m.type === 'LLM' && m.status === 'ENABLED').length },
-  { label: '向量模型数', value: modelList.value.filter(m => m.type === 'EMBEDDING').length },
-  { label: '异常资源', value: 0 }
+  { label: 'Chat 模型', value: modelList.value.filter(m => (m.type === 'CHAT' || m.type === 'LLM') && m.status === 'ENABLED').length },
+  { label: 'Embedding', value: modelList.value.filter(m => m.type === 'EMBEDDING').length },
+  { label: '多模态/其他', value: modelList.value.filter(m => !['CHAT', 'LLM', 'EMBEDDING'].includes(m.type)).length }
 ]);
 
-const handleAdd = () => {
-  Object.assign(form, { id: null, name: '', provider: '', type: 'LLM', modelId: '', description: '', status: 'ENABLED' });
+const handleAdd = async () => {
+  Object.assign(form, { id: null, name: '', provider: '', type: 'CHAT', modelId: '', description: '', status: 'ENABLED' });
+  availableModels.value = [];
+  selectedSavedKeyId.value = null;
   dialogVisible.value = true;
+  
+  // Load saved keys
+  try {
+    savedKeys.value = await getExternalKeys();
+  } catch (e) { /* ignore */ }
+
+  // Try to load default from global config
+  try {
+    const config = await getModelConfig();
+    if (config) {
+      fetchConfig.baseUrl = config.baseUrl || 'https://api.openai.com/v1';
+      fetchConfig.apiKey = config.apiKey || '';
+    }
+  } catch (e) { /* ignore */ }
+};
+
+const onSavedKeyChange = (id) => {
+  const keyMatch = savedKeys.value.find(k => k.id === id);
+  if (keyMatch) {
+    fetchConfig.apiKey = keyMatch.apiKey;
+    if (keyMatch.baseUrl) fetchConfig.baseUrl = keyMatch.baseUrl;
+    if (!form.provider) form.provider = keyMatch.provider;
+  }
+};
+
+const handleFetchFromApi = async () => {
+  if (!fetchConfig.baseUrl) return ElMessage.warning('请输入 API 地址');
+  isFetchingModels.value = true;
+  try {
+    const res = await fetchModels(fetchConfig.baseUrl, fetchConfig.apiKey);
+    availableModels.value = res || [];
+    if (availableModels.value.length === 0) {
+      ElMessage.warning('未能获取到模型列表，请检查配置');
+    } else {
+      ElMessage.success(`成功获取 ${availableModels.value.length} 个模型`);
+    }
+  } catch (e) {
+    ElMessage.error('获取失败: ' + (e.response?.data?.message || e.message));
+  } finally {
+    isFetchingModels.value = false;
+  }
+};
+
+const onSelectFetchedModel = (m) => {
+  form.modelId = m.id;
+  if (!form.name) form.name = m.id;
+  if (m.type) form.type = m.type; // Auto-select type if available
+};
+
+const handleImportAll = async () => {
+  if (!form.provider) return ElMessage.warning('请先选择供应商');
+  
+  const count = availableModels.value.length;
+  await ElMessageBox.confirm(`确认将获取到的 ${count} 个模型全部导入吗？`, '批量导入确认', {
+    confirmButtonText: '立即导入',
+    cancelButtonText: '取消',
+    type: 'info'
+  });
+  
+  submitting.value = true;
+  let successCount = 0;
+  try {
+    const provider = form.provider;
+    
+    // Check for existing models to avoid duplicates (optional but better)
+    const existingModelIds = modelList.value.map(m => m.modelId);
+    
+    for (const m of availableModels.value) {
+      if (existingModelIds.includes(m.id)) continue;
+      
+      // Use inferred type if available, otherwise fallback to current form selection or CHAT
+      const modelType = m.type || form.type || 'CHAT';
+
+      await saveModel({
+        name: m.id,
+        modelId: m.id,
+        provider: provider,
+        type: modelType,
+        status: 'ENABLED',
+        description: `API 自动导入 - ${new Date().toLocaleDateString()}`
+      });
+      successCount++;
+    }
+    
+    ElMessage.success(`导入完成：新添加 ${successCount} 个模型`);
+    dialogVisible.value = false;
+    fetchData();
+  } catch (e) {
+    ElMessage.error('导入过程中出现异常: ' + e.message);
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const handleEdit = (row) => {
@@ -311,6 +477,34 @@ const handleDelete = (row) => {
   });
 };
 
+const handleSelectionChange = (selection) => {
+  selectedIds.value = selection.map(item => item.id);
+};
+
+const handleBatchDelete = () => {
+  if (selectedIds.value.length === 0) return;
+  ElMessageBox.confirm(`确定批量删除选中的 ${selectedIds.value.length} 个模型吗? 此操作不可恢复。`, '批量删除确认', {
+    confirmButtonText: '确定删除',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    loading.value = true;
+    try {
+      // Execute deletions in sequence or parallel depending on backend capability.
+      // Assuming serial for safety or basic parallel
+      await Promise.all(selectedIds.value.map(id => deleteModel(id)));
+      ElMessage.success('批量删除成功');
+      selectedIds.value = [];
+      fetchData();
+    } catch (e) {
+      ElMessage.error('批量删除过程中出现错误');
+      fetchData(); // Refresh anyway
+    } finally {
+      loading.value = false;
+    }
+  });
+};
+
 onMounted(() => {
   fetchData();
 });
@@ -368,4 +562,17 @@ onMounted(() => {
 .provider-tag.deepseek { background: #2f54eb; color: #fff; }
 
 .name { font-weight: 600; color: var(--neutral-black); }
+
+.api-fetch-section {
+  padding: 15px;
+  background: var(--neutral-gray-50);
+  border-radius: 8px;
+  border: 1px dashed var(--neutral-gray-200);
+}
+.section-tip { font-size: 12px; color: var(--neutral-gray-500); margin-bottom: 12px; margin-top: 0; }
+.label-mini { font-size: 11px; color: var(--neutral-gray-400); margin: 15px 0 5px; }
+.model-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.fetched-tag { cursor: pointer; border-radius: 4px; border: none; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.fetched-tag:hover { border-color: var(--primary-color); color: var(--primary-color); transform: scale(1.05); }
+.more-text { font-size: 11px; color: var(--neutral-gray-400); align-self: center; }
 </style>

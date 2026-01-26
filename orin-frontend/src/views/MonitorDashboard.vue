@@ -32,7 +32,7 @@
 
 
     <!-- Stats Row -->
-    <el-skeleton :loading="loading" animated :rows="2" v-if="enabledCards.some(c => c.startsWith('stat-'))">
+    <el-skeleton :loading="loading" animated :rows="2" v-if="['stat-agents', 'stat-requests', 'stat-tokens', 'stat-latency'].some(id => isCardEnabled(id))">
       <template #template>
         <el-row :gutter="20" class="stats-row">
            <el-col :span="6" v-for="i in 4" :key="i"><el-skeleton-item variant="rect" style="height: 110px; border-radius: var(--radius-base)" /></el-col>
@@ -48,8 +48,8 @@
             @click="handleCardClick(item)"
           >
             <div class="stat-card-inner">
-              <div class="stat-icon" :style="{ backgroundColor: item.bgColor }">
-                <el-icon :style="{ color: item.color }"><component :is="item.icon" /></el-icon>
+              <div class="stat-icon" :style="{ backgroundColor: item.bgColor || 'rgba(var(--orin-primary-rgb), 0.1)' }">
+                <el-icon :style="{ color: item.color || 'var(--orin-primary)' }"><component :is="item.icon" /></el-icon>
               </div>
               <div class="stat-content">
                 <div class="text-secondary" style="margin-bottom: 8px; font-weight: 500;">{{ item.label }}</div>
@@ -66,7 +66,7 @@
     <!-- Main Content Area -->
     <el-row :gutter="24" class="content-row">
       <!-- Left: Agent Grid -->
-      <el-col :lg="isCardEnabled('module-activity') ? 17 : 24" :md="24" v-if="isCardEnabled('module-agents')">
+      <el-col :lg="getModuleSize('module-agents', 17)" :md="24" v-if="isCardEnabled('module-agents')">
         <el-card class="grid-card">
           <template #header>
             <div class="card-header">
@@ -117,16 +117,16 @@
 
         <!-- New: Distribution Analytics -->
         <el-row :gutter="24" style="margin-top: 24px;" v-if="isCardEnabled('module-distribution')">
-           <el-col :span="12">
-              <el-card shadow="never">
+           <el-col :span="getModuleSize('module-distribution', 24) === 24 ? 12 : 24">
+              <el-card shadow="never" class="grid-card">
                 <template #header><div class="module-title" style="margin-bottom: 0;">终端类型分布</div></template>
                 <div class="chart-container">
                   <PieChart :data="typeDistribution" height="280px" />
                 </div>
               </el-card>
            </el-col>
-           <el-col :span="12">
-              <el-card shadow="never">
+           <el-col :span="getModuleSize('module-distribution', 24) === 24 ? 12 : 24" :style="getModuleSize('module-distribution', 24) !== 24 ? 'margin-top: 24px' : ''">
+              <el-card shadow="never" class="grid-card">
                 <template #header><div class="module-title" style="margin-bottom: 0;">健康状态分布</div></template>
                 <div class="chart-container">
                    <PieChart :data="statusDistribution" height="280px" />
@@ -142,7 +142,7 @@
       </el-col>
 
       <!-- Right: Global Activity -->
-      <el-col :lg="7" :md="24" v-if="isCardEnabled('module-activity')">
+      <el-col :lg="getModuleSize('module-activity', 7)" :md="24" v-if="isCardEnabled('module-activity')">
         <el-card shadow="never" class="activity-card">
           <template #header>
             <div class="card-header">
@@ -298,21 +298,15 @@ const systemStatus = computed(() => {
 
 // Initialize enabled cards from config
 const initCardConfig = () => {
-  const saved = localStorage.getItem('dashboard_card_config');
+  const saved = localStorage.getItem('dashboard_card_config_v2');
   if (saved) {
     try {
       enabledCards.value = JSON.parse(saved);
     } catch (e) {
-      enabledCards.value = [
-        'stat-agents', 'stat-requests', 'stat-tokens', 'stat-latency',
-        'module-agents', 'module-distribution', 'module-activity'
-      ];
+      enabledCards.value = {};
     }
   } else {
-    enabledCards.value = [
-      'stat-agents', 'stat-requests', 'stat-tokens', 'stat-latency',
-      'module-agents', 'module-distribution', 'module-activity'
-    ];
+    enabledCards.value = {};
   }
 };
 
@@ -321,7 +315,12 @@ const handleCardConfigChange = (newConfig) => {
 };
 
 const isCardEnabled = (cardId) => {
-  return enabledCards.value.includes(cardId);
+  if (!enabledCards.value[cardId]) return false;
+  return enabledCards.value[cardId].enabled;
+};
+
+const getModuleSize = (cardId, defaultSize = 24) => {
+  return enabledCards.value[cardId]?.size || defaultSize;
 };
 
 const formatTime = (ts) => new Date(ts).toLocaleTimeString();
@@ -558,14 +557,23 @@ onUnmounted(() => {
 
 .stat-card {
   border-radius: var(--radius-xl) !important;
-  border: 1px solid var(--neutral-gray-100) !important;
-  background: var(--neutral-white) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.dark .stat-card {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .stat-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px) scale(1.02);
   box-shadow: var(--shadow-premium) !important;
+  border-color: var(--orin-primary) !important;
 }
 
 .stat-card-inner {
@@ -582,7 +590,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  box-shadow: inset 0 0 10px rgba(0, 191, 165, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
 .stat-label { font-size: 13px; color: var(--neutral-gray-4); margin-bottom: 4px; }
@@ -610,20 +618,22 @@ onUnmounted(() => {
 .action-button {
   border-radius: var(--radius-base) !important;
   font-weight: 600;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .grid-card {
-  border-radius: var(--radius-lg) !important;
-  border: 1px solid var(--neutral-gray-100) !important;
-  background: var(--neutral-white) !important;
-  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: var(--shadow-lg) !important;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.grid-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg) !important;
-  border-color: var(--primary-light) !important;
+html.dark .grid-card {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 .log-stream { 
@@ -689,18 +699,63 @@ onUnmounted(() => {
 
 
 .agent-item {
-  background: var(--neutral-white);
-  border: 1px solid var(--neutral-gray-2);
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-lg);
-  padding: 15px;
+  padding: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
-  pointer-events: auto;
-  z-index: 1;
+  overflow: hidden;
 }
-.agent-item:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-.agent-item.selected { border-color: var(--primary-color); background: var(--primary-light-1); }
+
+html.dark .agent-item {
+  background: rgba(30, 41, 59, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.agent-item:hover { 
+  transform: translateY(-5px) scale(1.02); 
+  border-color: var(--orin-primary); 
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); 
+}
+
+.agent-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--neutral-gray-300);
+}
+
+.agent-item.running::before { background: var(--orin-primary); }
+.agent-item.stopped::before { background: var(--neutral-gray-400); }
+.agent-item.high_load::before { background: #F56C6C; }
+
+.agent-item.running .agent-name {
+  position: relative;
+}
+
+.agent-item.running .agent-name::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--orin-primary);
+  border-radius: 50%;
+  margin-left: 8px;
+  box-shadow: 0 0 10px var(--orin-primary);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 191, 165, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 191, 165, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 191, 165, 0); }
+}
 
 .item-header { display: flex; align-items: center; margin-bottom: 12px; gap: 8px; }
 .agent-icon { font-size: 20px; }

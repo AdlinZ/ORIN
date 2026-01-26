@@ -59,20 +59,28 @@ const updateOption = () => {
       {
         name: props.title,
         type: 'pie',
-        radius: ['45%', '75%'],
+        radius: ['55%', '75%'],
         avoidLabelOverlap: false,
         itemStyle: {
-          borderRadius: 8,
-          borderColor: isDark.value ? '#030712' : '#fff',
-          borderWidth: 2
+          borderRadius: 12,
+          borderColor: isDark.value ? '#1e293b' : '#fff',
+          borderWidth: 4
         },
-        label: { show: false },
+        label: { 
+          show: false,
+          position: 'center'
+        },
         emphasis: {
-          scaleSize: 10,
+          label: {
+            show: true,
+            fontSize: 20,
+            fontWeight: 'bold',
+            formatter: '{d}%'
+          },
           itemStyle: {
-            shadowBlur: 15,
+            shadowBlur: 20,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 191, 165, 0.5)'
+            shadowColor: 'rgba(0, 191, 165, 0.6)'
           }
         },
         data: props.data

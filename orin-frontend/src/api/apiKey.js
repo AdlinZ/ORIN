@@ -52,3 +52,33 @@ export function resetQuota(keyId) {
         method: 'post'
     })
 }
+// --- External Provider Keys ---
+
+export function getExternalKeys() {
+    return request({
+        url: '/api-keys/external',
+        method: 'get'
+    })
+}
+
+export function saveExternalKey(data) {
+    return request({
+        url: '/api-keys/external',
+        method: 'post',
+        data
+    })
+}
+
+export function deleteExternalKey(id) {
+    return request({
+        url: `/api-keys/external/${id}`,
+        method: 'delete'
+    })
+}
+
+export function toggleExternalKeyStatus(id) {
+    return request({
+        url: `/api-keys/external/${id}/toggle`,
+        method: 'patch'
+    })
+}
