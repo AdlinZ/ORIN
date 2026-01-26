@@ -1,28 +1,28 @@
 /* 
-  ORIN Vivid Amber Design System 2026
+  ORIN Jadeite Design System 2026
   Theme: Minimalist & High-Vibrancy Intelligent Station
 */
 
 :root {
-    /* --- Brand Colors: Vivid Amber (High Luminance) --- */
-    --orin-primary: #FF9500;
-    --orin-primary-glow: rgba(255, 149, 0, 0.3);
-    --orin-primary-soft: rgba(255, 149, 0, 0.1);
-    --orin-primary-neon: rgba(255, 149, 0, 0.6);
+    /* --- Brand Colors: Jadeite Cyan (High Luminance) --- */
+    --orin-primary: #00BFA5;
+    --orin-primary-glow: rgba(0, 191, 165, 0.3);
+    --orin-primary-soft: #F0FDFA;
+    --orin-primary-neon: rgba(0, 191, 165, 0.6);
 
-    /* 2026 Amber Glow Semantics */
-    --orin-amber: #FF9500;
-    --orin-amber-glow: rgba(255, 149, 0, 0.15);
+    /* 2026 Compatible Semantics */
+    --orin-amber: var(--orin-primary);
+    --orin-amber-glow: var(--orin-primary-glow);
     --orin-bg-white: #FFFFFF;
     --orin-glass: blur(20px) saturate(180%);
 
     /* --- Surfaces (Light Mode - Glassmorphism) --- */
-    --app-bg: #FAF9F6;
+    --app-bg: #F8FAFC;
     --glass-bg: rgba(255, 255, 255, 0.75);
-    --glass-border: rgba(255, 157, 0, 0.2);
-    --panel-shadow: 0 8px 32px 0 rgba(255, 157, 0, 0.08);
+    --glass-border: rgba(0, 191, 165, 0.2);
+    --panel-shadow: 0 8px 32px 0 rgba(0, 191, 165, 0.08);
 
-    --text-primary: #1C1C1E;
+    --text-primary: #0F3A3A;
     --text-secondary: #636366;
     --border-subtle: rgba(0, 0, 0, 0.05);
 
@@ -32,24 +32,24 @@
 }
 
 html.dark {
-    /* --- Brand Colors: Neon Orange (Night Flux) --- */
-    --orin-primary: #FF7A00;
-    --orin-primary-glow: rgba(255, 122, 0, 0.5);
-    --orin-primary-soft: rgba(255, 122, 0, 0.12);
+    /* --- Brand Colors: Electric Cyan (Night Flux) --- */
+    --orin-primary: #26FFDF;
+    --orin-primary-glow: rgba(38, 255, 223, 0.5);
+    --orin-primary-soft: rgba(38, 255, 223, 0.12);
 
-    /* 2026 Night Amber Glow Semantics */
-    --orin-amber: #FF7A00;
-    --orin-amber-glow: rgba(255, 122, 0, 0.25);
-    --orin-bg-white: #121212;
+    /* 2026 Night Semantics */
+    --orin-amber: var(--orin-primary);
+    --orin-amber-glow: var(--orin-primary-glow);
+    --orin-bg-white: #041010;
     --orin-glass: blur(20px) saturate(180%);
 
     /* --- Surfaces (Dark Mode) --- */
-    --app-bg: #050505;
-    --glass-bg: rgba(15, 15, 15, 0.8);
-    --glass-border: rgba(255, 122, 0, 0.15);
+    --app-bg: #041010;
+    --glass-bg: rgba(4, 16, 16, 0.8);
+    --glass-border: rgba(38, 255, 223, 0.15);
     --panel-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
 
-    --text-primary: #F2F2F7;
+    --text-primary: #F1F5F9;
     --text-secondary: #8E8E93;
     --border-subtle: rgba(255, 255, 255, 0.05);
 }

@@ -201,8 +201,8 @@ const initTimelineChart = () => {
       trace.durationMs
     ],
     itemStyle: {
-      color: trace.status === 'SUCCESS' ? '#67C23A' : 
-             trace.status === 'FAILED' ? '#F56C6C' : '#909399'
+      color: trace.status === 'SUCCESS' ? '#00BFA5' : 
+             trace.status === 'FAILED' ? '#EF4444' : '#94A3B8'
     }
   }))
 
@@ -282,7 +282,8 @@ const initCpuChart = () => {
       areaStyle: {
         color: 'var(--orin-primary)',
         opacity: 0.3
-      }
+      },
+      itemStyle: { color: 'var(--orin-primary)' }
     }]
   }
 
@@ -317,7 +318,7 @@ const initMemoryChart = () => {
       data: traces.value.map(t => t.memoryUsage || 0),
       type: 'bar',
       itemStyle: {
-        color: '#67C23A'
+        color: '#14B8A6'
       }
     }]
   }
@@ -366,11 +367,11 @@ const getStatusTagType = (status) => {
 }
 
 .stat-card.success {
-  border-left: 4px solid #67C23A;
+  border-left: 4px solid var(--success-color);
 }
 
 .stat-card.failed {
-  border-left: 4px solid #F56C6C;
+  border-left: 4px solid var(--error-color);
 }
 
 .stat-content {

@@ -31,7 +31,7 @@ const updateOption = () => {
   if (!chartInstance) return;
 
   const option = {
-    color: ['#6366f1', '#06b6d4', '#ec4899', '#f59e0b', '#10b981'],
+    color: ['#00BFA5', '#26FFDF', '#14B8A6', '#5EEAD4', '#0D9488'],
     title: {
       text: props.title,
       left: 'center',
@@ -72,7 +72,7 @@ const updateOption = () => {
           itemStyle: {
             shadowBlur: 15,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(99, 102, 241, 0.5)'
+            shadowColor: 'rgba(0, 191, 165, 0.5)'
           }
         },
         data: props.data

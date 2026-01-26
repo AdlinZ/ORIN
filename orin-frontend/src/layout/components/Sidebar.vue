@@ -164,7 +164,7 @@ const isAdmin = computed(() => userStore.isAdmin);
 }
 
 .title .highlight {
-  color: var(--primary-color);
+  color: var(--orin-primary);
 }
 
 
@@ -185,10 +185,14 @@ const isAdmin = computed(() => userStore.isAdmin);
 }
 
 :deep(.el-menu-item.is-active) {
-  color: var(--primary-color) !important;
-  background-color: var(--primary-light-1) !important;
+  color: var(--orin-primary) !important;
+  background-color: var(--orin-primary-soft) !important;
   font-weight: 600;
-  border-left: 3px solid var(--primary-color);
+  border-left: 3px solid var(--orin-primary);
+}
+
+:deep(.el-menu-item.is-active .el-icon) {
+  color: var(--orin-primary) !important;
 }
 
 :deep(.el-menu-item:hover) {

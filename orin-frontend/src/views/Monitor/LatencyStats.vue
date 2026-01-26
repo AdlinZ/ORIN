@@ -155,23 +155,23 @@ const statsCards = computed(() => [
     unit: 'ms',
     icon: Timer, 
     color: 'var(--orin-primary)', 
-    bgColor: 'var(--orin-primary-fade)' 
+    bgColor: 'var(--orin-primary-soft)' 
   },
   { 
     label: '本周平均延迟', 
     key: 'weekly', 
     unit: 'ms',
     icon: TrendCharts, 
-    color: '#67C23A', 
-    bgColor: 'rgba(103, 194, 58, 0.1)' 
+    color: '#26FFDF', 
+    bgColor: 'rgba(38, 255, 223, 0.1)' 
   },
   { 
     label: '本月平均延迟', 
     key: 'monthly', 
     unit: 'ms',
     icon: Connection, 
-    color: '#E6A23C', 
-    bgColor: 'rgba(230, 162, 60, 0.1)' 
+    color: '#14B8A6', 
+    bgColor: 'rgba(20, 184, 166, 0.1)' 
   },
   { 
     label: '历史峰值延迟', 
@@ -273,11 +273,11 @@ const renderTrendChart = (data) => {
         type: 'line',
         smooth: true,
         data: data.map(item => item.latency),
-        itemStyle: { color: '#67C23A' },
+        itemStyle: { color: 'var(--orin-primary)' },
         areaStyle: {
              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(103, 194, 58, 0.5)' },
-            { offset: 1, color: 'rgba(103, 194, 58, 0.1)' }
+            { offset: 0, color: 'rgba(0, 191, 165, 0.5)' },
+            { offset: 1, color: 'rgba(0, 191, 165, 0.1)' }
           ])
         }
       }

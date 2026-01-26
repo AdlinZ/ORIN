@@ -85,6 +85,24 @@ public class WorkflowStepEntity {
     public enum StepType {
         SKILL, // 技能调用
         AGENT, // 智能体调用
-        LOGIC // 逻辑控制
+        LOGIC, // 逻辑控制
+
+        // New Types
+        LLM, // 大模型调用
+        KNOWLEDGE_RETRIEVAL, // 知识检索
+        ANSWER, // 直接回复
+        QUESTION_CLASSIFIER, // 问题分类器
+        IF_ELSE, // 条件分支
+        ITERATION, // 迭代
+        LOOP, // 循环
+        CODE, // 代码执行
+        TEMPLATE_TRANSFORM, // 模板转换
+        VARIABLE_AGGREGATOR, // 变量聚合器
+        DOCUMENT_EXTRACTOR, // 文档提取器
+        PARAMETER_EXTRACTOR, // 参数提取器
+        HTTP_REQUEST, // HTTP 请求
+        TOOL, // 工具调用
+        NOTE, // 注释/笔记
+        END // 结束节点
     }
 }

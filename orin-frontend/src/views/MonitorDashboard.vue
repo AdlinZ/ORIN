@@ -200,8 +200,8 @@
         <el-tabs v-model="activeTab" class="detail-tabs">
           <el-tab-pane label="性能监控" name="monitor">
             <div class="chart-section">
-               <LineChart title="Token 消耗 (累计)" :data="metrics.tokens" yAxisName="tokens" color="#67C23A" />
-               <LineChart title="延迟 (ms)" :data="metrics.latency" yAxisName="ms" color="#E6A23C" />
+               <LineChart title="Token 消耗 (累计)" :data="metrics.tokens" yAxisName="tokens" color="#00BFA5" />
+               <LineChart title="延迟 (ms)" :data="metrics.latency" yAxisName="ms" color="#14B8A6" />
                <LineChart v-if="selectedAgent.cpuUsage > 0 || selectedAgent.isLocal" title="CPU 负载" :data="metrics.cpu" yAxisName="%" :yAxisMax="100" color="#F56C6C" />
                <LineChart v-if="selectedAgent.memoryUsage > 0 || selectedAgent.isLocal" title="内存占用" :data="metrics.memory" yAxisName="MB" color="var(--orin-primary)" />
             </div>
@@ -354,16 +354,16 @@ const handleCardClick = (item) => {
 };
 
 const statItems = computed(() => [
-  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--primary-color)', bgColor: 'var(--primary-light-1)' },
-  { cardId: 'stat-requests', label: '今日请求', key: 'daily_requests', defaultValue: '0', icon: Tickets, color: '#05c1af', bgColor: 'rgba(5, 193, 175, 0.1)' },
+  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--orin-primary)', bgColor: 'var(--orin-primary-soft)' },
+  { cardId: 'stat-requests', label: '今日请求', key: 'daily_requests', defaultValue: '0', icon: Tickets, color: '#26FFDF', bgColor: 'rgba(38, 255, 223, 0.1)' },
   { 
     cardId: 'stat-tokens', 
     label: 'Token 消耗', 
     key: 'total_tokens', 
     defaultValue: '0', 
     icon: Cpu, 
-    color: 'var(--warning-color)', 
-    bgColor: 'rgba(250, 173, 20, 0.1)',
+    color: '#14B8A6', 
+    bgColor: 'rgba(20, 184, 166, 0.1)',
     clickable: true
   },
   { 
@@ -372,8 +372,8 @@ const statItems = computed(() => [
     key: 'avg_latency', 
     defaultValue: '0ms', 
     icon: Connection, 
-    color: 'var(--success-color)', 
-    bgColor: 'rgba(76, 175, 80, 0.1)',
+    color: '#0D9488', 
+    bgColor: 'rgba(13, 148, 136, 0.1)',
     clickable: true
   },
 ]);
@@ -582,7 +582,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  box-shadow: inset 0 0 10px rgba(255,255,255,0.2);
+  box-shadow: inset 0 0 10px rgba(0, 191, 165, 0.1);
 }
 
 .stat-label { font-size: 13px; color: var(--neutral-gray-4); margin-bottom: 4px; }
@@ -726,10 +726,10 @@ onUnmounted(() => {
 .detail-header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--neutral-bg); padding: 15px; border-radius: var(--radius-base); }
 .status-badge { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
 .status-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
-.status-badge.running { color: #67C23A; }
-.status-badge.running .dot { background: #67C23A; }
-.status-badge.stopped { color: #909399; }
-.status-badge.stopped .dot { background: #909399; }
+.status-badge.running { color: var(--orin-primary); }
+.status-badge.running .dot { background: var(--orin-primary); }
+.status-badge.stopped { color: #94a3b8; }
+.status-badge.stopped .dot { background: #94a3b8; }
 
 .log-stream { background: #1e1e1e; color: #d4d4d4; padding: 15px; font-family: 'Courier New', Courier, monospace; font-size: 12px; border-radius: var(--radius-xs); height: 400px; overflow-y: auto; line-height: 1.6; }
 .log-entry { margin-bottom: 8px; display: flex; gap: 10px; }

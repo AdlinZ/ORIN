@@ -85,8 +85,13 @@ public class DifyDslConverter {
                 }
             }
 
-            // Skip cosmetic nodes
+            // Handle cosmetic nodes (Notes)
             if ("custom-note".equals(difyNode.get("type"))) {
+                orinNode.put("id", id);
+                orinNode.put("type", "note");
+                orinNode.put("position", difyNode.get("position"));
+                orinNode.put("data", data);
+                orinNodes.add(orinNode);
                 continue;
             }
 
@@ -146,17 +151,35 @@ public class DifyDslConverter {
             case "end":
                 return "end";
             case "answer":
-                return "end"; // Map answer to end
+                return "answer";
             case "llm":
                 return "llm";
-            case "code":
-                return "skill"; // Map code to skill
-            case "tool":
-                return "skill";
+            case "knowledge-retrieval":
+                return "knowledge_retrieval";
+            case "question-classifier":
+                return "question_classifier";
             case "if-else":
-                return "condition";
+                return "if_else";
+            case "code":
+                return "code";
+            case "template-transform":
+                return "template_transform";
+            case "http-request":
+                return "http_request";
+            case "tool":
+                return "tool";
+            case "variable-aggregator":
+                return "variable_aggregator";
+            case "iteration":
+                return "iteration";
+            case "parameter-extractor":
+                return "parameter_extractor";
+            case "document-extractor":
+                return "document_extractor";
             default:
-                return "unknown";
+                // Try to preserve original type for unknown ones, normalized to snake_case if
+                // possible
+                return difyType.replace("-", "_");
         }
     }
 }

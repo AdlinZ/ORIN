@@ -27,29 +27,90 @@
       <div class="node-palette">
         <h3>节点类型</h3>
         <div class="palette-section">
+          <div class="palette-group-title">基础节点</div>
           <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'start')">
             <el-icon><VideoPlay /></el-icon>
             <span>开始</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'end')">
+            <el-icon><CircleCheck /></el-icon>
+            <span>结束</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'answer')">
+            <el-icon><ChatLineSquare /></el-icon>
+            <span>直接回复</span>
+          </div>
+          
+          <div class="palette-group-title">大模型 & 智能</div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'llm')">
+            <el-icon><Cpu /></el-icon>
+            <span>LLM</span>
           </div>
           <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'agent')">
             <el-icon><User /></el-icon>
             <span>智能体</span>
           </div>
-          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'skill')">
-            <el-icon><Tools /></el-icon>
-            <span>技能</span>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'knowledge_retrieval')">
+            <el-icon><Collection /></el-icon>
+            <span>知识检索</span>
           </div>
-          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'llm')">
-            <el-icon><Cpu /></el-icon>
-            <span>LLM</span>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'question_classifier')">
+            <el-icon><Connection /></el-icon>
+            <span>问题分类器</span>
           </div>
-          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'condition')">
+
+          <div class="palette-group-title">逻辑 & 控制</div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'if_else')">
             <el-icon><Share /></el-icon>
-            <span>条件</span>
+            <span>条件分支</span>
           </div>
-          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'end')">
-            <el-icon><CircleCheck /></el-icon>
-            <span>结束</span>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'iteration')">
+            <el-icon><Refresh /></el-icon>
+            <span>迭代</span>
+          </div>
+           <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'loop')">
+            <el-icon><RefreshRight /></el-icon>
+            <span>循环</span>
+          </div>
+
+          <div class="palette-group-title">转换 & 数据</div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'code')">
+            <el-icon><Monitor /></el-icon>
+            <span>代码执行</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'template_transform')">
+            <el-icon><DocumentCopy /></el-icon>
+            <span>模板转换</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'variable_aggregator')">
+            <el-icon><Files /></el-icon>
+            <span>变量聚合器</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'variable_assigner')">
+            <el-icon><EditPen /></el-icon>
+            <span>变量赋值</span>
+          </div>
+
+          <div class="palette-group-title">外部 & 工具</div>
+           <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'http_request')">
+            <el-icon><Link /></el-icon>
+            <span>HTTP 请求</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'tool')">
+            <el-icon><Tools /></el-icon>
+            <span>工具</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'document_extractor')">
+            <el-icon><Document /></el-icon>
+            <span>文档提取器</span>
+          </div>
+           <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'parameter_extractor')">
+            <el-icon><Scissor /></el-icon>
+            <span>参数提取器</span>
+          </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'note')">
+            <el-icon><Postcard /></el-icon>
+            <span>注释卡片</span>
           </div>
         </div>
       </div>
@@ -74,6 +135,23 @@
             </div>
           </template>
 
+          <template #node-end="{ data }">
+            <div class="custom-node end-node" :class="getStatusClass(data.status)">
+              <el-icon><CircleCheck /></el-icon>
+              <div class="node-content">
+                  <div class="node-title">结束</div>
+                  <div class="node-subtitle" v-if="data.output_type">Type: {{ data.output_type }}</div>
+              </div>
+            </div>
+          </template>
+
+          <template #node-answer="{ data }">
+            <div class="custom-node end-node" :class="getStatusClass(data.status)">
+              <el-icon><ChatLineSquare /></el-icon>
+              <span>直接回复</span>
+            </div>
+          </template>
+
           <template #node-agent="{ data }">
             <div class="custom-node agent-node" :class="getStatusClass(data.status)">
               <el-icon><User /></el-icon>
@@ -84,39 +162,136 @@
             </div>
           </template>
 
-          <template #node-skill="{ data }">
-            <div class="custom-node skill-node" :class="getStatusClass(data.status)">
-              <el-icon><Tools /></el-icon>
-              <div class="node-content">
-                <div class="node-title">{{ data.label || '技能' }}</div>
-                <div class="node-subtitle" v-if="data.skillId">Skill ID: {{ data.skillId }}</div>
-              </div>
-            </div>
-          </template>
-
           <template #node-llm="{ data }">
             <div class="custom-node llm-node" :class="getStatusClass(data.status)">
               <el-icon><Cpu /></el-icon>
               <div class="node-content">
                 <div class="node-title">{{ data.label || 'LLM' }}</div>
-                <div class="node-subtitle">Model: {{ data.model }}</div>
+                <div class="node-subtitle">Model: {{ data.model || 'Default' }}</div>
               </div>
             </div>
           </template>
+          
+          <template #node-knowledge_retrieval="{ data }">
+            <div class="custom-node knowledge-node" :class="getStatusClass(data.status)">
+              <el-icon><Collection /></el-icon>
+              <span>知识检索</span>
+            </div>
+          </template>
+          
+          <template #node-question_classifier="{ data }">
+            <div class="custom-node logic-node" :class="getStatusClass(data.status)">
+              <el-icon><Connection /></el-icon>
+              <span>问题分类器</span>
+            </div>
+          </template>
 
-          <template #node-condition="{ data }">
-            <div class="custom-node condition-node" :class="getStatusClass(data.status)">
+          <template #node-if_else="{ data }">
+            <div class="custom-node logic-node" :class="getStatusClass(data.status)">
               <el-icon><Share /></el-icon>
+              <span>条件分支</span>
+            </div>
+          </template>
+          
+          <template #node-iteration="{ data }">
+            <div class="custom-node logic-node" :class="getStatusClass(data.status)">
+              <el-icon><Refresh /></el-icon>
+              <span>迭代</span>
+            </div>
+          </template>
+
+           <template #node-loop="{ data }">
+            <div class="custom-node logic-node" :class="getStatusClass(data.status)">
+              <el-icon><RefreshRight /></el-icon>
+              <span>循环</span>
+            </div>
+          </template>
+
+          <template #node-code="{ data }">
+            <div class="custom-node transform-node" :class="getStatusClass(data.status)">
+              <el-icon><Monitor /></el-icon>
+              <span>代码执行</span>
+            </div>
+          </template>
+          
+          <template #node-template_transform="{ data }">
+            <div class="custom-node transform-node" :class="getStatusClass(data.status)">
+              <el-icon><DocumentCopy /></el-icon>
+              <span>模板转换</span>
+            </div>
+          </template>
+          
+          <template #node-variable_aggregator="{ data }">
+            <div class="custom-node transform-node" :class="getStatusClass(data.status)">
+              <el-icon><Files /></el-icon>
+              <span>变量聚合器</span>
+            </div>
+          </template>
+          
+           <template #node-variable_assigner="{ data }">
+            <div class="custom-node transform-node" :class="getStatusClass(data.status)">
+              <el-icon><EditPen /></el-icon>
+              <span>变量赋值</span>
+            </div>
+          </template>
+
+          <template #node-http_request="{ data }">
+            <div class="custom-node tool-node" :class="getStatusClass(data.status)">
+              <el-icon><Link /></el-icon>
               <div class="node-content">
-                <div class="node-title">{{ data.label || '条件' }}</div>
+                <div class="node-title">{{ data.label || 'HTTP 请求' }}</div>
+                <div class="node-subtitle" v-if="data.method">{{ data.method }}</div>
+              </div>
+            </div>
+          </template>
+          
+          <template #node-tool="{ data }">
+            <div class="custom-node tool-node" :class="getStatusClass(data.status)">
+              <el-icon><Tools /></el-icon>
+              <div class="node-content">
+                <div class="node-title">{{ data.label || '工具' }}</div>
+                <div class="node-subtitle" v-if="data.tool_name">{{ data.tool_name }}</div>
               </div>
             </div>
           </template>
 
-          <template #node-end="{ data }">
-            <div class="custom-node end-node" :class="getStatusClass(data.status)">
-              <el-icon><CircleCheck /></el-icon>
-              <span>结束</span>
+          <template #node-document_extractor="{ data }">
+            <div class="custom-node tool-node" :class="getStatusClass(data.status)">
+              <el-icon><Document /></el-icon>
+              <span>文档提取器</span>
+            </div>
+          </template>
+          
+           <template #node-parameter_extractor="{ data }">
+            <div class="custom-node tool-node" :class="getStatusClass(data.status)">
+              <el-icon><Scissor /></el-icon>
+              <span>参数提取器</span>
+            </div>
+          </template>
+          
+          <!-- Fallback for generic skill if needed -->
+           <template #node-skill="{ data }">
+            <div class="custom-node tool-node" :class="getStatusClass(data.status)">
+              <el-icon><Tools /></el-icon>
+              <div class="node-content">
+                <div class="node-title">{{ data.label || '技能' }}</div>
+                 <div class="node-subtitle" v-if="data.skillId">ID: {{ data.skillId }}</div>
+              </div>
+            </div>
+          </template>
+
+          <template #node-note="{ data }">
+            <div 
+              class="custom-node note-node" 
+              :style="{ backgroundColor: data.theme_color || '#fff7d1', borderColor: data.theme_color || '#e6a23c' }"
+            >
+              <div class="note-header">
+                <el-icon><Postcard /></el-icon>
+                <span>{{ data.title || '注释' }}</span>
+              </div>
+              <div class="note-body">
+                {{ data.text || data.content || '请输入内容...' }}
+              </div>
             </div>
           </template>
         </VueFlow>
@@ -192,8 +367,59 @@
             </el-form-item>
           </template>
 
+          <!-- Code Node Properties -->
+          <template v-if="selectedNode.type === 'code'">
+            <el-form-item label="代码语言">
+               <el-select v-model="selectedNode.data.language" placeholder="Select Language" @change="updateNode">
+                  <el-option label="Python" value="python" />
+                  <el-option label="JavaScript" value="javascript" />
+               </el-select>
+            </el-form-item>
+             <el-form-item label="代码">
+               <el-input
+                 type="textarea"
+                 v-model="selectedNode.data.code"
+                 :rows="5"
+                 @change="updateNode"
+               />
+             </el-form-item>
+          </template>
+          
+           <!-- HTTP Request Node Properties -->
+          <template v-if="selectedNode.type === 'http_request'">
+             <el-form-item label="Method">
+               <el-select v-model="selectedNode.data.method" placeholder="Method" @change="updateNode">
+                  <el-option label="GET" value="GET" />
+                  <el-option label="POST" value="POST" />
+                  <el-option label="PUT" value="PUT" />
+                  <el-option label="DELETE" value="DELETE" />
+               </el-select>
+            </el-form-item>
+            <el-form-item label="URL">
+               <el-input v-model="selectedNode.data.url" @change="updateNode" />
+            </el-form-item>
+          </template>
+
+          <!-- Note Node Properties -->
+          <template v-if="selectedNode.type === 'note'">
+             <el-form-item label="标题">
+               <el-input v-model="selectedNode.data.title" @change="updateNode" />
+            </el-form-item>
+            <el-form-item label="内容">
+               <el-input 
+                 type="textarea" 
+                 v-model="selectedNode.data.text" 
+                 :rows="4" 
+                 @change="updateNode" 
+               />
+            </el-form-item>
+             <el-form-item label="颜色">
+               <el-color-picker v-model="selectedNode.data.theme_color" @change="updateNode" />
+            </el-form-item>
+          </template>
+
           <!-- Condition Node Properties -->
-          <template v-if="selectedNode.type === 'condition'">
+          <template v-if="['condition', 'if_else'].includes(selectedNode.type)">
             <el-form-item label="条件表达式">
               <el-input v-model="selectedNode.data.condition" @change="updateNode" />
             </el-form-item>
@@ -263,7 +489,7 @@ import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
-import { VideoPlay, User, Tools, Share, CircleCheck, RefreshLeft, RefreshRight, ArrowUp, ArrowDown, Cpu } from '@element-plus/icons-vue';
+import { VideoPlay, User, Tools, Share, CircleCheck, RefreshLeft, RefreshRight, ArrowUp, ArrowDown, Cpu, ChatLineSquare, Collection, Connection, Refresh, Monitor, DocumentCopy, Files, EditPen, Link, Document, Scissor, Postcard } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { getAgentList } from '@/api/agent';
 import { createWorkflow, getWorkflow } from '@/api/workflow';
@@ -451,11 +677,25 @@ const onDrop = (event) => {
 const getDefaultLabel = (type) => {
   const labels = {
     start: '开始',
-    agent: '智能体节点',
-    skill: '技能节点',
-    llm: 'LLM Node',
-    condition: '条件节点',
-    end: '结束'
+    end: '结束',
+    answer: '直接回复',
+    llm: 'LLM',
+    knowledge_retrieval: '知识检索',
+    question_classifier: '问题分类器',
+    if_else: '条件分支',
+    iteration: '迭代',
+    loop: '循环',
+    code: '代码执行',
+    template_transform: '模板转换',
+    variable_aggregator: '变量聚合器',
+    variable_assigner: '变量赋值',
+    http_request: 'HTTP 请求',
+    tool: '工具',
+    document_extractor: '文档提取器',
+    parameter_extractor: '参数提取器',
+    agent: '智能体',
+    skill: '技能',
+    note: '注释'
   };
   return labels[type] || type;
 };
@@ -664,6 +904,58 @@ const goBack = () => {
 .end-node {
   border-color: #f56c6c;
   background: #fef0f0;
+}
+
+.knowledge-node {
+  border-color: #79bbff;
+  background: #ecf5ff;
+}
+
+.logic-node {
+  border-color: #909399;
+  background: #f4f4f5;
+}
+
+.transform-node {
+  border-color: #b886f8;
+  background: #f2e6ff;
+}
+
+.tool-node {
+  border-color: #e6a23c;
+  background: #fdf6ec;
+}
+
+.note-node {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px;
+  min-width: 200px;
+  min-height: 100px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.note-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  width: 100%;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding-bottom: 4px;
+}
+
+.note-body {
+  font-size: 12px;
+  color: #606266;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  width: 100%;
 }
 
 .node-content {

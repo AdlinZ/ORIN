@@ -181,31 +181,31 @@ const statsCards = computed(() => [
     unit: 'tokens',
     icon: Cpu, 
     color: 'var(--orin-primary)', 
-    bgColor: 'var(--orin-primary-fade)' 
+    bgColor: 'var(--orin-primary-soft)' 
   },
   { 
     label: '本周消耗', 
     key: 'weekly', 
     unit: 'tokens',
     icon: TrendCharts, 
-    color: '#67C23A', 
-    bgColor: 'rgba(103, 194, 58, 0.1)' 
+    color: '#26FFDF', 
+    bgColor: 'rgba(38, 255, 223, 0.1)' 
   },
   { 
     label: '本月消耗', 
     key: 'monthly', 
     unit: 'tokens',
     icon: Tickets, 
-    color: '#E6A23C', 
-    bgColor: 'rgba(230, 162, 60, 0.1)' 
+    color: '#14B8A6', 
+    bgColor: 'rgba(20, 184, 166, 0.1)' 
   },
   { 
     label: '总计消耗', 
     key: 'total', 
     unit: 'tokens',
     icon: Connection, 
-    color: '#F56C6C', 
-    bgColor: 'rgba(245, 108, 108, 0.1)' 
+    color: '#0D9488', 
+    bgColor: 'rgba(13, 148, 136, 0.1)' 
   }
 ]);
 
@@ -308,7 +308,7 @@ const renderTrendChart = (data) => {
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'var(--orin-primary)' },
-            { offset: 1, color: '#67C23A' }
+            { offset: 1, color: '#26FFDF' }
           ])
         }
       }
