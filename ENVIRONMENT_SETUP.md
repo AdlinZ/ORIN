@@ -67,6 +67,8 @@ SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run
 | `JWT_SECRET` | JWT签名密钥（至少256位） | 使用 `openssl rand -base64 64` 生成 |
 | `REDIS_HOST` | Redis主机地址 | `localhost` 或 `redis.example.com` |
 | `REDIS_PORT` | Redis端口 | `6379` |
+| `MILVUS_HOST` | Milvus 向量引擎主机 | `localhost` |
+| `MILVUS_PORT` | Milvus 端口 | `19530` |
 
 ### 可选的环境变量
 
@@ -79,6 +81,11 @@ SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run
 | `DIFY_DEFAULT_ENDPOINT` | Dify API端点 | `http://localhost:3000/v1` |
 | `RATE_LIMIT_REQUESTS` | 速率限制请求数 | `100` |
 | `RATE_LIMIT_PERIOD` | 速率限制周期（秒） | `60` |
+| `SPRING_MAIL_HOST` | 邮件服务器地址 | `smtp.example.com` |
+| `SPRING_MAIL_USERNAME` | 邮件用户名 | `alert@example.com` |
+| `SPRING_MAIL_PASSWORD` | 邮件密码 | `your_mail_password` |
+| `ZIPKIN_ENDPOINT` | Zipkin 追踪端点 | `http://localhost:9411` |
+
 
 ---
 

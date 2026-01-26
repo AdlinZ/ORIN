@@ -11,13 +11,21 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 │   │   │   ├── config/           # 配置类
 │   │   │   ├── modules/          # 业务模块
 │   │   │   │   ├── agent/        # 智能体管理模块
-│   │   │   │   ├── knowledge/    # 知识库管理模块
+│   │   │   │   ├── knowledge/    # 知识库管理模块 (含 Milvus 向量引擎)
+│   │   │   │   ├── workflow/     # 工作流编排模块 (可视化编辑器)
+│   │   │   │   ├── skill/        # 智能体技能插件
+│   │   │   │   ├── alert/        # 告警通知模块 (邮件、钉钉、企微)
 │   │   │   │   ├── model/        # 模型管理模块
 │   │   │   │   ├── monitor/      # 监控模块
+│   │   │   │   ├── multimodal/   # 多模态处理模块
+│   │   │   │   ├── trace/        # 链路追踪模块
+│   │   │   │   ├── apikey/       # 接口密钥管理
+│   │   │   │   ├── audit/        # 审计日志模块
 │   │   │   │   ├── runtime/      # 运行时管理模块
 │   │   │   │   └── system/       # 系统管理模块
 │   │   │   └── OrinApplication.java # 应用主类
 │   │   └── resources/
+│   │       ├── db/migration/     # Flyway 数据库迁移脚本
 │   └── pom.xml
 ├── orin-frontend/          # 前端 Vue 3 + Vite 项目
 │   ├── src/
@@ -29,14 +37,16 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 │   │   ├── router/         # 路由配置
 │   │   ├── stores/         # Pinia 状态管理
 │   │   ├── utils/          # 工具函数
-│   │   └── views/          # 页面组件
+│   │   └── views/          # 页面组件 (含可视化工作流编辑器)
 │   ├── public/             # 静态资源
 │   ├── package.json
 │   └── vite.config.js
 ├── docs/                   # 项目文档
 │   ├── dev/                # 开发指南
-│   ├── archive/            # 历史记录
-│   └── 部署指南.md          # 详细部署文档
+│   ├── 使用指南.md          # 基本功能使用
+│   ├── 部署指南.md          # 详细环境搭建
+│   ├── API文档.md          # 接口定义参考
+│   └── 系统功能实现评估报告.md # 核心能力评估
 ├── scripts/                # 辅助脚本
 └── manage.sh               # 一键管理脚本
 ```
@@ -44,40 +54,45 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 ## 功能特性
 
 ### 核心功能
-- **全链路监控**：实时追踪 CPU、内存利用率及令牌消耗，秒级洞察系统性能瓶颈
-- **知识库自动同步**：深度集成 Dify 知识库，支持文档版本管理与云端动态资产更新
+- **全链路监控**：实时追踪 CPU、内存利用率及令牌消耗，集成 Micrometer 链路追踪与 Trace ID 溯源，秒级洞察系统性能瓶颈
+- **知识库自动同步**：深度集成 Dify 知识库，支持 Milvus 向量引擎同步，实现文档版本管理与云端动态资产更新
+- **可视化工作流**：支持编排复杂的 AI 工作流，拖拽式编辑器实现业务逻辑与智能体能力的敏捷组合
+- **插件化技能系统**：一键为智能体挂载计算、搜索、执行等扩展技能，快速响应业务需求
+- **智能告警中心**：支持多指标阈值监控，自动触发邮件、钉钉、企业微信异步通知，支持动态告警规则配置
+- **多模型平台适配**：统一适配 Dify、OpenAI、SiliconFlow (硅基流动) 等主流模型提供商，支持 OpenAI 兼容接口转发
 - **分布式生命周期**：从接入到注销，一站式控制不同环境下的智能体运行状态
-- **交互日志审计**：全面保留会话流水与逻辑树，支持全站事件溯源与安全合规审查
-- **模型安全管理**：密钥托管与多租户权限隔离，确保留言资产与模型接口访问安全
-- **开放协同生态**：标准 Webhook 接口与 API 扩展，轻松对接现有 DevOps 运维体系
+- **交互日志审计**：全面保留会话流水与逻辑树，支持全站事件溯源与敏感信息脱敏管理
+- **模型安全管理**：密钥托管、多租户权限隔离及 API Key 配额控制，确保资产安全
 
 ### 监控功能
-- 实时性能监控
-- 智能体状态跟踪
-- 系统健康度评估
-- 资源使用统计
-- 活动日志展示
+- 实时性能监控 (Actuator + Prometheus)
+- 智能体状态跟踪与运行时分析
+- 链路调用追踪 (Trace ID 溯源)
+- 资源消耗排行与趋势分析 (ECharts 可视化)
 
 ### 管理功能
-- 智能体接入管理
-- 知识库管理
-- 模型配置
-- 训练管理
-- 权限控制
+- 智能体接入与版本控制 (向导式接入)
+- 知识库与向量引擎管理 (Milvus 集成)
+- 工作流编排与逻辑验证 (可视化编辑器)
+- 告警策略与通知渠道配置
+- 接口密钥管理与权限审计
+- 动态日志配置与清理
 
 ## 技术栈
 
 ### 后端
 - **框架**: Spring Boot 3.2.1
-- **持久层**: Spring Data JPA
-- **数据库**: MySQL / H2 (内存)
-- **其他**: Maven, Hibernate
+- **持久层**: Spring Data JPA + Flyway (数据库迁移)
+- **数据库**: MySQL 8.0, Milvus (向量引擎), Redis (缓存/限流)
+- **其他**: Maven, Hibernate, MapStruct, Micrometer Tracing (Zipkin 可选)
+- **通知**: JavaMailSender, DingTalk/WeChat Webhook
 
 ### 前端
 - **框架**: Vue 3 + Vite
 - **UI 库**: Element Plus
 - **状态管理**: Pinia
 - **图表库**: ECharts
+- **编辑器**: LogicFlow / Vue-Flow (工作流可视化)
 - **其他**: Axios, js-cookie
 
 ## 快速开始
