@@ -154,8 +154,8 @@ const statsCards = computed(() => [
     key: 'daily', 
     unit: 'ms',
     icon: Timer, 
-    color: '#409EFF', 
-    bgColor: 'rgba(64, 158, 255, 0.1)' 
+    color: 'var(--orin-primary)', 
+    bgColor: 'var(--orin-primary-fade)' 
   },
   { 
     label: '本周平均延迟', 

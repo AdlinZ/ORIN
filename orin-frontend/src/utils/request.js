@@ -97,7 +97,7 @@ service.interceptors.response.use(
     (response) => {
         // If backend returns custom code, handle it here
         // For now, we assume 200 is success
-        return response;
+        return response.data;
     },
     async (error) => {
         console.error('Request Error:', error);

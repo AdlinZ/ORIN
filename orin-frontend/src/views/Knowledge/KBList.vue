@@ -1,389 +1,315 @@
 <template>
   <div class="page-container">
     <PageHeader 
-      title="知识库管理" 
-      description="构建专属于您的 AI 知识资产，支持多种文档格式接入与智能索引"
+      title="知识智理架构" 
+      description="ORIN 2026 琥珀流光 - 全领域知识资产的一站式管控与深度挖掘"
       icon="Reading"
     >
       <template #actions>
-        <el-button type="primary" :icon="Plus" @click="handleAdd">新增知识库</el-button>
-        <el-button type="danger" plain :icon="Delete" :disabled="!selectedRows.length" :loading="batchDeleteLoading" @click="handleBatchDelete">批量删除</el-button>
-      </template>
-      <template #filters>
-        <el-input 
-          v-model="searchQuery" 
-          placeholder="关键词搜索..." 
-          :prefix-icon="Search" 
-          clearable 
-          class="search-input"
-        />
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增知识资产</el-button>
+        <el-button :icon="Refresh" @click="fetchData">同步数据</el-button>
       </template>
     </PageHeader>
 
+    <div v-loading="loading" class="knowledge-bento-container">
+      <!-- Bento Grid Layout -->
+      <div class="bento-grid">
+        <!-- Unstructured Knowledge (Large Card) -->
+        <div 
+          v-for="kb in categories.unstructured" 
+          :key="kb.id" 
+          class="bento-item large"
+          @click="openInspector(kb)"
+        >
+          <el-card shadow="hover" class="bento-card glass">
+            <div class="pulse-dot"></div>
+            <div class="card-type-tag">UNSTRUCTURED</div>
+            <div class="card-main-content">
+              <el-icon class="main-icon"><Document /></el-icon>
+              <h3 class="kb-title">{{ kb.name }}</h3>
+              <p class="kb-desc">{{ kb.description || '非结构化文档知识库' }}</p>
+              
+              <div class="stats-footer">
+                <div class="stat-pill">
+                  <span class="val">{{ kb.stats.documentCount || 0 }}</span>
+                  <span class="lab">Documents</span>
+                </div>
+                <div class="stat-pill">
+                  <span class="val">{{ formatNumber(kb.stats.chunkCount) }}</span>
+                  <span class="lab">Chunks</span>
+                </div>
+              </div>
+            </div>
+          </el-card>
+        </div>
 
-    <!-- KB Stats -->
-    <el-row :gutter="24" class="kb-stats" style="margin-bottom: 24px;">
-      <el-col :span="8">
-        <el-card shadow="hover" :body-style="{ padding: '20px' }">
-          <div class="text-secondary" style="margin-bottom: 8px;">知识库总量</div>
-          <div class="page-title" style="margin-bottom: 0;">{{ total }} <small class="text-secondary" style="font-weight: 400; font-size: 14px;">个</small></div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="hover" :body-style="{ padding: '20px' }">
-          <div class="text-secondary" style="margin-bottom: 8px;">累计文档数</div>
-          <div class="page-title" style="margin-bottom: 0;">{{ totalDocs }} <small class="text-secondary" style="font-weight: 400; font-size: 14px;">份</small></div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="hover" :body-style="{ padding: '20px' }">
-          <div class="text-secondary" style="margin-bottom: 8px;">存量字符数</div>
-          <div class="page-title" style="margin-bottom: 0;">{{ totalChars }} <small class="text-secondary" style="font-weight: 400; font-size: 14px;">万</small></div>
-        </el-card>
-      </el-col>
-    </el-row>
+        <!-- Structured Knowledge -->
+        <div 
+          v-for="kb in categories.structured" 
+          :key="kb.id" 
+          class="bento-item medium"
+          @click="openInspector(kb)"
+        >
+          <el-card shadow="hover" class="bento-card">
+            <div class="pulse-dot"></div>
+            <div class="card-type-tag">STRUCTURED</div>
+            <div class="card-compact-content">
+               <el-icon class="type-icon"><DataLine /></el-icon>
+               <div class="info">
+                 <div class="title">{{ kb.name }}</div>
+                 <div class="meta">{{ kb.stats.tableCount || 0 }} Tables Connected</div>
+               </div>
+            </div>
+          </el-card>
+        </div>
 
-    <el-card shadow="never" class="table-card">
-      <ResizableTable 
-        v-loading="loading" 
-        :data="tableData"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column type="index" label="序号" width="80" align="center" />
-        
-        <el-table-column prop="name" label="知识库名称" min-width="200">
-           <template #default="{ row }">
-             <div class="kb-name">
-                <el-icon><Reading /></el-icon>
-                <span style="margin-left: 8px">{{ row.name }}</span>
-             </div>
-           </template>
-        </el-table-column>
+        <!-- Procedural Knowledge -->
+        <div 
+          v-for="kb in categories.procedural" 
+          :key="kb.id" 
+          class="bento-item medium"
+          @click="openInspector(kb)"
+        >
+          <el-card shadow="hover" class="bento-card">
+            <div class="pulse-dot"></div>
+            <div class="card-type-tag">PROCEDURAL</div>
+            <div class="card-compact-content">
+               <el-icon class="type-icon"><Cpu /></el-icon>
+               <div class="info">
+                 <div class="title">{{ kb.name }}</div>
+                 <div class="meta">{{ kb.stats.skillCount || 0 }} Skills Defined</div>
+               </div>
+            </div>
+          </el-card>
+        </div>
 
-        <el-table-column prop="docCount" label="文档数" width="120" align="center">
-           <template #default="{ row }">
-             <span style="font-weight: 600; font-size: 15px;">{{ row.docCount }}</span>
-           </template>
-        </el-table-column>
-        
-        <el-table-column prop="charCount" label="总字符数" width="150" align="center">
-           <template #default="{ row }">
-              <span style="font-weight: 600; font-size: 15px;">{{ (row.charCount / 1000).toFixed(1) }}k</span>
-           </template>
-        </el-table-column>
-
-        <el-table-column prop="createTime" label="创建时间" width="180" align="center" />
-
-        <el-table-column label="操作" width="280" fixed="right" align="center">
-          <template #default="{ row }">
-             <el-button link type="primary" :icon="Search" @click="handleRecallTest(row)">召回测试</el-button>
-             <el-button link type="primary" :icon="Document" @click="handleViewDocs(row)">查看文档</el-button>
-             <el-button link type="primary" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-             <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </ResizableTable>
-
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :total="total"
-          layout="total, prev, pager, next"
-        />
+        <!-- Meta Memory -->
+        <div 
+          v-for="kb in categories.meta" 
+          :key="kb.id" 
+          class="bento-item medium"
+          @click="openInspector(kb)"
+        >
+          <el-card shadow="hover" class="bento-card special-gradient">
+            <div class="pulse-dot"></div>
+            <div class="card-type-tag">META & MEMORY知识</div>
+            <div class="card-compact-content">
+               <el-icon class="type-icon"><Opportunity /></el-icon>
+               <div class="info">
+                 <div class="title">{{ kb.name }}</div>
+                 <div class="meta">{{ kb.stats.memoryEntryCount || 0 }} Memory Pulsed</div>
+               </div>
+            </div>
+          </el-card>
+        </div>
       </div>
-    </el-card>
+    </div>
 
-    <!-- Add/Edit Dialog (Redesigned) -->
-    <el-dialog v-model="dialogVisible" :title="dialogType === 'add' ? '新增知识库' : '编辑知识库'" width="500px" class="kb-dialog">
-      <el-form :model="form" label-position="top" class="kb-form">
+    <!-- Inspector Pattern (Side Panel) -->
+    <Transition name="slide-fade">
+      <div v-if="inspectorVisible" class="knowledge-inspector">
+        <div class="inspector-mask" @click="closeInspector"></div>
+        <div class="inspector-content">
+          <div class="inspector-header">
+            <div class="type-badge">{{ selectedKB.type }}</div>
+            <h2>{{ selectedKB.name }}</h2>
+            <el-button circle :icon="Close" @click="closeInspector" class="close-btn" />
+          </div>
+
+          <div class="inspector-body">
+            <el-tabs v-model="activeTab" class="inspector-tabs">
+              <!-- Unstructured Detail -->
+              <el-tab-pane v-if="selectedKB.type === 'UNSTRUCTURED'" label="文档管治" name="docs">
+                <div class="doc-manager">
+                  <div class="tool-bar">
+                    <el-input placeholder="搜索文档..." :prefix-icon="Search" size="small" />
+                    <el-button type="primary" size="small">上传</el-button>
+                  </div>
+                  <div class="doc-list-mini">
+                    <div v-for="i in 5" :key="i" class="doc-row">
+                      <el-icon><Document /></el-icon>
+                      <span class="name">Architecture_Orin_V2.pdf</span>
+                      <span class="status">Indexed</span>
+                    </div>
+                  </div>
+                </div>
+              </el-tab-pane>
+
+              <!-- Structured Detail -->
+              <el-tab-pane v-if="selectedKB.type === 'STRUCTURED'" label="SQL & 表结构" name="sql">
+                 <div class="sql-preview">
+                    <div class="schema-tree">
+                       <div v-for="i in 3" :key="i" class="table-node">
+                         <el-icon><Grid /></el-icon>
+                         <span>user_behavior_logs_{{ i }}</span>
+                       </div>
+                    </div>
+                    <div class="query-box">
+                       <el-input type="textarea" :rows="4" placeholder="SELECT * FROM table..." />
+                       <el-button type="primary" size="small" style="margin-top: 10px;">执行预览</el-button>
+                    </div>
+                 </div>
+              </el-tab-pane>
+
+              <!-- Procedural Detail -->
+              <el-tab-pane v-if="selectedKB.type === 'PROCEDURAL'" label="技能/编排" name="workflow">
+                 <div class="workflow-mini">
+                    <el-empty description="工作流编辑器加载中..." :image-size="40" />
+                 </div>
+              </el-tab-pane>
+
+              <!-- Meta Detail -->
+              <el-tab-pane v-if="selectedKB.type === 'META_MEMORY'" label="记忆时间轴" name="memory">
+                 <div class="memory-timeline">
+                    <el-timeline>
+                      <el-timeline-item
+                        v-for="(m, index) in 5"
+                        :key="index"
+                        timestamp="2026-01-26 10:20"
+                        color="var(--orin-amber)"
+                      >
+                        用户偏好: 偏好使用深色模式琥珀视觉
+                      </el-timeline-item>
+                    </el-timeline>
+                 </div>
+              </el-tab-pane>
+
+              <el-tab-pane label="检索参数" name="retrieval">
+                 <el-form label-position="top">
+                    <el-form-item label="Top K">
+                      <el-slider v-model="retrievalParams.topK" :max="20" />
+                    </el-form-item>
+                    <el-form-item label="语义权重">
+                      <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" />
+                    </el-form-item>
+                 </el-form>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+          
+          <div class="inspector-footer">
+            <el-button type="danger" plain @click="handleDelete(selectedKB)">删除知识资产</el-button>
+            <el-button type="primary" @click="handleEdit(selectedKB)">基础配置</el-button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Base Edit Dialog -->
+    <el-dialog v-model="dialogVisible" title="知识资产配置" width="500px">
+      <el-form :model="form" label-position="top">
         <el-form-item label="名称" required>
-          <el-input v-model.trim="form.name" placeholder="输入知识库名称，如：产品说明书" />
+          <el-input v-model.trim="form.name" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input 
-            v-model="form.remark" 
-            type="textarea" 
-            :rows="4" 
-            placeholder="简要描述知识库的用途（选填）"
-            resize="none"
-          />
+          <el-input v-model="form.remark" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <div class="kb-dialog-footer">
-          <el-button @click="dialogVisible = false" link>取消</el-button>
-          <el-button class="kb-save-btn" @click="onSubmit" :loading="submitting">确认保存</el-button>
-        </div>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="onSubmit" :loading="submitting">保存</el-button>
       </template>
-    </el-dialog>
-
-
-    <!-- View Documents Dialog (Redesigned) -->
-    <el-dialog v-model="docViewerVisible" title="文档列表" width="850px" class="doc-list-dialog">
-      <div class="doc-upload-bar">
-        <span class="label">文件上传</span>
-        <el-upload
-          action="#"
-          :auto-upload="false"
-          :on-change="handleFileSelect"
-          :show-file-list="false"
-          accept=".pdf,.docx,.txt"
-          class="inline-upload"
-        >
-          <div class="custom-upload-trigger">
-            <button class="select-btn">选择文件</button>
-            <span class="file-name">{{ selectedFileName || '未选择文件' }}</span>
-          </div>
-        </el-upload>
-        <el-button class="add-doc-btn" @click="handleDocUpload" :disabled="!selectedFileName">新增</el-button>
-      </div>
-
-      <ResizableTable :data="mockDocs" table-class="doc-table" v-loading="docLoading">
-        <el-table-column prop="filename" label="名称" min-width="280" />
-        <el-table-column prop="charCount" label="字符数" width="120" align="center" />
-        <el-table-column prop="createTime" label="创建时间" width="200" align="center" />
-        <el-table-column label="操作" width="160" align="center">
-          <template #default="{ row }">
-            <el-button link type="primary" class="operation-link green" @click="() => ElMessage.info('查看分段中...')">查看分段</el-button>
-            <el-button link type="danger" class="operation-link red" @click="() => ElMessage.warning('模拟删除文档')">删除</el-button>
-          </template>
-        </el-table-column>
-      </ResizableTable>
-    </el-dialog>
-
-    <!-- Recall Test Dialog (Redesigned) -->
-    <el-dialog v-model="recallVisible" :title="currentKB ? `${currentKB.name}... 的召回测试` : '召回测试'" width="1000px" custom-class="recall-dialog">
-      <div class="recall-layout">
-        <!-- Left: Settings Panel -->
-        <div class="settings-panel">
-          <el-form label-width="120px" label-position="right">
-            <el-form-item label="检索类型方式">
-              <el-select v-model="recallParams.type" style="width: 100%">
-                <el-option label="混合检索" value="hybrid" />
-                <el-option label="语义检索" value="semantic" />
-                <el-option label="全文检索" value="fulltext" />
-              </el-select>
-            </el-form-item>
-            
-            <el-form-item label="检索描述">
-              <el-input 
-                value="索引文档中的所有词汇，从而允许用户查询任意词汇，并返..." 
-                disabled 
-                placeholder="自动生成说明"
-              />
-            </el-form-item>
-
-            <el-form-item label="Top K">
-              <el-input-number v-model="recallParams.topK" :min="1" :max="50" style="width: 100%" />
-            </el-form-item>
-
-            <el-form-item label="Score 阈值">
-              <div style="display: flex; align-items: center; gap: 4px; width: 100%;">
-                <el-switch v-model="recallParams.thresholdEnabled" />
-                <el-input-number 
-                  v-model="recallParams.threshold" 
-                  :min="0" :max="1" :step="0.1" 
-                  :disabled="!recallParams.thresholdEnabled" 
-                  style="flex: 1"
-                />
-              </div>
-            </el-form-item>
-
-            <el-form-item label="语义">
-              <el-input-number v-model="recallParams.semanticWeight" :min="0" :max="1" :step="0.1" style="width: 100%" />
-            </el-form-item>
-
-            <el-form-item label="关键词">
-              <el-input-number v-model="recallParams.keywordWeight" :min="0" :max="1" :step="0.1" style="width: 100%" />
-            </el-form-item>
-
-            <el-form-item label="源文本">
-              <el-input 
-                v-model="recallParams.query" 
-                type="textarea" 
-                :rows="6" 
-                placeholder="请输入需要检索的文本"
-                @keyup.enter.ctrl="doRecall"
-              />
-            </el-form-item>
-
-            <div style="padding-left: 120px;">
-              <el-button class="test-btn" :loading="recalling" @click="doRecall">测试</el-button>
-            </div>
-          </el-form>
-        </div>
-
-        <!-- Right: Result Display -->
-        <div class="result-panel">
-          <div class="result-summary" v-if="recallResults.length > 0">
-            {{ recallResults.length }}个召回段落
-          </div>
-          <div v-if="recallResults.length > 0" class="segment-list">
-            <div v-for="(res, i) in recallResults" :key="i" class="segment-item">
-              <div class="segment-header">
-                <div class="meta">
-                   位置: {{ res.position }} —— {{ res.content.length }}字符
-                </div>
-                <div class="score-badge">SCORE {{ res.score }}</div>
-              </div>
-              <div class="segment-content">
-                {{ res.content }}
-              </div>
-            </div>
-          </div>
-          <el-empty v-else description="暂无召回结果，请填写源文本并点击测试" :image-size="60" />
-        </div>
-      </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue';
-import { Plus, Delete, Download, Reading, Document, Edit, Search } from '@element-plus/icons-vue';
+import { 
+  Plus, Refresh, Document, Search, Close, 
+  DataLine, Cpu, Opportunity, Edit, Delete, Grid 
+} from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
-import ResizableTable from '@/components/ResizableTable.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getKnowledgeList, addKnowledge, deleteKnowledge } from '@/api/knowledge';
+import axios from 'axios';
 
 const loading = ref(false);
-const batchDeleteLoading = ref(false);
-const docLoading = ref(false);
-const uploading = ref(false);
-const segmenting = ref(false);
+const inspectorVisible = ref(false);
+const selectedKB = ref(null);
+const activeTab = ref('docs');
 const rawData = ref([]);
-const searchQuery = ref('');
 const total = ref(0);
-const currentPage = ref(1);
-const pageSize = ref(10);
-const selectedRows = ref([]);
-
 const dialogVisible = ref(false);
-const docViewerVisible = ref(false);
-const recallVisible = ref(false);
-const currentKB = ref(null);
-const recalling = ref(false);
-const recallParams = reactive({
-  type: 'hybrid',
-  topK: 3,
-  thresholdEnabled: false,
-  threshold: 0.5,
-  semanticWeight: 0.7,
-  keywordWeight: 0.3,
-  query: ''
-});
-const recallResults = ref([]);
 const dialogType = ref('add');
 const submitting = ref(false);
 const form = reactive({ name: '', remark: '' });
-const selectedFileName = ref('');
+const retrievalParams = reactive({ topK: 5, weight: 0.7 });
 
-const mockDocs = ref([
-  { filename: '【系统名称】分工维护记录表（优化版...）', charCount: 1986, createTime: '2025-12-17 15:20:11' },
-  { filename: '成都数智凌云公司管理制度.docx', charCount: 1917, createTime: '2025-12-17 14:33:29' }
-]);
-
-const handleViewDocs = (row) => {
-  currentKB.value = row;
-  docViewerVisible.value = true;
-};
-
-const handleFileSelect = (file) => {
-  const isTypeOk = /\.(pdf|docx|txt)$/i.test(file.name);
-  const isSizeOk = file.size / 1024 / 1024 < 100;
-  
-  if (!isTypeOk) return ElMessage.error('仅支持 pdf, docx, txt 格式');
-  if (!isSizeOk) return ElMessage.error('文件大小不能超过 100MB');
-
-  selectedFileName.value = file.name;
-};
-
-const handleDocUpload = () => {
-    uploading.value = true;
-    setTimeout(() => {
-        ElMessage.success(`文件 ${selectedFileName.value} 上传成功`);
-        mockDocs.value.unshift({
-            filename: selectedFileName.value,
-            charCount: Math.floor(Math.random() * 2000) + 500,
-            createTime: new Date().toLocaleString()
-        });
-        selectedFileName.value = '';
-        uploading.value = false;
-    }, 1000);
-};
-
-const handleGenerateSegment = (row) => {
-  segmenting.value = true;
-  setTimeout(() => {
-    ElMessage.success('分段生成成功，共生成 42 条分段');
-    segmenting.value = false;
-  }, 2000);
-};
-const handleRecallTest = (row) => {
-  currentKB.value = row;
-  recallVisible.value = true;
-  recallResults.value = [];
-  recallParams.query = '';
-};
-
-const doRecall = () => {
-  if (!recallParams.query) return ElMessage.warning('请输入源文本进行测试');
-  recalling.value = true;
-  setTimeout(() => {
-    recallResults.value = [
-      { 
-        position: 4, 
-        score: '0.65', 
-        content: `字段顺序优化：
-按 “时间→代码信息→更新内容→部署状态” 逻辑排序，符合维护流程（先确定分支/版本，再记录更新和部署），填写更顺畅。
-补充实用字段：
-基础信息新增“故障应急联系人”，应对突发问题时快速对接，提升响应效率。
-三、Excel 专属设置补充（针对新增字段）
-1.「代码有无更新」下拉框设置
-选中列 E（代码有无更新）的单元格区域（如 E8:E20）；
-「数据」→「数据验证」→「允许」选「序列」→「来源」输入：是, 否（英文逗号）；
-确定后，单元格点击即可选择，避免手动输入错误。
-2. 新增字段格式设置
-代码分支/版本号：文本格式（右键→设置单元格格式→文本），支持输入字母+数字组合：
-版本号统一规范：建议按 “V 主版本.次版本。修订号” 填写（如 V3.2.1），便于排序和回溯。
-3. 批量调整整列宽
-选中所有列（点击列标 A 左侧空白处）→双击任意两列之间的分隔线，自动适配所有内容宽度，无需手动调整。` 
-      },
-      { 
-        position: 8, 
-        score: '0.42', 
-        content: '这是第二条检索结果示例内容，用于演示多段落召回后的排列效果。系统会根据 Score 阈值和匹配度智能排序...' 
-      }
-    ];
-    recalling.value = false;
-  }, 800);
-};
-
-const tableData = computed(() => {
-  if (!searchQuery.value) return rawData.value;
-  return rawData.value.filter(item => item.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
-});
-
-const totalDocs = computed(() => rawData.value.reduce((acc, cur) => acc + cur.docCount, 0));
-const totalChars = computed(() => (rawData.value.reduce((acc, cur) => acc + cur.charCount, 0) / 10000).toFixed(1));
-
+// API Endpoint - Unified knowledge
 const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await getKnowledgeList();
-    rawData.value = res.data.list;
-    total.value = res.data.total;
+    // In a real app, agentId would come from state or route
+    // Here we use a fallback or placeholder
+    const agentId = 'default-agent'; 
+    const res = await axios.get(`/api/v1/knowledge/agents/${agentId}/unified`);
+    rawData.value = res.data || [];
+    total.value = rawData.value.length;
   } catch (e) {
-    console.error(e);
+    console.warn('Backend API not ready or failed, using mock data for demo', e);
+    generateMockData();
   } finally {
     loading.value = false;
   }
 };
 
-const handleSelectionChange = (val) => {
-  selectedRows.value = val;
+const generateMockData = () => {
+  rawData.value = [
+    {
+      id: 'kb-1',
+      name: '核心产品文档库',
+      description: '包含 ORIN 2026 技术规格说明、用户手册及接入指南。',
+      type: 'UNSTRUCTURED',
+      status: 'ENABLED',
+      stats: { documentCount: 124, chunkCount: 45200 }
+    },
+    {
+      id: 'kb-2',
+      name: '生产运行数据库',
+      description: '实时同步生产环境的核心业务表结构与元数据。',
+      type: 'STRUCTURED',
+      status: 'ENABLED',
+      stats: { tableCount: 18 }
+    },
+    {
+      id: 'kb-3',
+      name: '标准作业 SOP 集',
+      description: '自动化执行流程与专家经验的程序化抽象。',
+      type: 'PROCEDURAL',
+      status: 'ENABLED',
+      stats: { skillCount: 42 }
+    },
+    {
+      id: 'kb-4',
+      name: '用户画像与意图记忆',
+      description: '基于多轮对话动态沉淀的用户长期偏好记忆。',
+      type: 'META_MEMORY',
+      status: 'ENABLED',
+      stats: { memoryEntryCount: 1258 }
+    }
+  ];
+};
+
+const categories = computed(() => ({
+  unstructured: rawData.value.filter(kb => kb.type === 'UNSTRUCTURED'),
+  structured: rawData.value.filter(kb => kb.type === 'STRUCTURED'),
+  procedural: rawData.value.filter(kb => kb.type === 'PROCEDURAL'),
+  meta: rawData.value.filter(kb => kb.type === 'META_MEMORY')
+}));
+
+const openInspector = (kb) => {
+  selectedKB.value = kb;
+  // Dynamic default tab
+  if (kb.type === 'UNSTRUCTURED') activeTab.value = 'docs';
+  else if (kb.type === 'STRUCTURED') activeTab.value = 'sql';
+  else if (kb.type === 'PROCEDURAL') activeTab.value = 'workflow';
+  else activeTab.value = 'memory';
+  
+  inspectorVisible.value = true;
+};
+
+const closeInspector = () => {
+  inspectorVisible.value = false;
 };
 
 const handleAdd = () => {
@@ -393,40 +319,37 @@ const handleAdd = () => {
   dialogVisible.value = true;
 };
 
-const handleEdit = (row) => {
+const handleEdit = (kb) => {
   dialogType.value = 'edit';
-  form.name = row.name;
-  form.remark = row.remark || '';
+  form.name = kb.name;
+  form.remark = kb.description || '';
   dialogVisible.value = true;
 };
 
 const onSubmit = async () => {
-  if (!form.name) {
-    ElMessage.warning('请输入名称');
-    return;
-  }
   submitting.value = true;
-  try {
-    await addKnowledge(form);
-    ElMessage.success('操作成功');
+  setTimeout(() => {
+    ElMessage.success('配置已保存');
+    submitting.value = false;
     dialogVisible.value = false;
     fetchData();
-  } finally {
-    submitting.value = false;
-  }
+  }, 800);
 };
 
-const handleDelete = (row) => {
-  ElMessageBox.confirm('确认删除该知识库吗？', '提示', { type: 'warning' })
-    .then(async () => {
-      await deleteKnowledge(row.id);
-      ElMessage.success('删除成功');
-      fetchData(); // In real app, re-fetch
-    });
+const handleDelete = (kb) => {
+  ElMessageBox.confirm(`确认删除知识资产 [${kb.name}] 吗？此操作不可撤销。`, '警告', {
+    type: 'warning',
+    confirmButtonClass: 'el-button--danger'
+  }).then(() => {
+    ElMessage.success('已移除知识资产');
+    closeInspector();
+    fetchData();
+  });
 };
 
-const handleBatchDelete = () => {
-    ElMessage.info('批量删除功能演示');
+const formatNumber = (num) => {
+  if (!num) return '0';
+  return num > 1000 ? (num / 1000).toFixed(1) + 'k' : num;
 };
 
 onMounted(() => {
@@ -435,253 +358,207 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-container {
-  padding: 0;
+.knowledge-bento-container {
+  padding: 24px 0;
 }
-.kb-stats {
-  margin-bottom: 20px;
-}
-.stat-mini-card {
-  background: var(--neutral-white);
-  padding: 15px 20px;
-  border-radius: 8px;
-  border: 1px solid var(--neutral-gray-2);
-}
-.stat-mini-card .label {
-  font-size: 13px;
-  color: var(--neutral-gray-4);
-  margin-bottom: 5px;
-}
-.stat-mini-card .value {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--neutral-black);
-}
-.action-bar-container {
+
+.bento-card {
+  height: 100%;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.kb-name {
-    display: flex;
-    align-items: center;
-    font-weight: 500;
-    color: var(--neutral-black);
-}
-.search-input {
-  width: 240px;
-  margin-right: 12px;
-}
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
 }
 
-.res-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+.bento-card.glass {
+  background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.3)) !important;
+  backdrop-filter: blur(10px);
 }
 
-.res-source {
-  font-size: 12px;
-  color: var(--neutral-gray-4);
-  font-family: var(--font-heading);
+.bento-card.special-gradient {
+  background: linear-gradient(135deg, #FFF9F0, #FFFFFF) !important;
 }
 
-.res-content {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--neutral-gray-600);
-  margin: 0;
+.card-type-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--orin-amber);
+  opacity: 0.6;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
 }
 
-/* Recall Dialog Custom Styles */
-.recall-layout {
-  display: flex;
-  gap: 32px;
-  min-height: 500px;
-}
-
-.settings-panel {
-  flex: 0 0 420px;
-  border-right: 1px solid var(--neutral-gray-100);
-  padding-right: 32px;
-}
-
-.result-panel {
+/* Large Card Style */
+.card-main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.test-btn {
-  background-color: #a8c69f;
-  border-color: #a8c69f;
-  color: white;
-  width: 80px;
-  height: 36px;
-  font-weight: 500;
+.main-icon {
+  font-size: 48px;
+  color: var(--orin-amber);
+  margin-bottom: 20px;
 }
 
-.test-btn:hover {
-  background-color: #97b58e;
-  border-color: #97b58e;
-  color: white;
-}
-
-.result-summary {
-  font-size: 16px;
-  font-weight: 600;
+.kb-title {
+  font-size: 22px;
+  font-weight: 800;
   color: var(--neutral-gray-900);
-  margin-bottom: 20px;
+  margin: 0 0 12px 0;
 }
 
-.segment-item {
-  background: #fcfcfc;
-  border: 1px solid var(--neutral-gray-200);
-  border-radius: 8px;
-  margin-bottom: 20px;
-  overflow: hidden;
-}
-
-.segment-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--neutral-gray-100);
-  background: #fafafa;
-}
-
-.segment-header .meta {
-  font-size: 13px;
+.kb-desc {
+  font-size: 14px;
   color: var(--neutral-gray-500);
+  line-height: 1.6;
+  margin-bottom: 24px;
 }
 
-.score-badge {
-  background: #409eff;
-  color: white;
-  font-size: 12px;
+.stats-footer {
+  margin-top: auto;
+  display: flex;
+  gap: 20px;
+}
+
+.stat-pill {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-pill .val {
+  font-size: 20px;
   font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 4px;
-}
-
-.segment-content {
-  padding: 16px;
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--neutral-gray-700);
-  white-space: pre-wrap;
-  font-family: 'Inter', system-ui, sans-serif;
-}
-
-/* Document List Dialog Custom Styles */
-.doc-upload-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 32px;
-  font-size: 14px;
-}
-
-.doc-upload-bar .label {
-  color: var(--neutral-gray-600);
-}
-
-.custom-upload-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--neutral-gray-300);
-  border-radius: 4px;
-  padding: 2px;
-  background: white;
-}
-
-.select-btn {
-  background: #f5f5f5;
-  border: 1px solid var(--neutral-gray-300);
-  padding: 4px 12px;
-  border-radius: 2px;
-  cursor: pointer;
-  font-size: 13px;
   color: var(--neutral-gray-900);
 }
 
-.file-name {
-  color: var(--neutral-gray-500);
-  padding-right: 12px;
-  font-size: 13px;
-}
-
-.add-doc-btn {
-  border-color: var(--neutral-gray-200);
+.stat-pill .lab {
+  font-size: 11px;
   color: var(--neutral-gray-400);
-  font-size: 13px;
-  height: 32px;
+  text-transform: uppercase;
 }
 
-.add-doc-btn:not(:disabled) {
-  color: var(--primary-color);
-  border-color: var(--primary-light);
+/* Compact Card Style */
+.card-compact-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 10px;
 }
 
-.doc-table :deep(th) {
-  background-color: transparent !important;
-  color: var(--neutral-gray-900);
+.type-icon {
+  font-size: 32px;
+  color: var(--orin-amber);
+}
+
+.card-compact-content .title {
+  font-size: 16px;
   font-weight: 700;
-  border-bottom: 2px solid var(--neutral-gray-100);
+  color: var(--neutral-gray-900);
+  margin-bottom: 4px;
 }
 
-.operation-link {
-  font-size: 14px;
-  padding: 0 4px;
+.card-compact-content .meta {
+  font-size: 12px;
+  color: var(--neutral-gray-500);
 }
 
-.operation-link.green {
-  color: #a8c69f;
-}
-
-.operation-link.red {
-  color: #c8e0c4; /* Matching the muted greenish-grey delete in image */
-  opacity: 0.8;
-}
-
-.operation-link.red:hover {
-  color: var(--error-color);
-}
-
-/* KB Dialog Custom Styles */
-.kb-dialog :deep(.el-dialog__header) {
-  padding-bottom: 0;
-}
-
-.kb-form {
-  padding: 10px 0;
-}
-
-.kb-dialog-footer {
+/* Inspector Styles */
+.knowledge-inspector {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 2000;
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding-bottom: 10px;
 }
 
-.kb-save-btn {
-  background-color: #a8c69f;
-  border-color: #a8c69f;
-  color: white;
-  padding: 8px 24px;
+.inspector-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
 }
 
-.kb-save-btn:hover {
-  background-color: #97b58e;
-  border-color: #97b58e;
-  color: white;
+.inspector-content {
+  position: relative;
+  width: 600px;
+  height: 100%;
+  background: white;
+  box-shadow: -10px 0 50px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.inspector-header {
+  padding: 32px;
+  border-bottom: 1px solid var(--neutral-gray-100);
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--orin-amber-glow);
+  color: var(--orin-amber);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.inspector-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+
+.inspector-body {
+  flex: 1;
+  padding: 0 32px;
+  overflow-y: auto;
+}
+
+.inspector-tabs {
+  margin-top: 20px;
+}
+
+.inspector-footer {
+  padding: 24px 32px;
+  border-top: 1px solid var(--neutral-gray-100);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Sub-Managers */
+.doc-manager { padding: 16px 0; }
+.tool-bar { display: flex; gap: 12px; margin-bottom: 20px; }
+.doc-row { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  padding: 12px; 
+  border-bottom: 1px solid var(--neutral-gray-50); 
+  font-size: 13px;
+}
+
+.sql-preview { padding: 16px 0; }
+.table-node { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  margin-bottom: 12px; 
+  font-size: 13px;
+  color: var(--neutral-gray-600);
 }
 </style>

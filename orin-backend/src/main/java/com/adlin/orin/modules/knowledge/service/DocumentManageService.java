@@ -25,6 +25,8 @@ import java.util.UUID;
 public class DocumentManageService {
 
     private final KnowledgeDocumentRepository documentRepository;
+    private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository chunkRepository;
+    private final MilvusVectorService vectorService;
 
     // 文件存储根目录 (可配置)
     private static final String UPLOAD_DIR = "/var/orin/uploads/documents";
@@ -152,24 +154,79 @@ public class DocumentManageService {
         final String docId = documentId;
         new Thread(() -> {
             try {
-                // 模拟处理耗时
-                Thread.sleep(3000);
+                // 读取文件内容 (简化版: 假设是文本文件，直接读)
+                String content = null;
+                try {
+                    // Re-read file from path.
+                    // Note: We need a utility to read robustly (PDF etc),
+                    // but for now we rely on simple read or PREVIEW if file read fails or for
+                    // simplicity in this task.
+                    // Better: Use Tika or similar.
+                    // For this prototype, let's try to read if TXT/MD, else use preview.
+                    KnowledgeDocument currentDoc = documentRepository.findById(docId).orElse(null);
+                    if (currentDoc != null) {
+                        content = currentDoc.getContentPreview();
+                        // If file is txt/md, read full content
+                        if (currentDoc.getFileType().equalsIgnoreCase("txt")
+                                || currentDoc.getFileType().equalsIgnoreCase("md")) {
+                            Path path = Paths.get(currentDoc.getStoragePath());
+                            if (Files.exists(path)) {
+                                content = Files.readString(path);
+                            }
+                        }
+                        // TODO: Add PDF/Word reading here for full content
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to read file content", e);
+                }
 
-                // 重新获取文档（因为是在新线程中）
-                // 注意：这里需要处理事务，简单起见我们使用 sleep 模拟
-                // 在实际 Spring Bean 中，应该调用另一个 @Transactional 方法
+                if (content == null || content.isEmpty()) {
+                    documentRepository.updateVectorStatus(docId, "FAILED");
+                    return;
+                }
 
-                // 由于是在非事务线程中操作 Repository，这是允许的，但要注意并发
-                documentRepository.findById(docId).ifPresent(doc -> {
-                    doc.setVectorStatus("SUCCESS");
-                    doc.setChunkCount((int) (Math.random() * 10) + 1); // 模拟分片数
-                    doc.setVectorIndexId(UUID.randomUUID().toString());
-                    documentRepository.save(doc);
-                    log.info("Simulated vectorization completed for document: {}", docId);
-                });
+                // Split
+                List<String> chunksText = com.adlin.orin.modules.knowledge.util.SimpleTextSplitter.split(content);
 
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                // Save Chunks to DB
+                List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks = new java.util.ArrayList<>();
+                for (int i = 0; i < chunksText.size(); i++) {
+                    chunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
+                            .documentId(docId)
+                            .chunkIndex(i)
+                            .content(chunksText.get(i))
+                            .charCount(chunksText.get(i).length())
+                            .build());
+                }
+
+                // 需要在 Bean 上下文中处理
+                // 由于我们在 Thread 中，无法获得事务支持 (Repository save is fine, but service logic isn't)
+                // 且 vectorService 是 Spring Bean
+                // 为了避免依赖注入问题 (lambda capture is fine for final fields), 这里的 fields 必须是 final
+                // 并且被构造器初始化
+
+                // 获取当前 doc 以得到 kbId
+                KnowledgeDocument currentDoc = documentRepository.findById(docId).orElse(null);
+                if (currentDoc != null) {
+                    chunkRepository.saveAll(chunks);
+
+                    // Call Milvus (Using Chunk objects)
+                    vectorService.addChunks(currentDoc.getKnowledgeBaseId(), chunks);
+
+                    documentRepository.updateVectorStatus(docId, "SUCCESS");
+
+                    // Update stats
+                    KnowledgeDocument finalDoc = currentDoc;
+                    finalDoc.setChunkCount(chunks.size());
+                    finalDoc.setVectorIndexId("milvus_partition_" + finalDoc.getKnowledgeBaseId());
+                    documentRepository.save(finalDoc);
+
+                    log.info("Vectorization completed for document: {}, chunks: {}", docId, chunks.size());
+                }
+
+            } catch (Exception e) {
+                log.error("Vectorization failed for document: " + docId, e);
+                documentRepository.updateVectorStatus(docId, "FAILED");
             }
         }).start();
 

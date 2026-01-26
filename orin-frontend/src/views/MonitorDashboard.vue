@@ -203,7 +203,7 @@
                <LineChart title="Token 消耗 (累计)" :data="metrics.tokens" yAxisName="tokens" color="#67C23A" />
                <LineChart title="延迟 (ms)" :data="metrics.latency" yAxisName="ms" color="#E6A23C" />
                <LineChart v-if="selectedAgent.cpuUsage > 0 || selectedAgent.isLocal" title="CPU 负载" :data="metrics.cpu" yAxisName="%" :yAxisMax="100" color="#F56C6C" />
-               <LineChart v-if="selectedAgent.memoryUsage > 0 || selectedAgent.isLocal" title="内存占用" :data="metrics.memory" yAxisName="MB" color="#409EFF" />
+               <LineChart v-if="selectedAgent.memoryUsage > 0 || selectedAgent.isLocal" title="内存占用" :data="metrics.memory" yAxisName="MB" color="var(--orin-primary)" />
             </div>
           </el-tab-pane>
           <el-tab-pane label="运行日志" name="logs">
@@ -716,7 +716,7 @@ onUnmounted(() => {
 .activity-list { max-height: 500px; overflow-y: auto; }
 .activity-item { display: flex; padding: 12px 0; border-bottom: 1px solid var(--neutral-gray-1); }
 .activity-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; margin-right: 12px; flex-shrink: 0; }
-.activity-dot.conversation { background: #409EFF; }
+.activity-dot.conversation { background: var(--orin-primary); }
 .activity-dot.error { background: #F56C6C; }
 .activity-dot.system { background: #909399; }
 .activity-info { flex: 1; }

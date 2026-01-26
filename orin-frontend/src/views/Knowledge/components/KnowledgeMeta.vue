@@ -4,9 +4,13 @@
           <el-col :span="12">
               <el-card shadow="hover" class="meta-card">
                   <template #header>
-                      <div class="card-header">
-                          <span>Prompt 模板</span>
-                      </div>
+                       <div class="card-header">
+                           <span>Prompt 模板</span>
+                           <div class="header-actions">
+                               <el-button link type="primary" :icon="Refresh" @click="loadMeta"></el-button>
+                               <el-button link type="primary" :icon="Plus" @click="openPromptDialog">新建</el-button>
+                           </div>
+                       </div>
                   </template>
                   <el-table :data="prompts" style="width: 100%" v-loading="loading">
                       <el-table-column prop="name" label="模板名称" />
@@ -15,11 +19,13 @@
                               <el-tag size="small">{{ row.type }}</el-tag>
                           </template>
                       </el-table-column>
-                       <el-table-column label="预览">
-                           <template #default="{ row }">
-                               <el-button link @click="viewContent(row)">查看内容</el-button>
-                           </template>
-                       </el-table-column>
+                        <el-table-column label="操作" width="180">
+                            <template #default="{ row }">
+                                <el-button link @click="viewContent(row)">查看</el-button>
+                                <el-button link type="primary" @click="handleEditPrompt(row)">编辑</el-button>
+                                <el-button link type="danger" @click="deletePrompt(row)">删除</el-button>
+                            </template>
+                        </el-table-column>
                   </el-table>
               </el-card>
           </el-col>
@@ -27,10 +33,13 @@
           <el-col :span="12">
               <el-card shadow="hover" class="meta-card">
                   <template #header>
-                      <div class="card-header">
-                          <span>长期记忆 (Long-term Memory)</span>
-                          <el-button link type="primary" :icon="Refresh" @click="loadMeta"></el-button>
-                      </div>
+                       <div class="card-header">
+                           <span>长期记忆 (Long-term Memory)</span>
+                           <div class="header-actions">
+                               <el-button link type="primary" :icon="Plus" @click="openExtractDialog">记忆提取</el-button>
+                               <el-button link type="primary" :icon="Refresh" @click="loadMeta"></el-button>
+                           </div>
+                       </div>
                   </template>
                   <el-table :data="memory" style="width: 100%" v-loading="loading">
                       <el-table-column prop="key" label="Key" width="150" />
@@ -46,8 +55,8 @@
       </el-row>
   </div>
   
-  <!-- Add Prompt Dialog -->
-  <el-dialog v-model="promptDialogVisible" title="新建 Prompt 模板" width="500px">
+  <!-- Add/Edit Prompt Dialog -->
+  <el-dialog v-model="promptDialogVisible" :title="promptForm.id ? '编辑 Prompt 模板' : '新建 Prompt 模板'" width="500px">
       <el-form :model="promptForm" label-width="100px">
           <el-form-item label="模板名称">
               <el-input v-model="promptForm.name" placeholder="例如：客服标准回复" />
@@ -106,8 +115,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Plus, Refresh } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Plus, Refresh, Edit, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 
 const props = defineProps({
@@ -129,6 +138,7 @@ const memory = ref([])
 
 const promptDialogVisible = ref(false)
 const promptForm = ref({
+    id: null,
     name: '',
     type: 'ROLE',
     content: ''
@@ -165,8 +175,27 @@ const loadMeta = async () => {
 }
 
 const openPromptDialog = () => {
-    promptForm.value = { name: '', type: 'ROLE', content: '' }
+    promptForm.value = { id: null, name: '', type: 'ROLE', content: '' }
     promptDialogVisible.value = true
+}
+
+const handleEditPrompt = (row) => {
+    promptForm.value = { ...row }
+    promptDialogVisible.value = true
+}
+
+const deletePrompt = (row) => {
+    ElMessageBox.confirm(`确定要删除模板 "${row.name}" 吗？`, '提示', {
+        type: 'warning'
+    }).then(async () => {
+        try {
+            await request.delete(`/knowledge/agents/${props.agentId}/meta/prompts/${row.id}`)
+            ElMessage.success('删除成功')
+            loadMeta()
+        } catch (e) {
+            ElMessage.error('删除失败')
+        }
+    })
 }
 
 const submitPrompt = async () => {

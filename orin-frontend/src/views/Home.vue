@@ -213,7 +213,7 @@ const features = [
     title: '全链路监控', 
     desc: '实时追踪 CPU、内存利用率及令牌消耗，秒级洞察系统性能瓶颈。', 
     icon: Monitor, 
-    color: '#409EFF', 
+    color: 'var(--orin-primary)', 
     bgColor: 'rgba(64, 158, 255, 0.1)' 
   },
   { 

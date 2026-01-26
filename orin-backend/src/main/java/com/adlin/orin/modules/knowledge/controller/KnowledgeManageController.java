@@ -4,6 +4,7 @@ import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.service.DocumentManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
+import com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +27,31 @@ public class KnowledgeManageController {
     private final KnowledgeManageService knowledgeManageService;
     private final DocumentManageService documentManageService;
     private final MetaKnowledgeService metaKnowledgeService;
+    private final com.adlin.orin.modules.knowledge.service.RetrievalService retrievalService;
+    private final com.adlin.orin.modules.knowledge.service.StructuredService structuredService;
+    private final com.adlin.orin.modules.knowledge.service.ProceduralService proceduralService;
 
-    @Operation(summary = "获取智能体绑定的知识库")
+    @Operation(summary = "获取智能体绑定的知识列表 (支持分类型 DOCUMENT/STRUCTURED/API)")
     @GetMapping("/agents/{agentId}")
-    public List<KnowledgeBase> getBoundKnowledge(@PathVariable String agentId) {
-        return knowledgeManageService.getBoundKnowledge(agentId);
+    public List<?> getBoundKnowledge(
+            @PathVariable String agentId,
+            @RequestParam(required = false, defaultValue = "DOCUMENT") String type) {
+
+        switch (type.toUpperCase()) {
+            case "STRUCTURED":
+                return structuredService.getDatabaseSchema(agentId);
+            case "API":
+                return proceduralService.getAgentSkills(agentId);
+            case "DOCUMENT":
+            default:
+                return knowledgeManageService.getBoundKnowledge(agentId);
+        }
+    }
+
+    @Operation(summary = "获取智能体绑定的统一知识列表 (Bento Grid 专用)")
+    @GetMapping("/agents/{agentId}/unified")
+    public List<UnifiedKnowledgeDTO> getUnifiedKnowledge(@PathVariable String agentId) {
+        return knowledgeManageService.getUnifiedKnowledge(agentId);
     }
 
     @Operation(summary = "从 Dify 同步最新知识库")
@@ -139,7 +160,7 @@ public class KnowledgeManageController {
         String kbId = (String) payload.get("kbId");
         Integer topK = (Integer) payload.getOrDefault("topK", 3);
 
-        return knowledgeManageService.testRetrieval(kbId, query, topK);
+        return retrievalService.hybridSearch(kbId, query, topK);
     }
 
     @Operation(summary = "获取元知识 (Prompt模板)")

@@ -280,7 +280,7 @@ const initCpuChart = () => {
       type: 'line',
       smooth: true,
       areaStyle: {
-        color: '#409EFF',
+        color: 'var(--orin-primary)',
         opacity: 0.3
       }
     }]

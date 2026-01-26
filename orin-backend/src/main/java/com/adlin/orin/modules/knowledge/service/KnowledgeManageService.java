@@ -13,6 +13,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO;
+import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -26,6 +28,10 @@ public class KnowledgeManageService {
         private final KnowledgeBaseRepository knowledgeBaseRepository;
         private final RestTemplate restTemplate;
         private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorStoreProvider;
+        private final DocumentManageService documentService;
+        private final StructuredService structuredService;
+        private final ProceduralService proceduralService;
+        private final MetaKnowledgeService metaKnowledgeService;
 
         /**
          * 获取指定 Agent 绑定的知识库 (优先从本地库取，如果为空则尝试同步)
@@ -164,5 +170,52 @@ public class KnowledgeManageService {
                 kb.setSyncTime(LocalDateTime.now());
                 // Default values if needed
                 return knowledgeBaseRepository.save(kb);
+        }
+
+        /**
+         * 获取统一知识列表（业务分类 + 实时指标）
+         */
+        public List<UnifiedKnowledgeDTO> getUnifiedKnowledge(String agentId) {
+                List<KnowledgeBase> bases = getBoundKnowledge(agentId);
+                List<UnifiedKnowledgeDTO> unifiedList = new ArrayList<>();
+
+                for (KnowledgeBase kb : bases) {
+                        unifiedList.add(mapToDTO(kb, agentId));
+                }
+
+                return unifiedList;
+        }
+
+        private UnifiedKnowledgeDTO mapToDTO(KnowledgeBase kb, String agentId) {
+                Map<String, Object> stats = new HashMap<>();
+
+                switch (kb.getType()) {
+                        case UNSTRUCTURED:
+                                var docStats = documentService.getKnowledgeBaseStats(kb.getId());
+                                stats.put("documentCount", docStats.documentCount());
+                                stats.put("chunkCount", docStats.totalCharCount());
+                                break;
+                        case STRUCTURED:
+                                var schemas = structuredService.getDatabaseSchema(agentId);
+                                stats.put("tableCount", schemas.size());
+                                break;
+                        case PROCEDURAL:
+                                var skills = proceduralService.getAgentSkills(agentId);
+                                stats.put("skillCount", skills.size());
+                                break;
+                        case META_MEMORY:
+                                var memories = metaKnowledgeService.getAgentMemory(agentId);
+                                stats.put("memoryEntryCount", memories.size());
+                                break;
+                }
+
+                return UnifiedKnowledgeDTO.builder()
+                                .id(kb.getId())
+                                .name(kb.getName())
+                                .description(kb.getDescription())
+                                .type(kb.getType())
+                                .status(kb.getStatus())
+                                .stats(stats)
+                                .build();
         }
 }

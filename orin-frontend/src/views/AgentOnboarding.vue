@@ -918,7 +918,7 @@ const onSubmit = async () => {
   background: var(--primary-color);
   color: white;
   border-color: var(--primary-color);
-  box-shadow: 0 0 15px rgba(var(--primary-color-rgb), 0.3);
+  box-shadow: 0 0 15px rgba(var(--orin-primary-rgb), 0.3);
 }
 
 .step-item.active .step-name {

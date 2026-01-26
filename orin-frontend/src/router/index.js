@@ -66,25 +66,25 @@ const routes = [
                     {
                         path: 'unstructured',
                         name: 'KnowledgeUnstructured',
-                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
                         meta: { title: '非结构化知识', type: 'DOCUMENT' }
                     },
                     {
                         path: 'structured',
                         name: 'KnowledgeStructured',
-                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
                         meta: { title: '结构化知识', type: 'STRUCTURED' }
                     },
                     {
                         path: 'procedural',
                         name: 'KnowledgeProcedural',
-                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
                         meta: { title: '程序化知识', type: 'API' }
                     },
                     {
                         path: 'meta',
                         name: 'KnowledgeMeta',
-                        component: () => import('../views/Knowledge/KnowledgeContent.vue'),
+                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
                         meta: { title: '元知识与记忆', type: 'META' }
                     }
                 ]

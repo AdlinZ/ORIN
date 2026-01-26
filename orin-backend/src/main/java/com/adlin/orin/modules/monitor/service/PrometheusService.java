@@ -323,4 +323,18 @@ public class PrometheusService {
         }
         return !Double.isNaN(val) ? val : 0.0;
     }
+
+    /**
+     * Probe if Prometheus is reachable.
+     * Throws exception if unreachable.
+     */
+    public void probe(String baseUrl) {
+        String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        URI url = UriComponentsBuilder.fromHttpUrl(cleanBaseUrl)
+                .path("/api/v1/query")
+                .queryParam("query", "up")
+                .build()
+                .toUri();
+        restTemplate.getForObject(url, Map.class);
+    }
 }

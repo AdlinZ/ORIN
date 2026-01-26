@@ -180,8 +180,8 @@ const statsCards = computed(() => [
     key: 'daily', 
     unit: 'tokens',
     icon: Cpu, 
-    color: '#409EFF', 
-    bgColor: 'rgba(64, 158, 255, 0.1)' 
+    color: 'var(--orin-primary)', 
+    bgColor: 'var(--orin-primary-fade)' 
   },
   { 
     label: '本周消耗', 
@@ -307,7 +307,7 @@ const renderTrendChart = (data) => {
         data: data.map(item => item.tokens),
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#409EFF' },
+            { offset: 0, color: 'var(--orin-primary)' },
             { offset: 1, color: '#67C23A' }
           ])
         }

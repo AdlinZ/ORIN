@@ -10,6 +10,7 @@ import com.adlin.orin.modules.workflow.engine.WorkflowEngine;
 import com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository;
 import com.adlin.orin.modules.workflow.repository.WorkflowRepository;
 import com.adlin.orin.modules.workflow.repository.WorkflowStepRepository;
+import com.adlin.orin.modules.workflow.converter.DifyDslConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,27 @@ public class WorkflowService {
     private final WorkflowStepRepository stepRepository;
     private final WorkflowInstanceRepository instanceRepository;
     private final WorkflowEngine workflowEngine;
+    private final DifyDslConverter difyDslConverter;
+
+    @Transactional
+    public WorkflowResponse importDifyWorkflow(String name, String description, String yamlContent) {
+        log.info("Importing Dify workflow: {}", name);
+
+        Map<String, Object> workflowDefinition = difyDslConverter.convert(yamlContent);
+
+        WorkflowEntity entity = WorkflowEntity.builder()
+                .workflowName(name)
+                .description(description)
+                .workflowType(WorkflowEntity.WorkflowType.DAG)
+                .workflowDefinition(workflowDefinition)
+                .status(WorkflowEntity.WorkflowStatus.DRAFT) // Import as draft
+                .build();
+
+        WorkflowEntity saved = workflowRepository.save(entity);
+        log.info("Dify workflow imported with ID: {}", saved.getId());
+
+        return WorkflowResponse.fromEntity(saved);
+    }
 
     @Transactional
     public WorkflowResponse createWorkflow(WorkflowRequest request) {

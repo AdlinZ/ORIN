@@ -219,25 +219,15 @@ const handleSubmit = async () => {
     if (valid) {
       submitting.value = true;
       try {
-        // Process steps: parse inputMapping JSON
-        const processedSteps = form.steps.map(step => {
-          let inputMapping = {};
-          try {
-            inputMapping = JSON.parse(step.inputMappingStr || '{}');
-          } catch (e) {
-            console.warn('Invalid JSON in input mapping');
-          }
-          
-          return {
-            ...step,
-            inputMapping
-          };
-        });
+        // 1. Validate Legality & Serialize to JSON (DSL)
+        const dsl = serializeWorkflow(form);
+        console.log('Generated DSL:', dsl);
 
+        // 2. Save to Procedural Knowledge Base
         const payload = {
           ...form,
-          steps: processedSteps,
-          workflowDefinition: {} // Reserved for future graph definition
+          steps: dsl.steps, // Use the serialized steps
+          workflowDefinition: dsl // Complete definition
         };
 
         if (isEdit.value) {
@@ -250,12 +240,49 @@ const handleSubmit = async () => {
         goBack();
       } catch (error) {
         console.error(error);
-        ElMessage.error('保存失败');
+        ElMessage.error(error.message || '保存失败');
       } finally {
         submitting.value = false;
       }
     }
   });
+};
+
+const serializeWorkflow = (formData) => {
+    // 1. Basic Structure
+    const dsl = {
+        meta: {
+            name: formData.workflowName,
+            description: formData.description,
+            timeout: formData.timeoutSeconds,
+            version: '1.0.0'
+        },
+        steps: []
+    };
+
+    // 2. Step Validator & Serializer
+    dsl.steps = formData.steps.map((step, index) => {
+        // Validation: Verify Input Mapping JSON
+        let inputMapping = {};
+        try {
+            inputMapping = JSON.parse(step.inputMappingStr || '{}');
+        } catch (e) {
+            throw new Error(`Step ${index + 1} (${step.stepName}): Invalid Input Mapping JSON`);
+        }
+
+        // Return pure DSL node
+        return {
+            id: `step_${index + 1}`,
+            name: step.stepName,
+            type: step.stepType,
+            agentId: step.stepType === 'AGENT' ? step.agentId : undefined,
+            skillId: step.stepType === 'SKILL' ? step.skillId : undefined,
+            inputs: inputMapping,
+            next: index < formData.steps.length - 1 ? `step_${index + 2}` : null
+        };
+    });
+
+    return dsl;
 };
 
 const goBack = () => {

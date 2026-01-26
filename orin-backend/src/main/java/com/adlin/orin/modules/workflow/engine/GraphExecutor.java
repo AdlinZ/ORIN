@@ -250,6 +250,21 @@ public class GraphExecutor {
                     }
                     return skillService.executeSkill(skillId, inputs);
 
+                case "llm":
+                    // Support for Dify 'llm' nodes
+                    log.info("Executing LLM node: {}", nodeId);
+                    // In a real implementation, this would call ModelService using inputs which
+                    // contains 'prompt', 'model', etc.
+                    Map<String, Object> llmResult = new HashMap<>();
+                    llmResult.put("text", "LLM Output (Simulation): Input was " + inputs);
+                    // If prompt is in inputs, echo it
+                    if (inputs.containsKey("prompt_template")) {
+                        // Dify usually puts prompt in data, and we mapped data's inputMapping.
+                        // But Dify config is in data.
+                        // We can access nodeData here if needed, but inputs should be resolved.
+                    }
+                    return llmResult;
+
                 case "condition":
                     // 条件节点：评估条件并返回结果
                     return evaluateCondition(nodeData, context, nodeOutputs);

@@ -28,7 +28,7 @@ public class KnowledgeBase {
     @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     @Column(name = "type")
     @Builder.Default
-    private KnowledgeType type = KnowledgeType.DOCUMENT;
+    private KnowledgeType type = KnowledgeType.UNSTRUCTURED;
 
     @Column(name = "description")
     private String description;

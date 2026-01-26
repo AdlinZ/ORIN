@@ -3,7 +3,7 @@
     <el-table :data="data" style="width: 100%">
       <el-table-column prop="name" label="名称" min-width="180">
         <template #default="scope">
-          <span style="font-weight: 600">{{ scope.row.name }}</span>
+          <span style="font-weight: 600">{{ scope.row.fileName || scope.row.name || scope.row.tableName }}</span>
           <div style="font-size: 12px; color: #999;">ID: {{ scope.row.id }}</div>
         </template>
       </el-table-column>
@@ -14,15 +14,21 @@
          </template>
       </el-table-column>
 
-      <el-table-column prop="docCount" label="资源数量" width="120" align="center">
+      <el-table-column prop="docCount" label="资源数量" width="120" align="center" v-if="props.type !== 'api'">
         <template #default="scope">
-          <el-tag size="small" type="info">{{ scope.row.docCount }} items</el-tag>
+          <el-tag size="small" type="info">{{ scope.row.docCount ?? 0 }} items</el-tag>
         </template>
+      </el-table-column>
+      
+      <el-table-column prop="triggerName" label="触发名称" width="150" v-if="props.type === 'api'">
+         <template #default="{ row }">
+             <code>{{ row.triggerName }}</code>
+         </template>
       </el-table-column>
       
       <el-table-column prop="syncTime" label="最后更新" width="180">
           <template #default="scope">
-              {{ formatTime(scope.row.syncTime) }}
+              {{ formatTime(scope.row.syncTime || scope.row.updatedAt) }}
           </template>
       </el-table-column>
       

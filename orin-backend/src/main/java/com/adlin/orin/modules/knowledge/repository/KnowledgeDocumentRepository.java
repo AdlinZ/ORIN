@@ -41,4 +41,11 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
      * 查询待向量化的文档
      */
     List<KnowledgeDocument> findByVectorStatusIn(List<String> statuses);
+
+    /**
+     * 更新向量化状态
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE KnowledgeDocument d SET d.vectorStatus = :status, d.lastModified = CURRENT_TIMESTAMP WHERE d.id = :id")
+    void updateVectorStatus(@Param("id") String id, @Param("status") String status);
 }

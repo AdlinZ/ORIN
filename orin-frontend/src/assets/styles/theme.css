@@ -1,0 +1,145 @@
+/* 
+  ORIN Vivid Amber Design System 2026
+  Theme: Minimalist & High-Vibrancy Intelligent Station
+*/
+
+:root {
+    /* --- Brand Colors: Vivid Amber (High Luminance) --- */
+    --orin-primary: #FF9500;
+    --orin-primary-glow: rgba(255, 149, 0, 0.3);
+    --orin-primary-soft: rgba(255, 149, 0, 0.1);
+    --orin-primary-neon: rgba(255, 149, 0, 0.6);
+
+    /* 2026 Amber Glow Semantics */
+    --orin-amber: #FF9500;
+    --orin-amber-glow: rgba(255, 149, 0, 0.15);
+    --orin-bg-white: #FFFFFF;
+    --orin-glass: blur(20px) saturate(180%);
+
+    /* --- Surfaces (Light Mode - Glassmorphism) --- */
+    --app-bg: #FAF9F6;
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(255, 157, 0, 0.2);
+    --panel-shadow: 0 8px 32px 0 rgba(255, 157, 0, 0.08);
+
+    --text-primary: #1C1C1E;
+    --text-secondary: #636366;
+    --border-subtle: rgba(0, 0, 0, 0.05);
+
+    /* --- Motion --- */
+    --spring-easing: cubic-bezier(0.25, 1, 0.5, 1);
+    --transition-speed: 0.4s;
+}
+
+html.dark {
+    /* --- Brand Colors: Neon Orange (Night Flux) --- */
+    --orin-primary: #FF7A00;
+    --orin-primary-glow: rgba(255, 122, 0, 0.5);
+    --orin-primary-soft: rgba(255, 122, 0, 0.12);
+
+    /* 2026 Night Amber Glow Semantics */
+    --orin-amber: #FF7A00;
+    --orin-amber-glow: rgba(255, 122, 0, 0.25);
+    --orin-bg-white: #121212;
+    --orin-glass: blur(20px) saturate(180%);
+
+    /* --- Surfaces (Dark Mode) --- */
+    --app-bg: #050505;
+    --glass-bg: rgba(15, 15, 15, 0.8);
+    --glass-border: rgba(255, 122, 0, 0.15);
+    --panel-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+
+    --text-primary: #F2F2F7;
+    --text-secondary: #8E8E93;
+    --border-subtle: rgba(255, 255, 255, 0.05);
+}
+
+/* --- Global Reset & Glass Utils --- */
+body {
+    background-color: var(--app-bg);
+    color: var(--text-primary);
+    font-family: 'Inter', 'Geist Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color var(--transition-speed);
+}
+
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: var(--panel-shadow);
+}
+
+/* --- Component Overrides: Minimalist Table --- */
+.el-table {
+    --el-table-border: none !important;
+    --el-table-header-bg-color: transparent !important;
+    --el-table-bg-color: transparent !important;
+    --el-table-tr-bg-color: transparent !important;
+}
+
+.el-table__inner-wrapper::before {
+    display: none !important;
+}
+
+.el-table__border-left-patch {
+    display: none !important;
+}
+
+.el-table--border .el-table__inner-wrapper::after {
+    display: none !important;
+}
+
+.el-table__row {
+    margin-bottom: 8px;
+    /* Visual Gap */
+    transition: all 0.3s var(--spring-easing) !important;
+    border-radius: 12px;
+}
+
+.el-table__row td {
+    border-bottom: none !important;
+    padding: 16px 0 !important;
+}
+
+.el-table__row:hover td {
+    background-color: var(--orin-primary-soft) !important;
+}
+
+/* --- Ghost Buttons with Inner Glow --- */
+.el-button--primary.is-plain,
+.energy-btn-ghost {
+    background: transparent !important;
+    border: 1px solid var(--orin-primary) !important;
+    color: var(--orin-primary) !important;
+    box-shadow: inset 0 0 0 0 var(--orin-primary-soft);
+    transition: all 0.3s var(--spring-easing) !important;
+}
+
+.el-button--primary.is-plain:hover,
+.energy-btn-ghost:hover {
+    box-shadow: inset 0 0 12px var(--orin-primary-soft), 0 0 15px var(--orin-primary-glow) !important;
+    transform: translateY(-1px);
+}
+
+/* --- Global Search Panel (Cmd+K) --- */
+.cmdk-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cmdk-panel {
+    width: 600px;
+    padding: 8px;
+    border: 1px solid var(--orin-primary);
+    background: var(--glass-bg);
+    box-shadow: 0 0 30px var(--orin-primary-glow);
+}

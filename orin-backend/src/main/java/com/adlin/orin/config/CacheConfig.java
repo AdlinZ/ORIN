@@ -23,34 +23,46 @@ import java.util.Map;
 @EnableCaching
 public class CacheConfig {
 
-    private static final Duration DEFAULT_TTL = Duration.ofMinutes(60);
-    private static final Duration AGENT_TTL = Duration.ofMinutes(30);
-    private static final Duration KNOWLEDGE_TTL = Duration.ofHours(2);
+        private static final Duration DEFAULT_TTL = Duration.ofMinutes(60);
+        private static final Duration AGENT_TTL = Duration.ofMinutes(30);
+        private static final Duration KNOWLEDGE_TTL = Duration.ofHours(2);
 
-    @Bean
-    public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        // 默认配置
-        RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(DEFAULT_TTL)
-                .serializeKeysWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer()))
-                .disableCachingNullValues();
+        @Bean
+        public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
+                // 配置自定义的 ObjectMapper 以支持 Java 8 时间类型
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+                // 激活类型检查，确保缓存数据能正确反序列化回对象类型
+                mapper.activateDefaultTyping(
+                                mapper.getPolymorphicTypeValidator(),
+                                com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping.NON_FINAL,
+                                com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY);
 
-        // 针对不同CacheName的特定配置
-        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+                GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(mapper);
 
-        // Agent相关缓存
-        cacheConfigurations.put("agents", defaultCacheConfig.entryTtl(AGENT_TTL));
-        cacheConfigurations.put("agent_list", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
+                // 默认配置
+                RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
+                                .entryTtl(DEFAULT_TTL)
+                                .serializeKeysWith(
+                                                RedisSerializationContext.SerializationPair
+                                                                .fromSerializer(new StringRedisSerializer()))
+                                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                                                .fromSerializer(jsonSerializer))
+                                .disableCachingNullValues();
 
-        // Knowledge相关缓存
-        cacheConfigurations.put("knowledge_bases", defaultCacheConfig.entryTtl(KNOWLEDGE_TTL));
+                // 针对不同CacheName的特定配置
+                Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
-        return RedisCacheManager.builder(redisConnectionFactory)
-                .cacheDefaults(defaultCacheConfig)
-                .withInitialCacheConfigurations(cacheConfigurations)
-                .build();
-    }
+                // Agent相关缓存
+                cacheConfigurations.put("agents", defaultCacheConfig.entryTtl(AGENT_TTL));
+                cacheConfigurations.put("agent_list", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
+
+                // Knowledge相关缓存
+                cacheConfigurations.put("knowledge_bases", defaultCacheConfig.entryTtl(KNOWLEDGE_TTL));
+
+                return RedisCacheManager.builder(redisConnectionFactory)
+                                .cacheDefaults(defaultCacheConfig)
+                                .withInitialCacheConfigurations(cacheConfigurations)
+                                .build();
+        }
 }

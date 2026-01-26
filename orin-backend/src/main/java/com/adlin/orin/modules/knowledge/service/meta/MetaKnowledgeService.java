@@ -18,10 +18,40 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class MetaKnowledgeService {
+public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.service.MetaMemoryService {
 
         private final PromptTemplateRepository promptTemplateRepository;
         private final AgentMemoryRepository agentMemoryRepository;
+        private final com.adlin.orin.gateway.service.RouterService routerService;
+        private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        // --- MetaMemoryService Implementation ---
+
+        @Override
+        public String getSystemPrompt(String agentId) {
+                return assembleSystemPrompt(agentId);
+        }
+
+        @Override
+        public List<Map<String, Object>> getShortTermMemory(String agentId, String sessionId, int limit) {
+                // TODO: Integrate with Redis for sliding window chat history
+                // For now return empty list or mock
+                return java.util.Collections.emptyList();
+        }
+
+        @Override
+        public List<String> getLongTermMemory(String agentId, String query) {
+                // Logic to search vector DB or specific memory tables
+                // For now using basic keyword search in DB if we had it, or just empty
+                return java.util.Collections.emptyList();
+        }
+
+        @Override
+        public void saveLongTermMemory(String agentId, String key, String value) {
+                saveMemory(agentId, key, value);
+        }
+
+        // --- Existing Methods ---
 
         /**
          * Get prompt templates for a specific agent.
@@ -44,12 +74,18 @@ public class MetaKnowledgeService {
          * Create or Update a Prompt Template
          */
         @Transactional
+        @Override
         public PromptTemplate savePromptTemplate(PromptTemplate template) {
                 if (template.getId() == null) {
                         template.setId(UUID.randomUUID().toString());
                         template.setCreatedAt(LocalDateTime.now());
                 }
                 return promptTemplateRepository.save(template);
+        }
+
+        public PromptTemplate savePromptTemplateAndReturn(PromptTemplate template) {
+                savePromptTemplate(template);
+                return template;
         }
 
         /**
@@ -115,20 +151,8 @@ public class MetaKnowledgeService {
                                         .append("\n"));
                 }
 
-                // B. Vector Retrieval Memory (Placeholder for RAG)
-                // TODO: [Plan] Implement RAG pipeline: 1. Vector Search, 2. Re-ranking, 3.
-                // Context Window Management
-                // List<String> relevantDocs = vectorService.search(agentId, query);
-                // if (!relevantDocs.isEmpty()) {
-                // systemPrompt.append("\n## Context / Relevant Docs (Vector)\n");
-                // relevantDocs.forEach(doc -> systemPrompt.append(doc).append("\n"));
-                // }
-
                 return systemPrompt.toString();
         }
-
-        private final com.adlin.orin.gateway.service.RouterService routerService;
-        private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
         /**
          * Extract memory from conversation history using LLM.

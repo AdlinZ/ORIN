@@ -42,7 +42,7 @@
           <div v-for="doc in documents" :key="doc.id" class="doc-item">
             <div class="doc-icon">
               <el-icon v-if="doc.fileType === 'pdf'" :size="24" color="#F56C6C"><Document /></el-icon>
-              <el-icon v-else-if="['txt', 'md'].includes(doc.fileType)" :size="24" color="#409EFF"><Document /></el-icon>
+              <el-icon v-else-if="['txt', 'md'].includes(doc.fileType)" :size="24" color="var(--orin-primary)"><Document /></el-icon>
               <el-icon v-else :size="24"><Document /></el-icon>
             </div>
             <div class="doc-info">

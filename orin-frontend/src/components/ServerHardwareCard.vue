@@ -60,7 +60,7 @@
         <!-- CPU Usage -->
         <div class="hardware-item">
           <div class="item-header">
-            <el-icon class="item-icon" color="#409EFF"><Cpu /></el-icon>
+            <el-icon class="item-icon" color="var(--orin-primary)"><Cpu /></el-icon>
             <span class="item-label">CPU 使用率</span>
           </div>
           <div class="item-value">{{ serverInfo.cpuUsage }}%</div>
@@ -260,13 +260,9 @@ const fetchServerInfo = async () => {
     }
   } catch (error) {
     console.error('Failed to fetch server info:', error);
-    // Don't set online=false immediately if we have cache, just show error toast maybe?
-    // actually, let's keep the cache displayed but maybe show offline indicator if needed.
-    // user wants to see data even if network fluctuation.
-    if (!serverInfo.value.lastUpdated) {
-        serverInfo.value.online = false;
-    }
-    ElMessage.warning('获取最新数据失败，显示缓存数据');
+    // If request fails, we must indicate offline status
+    serverInfo.value.online = false;
+    ElMessage.error('无法连接到监控服务器');
   } finally {
     loading.value = false;
   }

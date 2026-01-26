@@ -170,10 +170,57 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(key = "#agentId"),
+            @CacheEvict(value = "agent_list", allEntries = true)
+    })
     public void updateAgent(String agentId, com.adlin.orin.modules.agent.dto.AgentOnboardRequest request) {
-        // This method would need the AgentOnboardRequest DTO to be implemented
-        // For now, we'll leave it as a stub
-        log.warn("updateAgent method not fully implemented");
+        log.info("Updating agent: {}", agentId);
+
+        // 1. Update Metadata
+        metadataRepository.findById(agentId).ifPresent(metadata -> {
+            if (request.getName() != null)
+                metadata.setName(request.getName());
+            if (request.getModel() != null)
+                metadata.setModelName(request.getModel());
+            if (request.getTemperature() != null)
+                metadata.setTemperature(request.getTemperature());
+            if (request.getTopP() != null)
+                metadata.setTopP(request.getTopP());
+            if (request.getMaxTokens() != null)
+                metadata.setMaxTokens(request.getMaxTokens());
+            if (request.getSystemPrompt() != null)
+                metadata.setSystemPrompt(request.getSystemPrompt());
+
+            metadata.setSyncTime(LocalDateTime.now());
+            metadataRepository.save(metadata);
+
+            // Update Health Status Name sync
+            healthStatusRepository.findById(agentId).ifPresent(status -> {
+                status.setAgentName(metadata.getName());
+                status.setModelName(metadata.getModelName());
+                healthStatusRepository.save(status);
+            });
+        });
+
+        // 2. Update Access Profile (Endpoint, API Key)
+        accessProfileRepository.findById(agentId).ifPresent(profile -> {
+            boolean changed = false;
+            if (request.getEndpointUrl() != null && !request.getEndpointUrl().isEmpty()) {
+                profile.setEndpointUrl(request.getEndpointUrl());
+                changed = true;
+            }
+            if (request.getApiKey() != null && !request.getApiKey().isEmpty()
+                    && !request.getApiKey().contains("****")) {
+                profile.setApiKey(request.getApiKey());
+                changed = true;
+            }
+            if (changed) {
+                profile.setUpdatedAt(LocalDateTime.now());
+                accessProfileRepository.save(profile);
+            }
+        });
     }
 
     @Transactional

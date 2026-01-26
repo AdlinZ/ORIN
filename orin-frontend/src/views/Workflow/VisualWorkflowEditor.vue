@@ -39,6 +39,10 @@
             <el-icon><Tools /></el-icon>
             <span>技能</span>
           </div>
+          <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'llm')">
+            <el-icon><Cpu /></el-icon>
+            <span>LLM</span>
+          </div>
           <div class="palette-node" draggable="true" @dragstart="onDragStart($event, 'condition')">
             <el-icon><Share /></el-icon>
             <span>条件</span>
@@ -86,6 +90,16 @@
               <div class="node-content">
                 <div class="node-title">{{ data.label || '技能' }}</div>
                 <div class="node-subtitle" v-if="data.skillId">Skill ID: {{ data.skillId }}</div>
+              </div>
+            </div>
+          </template>
+
+          <template #node-llm="{ data }">
+            <div class="custom-node llm-node" :class="getStatusClass(data.status)">
+              <el-icon><Cpu /></el-icon>
+              <div class="node-content">
+                <div class="node-title">{{ data.label || 'LLM' }}</div>
+                <div class="node-subtitle">Model: {{ data.model }}</div>
               </div>
             </div>
           </template>
@@ -143,6 +157,30 @@
           <template v-if="selectedNode.type === 'skill'">
             <el-form-item label="技能ID">
               <el-input-number v-model="selectedNode.data.skillId" @change="updateNode" />
+            </el-form-item>
+            <el-form-item label="输入映射">
+              <el-input
+                type="textarea"
+                v-model="selectedNode.data.inputMappingStr"
+                :rows="3"
+                @change="updateNode"
+              />
+            </el-form-item>
+
+          </template>
+
+          <!-- LLM Node Properties -->
+          <template v-if="selectedNode.type === 'llm'">
+            <el-form-item label="模型">
+              <el-input v-model="selectedNode.data.model" placeholder="Model Name" @change="updateNode" />
+            </el-form-item>
+             <el-form-item label="Prompt">
+              <el-input
+                type="textarea"
+                v-model="selectedNode.data.prompt"
+                :rows="3"
+                @change="updateNode"
+              />
             </el-form-item>
             <el-form-item label="输入映射">
               <el-input
@@ -225,7 +263,7 @@ import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
-import { VideoPlay, User, Tools, Share, CircleCheck, RefreshLeft, RefreshRight, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
+import { VideoPlay, User, Tools, Share, CircleCheck, RefreshLeft, RefreshRight, ArrowUp, ArrowDown, Cpu } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { getAgentList } from '@/api/agent';
 import { createWorkflow, getWorkflow } from '@/api/workflow';
@@ -415,6 +453,7 @@ const getDefaultLabel = (type) => {
     start: '开始',
     agent: '智能体节点',
     skill: '技能节点',
+    llm: 'LLM Node',
     condition: '条件节点',
     end: '结束'
   };
@@ -593,7 +632,7 @@ const goBack = () => {
   padding: 12px 16px;
   border-radius: 8px;
   background: white;
-  border: 2px solid #409eff;
+  border: 2px solid var(--orin-primary);
   min-width: 150px;
   display: flex;
   align-items: center;
@@ -607,11 +646,15 @@ const goBack = () => {
 }
 
 .agent-node {
-  border-color: #409eff;
+  border-color: var(--orin-primary);
 }
 
 .skill-node {
   border-color: #e6a23c;
+}
+
+.llm-node {
+  border-color: #90d3e6;
 }
 
 .condition-node {
@@ -640,7 +683,7 @@ const goBack = () => {
 
 /* Node Status Styles */
 .node-status-running {
-  border-color: #409eff !important;
+  border-color: var(--orin-primary) !important;
   animation: pulse 2s infinite;
 }
 
@@ -723,7 +766,7 @@ const goBack = () => {
 }
 
 .log-info .log-level {
-  color: #409eff;
+  color: var(--orin-primary);
 }
 
 .log-warn .log-level {

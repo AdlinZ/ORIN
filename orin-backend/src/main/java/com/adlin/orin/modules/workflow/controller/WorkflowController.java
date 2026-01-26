@@ -12,6 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import java.util.List;
 import java.util.Map;
@@ -33,6 +37,18 @@ public class WorkflowController {
     public ResponseEntity<WorkflowResponse> createWorkflow(@RequestBody WorkflowRequest request) {
         log.info("REST request to create workflow: {}", request.getWorkflowName());
         WorkflowResponse response = workflowService.createWorkflow(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping(value = "/import/dify", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "导入 Dify 工作流 DSL")
+    public ResponseEntity<WorkflowResponse> importDifyWorkflow(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("name") String name,
+            @RequestParam(value = "description", required = false) String description) throws IOException {
+        log.info("REST request to import Dify workflow: {}", name);
+        String content = new String(file.getBytes(), StandardCharsets.UTF_8);
+        WorkflowResponse response = workflowService.importDifyWorkflow(name, description, content);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

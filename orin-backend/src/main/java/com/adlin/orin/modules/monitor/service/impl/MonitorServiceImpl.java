@@ -411,9 +411,11 @@ public class MonitorServiceImpl implements MonitorService {
                 if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
                         String url = config.getPrometheusUrl();
 
-                        status.put("online", true);
-
                         try {
+                                // First probe if Prometheus is actually reachable
+                                prometheusService.probe(url);
+                                status.put("online", true);
+
                                 CompletableFuture<Double> cpuFuture = CompletableFuture
                                                 .supplyAsync(() -> prometheusService.getCpuUsage(url),
                                                                 prometheusExecutor);
@@ -460,8 +462,7 @@ public class MonitorServiceImpl implements MonitorService {
                                                 .supplyAsync(() -> prometheusService.getGpuModel(url),
                                                                 prometheusExecutor);
 
-                                // Wait for all with a strict timeout of 4 seconds (safer than Frontend 5s
-                                // timeout)
+                                // Wait for all with a strict timeout
                                 CompletableFuture.allOf(cpuFuture, memFuture, diskFuture, coresFuture, totalMemFuture,
                                                 netInFuture, netOutFuture, osFuture, diskTotalFuture, cpuModelFuture,
                                                 gpuUsageFuture, gpuMemFuture, gpuModelFuture)
@@ -483,14 +484,11 @@ public class MonitorServiceImpl implements MonitorService {
                                 long totalMemBytes = totalMemFuture.get();
                                 status.put("memoryTotal", formatBytes(totalMemBytes));
 
-                                // Calculate Used Memory (Available is not fetched directly but derived from
-                                // usage % is possible,
-                                // but better to just show total and usage %.
-                                // Let's estimate used for display: Total * (Usage%/100))
+                                // Calculate Used Memory
                                 long usedMemBytes = (long) (totalMemBytes * (memFuture.get() / 100.0));
                                 status.put("memoryUsed", formatBytes(usedMemBytes));
 
-                                // Format Disk (Calc Used from Total * Usage)
+                                // Format Disk
                                 long totalDiskBytes = diskTotalFuture.get().longValue();
                                 status.put("diskTotal", formatBytes(totalDiskBytes));
                                 long usedDiskBytes = (long) (totalDiskBytes * (diskFuture.get() / 100.0));
@@ -502,12 +500,13 @@ public class MonitorServiceImpl implements MonitorService {
 
                         } catch (Exception e) {
                                 log.error("Error fetching Prometheus metrics: {}", e.getMessage());
+                                status.put("online", false);
                                 status.put("cpuUsage", 0.0);
                                 status.put("memoryUsage", 0.0);
                                 status.put("diskUsage", 0.0);
                                 status.put("cpuCores", 0);
                                 status.put("memoryTotal", "N/A");
-                                status.put("memoryUsed", "N/A"); // Just in case
+                                status.put("memoryUsed", "N/A");
                                 status.put("diskTotal", "N/A");
                                 status.put("diskUsed", "N/A");
                                 status.put("networkDownload", "0 KB/s");

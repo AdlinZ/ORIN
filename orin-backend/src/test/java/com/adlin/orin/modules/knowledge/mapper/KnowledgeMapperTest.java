@@ -30,7 +30,7 @@ class KnowledgeMapperTest {
         entity.setName("Test KB");
         entity.setDescription("Test Description");
         entity.setSourceAgentId("agent-001");
-        entity.setType(KnowledgeType.DOCUMENT);
+        entity.setType(KnowledgeType.UNSTRUCTURED);
         entity.setStatus("ENABLED");
         entity.setDocCount(10);
         entity.setTotalSizeMb(5.5);
@@ -71,7 +71,7 @@ class KnowledgeMapperTest {
                 .name("New KB")
                 .description("New Description")
                 .agentId("agent-002")
-                .type("DOCUMENT")
+                .type("UNSTRUCTURED")
                 .enabled(true)
                 .build();
 

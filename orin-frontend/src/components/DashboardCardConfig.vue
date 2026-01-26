@@ -101,13 +101,13 @@ const visible = computed({
 // 可用卡片配置
 const availableCards = {
   stats: [
-    { id: 'stat-agents', name: '智能体总数', description: '系统中所有智能体数量', icon: Cpu, color: '#409EFF' },
+    { id: 'stat-agents', name: '智能体总数', description: '系统中所有智能体数量', icon: Cpu, color: 'var(--orin-primary)' },
     { id: 'stat-requests', name: '今日请求', description: '当日 API 调用总量', icon: TrendCharts, color: '#67C23A' },
     { id: 'stat-tokens', name: 'Token 消耗', description: '累计 Token 使用量', icon: DataAnalysis, color: '#E6A23C' },
     { id: 'stat-latency', name: '平均延迟', description: '系统响应时间', icon: Connection, color: '#F56C6C' }
   ],
   modules: [
-    { id: 'module-agents', name: '智能体实例', description: '活跃智能体列表与状态', icon: Cpu, color: '#409EFF' },
+    { id: 'module-agents', name: '智能体实例', description: '活跃智能体列表与状态', icon: Cpu, color: 'var(--orin-primary)' },
     { id: 'module-distribution', name: '分布统计', description: '智能体类型与状态分布', icon: Histogram, color: '#67C23A' },
     { id: 'module-activity', name: '活动日志', description: '最近系统活动记录', icon: Monitor, color: '#E6A23C' },
     { id: 'module-server', name: '服务器硬件', description: 'Dify 服务器 CPU/内存/磁盘', icon: Setting, color: '#909399', optional: true }

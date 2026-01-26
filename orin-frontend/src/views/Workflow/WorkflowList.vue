@@ -12,6 +12,9 @@
         <el-button type="success" :icon="Connection" @click="handleCreateVisual">
           可视化编辑器
         </el-button>
+        <el-button type="warning" :icon="Upload" @click="handleImportClick">
+          导入 Dify DSL
+        </el-button>
       </div>
     </div>
 
@@ -99,16 +102,57 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- Import Dialog -->
+    <el-dialog
+      v-model="importDialogVisible"
+      title="导入 Dify 工作流"
+      width="500px"
+    >
+      <el-form label-width="100px">
+        <el-form-item label="工作流名称" required>
+          <el-input v-model="importForm.name" placeholder="请输入工作流名称" />
+        </el-form-item>
+        <el-form-item label="DSL 文件" required>
+          <el-upload
+            class="upload-demo"
+            action="#"
+            :auto-upload="false"
+            :limit="1"
+            :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            accept=".yml,.yaml"
+          >
+            <template #trigger>
+              <el-button type="primary">选择文件</el-button>
+            </template>
+            <template #tip>
+              <div class="el-upload__tip">
+                只能上传 yml/yaml 文件
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="importDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="importing" @click="handleImportSubmit">
+            导入
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { Plus, Search, VideoPlay, DataLine, Timer, Connection } from '@element-plus/icons-vue';
+import { Plus, Search, VideoPlay, DataLine, Timer, Connection, Upload } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import dayjs from 'dayjs';
-import { getWorkflows } from '@/api/workflow';
+import { getWorkflows, importWorkflow } from '@/api/workflow';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -141,7 +185,11 @@ const handleCreateVisual = () => {
 };
 
 const handleEdit = (row) => {
-  router.push(`/dashboard/workflow/edit/${row.id}`);
+  if (row.workflowType === 'DAG') {
+    router.push(`/dashboard/workflow/visual/${row.id}`);
+  } else {
+    router.push(`/dashboard/workflow/edit/${row.id}`);
+  }
 };
 
 const handleRun = (row) => {
@@ -150,6 +198,60 @@ const handleRun = (row) => {
 
 const handleDelete = (row) => {
   ElMessage.warning('删除功能暂未开放');
+};
+
+// Import Logic
+const importDialogVisible = ref(false);
+const importing = ref(false);
+const importForm = reactive({
+  name: '',
+  file: null
+});
+
+const handleImportClick = () => {
+  importForm.name = '';
+  importForm.file = null;
+  importDialogVisible.value = true;
+};
+
+const handleFileChange = (file) => {
+  importForm.file = file.raw;
+  // Auto fill name if empty
+  if (!importForm.name && file.name) {
+    importForm.name = file.name.replace(/\.(yml|yaml)$/i, '');
+  }
+};
+
+const handleFileRemove = () => {
+  importForm.file = null;
+};
+
+const handleImportSubmit = async () => {
+  if (!importForm.name) {
+    ElMessage.warning('请输入工作流名称');
+    return;
+  }
+  if (!importForm.file) {
+    ElMessage.warning('请选择 DSL 文件');
+    return;
+  }
+
+  importing.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', importForm.file);
+    formData.append('name', importForm.name);
+    
+    await importWorkflow(formData);
+    ElMessage.success('导入成功');
+    importDialogVisible.value = false;
+    fetchData(); // Refresh list
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('导入失败');
+  } finally {
+    importing.value = false;
+  }
 };
 
 const formatTime = (time) => {

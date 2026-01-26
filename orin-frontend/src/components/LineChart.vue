@@ -13,7 +13,7 @@ const isDark = useDark();
 
 const props = defineProps({
   title: String,
-  color: { type: String, default: '#409EFF' },
+  color: { type: String, default: 'var(--orin-primary)' },
   data: { type: Array, default: () => [] }, 
   height: { type: String, default: '300px' },
   yAxisName: String,
