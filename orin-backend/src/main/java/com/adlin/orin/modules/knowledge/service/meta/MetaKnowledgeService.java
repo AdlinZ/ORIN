@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -138,6 +139,11 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
                 return template;
         }
 
+        @Transactional
+        public void deletePromptTemplate(String id) {
+                promptTemplateRepository.deleteById(id);
+        }
+
         /**
          * Get memory configuration or stored memory items.
          */
@@ -170,6 +176,30 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
                 memory.setUpdatedAt(LocalDateTime.now());
                 agentMemoryRepository.save(memory);
                 log.info("Saved memory for agent: {} key: {}", agentId, key);
+        }
+
+        @Transactional
+        public void deleteMemoryEntry(String id) {
+                agentMemoryRepository.deleteById(id);
+        }
+
+        @Transactional
+        public void clearLongTermMemory(String agentId) {
+                agentMemoryRepository.deleteByAgentId(agentId);
+        }
+
+        public List<String> getShortTermSessions(String agentId) {
+                Set<String> keys = redisTemplate.keys("orin:memory:short:" + agentId + ":*");
+                if (keys == null || keys.isEmpty())
+                        return java.util.Collections.emptyList();
+                return keys.stream()
+                                .map(k -> k.replace("orin:memory:short:" + agentId + ":", ""))
+                                .collect(Collectors.toList());
+        }
+
+        public void clearShortTermMemory(String agentId, String sessionId) {
+                String key = "orin:memory:short:" + agentId + ":" + sessionId;
+                redisTemplate.delete(key);
         }
 
         /**

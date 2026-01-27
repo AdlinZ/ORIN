@@ -349,11 +349,13 @@ const handleCardClick = (item) => {
     router.push('/dashboard/stats/tokens');
   } else if (item.cardId === 'stat-latency') {
     router.push('/dashboard/monitor/latency');
+  } else if (item.cardId === 'stat-agents') {
+    router.push('/dashboard/agent/list');
   }
 };
 
 const statItems = computed(() => [
-  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--orin-primary)', bgColor: 'var(--orin-primary-soft)' },
+  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--orin-primary)', bgColor: 'var(--orin-primary-soft)', clickable: true },
   { cardId: 'stat-requests', label: '今日请求', key: 'daily_requests', defaultValue: '0', icon: Tickets, color: '#26FFDF', bgColor: 'rgba(38, 255, 223, 0.1)' },
   { 
     cardId: 'stat-tokens', 
@@ -509,13 +511,11 @@ const handleControl = async (action) => {
 };
 
 const openAgentDetail = (agent) => {
-  console.log('Opening agent detail:', agent);
-  selectedAgent.value = agent;
-  drawerVisible.value = true;
-  activeTab.value = 'monitor';
-  fetchDetail();
-  if (detailPollTimer) clearInterval(detailPollTimer);
-  detailPollTimer = setInterval(fetchDetail, 3000);
+  router.push({ 
+    name: 'AgentConsole', 
+    params: { id: agent.agentId },
+    query: { tab: 'monitor' } // Default to monitor tab when coming from dashboard
+  });
 };
 
 const getStatusType = (s) => ({ 'RUNNING': 'success', 'HIGH_LOAD': 'warning', 'STOPPED': 'info' }[s] || 'danger');

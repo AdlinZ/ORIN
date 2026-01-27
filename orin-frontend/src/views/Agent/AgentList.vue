@@ -6,6 +6,15 @@
       icon="UserFilled"
     >
       <template #actions>
+        <el-button 
+          v-if="selectedRows.length > 0" 
+          type="danger" 
+          plain 
+          :icon="Delete" 
+          @click="handleBulkDelete"
+        >
+          批量注销 ({{ selectedRows.length }})
+        </el-button>
         <el-button type="primary" :icon="Plus" @click="$router.push('/dashboard/agent/onboard')">接入新智能体</el-button>
         <el-button :icon="Refresh" @click="fetchData">刷新列表</el-button>
       </template>
@@ -31,9 +40,12 @@
         :data="paginatedAgentList"
         style="width: 100%"
         @row-click="handleRowClick"
+        @selection-change="handleSelectionChange"
         stripe
       >
-        <el-table-column prop="agentName" label="智能体名称" min-width="180">
+        <el-table-column type="selection" width="55" />
+
+        <el-table-column prop="agentName" label="智能体名称" min-width="180" sortable>
           <template #default="{ row }">
             <div class="agent-name-info">
               <span class="name">{{ row.agentName }}</span>
@@ -42,9 +54,17 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="modelName" label="核心模型" width="200" />
+        <el-table-column prop="providerType" label="服务提供商" width="160" sortable>
+          <template #default="{ row }">
+            <div class="provider-tag" :class="(row.providerType || 'local').toLowerCase()">
+              {{ row.providerType || 'Local' }}
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="modelName" label="核心模型" width="220" sortable />
         
-        <el-table-column prop="status" label="当前状态" width="120" align="center">
+        <el-table-column prop="status" label="状态" width="120" align="center" sortable>
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="light">
               {{ row.status === 'RUNNING' ? 'ACTIVE' : 'IDLE' }}
@@ -52,20 +72,17 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="lastHeartbeat" label="最后活跃" width="180" align="center">
+        <el-table-column prop="lastHeartbeat" label="最后活跃" width="180" align="center" sortable>
           <template #default="{ row }">
             {{ formatTime(row.lastHeartbeat) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" align="center" fixed="right">
+        <el-table-column label="进入" width="80" align="center" fixed="right">
           <template #default="{ row }">
-             <div class="row-actions">
-                <el-button link type="primary" @click.stop="handleChat(row)">对话</el-button>
-                <el-button link type="primary" @click.stop="goToMonitor(row)">监控</el-button>
-                <el-button link type="primary" @click.stop="handleEdit(row)">配置</el-button>
-                <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
-             </div>
+            <el-button link type="primary" @click.stop="handleRowClick(row)">
+              <el-icon><ArrowRight /></el-icon>
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -79,106 +96,14 @@
         />
       </div>
     </el-card>
-
-    <!-- Agent Config Drawer (Refactored from Inspector) -->
-    <el-drawer 
-      v-model="drawerVisible" 
-      title="智能体配置详情" 
-      size="550px" 
-      class="config-drawer"
-      destroy-on-close
-    >
-      <div v-loading="editLoading" class="drawer-content">
-        <div class="drawer-section">
-          <h4>基础定义</h4>
-          <el-form :model="editForm" label-position="top">
-            <el-form-item label="智能体名称">
-              <el-input v-model="editForm.name" placeholder="请输入名称" @blur="submitOptimisticUpdate('name')" />
-            </el-form-item>
-            <el-form-item label="核心模型架构">
-              <el-input v-model="editForm.model" placeholder="LLM Model Identity" @blur="submitOptimisticUpdate('model')" />
-            </el-form-item>
-          </el-form>
-        </div>
-
-        <div class="drawer-section">
-          <h4>推理参数 (Hyperparameters)</h4>
-          <div class="params-grid">
-            <div class="param-item">
-              <label>Temperature ({{ editForm.temperature }})</label>
-              <el-slider v-model="editForm.temperature" :min="0" :max="2" :step="0.1" @change="submitOptimisticUpdate('temperature')" />
-            </div>
-            <div class="param-item">
-              <label>Top P ({{ editForm.topP }})</label>
-              <el-slider v-model="editForm.topP" :min="0" :max="1" :step="0.1" @change="submitOptimisticUpdate('topP')" />
-            </div>
-          </div>
-        </div>
-
-        <div class="drawer-section">
-          <div class="section-header">
-            <h4>系统预设指令 (System Prompt)</h4>
-            <el-select v-model="selectedPromptTemplate" placeholder="应用模板" size="small" style="width: 150px;" @change="applyPromptTemplate">
-              <el-option v-for="t in promptTemplates" :key="t.id" :label="t.name" :value="t.content" />
-            </el-select>
-          </div>
-          <el-input 
-            v-model="editForm.systemPrompt" 
-            type="textarea" 
-            :rows="12" 
-            placeholder="在此定义智能体的角色、约束与技能描述..."
-            @blur="submitOptimisticUpdate('systemPrompt')"
-          />
-        </div>
-
-        <div class="drawer-footer">
-          <el-button type="primary" style="width: 100%" @click="syncKnowledgeBase" :loading="syncLoading">
-            同步关联知识资产 (Sync Knowledge Base)
-          </el-button>
-        </div>
-      </div>
-    </el-drawer>
-
-    <!-- Chat Hub (Standard Drawer Like Logs) -->
-    <el-drawer
-      v-model="chatVisible"
-      :title="'智能体对话: ' + (currentChatAgent.agentName || '')"
-      size="500px"
-      append-to-body
-      class="chat-drawer"
-    >
-      <div class="chat-main">
-        <div class="chat-history" ref="messagesContainer">
-          <div v-for="(msg, i) in chatMessages" :key="i" class="chat-bubble" :class="msg.role">
-            <div class="bubble-content">{{ msg.content }}</div>
-          </div>
-          <div v-if="chatLoading" class="chat-bubble assistant">
-             <div class="bubble-content typing">...</div>
-          </div>
-        </div>
-        <div class="chat-input-area">
-          <el-input 
-            v-model="chatInput" 
-            placeholder="发送指令或提问..." 
-            @keyup.enter="sendMessage"
-            :disabled="chatLoading"
-          >
-            <template #suffix>
-              <el-icon class="icon-send" @click="sendMessage"><Position /></el-icon>
-            </template>
-          </el-input>
-        </div>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
-  Plus, Search, Refresh, UserFilled, Position, 
-  Cpu, User, ChatDotRound, Delete, Monitor 
+  Plus, Search, Refresh, UserFilled, Delete, ArrowRight 
 } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -186,10 +111,8 @@ import {
   getAgentList as getMonitorAgentList 
 } from '@/api/monitor';
 import { 
-  updateAgent, getAgentAccessProfile, 
-  getAgentMetadata, chatAgent, deleteAgent 
+  deleteAgent 
 } from '@/api/agent';
-import request from '@/utils/request';
 
 const router = useRouter();
 const loading = ref(false);
@@ -198,29 +121,7 @@ const searchQuery = ref('');
 const statusFilter = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
-
-// Drawer States
-const drawerVisible = ref(false);
-const editLoading = ref(false);
-const syncLoading = ref(false);
-const editForm = ref({
-  agentId: '',
-  name: '',
-  model: '',
-  temperature: 0.7,
-  topP: 0.7,
-  systemPrompt: ''
-});
-const promptTemplates = ref([]);
-const selectedPromptTemplate = ref('');
-
-// Chat States
-const chatVisible = ref(false);
-const currentChatAgent = ref({});
-const chatMessages = ref([]);
-const chatInput = ref('');
-const chatLoading = ref(false);
-const messagesContainer = ref(null);
+const selectedRows = ref([]);
 
 // Data Fetching
 const fetchData = async () => {
@@ -258,115 +159,37 @@ const paginatedAgentList = computed(() => {
 });
 
 // UI Handlers
+const handleSelectionChange = (val) => {
+  selectedRows.value = val;
+};
+
 const handleRowClick = (row) => {
-  handleEdit(row);
+  router.push({ 
+    name: 'AgentConsole', 
+    params: { id: row.agentId },
+    query: { tab: 'chat' }
+  });
 };
 
-const handleEdit = async (row) => {
-  drawerVisible.value = true;
-  editLoading.value = true;
-  
-  editForm.value = {
-    agentId: row.agentId,
-    name: row.agentName || '',
-    model: row.modelName || '',
-    temperature: 0.7,
-    topP: 0.7,
-    systemPrompt: ''
-  };
-
-  try {
-    const [metaRes, promptRes] = await Promise.all([
-      getAgentMetadata(row.agentId),
-      request.get(`/knowledge/agents/${row.agentId}/meta/prompts`)
-    ]);
-
-    if (metaRes) {
-      editForm.value = { ...editForm.value, ...metaRes };
-      editForm.value.name = metaRes.name; // Mapping backend 'name' to frontend 'name'
-      editForm.value.model = metaRes.modelName;
-    }
-    promptTemplates.value = promptRes || [];
-  } catch (e) {
-    console.warn('Config fetch failure');
-  } finally {
-    editLoading.value = false;
-  }
-};
-
-const submitOptimisticUpdate = async (field) => {
-  // Sync to local list for immediate visual feedback
-  const index = rawAgentList.value.findIndex(a => a.agentId === editForm.value.agentId);
-  if (index !== -1) {
-    if (field === 'name') rawAgentList.value[index].agentName = editForm.value.name;
-    if (field === 'model') rawAgentList.value[index].modelName = editForm.value.model;
-  }
-
-  try {
-    await updateAgent(editForm.value.agentId, editForm.value);
-    ElMessage({ message: `配置同步成功: ${field}`, type: 'success', duration: 1000 });
-  } catch (e) {
-    ElMessage.error('同步失败，请检查网络');
-    fetchData(); // Rollback
-  }
-};
-
-const applyPromptTemplate = (content) => {
-  if (content) {
-    editForm.value.systemPrompt = content;
-    submitOptimisticUpdate('systemPrompt');
-  }
-};
-
-const syncKnowledgeBase = () => {
-  syncLoading.value = true;
-  setTimeout(() => {
-    ElMessage.success('全域知识索引已重新热加载');
-    syncLoading.value = false;
-  }, 1200);
-};
-
-// Chat Logic
-const handleChat = (row) => {
-  currentChatAgent.value = row;
-  chatVisible.value = true;
-  chatMessages.value = [{ role: 'assistant', content: `你好，我是 ${row.agentName}。我已准备好协助你，请发送指令。` }];
-};
-
-const sendMessage = async () => {
-  if (!chatInput.value.trim() || chatLoading.value) return;
-  
-  const msg = chatInput.value;
-  chatMessages.value.push({ role: 'user', content: msg });
-  chatInput.value = '';
-  chatLoading.value = true;
-  
-  try {
-    const res = await chatAgent(currentChatAgent.value.agentId, msg);
-    // Handle both Dify (answer) and OpenAI/SiliconFlow (choices) formats
-    const answer = res.answer || res.choices?.[0]?.message?.content || JSON.stringify(res);
-    chatMessages.value.push({ role: 'assistant', content: answer || '处理完成' });
-  } catch (e) {
-    chatMessages.value.push({ role: 'assistant', content: '（交互异常，请检查智能体服务状态）' });
-  } finally {
-    chatLoading.value = false;
-    nextTick(() => {
-      if (messagesContainer.value) messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-    });
-  }
-};
-
-const handleDelete = (row) => {
-  ElMessageBox.confirm(`确认注销智能体 [${row.agentName}] 吗？`, '安全警告', { type: 'warning' })
-    .then(async () => {
-      await deleteAgent(row.agentId);
-      ElMessage.success('智能体已下线');
+const handleBulkDelete = () => {
+  const count = selectedRows.value.length;
+  ElMessageBox.confirm(
+    `确认注销这 ${count} 个智能体吗？此操作不可逆。`, 
+    '批量注销警告', 
+    { type: 'warning', confirmButtonText: '立即注销', confirmButtonClass: 'el-button--danger' }
+  ).then(async () => {
+    loading.value = true;
+    try {
+      await Promise.all(selectedRows.value.map(row => deleteAgent(row.agentId)));
+      ElMessage.success(`${count} 个智能体已下线`);
       fetchData();
-    });
-};
-
-const goToMonitor = (row) => {
-  router.push({ path: '/dashboard/monitor', query: { agentId: row.agentId } });
+      selectedRows.value = [];
+    } catch (e) {
+      ElMessage.error('部分智能体下线失败');
+    } finally {
+      loading.value = false;
+    }
+  });
 };
 
 const getStatusType = (status) => {
@@ -401,20 +224,24 @@ onMounted(() => {
   margin-top: 5px;
 }
 
-.row-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  white-space: nowrap;
+.provider-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  background: #f0f2f5;
+  color: #606266;
+  display: inline-block;
 }
+.provider-tag.openai { background: #10a37f !important; color: #fff !important; }
+.provider-tag.anthropic { background: #d97757 !important; color: #fff !important; }
+.provider-tag.ollama { background: #000 !important; color: #fff !important; }
+.provider-tag.dify { background: #155eef !important; color: #fff !important; }
+.provider-tag.siliconflow { background: #6b46c1 !important; color: #fff !important; }
+.provider-tag.deepseek { background: #2f54eb !important; color: #fff !important; }
 
-.agent-name-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-}
+.name { font-weight: 600; color: var(--neutral-black); }
 
 .pagination-container {
   margin-top: 24px;
@@ -422,102 +249,14 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-/* Drawer Styles */
-.drawer-content {
-  padding: 0 24px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.drawer-section h4 {
-  font-size: 14px;
-  color: var(--orin-primary);
-  margin: 0 0 16px 0;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 5px;
-}
-
-.params-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-.param-item label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  display: block;
-  margin-bottom: 8px;
-}
-
-.drawer-footer {
-  margin-top: auto;
-  padding-top: 24px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-/* Chat Drawer Styles */
-.chat-main {
-  height: calc(100vh - 80px);
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-history {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background: var(--neutral-gray-50);
-}
-
-.chat-bubble {
-  max-width: 85%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.chat-bubble.user {
-  align-self: flex-end;
-  background: var(--orin-primary);
-  color: white;
-  border-bottom-right-radius: 2px;
-}
-
-.chat-bubble.assistant {
-  align-self: flex-start;
-  background: white;
-  color: var(--text-primary);
-  border-bottom-left-radius: 2px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.chat-input-area {
-  padding: 20px 24px;
-  background: white;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.icon-send {
+:deep(.el-table__row) {
   cursor: pointer;
-  color: var(--orin-primary);
-  font-size: 18px;
-  transition: transform 0.2s;
 }
 
-.icon-send:hover {
-  transform: scale(1.1) translateX(2px);
+.new-tag {
+  font-size: 10px;
+  padding: 0 4px;
+  height: 18px;
+  line-height: 16px;
 }
 </style>

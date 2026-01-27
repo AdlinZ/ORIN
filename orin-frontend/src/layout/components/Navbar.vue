@@ -1,13 +1,8 @@
 <template>
   <div class="header-container">
     <div class="left-panel">
-      <el-icon class="fold-btn" @click="appStore.toggleSidebar">
-        <Fold v-if="!appStore.isCollapse" />
-        <Expand v-else />
-      </el-icon>
-      
       <el-breadcrumb separator="/" class="dynamic-breadcrumb">
-        <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ path: '/dashboard/monitor' }">智能看板</el-breadcrumb-item>
         <el-breadcrumb-item v-for="(item, index) in breadcrumbs" :key="index" :to="item.path">
           {{ item.meta.title }}
         </el-breadcrumb-item>
@@ -15,6 +10,9 @@
     </div>
 
     <div class="right-panel">
+      <!-- Teleport target for page-specific actions -->
+      <div id="navbar-actions" class="navbar-actions"></div>
+
       <div class="action-items">
         <el-tooltip :content="isDark ? '切换亮色模式' : '切换暗黑模式'" placement="bottom">
           <el-icon class="action-icon" @click="toggleDarkMode">
@@ -27,153 +25,41 @@
           <el-icon class="action-icon" @click="toggleFullScreen"><FullScreen /></el-icon>
         </el-tooltip>
 
-        <el-tooltip :content="refreshTooltip" placement="bottom">
-          <el-icon 
-            class="action-icon refresh-icon" 
-            :class="{ 'is-refreshing': refreshStore.refreshStatus === 'refreshing' }"
-            @click="handleRefresh"
-          >
-            <Refresh v-if="refreshStore.refreshStatus !== 'refreshing'" />
-            <Close v-else />
+        <el-tooltip content="刷新当前页面" placement="bottom">
+          <el-icon class="action-icon" @click="handleRefresh">
+            <Refresh />
           </el-icon>
         </el-tooltip>
-      </div>
-
-      <div class="user-control">
-        <el-dropdown trigger="click" @command="handleCommand">
-          <div class="avatar-wrapper">
-            <div class="user-info-text">
-              <span class="user-name">{{ userInfo.name || '游客' }}</span>
-              <span class="user-tag" v-if="userInfo.role">{{ userInfo.role }}</span>
-            </div>
-            <el-avatar 
-              :size="36" 
-              :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'" 
-              class="user-avatar"
-            />
-            <el-icon class="caret-icon"><CaretBottom /></el-icon>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu class="user-dropdown">
-              <el-dropdown-item command="profile" v-if="userInfo.name">
-                <el-icon><User /></el-icon>个人中心
-              </el-dropdown-item>
-              <el-dropdown-item command="settings" v-if="userInfo.name">
-                <el-icon><Setting /></el-icon>账号设置
-              </el-dropdown-item>
-              <el-dropdown-item command="login" v-if="!userInfo.name">
-                <el-icon><User /></el-icon>登录
-              </el-dropdown-item>
-              <el-dropdown-item divided command="logout" class="logout-item" v-if="userInfo.name">
-                <el-icon><SwitchButton /></el-icon>退出登录
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import Cookies from 'js-cookie';
+import { computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { useAppStore } from '@/stores/app';
-import { useUserStore } from '@/stores/user';
-import { useRefreshStore } from '@/stores/refresh';
-import { useRoute } from 'vue-router';
-import { useDark, useToggle, useFullscreen } from '@vueuse/core';
+import { useDark, useFullscreen } from '@vueuse/core';
 import { 
-  Fold, Expand, Refresh, CaretBottom, Moon, 
-  Sunny, FullScreen, User, Setting, SwitchButton, Close
+  Refresh, Moon, Sunny, FullScreen
 } from '@element-plus/icons-vue';
 
 const router = useRouter();
-
-const appStore = useAppStore();
-const userStore = useUserStore();
-const refreshStore = useRefreshStore();
 const route = useRoute();
 
-// 用户信息状态
-const userInfo = reactive({
-  name: '',
-  role: '',
-  avatar: ''
-});
-
-// 角色代码到显示名称的映射
-const roleNameMap = {
-  'ROLE_ADMIN': '管理员',
-  'ROLE_USER': '用户'
-};
-
-// 检查登录状态并更新用户信息
-const checkLoginStatus = () => {
-  const token = Cookies.get('orin_token');
-  if (token) {
-    // 优先从 userStore 获取用户信息
-    if (userStore.userInfo) {
-      userInfo.name = userStore.userInfo.username || userStore.userInfo.nickname || '用户';
-      userInfo.avatar = userStore.userInfo.avatar || '';
-      // 显示第一个角色的友好名称
-      if (userStore.roles && userStore.roles.length > 0) {
-        userInfo.role = roleNameMap[userStore.roles[0]] || userStore.roles[0];
-      } else {
-        userInfo.role = '用户';
-      }
-    } else {
-      // 如果 userStore 没有数据，从 localStorage 获取
-      const storedUser = localStorage.getItem('orin_user');
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser);
-          userInfo.name = user.username || user.nickname || '用户';
-          userInfo.avatar = user.avatar || '';
-          
-          // 从 cookie 获取角色
-          const storedRoles = Cookies.get('orin_roles');
-          if (storedRoles) {
-            const roles = JSON.parse(storedRoles);
-            userInfo.role = roleNameMap[roles[0]] || roles[0] || '用户';
-          } else {
-            userInfo.role = '用户';
-          }
-        } catch (e) {
-          console.error('解析用户信息失败:', e);
-          userInfo.name = '用户';
-          userInfo.role = '用户';
-        }
-      } else {
-        userInfo.name = '用户';
-        userInfo.role = '用户';
-      }
-    }
-  } else {
-    // 未登录状态
-    userInfo.name = '';
-    userInfo.role = '';
-    userInfo.avatar = '';
-  }
-};
-
-// 初始化时检查登录状态
-onMounted(() => {
-  checkLoginStatus();
-});
-
-// 监听路由变化，更新用户信息
-router.afterEach(() => {
-  checkLoginStatus();
-});
+const appStore = useAppStore();
 
 const breadcrumbs = computed(() => {
-  return route.matched.filter(item => item.meta && item.meta.title && item.path !== '/dashboard');
+  return route.matched.filter(item => 
+    item.meta && 
+    item.meta.title && 
+    item.path !== '/dashboard' && 
+    item.path !== '/dashboard/monitor'
+  );
 });
 
-// Dark mode logic - explicit control
+// Dark mode logic
 const isDark = useDark({
   onChanged(dark) {
     if (dark) {
@@ -183,6 +69,7 @@ const isDark = useDark({
     }
   }
 });
+
 const toggleDarkMode = () => {
   isDark.value = !isDark.value;
 };
@@ -190,56 +77,16 @@ const toggleDarkMode = () => {
 // Fullscreen logic
 const { isFullscreen, toggle: toggleFullScreen } = useFullscreen();
 
-// 刷新提示文本
-const refreshTooltip = computed(() => {
-  if (refreshStore.refreshStatus === 'refreshing') {
-    return `取消刷新 (${refreshStore.activeRefreshCount} 个任务进行中)`;
-  }
-  return '刷新所有数据';
-});
-
+// 刷新当前页面
 const handleRefresh = () => {
-  const result = refreshStore.triggerGlobalRefresh();
+  // 触发当前页面的刷新事件
+  window.dispatchEvent(new Event('page-refresh'));
   
-  if (result === 'cancelled') {
-    ElMessage({
-      message: '已取消所有刷新任务',
-      type: 'warning',
-      duration: 2000
-    });
-  } else {
-    ElMessage({
-      message: '正在刷新所有页面数据...',
-      type: 'info',
-      duration: 1500
-    });
-  }
-};
-
-const handleLogout = () => {
-  // 使用 userStore 的 logout 方法清除所有数据
-  userStore.logout();
-  // 清除 localStorage
-  localStorage.removeItem('orin_user');
-  ElMessage.success('已安全退出登录');
-  router.push('/login');
-};
-
-const handleCommand = (command) => {
-  switch (command) {
-    case 'logout':
-      handleLogout();
-      break;
-    case 'profile':
-      router.push('/dashboard/profile');
-      break;
-    case 'settings':
-      ElMessage.info('系统设置模块开发中');
-      break;
-    case 'login':
-      router.push('/login');
-      break;
-  }
+  ElMessage({
+    message: '正在刷新页面数据...',
+    type: 'info',
+    duration: 1500
+  });
 };
 </script>
 
@@ -262,32 +109,35 @@ const handleCommand = (command) => {
   align-items: center;
 }
 
-.fold-btn {
-  font-size: 20px;
-  cursor: pointer;
-  margin-right: 20px;
-  color: var(--neutral-gray-5);
+.dynamic-breadcrumb {
+  flex-shrink: 0;
 }
 
 .right-panel {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .action-items {
   display: flex;
   align-items: center;
-  border-right: 1px solid var(--neutral-gray-100);
-  padding-right: 20px;
+  gap: 12px;
+  padding-left: 16px;
+  border-left: 1px solid var(--neutral-gray-100);
 }
 
 .action-icon {
   font-size: 20px;
   cursor: pointer;
-  margin-left: 16px;
   color: var(--neutral-gray-600);
-  transition: all 0.2s;
+  transition: all 0.3s;
 }
 
 .action-icon:hover {
@@ -311,76 +161,21 @@ const handleCommand = (command) => {
   }
 }
 
-.user-control {
-  cursor: pointer;
+/* Dark mode support */
+html.dark .header-container {
+  background: var(--neutral-gray-900);
+  border-bottom-color: var(--neutral-gray-700);
 }
 
-.avatar-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: background 0.2s;
+html.dark .action-items {
+  border-left-color: var(--neutral-gray-700);
 }
 
-.avatar-wrapper:hover {
-  background: var(--neutral-gray-50);
-}
-
-.user-info-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.user-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--neutral-gray-900);
-  line-height: 1.2;
-}
-
-.user-tag {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--primary-color);
-  background: var(--primary-light);
-  padding: 0 4px;
-  border-radius: 4px;
-  margin-top: 2px;
-}
-
-.user-avatar {
-  border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.caret-icon {
-  font-size: 12px;
+html.dark .action-icon {
   color: var(--neutral-gray-400);
 }
 
-/* Dropdown Menu Styling */
-.user-dropdown {
-  padding: 8px !important;
-  border-radius: 12px !important;
-}
-
-:deep(.el-dropdown-menu__item) {
-  padding: 10px 16px !important;
-  border-radius: 8px !important;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logout-item {
-  color: var(--error-color) !important;
-}
-
-.logout-item:hover {
-  background-color: #fff1f0 !important;
+html.dark .action-icon:hover {
+  color: var(--orin-primary);
 }
 </style>

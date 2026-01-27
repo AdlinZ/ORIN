@@ -12,4 +12,6 @@ public interface AgentMemoryRepository extends JpaRepository<AgentMemory, String
     List<AgentMemory> findByAgentId(String agentId);
 
     Optional<AgentMemory> findByAgentIdAndKey(String agentId, String key);
+
+    void deleteByAgentId(String agentId);
 }

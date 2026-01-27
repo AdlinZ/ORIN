@@ -26,7 +26,7 @@ const routes = [
                 path: 'monitor',
                 name: 'Monitor',
                 component: () => import('@/views/MonitorDashboard.vue'),
-                meta: { title: '监控大屏', icon: 'Monitor' }
+                meta: { title: '智能看板', icon: 'Monitor' }
             },
             {
                 path: 'profile',
@@ -43,6 +43,12 @@ const routes = [
                         name: 'AgentList',
                         component: () => import('../views/Agent/AgentList.vue'),
                         meta: { title: '智能体列表' }
+                    },
+                    {
+                        path: 'console/:id',
+                        name: 'AgentConsole',
+                        component: () => import('../views/Agent/AgentConsole.vue'),
+                        meta: { title: '智能体控制台' }
                     },
                     {
                         path: 'onboard',
@@ -215,7 +221,7 @@ const routes = [
                 path: 'monitor/latency',
                 name: 'LatencyStats',
                 component: () => import('../views/Monitor/LatencyStats.vue'),
-                meta: { title: '延迟分析', icon: 'Connection' }
+                meta: { title: '延迟分析', pageTitle: '延迟统计分析', icon: 'Connection' }
             }
         ]
     },

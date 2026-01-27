@@ -133,8 +133,8 @@ public class MonitorServiceImpl implements MonitorService {
                                         .responseLatency(l.getResponseTime() != null ? l.getResponseTime().intValue()
                                                         : 0)
                                         .tokenCost(l.getTotalTokens())
-                                        .cpuUsage(fetchRealTimeCpu(agentId)) // 尝试获取实时 CPU
-                                        .memoryUsage(fetchRealTimeMemory(agentId))
+                                        .cpuUsage(0.0) // Don't fetch real-time physical stats for every historical log
+                                        .memoryUsage(0.0)
                                         .build()).collect(Collectors.toList());
 
                         metrics.addAll(logMetrics);
@@ -551,20 +551,4 @@ public class MonitorServiceImpl implements MonitorService {
                 return prometheusConfigRepository.findById("DEFAULT").orElse(null);
         }
 
-        private Double fetchRealTimeCpu(String agentId) {
-                // 简单逻辑：如果是主服务器相关的 Agent，获取物理 CPU
-                PrometheusConfig config = getPrometheusConfig();
-                if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
-                        return prometheusService.getCpuUsage(config.getPrometheusUrl());
-                }
-                return 0.0;
-        }
-
-        private Double fetchRealTimeMemory(String agentId) {
-                PrometheusConfig config = getPrometheusConfig();
-                if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
-                        return prometheusService.getMemoryUsage(config.getPrometheusUrl());
-                }
-                return 0.0;
-        }
 }

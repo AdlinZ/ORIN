@@ -78,7 +78,7 @@
             <span class="card-title">成本估算</span>
           </template>
           <div class="cost-content">
-            <p class="cost-note">基于平均价格 $0.002 / 1K tokens</p>
+            <p class="cost-note">基于设置单价 {{ costConfig.currency }}{{ costConfig.unitPrice }} / 1K tokens</p>
             <el-descriptions :column="1" border>
               <el-descriptions-item label="今日成本">
                 <span class="cost-value">${{ calculateCost(tokenStats.daily) }}</span>
@@ -126,25 +126,24 @@
         </div>
       </template>
       <el-table :data="historyData" v-loading="historyLoading" stripe>
-        <el-table-column prop="date" label="日期" width="120" />
-        <el-table-column prop="agentName" label="智能体" width="150" />
-        <el-table-column prop="tokens" label="Token 消耗" width="120" align="right">
+        <el-table-column prop="createdAt" label="时间" width="160">
           <template #default="{ row }">
-            {{ formatNumber(row.tokens) }}
+            {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column prop="requests" label="请求次数" width="100" align="center" />
-        <el-table-column prop="avgTokens" label="平均 Token/请求" width="150" align="right">
+        <el-table-column prop="providerId" label="智能体 ID" width="180" show-overflow-tooltip />
+        <el-table-column prop="totalTokens" label="Token 消耗" width="120" align="right">
           <template #default="{ row }">
-            {{ (row.avgTokens || 0).toFixed(2) }}
+            {{ formatNumber(row.totalTokens) }}
           </template>
         </el-table-column>
-        <el-table-column prop="cost" label="成本" width="100" align="right">
+        <el-table-column prop="responseTime" label="耗时 (ms)" width="100" align="center" />
+        <el-table-column prop="model" label="模型" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="estimatedCost" label="估算成本" min-width="100" align="right">
           <template #default="{ row }">
-            ${{ (row.cost || 0).toFixed(4) }}
+            ${{ (row.estimatedCost || 0).toFixed(6) }}
           </template>
         </el-table-column>
-        <el-table-column prop="model" label="模型" show-overflow-tooltip />
       </el-table>
 
       <div class="pagination-container">
@@ -246,25 +245,22 @@ const calculateCost = (tokens) => {
   return (tokens / 1000 * costConfig.value.unitPrice).toFixed(4);
 };
 
+const formatDateTime = (val) => {
+  if (!val) return '-';
+  return new Date(val).toLocaleString();
+};
+
 // 获取统计数据
 // 获取统计数据
 const fetchData = async () => {
   try {
     const res = await getTokenStats();
-    if (res && (res.total > 0 || res.daily > 0)) {
+    if (res) {
       tokenStats.value = res;
-    } else {
-      throw new Error('No data');
     }
   } catch (error) {
-    console.warn('获取 Token 统计失败或无数据，使用模拟数据');
-    // Mock 数据
-    tokenStats.value = {
-      daily: 15420,
-      weekly: 108500,
-      monthly: 452000,
-      total: 1250000
-    };
+    console.warn('获取 Token 统计失败');
+    tokenStats.value = { daily: 0, weekly: 0, monthly: 0, total: 0 };
   }
 };
 
@@ -402,41 +398,28 @@ const fetchHistoryData = async () => {
     }
 
     const res = await getTokenHistory(params);
-    if (res && res.content && res.content.length > 0) {
+    if (res && res.content) {
       historyData.value = res.content || [];
       total.value = res.totalElements || 0;
-      if (res.distribution) renderDistributionChart(res.distribution);
-    } else {
-       throw new Error('No history data');
+      
+      // Calculate distribution from history if backend doesn't provide it
+      if (historyData.value.length > 0) {
+        const distMap = {};
+        historyData.value.forEach(item => {
+          const key = item.providerId || 'Unknown Agent';
+          distMap[key] = (distMap[key] || 0) + (item.totalTokens || 0);
+        });
+        const distData = Object.entries(distMap).map(([name, value]) => ({ name, value }));
+        renderDistributionChart(distData);
+      } else {
+        renderDistributionChart([]);
+      }
     }
   } catch (error) {
-    const mockHistory = [];
-    const models = ['gpt-4', 'gpt-3.5-turbo', 'claude-3-opus', 'gemini-pro'];
-    const agents = ['客服助手', '代码审核', '翻译专家', '数据分析师'];
-    
-    for (let i = 0; i < 15; i++) {
-        const tokens = Math.floor(Math.random() * 2000) + 100;
-        const requests = Math.floor(Math.random() * 10) + 1;
-        mockHistory.push({
-            date: new Date().toLocaleDateString(),
-            agentName: agents[Math.floor(Math.random() * agents.length)],
-            tokens: tokens,
-            requests: requests,
-            avgTokens: tokens / requests,
-            cost: (tokens / 1000) * costConfig.value.unitPrice,
-            model: models[Math.floor(Math.random() * models.length)]
-        });
-    }
-    
-    historyData.value = mockHistory;
-    total.value = 50;
-    
-    renderDistributionChart([
-        { value: 45, name: '客服助手', itemStyle: { color: '#00BFA5' } },
-        { value: 25, name: '代码审核', itemStyle: { color: '#009688' } },
-        { value: 20, name: '翻译专家', itemStyle: { color: '#4DB6AC' } },
-        { value: 10, name: '数据分析师', itemStyle: { color: '#80CBC4' } }
-    ]);
+    console.warn('获取历史数据失败:', error);
+    historyData.value = [];
+    total.value = 0;
+    renderDistributionChart([]);
   } finally {
     historyLoading.value = false;
   }

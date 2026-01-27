@@ -1,16 +1,9 @@
 <template>
   <div class="page-container">
-    <PageHeader 
-      title="延迟统计分析" 
-      description="分析系统响应速度、延迟趋势及性能瓶颈"
-      icon="Connection"
-    >
-      <template #actions>
-
-        <el-button :icon="Download" @click="handleExport">导出报告</el-button>
-        <el-button :icon="Refresh" @click="fetchData">刷新数据</el-button>
-      </template>
-    </PageHeader>
+    <!-- Teleport actions to Navbar -->
+    <Teleport to="#navbar-actions" :disabled="false" defer>
+      <el-button :icon="Download" @click="handleExport">导出报告</el-button>
+    </Teleport>
 
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
@@ -94,13 +87,12 @@
             {{ formatNumber(row.totalTokens) }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-             <template #default="{ row }">
-                <el-tag v-if="row.status === 'success'" type="success" size="small">成功</el-tag>
-                <el-tag v-else type="danger" size="small">失败</el-tag>
-             </template>
-        </el-table-column>
-        <el-table-column prop="error" label="错误信息" show-overflow-tooltip />
+         <el-table-column prop="success" label="状态" width="100" align="center">
+              <template #default="{ row }">
+                 <el-tag v-if="row.success" type="success" size="small">成功</el-tag>
+                 <el-tag v-else type="danger" size="small">失败</el-tag>
+              </template>
+         </el-table-column>
       </el-table>
 
       <div class="pagination-container">
@@ -119,9 +111,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { Download, Refresh, Timer, TrendCharts, WarningFilled, Connection } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
 import { getLatencyStats, getLatencyHistory, getLatencyTrend } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
 import * as echarts from 'echarts';
@@ -211,17 +202,8 @@ const fetchData = async () => {
       latencyStats.value = res;
     }
   } catch (error) {
-    console.warn('获取延迟统计失败，使用模拟数据:', error);
-    latencyStats.value = {
-      daily: 450,
-      weekly: 420,
-      monthly: 480,
-      max: 5200
-    };
-    ElMessage.warning({
-        message: '获取数据失败，已切换至演示数据',
-        duration: 3000
-    });
+    console.warn('获取延迟统计失败');
+    latencyStats.value = { daily: 0, weekly: 0, monthly: 0, max: 0 };
   }
 };
 
@@ -393,7 +375,7 @@ const handleExport = () => {
     item.providerId,
     item.responseTime,
     item.totalTokens,
-    item.status
+    item.success ? '成功' : '失败'
   ]);
   const csvContent = "\ufeff" + [headers, ...rows].map(e => e.join(",")).join("\n");
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -417,7 +399,7 @@ onMounted(() => {
   fetchData();
   fetchTrendData();
   fetchHistoryData();
-  window.addEventListener('global-refresh', handleGlobalRefresh);
+  window.addEventListener('page-refresh', handleGlobalRefresh);
   window.addEventListener('resize', () => {
     trendChartInstance?.resize();
     distributionChartInstance?.resize();
@@ -425,7 +407,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  window.removeEventListener('global-refresh', handleGlobalRefresh);
+  window.removeEventListener('page-refresh', handleGlobalRefresh);
   window.removeEventListener('resize', () => {
     trendChartInstance?.resize();
     distributionChartInstance?.resize();
@@ -436,7 +418,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.page-container { padding: 0; }
+.page-container { 
+  padding: 0;
+  margin-top: 0;
+}
 .stats-row { margin-bottom: 24px; }
 .stat-card {
   border-radius: var(--radius-xl) !important;

@@ -178,10 +178,53 @@ public class KnowledgeManageController {
         return metaKnowledgeService.savePromptTemplate(template);
     }
 
+    @Operation(summary = "删除 Prompt 模板")
+    @DeleteMapping("/agents/{agentId}/meta/prompts/{id}")
+    public Map<String, String> deletePrompt(@PathVariable String agentId, @PathVariable String id) {
+        metaKnowledgeService.deletePromptTemplate(id);
+        return Map.of("status", "success");
+    }
+
     @Operation(summary = "获取记忆知识")
     @GetMapping("/agents/{agentId}/meta/memory")
     public List<Map<String, Object>> getAgentMemory(@PathVariable String agentId) {
         return metaKnowledgeService.getAgentMemory(agentId);
+    }
+
+    @Operation(summary = "删除单个记忆")
+    @DeleteMapping("/agents/{agentId}/meta/memory/{id}")
+    public Map<String, String> deleteMemory(@PathVariable String agentId, @PathVariable String id) {
+        metaKnowledgeService.deleteMemoryEntry(id);
+        return Map.of("status", "success");
+    }
+
+    @Operation(summary = "清除所有长期记忆")
+    @DeleteMapping("/agents/{agentId}/meta/memory")
+    public Map<String, String> clearMemory(@PathVariable String agentId) {
+        metaKnowledgeService.clearLongTermMemory(agentId);
+        return Map.of("status", "success");
+    }
+
+    @Operation(summary = "获取短期记忆会话列表")
+    @GetMapping("/agents/{agentId}/meta/memory/sessions")
+    public List<String> getShortTermSessions(@PathVariable String agentId) {
+        return metaKnowledgeService.getShortTermSessions(agentId);
+    }
+
+    @Operation(summary = "获取短期记忆内容")
+    @GetMapping("/agents/{agentId}/meta/memory/sessions/{sessionId}")
+    public List<Map<String, Object>> getShortTermMemory(
+            @PathVariable String agentId,
+            @PathVariable String sessionId,
+            @RequestParam(defaultValue = "50") int limit) {
+        return metaKnowledgeService.getShortTermMemory(agentId, sessionId, limit);
+    }
+
+    @Operation(summary = "清除短期记忆")
+    @DeleteMapping("/agents/{agentId}/meta/memory/sessions/{sessionId}")
+    public Map<String, String> clearShortTermMemory(@PathVariable String agentId, @PathVariable String sessionId) {
+        metaKnowledgeService.clearShortTermMemory(agentId, sessionId);
+        return Map.of("status", "success");
     }
 
     private final com.adlin.orin.modules.agent.service.AgentManageService agentManageService;
