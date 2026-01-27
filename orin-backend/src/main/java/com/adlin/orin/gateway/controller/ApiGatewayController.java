@@ -4,7 +4,6 @@ import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
 import com.adlin.orin.gateway.dto.EmbeddingRequest;
-import com.adlin.orin.gateway.dto.EmbeddingResponse;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import com.adlin.orin.gateway.service.RouterService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -236,7 +235,7 @@ public class ApiGatewayController {
         }
     }
 
-    private final com.adlin.orin.modules.workflow.service.WorkflowExecutor workflowExecutor;
+    private final com.adlin.orin.modules.workflow.service.WorkflowService workflowService;
 
     /**
      * 执行工作流
@@ -248,7 +247,15 @@ public class ApiGatewayController {
             @PathVariable String workflowId,
             @RequestBody Map<String, Object> input) {
 
-        return Mono.fromCallable(() -> workflowExecutor.executeWorkflow(workflowId, input))
+        return Mono.fromCallable(() -> {
+            Long id = Long.parseLong(workflowId);
+            Long instanceId = workflowService.triggerWorkflow(id, input, "API_GATEWAY");
+            Map<String, Object> result = new HashMap<>();
+            result.put("instanceId", instanceId);
+            result.put("status", "RUNNING");
+            result.put("message", "Workflow execution started");
+            return result;
+        })
                 .map(result -> ResponseEntity.ok(result))
                 .onErrorResume(e -> {
                     log.error("Workflow execution error: {}", e.getMessage(), e);

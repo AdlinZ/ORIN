@@ -43,10 +43,12 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/repository/WorkflowStepRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/common/exception/ErrorCode.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/dto/KnowledgeBaseCreateRequest.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/dto/WorkflowAccessResponse.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/engine/WorkflowEngine.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/controller/AgentManageController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/mapper/SystemMapper.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/common/dto/ApiResponse.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/config/AsyncConfig.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/entity/WorkflowDefinition.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/trace/entity/WorkflowTraceEntity.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/repository/WorkflowNodeRepository.java
@@ -55,6 +57,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/entity/AgentVersion.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/monitor/service/PrometheusService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/dto/UnifiedKnowledgeDTO.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/entity/ExternalProviderKey.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/service/AgentManageService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/gateway/controller/ApiGatewayController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/dto/AgentListResponse.java
@@ -68,6 +71,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/common/exception/AuthenticationException.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/model/service/ZhipuIntegrationService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/dto/AgentCreateRequest.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/model/service/ModelFetchService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/model/controller/ModelManageController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/skill/dto/SkillResponse.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/service/WorkflowEventPublisher.java
@@ -108,6 +112,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/service/KnowledgeManageService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/service/impl/StructuredServiceImpl.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/gateway/service/RouterService.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/repository/ExternalProviderKeyRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/multimodal/service/MultimodalFileService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/entity/ApiEndpoint.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/service/AgentExecutor.java
@@ -160,13 +165,13 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/alert/entity/AlertRule.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/dto/WorkflowStepRequest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/repository/LogConfigRepository.java
-/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/service/WorkflowExecutor.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/monitor/repository/AgentHealthStatusRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/repository/SysUserRoleRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/skill/entity/SkillEntity.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/model/service/ModelManageService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/dto/AgentRunConfig.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/entity/meta/AgentMemory.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/service/ProviderKeyService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/repository/ApiKeyRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/OrinApplication.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/trace/repository/WorkflowTraceRepository.java

@@ -11,8 +11,8 @@
           <el-icon class="edit-icon"><Edit /></el-icon>
         </div>
         <nav class="sub-nav">
-          <a href="#" class="sub-nav-item active">编排</a>
-          <a href="#" class="sub-nav-item">访问 API</a>
+          <a href="#" class="sub-nav-item" :class="{ active: activeTab === 'orchestrate' }" @click.prevent="activeTab = 'orchestrate'">编排</a>
+          <a href="#" class="sub-nav-item" :class="{ active: activeTab === 'api' }" @click.prevent="activeTab = 'api'">访问 API</a>
           <a href="#" class="sub-nav-item">日志与标注</a>
           <a href="#" class="sub-nav-item">监测</a>
         </nav>
@@ -25,26 +25,18 @@
         </div>
         <el-divider direction="vertical" />
         <div class="action-group">
-          <el-button link class="preview-btn"><el-icon><VideoPlay /></el-icon> 预览</el-button>
-          <el-button link><el-icon><RefreshRight /></el-icon></el-button>
+          <el-button link class="preview-btn" @click="handlePreview"><el-icon><VideoPlay /></el-icon> 预览</el-button>
+          <el-button link @click="handleSave()"><el-icon><RefreshRight /></el-icon> 保存</el-button>
           <el-button link><el-icon><Operation /></el-icon></el-button>
           <el-button plain class="func-btn">功能</el-button>
-          <el-dropdown split-button type="primary" @click="handleSave">
-            发布
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item>仅保存草稿</el-dropdown-item>
-                <el-dropdown-item>发布并运行</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-button type="primary" @click="handleSave()">保存</el-button>
           <el-button link><el-icon><Clock /></el-icon></el-button>
           
           <el-dropdown trigger="click">
             <el-button link><el-icon><MoreFilled /></el-icon></el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item>导出工作流</el-dropdown-item>
+                <el-dropdown-item @click="onExportWorkflow">导出工作流</el-dropdown-item>
                 <el-dropdown-item>导入工作流</el-dropdown-item>
                 <el-dropdown-item divided style="color: #f56c6c" @click="onDeleteWorkflow">删除工作流</el-dropdown-item>
               </el-dropdown-menu>
@@ -54,7 +46,9 @@
       </div>
     </div>
 
-    <div class="editor-container">
+    <WorkflowApiAccess v-if="activeTab === 'api'" />
+
+    <div class="editor-container" v-show="activeTab === 'orchestrate'">
       <!-- Left Toolbar Rail (Floating Style) -->
       <div class="tool-rail">
          <!-- Add Node -->
@@ -79,7 +73,7 @@
          <el-divider />
 
          <!-- Pointer Mode -->
-         <el-tooltip content="指针模式" placement="right" effect="light">
+         <el-tooltip content="指针模式 (V)" placement="right" effect="light">
            <div class="tool-item pointer-btn" :class="{ active: interactionMode === 'pointer' }" @click="interactionMode = 'pointer'">
              <svg width="20" height="20" viewBox="0 0 24 24" :fill="interactionMode === 'pointer' ? '#155eef' : 'none'" :stroke="interactionMode === 'pointer' ? '#155eef' : '#64748b'" stroke-width="2">
                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
@@ -89,7 +83,7 @@
          </el-tooltip>
 
          <!-- Hand Mode -->
-         <el-tooltip content="手模式" placement="right" effect="light">
+         <el-tooltip content="手模式 (H)" placement="right" effect="light">
            <div class="tool-item" :class="{ active: interactionMode === 'hand' }" @click="interactionMode = 'hand'">
              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-1.2-5-4.5L4.5 12a2 2 0 1 1 2.8-2.8L10 12"/>
@@ -165,6 +159,7 @@
           :selection-key="interactionMode === 'pointer' ? null : 'Shift'"
           @node-click="onNodeClick"
           @pane-click="onPaneClick"
+          @connect="onConnect"
           @keydown="onKeyDown"
           tabindex="0"
         >
@@ -206,8 +201,10 @@
                 <el-icon class="more-icon"><MoreFilled /></el-icon>
               </div>
               <div class="node-body">
-                <div class="model-badge">gpt-4o</div>
-                <div class="body-text">{{ data.prompt ? data.prompt.slice(0, 40) + '...' : '配置 Prompt 指令...' }}</div>
+                <div class="model-badge">
+                    {{ (typeof data.model === 'object' ? data.model.name : data.model) || '选择模型' }}
+                </div>
+                <div class="body-text">{{ getSystemPrompt(data).slice(0, 40) + (getSystemPrompt(data).length > 40 ? '...' : '') || '配置 Prompt 指令...' }}</div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -305,8 +302,58 @@
             </div>
           </template>
 
-          <!-- Transformation Group Nodes -->
-          <template v-for="type in ['code', 'template_transform', 'variable_aggregator', 'document_extractor', 'variable_assigner', 'parameter_extractor']" :key="type" #[`node-${type}`]="{ data }">
+          <!-- Custom Note Node -->
+          <template #node-note="{ data }">
+            <div class="dify-node note" :style="{ backgroundColor: data.theme === 'yellow' ? '#fef08a' : '#bfdbfe' }">
+               <div class="note-header" v-if="data.showAuthor">
+                 <span class="author">Dify</span>
+                 <span class="date">{{ new Date().toLocaleDateString() }}</span>
+               </div>
+               <div class="note-content">
+                 {{ getNoteText(data.text).slice(0, 100) + (getNoteText(data.text).length > 100 ? '...' : '') }}
+               </div>
+            </div>
+          </template>
+
+          <!-- Code Node -->
+          <template #node-code="{ data }">
+            <div class="dify-node code" :class="{ selected: selectedNode?.id === data.id }">
+              <div class="node-header">
+                <el-icon class="header-icon"><Monitor /></el-icon>
+                <span class="title">{{ data.label || '代码执行' }}</span>
+                <el-tag size="small" type="info" class="lang-tag">{{ data.code_language || 'python3' }}</el-tag>
+              </div>
+              <div class="node-body">
+                <div class="code-preview" v-if="data.code">
+                  {{ data.code.split('\n')[0] }}...
+                </div>
+                <div class="body-text" v-else>输入变量 -> 代码逻辑 -> 输出变量</div>
+              </div>
+              <Handle type="target" position="left" />
+              <Handle type="source" position="right" />
+            </div>
+          </template>
+        
+          <!-- Variable Assigner Node -->
+          <template #node-variable_assigner="{ data }">
+             <div class="dify-node assigner" :class="{ selected: selectedNode?.id === data.id }">
+                <div class="node-header">
+                   <el-icon class="header-icon"><EditPen /></el-icon>
+                   <span class="title">{{ data.label || '变量赋值' }}</span>
+                </div>
+                <div class="node-body">
+                   <div class="assign-operation">
+                      <span class="op-mode">{{ data.write_mode === 'append' ? '追加到' : '写入' }}</span>
+                      <span class="target-var">{{ data.assigned_variable_selector ? data.assigned_variable_selector.join('.') : 'conversation.var' }}</span>
+                   </div>
+                </div>
+                <Handle type="target" position="left" />
+                <Handle type="source" position="right" />
+             </div>
+          </template>
+          
+          <!-- Transformation Group Nodes (Excluding code/assigner which are custom now) -->
+          <template v-for="type in ['template_transform', 'variable_aggregator', 'document_extractor', 'parameter_extractor']" :key="type" #[`node-${type}`]="{ data }">
             <div class="dify-node transform" :class="[type, { selected: selectedNode?.id === data.id }]">
               <div class="node-header">
                 <el-icon class="header-icon"><component :is="getNodeIcon(type)" /></el-icon>
@@ -387,7 +434,7 @@
           
           <div class="panel-content">
             <el-form label-position="top">
-              <el-form-item label="名称">
+              <el-form-item label="名称" v-if="selectedNode.type !== 'note'">
                 <el-input v-model="selectedNode.data.label" placeholder="设置节点名称" @change="updateNode" />
               </el-form-item>
 
@@ -397,17 +444,64 @@
               <template v-if="selectedNode.type === 'llm'">
                 <el-form-item label="模型设置">
                   <el-select v-model="selectedNode.data.model" style="width: 100%">
-                    <el-option label="gpt-4o" value="gpt-4o" />
-                    <el-option label="claude-3-opus" value="claude-3" />
+                    <el-option 
+                        v-for="m in availableModels" 
+                        :key="m.value" 
+                        :label="m.label" 
+                        :value="m.value" 
+                    />
                   </el-select>
                 </el-form-item>
+
+                <el-form-item label="上下文 (CONTEXT)">
+                   <div class="context-selector">
+                      <div class="context-list">
+                         <div v-for="(ctx, idx) in (selectedNode.data.context?.variable_selector || [])" :key="idx" class="context-tag">
+                            <span class="ctx-name">{{ ctx }}</span>
+                            <el-icon class="remove-ctx" @click="removeContextVar(idx)"><Close /></el-icon>
+                         </div>
+                      </div>
+
+                      <el-dropdown trigger="click" @command="addContextVar" style="width: 100%">
+                        <div class="add-context-input">
+                           <el-icon><Plus /></el-icon> 添加上下文变量...
+                        </div>
+                        <template #dropdown>
+                          <el-dropdown-menu class="var-dropdown-menu">
+                             <div class="dropdown-group-title">开始</div>
+                             <el-dropdown-item command="query"><span class="var-option">{x} query</span></el-dropdown-item>
+                             <el-dropdown-item command="files"><span class="var-option">{x} files</span></el-dropdown-item>
+                             
+                             <div class="dropdown-group-title">会话 (CONVERSATION)</div>
+                             <el-dropdown-item command="memory"><span class="var-option"><el-icon><ChatDotSquare /></el-icon> memory</span></el-dropdown-item>
+                             
+                             <div class="dropdown-group-title">系统 (SYSTEM)</div>
+                             <el-dropdown-item command="sys.dialogue_count"><span class="var-option">sys.dialogue_count</span></el-dropdown-item>
+                             <el-dropdown-item command="sys.conversation_id"><span class="var-option">sys.conversation_id</span></el-dropdown-item>
+                             <el-dropdown-item command="sys.user_id"><span class="var-option">sys.user_id</span></el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
+                   </div>
+                </el-form-item>
+
                 <el-form-item label="系统提示词 (SYSTEM PROMPT)">
                   <el-input 
                     type="textarea" 
-                    v-model="selectedNode.data.prompt" 
+                    :model-value="getSystemPrompt(selectedNode.data)"
+                    @input="updateSystemPrompt"
                     :rows="6" 
                     placeholder="请输入模型指令..."
                   />
+                  <!-- Variable inserter helper for Prompt -->
+                  <div class="prompt-var-helper" style="margin-top: 8px; display: flex; gap: 8px;">
+                     <el-tooltip content="插入变量" placement="top">
+                        <el-tag size="small" type="info" class="cursor-pointer" @click="insertVarToPrompt('{x} query')">{x} query</el-tag>
+                     </el-tooltip>
+                     <el-tooltip content="插入变量" placement="top">
+                        <el-tag size="small" type="info" class="cursor-pointer" @click="insertVarToPrompt('{{#memory#}}')">memory</el-tag>
+                     </el-tooltip>
+                  </div>
                 </el-form-item>
               </template>
 
@@ -425,8 +519,53 @@
                 </el-form-item>
               </template>
 
+              <!-- Specific Code Form -->
+              <template v-if="selectedNode.type === 'code'">
+                <el-form-item label="代码语言">
+                   <el-select v-model="selectedNode.data.code_language" style="width: 100%">
+                     <el-option label="Python 3" value="python3" />
+                     <el-option label="JavaScript" value="javascript" />
+                   </el-select>
+                </el-form-item>
+                <el-form-item label="代码逻辑">
+                   <el-input 
+                     type="textarea" 
+                     v-model="selectedNode.data.code" 
+                     :rows="10" 
+                     placeholder="def main(arg1): ..." 
+                     style="font-family: monospace;"
+                   />
+                </el-form-item>
+              </template>
+
+              <!-- Specific Assigner Form -->
+              <template v-if="selectedNode.type === 'variable_assigner'">
+                 <el-form-item label="写入模式">
+                   <el-radio-group v-model="selectedNode.data.write_mode" size="small">
+                     <el-radio-button label="overwrite">覆盖</el-radio-button>
+                     <el-radio-button label="append">追加</el-radio-button>
+                   </el-radio-group>
+                 </el-form-item>
+                 <el-form-item label="目标变量">
+                    <el-input v-model="selectedNode.data.target_variable" placeholder="例如: conversation.memory" />
+                 </el-form-item>
+              </template>
+
+              <!-- Specific Note Form -->
+              <template v-if="selectedNode.type === 'note'">
+                 <el-form-item label="注释内容">
+                   <el-input type="textarea" v-model="selectedNode.data.text" :rows="6" />
+                 </el-form-item>
+                 <el-form-item label="主题颜色">
+                    <el-radio-group v-model="selectedNode.data.theme" size="small">
+                       <el-radio-button label="blue">蓝</el-radio-button>
+                       <el-radio-button label="yellow">黄</el-radio-button>
+                    </el-radio-group>
+                 </el-form-item>
+              </template>
+
               <!-- Generic Input Settings -->
-              <el-form-item label="输入变量">
+              <el-form-item label="输入变量" v-if="['start', 'llm', 'code', 'if_else', 'agent'].includes(selectedNode.type)">
                 <div class="variable-list">
                   <div class="var-item">
                      <span class="var-name">{{ `{` + `{` }} sys.query {{ `}` + `}` }}</span>
@@ -446,15 +585,46 @@
     </div>
 
     <!-- Mini Map -->
-    <div class="mini-map-container" v-show="!showPalette">
+    <div class="mini-map-container" v-show="activeTab === 'orchestrate' && !showPalette">
         <el-icon><MapLocation /></el-icon>
     </div>
+
+    <!-- Preview/Run Dialog -->
+    <el-dialog v-model="showPreviewDialog" title="运行预览" width="600px" append-to-body>
+      <el-tabs v-model="activePreviewTab">
+        <el-tab-pane label="输入" name="input">
+          <el-form label-position="top">
+             <div v-if="previewInputs.length === 0" class="no-inputs-hint">此工作流没有定义 Start 节点输入变量</div>
+             <el-form-item v-for="input in previewInputs" :key="input.name" :label="input.label || input.name">
+                <el-input v-model="input.value" :placeholder="`请输入 ${input.name}`" />
+             </el-form-item>
+          </el-form>
+        </el-tab-pane>
+        <el-tab-pane label="运行结果" name="result">
+           <div v-if="executionLoading" class="loading-state">
+              <el-icon class="is-loading"><Loading /></el-icon> 运行中...
+           </div>
+           <div v-else-if="executionResult" class="result-display">
+              <div v-if="executionResult.error" class="result-status error"><el-icon><CircleClose /></el-icon> 运行失败</div>
+              <div v-else-if="executionResult.status === 'succeeded' || executionResult.outputs" class="result-status success"><el-icon><CircleCheck /></el-icon> 运行成功</div>
+              <div v-else class="result-status info"><el-icon><InfoFilled /></el-icon> 运行完成</div>
+              
+              <pre class="json-viewer">{{ JSON.stringify(executionResult, null, 2) }}</pre>
+           </div>
+           <div v-else class="empty-result">点击运行开始调试</div>
+        </el-tab-pane>
+      </el-tabs>
+      <template #footer>
+        <el-button @click="showPreviewDialog = false">关闭</el-button>
+        <el-button type="primary" :loading="executionLoading" @click="runWorkflow">运行</el-button>
+      </template>
+    </el-dialog>
 
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { VueFlow, Handle, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
@@ -470,7 +640,10 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getAgentList } from '@/api/agent';
-import { createWorkflow, getWorkflow } from '@/api/workflow';
+import { createWorkflow, getWorkflow, executeWorkflow } from '@/api/workflow';
+import { getModelList } from '@/api/model';
+import WorkflowApiAccess from './WorkflowApiAccess.vue';
+import { dump } from 'js-yaml';
 
 // HandIcon placeholder for Pointer (can use Pointer icon instead)
 const HandIcon = Pointer;
@@ -479,6 +652,7 @@ const router = useRouter();
 const route = useRoute();
 
 const workflowName = ref('');
+const activeTab = ref('orchestrate');
 const isEdit = ref(false);
 const saving = ref(false);
 const elements = ref([]);
@@ -486,8 +660,16 @@ const selectedNode = ref(null);
 const showPalette = ref(true);
 const interactionMode = ref('pointer'); // 'pointer' or 'hand'
 const agentList = ref([]);
+const availableModels = ref([]);
 const lastSavedTime = ref('16:12:45');
 let nodeIdCounter = Date.now();
+
+// Preview/Run state
+const showPreviewDialog = ref(false);
+const activePreviewTab = ref('input');
+const previewInputs = ref([]);
+const executionResult = ref(null);
+const executionLoading = ref(false);
 
 const { fitView } = useVueFlow();
 
@@ -500,14 +682,30 @@ const onAddNote = () => {
         id: `node_note_${Date.now()}`,
         type: 'note',
         position: { x: 400, y: 300 },
-        data: { label: '新注释', text: '在此输入备注...' }
+        data: { 
+            label: '新注释', 
+            text: '在此输入备注...',
+            theme: 'blue',
+            showAuthor: true
+        }
     };
     elements.value.push(newNode);
 };
 
 const onKeyDown = (event) => {
     if ((event.key === 'Backspace' || event.key === 'Delete') && selectedNode.value) {
+        // Prevent deleting if typing in input
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
         deleteNode();
+    }
+};
+
+const onGlobalKeyDown = async (event) => {
+    // Handle Save Shortcut (Cmd+S or Ctrl+S)
+    if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+        event.preventDefault();
+        await handleSave();
+        ElMessage.success('已保存');
     }
 };
 
@@ -518,52 +716,179 @@ const onDeleteWorkflow = () => {
         type: 'warning',
     }).then(() => {
         // Implement actual deletion logic here
+        // API call to delete...
         ElMessage.success('工作流已删除');
         router.push('/dashboard/workflow');
     }).catch(() => {});
 };
 
+const getDifyWorkflowData = () => {
+    const nodes = elements.value.filter(el => !el.source).map(n => {
+        // Clean up React Flow internal fields
+        const { 
+            position, id, type, data, 
+            width, height, measured, 
+            selected, dragging, resizing, initialized, isParent,
+            events, hover, zIndex, handleBounds
+        } = n;
+
+        const cleanData = { ...data };
+        delete cleanData.selected;
+        delete cleanData.dragging;
+        
+        const difyType = type === 'note' ? 'custom-note' : type;
+
+        if (type === 'llm' && cleanData.model && typeof cleanData.model === 'string') {
+             const modelName = cleanData.model;
+             let provider = 'openai'; 
+             if (modelName.includes('claude')) provider = 'anthropic';
+             if (modelName.includes('grok')) provider = 'xai'; 
+             
+             cleanData.model = {
+                 provider: provider,
+                 name: modelName,
+                 mode: 'chat',
+                 completion_params: { temperature: 0.7 }
+             };
+        }
+
+        return {
+            id,
+            position,
+            type: difyType,
+            width: measured?.width || width || 240,
+            height: measured?.height || height || 60,
+            data: {
+               ...cleanData,
+               title: cleanData.label || cleanData.title
+            },
+            positionAbsolute: position, 
+            sourcePosition: 'right',
+            targetPosition: 'left'
+        };
+    });
+
+    const edges = elements.value.filter(el => el.source).map(e => ({
+        id: e.id,
+        source: e.source,
+        sourceHandle: e.sourceHandle,
+        target: e.target,
+        targetHandle: e.targetHandle,
+        type: e.type || 'custom',
+        data: {
+            sourceType: e.sourceHandle,
+            targetType: e.targetHandle,
+            isInerationStyle: false,
+            ...e.data
+        },
+        zIndex: 0 
+    }));
+
+    return {
+        kind: 'app',
+        version: '0.1.0',
+        app: {
+            name: workflowName.value || '个性化记忆助手',
+            icon: '🤖',
+            mode: 'advanced-chat', 
+            description: '',
+            use_icon_as_answer_icon: false
+        },
+        workflow: {
+            version: '0.1.0',
+            features: {
+                opening_statement: "",
+                suggested_questions: [],
+                speech_to_text: { enabled: false },
+                text_to_speech: { enabled: false },
+                file_upload: {
+                    image: { enabled: false, number_limits: 3, transfer_methods: ["local_file", "remote_url"] }
+                },
+                retriever_resource: { enabled: true },
+                sensitive_word_avoidance: { enabled: false }
+            },
+            graph: {
+                viewport: { x: 0, y: 0, zoom: 1 },
+                nodes,
+                edges
+            }
+        }
+    };
+};
+
+const onExportWorkflow = () => {
+    try {
+        const data = getDifyWorkflowData();
+        
+        // Convert to YAML
+        const yamlStr = dump(data, {
+            indent: 2,
+            lineWidth: -1, 
+            noRefs: true
+        });
+
+        const blob = new Blob([yamlStr], { type: 'application/x-yaml' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${workflowName.value || 'workflow'}-${new Date().getTime()}.yml`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        ElMessage.success('工作流已导出为 YAML');
+    } catch (e) {
+        console.error(e);
+        ElMessage.error('导出失败');
+    }
+};
+
 const nodeGroups = [
   {
-    title: '智能',
+    title: '基础节点 (Basic)',
     items: [
-      { type: 'llm', label: 'LLM', icon: Cpu, color: '#f0fdf4' },
-      { type: 'knowledge_retrieval', label: '知识检索', icon: Collection, color: '#fffbeb' },
-      { type: 'answer', label: '直接回复', icon: ChatDotSquare, color: '#eff6ff' },
-      { type: 'agent', label: 'Agent', icon: User, color: '#f5f3ff' },
-      { type: 'question_classifier', label: '问题分类器', icon: Connection, color: '#fdf4ff' },
-      { type: 'question_understanding', label: '问题理解', icon: Sunny, color: '#ecfdf5' },
+      { type: 'start', label: '开始 (Start)', icon: VideoPlay, color: '#eff6ff' },
+      { type: 'end', label: '结束 (End)', icon: CircleCheck, color: '#eff6ff' },
+      { type: 'llm', label: '大模型 (LLM)', icon: Cpu, color: '#f0fdf4' },
+      { type: 'answer', label: '直接回复 (Answer)', icon: ChatDotSquare, color: '#eff6ff' },
+      { type: 'agent', label: '代理 (Agent)', icon: User, color: '#f5f3ff' },
     ]
   },
   {
-    title: '逻辑',
+    title: '逻辑控制 (Logic)',
     items: [
-      { type: 'if_else', label: '条件分支', icon: Share, color: '#f8fafc' },
-      { type: 'iteration', label: '迭代', icon: RefreshRight, color: '#f8fafc' },
-      { type: 'loop', label: '循环', icon: Refresh, color: '#f8fafc' },
+      { type: 'code', label: '代码 (Code)', icon: Monitor, color: '#f2e6ff' },
+      { type: 'if_else', label: '条件分支 (Condition)', icon: Share, color: '#f8fafc' },
+      { type: 'iteration', label: '迭代 (Iteration)', icon: RefreshRight, color: '#f8fafc' },
+      { type: 'loop', label: '循环 (Loop)', icon: Refresh, color: '#f8fafc' },
+      { type: 'question_classifier', label: '意图识别 (Intent Recognition)', icon: Connection, color: '#fdf4ff' },
+      { type: 'variable_aggregator', label: '变量聚合 (Variable Merit)', icon: Files, color: '#f2e6ff' },
     ]
   },
   {
-    title: '转换',
+    title: '数据处理 (Data Processing)',
     items: [
-      { type: 'code', label: '代码执行', icon: Monitor, color: '#f2e6ff' },
-      { type: 'template_transform', label: '模板转换', icon: DocumentCopy, color: '#f2e6ff' },
-      { type: 'variable_aggregator', label: '变量聚合器', icon: Files, color: '#f2e6ff' },
-      { type: 'document_extractor', label: '文档提取器', icon: Document, color: '#f2e6ff' },
-      { type: 'variable_assigner', label: '变量赋值', icon: EditPen, color: '#f2e6ff' },
-      { type: 'parameter_extractor', label: '参数提取器', icon: Scissor, color: '#f2e6ff' },
+      { type: 'knowledge_retrieval', label: '知识检索 (Knowledge Retrieval)', icon: Collection, color: '#fffbeb' },
+      { type: 'variable_assigner', label: '变量赋值 (Variable Assign)', icon: EditPen, color: '#f2e6ff' },
+      { type: 'template_transform', label: '模板转换 (Template Transform)', icon: DocumentCopy, color: '#f2e6ff' },
+      { type: 'parameter_extractor', label: '参数提取 (Parameter Extractor)', icon: Scissor, color: '#f2e6ff' },
+      { type: 'document_extractor', label: '文档提取 (Document Extractor)', icon: Document, color: '#f2e6ff' },
     ]
   },
   {
-    title: '工具',
+    title: '工具 (Tools)',
     items: [
       { type: 'http_request', label: 'HTTP 请求', icon: Link, color: '#fdf6ec' },
+      { type: 'tool', label: '插件工具 (Tool)', icon: Tools, color: '#fdf6ec' },
       { type: 'list_operator', label: '列表操作', icon: Operation, color: '#fdf6ec' },
     ]
   }
 ];
 
 onMounted(async () => {
+  window.addEventListener('keydown', onGlobalKeyDown);
+
   if (route.params.id) {
     isEdit.value = true;
     await loadWorkflow(route.params.id);
@@ -575,6 +900,7 @@ onMounted(async () => {
     ];
   }
   await fetchAgents();
+  await fetchModelsList();
   
   // Timer for "last saved"
   setInterval(() => {
@@ -583,6 +909,11 @@ onMounted(async () => {
   }, 60000);
 });
 
+onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalKeyDown);
+});
+
+
 const fetchAgents = async () => {
   try {
     const res = await getAgentList();
@@ -590,17 +921,74 @@ const fetchAgents = async () => {
   } catch (e) { console.error(e); }
 };
 
+const fetchModelsList = async () => {
+    try {
+        const res = await getModelList();
+        // Assuming API returns array of model objects { id, name, ... } 
+        // Need to adapt based on actual API response structure
+        availableModels.value = res.map(m => ({
+            label: m.modelName || m.name,
+            value: m.modelName || m.name // Use name as value for Dify compatibility
+        }));
+    } catch (e) {
+        console.error('Failed to fetch models', e);
+        // Fallback or empty
+    }
+};
+
 const loadWorkflow = async (id) => {
   try {
     const workflow = await getWorkflow(id);
     workflowName.value = workflow.workflowName;
-    if (workflow.workflowDefinition?.nodes) {
+    
+    let rawNodes = [];
+    let rawEdges = [];
+    
+    // Support both Dify nested structure and flat legacy structure
+    if (workflow.workflowDefinition?.workflow?.graph) {
+        rawNodes = workflow.workflowDefinition.workflow.graph.nodes || [];
+        rawEdges = workflow.workflowDefinition.workflow.graph.edges || [];
+    } else if (workflow.workflowDefinition?.nodes) {
+        rawNodes = workflow.workflowDefinition.nodes || [];
+        rawEdges = workflow.workflowDefinition.edges || [];
+    }
+
+    if (rawNodes.length > 0) {
+        const nodes = rawNodes.map(n => {
+            const data = n.data || {};
+            
+            // Normalize data from Dify YAML/JSON structure
+            
+            // 1. Map 'title' to 'label' if explicit label is missing
+            if (data.title && !data.label) {
+                data.label = data.title;
+            }
+            
+            // 2. Map model object to simple model string
+            // YAML: model: { name: 'gpt-4o', provider: 'openai' ... }
+            if (data.model && typeof data.model === 'object' && data.model.name) {
+                // Keep the full object for data but maybe add a helper prop for display if needed
+                // data.model is object now, which is supported by our updated template
+            } else if (data.model && typeof data.model === 'object') {
+                 // handle partial object if necessary
+            }
+            
+            return {
+                ...n,
+                type: n.type === 'custom-note' ? 'note' : n.type,
+                data
+            };
+        });
+        
         elements.value = [
-          ...workflow.workflowDefinition.nodes,
-          ...(workflow.workflowDefinition.edges || [])
+          ...nodes,
+          ...rawEdges
         ];
     }
-  } catch (e) { ElMessage.error('加载失败'); }
+  } catch (e) { 
+      console.error(e);
+      ElMessage.error('加载失败'); 
+  }
 };
 
 const onDragStart = (event, type) => {
@@ -674,19 +1062,58 @@ const deleteNode = () => {
   }
 };
 
-const handleSave = async () => {
-  saving.value = true;
+const onConnect = (params) => {
+    // Add new edge
+    const newEdge = {
+        id: `e-${params.source}-${params.target}-${Date.now()}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        type: 'custom', // or default
+        data: { sourceType: params.sourceHandle, targetType: params.targetHandle }
+    };
+    elements.value.push(newEdge);
+};
+
+// Helper to serialize current workflow elements into Dify's nested DSL format
+// (Implemented above as getDifyWorkflowData)
+
+const handleSave = async (isAuto = false) => {
+  if (!isAuto) saving.value = true;
   try {
-    const nodes = elements.value.filter(el => !el.source);
-    const edges = elements.value.filter(el => el.source);
-    
-    await createWorkflow({
-      workflowName: workflowName.value || '新建工作流',
-      workflowDefinition: { nodes, edges }
+    // Default name if empty
+    if (!workflowName.value || workflowName.value.trim() === '') {
+        workflowName.value = '未命名工作流';
+    }
+
+    const workflowData = getDifyWorkflowData();
+    // Assuming createWorkflow can update if ID exists, or we use update endpoint
+    const res = await createWorkflow({
+        id: route.params.id, // Pass ID if updating
+        workflowName: workflowName.value,
+        workflowType: 'DAG', // Explicitly set type to ensure it opens in visual editor
+        workflowDefinition: workflowData 
     });
-    ElMessage.success('已存为草稿并发布');
-  } catch (e) { ElMessage.error('保存失败'); }
-  finally { saving.value = false; }
+    
+    // Update last saved time
+    const now = new Date();
+    lastSavedTime.value = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    
+    if (res && res.id && !route.params.id) {
+        // New workflow created, navigate to it
+        router.push(`/dashboard/workflow/visual/${res.id}`); // Fix redirect path
+        // If it was manual save, show success
+        if (!isAuto) ElMessage.success('保存成功');
+    } else {
+        if (!isAuto) ElMessage.success('保存成功');
+    }
+  } catch (e) {
+    console.error(e);
+    if (!isAuto) ElMessage.error('保存失败');
+  } finally {
+    if (!isAuto) saving.value = false;
+  }
 };
 
 const getNodeIcon = (type) => {
@@ -743,6 +1170,167 @@ const onAgentChange = (val) => {
     const agent = agentList.value.find(a => a.id === val);
     if (agent && selectedNode.value) {
         selectedNode.value.data.agentName = agent.name;
+    }
+};
+
+// Helper to parse Dify note text which is often stringified JSON
+const getNoteText = (rawText) => {
+    if (!rawText) return '此处填写注释...';
+    if (typeof rawText !== 'string') return rawText;
+    
+    // Try to parse Dify's rich text JSON format
+    // e.g. {"root":{"children":[{"children":[{"text":"..."}]}]}}
+    if (rawText.trim().startsWith('{') && rawText.includes('"root"')) {
+        try {
+            const obj = JSON.parse(rawText);
+            let extracted = '';
+            
+            const traverse = (node) => {
+                if (node.text) {
+                    extracted += node.text;
+                }
+                if (node.children && Array.isArray(node.children)) {
+                    node.children.forEach(child => traverse(child));
+                    // Add newline for paragraphs if needed
+                    if (node.type === 'paragraph') extracted += '\n';
+                }
+            };
+            
+            if (obj.root) traverse(obj.root);
+            return extracted.trim() || rawText;
+        } catch (e) {
+            // parsing failed, return raw
+            return rawText; 
+        }
+    }
+    return rawText;
+};
+
+const getSystemPrompt = (data) => {
+    // Handle structured prompt_template from YAML
+    if (Array.isArray(data.prompt_template)) {
+        const sys = data.prompt_template.find(p => p.role === 'system');
+        if (sys) return sys.text;
+    }
+    // Fallback to simple string
+    return data.prompt || '';
+};
+
+const addContextVar = (val) => {
+    if (!selectedNode.value) return;
+    const data = selectedNode.value.data;
+    if (!data.context) data.context = { enabled: true, variable_selector: [] };
+    if (!data.context.variable_selector) data.context.variable_selector = [];
+    
+    // Avoid duplicates
+    if (!data.context.variable_selector.includes(val)) {
+        data.context.variable_selector.push(val);
+        updateNode();
+    }
+};
+
+const removeContextVar = (index) => {
+    if (!selectedNode.value?.data?.context?.variable_selector) return;
+    selectedNode.value.data.context.variable_selector.splice(index, 1);
+    updateNode();
+};
+
+const insertVarToPrompt = (val) => {
+   // Append to system prompt
+   const current = getSystemPrompt(selectedNode.value.data);
+   updateSystemPrompt(current + ' ' + val);
+};
+
+const updateSystemPrompt = (newVal) => {
+    if (!selectedNode.value) return;
+    const data = selectedNode.value.data;
+    
+    // Initialize prompt_template if missing
+    if (!Array.isArray(data.prompt_template)) {
+        data.prompt_template = [
+            { id: Date.now().toString(), role: 'system', text: newVal }
+        ];
+        // Clean up legacy simple prompt if it existed to avoid confusion
+        if (data.prompt) delete data.prompt; 
+    } else {
+        const sysIndex = data.prompt_template.findIndex(p => p.role === 'system');
+        if (sysIndex >= 0) {
+            data.prompt_template[sysIndex].text = newVal;
+        } else {
+            // Insert at beginning if System role missing
+            data.prompt_template.unshift({ 
+                id: Date.now().toString(), 
+                role: 'system', 
+                text: newVal 
+            });
+        }
+    }
+    // Trigger reactivity
+    updateNode();
+};
+
+const handlePreview = () => {
+    // 1. Identify Start node inputs
+    const startNode = elements.value.find(el => el.type === 'start');
+    previewInputs.value = [];
+    
+    // Check if start node has variables defined
+    if (startNode && startNode.data && Array.isArray(startNode.data.variables) && startNode.data.variables.length > 0) {
+        previewInputs.value = startNode.data.variables.map(v => ({
+            name: v.variable,
+            label: v.label || v.variable,
+            value: '' // init empty
+        }));
+    } 
+    
+    // Always ensure at least one 'query' or 'sys.query' input if explicitly defined inputs are missing or empty
+    // But usually Dify workflows rely on 'sys.query' which is implicitly passed or explicitly defined.
+    // If the workflow is strictly LLM based without start vars, we might not need inputs?
+    // Let's add 'query' by default if list is empty to be safe for chat apps.
+    if (previewInputs.value.length === 0) {
+        previewInputs.value.push({ name: 'query', label: 'Query / Sys Query', value: '' });
+    }
+
+    executionResult.value = null;
+    activePreviewTab.value = 'input';
+    showPreviewDialog.value = true;
+};
+
+const runWorkflow = async () => {
+    activePreviewTab.value = 'result';
+    executionLoading.value = true;
+    executionResult.value = null;
+    
+    try {
+        // Construct inputs map
+        const inputs = {};
+        previewInputs.value.forEach(p => {
+           inputs[p.name] = p.value;
+        });
+
+        // 1. Auto-save first (optional but safer)
+        if (route.params.id) {
+             const workflowData = getDifyWorkflowData();
+             await createWorkflow({
+                 id: route.params.id, 
+                 workflowName: workflowName.value,
+                 workflowDefinition: workflowData
+             });
+        }
+
+        // 2. Execute
+        // Add response_mode and user for Dify compatibility
+        const payload = {
+            inputs,
+            response_mode: 'blocking',
+            user: 'user-preview' 
+        };
+        const res = await executeWorkflow(route.params.id, payload);
+        executionResult.value = res;
+    } catch (e) {
+        executionResult.value = { error: '执行失败', details: e.message || e };
+    } finally {
+        executionLoading.value = false;
     }
 };
 
@@ -1055,6 +1643,59 @@ const onAgentChange = (val) => {
     margin-bottom: 6px;
 }
 
+/* New Node Styles */
+.note {
+    border: none;
+    padding: 16px;
+    width: 280px;
+    min-height: 160px;
+}
+.note-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: #64748b;
+}
+.note-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #334155;
+    white-space: pre-wrap;
+}
+
+.code .node-header { background: #fdf4ff; border-bottom-color: #f0abfc; }
+.code .header-icon { color: #d946ef; }
+.code-preview {
+    font-family: 'JetBrains Mono', monospace;
+    background: #f8fafc;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #475569;
+}
+.lang-tag { margin-left: auto; }
+
+.assigner .node-header { background: #fdf2f8; border-bottom-color: #fce7f3; }
+.assigner .header-icon { color: #db2777; }
+.assign-operation {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+}
+.op-mode { font-size: 11px; color: #64748b; font-weight: 600; }
+.target-var { 
+    font-family: monospace; 
+    font-size: 11px; 
+    color: #db2777; 
+    background: #fce7f3; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+}
+
 .cond-item { font-size: 11px; padding: 4px 6px; background: #f8fafc; border-radius: 4px; display: flex; justify-content: space-between; margin-bottom: 4px; }
 
 /* Handle Overrides */
@@ -1129,5 +1770,82 @@ const onAgentChange = (val) => {
 
 .slide-left-enter-active, .slide-left-leave-active { transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1); }
 .slide-left-enter-from, .slide-left-leave-to { transform: translateX(100%); }
+
+/* Context Selector Styles */
+.context-selector {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 2px;
+    background: #fff;
+}
+
+.context-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px;
+}
+
+.context-tag {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #eff6ff;
+    color: #155eef;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.context-tag .remove-ctx {
+    cursor: pointer;
+    font-size: 10px;
+    color: #93c5fd;
+}
+.context-tag .remove-ctx:hover { color: #155eef; }
+
+.add-context-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 4px;
+}
+.add-context-input:hover {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.dropdown-group-title {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    background: #f8fafc;
+}
+.var-option {
+    font-family: monospace;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.cursor-pointer { cursor: pointer; }
+
+/* Preview Dialog Styles */
+.no-inputs-hint { color: #94a3b8; font-size: 13px; padding: 20px 0; text-align: center; }
+.loading-state { display: flex; align-items: center; justify-content: center; gap: 8px; color: #155eef; padding: 40px; }
+.result-display { background: #f8fafc; border-radius: 8px; padding: 12px; }
+.result-status { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.result-status.success { color: #10b981; }
+.result-status.error { color: #ef4444; }
+.result-status.info { color: #3b82f6; }
+.json-viewer { font-family: monospace; white-space: pre-wrap; font-size: 12px; color: #334155; margin: 0; }
+.empty-result { color: #94a3b8; text-align: center; padding: 40px; font-size: 13px; }
 
 </style>

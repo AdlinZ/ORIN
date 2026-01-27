@@ -177,7 +177,7 @@ onMounted(() => {
 });
 
 const handleCreate = () => {
-  router.push('/dashboard/workflow/create');
+  router.push('/dashboard/workflow/visual');
 };
 
 const handleCreateVisual = () => {
@@ -185,11 +185,7 @@ const handleCreateVisual = () => {
 };
 
 const handleEdit = (row) => {
-  if (row.workflowType === 'DAG') {
-    router.push(`/dashboard/workflow/visual/${row.id}`);
-  } else {
-    router.push(`/dashboard/workflow/edit/${row.id}`);
-  }
+  router.push(`/dashboard/workflow/visual/${row.id}`);
 };
 
 const handleRun = (row) => {

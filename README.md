@@ -1,6 +1,6 @@
 # ORIN - 智能体监控与管理系统
 
-ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分离架构的企业级AI智能体治理平台，连接Dify与业务系统的桥梁，实现全链路监控、知识库同步与模型智能调度。
+ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分离架构的企业级 AI 智能体管理与监控平台。作为连接 AI 模型（如 Dify、SiliconFlow）与业务系统的桥梁，它实现了全链路监控、知识库自动化同步、多模型智能调度及可视化工作流编排。
 
 ## 项目结构
 

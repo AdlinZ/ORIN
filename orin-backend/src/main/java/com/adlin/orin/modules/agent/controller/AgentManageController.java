@@ -134,6 +134,23 @@ public class AgentManageController {
         return agentManageService.getAgentAccessProfile(agentId);
     }
 
+    @Operation(summary = "批量导出智能体配置")
+    @PostMapping("/batch/export")
+    public org.springframework.http.ResponseEntity<byte[]> batchExport(
+            @RequestBody(required = false) List<String> agentIds) {
+        byte[] content = agentManageService.batchExportAgents(agentIds);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", "agents_export.json");
+        return new org.springframework.http.ResponseEntity<>(content, headers, org.springframework.http.HttpStatus.OK);
+    }
+
+    @Operation(summary = "批量导入智能体配置")
+    @PostMapping(value = "/batch/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public void batchImport(@RequestPart("file") MultipartFile file) {
+        agentManageService.batchImportAgents(file);
+    }
+
     @Operation(summary = "删除智能体")
     @DeleteMapping("/{agentId}")
     public void deleteAgent(@PathVariable String agentId) {

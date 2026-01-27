@@ -23,6 +23,12 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.util.List;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -650,5 +656,90 @@ public class AgentManageServiceImpl implements AgentManageService {
                 log.error("Failed to save audit log in finally block", e);
             }
         }
+    }
+
+    @Override
+    public byte[] batchExportAgents(List<String> agentIds) {
+        log.info("Batch exporting agents: {}", agentIds);
+        List<AgentExportDTO> exportList = new java.util.ArrayList<>();
+        List<AgentMetadata> metadataList;
+
+        if (agentIds == null || agentIds.isEmpty()) {
+            metadataList = metadataRepository.findAll();
+        } else {
+            metadataList = metadataRepository.findAllById(agentIds);
+        }
+
+        for (AgentMetadata meta : metadataList) {
+            AgentAccessProfile profile = accessProfileRepository.findById(meta.getAgentId()).orElse(null);
+            AgentHealthStatus status = healthStatusRepository.findById(meta.getAgentId()).orElse(null);
+            exportList.add(new AgentExportDTO(meta, profile, status));
+        }
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportList);
+        } catch (IOException e) {
+            log.error("Failed to export agents", e);
+            throw new RuntimeException("Export failed", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void batchImportAgents(MultipartFile file) {
+        log.info("Batch importing agents from file: {}", file.getOriginalFilename());
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            List<AgentExportDTO> importList = mapper.readValue(file.getInputStream(),
+                    new TypeReference<List<AgentExportDTO>>() {
+                    });
+
+            for (AgentExportDTO dto : importList) {
+                if (dto.getMetadata() == null)
+                    continue;
+
+                String agentId = dto.getMetadata().getAgentId();
+                if (agentId == null) {
+                    agentId = UUID.randomUUID().toString();
+                    dto.getMetadata().setAgentId(agentId);
+                }
+
+                // Metadata
+                AgentMetadata meta = dto.getMetadata();
+                meta.setSyncTime(LocalDateTime.now());
+                metadataRepository.save(meta);
+
+                // Profile
+                if (dto.getProfile() != null) {
+                    AgentAccessProfile profile = dto.getProfile();
+                    profile.setAgentId(agentId); // Ensure consistency
+                    profile.setUpdatedAt(LocalDateTime.now());
+                    accessProfileRepository.save(profile);
+                }
+
+                // Health Status (Optional, maybe reset status)
+                if (dto.getStatus() != null) {
+                    AgentHealthStatus status = dto.getStatus();
+                    status.setAgentId(agentId);
+                    healthStatusRepository.save(status);
+                }
+            }
+            log.info("Successfully imported {} agents", importList.size());
+        } catch (IOException e) {
+            log.error("Failed to import agents", e);
+            throw new RuntimeException("Import failed", e);
+        }
+    }
+
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    private static class AgentExportDTO {
+        private AgentMetadata metadata;
+        private AgentAccessProfile profile;
+        private AgentHealthStatus status;
     }
 }

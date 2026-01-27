@@ -229,23 +229,28 @@ public class SiliconFlowAgentManageService implements AgentManageService {
         AgentAccessProfile profile = accessProfileRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
 
-        AgentMetadata metadata = metadataRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
-
-        // TODO: [Plan] Integrate Multimodal File Upload (Currently SiliconFlow
-        // integration does not support direct file upload)
-        // in this MVP path
-        // We just ignore the file or could append a notification if we had the
-        // Multimodal service here.
-        // For consistency with the main service, we could inject MultimodalService
-        // later if needed.
-        // For now, we proceed with text only.
-
-        return siliconFlowIntegrationService.sendMessage(
+        // 1. Upload file to SiliconFlow
+        Optional<Object> uploadResult = siliconFlowIntegrationService.uploadFile(
                 profile.getEndpointUrl(),
                 profile.getApiKey(),
-                metadata.getModelName(),
-                message);
+                file);
+
+        String fileId = null;
+        if (uploadResult.isPresent()) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> response = (java.util.Map<String, Object>) uploadResult.get();
+            if (response.containsKey("id")) {
+                fileId = response.get("id").toString();
+            }
+        }
+
+        // 2. If upload success, use multimodal chat, else fallback to text
+        if (fileId != null) {
+            return chat(agentId, message, fileId);
+        } else {
+            log.warn("File upload to SiliconFlow failed or returned no ID. Falling back to text-only chat.");
+            return chat(agentId, message, (String) null);
+        }
     }
 
     @Override

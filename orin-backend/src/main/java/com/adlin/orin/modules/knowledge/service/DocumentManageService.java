@@ -158,23 +158,9 @@ public class DocumentManageService {
                 String content = null;
                 try {
                     // Re-read file from path.
-                    // Note: We need a utility to read robustly (PDF etc),
-                    // but for now we rely on simple read or PREVIEW if file read fails or for
-                    // simplicity in this task.
-                    // Better: Use Tika or similar.
-                    // For this prototype, let's try to read if TXT/MD, else use preview.
                     KnowledgeDocument currentDoc = documentRepository.findById(docId).orElse(null);
                     if (currentDoc != null) {
-                        content = currentDoc.getContentPreview();
-                        // If file is txt/md, read full content
-                        if (currentDoc.getFileType().equalsIgnoreCase("txt")
-                                || currentDoc.getFileType().equalsIgnoreCase("md")) {
-                            Path path = Paths.get(currentDoc.getStoragePath());
-                            if (Files.exists(path)) {
-                                content = Files.readString(path);
-                            }
-                        }
-                        // TODO: Add PDF/Word reading here for full content
+                        content = readFileContent(currentDoc);
                     }
                 } catch (Exception e) {
                     log.error("Failed to read file content", e);
@@ -307,12 +293,57 @@ public class DocumentManageService {
                 }
             }
 
-            // TODO: [Plan] Add Apache POI dependency and implement DOCX parser
+            // 支持 DOCX 格式
+            if (fileType.equals("docx")) {
+                try (java.io.InputStream is = file.getInputStream();
+                        org.apache.poi.xwpf.usermodel.XWPFDocument doc = new org.apache.poi.xwpf.usermodel.XWPFDocument(
+                                is)) {
+                    StringBuilder text = new StringBuilder();
+                    // Extract text from paragraphs
+                    for (org.apache.poi.xwpf.usermodel.XWPFParagraph p : doc.getParagraphs()) {
+                        text.append(p.getText()).append("\n");
+                        if (text.length() > 500)
+                            break;
+                    }
+                    return text.length() > 500 ? text.substring(0, 500) : text.toString();
+                } catch (Exception e) {
+                    log.warn("Failed to extract DOCX content: {}", e.getMessage());
+                    return "[DOCX Extraction Failed]";
+                }
+            }
+
             return null;
         } catch (IOException e) {
             log.warn("Failed to extract content preview", e);
             return null;
         }
+    }
+
+    private String readFileContent(KnowledgeDocument doc) throws IOException {
+        String fileType = doc.getFileType();
+        Path path = Paths.get(doc.getStoragePath());
+        if (!Files.exists(path))
+            return null;
+
+        if (fileType.equalsIgnoreCase("txt") || fileType.equalsIgnoreCase("md")) {
+            return Files.readString(path);
+        } else if (fileType.equalsIgnoreCase("pdf")) {
+            try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(path.toFile())) {
+                org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+                return stripper.getText(document).trim();
+            }
+        } else if (fileType.equalsIgnoreCase("docx")) {
+            try (java.io.InputStream is = Files.newInputStream(path);
+                    org.apache.poi.xwpf.usermodel.XWPFDocument document = new org.apache.poi.xwpf.usermodel.XWPFDocument(
+                            is)) {
+                StringBuilder text = new StringBuilder();
+                for (org.apache.poi.xwpf.usermodel.XWPFParagraph p : document.getParagraphs()) {
+                    text.append(p.getText()).append("\n");
+                }
+                return text.toString();
+            }
+        }
+        return doc.getContentPreview(); // Fallback
     }
 
     /**

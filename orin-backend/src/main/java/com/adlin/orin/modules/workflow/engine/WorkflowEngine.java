@@ -15,6 +15,7 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Async;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -45,10 +46,29 @@ public class WorkflowEngine {
      * @return 工作流实例 ID
      */
     public Long executeWorkflow(Long workflowId, Map<String, Object> inputs, String triggeredBy) {
-        log.info("Starting workflow execution: workflowId={}, triggeredBy={}", workflowId, triggeredBy);
-
-        // 创建工作流实例
+        log.info("Starting workflow execution (sync): workflowId={}, triggeredBy={}", workflowId, triggeredBy);
         WorkflowInstanceEntity instance = createInstance(workflowId, inputs, triggeredBy);
+        executeInstance(instance.getId());
+        return instance.getId();
+    }
+
+    /**
+     * 异步执行工作流实例
+     */
+    @Async("taskExecutor")
+    public void executeInstanceAsync(Long instanceId) {
+        log.info("Starting workflow execution (async): instanceId={}", instanceId);
+        executeInstance(instanceId);
+    }
+
+    /**
+     * 执行工作流实例核心逻辑
+     */
+    public void executeInstance(Long instanceId) {
+        WorkflowInstanceEntity instance = instanceRepository.findById(instanceId)
+                .orElseThrow(() -> new IllegalArgumentException("Instance not found: " + instanceId));
+
+        Long workflowId = instance.getWorkflowId();
 
         try {
             // 获取工作流定义
@@ -58,12 +78,28 @@ public class WorkflowEngine {
 
             Map<String, Object> workflowDefinition = workflow.getWorkflowDefinition();
 
-            // 检查是否为图结构工作流
-            boolean isGraphBased = workflowDefinition != null &&
-                    workflowDefinition.containsKey("nodes") &&
-                    workflowDefinition.get("nodes") != null;
+            // 检查 Dify DSL 结构 (workflow.graph)
+            Map<String, Object> graphDefinition = null;
+            if (workflowDefinition != null) {
+                if (workflowDefinition.containsKey("workflow")) {
+                    Map<String, Object> workflowObj = (Map<String, Object>) workflowDefinition.get("workflow");
+                    if (workflowObj != null && workflowObj.containsKey("graph")) {
+                        graphDefinition = (Map<String, Object>) workflowObj.get("graph");
+                    }
+                } else if (workflowDefinition.containsKey("graph")) {
+                    graphDefinition = (Map<String, Object>) workflowDefinition.get("graph");
+                } else if (workflowDefinition.containsKey("nodes")) {
+                    // 兼容旧的扁平结构
+                    graphDefinition = workflowDefinition;
+                }
+            }
 
-            Map<String, Object> context = new HashMap<>(inputs);
+            // 检查是否为图结构工作流
+            boolean isGraphBased = graphDefinition != null &&
+                    graphDefinition.containsKey("nodes") &&
+                    graphDefinition.get("nodes") != null;
+
+            Map<String, Object> context = new HashMap<>(instance.getInputData());
             context.put("__traceId", instance.getTraceId());
             context.put("__instanceId", instance.getId());
             Map<String, Object> outputs;
@@ -71,7 +107,9 @@ public class WorkflowEngine {
             if (isGraphBased) {
                 // 使用图执行器
                 log.info("Executing graph-based workflow");
-                outputs = graphExecutor.executeGraph(workflowDefinition, context);
+                // IMPORTANT: Pass instanceId to GraphExecutor for event publishing
+                graphExecutor.setInstanceId(instance.getId());
+                outputs = graphExecutor.executeGraph(graphDefinition, context);
             } else {
                 // 使用传统步骤执行器
                 log.info("Executing step-based workflow");
@@ -83,12 +121,10 @@ public class WorkflowEngine {
             log.info("Workflow execution completed successfully: instanceId={}", instance.getId());
 
         } catch (Exception e) {
-            log.error("Workflow execution failed: workflowId={}, error={}", workflowId, e.getMessage(), e);
+            log.error("Workflow execution failed: instanceId={}, error={}", instanceId, e.getMessage(), e);
             completeInstance(instance, null, e);
-            throw new RuntimeException("Workflow execution failed", e);
+            // Don't rethrow in async method, just log
         }
-
-        return instance.getId();
     }
 
     /**
@@ -312,7 +348,7 @@ public class WorkflowEngine {
     /**
      * 创建工作流实例
      */
-    private WorkflowInstanceEntity createInstance(Long workflowId, Map<String, Object> inputs, String triggeredBy) {
+    public WorkflowInstanceEntity createInstance(Long workflowId, Map<String, Object> inputs, String triggeredBy) {
         WorkflowInstanceEntity instance = WorkflowInstanceEntity.builder()
                 .workflowId(workflowId)
                 .traceId(UUID.randomUUID().toString())

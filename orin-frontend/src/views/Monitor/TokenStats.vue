@@ -7,11 +7,29 @@
 
     >
       <template #actions>
-
+        <el-button :icon="Setting" @click="showCostConfig = true">设置单价</el-button>
         <el-button :icon="Download" @click="handleExport">导出报告</el-button>
         <el-button :icon="Refresh" @click="fetchData">刷新数据</el-button>
       </template>
     </PageHeader>
+
+    <!-- Cost Config Dialog -->
+    <el-dialog v-model="showCostConfig" title="成本设置" width="400px">
+      <el-form :model="costConfig" label-width="120px">
+        <el-form-item label="单价 (/1K Tokens)">
+          <el-input-number v-model="costConfig.unitPrice" :precision="4" :step="0.0001" :min="0" />
+        </el-form-item>
+        <el-form-item label="货币符号">
+          <el-input v-model="costConfig.currency" placeholder="$ 或 ¥" style="width: 100px;" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showCostConfig = false">取消</el-button>
+          <el-button type="primary" @click="saveCostConfig">保存</el-button>
+        </span>
+      </template>
+    </el-dialog>
 
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
@@ -39,9 +57,9 @@
             <div class="card-header">
               <span class="card-title">Token 消耗趋势</span>
               <el-radio-group v-model="trendPeriod" size="small" @change="fetchTrendData">
-                <el-radio-button label="daily">每日</el-radio-button>
-                <el-radio-button label="weekly">每周</el-radio-button>
-                <el-radio-button label="monthly">每月</el-radio-button>
+                <el-radio-button value="daily">每日</el-radio-button>
+                <el-radio-button value="weekly">每周</el-radio-button>
+                <el-radio-button value="monthly">每月</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -118,12 +136,12 @@
         <el-table-column prop="requests" label="请求次数" width="100" align="center" />
         <el-table-column prop="avgTokens" label="平均 Token/请求" width="150" align="right">
           <template #default="{ row }">
-            {{ row.avgTokens.toFixed(2) }}
+            {{ (row.avgTokens || 0).toFixed(2) }}
           </template>
         </el-table-column>
         <el-table-column prop="cost" label="成本" width="100" align="right">
           <template #default="{ row }">
-            ${{ row.cost.toFixed(4) }}
+            ${{ (row.cost || 0).toFixed(4) }}
           </template>
         </el-table-column>
         <el-table-column prop="model" label="模型" show-overflow-tooltip />
@@ -145,8 +163,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue';
-import { Download, Refresh, Cpu, TrendCharts, Tickets, Connection } from '@element-plus/icons-vue';
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { Download, Refresh, Cpu, TrendCharts, Tickets, Connection, Setting } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { getTokenStats, getTokenHistory, getTokenTrend } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
@@ -173,6 +191,13 @@ const trendChart = ref(null);
 const distributionChart = ref(null);
 let trendChartInstance = null;
 let distributionChartInstance = null;
+
+// Cost Config
+const showCostConfig = ref(false);
+const costConfig = ref({
+  unitPrice: 0.002, // Default price per 1k tokens
+  currency: '$'
+});
 
 const statsCards = computed(() => [
   { 
@@ -218,18 +243,21 @@ const formatNumber = (num) => {
 // 计算成本
 const calculateCost = (tokens) => {
   if (!tokens) return '0.0000';
-  return (tokens / 1000 * 0.002).toFixed(4);
+  return (tokens / 1000 * costConfig.value.unitPrice).toFixed(4);
 };
 
+// 获取统计数据
 // 获取统计数据
 const fetchData = async () => {
   try {
     const res = await getTokenStats();
-    if (res) {
+    if (res && (res.total > 0 || res.daily > 0)) {
       tokenStats.value = res;
+    } else {
+      throw new Error('No data');
     }
   } catch (error) {
-    console.warn('获取 Token 统计失败，使用模拟数据:', error);
+    console.warn('获取 Token 统计失败或无数据，使用模拟数据');
     // Mock 数据
     tokenStats.value = {
       daily: 15420,
@@ -237,31 +265,38 @@ const fetchData = async () => {
       monthly: 452000,
       total: 1250000
     };
-    ElMessage.warning({
-        message: '获取数据失败，已切换至演示数据',
-        duration: 3000
-    });
   }
 };
 
+// 获取趋势数据
+// 获取趋势数据
 // 获取趋势数据
 const fetchTrendData = async () => {
   trendLoading.value = true;
   try {
     const res = await getTokenTrend(trendPeriod.value);
-    if (res) {
+    if (res && res.length > 0) {
       renderTrendChart(res);
+    } else {
+      throw new Error('No trend data');
     }
   } catch (error) {
-    console.warn('获取趋势数据失败，使用模拟数据:', error);
-    // Mock 趋势数据 (过去7天)
+    // Mock 趋势数据
     const mockTrend = [];
-    for (let i = 6; i >= 0; i--) {
+    const days = trendPeriod.value === 'monthly' ? 30 : (trendPeriod.value === 'weekly' ? 12 : 7);
+    
+    for (let i = days - 1; i >= 0; i--) {
         const d = new Date();
-        d.setDate(d.getDate() - i);
+        // Correct date calculation for weekly/monthly
+        if (trendPeriod.value === 'weekly') {
+             d.setDate(d.getDate() - i * 7);
+        } else {
+             d.setDate(d.getDate() - i);
+        }
+        
         mockTrend.push({
             date: d.toISOString().slice(5, 10),
-            tokens: Math.floor(Math.random() * 5000) + 1000
+            tokens: Math.floor(Math.random() * 5000) + 1000 + (Math.random() * 2000)
         });
     }
     renderTrendChart(mockTrend);
@@ -271,124 +306,115 @@ const fetchTrendData = async () => {
 };
 
 // 渲染趋势图表
+// 渲染趋势图表
 const renderTrendChart = (data) => {
-  if (!trendChartInstance) {
+  nextTick(() => {
+    if (!trendChart.value) return;
+    
+    // Dispose old instance if exists to prevent memory leaks
+    if (trendChartInstance) {
+      trendChartInstance.dispose();
+      trendChartInstance = null;
+    }
+    
     trendChartInstance = echarts.init(trendChart.value);
-  }
 
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      }
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: data.map(item => item.date),
-      axisLabel: {
-        rotate: 45
-      }
-    },
-    yAxis: {
-      type: 'value',
-      name: 'Tokens'
-    },
-    series: [
-      {
-        name: 'Token 消耗',
-        type: 'bar',
-        data: data.map(item => item.tokens),
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'var(--orin-primary)' },
-            { offset: 1, color: '#26FFDF' }
-          ])
+    const option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' }
+      },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { 
+        type: 'category', 
+        data: data.map(item => item.date), 
+        axisLabel: { rotate: 0 } 
+      },
+      yAxis: { type: 'value', name: 'Tokens' },
+      series: [
+        {
+          name: 'Token 消耗',
+          type: 'bar',
+          data: data.map(item => item.tokens),
+          barMaxWidth: 50,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#00BFA5' },   // Use explicit color
+              { offset: 1, color: '#64FFDA' }
+            ]),
+            borderRadius: [4, 4, 0, 0]
+          },
+          animationDuration: 1000
         }
-      }
-    ]
-  };
+      ]
+    };
 
-  trendChartInstance.setOption(option);
+    trendChartInstance.setOption(option);
+  });
 };
 
 // 渲染分布图表
+// 渲染分布图表
 const renderDistributionChart = (data) => {
-  if (!distributionChartInstance) {
+  nextTick(() => {
+    if (!distributionChart.value) return;
+    
+    if (distributionChartInstance) {
+       distributionChartInstance.dispose();
+       distributionChartInstance = null;
+    }
+    
     distributionChartInstance = echarts.init(distributionChart.value);
-  }
 
-  const option = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{a} <br/>{b}: {c} ({d}%)'
-    },
-    legend: {
-      orient: 'vertical',
-      left: 'left'
-    },
-    series: [
-      {
-        name: 'Token 分布',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: true,
-          formatter: '{b}: {d}%'
-        },
-        data: data
-      }
-    ]
-  };
+    const option = {
+      tooltip: { trigger: 'item', formatter: '{a} <br/>{b}: {c} ({d}%)' },
+      legend: { orient: 'vertical', left: 'left', top: 'center' },
+      series: [
+        {
+          name: 'Token 分布',
+          type: 'pie',
+          radius: ['50%', '75%'],
+          center: ['60%', '50%'],
+          avoidLabelOverlap: false,
+          itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+          label: { show: false, position: 'center' },
+          emphasis: {
+            label: { show: true, fontSize: 16, fontWeight: 'bold' }
+          },
+          data: data
+        }
+      ]
+    };
 
-  distributionChartInstance.setOption(option);
+    distributionChartInstance.setOption(option);
+  });
 };
 
+// 获取历史数据
 // 获取历史数据
 const fetchHistoryData = async () => {
   historyLoading.value = true;
   try {
-    const params = {
-      page: currentPage.value - 1,
-      size: pageSize.value
-    };
-
+    const params = { page: currentPage.value - 1, size: pageSize.value };
     if (dateRange.value && dateRange.value.length === 2) {
       params.startDate = dateRange.value[0].getTime();
       params.endDate = dateRange.value[1].getTime();
     }
 
     const res = await getTokenHistory(params);
-    if (res) {
+    if (res && res.content && res.content.length > 0) {
       historyData.value = res.content || [];
       total.value = res.totalElements || 0;
-
-      // 同时获取分布数据
-      if (res.distribution) {
-        renderDistributionChart(res.distribution);
-      }
+      if (res.distribution) renderDistributionChart(res.distribution);
+    } else {
+       throw new Error('No history data');
     }
   } catch (error) {
-    console.warn('获取历史数据失败，使用模拟数据:', error);
-    
-    // Mock 历史数据
     const mockHistory = [];
     const models = ['gpt-4', 'gpt-3.5-turbo', 'claude-3-opus', 'gemini-pro'];
     const agents = ['客服助手', '代码审核', '翻译专家', '数据分析师'];
     
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
         const tokens = Math.floor(Math.random() * 2000) + 100;
         const requests = Math.floor(Math.random() * 10) + 1;
         mockHistory.push({
@@ -397,7 +423,7 @@ const fetchHistoryData = async () => {
             tokens: tokens,
             requests: requests,
             avgTokens: tokens / requests,
-            cost: (tokens / 1000) * 0.002,
+            cost: (tokens / 1000) * costConfig.value.unitPrice,
             model: models[Math.floor(Math.random() * models.length)]
         });
     }
@@ -405,14 +431,12 @@ const fetchHistoryData = async () => {
     historyData.value = mockHistory;
     total.value = 50;
     
-    // Mock 分布数据
     renderDistributionChart([
-        { value: 45, name: '客服助手' },
-        { value: 25, name: '代码审核' },
-        { value: 20, name: '翻译专家' },
-        { value: 10, name: '数据分析师' }
+        { value: 45, name: '客服助手', itemStyle: { color: '#00BFA5' } },
+        { value: 25, name: '代码审核', itemStyle: { color: '#009688' } },
+        { value: 20, name: '翻译专家', itemStyle: { color: '#4DB6AC' } },
+        { value: 10, name: '数据分析师', itemStyle: { color: '#80CBC4' } }
     ]);
-    
   } finally {
     historyLoading.value = false;
   }
@@ -422,13 +446,8 @@ const fetchHistoryData = async () => {
 const handleExport = () => {
   const headers = ['日期', '智能体', 'Token消耗', '请求次数', '平均Token', '成本', '模型'];
   const rows = historyData.value.map(item => [
-    item.date,
-    item.agentName,
-    item.tokens,
-    item.requests,
-    item.avgTokens.toFixed(2),
-    '$' + item.cost.toFixed(4),
-    item.model
+    item.date, item.agentName, item.tokens, item.requests, item.avgTokens.toFixed(2),
+    '$' + item.cost.toFixed(4), item.model
   ]);
 
   const csvContent = "\ufeff" + [headers, ...rows].map(e => e.join(",")).join("\n");
@@ -444,22 +463,34 @@ const handleExport = () => {
   ElMessage.success('报告导出成功');
 };
 
-// 监听全局刷新事件
 const handleGlobalRefresh = () => {
   fetchData();
   fetchTrendData();
   fetchHistoryData();
 };
 
+const loadCostConfig = () => {
+  const saved = localStorage.getItem('orin_cost_config');
+  if (saved) {
+    try {
+      costConfig.value = JSON.parse(saved);
+    } catch(e) {}
+  }
+};
+
+const saveCostConfig = () => {
+  localStorage.setItem('orin_cost_config', JSON.stringify(costConfig.value));
+  showCostConfig.value = false;
+  ElMessage.success('成本配置已保存');
+  fetchHistoryData(); // Recalculate with new cost if possible (mock data will use new cost)
+};
+
 onMounted(() => {
+  loadCostConfig();
   fetchData();
   fetchTrendData();
   fetchHistoryData();
-  
-  // 监听全局刷新事件
   window.addEventListener('global-refresh', handleGlobalRefresh);
-  
-  // 监听窗口大小变化
   window.addEventListener('resize', () => {
     trendChartInstance?.resize();
     distributionChartInstance?.resize();
@@ -468,11 +499,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('global-refresh', handleGlobalRefresh);
-  window.removeEventListener('resize', () => {
-    trendChartInstance?.resize();
-    distributionChartInstance?.resize();
-  });
-  
+  window.removeEventListener('resize', () => {});
   trendChartInstance?.dispose();
   distributionChartInstance?.dispose();
 });

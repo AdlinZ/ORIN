@@ -129,8 +129,13 @@ public class WorkflowService {
             throw new IllegalStateException("Workflow validation failed: " + workflowId);
         }
 
-        // 执行工作流
-        return workflowEngine.executeWorkflow(workflowId, inputs, triggeredBy);
+        // 创建实例
+        WorkflowInstanceEntity instance = workflowEngine.createInstance(workflowId, inputs, triggeredBy);
+
+        // 异步执行
+        workflowEngine.executeInstanceAsync(instance.getId());
+
+        return instance.getId();
     }
 
     public List<WorkflowResponse> getAllWorkflows() {
@@ -163,5 +168,22 @@ public class WorkflowService {
         // Delete the workflow itself
         workflowRepository.deleteById(id);
         log.info("Workflow deleted: {}", id);
+    }
+
+    public com.adlin.orin.modules.workflow.dto.WorkflowAccessResponse getWorkflowAccessInfo(Long id) {
+        // Validate existence
+        if (!workflowRepository.existsById(id)) {
+            throw new IllegalArgumentException("Workflow not found: " + id);
+        }
+
+        // For now, construct simplified access info
+        // In a production environment, this should fetch dynamic config (hosts, ports)
+        String baseUrl = "http://localhost:8080";
+
+        return com.adlin.orin.modules.workflow.dto.WorkflowAccessResponse.builder()
+                .webAppUrl("http://localhost:5173/chat/" + id) // Frontend App URL
+                .apiUrl(baseUrl + "/v1/workflows/" + id + "/execute")
+                .apiKey("sk-orin-" + java.util.UUID.randomUUID().toString()) // Placeholder API Key
+                .build();
     }
 }

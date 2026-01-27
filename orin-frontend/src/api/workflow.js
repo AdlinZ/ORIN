@@ -61,3 +61,11 @@ export function deleteWorkflow(id) {
         method: 'delete'
     })
 }
+
+export function getWorkflowAccess(id) {
+    return request({
+        baseURL: '',
+        url: `/api/workflows/${id}/access`,
+        method: 'get'
+    })
+}

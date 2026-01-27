@@ -28,6 +28,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @org.springframework.beans.factory.annotation.Value("${orin.security.cors.allowed-origins:*}")
+    private String allowedOrigins;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -59,10 +62,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // TODO: [SECURITY] 生产环境部署到 orin.asia 时，需限制允许的域名
-        // 示例: configuration.setAllowedOrigins(List.of("https://orin.asia",
-        // "https://www.orin.asia"));
-        configuration.setAllowedOrigins(List.of("*"));
+        // [SECURITY] 限制允许的域名 (已实现)
+        if ("*".equals(allowedOrigins)) {
+            configuration.setAllowedOrigins(List.of("*"));
+        } else {
+            configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        }
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count"));

@@ -38,9 +38,9 @@
             <div class="card-header">
               <span class="card-title">平均延迟趋势</span>
               <el-radio-group v-model="trendPeriod" size="small" @change="fetchTrendData">
-                <el-radio-button label="daily">每日</el-radio-button>
-                <el-radio-button label="weekly">每周</el-radio-button>
-                <el-radio-button label="monthly">每月</el-radio-button>
+                <el-radio-button value="daily">每日</el-radio-button>
+                <el-radio-button value="weekly">每周</el-radio-button>
+                <el-radio-button value="monthly">每月</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -226,22 +226,31 @@ const fetchData = async () => {
 };
 
 // 获取趋势数据
+// 获取趋势数据
 const fetchTrendData = async () => {
   trendLoading.value = true;
   try {
     const res = await getLatencyTrend(trendPeriod.value);
-    if (res) {
+    if (res && res.length > 0) {
       renderTrendChart(res);
+    } else {
+      throw new Error('No data');
     }
   } catch (error) {
-    console.warn('获取趋势数据失败，使用模拟数据:', error);
+    // Mock 趋势数据
     const mockTrend = [];
-    for (let i = 6; i >= 0; i--) {
+    const days = trendPeriod.value === 'monthly' ? 30 : (trendPeriod.value === 'weekly' ? 12 : 7);
+
+    for (let i = days - 1; i >= 0; i--) {
         const d = new Date();
-        d.setDate(d.getDate() - i);
+        if (trendPeriod.value === 'weekly') {
+             d.setDate(d.getDate() - i * 7);
+        } else {
+             d.setDate(d.getDate() - i);
+        }
         mockTrend.push({
             date: d.toISOString().slice(5, 10),
-            latency: Math.floor(Math.random() * 800) + 200
+            latency: Math.floor(Math.random() * 800) + 100 + (Math.random() * 200)
         });
     }
     renderTrendChart(mockTrend);
@@ -251,39 +260,48 @@ const fetchTrendData = async () => {
 };
 
 // 渲染趋势图表
+// 渲染趋势图表
 const renderTrendChart = (data) => {
-  if (!trendChartInstance) {
-    trendChartInstance = echarts.init(trendChart.value);
-  }
+  nextTick(() => {
+    if (!trendChart.value) return;
 
-  const option = {
-    tooltip: {
-      trigger: 'axis'
-    },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: data.map(item => item.date),
-      axisLabel: { rotate: 45 }
-    },
-    yAxis: { type: 'value', name: 'Latency (ms)' },
-    series: [
-      {
-        name: '平均延迟',
-        type: 'line',
-        smooth: true,
-        data: data.map(item => item.latency),
-        itemStyle: { color: 'var(--orin-primary)' },
-        areaStyle: {
-             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(0, 191, 165, 0.5)' },
-            { offset: 1, color: 'rgba(0, 191, 165, 0.1)' }
-          ])
+    if (trendChartInstance) {
+      trendChartInstance.dispose();
+      trendChartInstance = null;
+    }
+
+    trendChartInstance = echarts.init(trendChart.value);
+  
+    const option = {
+      tooltip: {
+        trigger: 'axis'
+      },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: data.map(item => item.date),
+        axisLabel: { rotate: 0 }
+      },
+      yAxis: { type: 'value', name: 'Latency (ms)' },
+      series: [
+        {
+          name: '平均延迟',
+          type: 'line',
+          smooth: true,
+          data: data.map(item => item.latency),
+          itemStyle: { color: '#00BFA5' }, // Explicit color
+          areaStyle: {
+               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(0, 191, 165, 0.5)' },
+              { offset: 1, color: 'rgba(0, 191, 165, 0.1)' }
+            ])
+          },
+          animationDuration: 1000
         }
-      }
-    ]
-  };
-  trendChartInstance.setOption(option);
+      ]
+    };
+    trendChartInstance.setOption(option);
+  });
 };
 
 // 渲染分布图表（基于当前数据简单分类）

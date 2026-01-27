@@ -175,6 +175,10 @@ import {
   Clock, Plus, User, View, RefreshLeft, DocumentCopy
 } from '@element-plus/icons-vue'
 
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+
 const props = defineProps({
   agentId: {
     type: String,
@@ -216,7 +220,7 @@ const createVersion = async () => {
   try {
     await request.post(`/agents/${props.agentId}/versions`, {
       description: newVersion.value.description,
-      createdBy: 'admin' // TODO: 从用户上下文获取
+      createdBy: userStore.username || 'unknown',
     })
     ElMessage.success('版本创建成功')
     createVersionDialog.value = false

@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -19,6 +21,8 @@ public class SiliconFlowIntegrationService {
     /**
      * 测试硅基流动API连接性
      */
+    @CircuitBreaker(name = "siliconFlow")
+    @Retry(name = "siliconFlow")
     public boolean testConnection(String endpointUrl, String apiKey) {
         String trimmedUrl = endpointUrl != null ? endpointUrl.trim() : "";
         String trimmedKey = apiKey != null ? apiKey.trim() : "";
@@ -103,6 +107,8 @@ public class SiliconFlowIntegrationService {
     /**
      * 发送聊天消息到硅基流动API
      */
+    @CircuitBreaker(name = "siliconFlow")
+    @Retry(name = "siliconFlow")
     public Optional<Object> sendMessage(String endpointUrl, String apiKey, String model, String message) {
         try {
             String url = endpointUrl + "/chat/completions";
@@ -140,6 +146,8 @@ public class SiliconFlowIntegrationService {
      * 发送多模态聊天消息到硅基流动API
      * Supports content as a list of maps (OpenAI compatible multimodal format)
      */
+    @CircuitBreaker(name = "siliconFlow")
+    @Retry(name = "siliconFlow")
     public Optional<Object> sendMultimodalMessage(String endpointUrl, String apiKey, String model,
             List<Map<String, Object>> contentList) {
         try {
@@ -215,6 +223,8 @@ public class SiliconFlowIntegrationService {
     /**
      * 获取嵌入向量
      */
+    @CircuitBreaker(name = "siliconFlow")
+    @Retry(name = "siliconFlow")
     public Optional<Object> getEmbeddings(String endpointUrl, String apiKey, String model, List<String> input) {
         try {
             String url = endpointUrl + "/embeddings";

@@ -167,6 +167,10 @@ import {
   Upload, Document, View, Connection, Delete, UploadFilled
 } from '@element-plus/icons-vue'
 
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+
 const props = defineProps({
   knowledgeBaseId: {
     type: String,
@@ -221,7 +225,7 @@ const uploadDocument = async () => {
   uploading.value = true
   const formData = new FormData()
   formData.append('file', selectedFile.value)
-  formData.append('uploadedBy', 'admin') // TODO: 从用户上下文获取
+  formData.append('uploadedBy', userStore.username || 'unknown')
 
   try {
     await request.post(

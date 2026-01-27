@@ -104,4 +104,12 @@ public class WorkflowController {
         workflowService.deleteWorkflow(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/{id}/access")
+    @Operation(summary = "获取工作流访问信息 (API/WebApp)")
+    public ResponseEntity<com.adlin.orin.modules.workflow.dto.WorkflowAccessResponse> getWorkflowAccess(
+            @PathVariable Long id) {
+        log.info("REST request to get workflow access info: {}", id);
+        return ResponseEntity.ok(workflowService.getWorkflowAccessInfo(id));
+    }
 }

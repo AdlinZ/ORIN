@@ -5,9 +5,7 @@
       <Navbar />
       <div class="app-main">
         <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-             <component :is="Component" />
-          </transition>
+           <component :is="Component" :key="$route.fullPath" />
         </router-view>
       </div>
     </div>
@@ -18,8 +16,10 @@
 import Sidebar from './components/Sidebar.vue';
 import Navbar from './components/Navbar.vue';
 import { useAppStore } from '@/stores/app';
+import { useRoute } from 'vue-router';
 
 const appStore = useAppStore();
+const route = useRoute();
 </script>
 
 <style scoped>

@@ -21,6 +21,12 @@ public class KnowledgeWorkflowEngine {
 
     private final ObjectMapper objectMapper;
 
+    // Use lazy injection to avoid circular dependency if SkillService uses
+    // WorkflowEngine
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.adlin.orin.modules.skill.service.SkillService skillService;
+
     // TODO: Inject AgentService or RouterService to execute actual agent calls
     // private final RouterService routerService;
 
@@ -56,8 +62,19 @@ public class KnowledgeWorkflowEngine {
                         result = executeAgentStep(agentId, stepInput);
                         break;
                     case "SKILL":
-                        // TODO: Recursive execution of another skill
-                        result = "Skill execution mock result";
+                        Long skillId = step.has("skillId") ? step.get("skillId").asLong() : null;
+                        if (skillId != null && skillService != null) {
+                            try {
+                                result = skillService.executeSkill(skillId, stepInput);
+                            } catch (Exception e) {
+                                log.error("Skill step execution failed", e);
+                                Map<String, Object> err = new HashMap<>();
+                                err.put("error", e.getMessage());
+                                result = err;
+                            }
+                        } else {
+                            result = "Missing skillId or SkillService unavailable";
+                        }
                         break;
                     case "LOGIC":
                         result = executeLogicStep(stepInput);

@@ -16,6 +16,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.adlin.orin.modules.knowledge.service.MilvusVectorService;
+import com.yomahub.liteflow.core.FlowExecutor;
+import com.yomahub.liteflow.flow.LiteflowResponse;
 import org.springframework.beans.factory.annotation.Value;
 
 /**
@@ -30,6 +32,7 @@ public class SkillServiceImplEnhanced implements SkillService {
     private final SkillRepository skillRepository;
     private final RestTemplate restTemplate;
     private final MilvusVectorService milvusVectorService;
+    private final FlowExecutor flowExecutor;
 
     @Value("${milvus.host:localhost}")
     private String milvusHost;
@@ -415,15 +418,51 @@ public class SkillServiceImplEnhanced implements SkillService {
     /**
      * 执行复合类型技能
      */
+    /**
+     * 执行复合类型技能 (via LiteFlow)
+     */
     private Map<String, Object> executeCompositeSkill(SkillEntity skill, Map<String, Object> inputs) {
         log.info("Executing composite skill: {}", skill.getSkillName());
-
-        // TODO: [Plan] Integrate Workflow Engine (e.g. LiteFlow/Flowable) to support
-        // composite skills
         Map<String, Object> result = new HashMap<>();
-        result.put("success", false);
-        result.put("message", "Composite skill execution is not supported yet (Workflow Engine missing).");
-        result.put("workflowId", skill.getWorkflowId());
+
+        if (skill.getWorkflowId() == null) {
+            result.put("success", false);
+            result.put("message", "Workflow ID (Chain ID) is missing for composite skill.");
+            return result;
+        }
+        String chainId = String.valueOf(skill.getWorkflowId());
+        if (chainId.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "Workflow ID (Chain ID) is missing for composite skill.");
+            return result;
+        }
+
+        try {
+            // Execute LiteFlow Chain
+            // Slot can be used to pass initial data if needed, but here we might rely on
+            // ContextBean
+            // For simplicity, we assume custom components read from a shared context or
+            // inputs are passed somehow.
+            // LiteFlow allows passing a context object (param 2).
+            LiteflowResponse response = flowExecutor.execute2Resp(chainId, inputs);
+
+            if (response.isSuccess()) {
+                result.put("success", true);
+                result.put("message", "Workflow executed successfully.");
+                result.put("context", response.getContextBean(Map.class)); // Assuming context contains results
+                result.put("executeStepStr", response.getExecuteStepStr());
+            } else {
+                result.put("success", false);
+                result.put("message", "Workflow execution failed: " + response.getMessage());
+                if (response.getCause() != null) {
+                    result.put("error", response.getCause().getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("LiteFlow execution error", e);
+            result.put("success", false);
+            result.put("error", e.getMessage());
+        }
 
         return result;
     }

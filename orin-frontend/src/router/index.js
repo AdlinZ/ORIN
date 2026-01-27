@@ -206,7 +206,7 @@ const routes = [
                 meta: { title: '请求链路追踪' }
             },
             {
-                path: 'monitor/tokens',
+                path: 'stats/tokens',
                 name: 'TokenStats',
                 component: () => import('../views/Monitor/TokenStats.vue'),
                 meta: { title: 'Token 统计分析', icon: 'Cpu' }
@@ -218,6 +218,13 @@ const routes = [
                 meta: { title: '延迟分析', icon: 'Connection' }
             }
         ]
+    },
+    // Workflow Chat App (Standalone)
+    {
+        path: '/chat/:id',
+        name: 'WorkflowChat',
+        component: () => import('@/views/Chat/WorkflowChat.vue'),
+        meta: { title: 'Chat' }
     },
     // 404
     {

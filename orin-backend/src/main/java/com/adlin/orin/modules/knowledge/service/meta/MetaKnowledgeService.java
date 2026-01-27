@@ -25,6 +25,8 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
         private final com.adlin.orin.gateway.service.RouterService routerService;
         private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
+        private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+
         // --- MetaMemoryService Implementation ---
 
         @Override
@@ -34,9 +36,57 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
 
         @Override
         public List<Map<String, Object>> getShortTermMemory(String agentId, String sessionId, int limit) {
-                // TODO: Integrate with Redis for sliding window chat history
-                // For now return empty list or mock
-                return java.util.Collections.emptyList();
+                String key = "orin:memory:short:" + agentId + ":" + sessionId;
+                // Get the last N messages. List is stored as [msg1, msg2, ...] so we take from
+                // end.
+                // Or if we push to right, we take from end.
+                // Assuming RPUSH, we want range (size - limit) to -1.
+                // To simplify, just get all and stream limit, or use range 0 -1 if size is
+                // small.
+                // Best practice for "recent" is usually LINDEX or sorting, but standard is
+                // range.
+                // Let's assume we store them in chronological order.
+                List<String> rawMessages = redisTemplate.opsForList().range(key, -limit, -1);
+
+                if (rawMessages == null) {
+                        return java.util.Collections.emptyList();
+                }
+
+                return rawMessages.stream().map(json -> {
+                        try {
+                                return objectMapper.readValue(json,
+                                                new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+                                                });
+                        } catch (Exception e) {
+                                log.error("Failed to parse memory message", e);
+                                return null;
+                        }
+                }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+        }
+
+        /**
+         * Save a message to short-term memory (Redis) with sliding window.
+         * Default window size is 50 if not specified.
+         */
+        public void saveShortTermMemory(String agentId, String sessionId, String role, String content) {
+                String key = "orin:memory:short:" + agentId + ":" + sessionId;
+                try {
+                        Map<String, Object> message = new java.util.HashMap<>();
+                        message.put("role", role);
+                        message.put("content", content);
+                        message.put("timestamp", LocalDateTime.now().toString());
+
+                        String json = objectMapper.writeValueAsString(message);
+                        redisTemplate.opsForList().rightPush(key, json);
+
+                        // Sliding window: keep only last 50 messages
+                        redisTemplate.opsForList().trim(key, -50, -1);
+
+                        // Set TTL to 1 day to prevent stale data accumulation
+                        redisTemplate.expire(key, 1, java.util.concurrent.TimeUnit.DAYS);
+                } catch (Exception e) {
+                        log.error("Failed to save short-term memory", e);
+                }
         }
 
         @Override

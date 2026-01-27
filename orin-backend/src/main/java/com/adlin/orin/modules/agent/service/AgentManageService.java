@@ -69,4 +69,29 @@ public interface AgentManageService {
      * @param agentId 智能体ID
      */
     void deleteAgent(String agentId);
+
+    /**
+     * 批量导出智能体配置
+     * 
+     * @param agentIds 智能体ID列表 (空则导出所有)
+     * @return JSON文件字节数组
+     */
+    /**
+     * 批量导出智能体配置
+     * 
+     * @param agentIds 智能体ID列表 (空则导出所有)
+     * @return JSON文件字节数组
+     */
+    default byte[] batchExportAgents(List<String> agentIds) {
+        throw new UnsupportedOperationException("Batch export not supported");
+    }
+
+    /**
+     * 批量导入智能体配置
+     * 
+     * @param file JSON配置文件
+     */
+    default void batchImportAgents(org.springframework.web.multipart.MultipartFile file) {
+        throw new UnsupportedOperationException("Batch import not supported");
+    }
 }

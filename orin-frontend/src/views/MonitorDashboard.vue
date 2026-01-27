@@ -346,7 +346,7 @@ const handleCardClick = (item) => {
   if (!item.clickable) return;
   
   if (item.cardId === 'stat-tokens') {
-    router.push('/dashboard/monitor/tokens');
+    router.push('/dashboard/stats/tokens');
   } else if (item.cardId === 'stat-latency') {
     router.push('/dashboard/monitor/latency');
   }

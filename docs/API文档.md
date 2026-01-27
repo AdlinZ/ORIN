@@ -65,6 +65,27 @@ GET /agents/{agentId}/versions/compare?version1=1&version2=2
 
 ---
 
+### 1.4 批量操作
+
+#### 批量导出
+```http
+POST /agents/batch/export
+```
+**请求体** (可选，指定ID导出，空则导出所有):
+```json
+["agent1", "agent2"]
+```
+
+#### 批量导入
+```http
+POST /agents/batch/import
+Content-Type: multipart/form-data
+```
+**参数**:
+- `file`: JSON 配置文件
+
+---
+
 ## 2. 知识库管理 API
 
 ### 2.1 文档上传
