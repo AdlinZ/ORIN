@@ -94,4 +94,19 @@ public interface AgentManageService {
     default void batchImportAgents(org.springframework.web.multipart.MultipartFile file) {
         throw new UnsupportedOperationException("Batch import not supported");
     }
+
+    /**
+     * 刷新所有智能体的元数据 (Mode, ModelName等)
+     * 主要用于同步 Dify 侧的变更
+     */
+    default void refreshAllAgentsMetadata() {
+        throw new UnsupportedOperationException("Refresh all metadata not supported");
+    }
+
+    /**
+     * 获取异步任务状态
+     */
+    default Object getJobStatus(String agentId, String jobId) {
+        throw new UnsupportedOperationException("Get job status not supported");
+    }
 }

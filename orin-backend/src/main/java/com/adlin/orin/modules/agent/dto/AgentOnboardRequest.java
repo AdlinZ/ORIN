@@ -80,4 +80,18 @@ public class AgentOnboardRequest {
     public void setSystemPrompt(String systemPrompt) {
         this.systemPrompt = systemPrompt;
     }
+
+    // TTS & Image Parameters
+    private String voice;
+    private Double speed;
+    private Integer gain;
+    private String imageSize;
+    private String seed;
+    private Double guidanceScale;
+    private Integer inferenceSteps;
+    private String negativePrompt;
+
+    // Video Parameters
+    private String videoSize;
+    private String videoDuration;
 }

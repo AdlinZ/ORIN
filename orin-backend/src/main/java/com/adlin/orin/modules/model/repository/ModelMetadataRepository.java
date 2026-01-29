@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ModelMetadataRepository extends JpaRepository<ModelMetadata, Long> {
     List<ModelMetadata> findByStatus(String status);
+
+    java.util.Optional<ModelMetadata> findByModelId(String modelId);
 }

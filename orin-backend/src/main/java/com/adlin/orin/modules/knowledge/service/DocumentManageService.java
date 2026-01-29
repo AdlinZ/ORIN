@@ -29,7 +29,7 @@ public class DocumentManageService {
     private final MilvusVectorService vectorService;
 
     // 文件存储根目录 (可配置)
-    private static final String UPLOAD_DIR = "/var/orin/uploads/documents";
+    private static final String UPLOAD_DIR = "storage/uploads/documents";
 
     /**
      * 上传文档

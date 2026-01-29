@@ -26,16 +26,19 @@ public class SiliconFlowAgentManageService implements AgentManageService {
     private final AgentAccessProfileRepository accessProfileRepository;
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
+    private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
 
     @Autowired
     public SiliconFlowAgentManageService(SiliconFlowIntegrationService siliconFlowIntegrationService,
             AgentAccessProfileRepository accessProfileRepository,
             AgentMetadataRepository metadataRepository,
-            AgentHealthStatusRepository healthStatusRepository) {
+            AgentHealthStatusRepository healthStatusRepository,
+            com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository) {
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
+        this.modelMetadataRepository = modelMetadataRepository;
     }
 
     @Override
@@ -67,6 +70,7 @@ public class SiliconFlowAgentManageService implements AgentManageService {
                 .build();
         accessProfileRepository.save(profile);
 
+        String viewType = determineViewType(endpointUrl, apiKey, modelName);
         AgentMetadata metadata = AgentMetadata.builder()
                 .agentId(generatedId)
                 .name(finalName)
@@ -75,6 +79,7 @@ public class SiliconFlowAgentManageService implements AgentManageService {
                 .icon("🤖")
                 .modelName(modelName)
                 .providerType("SiliconFlow")
+                .viewType(viewType)
                 .syncTime(LocalDateTime.now())
                 .build();
         metadataRepository.save(metadata);
@@ -88,10 +93,57 @@ public class SiliconFlowAgentManageService implements AgentManageService {
                 .providerType("SiliconFlow")
                 .mode("chat")
                 .modelName(modelName)
+                .viewType(viewType)
                 .build();
         healthStatusRepository.save(health);
 
         return metadata;
+    }
+
+    /**
+     * Determine viewType using metadata, API discovery, or heuristics
+     */
+    private String determineViewType(String endpointUrl, String apiKey, String modelName) {
+        if (modelName == null)
+            return "CHAT";
+
+        // 1. Try Database Lookup (ModelMetadata)
+        try {
+            java.util.Optional<com.adlin.orin.modules.model.entity.ModelMetadata> modelOpt = modelMetadataRepository
+                    .findByModelId(modelName);
+
+            if (modelOpt.isPresent()) {
+                String modelType = modelOpt.get().getType();
+                if (modelType != null && !modelType.isEmpty()) {
+                    return modelType;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get viewType from metadata for model {}: {}", modelName, e.getMessage());
+        }
+
+        // 2. Try API discovery (Ground Truth from Provider)
+        try {
+            String apiViewType = siliconFlowIntegrationService.resolveSiliconFlowViewType(endpointUrl, apiKey,
+                    modelName);
+            if (apiViewType != null && !"CHAT".equals(apiViewType)) {
+                return apiViewType;
+            }
+        } catch (Exception e) {
+            log.warn("API discovery failed for model {}: {}", modelName, e.getMessage());
+        }
+
+        // 3. Heuristic Fallback (Last resort)
+        String modelLower = modelName.toLowerCase();
+        if (modelLower.contains("wan") || modelLower.contains("t2v") || modelLower.contains("i2v"))
+            return "TTV";
+        if (modelLower.contains("tts") || modelLower.contains("speech") || modelLower.contains("cosyvoice"))
+            return "TTS";
+        if (modelLower.contains("image") || modelLower.contains("flux") || modelLower.contains("stable-diffusion")
+                || modelLower.contains("kolors"))
+            return "TTI";
+
+        return "CHAT";
     }
 
     /**
@@ -159,12 +211,17 @@ public class SiliconFlowAgentManageService implements AgentManageService {
         if (modelName != null && !modelName.isEmpty()) {
             metadata.setModelName(modelName);
 
-            // Sync modelName to HealthStatus for list view consistency
+            // Re-determine viewType if model changes
+            String newViewType = determineViewType(profile.getEndpointUrl(), profile.getApiKey(), modelName);
+            metadata.setViewType(newViewType);
+
+            // Sync modelName & viewType to HealthStatus for list view consistency
             try {
                 com.adlin.orin.modules.monitor.entity.AgentHealthStatus health = healthStatusRepository
                         .findById(agentId).orElse(null);
                 if (health != null) {
                     health.setModelName(modelName);
+                    health.setViewType(newViewType);
                     healthStatusRepository.save(health);
                 }
             } catch (Exception e) {

@@ -57,6 +57,12 @@ public class AgentHealthStatus {
      */
     private String modelName;
 
+    /**
+     * 视图类型 (冗余自 Metadata，方便前端渲染)
+     * 例如: CHAT, STT, TTI, WORKFLOW
+     */
+    private String viewType;
+
     public enum Status {
         RUNNING,
         STOPPED,
@@ -69,7 +75,7 @@ public class AgentHealthStatus {
     }
 
     public AgentHealthStatus(String agentId, String agentName, Integer healthScore, Status status, Long lastHeartbeat,
-            String providerType, String mode, String modelName) {
+            String providerType, String mode, String modelName, String viewType) {
         this.agentId = agentId;
         this.agentName = agentName;
         this.healthScore = healthScore;
@@ -78,6 +84,7 @@ public class AgentHealthStatus {
         this.providerType = providerType;
         this.mode = mode;
         this.modelName = modelName;
+        this.viewType = viewType;
     }
 
     public String getAgentId() {
@@ -144,6 +151,14 @@ public class AgentHealthStatus {
         this.modelName = modelName;
     }
 
+    public String getViewType() {
+        return viewType;
+    }
+
+    public void setViewType(String viewType) {
+        this.viewType = viewType;
+    }
+
     public static AgentHealthStatusBuilder builder() {
         return new AgentHealthStatusBuilder();
     }
@@ -157,6 +172,7 @@ public class AgentHealthStatus {
         private String providerType;
         private String mode;
         private String modelName;
+        private String viewType;
 
         public AgentHealthStatusBuilder agentId(String agentId) {
             this.agentId = agentId;
@@ -198,9 +214,14 @@ public class AgentHealthStatus {
             return this;
         }
 
+        public AgentHealthStatusBuilder viewType(String viewType) {
+            this.viewType = viewType;
+            return this;
+        }
+
         public AgentHealthStatus build() {
             return new AgentHealthStatus(agentId, agentName, healthScore, status, lastHeartbeat, providerType, mode,
-                    modelName);
+                    modelName, viewType);
         }
     }
 }

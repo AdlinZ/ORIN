@@ -9,6 +9,10 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.*;
 
 @Slf4j
@@ -79,8 +83,22 @@ public class SiliconFlowIntegrationService {
      * 获取模型列表
      */
     public Optional<Object> getModels(String endpointUrl, String apiKey) {
+        return getModels(endpointUrl, apiKey, null, null);
+    }
+
+    /**
+     * 获取带筛选的模型列表
+     */
+    public Optional<Object> getModels(String endpointUrl, String apiKey, String type, String subType) {
         try {
             String url = endpointUrl + "/models";
+            if (type != null || subType != null) {
+                url += "?";
+                if (type != null)
+                    url += "type=" + type;
+                if (subType != null)
+                    url += (type != null ? "&" : "") + "sub_type=" + subType;
+            }
 
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(apiKey);
@@ -102,6 +120,65 @@ public class SiliconFlowIntegrationService {
             log.error("Failed to fetch models from SiliconFlow: ", e);
         }
         return Optional.empty();
+    }
+
+    /**
+     * 根据 API 筛选功能确定模型类型
+     */
+    public String resolveSiliconFlowViewType(String endpointUrl, String apiKey, String modelId) {
+        if (modelId == null)
+            return "CHAT";
+
+        log.info("Resolving SiliconFlow model type for: {}", modelId);
+
+        // 1. 检查是否为视频模型
+        if (isModelInSubType(endpointUrl, apiKey, modelId, "text-to-video")) {
+            return "TTV";
+        }
+        // 2. 检查是否为语音识别
+        if (isModelInSubType(endpointUrl, apiKey, modelId, "speech-to-text")) {
+            return "STT";
+        }
+        // 3. 检查是否为语音合成
+        if (isModelInSubType(endpointUrl, apiKey, modelId, "text-to-speech")) {
+            return "TTS";
+        }
+        // 4. 检查是否为图像生成
+        if (isModelInSubType(endpointUrl, apiKey, modelId, "text-to-image") ||
+                isModelInSubType(endpointUrl, apiKey, modelId, "image-to-image")) {
+            return "TTI";
+        }
+        // 5. 检查是否为文本模型 (默认对话)
+        if (isModelInType(endpointUrl, apiKey, modelId, "text")) {
+            return "CHAT";
+        }
+
+        return "CHAT"; // 最终兜底
+    }
+
+    private boolean isModelInSubType(String endpointUrl, String apiKey, String modelId, String subType) {
+        return isModelInList(getModels(endpointUrl, apiKey, null, subType), modelId);
+    }
+
+    private boolean isModelInType(String endpointUrl, String apiKey, String modelId, String type) {
+        return isModelInList(getModels(endpointUrl, apiKey, type, null), modelId);
+    }
+
+    private boolean isModelInList(Optional<Object> modelsResponse, String modelId) {
+        if (modelsResponse.isEmpty())
+            return false;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = (Map<String, Object>) modelsResponse.get();
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> data = (List<Map<String, Object>>) body.get("data");
+            if (data == null)
+                return false;
+            return data.stream()
+                    .anyMatch(m -> modelId.equals(m.get("id")));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -313,5 +390,379 @@ public class SiliconFlowIntegrationService {
             log.error("Failed to upload file to SiliconFlow: ", e);
         }
         return Optional.empty();
+    }
+
+    /**
+     * 生成图像 - 调用硅基流动的文生图API
+     */
+    @CircuitBreaker(name = "siliconFlow")
+    @Retry(name = "siliconFlow")
+    public Optional<Object> generateImage(String endpointUrl, String apiKey, String model, String prompt,
+            Map<String, Object> params) {
+        try {
+            String trimmedUrl = endpointUrl != null ? endpointUrl.trim() : "";
+            if (trimmedUrl.endsWith("/")) {
+                trimmedUrl = trimmedUrl.substring(0, trimmedUrl.length() - 1);
+            }
+
+            // SiliconFlow image generation endpoint
+            String url;
+            if (trimmedUrl.contains("siliconflow") && !trimmedUrl.endsWith("/v1")) {
+                url = trimmedUrl + "/v1/images/generations";
+            } else {
+                url = trimmedUrl + "/images/generations";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", model);
+            requestBody.put("prompt", prompt);
+
+            // 添加可选参数
+            requestBody.put("image_size", params.getOrDefault("image_size", "1024x1024"));
+            requestBody.put("batch_size", params.getOrDefault("batch_size", 1));
+            requestBody.put("num_inference_steps", params.getOrDefault("num_inference_steps", 20));
+            requestBody.put("guidance_scale", params.getOrDefault("guidance_scale", 7.5));
+
+            if (params.containsKey("negative_prompt")) {
+                requestBody.put("negative_prompt", params.get("negative_prompt"));
+            }
+            if (params.containsKey("seed")) {
+                requestBody.put("seed", params.get("seed"));
+            }
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            log.info("Calling SiliconFlow image generation API: {} with model: {}", url, model);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("Image generation successful");
+                return Optional.of(response.getBody());
+            } else {
+                log.error("Image generation failed with status: {}", response.getStatusCode());
+            }
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("SiliconFlow image generation client error: {} - {}", e.getStatusCode(),
+                    e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Failed to generate image with SiliconFlow: ", e);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 语音转文字 - 调用硅基流动的语音识别API
+     */
+    @CircuitBreaker(name = "siliconFlow")
+    @Retry(name = "siliconFlow")
+    public Optional<Object> transcribeAudio(String endpointUrl, String apiKey, String model, byte[] audioData,
+            String filename) {
+        try {
+            String trimmedUrl = endpointUrl != null ? endpointUrl.trim() : "";
+            if (trimmedUrl.endsWith("/")) {
+                trimmedUrl = trimmedUrl.substring(0, trimmedUrl.length() - 1);
+            }
+
+            String url;
+            if (trimmedUrl.contains("siliconflow") && !trimmedUrl.endsWith("/v1")) {
+                url = trimmedUrl + "/v1/audio/transcriptions";
+            } else {
+                url = trimmedUrl + "/audio/transcriptions";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+
+            org.springframework.core.io.ByteArrayResource audioResource = new org.springframework.core.io.ByteArrayResource(
+                    audioData) {
+                @Override
+                public String getFilename() {
+                    return filename;
+                }
+            };
+
+            body.add("file", audioResource);
+            body.add("model", model);
+
+            HttpEntity<org.springframework.util.MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+
+            log.info("Calling SiliconFlow audio transcription API: {} with model: {}", url, model);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("Audio transcription successful");
+                return Optional.of(response.getBody());
+            } else {
+                log.error("Audio transcription failed with status: {}", response.getStatusCode());
+            }
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("SiliconFlow audio transcription client error: {} - {}", e.getStatusCode(),
+                    e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Failed to transcribe audio with SiliconFlow: ", e);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 语音合成 (TTS) - 调用硅基流动的语音合成 API
+     * POST /v1/audio/speech
+     */
+    // @CircuitBreaker(name = "siliconFlow")
+    // @Retry(name = "siliconFlow")
+    public Optional<byte[]> generateAudio(String endpointUrl, String apiKey, String model, String input,
+            Map<String, Object> params) {
+        try {
+            String trimmedUrl = endpointUrl != null ? endpointUrl.trim() : "";
+            if (trimmedUrl.endsWith("/")) {
+                trimmedUrl = trimmedUrl.substring(0, trimmedUrl.length() - 1);
+            }
+
+            String url;
+            if (trimmedUrl.contains("siliconflow") && !trimmedUrl.endsWith("/v1")) {
+                url = trimmedUrl + "/v1/audio/speech";
+            } else {
+                url = trimmedUrl + "/audio/speech";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", model);
+            requestBody.put("input", input);
+
+            // Optional parameters
+            if (params.containsKey("voice"))
+                requestBody.put("voice", params.get("voice"));
+            if (params.containsKey("speed"))
+                requestBody.put("speed", params.get("speed"));
+            if (params.containsKey("gain"))
+                requestBody.put("gain", params.get("gain"));
+            if (params.containsKey("response_format"))
+                requestBody.put("response_format", params.get("response_format"));
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            log.info("Calling SiliconFlow audio speech API: {} with model: {}", url, model);
+
+            // Expecting binary response (byte array)
+            ResponseEntity<byte[]> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    byte[].class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("Audio generation successful, size: {} bytes", response.getBody().length);
+                return Optional.of(response.getBody());
+            } else {
+                log.error("Audio generation failed with status: {}", response.getStatusCode());
+                throw new RuntimeException("Audio generation failed with status: " + response.getStatusCode());
+            }
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("SiliconFlow audio speech client error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("SiliconFlow API Error: " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Failed to generate speech with SiliconFlow: ", e);
+            throw new RuntimeException("Failed to generate speech: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 生成视频 - 调用硅基流动的视频提交 API
+     * POST /v1/video/submit
+     */
+    public Optional<Object> generateVideo(String endpointUrl, String apiKey, String model, String prompt,
+            Map<String, Object> params) {
+        try {
+            String url = SiliconFlowUrlUtils.buildUrl(endpointUrl, "/video/submit");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey != null ? apiKey.trim() : "");
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("User-Agent", "Mozilla/5.0");
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", model);
+            requestBody.put("prompt", prompt);
+
+            // image_size is required by SiliconFlow
+            // Valid options: 1280x720, 720x1280, 960x960
+            String ratio = (String) params.getOrDefault("videoSize", "16:9");
+            String imageSize = "1280x720";
+            if ("9:16".equals(ratio))
+                imageSize = "720x1280";
+            else if ("1:1".equals(ratio))
+                imageSize = "960x960";
+            requestBody.put("image_size", imageSize);
+
+            // Optional parameters
+            if (params.containsKey("negative_prompt"))
+                requestBody.put("negative_prompt", params.get("negative_prompt"));
+            if (params.containsKey("seed"))
+                requestBody.put("seed", params.get("seed"));
+
+            // For I2V models, the parameter is 'image'
+            if (params.containsKey("reference_image")) {
+                requestBody.put("image", params.get("reference_image"));
+            } else if (params.containsKey("image")) {
+                requestBody.put("image", params.get("image"));
+            }
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            logCurrentRequestAsCurl(url, "POST", headers, requestBody);
+            log.info("Calling SiliconFlow video submit API: {} with model: {}", url, model);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return Optional.of(response.getBody());
+            }
+        } catch (Exception e) {
+            log.error("Failed to submit video task to SiliconFlow: ", e);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 获取视频任务状态 - 注意 SiliconFlow 需要 POST 请求且参数在 Body 中
+     * POST /v1/video/status
+     */
+    public Optional<Object> getVideoJobStatus(String endpointUrl, String apiKey, String requestId) {
+        HttpURLConnection connection = null;
+        try {
+            String urlStr = SiliconFlowUrlUtils.buildUrl(endpointUrl, "/video/status");
+            URL url = new URL(urlStr);
+
+            String finalApiKey = apiKey != null ? apiKey.trim() : "";
+            // Log curl for debugging
+            Map<String, String> debugBody = new HashMap<>();
+            debugBody.put("requestId", requestId);
+            // Reusing the log logic just for visibility, though we build request manually
+            // below
+            HttpHeaders debugHeaders = new HttpHeaders();
+            debugHeaders.setBearerAuth(finalApiKey);
+            debugHeaders.setContentType(MediaType.APPLICATION_JSON);
+            debugHeaders.set("User-Agent", "Mozilla/5.0");
+            logCurrentRequestAsCurl(urlStr, "POST", debugHeaders, debugBody);
+
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Authorization", "Bearer " + finalApiKey);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(10000);
+
+            // Manual JSON construction to be absolutely safe
+            String jsonBody = "{\"requestId\":\"" + requestId + "\"}";
+
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonBody.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = connection.getResponseCode();
+
+            InputStream stream;
+            if (responseCode >= 200 && responseCode < 300) {
+                stream = connection.getInputStream();
+            } else {
+                stream = connection.getErrorStream();
+            }
+
+            String responseBody = "";
+            if (stream != null) {
+                try (java.util.Scanner scanner = new java.util.Scanner(stream,
+                        java.nio.charset.StandardCharsets.UTF_8.name())) {
+                    responseBody = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
+                }
+            }
+
+            if (responseCode >= 200 && responseCode < 300) {
+                // Manual JSON parsing using Jackson ObjectMapper since we have it on classpath
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                @SuppressWarnings("unchecked")
+                Map<String, Object> result = mapper.readValue(responseBody, Map.class);
+                return Optional.of(result);
+            } else {
+                // Handle 404 / 20063
+                if (responseCode == 404 && responseBody.contains("20063")) {
+                    log.info("SiliconFlow task sync pending (20063) [HttpURLConnection]: {}. Retrying...",
+                            responseBody);
+                    Map<String, Object> errorBody = new HashMap<>();
+                    errorBody.put("status", "TaskNotFound");
+                    errorBody.put("reason", "Task is initialized, waiting for sync...");
+                    return Optional.of(errorBody);
+                }
+
+                log.error("SiliconFlow status API error ({}): {}", responseCode, responseBody);
+                Map<String, Object> errorBody = new HashMap<>();
+                errorBody.put("status", "FAILED");
+                errorBody.put("reason", "API Error: " + responseCode + " " + responseBody);
+                return Optional.of(errorBody);
+            }
+
+        } catch (Exception e) {
+            log.warn("Failed to get video job status [HttpURLConnection]: {}", e.getMessage());
+            Map<String, Object> errorBody = new HashMap<>();
+            errorBody.put("status", "FAILED");
+            errorBody.put("reason", "Network/Connection error: " + e.getMessage());
+            return Optional.of(errorBody);
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    private void logCurrentRequestAsCurl(String url, String method, HttpHeaders headers, Map<String, ?> body) {
+        StringBuilder curl = new StringBuilder("curl -X ").append(method).append(" ");
+        curl.append("'").append(url).append("'");
+
+        headers.forEach((k, v) -> {
+            v.forEach(val -> {
+                curl.append(" -H '").append(k).append(": ").append(val).append("'");
+            });
+        });
+
+        try {
+            if (body != null && !body.isEmpty()) {
+                String jsonBody = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(body);
+                curl.append(" -d '").append(jsonBody).append("'");
+            }
+        } catch (Exception e) {
+            curl.append(" -d '[JSON Serialization Failed]'");
+        }
+
+        log.info("👇 [DEBUG CURL] Copy and run this in terminal to verify:\n{}\n", curl.toString());
     }
 }

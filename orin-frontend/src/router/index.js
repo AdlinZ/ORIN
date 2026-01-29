@@ -79,8 +79,14 @@ const routes = [
             {
                 path: 'knowledge',
                 meta: { title: '知识管理' },
-                redirect: '/dashboard/knowledge/unstructured',
+                redirect: '/dashboard/knowledge/overview',
                 children: [
+                    {
+                        path: 'overview',
+                        name: 'KnowledgeOverview',
+                        component: () => import('../views/Knowledge/KBList.vue'),
+                        meta: { title: '知识架构', icon: 'Reading' }
+                    },
                     {
                         path: 'unstructured',
                         name: 'KnowledgeUnstructured',

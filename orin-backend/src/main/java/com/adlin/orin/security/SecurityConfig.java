@@ -41,6 +41,8 @@ public class SecurityConfig {
                         // 公开端点
                         .requestMatchers(
                                 "/api/v1/auth/**",
+                                "/api/v1/multimodal/files/*/download",
+                                "/api/v1/multimodal/files/*/thumbnail",
                                 "/v1/health",
                                 "/v1/providers",
                                 "/swagger-ui/**",

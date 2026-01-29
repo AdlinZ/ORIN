@@ -29,7 +29,7 @@ public class MultimodalFileService {
 
     private final MultimodalFileRepository fileRepository;
 
-    private static final String UPLOAD_DIR = "/var/orin/uploads/multimodal";
+    private static final String UPLOAD_DIR = "storage/uploads/multimodal";
     private static final int THUMBNAIL_SIZE = 200;
 
     /**
@@ -81,6 +81,49 @@ public class MultimodalFileService {
 
         log.info("Uploaded multimodal file: {} (type: {})", originalFilename, fileType);
         return multimodalFile;
+    }
+
+    /**
+     * 上传二进制文件 (内部调用)
+     */
+    @Transactional
+    public MultimodalFile uploadFile(byte[] data, String originalFilename, String mimeType, String uploadedBy)
+            throws IOException {
+        if (data == null || data.length == 0) {
+            throw new IllegalArgumentException("File content is empty");
+        }
+
+        String fileType = determineFileType(mimeType);
+
+        // 生成唯一文件名
+        String fileExtension = getFileExtension(originalFilename);
+        String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
+
+        // 创建存储目录
+        Path uploadPath = Paths.get(UPLOAD_DIR, fileType.toLowerCase());
+        Files.createDirectories(uploadPath);
+
+        // 保存文件
+        Path filePath = uploadPath.resolve(uniqueFilename);
+        Files.write(filePath, data);
+
+        // 创建文件记录
+        MultimodalFile.MultimodalFileBuilder builder = MultimodalFile.builder()
+                .fileName(originalFilename)
+                .fileType(fileType)
+                .mimeType(mimeType)
+                .fileSize((long) data.length)
+                .storagePath(filePath.toString())
+                .uploadedBy(uploadedBy != null ? uploadedBy : "system");
+
+        // 暂时不处理二进制图片的缩略图生成
+
+        MultimodalFile multimodalFile = builder.build();
+        multimodalFile = fileRepository.save(multimodalFile);
+
+        log.info("Uploaded generated file: {} (type: {})", originalFilename, fileType);
+        return multimodalFile;
+
     }
 
     /**

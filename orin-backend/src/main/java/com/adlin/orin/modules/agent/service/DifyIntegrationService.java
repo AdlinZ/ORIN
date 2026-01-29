@@ -108,6 +108,48 @@ public class DifyIntegrationService {
     }
 
     /**
+     * 获取应用参数 (App API - /parameters)
+     * 不需要 App ID，直接使用 App Key
+     */
+    public Optional<java.util.Map<String, Object>> fetchAppParameters(String endpointUrl, String apiKey) {
+        try {
+            String url = buildUrl(endpointUrl, "/parameters");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            HttpEntity<?> entity = new HttpEntity<>(headers);
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.GET, entity, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+            if (response.getStatusCode().is2xxSuccessful())
+                return Optional.ofNullable(response.getBody());
+        } catch (Exception e) {
+            log.warn("Failed to fetch app parameters: {}", e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 获取应用元数据 (App API - /meta)
+     * 不需要 App ID，直接使用 App Key
+     */
+    public Optional<java.util.Map<String, Object>> fetchAppMeta(String endpointUrl, String apiKey) {
+        try {
+            String url = buildUrl(endpointUrl, "/meta");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            HttpEntity<?> entity = new HttpEntity<>(headers);
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.GET, entity, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+            if (response.getStatusCode().is2xxSuccessful())
+                return Optional.ofNullable(response.getBody());
+        } catch (Exception e) {
+            log.warn("Failed to fetch app meta: {}", e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    /**
      * 发送消息到Dify应用
      */
     public Optional<Object> sendMessage(String endpointUrl, String apiKey, String appId, String message) {
@@ -168,6 +210,87 @@ public class DifyIntegrationService {
             }
         } catch (Exception e) {
             log.warn("Failed to fetch conversations from Dify: {}", e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 发送文本补全消息 (Text Generation)
+     */
+    public Optional<Object> sendCompletion(String endpointUrl, String apiKey, String prompt,
+            Map<String, Object> inputs) {
+        try {
+            String url = buildUrl(endpointUrl, "/completion-messages");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("inputs", inputs != null ? inputs : new HashMap<>());
+            // Note: For completion-messages, the prompt is often passed differently or via
+            // inputs depending on setup.
+            // But standard Dify API for completion usually expects 'inputs' where variables
+            // are defined.
+            // If 'prompt' is a direct override, it might vary. Standard Dify uses 'inputs'
+            // map.
+            // We'll rely on inputs mainly, or assume a default key if prompt is raw.
+            // For now, let's assume standard behavior:
+            requestBody.put("response_mode", "blocking");
+            requestBody.put("user", "orin-system");
+
+            // If prompt is provided and inputs are empty, might try to put it in a default
+            // key?
+            // Safer to just pass inputs as is.
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return Optional.of(response.getBody());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send completion to Dify: {}", e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 运行工作流 (Workflow)
+     */
+    public Optional<Object> runWorkflow(String endpointUrl, String apiKey, Map<String, Object> inputs) {
+        try {
+            String url = buildUrl(endpointUrl, "/workflows/run");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("inputs", inputs != null ? inputs : new HashMap<>());
+            requestBody.put("response_mode", "blocking");
+            requestBody.put("user", "orin-system");
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return Optional.of(response.getBody());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to run workflow on Dify: {}", e.getMessage());
         }
         return Optional.empty();
     }

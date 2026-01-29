@@ -40,6 +40,11 @@ public class AgentMetadata {
      */
     private String providerType;
 
+    /**
+     * 前端视图类型 (CHAT, STT, TTI, WORKFLOW)
+     */
+    private String viewType;
+
     private Double temperature;
     private Double topP;
     private Integer maxTokens;
@@ -79,13 +84,24 @@ public class AgentMetadata {
         this.systemPrompt = systemPrompt;
     }
 
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String parameters;
+
+    public String getParameters() {
+        return parameters;
+    }
+
+    public void setParameters(String parameters) {
+        this.parameters = parameters;
+    }
+
     private LocalDateTime syncTime;
 
     public AgentMetadata() {
     }
 
     public AgentMetadata(String agentId, String name, String description, String icon, String mode, String modelName,
-            String providerType, LocalDateTime syncTime) {
+            String providerType, String viewType, LocalDateTime syncTime) {
         this.agentId = agentId;
         this.name = name;
         this.description = description;
@@ -93,6 +109,7 @@ public class AgentMetadata {
         this.mode = mode;
         this.modelName = modelName;
         this.providerType = providerType;
+        this.viewType = viewType;
         this.syncTime = syncTime;
     }
 
@@ -152,6 +169,14 @@ public class AgentMetadata {
         this.providerType = providerType;
     }
 
+    public String getViewType() {
+        return viewType;
+    }
+
+    public void setViewType(String viewType) {
+        this.viewType = viewType;
+    }
+
     public LocalDateTime getSyncTime() {
         return syncTime;
     }
@@ -172,10 +197,12 @@ public class AgentMetadata {
         private String mode;
         private String modelName;
         private String providerType;
+        private String viewType;
         private Double temperature;
         private Double topP;
         private Integer maxTokens;
         private String systemPrompt;
+        private String parameters;
         private LocalDateTime syncTime;
 
         public AgentMetadataBuilder agentId(String agentId) {
@@ -213,6 +240,11 @@ public class AgentMetadata {
             return this;
         }
 
+        public AgentMetadataBuilder viewType(String viewType) {
+            this.viewType = viewType;
+            return this;
+        }
+
         public AgentMetadataBuilder temperature(Double temperature) {
             this.temperature = temperature;
             return this;
@@ -233,6 +265,11 @@ public class AgentMetadata {
             return this;
         }
 
+        public AgentMetadataBuilder parameters(String parameters) {
+            this.parameters = parameters;
+            return this;
+        }
+
         public AgentMetadataBuilder syncTime(LocalDateTime syncTime) {
             this.syncTime = syncTime;
             return this;
@@ -240,11 +277,13 @@ public class AgentMetadata {
 
         public AgentMetadata build() {
             AgentMetadata metadata = new AgentMetadata(agentId, name, description, icon, mode, modelName, providerType,
+                    viewType,
                     syncTime);
             metadata.setTemperature(temperature);
             metadata.setTopP(topP);
             metadata.setMaxTokens(maxTokens);
             metadata.setSystemPrompt(systemPrompt);
+            metadata.setParameters(parameters);
             return metadata;
         }
     }

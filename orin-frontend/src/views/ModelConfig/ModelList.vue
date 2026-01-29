@@ -27,14 +27,22 @@
     <el-card shadow="never" class="table-card">
       <div class="table-toolbar" style="margin-bottom: 24px;">
          <div class="header-left">
-           <el-radio-group v-model="typeFilter" @change="handleTabChange">
-          <el-radio-button label="ALL">全部</el-radio-button>
-          <el-radio-button label="CHAT">Chat</el-radio-button>
-          <el-radio-button label="EMBEDDING">Embedding</el-radio-button>
-          <el-radio-button label="RERANKER">Reranker</el-radio-button>
-          <el-radio-button label="TEXT_TO_IMAGE">Text2Img</el-radio-button>
-          <el-radio-button label="SPEECH_TO_TEXT">Speech2Text</el-radio-button>
-        </el-radio-group>
+           <el-select 
+             v-model="typeFilter" 
+             @change="handleTabChange" 
+             placeholder="模型类型筛选" 
+             clearable 
+             style="width: 200px"
+           >
+             <el-option label="全部类型" value="ALL" />
+             <el-option label="对话 (Chat)" value="CHAT" />
+             <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
+             <el-option label="结果重排 (Reranker)" value="RERANKER" />
+             <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
+             <el-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
+             <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
+             <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
+           </el-select>
          </div>
          <div class="action-bar">
            <el-input 
@@ -76,8 +84,8 @@
         
         <el-table-column prop="type" label="类型" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.type === 'LLM' ? 'primary' : 'success'" effect="plain">
-              {{ row.type }}
+            <el-tag :type="getModelTypeTag(row.type)" effect="plain">
+              {{ formatModelType(row.type) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -503,6 +511,34 @@ const handleBatchDelete = () => {
       loading.value = false;
     }
   });
+};
+
+const getModelTypeTag = (type) => {
+  const map = {
+    'CHAT': 'primary',
+    'LLM': 'primary',
+    'EMBEDDING': 'warning',
+    'RERANKER': 'info',
+    'TEXT_TO_IMAGE': 'success',
+    'TEXT_TO_VIDEO': 'danger',
+    'SPEECH_TO_TEXT': '',
+    'TEXT_TO_SPEECH': ''
+  };
+  return map[type] || 'info';
+};
+
+const formatModelType = (type) => {
+  const map = {
+    'CHAT': '对话 (Chat)',
+    'LLM': '语言模型',
+    'EMBEDDING': '向量嵌入',
+    'RERANKER': '重排',
+    'TEXT_TO_IMAGE': '图像生成',
+    'TEXT_TO_VIDEO': '视频生成',
+    'SPEECH_TO_TEXT': '语音转文字',
+    'TEXT_TO_SPEECH': '文字转语音'
+  };
+  return map[type] || type;
 };
 
 onMounted(() => {

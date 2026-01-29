@@ -95,7 +95,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { Download, User, Cpu, ChatLineRound } from '@element-plus/icons-vue';
+import { Download, User, Cpu, ChatLineRound, Search } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { getAgentList, getAgentLogs } from '@/api/agent';
 import { ElMessage } from 'element-plus';

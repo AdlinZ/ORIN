@@ -41,6 +41,14 @@ export const uploadFile = (file, agentId) => {
     return request.post('/files', formData);
 };
 
+export const uploadMultimodalFile = (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post('/multimodal/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
+
 export const getAgentAccessProfile = (agentId) => {
     return request.get(`/agents/${agentId}/access-profile`);
 };
@@ -51,4 +59,8 @@ export const getAgentMetadata = (agentId) => {
 
 export const deleteAgent = (agentId) => {
     return request.delete(`/agents/${agentId}`);
+};
+
+export const getJobStatus = (agentId, jobId) => {
+    return request.get(`/agents/${agentId}/jobs/${jobId}`);
 };

@@ -108,12 +108,8 @@ public class AgentManageController {
     @lombok.Data
     public static class ChatRequest {
         private String message;
-        private String fileId; // Can be "file_id" or "fileId" depending on parsing, but standard camelCase is
-                               // better for Java DTO usually.
-        // But frontend sends snake_case `file_id` if I used snake case there?
-        // Let's check frontend.
-        // Frontend: `data.file_id = fileId;`
-        // So here I need @JsonProperty("file_id")
+        @com.fasterxml.jackson.annotation.JsonProperty("file_id")
+        private String fileId;
     }
 
     @Operation(summary = "获取所有已接入的智能体档案")
@@ -155,6 +151,20 @@ public class AgentManageController {
     @DeleteMapping("/{agentId}")
     public void deleteAgent(@PathVariable String agentId) {
         agentManageService.deleteAgent(agentId);
+    }
+
+    @Operation(summary = "刷新所有智能体元数据")
+    @PostMapping("/refresh")
+    public void refreshAllAgents() {
+        agentManageService.refreshAllAgentsMetadata();
+    }
+
+    @Operation(summary = "查询异步任务状态")
+    @GetMapping("/{agentId}/jobs/{jobId}")
+    public Object getJobStatus(
+            @PathVariable String agentId,
+            @PathVariable String jobId) {
+        return agentManageService.getJobStatus(agentId, jobId);
     }
 
     // ==================== 版本管理 API ====================

@@ -28,7 +28,6 @@
             <span>智能体管理</span>
           </template>
           <el-menu-item index="/dashboard/agent/list">智能体列表</el-menu-item>
-          <el-menu-item index="/dashboard/agent/onboard">接入新 Agent</el-menu-item>
           <el-menu-item index="/dashboard/agent/logs">会话记录</el-menu-item>
           <el-menu-item index="/dashboard/agent/model-list">模型列表</el-menu-item>
           <el-menu-item index="/dashboard/agent/model-config">模型基础项</el-menu-item>
@@ -39,6 +38,7 @@
             <el-icon><Collection /></el-icon>
             <span>知识管理</span>
           </template>
+          <el-menu-item index="/dashboard/knowledge/overview">知识资产架构</el-menu-item>
           <el-menu-item index="/dashboard/knowledge/unstructured">非结构化知识</el-menu-item>
           <el-menu-item index="/dashboard/knowledge/structured">结构化知识</el-menu-item>
           <el-menu-item index="/dashboard/knowledge/procedural">程序化知识</el-menu-item>

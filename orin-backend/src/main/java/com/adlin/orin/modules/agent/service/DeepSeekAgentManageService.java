@@ -30,17 +30,20 @@ public class DeepSeekAgentManageService implements AgentManageService {
     private final AgentAccessProfileRepository accessProfileRepository;
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
+    private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
 
     @Autowired
     public DeepSeekAgentManageService(
             DeepSeekIntegrationService deepSeekIntegrationService,
             AgentAccessProfileRepository accessProfileRepository,
             AgentMetadataRepository metadataRepository,
-            AgentHealthStatusRepository healthStatusRepository) {
+            AgentHealthStatusRepository healthStatusRepository,
+            com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository) {
         this.deepSeekIntegrationService = deepSeekIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
+        this.modelMetadataRepository = modelMetadataRepository;
     }
 
     @Override
@@ -94,6 +97,8 @@ public class DeepSeekAgentManageService implements AgentManageService {
 
         // 设置temperature参数
         metadata.setTemperature(temp);
+        String viewType = determineViewType(modelName);
+        metadata.setViewType(viewType);
         metadataRepository.save(metadata);
 
         // 保存健康状态
@@ -106,11 +111,36 @@ public class DeepSeekAgentManageService implements AgentManageService {
                 .providerType("DeepSeek")
                 .mode("chat")
                 .modelName(modelName)
+                .viewType(viewType)
                 .build();
         healthStatusRepository.save(health);
 
         log.info("DeepSeek agent onboarded successfully: {}", finalName);
         return metadata;
+    }
+
+    /**
+     * Get viewType directly from model type in ModelMetadata
+     */
+    private String determineViewType(String modelName) {
+        if (modelName == null)
+            return "CHAT";
+
+        try {
+            java.util.Optional<com.adlin.orin.modules.model.entity.ModelMetadata> modelOpt = modelMetadataRepository
+                    .findByModelId(modelName);
+
+            if (modelOpt.isPresent()) {
+                String modelType = modelOpt.get().getType();
+                if (modelType != null && !modelType.isEmpty()) {
+                    return modelType; // 直接返回模型类型，不做映射
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get viewType for model {}: {}", modelName, e.getMessage());
+        }
+
+        return "CHAT";
     }
 
     @Override

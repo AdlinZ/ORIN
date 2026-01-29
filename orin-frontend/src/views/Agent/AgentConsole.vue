@@ -27,18 +27,20 @@
               </el-form-item>
             </div>
 
-            <div class="config-group">
+
+            <!-- 聊天模型参数 (仅对话模型显示) -->
+            <div class="config-group" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
               <h4 class="group-title">推理参数</h4>
               <div class="param-item">
                 <div class="param-label">
-                  <span>Temperature</span>
+                  <span>多样性 (Temperature)</span>
                   <span class="param-value">{{ editForm.temperature }}</span>
                 </div>
                 <el-slider v-model="editForm.temperature" :min="0" :max="2" :step="0.1" />
               </div>
               <div class="param-item">
                 <div class="param-label">
-                  <span>Top P</span>
+                  <span>核采样 (Top P)</span>
                   <span class="param-value">{{ editForm.topP }}</span>
                 </div>
                 <el-slider v-model="editForm.topP" :min="0" :max="1" :step="0.1" />
@@ -46,19 +48,149 @@
 
               <div class="thinking-box">
                 <div class="thinking-header">
-                  <span>Enable Thinking</span>
+                  <span>启用深度思考 (Thinking)</span>
                   <el-switch v-model="editForm.enableThinking" size="small" />
                 </div>
                 <div v-if="editForm.enableThinking" class="thinking-budget">
-                  <div class="param-label">Budget</div>
+                  <div class="param-label">思考预算 (Tokens)</div>
                   <el-input-number v-model="editForm.thinkingBudget" :min="0" :max="64000" :step="1024" controls-position="right" style="width: 100%" size="small" />
                 </div>
               </div>
             </div>
 
-            <div class="config-group">
+            <!-- 图像生成参数 -->
+            <div class="config-group" v-if="isImageGenerationAgent">
+              <h4 class="group-title">图像生成参数</h4>
+              
+              <el-form-item label="图像尺寸 (Image Size)">
+                <el-select v-model="editForm.imageSize" size="small" style="width: 100%">
+                  <el-option label="正方形 1:1 (1328x1328)" value="1328x1328" />
+                  <el-option label="横屏 16:9 (1664x928)" value="1664x928" />
+                  <el-option label="竖屏 9:16 (928x1664)" value="928x1664" />
+                  <el-option label="标准 4:3 (1472x1140)" value="1472x1140" />
+                  <el-option label="标准 3:4 (1140x1472)" value="1140x1472" />
+                  <el-option label="经典 3:2 (1584x1056)" value="1584x1056" />
+                  <el-option label="经典 2:3 (1056x1584)" value="1584x1056" />
+                </el-select>
+              </el-form-item>
+
+              <div class="param-item">
+                <div class="param-label">
+                  <span>随机种子 (Seed)</span>
+                  <span class="param-value">{{ editForm.seed || '随机生成' }}</span>
+                </div>
+                <el-input v-model="editForm.seed" placeholder="留空则随机生成" size="small">
+                  <template #append>
+                    <el-button :icon="Refresh" @click="generateRandomSeed" size="small" />
+                  </template>
+                </el-input>
+              </div>
+
+              <div class="param-item">
+                <div class="param-label">
+                  <span>引导程度 (CFG Scale)</span>
+                  <span class="param-value">{{ editForm.guidanceScale || 7.5 }}</span>
+                </div>
+                <el-slider v-model="editForm.guidanceScale" :min="1" :max="20" :step="0.5" />
+              </div>
+
+              <div class="param-item">
+                <div class="param-label">
+                  <span>推理步数 (Steps)</span>
+                  <span class="param-value">{{ editForm.inferenceSteps || 20 }}</span>
+                </div>
+                <el-slider v-model="editForm.inferenceSteps" :min="1" :max="50" :step="1" />
+              </div>
+
+              <el-form-item label="反向提示词 (Negative Prompt)">
+                <el-input 
+                  v-model="editForm.negativePrompt" 
+                  type="textarea" 
+                  :rows="3" 
+                  placeholder="在此处描述不希望在画面中出现的内容..."
+                  size="small"
+                />
+              </el-form-item>
+            </div>
+
+            <!-- 视频生成参数 -->
+            <div class="config-group" v-if="isTTVAgent">
+              <h4 class="group-title">视频生成参数</h4>
+              
+              <el-form-item label="视频比例 (Aspect Ratio)" v-if="!editForm.model?.includes('I2V')">
+                <el-radio-group v-model="editForm.videoSize" size="small">
+                  <el-radio-button value="16:9" label="16:9" />
+                  <el-radio-button value="9:16" label="9:16" />
+                  <el-radio-button value="1:1" label="1:1" />
+                </el-radio-group>
+              </el-form-item>
+
+              <div class="param-item">
+                <div class="param-label">
+                  <span>随机种子 (Seed)</span>
+                  <span class="param-value">{{ editForm.seed || '随机' }}</span>
+                </div>
+                <el-input v-model="editForm.seed" placeholder="留空则随机" size="small">
+                  <template #append>
+                    <el-button :icon="Refresh" @click="generateRandomSeed" size="small" />
+                  </template>
+                </el-input>
+              </div>
+
+              <el-form-item label="反向提示词 (Negative Prompt)">
+                <el-input 
+                  v-model="editForm.negativePrompt" 
+                  type="textarea" 
+                  :rows="2" 
+                  placeholder="不希望出现的内容..."
+                  size="small"
+                />
+              </el-form-item>
+            </div>
+
+            <!-- TTS Parameters -->
+            <div class="config-group" v-if="isTTSAgent">
               <div class="group-header">
-                <h4 class="group-title">System Prompt</h4>
+                <h4 class="group-title">语音合成配置</h4>
+              </div>
+              
+
+              <el-form-item label="音色 (Voice)">
+                 <el-select v-model="editForm.voice" placeholder="请选择音色" filterable allow-create clearable>
+                    <el-option label="Alex" value="alex" />
+                    <el-option label="Anna" value="anna" />
+                    <el-option label="Bella" value="bella" /> 
+                    <el-option label="Benjamin" value="benjamin" />
+                    <el-option label="Charles" value="charles" />
+                    <el-option label="David" value="david" />
+                 </el-select>
+                 <div class="help-text text-xs text-gray-400 mt-1">具体可用音色取决于所选模型能力</div>
+              </el-form-item>
+
+              <div class="param-item">
+                <div class="param-label">
+                  <span>语速 (Speed)</span>
+                  <span class="param-value">{{ editForm.speed || 1.0 }}x</span>
+                </div>
+                <el-slider v-model="editForm.speed" :min="0.5" :max="2.0" :step="0.1" />
+              </div>
+              
+               <div class="param-item">
+                <div class="param-label">
+                  <span>音量增益 (Gain)</span>
+                  <span class="param-value">{{ editForm.gain || 0 }} dB</span>
+                </div>
+                <el-slider v-model="editForm.gain" :min="-10" :max="10" :step="1" />
+              </div>
+              <div class="help-text text-xs text-gray-400 mt-2" v-if="editForm.model && editForm.model.includes('MOSS')">
+                提示: MOSS 对话标记如 [S1] 可指定发言人。此处音色字段为可选。
+              </div>
+            </div>
+
+            <!-- System Prompt (仅聊天模型显示) -->
+            <div class="config-group" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
+              <div class="group-header">
+                <h4 class="group-title">系统提示词 (System Prompt)</h4>
                 <el-select v-model="selectedPromptTemplate" placeholder="模板" size="small" style="width: 70px;" @change="applyPromptTemplate">
                   <el-option v-for="t in promptTemplates" :key="t.id" :label="t.name" :value="t.content" />
                 </el-select>
@@ -67,7 +199,7 @@
                 v-model="editForm.systemPrompt" 
                 type="textarea" 
                 :rows="8" 
-                placeholder="角色描述..."
+                placeholder="在此处输入对智能体的角色定义与回复指南..."
               />
             </div>
           </el-form>
@@ -77,58 +209,17 @@
       <!-- Right Column: Chat Window -->
       <div class="chat-main">
         <div class="chat-wrapper">
-          <div class="monitor-bar">
-            <div class="monitor-left">
-              <el-tag size="small" :type="getStatusType(agentInfo.status)" effect="dark" class="status-tag">
-                {{ agentInfo.status === 'RUNNING' ? 'ACTIVE' : 'IDLE' }}
-              </el-tag>
-              <el-tag size="small" :type="getHealthStatusType(agentInfo.healthScore)" effect="plain" class="monitor-tag">
-                健康度: {{ agentInfo.healthScore || 100 }}
-              </el-tag>
-            </div>
-            <div class="monitor-right">
-              <el-tag size="small" type="info" effect="plain" class="monitor-tag">
-                Tokens: {{ latestTokenCount }}
-              </el-tag>
-              <el-tag size="small" type="info" effect="plain" class="monitor-tag">
-                {{ latestLatency }}ms
-              </el-tag>
-            </div>
-          </div>
-
-          <div class="chat-history" ref="messagesContainer">
-            <div v-for="(msg, i) in chatMessages" :key="i" class="chat-bubble" :class="msg.role">
-              <div class="bubble-content">
-                <div v-if="msg.role === 'assistant'" class="bot-info">
-                  <el-avatar :size="18" icon="UserFilled" />
-                  <span class="name">{{ agentInfo.agentName }}</span>
-                </div>
-                {{ msg.content }}
-              </div>
-            </div>
-            <div v-if="chatLoading" class="chat-bubble assistant">
-               <div class="bubble-content typing">...</div>
-            </div>
-          </div>
-
-          <div class="chat-input-area">
-            <el-input 
-              v-model="chatInput" 
-              placeholder="输入指令..." 
-              @keyup.enter.exact="sendMessage"
-              :disabled="chatLoading"
-              size="default"
-            >
-              <template #suffix>
-                <el-icon class="icon-send" @click="sendMessage"><Position /></el-icon>
-              </template>
-            </el-input>
-          </div>
+          <component 
+            :is="activeRunner" 
+            :agentId="agentId" 
+            :agentInfo="agentInfo"
+            :parameters="currentParameters"
+          />
         </div>
 
         <div class="logs-drawer" :class="{ 'collapsed': !logsExpanded }">
           <div class="logs-header" @click="logsExpanded = !logsExpanded">
-            <span class="title"><el-icon><Tickets /></el-icon> Runtime Logs</span>
+            <span class="title"><el-icon><Tickets /></el-icon> 运行时日志</span>
             <div class="logs-actions">
               <el-button link size="small" :icon="Refresh" @click.stop="fetchLogs" />
               <el-icon class="expand-icon"><ArrowUp v-if="!logsExpanded"/><ArrowDown v-else/></el-icon>
@@ -151,8 +242,50 @@
           </div>
         </div>
       </div>
+
+      <!-- History Sidebar (Right) for non-chat or toggle -->
+      <div class="history-sidebar" v-if="showHistorySidebar">
+         <div class="history-header">
+           <span><el-icon><Clock /></el-icon> 执行历史</span>
+           <el-button link :icon="Close" @click="showHistorySidebar = false" />
+         </div>
+         <div class="history-content">
+           <div class="empty-history" v-if="!logs || logs.length === 0">暂无历史记录</div>
+           <div v-else class="history-list">
+              <div v-for="(log, idx) in logs" :key="idx" class="history-item" @click="restoreHistory(log)">
+                  <div class="h-time">{{ new Date(log.timestamp).toLocaleTimeString() }}</div>
+                  <div class="h-preview">{{ log.content }}</div>
+                  <el-tag size="small" v-if="log.type" class="h-tag">{{ log.type }}</el-tag>
+              </div>
+           </div>
+         </div>
+      </div>
     </div>
   </div>
+
+
+<!-- Simplified Identity Teleport -->
+<Teleport to="#navbar-actions" v-if="isMounted && agentInfo.agentId">
+  <div class="agent-identity" v-if="agentInfo.agentId">
+    <div class="agent-info-main">
+      <el-icon class="provider-mini-icon" :style="{ color: getProviderColor(agentInfo.providerType) }">
+        <component :is="getProviderIcon(agentInfo.providerType)" />
+      </el-icon>
+      <span class="agent-name">{{ agentInfo.agentName || editForm.name }}</span>
+      <span class="info-divider">/</span>
+      <span class="view-label-minimal">
+        <el-icon><component :is="getViewIcon(agentInfo.viewType || currentMode)" /></el-icon>
+        {{ getViewLabel(agentInfo.viewType || currentMode) }}
+      </span>
+    </div>
+
+    <el-tooltip content="执行历史" placement="bottom" v-if="currentMode !== 'chat'">
+      <el-button @click="showHistorySidebar = !showHistorySidebar" circle size="small" class="history-trigger-minimal">
+        <el-icon><Clock /></el-icon>
+      </el-button>
+    </el-tooltip>
+  </div>
+</Teleport>
 </template>
 
 <script setup>
@@ -160,8 +293,10 @@ import { ref, onMounted, onUnmounted, reactive, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   ChatDotRound, Monitor, Setting, Position, UserFilled,
-  VideoPlay, VideoPause, Refresh, Cpu, ArrowLeft,
-  ArrowUp, ArrowDown, Timer, CircleCheck, Tickets
+  VideoPlay, VideoPause, VideoCamera, Refresh, Cpu, ArrowLeft,
+  ArrowUp, ArrowDown, Timer, CircleCheck, Tickets,
+  Microphone, Picture, Connection, Clock, Close, Service,
+  Menu, ElementPlus as LightningIcon, Headset
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { getAgentMetadata, updateAgent, chatAgent } from '@/api/agent';
@@ -169,14 +304,29 @@ import { getAgentMetrics, getAgentList as getMonitorAgentList } from '@/api/moni
 import { getAgentLogs, controlAgent } from '@/api/runtime';
 import request from '@/utils/request';
 
+// Runners
+import ChatWindow from './components/ChatWindow.vue';
+import WorkflowRunner from './components/WorkflowRunner.vue';
+import CompletionRunner from './components/CompletionRunner.vue';
+import AudioTranscriber from './components/AudioTranscriber.vue';
+import ImageGenerator from './components/ImageGenerator.vue';
+import AudioGenerator from './components/AudioGenerator.vue';
+import VideoGenerator from './components/VideoGenerator.vue';
+
 const route = useRoute();
 const router = useRouter();
 const agentId = route.params.id;
+
+const isMounted = ref(false);
+onMounted(() => {
+  isMounted.value = true;
+});
 
 // UI States
 const loading = ref(false);
 const saveLoading = ref(false);
 const logsExpanded = ref(false);
+const showHistorySidebar = ref(false);
 
 // Data
 const agentInfo = ref({});
@@ -190,30 +340,106 @@ const editForm = ref({
   topP: 0.7,
   systemPrompt: '',
   enableThinking: false,
-  thinkingBudget: 4096
+  thinkingBudget: 4096,
+  // 图像生成参数 (Qwen-Image 默认值)
+  imageSize: '1328x1328',
+  seed: '',
+  guidanceScale: 7.5,
+  inferenceSteps: 20,
+  negativePrompt: '',
+  // 语音合成参数
+  voice: '',
+  speed: 1.0,
+  gain: 0,
+  // 视频生成参数
+  videoSize: '16:9',
+  videoDuration: '5',
+  fps: 30,
+  useReferenceImage: false
 });
 const promptTemplates = ref([]);
 const selectedPromptTemplate = ref('');
 
-// Computed Metrics for tags
-const latestTokenCount = computed(() => {
-  if (metrics.value.tokens.length > 0) {
-    return metrics.value.tokens[metrics.value.tokens.length - 1].value;
+// Runner Logic
+const currentMode = ref('chat');
+
+// 动态参数 - 包含当前 editForm 的值
+const currentParameters = computed(() => {
+  if (isImageGenerationAgent.value) {
+    // 图像生成参数
+    return {
+      imageSize: editForm.value.imageSize,
+      seed: editForm.value.seed,
+      guidanceScale: editForm.value.guidanceScale,
+      inferenceSteps: editForm.value.inferenceSteps,
+      negativePrompt: editForm.value.negativePrompt
+    };
   }
-  return 0;
-});
-const latestLatency = computed(() => {
-  if (metrics.value.latency.length > 0) {
-    return Math.round(metrics.value.latency[metrics.value.latency.length - 1].value);
+  
+  if (isTTSAgent.value) {
+    return {
+       voice: editForm.value.voice,
+       speed: editForm.value.speed,
+       gain: editForm.value.gain,
+       model: editForm.value.model
+    };
   }
-  return 0;
+  if (isTTVAgent.value) {
+    return {
+      videoSize: editForm.value.videoSize,
+      videoDuration: editForm.value.videoDuration,
+      fps: editForm.value.fps,
+      seed: editForm.value.seed,
+      negativePrompt: editForm.value.negativePrompt,
+      model: editForm.value.model
+    };
+  }
+  // 其他类型的参数
+  return {
+    temperature: editForm.value.temperature,
+    topP: editForm.value.topP,
+    systemPrompt: editForm.value.systemPrompt
+  };
 });
 
-// Chat States
-const chatMessages = ref([]);
-const chatInput = ref('');
-const chatLoading = ref(false);
-const messagesContainer = ref(null);
+// 判断是否为图像生成智能体
+const isImageGenerationAgent = computed(() => {
+  if (currentMode.value === 'image') return true;
+  const viewType = (agentInfo.value.viewType || '').toUpperCase();
+  return viewType === 'TEXT_TO_IMAGE' || viewType === 'IMAGE_TO_IMAGE' || viewType === 'TTI';
+});
+
+const isTTSAgent = computed(() => {
+  if (currentMode.value === 'tts') return true;
+  const viewType = (agentInfo.value.viewType || '').toUpperCase();
+  return viewType === 'TEXT_TO_SPEECH' || viewType === 'TTS';
+});
+
+const isTTVAgent = computed(() => {
+  if (currentMode.value === 'video') return true;
+  const viewType = (agentInfo.value.viewType || '').toUpperCase();
+  return viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV' || viewType === 'VIDEO';
+});
+
+const activeRunner = computed(() => {
+  // Check Mode first (manually set or query)
+  if (currentMode.value === 'tts') return AudioGenerator;
+  if (currentMode.value === 'stt') return AudioTranscriber;
+  if (currentMode.value === 'image') return ImageGenerator;
+  if (currentMode.value === 'video') return VideoGenerator;
+
+  // Check View Type next
+  const viewType = (agentInfo.value.viewType || '').toUpperCase();
+  if (viewType === 'STT' || viewType === 'SPEECH_TO_TEXT') return AudioTranscriber;
+  if (viewType === 'TTS' || viewType === 'TEXT_TO_SPEECH') return AudioGenerator;
+  if (viewType === 'TEXT_TO_IMAGE' || viewType === 'IMAGE_TO_IMAGE' || viewType === 'TTI') return ImageGenerator;
+  if (viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV' || viewType === 'VIDEO') return VideoGenerator;
+  
+  // Fallback to Mode
+  if (currentMode.value === 'workflow') return WorkflowRunner;
+  if (currentMode.value === 'completion') return CompletionRunner;
+  return ChatWindow;
+});
 
 let pollTimer = null;
 
@@ -230,6 +456,13 @@ const fetchData = async () => {
     ]);
 
     if (metaRes) {
+      let extraParams = {};
+      if (metaRes.parameters) {
+        try {
+          extraParams = JSON.parse(metaRes.parameters);
+        } catch (e) { console.warn('Failed to parse extra parameters'); }
+      }
+
       editForm.value = { 
         agentId: agentId,
         name: metaRes.name || metaRes.agentName || '',
@@ -238,13 +471,43 @@ const fetchData = async () => {
         topP: metaRes.topP || 0.7,
         systemPrompt: metaRes.systemPrompt || '',
         enableThinking: metaRes.enableThinking || false,
-        thinkingBudget: metaRes.thinkingBudget || 4096
+        thinkingBudget: metaRes.thinkingBudget || 4096,
+        // Image parameters
+        imageSize: extraParams.imageSize || metaRes.imageSize || '1328x1328',
+        seed: extraParams.seed || metaRes.seed || '',
+        guidanceScale: extraParams.guidanceScale || metaRes.guidanceScale || 7.5,
+        inferenceSteps: extraParams.inferenceSteps || metaRes.inferenceSteps || 20,
+        negativePrompt: extraParams.negativePrompt || metaRes.negativePrompt || '',
+        // TTS parameters
+        voice: extraParams.voice || '',
+        speed: extraParams.speed !== undefined ? extraParams.speed : 1.0,
+        gain: extraParams.gain !== undefined ? extraParams.gain : 0
       };
+      
+      currentMode.value = metaRes.mode || 'chat';
+      
+      // Update agentInfo viewType if present in meta
+      if (metaRes.viewType) {
+         agentInfo.value = { ...agentInfo.value, viewType: metaRes.viewType, providerType: metaRes.providerType };
+      }
     }
     promptTemplates.value = promptRes || [];
 
-    fetchMetrics();
+    // fetchMetrics(); // Metrics now handled by ChatWindow (or we can keep it here for logs?)
+    // Logs are shared, metrics are mode-specific (Chat mostly). 
+    // AgentConsole logic cleanup: We don't need fetchMetrics here unless we show global stats.
+    // For now we removed the global monitor bar in favor of component-specific bars.
+    
     fetchLogs();
+    
+    // Handle tab query parameter from routing
+    if (route.query.tab) {
+      const tab = route.query.tab.toLowerCase();
+      if (tab === 'image') currentMode.value = 'image';
+      if (tab === 'audio') currentMode.value = 'stt';
+      if (tab === 'tts') currentMode.value = 'tts';
+      if (tab === 'workflow') currentMode.value = 'workflow';
+    }
   } catch (error) {
     ElMessage.error('加载智能体数据失败');
   } finally {
@@ -252,18 +515,8 @@ const fetchData = async () => {
   }
 };
 
-const fetchMetrics = async () => {
-  const end = Date.now();
-  const start = end - 60 * 60 * 1000; // 扩大到1小时
-  try {
-    const res = await getAgentMetrics(agentId, start, end);
-    const data = res || [];
-    metrics.value = {
-      latency: data.map(d => ({ timestamp: d.timestamp, value: d.responseLatency || 0 })),
-      tokens: data.map(d => ({ timestamp: d.timestamp, value: d.tokenCost || 0 }))
-    };
-  } catch (e) { console.warn('Metrics error'); }
-};
+// fetchMetrics Removed from parent as it is specific to ChatWindow or Runners
+// If we need global metrics, we can add it back. But currently Monitor Bar is inside ChatWindow.
 
 const fetchLogs = async () => {
   try {
@@ -280,33 +533,9 @@ const handleControl = async (action) => {
     } catch (e) { ElMessage.error('操作失败: ' + e.message); }
 };
 
-const sendMessage = async () => {
-  if (!chatInput.value.trim() || chatLoading.value) return;
-  
-  const msg = chatInput.value;
-  chatMessages.value.push({ role: 'user', content: msg });
-  chatInput.value = '';
-  chatLoading.value = true;
-  
-  try {
-    const res = await chatAgent(agentId, msg);
-    const answer = res.answer || res.choices?.[0]?.message?.content || JSON.stringify(res);
-    chatMessages.value.push({ role: 'assistant', content: answer || '处理完成' });
-  } catch (e) {
-    chatMessages.value.push({ role: 'assistant', content: '（异常）' });
-  } finally {
-    chatLoading.value = false;
-    scrollToBottom();
-  }
-};
+// sendMessage logic removed as it is moved to ChatWindow
 
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-    }
-  });
-};
+// scrollToBottom removed
 
 const saveConfig = async () => {
   saveLoading.value = true;
@@ -329,14 +558,85 @@ const applyPromptTemplate = (content) => {
   if (content) editForm.value.systemPrompt = content;
 };
 
+const generateRandomSeed = () => {
+  // 生成 0 到 9999999999 之间的随机整数
+  editForm.value.seed = Math.floor(Math.random() * 10000000000).toString();
+};
+
+
 const getStatusType = (s) => ({ 'RUNNING': 'success', 'HIGH_LOAD': 'warning', 'STOPPED': 'info' }[s] || 'danger');
 const getHealthStatusType = (s) => (s || 100) >= 90 ? 'success' : (s >= 60 ? 'warning' : 'danger');
 
+// Identity Helpers
+const getProviderIcon = (p) => {
+  if (!p) return Cpu;
+  const type = p.toUpperCase();
+  if (type === 'DIFY') return Service;
+  if (type.includes('SILICON')) return LightningIcon;
+  if (type.includes('OPENAI')) return Connection;
+  return Cpu;
+};
+
+const getProviderTagType = (p) => {
+  if (!p) return 'info';
+  const type = p.toUpperCase();
+  if (type === 'DIFY') return 'primary';
+  if (type.includes('SILICON')) return 'warning';
+  return 'info';
+};
+
+const getViewIcon = (v) => {
+  if (!v) return ChatDotRound;
+  const type = v.toUpperCase();
+  if (type === 'CHAT') return ChatDotRound;
+  if (type === 'WORKFLOW') return Connection;
+  if (type === 'STT' || type === 'SPEECH_TO_TEXT') return Microphone;
+  if (type === 'TTS' || type === 'TEXT_TO_SPEECH') return Headset; 
+  if (type === 'TTI' || type === 'TEXT_TO_IMAGE' || type === 'IMAGE_TO_IMAGE') return Picture;
+  if (type === 'TTV' || type === 'TEXT_TO_VIDEO') return VideoCamera;
+  return Menu;
+};
+
+const getProviderColor = (p) => {
+    if (!p) return '#999';
+    if (p.toLowerCase().includes('silicon')) return '#fb923c';
+    if (p.toLowerCase().includes('dify')) return '#155eef';
+    return '#666';
+};
+
+const getViewTagType = (v) => {
+    if (!v) return 'info';
+    const type = v.toUpperCase();
+    if (type === 'CHAT') return 'success';
+    if (type === 'WORKFLOW') return 'primary';
+    if (type.includes('TTS') || type.includes('SPEECH')) return 'warning';
+    if (type.includes('TTI') || type.includes('IMAGE')) return 'danger';
+    if (type.includes('TTV') || type.includes('VIDEO')) return 'primary';
+    return 'info';
+};
+
+const getViewLabel = (v) => {
+    if (!v) return '未知类型';
+    const type = v.toUpperCase();
+    if (type === 'CHAT') return '智能对话';
+    if (type === 'WORKFLOW') return '工作流';
+    if (type === 'STT' || type === 'SPEECH_TO_TEXT') return '语音转文字';
+    if (type === 'TTS' || type === 'TEXT_TO_SPEECH') return '语音合成';
+    if (type === 'TTI' || type === 'TEXT_TO_IMAGE') return '文生图';
+    if (type === 'IMAGE_TO_IMAGE') return '图生图';
+    if (type === 'TTV' || type === 'TEXT_TO_VIDEO') return '视频生成';
+    return type;
+};
+
+const restoreHistory = (log) => {
+    // Just show detail for now
+    ElMessage.info("History item clicked: " + log.content);
+};
+
 onMounted(() => {
   fetchData();
-  chatMessages.value = [{ role: 'assistant', content: '控制台已就绪。' }];
+  // chatMessages init moved to ChatWindow
   pollTimer = setInterval(() => {
-    fetchMetrics();
     if (logsExpanded.value) fetchLogs();
   }, 5000);
 });
@@ -356,21 +656,26 @@ onUnmounted(() => {
 .dashboard-layout {
   height: 100%;
   display: flex;
-  gap: 8px;
-  padding: 8px;
+  gap: 0; 
+  padding: 0;
+  width: 100%;
 }
 
 /* Sidebar Styling - More Compact */
 .config-sidebar {
-  width: 300px;
+  width: 280px;
   height: 100%;
+  border-right: 1px solid #eee;
+  background: white;
+  flex-shrink: 0;
 }
 
 .sidebar-card {
   height: 100%;
-  border-radius: 8px;
+  height: 100%;
+  border-radius: 0;
   border: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: none;
 }
 
 .sidebar-card :deep(.el-card__header) {
@@ -454,7 +759,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   gap: 8px;
+  padding: 12px;
+  overflow: hidden;
 }
 
 .chat-wrapper {
@@ -463,8 +774,14 @@ onUnmounted(() => {
   border-radius: 8px;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  border: 1px solid #eee;
+  border: 1px solid #eaeaea;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 
 .monitor-bar {
@@ -547,4 +864,97 @@ onUnmounted(() => {
 .prefix { font-weight: bold; margin-right: 4px; font-size: 10px; }
 .prefix.req { color: #4fc1ff; }
 .prefix.res { color: #9cdcfe; }
+
+/* History Sidebar */
+.history-sidebar {
+  width: 260px;
+  background: white;
+  border-left: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+}
+.history-header {
+  height: 40px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+.history-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+.history-item {
+    padding: 8px;
+    border-bottom: 1px solid #f5f5f5;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.history-item:hover { background: #f9f9f9; }
+.h-time { color: #999; font-size: 11px; margin-bottom: 2px; }
+.h-preview { font-size: 12px; color: #333; margin-bottom: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.h-tag { scale: 0.8; transform-origin: left; }
+
+.empty-history { text-align: center; color: #999; font-size: 12px; margin-top: 40px; }
+
+/* Simplified Navbar Identity */
+.agent-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.agent-info-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-mini-icon {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.agent-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+.info-divider {
+  color: #d1d5db;
+  font-size: 12px;
+}
+
+.view-label-minimal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.view-label-minimal :deep(.el-icon) {
+  font-size: 14px;
+}
+
+.history-trigger-minimal {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  transition: all 0.2s;
+}
+
+.history-trigger-minimal:hover {
+  background: #f3f4f6;
+  color: var(--orin-primary);
+}
 </style>

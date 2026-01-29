@@ -54,11 +54,23 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="providerType" label="服务提供商" width="160" sortable>
+        <el-table-column prop="providerType" label="服务商" width="120" sortable>
           <template #default="{ row }">
             <div class="provider-tag" :class="(row.providerType || 'local').toLowerCase()">
               {{ row.providerType || 'Local' }}
             </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="viewType" label="类型" width="150" sortable>
+          <template #default="{ row }">
+             <el-tag 
+               size="small" 
+               :type="getViewTypeColor(row.viewType)" 
+               effect="plain"
+             >
+                {{ formatViewType(row) }}
+             </el-tag>
           </template>
         </el-table-column>
 
@@ -164,10 +176,24 @@ const handleSelectionChange = (val) => {
 };
 
 const handleRowClick = (row) => {
+  // 根据类型动态设置 tab 参数
+  const viewType = (row.viewType || 'CHAT').toUpperCase();
+  let tabName = 'chat'; // 默认
+  
+  if (viewType === 'TEXT_TO_IMAGE' || viewType === 'IMAGE_TO_IMAGE' || viewType === 'TTI') {
+    tabName = 'image';
+  } else if (viewType === 'SPEECH_TO_TEXT' || viewType === 'STT') {
+    tabName = 'audio';
+  } else if (viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV') {
+    tabName = 'video';
+  } else if (viewType === 'TEXT_TO_SPEECH' || viewType === 'TTS') {
+    tabName = 'tts';
+  }
+  
   router.push({ 
     name: 'AgentConsole', 
     params: { id: row.agentId },
-    query: { tab: 'chat' }
+    query: { tab: tabName }
   });
 };
 
@@ -199,6 +225,47 @@ const getStatusType = (status) => {
 const formatTime = (ts) => {
   if (!ts) return '-';
   return new Date(ts).toLocaleString();
+};
+
+const getViewTypeColor = (viewType) => {
+  if (!viewType) return 'info';
+  
+  // 根据不同的模型类型返回不同的标签颜色
+  const typeColorMap = {
+    'TEXT_TO_IMAGE': 'warning',
+    'TTI': 'warning',
+    'IMAGE_TO_IMAGE': 'warning',
+    'SPEECH_TO_TEXT': 'success',
+    'STT': 'success',
+    'TEXT_TO_SPEECH': 'primary',
+    'TTS': 'primary',
+    'TEXT_TO_VIDEO': 'danger',
+    'TTV': 'danger',
+    'CHAT': 'info',
+    'LLM': 'info',
+    'EMBEDDING': 'primary',
+    'RERANKER': 'primary'
+  };
+  
+  return typeColorMap[viewType] || 'info';
+};
+
+const formatViewType = (row) => {
+  const type = (row.viewType || 'CHAT').toUpperCase();
+  const typeMap = {
+    'TEXT_TO_IMAGE': '文生图',
+    'TTI': '文生图',
+    'IMAGE_TO_IMAGE': '图生图',
+    'SPEECH_TO_TEXT': '语音转文字',
+    'STT': '语音转文字',
+    'TEXT_TO_SPEECH': '语音合成',
+    'TTS': '语音合成',
+    'TEXT_TO_VIDEO': '视频生成',
+    'TTV': '视频生成',
+    'CHAT': '聊天',
+    'LLM': '列表'
+  };
+  return typeMap[type] || type;
 };
 
 onMounted(() => {
