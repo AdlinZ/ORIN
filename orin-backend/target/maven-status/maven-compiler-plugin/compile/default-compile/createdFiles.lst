@@ -18,6 +18,7 @@ com/adlin/orin/modules/system/entity/SysUserRole$SysUserRoleBuilder.class
 com/adlin/orin/modules/model/service/DeepSeekIntegrationService.class
 com/adlin/orin/modules/alert/entity/AlertRule.class
 com/adlin/orin/modules/multimodal/repository/MultimodalTaskRepository.class
+com/adlin/orin/config/SystemAuditListener.class
 com/adlin/orin/modules/workflow/entity/WorkflowStepEntity$WorkflowStepEntityBuilder.class
 com/adlin/orin/modules/knowledge/component/SiliconFlowEmbeddingAdapter.class
 com/adlin/orin/modules/workflow/engine/handler/AgentNodeHandler.class

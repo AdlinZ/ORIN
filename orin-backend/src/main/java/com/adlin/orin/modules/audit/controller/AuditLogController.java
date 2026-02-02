@@ -29,7 +29,8 @@ public class AuditLogController {
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction,
-            @RequestParam(required = false) String userId) {
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false, defaultValue = "ALL") String type) {
 
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -38,8 +39,7 @@ public class AuditLogController {
             return auditLogService.getUserAuditLogs(userId, pageable);
         }
 
-        // AuditLogService doesn't have a global find all yet, let's use the repository
-        // directly or add it to service
-        return auditLogService.getAllAuditLogs(pageable);
+        // Use the new filtered method
+        return auditLogService.getAuditLogsFiltered(type, pageable);
     }
 }

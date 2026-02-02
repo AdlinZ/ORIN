@@ -87,8 +87,6 @@ public class KnowledgeTaskListener {
         // implementation details depend on how VisualAnalysisService expects input.
         // For local files, we might need to expose them via Nginx or temporary upload
         // to OSS.
-        // For this refactor, we assume storagePath is accessible or we use a
-        // placeholder/mock if strictly local.
         // In real PROD, we'd use MinIO signed URL.
 
         // Hack: if storagePath starts with http, use it. Else... handle local?
@@ -119,19 +117,24 @@ public class KnowledgeTaskListener {
             summary = "Analysis failed: " + e.getMessage();
         }
 
+        // Save AI summary and mark as SUCCESS immediately
+        // This allows users to see the summary even if embedding fails
         file.setAiSummary(summary);
-        file.setEmbeddingStatus("PROCESSING"); // Move to next stage
+        file.setEmbeddingStatus("SUCCESS");
         fileRepository.save(file);
 
-        // Chain next task: EMBEDDING
-        // We can create a new task or modify current.
-        // Better: create new task for traceability, or just update current task to
-        // COMPLETED and spawn new.
-        // Let's finish this task and spawn new.
+        // Mark captioning task as completed
         task.setStatus("COMPLETED");
         taskRepository.save(task);
 
-        createEmbeddingTask(file.getId());
+        // Try to create embedding task, but don't block on it
+        // If Milvus is down, the summary is still available
+        try {
+            createEmbeddingTask(file.getId());
+        } catch (Exception e) {
+            log.warn("Failed to create embedding task for file {}: {}", file.getId(), e.getMessage());
+            // Don't fail the whole process - summary is already saved
+        }
     }
 
     private void processEmbedding(KnowledgeTask task) {
@@ -153,7 +156,7 @@ public class KnowledgeTaskListener {
         // TODO: define KB strategy. We use "multimodal" partition?
         vectorStoreProvider.addDocuments("multimodal", Collections.singletonList(doc));
 
-        file.setEmbeddingStatus("COMPLETED");
+        file.setEmbeddingStatus("SUCCESS");
         fileRepository.save(file);
 
         task.setStatus("COMPLETED");

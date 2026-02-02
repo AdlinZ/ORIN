@@ -121,7 +121,7 @@ public class MultimodalFile {
      * Status of the embedding process for this file
      */
     @Column(name = "embedding_status", length = 50)
-    private String embeddingStatus; // PENDING, PROCESSING, COMPLETED, FAILED
+    private String embeddingStatus; // PENDING, PROCESSING, SUCCESS, FAILED
 
     /**
      * Number of times the task has been retried

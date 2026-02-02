@@ -265,32 +265,25 @@ const loadFiles = async () => {
     try {
         // Fetch from actual API
         const response = await request.get('/multimodal/files');
-        files.value = response.map(f => {
-            // Determine thumb path logic based on known backend path structure
-            // Backend storage path: storage/uploads/multimodal/image/uuid.ext
-            // Web mapped path: /uploads/multimodal/image/uuid.ext
-            // We need to extract the relative part from absolute storage path or construct it
-            // Simple assumption: filename is unique, and we know our structure
-            
-            // Construct web-accessible path
-            let relativePath = '';
-            if (f.fileType === 'IMAGE') relativePath = `/uploads/multimodal/image/${f.id.split('-').join('')}_${f.fileName || 'file'}`; 
-            // Note: Currently backend uses UUID+Ext, but stored filename in DB is original?
-            // Let's check MultimodalFileService -> it saves unique filename, but entity stores "storagePath" (full absolute) and "fileName" (original)
-            // WE NEED TO EXPOSE THE WEB URL in the Entity or Controller response
-            // For now, let's look at the controller: it has download & thumbnail endpoints! 
-            // Using endpoints is safer than static mapping assumption initially.
-            
+        
+        // Response is already an array (interceptor returns response.data)
+        const fileList = Array.isArray(response) ? response : [];
+        
+        files.value = fileList.map(f => {
+            // Construct web-accessible URLs using the download and thumbnail endpoints
             return {
                 ...f,
                 url: `/api/v1/multimodal/files/${f.id}/download`,
                 thumbnailUrl: `/api/v1/multimodal/files/${f.id}/thumbnail`
             };
         });
+        
         filterFiles();
     } catch (error) {
-        ElMessage.error('加载素材列表失败');
-        console.error(error);
+        ElMessage.error('加载素材列表失败: ' + (error.message || '未知错误'));
+        console.error('Load files error:', error);
+        files.value = [];
+        displayFiles.value = [];
     } finally {
         loading.value = false;
         editingId.value = null; // Reset
@@ -703,6 +696,7 @@ onMounted(() => {
 .truncate-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }

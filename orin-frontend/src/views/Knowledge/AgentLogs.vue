@@ -1,12 +1,12 @@
 <template>
   <div class="page-container">
     <PageHeader 
-      title="全量审计日志" 
-      description="统一追踪所有系统事件与 AI 业务调用的完整轨迹"
-      icon="List"
+      title="AI 调用日志" 
+      description="追踪智能体与模型的调用轨迹、Token 消耗及响应性能"
+      icon="Cpu"
     >
       <template #actions>
-        <el-button :icon="Download" @click="handleExport" :disabled="logs.length === 0">导出审计报告</el-button>
+        <el-button :icon="Download" @click="handleExport" :disabled="logs.length === 0">导出调用报告</el-button>
       </template>
     </PageHeader>
 
@@ -15,7 +15,7 @@
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="expand-content">
-              <el-descriptions title="详细请求参数" :column="2" border>
+              <el-descriptions title="详细调用参数" :column="2" border>
                 <el-descriptions-item label="类型">{{ row.providerType }}</el-descriptions-item>
                 <el-descriptions-item label="端点 (Endpoint)">{{ row.endpoint }}</el-descriptions-item>
                 <el-descriptions-item label="Conversation ID">{{ row.conversationId || '-' }}</el-descriptions-item>
@@ -41,14 +41,21 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="model" label="类型/模型" width="160">
+        <el-table-column prop="model" label="模型" width="180">
           <template #default="{ row }">
             <el-tag size="small" v-if="row.model">{{ row.model }}</el-tag>
-            <el-tag size="small" type="info" v-else>{{ row.providerType || 'System' }}</el-tag>
+            <el-tag size="small" type="info" v-else>{{ row.providerType }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="endpoint" label="动作/接口" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="endpoint" label="接口" min-width="200" show-overflow-tooltip />
+
+        <el-table-column prop="totalTokens" label="Tokens" width="100" align="center" sortable>
+          <template #default="{ row }">
+             <span v-if="row.totalTokens" class="font-bold">{{ row.totalTokens }}</span>
+             <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
 
         <el-table-column prop="responseTime" label="耗时" width="100" align="center" sortable>
           <template #default="{ row }">
@@ -84,7 +91,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Download, List } from '@element-plus/icons-vue';
+import { Download, Cpu } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ResizableTable from '@/components/ResizableTable.vue';
 import request from '@/utils/request';
@@ -95,7 +102,7 @@ const logs = ref([]);
 const total = ref(0);
 const currentPage = ref(1);
 const pageSize = ref(15);
-const logType = ref('ALL'); // Default to ALL
+const logType = ref('BUSINESS'); // Hardcoded to Business
 
 const fetchLogs = async () => {
   loading.value = true;
@@ -112,7 +119,7 @@ const fetchLogs = async () => {
     logs.value = res.content;
     total.value = res.totalElements;
   } catch (error) {
-    ElMessage.error('获取系统日志失败');
+    ElMessage.error('获取调用日志失败');
   } finally {
     loading.value = false;
   }
@@ -156,9 +163,6 @@ const handleExport = async () => {
   });
 
   try {
-    // Determine filter type based on the hardcoded logType in this component ('ALL' usually for AuditLogs since previous edit set it to ALL)
-    // Actually, looking at previous turn, we set logType to 'ALL'.
-    
     // Fetch all logs (up to 10000)
     const res = await request.get('/audit/logs', {
       params: {
@@ -183,17 +187,15 @@ const handleExport = async () => {
       return stringField;
     };
 
-    const headers = ['时间', '类型', '接口', '方法', '模型', '耗时(ms)', '状态', 'IP', '错误信息'];
+    const headers = ['时间', '类型', '接口', '方法', '模型', 'Tokens', '耗时(ms)', '状态', 'IP', '错误信息'];
     
     const rows = allLogs.map(l => [
-        // Prefix with tab to prevent Excel from auto-converting to scientific notation or hashes for extremely long IDs/Dates if needed, 
-        // but for standard dates properly quoted often works. 
-        // Using toLocaleString might produce commas, so quoting is essential.
       `\t${formatDateTime(l.createdAt)}`, // Prepend tab to force text format in Excel to avoid ####
       l.providerType,
       l.endpoint,
       l.method,
       l.model || '-',
+      l.totalTokens || 0,
       l.responseTime,
       l.success ? '成功' : '失败',
       l.ipAddress,

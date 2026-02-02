@@ -177,6 +177,7 @@ public class AuditLog {
     /**
      * 创建时间
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

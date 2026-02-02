@@ -190,8 +190,29 @@ public class AuditLogService {
     /**
      * 分页获取所有审计日志
      */
+    /**
+     * 分页获取所有审计日志 (支持过滤)
+     */
     public Page<AuditLog> getAllAuditLogs(Pageable pageable) {
         return auditLogRepository.findAll(pageable);
+    }
+
+    /**
+     * 分页获取审计日志 (支持业务/系统过滤)
+     * 
+     * @param filterType "SYSTEM" or "BUSINESS"
+     */
+    public Page<AuditLog> getAuditLogsFiltered(String filterType, Pageable pageable) {
+        // System types: SYSTEM_LIFECYCLE, AUTH
+        java.util.List<String> systemTypes = java.util.List.of("SYSTEM_LIFECYCLE", "AUTH", "INTERNAL", "SYSTEM");
+
+        if ("SYSTEM".equalsIgnoreCase(filterType)) {
+            return auditLogRepository.findByProviderTypeInOrderByCreatedAtDesc(systemTypes, pageable);
+        } else if ("BUSINESS".equalsIgnoreCase(filterType)) {
+            return auditLogRepository.findByProviderTypeNotInOrderByCreatedAtDesc(systemTypes, pageable);
+        } else {
+            return auditLogRepository.findAll(pageable);
+        }
     }
 
     /**
@@ -231,7 +252,9 @@ public class AuditLogService {
         auditLogRepository.findAll(org.springframework.data.domain.PageRequest.of(0, 1,
                 org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC,
                         "createdAt")))
-                .getContent().stream().findFirst().ifPresent(oldest -> stats.put("oldestLog", oldest.getCreatedAt()));
+                .getContent().stream().findFirst().ifPresent(oldest -> stats.put("oldestLog",
+                        oldest.getCreatedAt()
+                                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
 
         return stats;
     }

@@ -114,7 +114,9 @@
             <div class="detail-section summary-section">
                 <div class="section-title">
                     <el-icon><Cpu /></el-icon> AI 视觉分析
-                    <span v-if="isValidExecTime(currentViewTask.executionTime)" class="exec-time">{{ (currentViewTask.executionTime / 1000).toFixed(1) }}s</span>
+                    <el-tag v-if="isValidExecTime(currentViewTask.executionTime)" :type="getLatencyType(currentViewTask.executionTime)" effect="light" size="small" class="exec-time-tag">
+                        {{ (currentViewTask.executionTime / 1000).toFixed(1) }}s
+                    </el-tag>
                 </div>
                 <div class="summary-editor-box">
                     <el-input
@@ -273,6 +275,13 @@ function getStatusType(status) {
 function isValidExecTime(ms) {
     // Filter out huge numbers which are likely timestamps from old data (e.g. > 1 hour)
     return ms && ms < 3600 * 1000;
+}
+
+function getLatencyType(ms) {
+    if (!ms) return 'info';
+    if (ms > 30000) return 'danger';  // > 30s Red
+    if (ms > 10000) return 'warning'; // > 10s Yellow
+    return 'success';                 // < 10s Green
 }
 
 const handleTest = async () => {
@@ -539,14 +548,9 @@ const handleTest = async () => {
     gap: 8px;
 }
 
-.exec-time {
+.exec-time-tag {
     margin-left: auto;
-    font-size: 12px;
-    color: #10b981;
-    background: #ecfdf5;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-weight: normal;
+    font-weight: 500;
 }
 
 /* Borderless textarea magic */

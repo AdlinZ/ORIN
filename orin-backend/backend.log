@@ -37,60 +37,60 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.1)
 
-2026-02-02T13:15:48.366+08:00  INFO 26011 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : Starting OrinApplication using Java 17.0.17 with PID 26011 (/Users/adlin/Documents/Code/ORIN/orin-backend/target/classes started by adlin in /Users/adlin/Documents/Code/ORIN/orin-backend)
-2026-02-02T13:15:48.366+08:00 DEBUG 26011 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : Running with Spring Boot v3.2.1, Spring v6.1.2
-2026-02-02T13:15:48.367+08:00  INFO 26011 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : The following 1 profile is active: "dev"
-2026-02-02T13:15:48.786+08:00  INFO 26011 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-02-02T13:15:48.787+08:00  INFO 26011 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-02-02T13:15:48.879+08:00  INFO 26011 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 88 ms. Found 36 JPA repository interfaces.
-2026-02-02T13:15:49.150+08:00  INFO 26011 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-02-02T13:15:49.150+08:00  INFO 26011 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-02-02T13:15:49.162+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.162+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentVersionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertRuleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiEndpointRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiKeyRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.audit.repository.AuditLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.163+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeSkillRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.AgentMemoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.PromptTemplateRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentMetricRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.ModelPricingRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.164+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.PrometheusConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.multimodal.repository.MultimodalTaskRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.runtime.repository.AgentLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.skill.repository.SkillRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.LogConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.trace.repository.WorkflowTraceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowDefinitionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowNodeRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowStepRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2026-02-02T13:15:49.165+08:00  INFO 26011 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 12 ms. Found 0 Redis repository interfaces.
-2026-02-02T13:15:49.394+08:00  WARN 26011 --- [orin-backend] [           main] o.s.c.a.ConfigurationClassPostProcessor  : Cannot enhance @Configuration bean definition 'com.yomahub.liteflow.springboot.config.LiteflowMainAutoConfiguration' since its singleton instance has been created too early. The typical cause is a non-static @Bean method with a BeanDefinitionRegistryPostProcessor return type: Consider declaring such methods as 'static' and/or marking the containing configuration class as 'proxyBeanMethods=false'.
-2026-02-02T13:15:49.648+08:00  WARN 26011 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'com.yomahub.liteflow.springboot.config.LiteflowPropertyAutoConfiguration' of type [com.yomahub.liteflow.springboot.config.LiteflowPropertyAutoConfiguration$$SpringCGLIB$$0] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
-2026-02-02T13:15:49.655+08:00  WARN 26011 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration' of type [org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
-2026-02-02T13:15:49.656+08:00  WARN 26011 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'stringOrNumberMigrationVersionConverter' of type [org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration$StringOrNumberToMigrationVersionConverter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
-2026-02-02T13:15:49.661+08:00  WARN 26011 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'liteflow-com.yomahub.liteflow.springboot.LiteflowProperty' of type [com.yomahub.liteflow.springboot.LiteflowProperty] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
-2026-02-02T13:15:49.667+08:00  WARN 26011 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'liteflow.monitor-com.yomahub.liteflow.springboot.LiteflowMonitorProperty' of type [com.yomahub.liteflow.springboot.LiteflowMonitorProperty] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
-2026-02-02T13:15:49.669+08:00  WARN 26011 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'liteflowConfig' of type [com.yomahub.liteflow.property.LiteflowConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
-2026-02-02T13:15:49.673+08:00  WARN 26011 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'com.yomahub.liteflow.spi.spring.SpringAware' of type [com.yomahub.liteflow.spi.spring.SpringAware] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
-2026-02-02T13:15:49.677+08:00  INFO 26011 --- [orin-backend] [           main] com.yomahub.liteflow.util.LOGOPrinter    : 
+2026-02-02T18:05:01.861+08:00  INFO 46986 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : Starting OrinApplication using Java 17.0.17 with PID 46986 (/Users/adlin/Documents/Code/ORIN/orin-backend/target/classes started by adlin in /Users/adlin/Documents/Code/ORIN/orin-backend)
+2026-02-02T18:05:01.862+08:00 DEBUG 46986 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-02-02T18:05:01.863+08:00  INFO 46986 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : The following 1 profile is active: "dev"
+2026-02-02T18:05:02.910+08:00  INFO 46986 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-02-02T18:05:02.910+08:00  INFO 46986 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-02T18:05:03.077+08:00  INFO 46986 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 162 ms. Found 36 JPA repository interfaces.
+2026-02-02T18:05:03.592+08:00  INFO 46986 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-02-02T18:05:03.593+08:00  INFO 46986 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-02-02T18:05:03.618+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.618+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.619+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.agent.repository.AgentVersionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.619+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.619+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.alert.repository.AlertRuleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.619+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiEndpointRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.619+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ApiKeyRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.619+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.620+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.audit.repository.AuditLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.620+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.620+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.620+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.621+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeSkillRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.621+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.621+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.AgentMemoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.621+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.knowledge.repository.meta.PromptTemplateRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.621+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.622+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.model.repository.ModelMetadataRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.622+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.622+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.AgentMetricRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.622+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.ModelPricingRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.622+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.monitor.repository.PrometheusConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.622+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.622+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.multimodal.repository.MultimodalTaskRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.runtime.repository.AgentLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.skill.repository.SkillRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.LogConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.system.repository.SysUserRoleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.trace.repository.WorkflowTraceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.623+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowDefinitionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.624+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.624+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowNodeRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.624+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.624+08:00  INFO 46986 --- [orin-backend] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adlin.orin.modules.workflow.repository.WorkflowStepRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-02-02T18:05:03.624+08:00  INFO 46986 --- [orin-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 22 ms. Found 0 Redis repository interfaces.
+2026-02-02T18:05:04.092+08:00  WARN 46986 --- [orin-backend] [           main] o.s.c.a.ConfigurationClassPostProcessor  : Cannot enhance @Configuration bean definition 'com.yomahub.liteflow.springboot.config.LiteflowMainAutoConfiguration' since its singleton instance has been created too early. The typical cause is a non-static @Bean method with a BeanDefinitionRegistryPostProcessor return type: Consider declaring such methods as 'static' and/or marking the containing configuration class as 'proxyBeanMethods=false'.
+2026-02-02T18:05:04.504+08:00  WARN 46986 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'com.yomahub.liteflow.springboot.config.LiteflowPropertyAutoConfiguration' of type [com.yomahub.liteflow.springboot.config.LiteflowPropertyAutoConfiguration$$SpringCGLIB$$0] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-02-02T18:05:04.517+08:00  WARN 46986 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration' of type [org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-02-02T18:05:04.520+08:00  WARN 46986 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'stringOrNumberMigrationVersionConverter' of type [org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration$StringOrNumberToMigrationVersionConverter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-02-02T18:05:04.528+08:00  WARN 46986 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'liteflow-com.yomahub.liteflow.springboot.LiteflowProperty' of type [com.yomahub.liteflow.springboot.LiteflowProperty] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-02-02T18:05:04.537+08:00  WARN 46986 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'liteflow.monitor-com.yomahub.liteflow.springboot.LiteflowMonitorProperty' of type [com.yomahub.liteflow.springboot.LiteflowMonitorProperty] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-02-02T18:05:04.540+08:00  WARN 46986 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'liteflowConfig' of type [com.yomahub.liteflow.property.LiteflowConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-02-02T18:05:04.548+08:00  WARN 46986 --- [orin-backend] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'com.yomahub.liteflow.spi.spring.SpringAware' of type [com.yomahub.liteflow.spi.spring.SpringAware] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [componentScanner]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-02-02T18:05:04.556+08:00  INFO 46986 --- [orin-backend] [           main] com.yomahub.liteflow.util.LOGOPrinter    : 
 ================================================================================================
 		 _     ___ _____ _____      _____ _     _____        __
 		| |   |_ _|_   _| ____|    |  ___| |   / _ \ \      / /
@@ -104,34 +104,33 @@
 		wechat：bryan_31
 ================================================================================================
 
-2026-02-02T13:15:49.846+08:00  INFO 26011 --- [orin-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
-2026-02-02T13:15:49.851+08:00  INFO 26011 --- [orin-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-02-02T13:15:49.851+08:00  INFO 26011 --- [orin-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.17]
-2026-02-02T13:15:49.872+08:00  INFO 26011 --- [orin-backend] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-02-02T13:15:49.872+08:00  INFO 26011 --- [orin-backend] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1491 ms
-2026-02-02T13:15:50.073+08:00 DEBUG 26011 --- [orin-backend] [           main] .JwtAuthenticationFilter$$SpringCGLIB$$0 : Filter 'jwtAuthenticationFilter' configured for use
-2026-02-02T13:15:50.126+08:00  INFO 26011 --- [orin-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-02-02T13:15:50.193+08:00  INFO 26011 --- [orin-backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@315bb2bb
-2026-02-02T13:15:50.194+08:00  INFO 26011 --- [orin-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-02-02T13:15:50.235+08:00  INFO 26011 --- [orin-backend] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
-2026-02-02T13:15:50.235+08:00  INFO 26011 --- [orin-backend] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
-2026-02-02T13:15:50.235+08:00  INFO 26011 --- [orin-backend] [           main] o.f.c.internal.license.VersionPrinter    : 
-2026-02-02T13:15:50.247+08:00  INFO 26011 --- [orin-backend] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:mysql://localhost:3306/orindb (MySQL 8.4)
-2026-02-02T13:15:50.251+08:00  WARN 26011 --- [orin-backend] [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: MySQL 8.4 is newer than this version of Flyway and support has not been tested. The latest supported version of MySQL is 8.0.
-2026-02-02T13:15:50.272+08:00  INFO 26011 --- [orin-backend] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 7 migrations (execution time 00:00.013s)
-2026-02-02T13:15:50.279+08:00  INFO 26011 --- [orin-backend] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema `orindb`: 6
-2026-02-02T13:15:50.284+08:00  INFO 26011 --- [orin-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema `orindb` to version "7 - Fix Invalid Execution Times"
-2026-02-02T13:15:50.309+08:00  INFO 26011 --- [orin-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema `orindb`, now at version v7 (execution time 00:00.010s)
-2026-02-02T13:15:50.362+08:00  INFO 26011 --- [orin-backend] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-02-02T13:15:50.385+08:00  INFO 26011 --- [orin-backend] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.1.Final
-2026-02-02T13:15:50.397+08:00  INFO 26011 --- [orin-backend] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
-2026-02-02T13:15:50.474+08:00  INFO 26011 --- [orin-backend] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-02-02T13:15:50.518+08:00  WARN 26011 --- [orin-backend] [           main] org.hibernate.orm.deprecation            : HHH90000025: MySQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-02-02T13:15:50.974+08:00  INFO 26011 --- [orin-backend] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-02-02T13:15:51.014+08:00  INFO 26011 --- [orin-backend] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-02-02T13:15:51.076+08:00 ERROR 26011 --- [orin-backend] [           main] i.n.r.d.DnsServerAddressStreamProviders  : Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
-2026-02-02T13:15:51.771+08:00  INFO 26011 --- [orin-backend] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-02-02T13:15:52.006+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
+2026-02-02T18:05:04.842+08:00  INFO 46986 --- [orin-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-02-02T18:05:04.852+08:00  INFO 46986 --- [orin-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-02-02T18:05:04.852+08:00  INFO 46986 --- [orin-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.17]
+2026-02-02T18:05:04.889+08:00  INFO 46986 --- [orin-backend] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-02-02T18:05:04.889+08:00  INFO 46986 --- [orin-backend] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2984 ms
+2026-02-02T18:05:05.275+08:00 DEBUG 46986 --- [orin-backend] [           main] .JwtAuthenticationFilter$$SpringCGLIB$$0 : Filter 'jwtAuthenticationFilter' configured for use
+2026-02-02T18:05:05.368+08:00  INFO 46986 --- [orin-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-02-02T18:05:05.517+08:00  INFO 46986 --- [orin-backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@12dd3501
+2026-02-02T18:05:05.518+08:00  INFO 46986 --- [orin-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-02-02T18:05:05.602+08:00  INFO 46986 --- [orin-backend] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-02-02T18:05:05.602+08:00  INFO 46986 --- [orin-backend] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-02-02T18:05:05.602+08:00  INFO 46986 --- [orin-backend] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-02-02T18:05:05.625+08:00  INFO 46986 --- [orin-backend] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:mysql://localhost:3306/orindb (MySQL 8.4)
+2026-02-02T18:05:05.634+08:00  WARN 46986 --- [orin-backend] [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: MySQL 8.4 is newer than this version of Flyway and support has not been tested. The latest supported version of MySQL is 8.0.
+2026-02-02T18:05:05.676+08:00  INFO 46986 --- [orin-backend] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 7 migrations (execution time 00:00.028s)
+2026-02-02T18:05:05.688+08:00  INFO 46986 --- [orin-backend] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema `orindb`: 7
+2026-02-02T18:05:05.691+08:00  INFO 46986 --- [orin-backend] [           main] o.f.core.internal.command.DbMigrate      : Schema `orindb` is up to date. No migration necessary.
+2026-02-02T18:05:05.818+08:00  INFO 46986 --- [orin-backend] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-02-02T18:05:05.857+08:00  INFO 46986 --- [orin-backend] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.1.Final
+2026-02-02T18:05:05.878+08:00  INFO 46986 --- [orin-backend] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-02-02T18:05:06.026+08:00  INFO 46986 --- [orin-backend] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-02T18:05:06.063+08:00  WARN 46986 --- [orin-backend] [           main] org.hibernate.orm.deprecation            : HHH90000025: MySQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-02-02T18:05:06.929+08:00  INFO 46986 --- [orin-backend] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-02T18:05:06.990+08:00  INFO 46986 --- [orin-backend] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-02T18:05:07.099+08:00 ERROR 46986 --- [orin-backend] [           main] i.n.r.d.DnsServerAddressStreamProviders  : Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
+2026-02-02T18:05:07.560+08:00  INFO 46986 --- [orin-backend] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-02T18:05:07.997+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
         count(*) 
     from
@@ -145,7 +144,7 @@ Hibernate:
         sys_log_config lc1_0 
     where
         lc1_0.config_key=?
-2026-02-02T13:15:52.012+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
+2026-02-02T18:05:08.014+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
         count(*) 
     from
@@ -159,7 +158,7 @@ Hibernate:
         sys_log_config lc1_0 
     where
         lc1_0.config_key=?
-2026-02-02T13:15:52.014+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
+2026-02-02T18:05:08.017+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
         count(*) 
     from
@@ -173,8 +172,8 @@ Hibernate:
         sys_log_config lc1_0 
     where
         lc1_0.config_key=?
-2026-02-02T13:15:52.219+08:00  INFO 26011 --- [orin-backend] [           main] c.a.o.m.a.s.impl.AgentManageServiceImpl  : Checking for legacy provider type 'SILICONGFLOW'...
-2026-02-02T13:15:52.232+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
+2026-02-02T18:05:09.103+08:00  INFO 46986 --- [orin-backend] [           main] c.a.o.m.a.s.impl.AgentManageServiceImpl  : Checking for legacy provider type 'SILICONGFLOW'...
+2026-02-02T18:05:09.119+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
         am1_0.agent_id,
         am1_0.description,
@@ -210,7 +209,7 @@ Hibernate:
         am1_0.view_type 
     from
         agent_metadata am1_0
-2026-02-02T13:15:52.237+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
+2026-02-02T18:05:09.128+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
         ahs1_0.agent_id,
         ahs1_0.agent_name,
@@ -236,8 +235,8 @@ Hibernate:
         ahs1_0.view_type 
     from
         agent_health_status ahs1_0
-2026-02-02T13:15:52.664+08:00  INFO 26011 --- [orin-backend] [           main] com.adlin.orin.config.MilvusConfig       : Connecting to Milvus at localhost:19530
-2026-02-02T13:15:52.894+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
+2026-02-02T18:05:09.931+08:00  INFO 46986 --- [orin-backend] [           main] com.adlin.orin.config.MilvusConfig       : Connecting to Milvus at localhost:19530
+2026-02-02T18:05:10.294+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
         pc1_0.id,
         pc1_0.enabled,
@@ -255,27 +254,27 @@ Hibernate:
         mon_prometheus_config pc1_0 
     where
         pc1_0.id=?
-2026-02-02T13:15:53.278+08:00  WARN 26011 --- [orin-backend] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+2026-02-02T18:05:11.437+08:00  WARN 46986 --- [orin-backend] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
 
-Using generated security password: 16f6ca8b-d160-4e9e-893a-811f53e69da7
+Using generated security password: 69ed3f0a-640a-4455-bba2-9a999677235e
 
 This generated password is for development use only. Your security configuration must be updated before running your application in production.
 
-2026-02-02T13:15:53.677+08:00  INFO 26011 --- [orin-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 27 endpoint(s) beneath base path '/actuator'
-2026-02-02T13:15:53.754+08:00  INFO 26011 --- [orin-backend] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@2a69f0f, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@62c6570d, org.springframework.security.web.context.SecurityContextHolderFilter@721df027, org.springframework.security.web.header.HeaderWriterFilter@30c8ab4c, org.springframework.web.filter.CorsFilter@31da6b56, org.springframework.security.web.authentication.logout.LogoutFilter@861106e, com.adlin.orin.security.JwtAuthenticationFilter$$SpringCGLIB$$0@531bfe4b, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@7c26b384, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@275c1aed, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@292b7b88, org.springframework.security.web.session.SessionManagementFilter@6ded3c5e, org.springframework.security.web.access.ExceptionTranslationFilter@5ef2055f, org.springframework.security.web.access.intercept.AuthorizationFilter@6af86379]
-2026-02-02T13:15:54.354+08:00  INFO 26011 --- [orin-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
-2026-02-02T13:15:54.354+08:00  INFO 26011 --- [orin-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
-2026-02-02T13:15:54.355+08:00  INFO 26011 --- [orin-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@f6b6616]]
-2026-02-02T13:15:54.355+08:00  INFO 26011 --- [orin-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
-2026-02-02T13:15:54.364+08:00  INFO 26011 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   : === Available Caches ===
-2026-02-02T13:15:54.364+08:00  INFO 26011 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   :   - knowledge_bases
-2026-02-02T13:15:54.364+08:00  INFO 26011 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   :   - agent_list
-2026-02-02T13:15:54.364+08:00  INFO 26011 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   :   - agents
-2026-02-02T13:15:54.364+08:00  INFO 26011 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   : Cache metrics will be available at /actuator/metrics/cache.*
-2026-02-02T13:15:54.364+08:00  INFO 26011 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   : ========================
-2026-02-02T13:15:54.365+08:00  INFO 26011 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : Started OrinApplication in 6.164 seconds (process running for 6.301)
-2026-02-02T13:15:54.368+08:00  INFO 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Starting agent health check...
-2026-02-02T13:15:54.370+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+2026-02-02T18:05:12.349+08:00  INFO 46986 --- [orin-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 27 endpoint(s) beneath base path '/actuator'
+2026-02-02T18:05:12.479+08:00  INFO 46986 --- [orin-backend] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@235cc14c, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@33f848a6, org.springframework.security.web.context.SecurityContextHolderFilter@7ea6d3, org.springframework.security.web.header.HeaderWriterFilter@11ef4c3c, org.springframework.web.filter.CorsFilter@31b35162, org.springframework.security.web.authentication.logout.LogoutFilter@1bee77f8, com.adlin.orin.security.JwtAuthenticationFilter$$SpringCGLIB$$0@153c69bc, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@1719a507, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@38c0ce8a, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@4ed6c9c9, org.springframework.security.web.session.SessionManagementFilter@604925e8, org.springframework.security.web.access.ExceptionTranslationFilter@6decf671, org.springframework.security.web.access.intercept.AuthorizationFilter@129908da]
+2026-02-02T18:05:13.494+08:00  INFO 46986 --- [orin-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
+2026-02-02T18:05:13.495+08:00  INFO 46986 --- [orin-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-02-02T18:05:13.495+08:00  INFO 46986 --- [orin-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@3763f0bf]]
+2026-02-02T18:05:13.495+08:00  INFO 46986 --- [orin-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-02-02T18:05:13.510+08:00  INFO 46986 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   : === Available Caches ===
+2026-02-02T18:05:13.510+08:00  INFO 46986 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   :   - knowledge_bases
+2026-02-02T18:05:13.511+08:00  INFO 46986 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   :   - agent_list
+2026-02-02T18:05:13.511+08:00  INFO 46986 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   :   - agents
+2026-02-02T18:05:13.511+08:00  INFO 46986 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   : Cache metrics will be available at /actuator/metrics/cache.*
+2026-02-02T18:05:13.511+08:00  INFO 46986 --- [orin-backend] [           main] c.adlin.orin.config.CacheMetricsConfig   : ========================
+2026-02-02T18:05:13.511+08:00  INFO 46986 --- [orin-backend] [           main] com.adlin.orin.OrinApplication           : Started OrinApplication in 12.113 seconds (process running for 12.411)
+2026-02-02T18:05:13.518+08:00  INFO 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Starting agent health check...
+2026-02-02T18:05:13.519+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
         ahs1_0.agent_id,
         ahs1_0.agent_name,
@@ -301,8 +300,8 @@ Hibernate:
         ahs1_0.view_type 
     from
         agent_health_status ahs1_0
-2026-02-02T13:15:54.371+08:00  INFO 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Checking health for 5 agents
-2026-02-02T13:15:54.372+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.521+08:00  INFO 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Checking health for 5 agents
+2026-02-02T18:05:13.523+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
         aap1_0.agent_id,
         aap1_0.api_key,
@@ -328,17 +327,7 @@ Hibernate:
         agent_access_profiles aap1_0 
     where
         aap1_0.agent_id=?
-2026-02-02T13:15:54.383+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
-    select
-        count(*) 
-    from
-        model_metadata mm1_0
-Hibernate: 
-    select
-        count(*) 
-    from
-        model_metadata mm1_0
-2026-02-02T13:15:54.400+08:00 DEBUG 26011 --- [orin-backend] [           main] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.568+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
         su1_0.user_id,
         su1_0.avatar,
@@ -366,576 +355,18 @@ Hibernate:
         sys_user su1_0 
     where
         su1_0.username=?
-2026-02-02T13:15:54.889+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.571+08:00 DEBUG 46986 --- [orin-backend] [           main] org.hibernate.SQL                        : 
     select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-2026-02-02T13:15:54.897+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-Hibernate: 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-2026-02-02T13:15:54.899+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 5d695503 is healthy
-2026-02-02T13:15:54.900+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-Hibernate: 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-2026-02-02T13:15:55.196+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-2026-02-02T13:15:55.197+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-Hibernate: 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-2026-02-02T13:15:55.198+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 7f1f1495 is healthy
-2026-02-02T13:15:55.198+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-Hibernate: 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-2026-02-02T13:15:55.488+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-2026-02-02T13:15:55.489+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-Hibernate: 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-2026-02-02T13:15:55.491+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 85d06644 is healthy
-2026-02-02T13:15:55.492+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-Hibernate: 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-2026-02-02T13:15:56.720+08:00  INFO 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.s.DeepSeekIntegrationService   : DeepSeek connection test successful: 200 OK
-2026-02-02T13:15:56.722+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-2026-02-02T13:15:56.724+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-Hibernate: 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-2026-02-02T13:15:56.728+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 9209f6a0 is healthy
-2026-02-02T13:15:56.729+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-Hibernate: 
-    select
-        aap1_0.agent_id,
-        aap1_0.api_key,
-        aap1_0.connection_status,
-        aap1_0.created_at,
-        aap1_0.dataset_api_key,
-        aap1_0.endpoint_url,
-        aap1_0.updated_at 
-    from
-        agent_access_profiles aap1_0 
-    where
-        aap1_0.agent_id=?
-2026-02-02T13:15:57.039+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-Hibernate: 
-    select
-        ahs1_0.agent_id,
-        ahs1_0.agent_name,
-        ahs1_0.health_score,
-        ahs1_0.last_heartbeat,
-        ahs1_0.mode,
-        ahs1_0.model_name,
-        ahs1_0.provider_type,
-        ahs1_0.status,
-        ahs1_0.view_type 
-    from
-        agent_health_status ahs1_0 
-    where
-        ahs1_0.agent_id=?
-2026-02-02T13:15:57.041+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-Hibernate: 
-    update
-        agent_health_status 
-    set
-        agent_name=?,
-        health_score=?,
-        last_heartbeat=?,
-        mode=?,
-        model_name=?,
-        provider_type=?,
-        status=?,
-        view_type=? 
-    where
-        agent_id=?
-2026-02-02T13:15:57.043+08:00 DEBUG 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent f639900f is healthy
-2026-02-02T13:15:57.043+08:00  INFO 26011 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed
-2026-02-02T13:16:38.915+08:00  INFO 26011 --- [orin-backend] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-02-02T13:16:38.916+08:00  INFO 26011 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-02-02T13:16:38.921+08:00  INFO 26011 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 5 ms
-2026-02-02T13:16:38.934+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/models
-2026-02-02T13:16:38.975+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:16:38.977+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/models
-2026-02-02T13:16:38.991+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] org.hibernate.SQL                        : 
-    select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
+        count(*) 
     from
         model_metadata mm1_0
 Hibernate: 
     select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
+        count(*) 
     from
         model_metadata mm1_0
-2026-02-02T13:16:39.020+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:16:39.022+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:16:39.022+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:16:39.024+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:16:54.342+08:00  INFO 26011 --- [orin-backend] [MessageBroker-2] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 6, active threads = 1, queued tasks = 4, completed tasks = 1]
-2026-02-02T13:16:54.369+08:00  INFO 26011 --- [orin-backend] [MessageBroker-3] c.adlin.orin.config.CacheMetricsConfig   : === Cache Statistics ===
-2026-02-02T13:16:54.371+08:00  INFO 26011 --- [orin-backend] [MessageBroker-3] c.adlin.orin.config.CacheMetricsConfig   : ========================
-2026-02-02T13:17:03.886+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Securing POST /api/v1/multimodal/tasks/submit
-2026-02-02T13:17:03.893+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:03.895+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Secured POST /api/v1/multimodal/tasks/submit
-2026-02-02T13:17:03.913+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
-    insert 
-    into
-        multimodal_tasks
-        (created_at, execution_time, model_name, result, status, target_url, updated_at) 
-    values
-        (?, ?, ?, ?, ?, ?, ?)
-Hibernate: 
-    insert 
-    into
-        multimodal_tasks
-        (created_at, execution_time, model_name, result, status, target_url, updated_at) 
-    values
-        (?, ?, ?, ?, ?, ?, ?)
-2026-02-02T13:17:03.927+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-1] org.hibernate.SQL                        : 
-    select
-        mc1_0.id,
-        mc1_0.api_path,
-        mc1_0.auto_analysis_enabled,
-        mc1_0.base_url,
-        mc1_0.create_time,
-        mc1_0.dify_api_key,
-        mc1_0.dify_endpoint,
-        mc1_0.embedding_model,
-        mc1_0.llama_factory_path,
-        mc1_0.llama_factory_webui,
-        mc1_0.model_save_path,
-        mc1_0.password,
-        mc1_0.remark,
-        mc1_0.silicon_flow_api_key,
-        mc1_0.silicon_flow_endpoint,
-        mc1_0.silicon_flow_model,
-        mc1_0.timeout,
-        mc1_0.update_time,
-        mc1_0.username,
-        mc1_0.vlm_model 
-    from
-        model_config mc1_0 
-    order by
-        mc1_0.id desc 
-    limit
-        ?
-Hibernate: 
-    select
-        mc1_0.id,
-        mc1_0.api_path,
-        mc1_0.auto_analysis_enabled,
-        mc1_0.base_url,
-        mc1_0.create_time,
-        mc1_0.dify_api_key,
-        mc1_0.dify_endpoint,
-        mc1_0.embedding_model,
-        mc1_0.llama_factory_path,
-        mc1_0.llama_factory_webui,
-        mc1_0.model_save_path,
-        mc1_0.password,
-        mc1_0.remark,
-        mc1_0.silicon_flow_api_key,
-        mc1_0.silicon_flow_endpoint,
-        mc1_0.silicon_flow_model,
-        mc1_0.timeout,
-        mc1_0.update_time,
-        mc1_0.username,
-        mc1_0.vlm_model 
-    from
-        model_config mc1_0 
-    order by
-        mc1_0.id desc 
-    limit
-        ?
-2026-02-02T13:17:03.937+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:03.938+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:03.939+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:03.939+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:04.431+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-2] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.580+08:00  INFO 46986 --- [orin-backend] [           main] c.adlin.orin.config.SystemAuditListener  : System started successfully. Logging startup event to audit log.
+2026-02-02T18:05:13.585+08:00 DEBUG 46986 --- [orin-backend] [AsyncExecutor-1] org.hibernate.SQL                        : 
     select
         lc1_0.config_key,
         lc1_0.config_value,
@@ -955,61 +386,7 @@ Hibernate:
         sys_log_config lc1_0 
     where
         lc1_0.config_key=?
-2026-02-02T13:17:04.432+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-1] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    where
-        mt1_0.id=?
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    where
-        mt1_0.id=?
-2026-02-02T13:17:04.434+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-1] org.hibernate.SQL                        : 
-    update
-        multimodal_tasks 
-    set
-        created_at=?,
-        execution_time=?,
-        model_name=?,
-        result=?,
-        status=?,
-        target_url=?,
-        updated_at=? 
-    where
-        id=?
-Hibernate: 
-    update
-        multimodal_tasks 
-    set
-        created_at=?,
-        execution_time=?,
-        model_name=?,
-        result=?,
-        status=?,
-        target_url=?,
-        updated_at=? 
-    where
-        id=?
-2026-02-02T13:17:04.436+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-2] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.588+08:00 DEBUG 46986 --- [orin-backend] [AsyncExecutor-1] org.hibernate.SQL                        : 
     select
         lc1_0.config_key,
         lc1_0.config_value,
@@ -1029,7 +406,7 @@ Hibernate:
         sys_log_config lc1_0 
     where
         lc1_0.config_key=?
-2026-02-02T13:17:04.442+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-2] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.592+08:00 DEBUG 46986 --- [orin-backend] [AsyncExecutor-1] org.hibernate.SQL                        : 
     select
         mp1_0.id,
         mp1_0.billing_mode,
@@ -1065,7 +442,7 @@ Hibernate:
     where
         mp1_0.provider_id=? 
         and mp1_0.tenant_group=?
-2026-02-02T13:17:04.450+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-2] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.620+08:00 DEBUG 46986 --- [orin-backend] [AsyncExecutor-1] org.hibernate.SQL                        : 
     insert 
     into
         audit_logs
@@ -1079,770 +456,1068 @@ Hibernate:
         (api_key_id, completion_tokens, conversation_id, created_at, endpoint, error_message, estimated_cost, external_price, internal_cost, ip_address, method, model, profit, prompt_tokens, provider_id, provider_type, request_params, response_content, response_time, status_code, success, tenant_id, total_tokens, user_agent, user_id, workflow_id, id) 
     values
         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-2026-02-02T13:17:04.454+08:00  INFO 26011 --- [orin-backend] [AsyncExecutor-2] c.a.o.m.audit.service.AuditLogService    : Audit log saved successfully: id=b261cacc-2e1b-4232-86c7-0b2212e06ac9, providerId=SiliconFlow, conversationId=null, endpoint=/multimodal/vlm
-2026-02-02T13:17:06.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:06.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:06.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:06.079+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] org.hibernate.SQL                        : 
+2026-02-02T18:05:13.655+08:00  INFO 46986 --- [orin-backend] [AsyncExecutor-1] c.a.o.m.audit.service.AuditLogService    : Audit log saved successfully: id=29c4609c-0c63-408b-9ea9-d3c408eda49d, providerId=ORIN_CORE, conversationId=null, endpoint=BOOTSTRAP
+2026-02-02T18:05:14.216+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:16.432+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Securing POST /api/v1/multimodal/tasks/submit
-2026-02-02T13:17:16.436+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:16.437+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Secured POST /api/v1/multimodal/tasks/submit
-2026-02-02T13:17:16.441+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] org.hibernate.SQL                        : 
-    insert 
-    into
-        multimodal_tasks
-        (created_at, execution_time, model_name, result, status, target_url, updated_at) 
-    values
-        (?, ?, ?, ?, ?, ?, ?)
-Hibernate: 
-    insert 
-    into
-        multimodal_tasks
-        (created_at, execution_time, model_name, result, status, target_url, updated_at) 
-    values
-        (?, ?, ?, ?, ?, ?, ?)
-2026-02-02T13:17:16.446+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-3] org.hibernate.SQL                        : 
-    select
-        mc1_0.id,
-        mc1_0.api_path,
-        mc1_0.auto_analysis_enabled,
-        mc1_0.base_url,
-        mc1_0.create_time,
-        mc1_0.dify_api_key,
-        mc1_0.dify_endpoint,
-        mc1_0.embedding_model,
-        mc1_0.llama_factory_path,
-        mc1_0.llama_factory_webui,
-        mc1_0.model_save_path,
-        mc1_0.password,
-        mc1_0.remark,
-        mc1_0.silicon_flow_api_key,
-        mc1_0.silicon_flow_endpoint,
-        mc1_0.silicon_flow_model,
-        mc1_0.timeout,
-        mc1_0.update_time,
-        mc1_0.username,
-        mc1_0.vlm_model 
-    from
-        model_config mc1_0 
-    order by
-        mc1_0.id desc 
-    limit
-        ?
-Hibernate: 
-    select
-        mc1_0.id,
-        mc1_0.api_path,
-        mc1_0.auto_analysis_enabled,
-        mc1_0.base_url,
-        mc1_0.create_time,
-        mc1_0.dify_api_key,
-        mc1_0.dify_endpoint,
-        mc1_0.embedding_model,
-        mc1_0.llama_factory_path,
-        mc1_0.llama_factory_webui,
-        mc1_0.model_save_path,
-        mc1_0.password,
-        mc1_0.remark,
-        mc1_0.silicon_flow_api_key,
-        mc1_0.silicon_flow_endpoint,
-        mc1_0.silicon_flow_model,
-        mc1_0.timeout,
-        mc1_0.update_time,
-        mc1_0.username,
-        mc1_0.vlm_model 
-    from
-        model_config mc1_0 
-    order by
-        mc1_0.id desc 
-    limit
-        ?
-2026-02-02T13:17:16.455+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:16.456+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:16.457+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:16.457+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:18.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:18.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:18.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:18.079+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:21.073+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:21.075+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:21.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:21.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:24.074+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:24.076+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:24.077+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:24.079+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:27.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:27.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:27.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:27.078+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:30.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:30.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:30.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:30.078+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:33.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:33.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:33.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:33.078+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:36.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:36.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:36.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:36.078+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:39.073+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:39.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:39.077+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:39.078+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-5] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:42.073+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:42.075+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:42.076+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:42.078+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-6] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:17:42.079+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-3] org.hibernate.SQL                        : 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
+        agent_health_status ahs1_0 
     where
-        mt1_0.id=?
+        ahs1_0.agent_id=?
 Hibernate: 
     select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        multimodal_tasks mt1_0 
+        agent_health_status ahs1_0 
     where
-        mt1_0.id=?
-2026-02-02T13:17:42.079+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-4] org.hibernate.SQL                        : 
-    select
-        lc1_0.config_key,
-        lc1_0.config_value,
-        lc1_0.description,
-        lc1_0.updated_at 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-Hibernate: 
-    select
-        lc1_0.config_key,
-        lc1_0.config_value,
-        lc1_0.description,
-        lc1_0.updated_at 
-    from
-        sys_log_config lc1_0 
-    where
-        lc1_0.config_key=?
-2026-02-02T13:17:42.083+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-3] org.hibernate.SQL                        : 
+        ahs1_0.agent_id=?
+2026-02-02T18:05:14.220+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     update
-        multimodal_tasks 
+        agent_health_status 
     set
-        created_at=?,
-        execution_time=?,
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
         model_name=?,
-        result=?,
+        provider_type=?,
         status=?,
-        target_url=?,
-        updated_at=? 
+        view_type=? 
     where
-        id=?
+        agent_id=?
 Hibernate: 
     update
-        multimodal_tasks 
+        agent_health_status 
     set
-        created_at=?,
-        execution_time=?,
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
         model_name=?,
-        result=?,
+        provider_type=?,
         status=?,
-        target_url=?,
-        updated_at=? 
+        view_type=? 
     where
-        id=?
-2026-02-02T13:17:42.084+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-4] org.hibernate.SQL                        : 
+        agent_id=?
+2026-02-02T18:05:14.223+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 5d695503 is healthy
+2026-02-02T18:05:14.223+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        lc1_0.config_key,
-        lc1_0.config_value,
-        lc1_0.description,
-        lc1_0.updated_at 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        sys_log_config lc1_0 
+        agent_access_profiles aap1_0 
     where
-        lc1_0.config_key=?
+        aap1_0.agent_id=?
 Hibernate: 
     select
-        lc1_0.config_key,
-        lc1_0.config_value,
-        lc1_0.description,
-        lc1_0.updated_at 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        sys_log_config lc1_0 
+        agent_access_profiles aap1_0 
     where
-        lc1_0.config_key=?
-2026-02-02T13:17:42.092+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-4] org.hibernate.SQL                        : 
+        aap1_0.agent_id=?
+2026-02-02T18:05:14.509+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        mp1_0.id,
-        mp1_0.billing_mode,
-        mp1_0.created_at,
-        mp1_0.currency,
-        mp1_0.input_cost_unit,
-        mp1_0.input_price_unit,
-        mp1_0.output_cost_unit,
-        mp1_0.output_price_unit,
-        mp1_0.provider_id,
-        mp1_0.tenant_group,
-        mp1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        model_pricing mp1_0 
+        agent_health_status ahs1_0 
     where
-        mp1_0.provider_id=? 
-        and mp1_0.tenant_group=?
+        ahs1_0.agent_id=?
 Hibernate: 
     select
-        mp1_0.id,
-        mp1_0.billing_mode,
-        mp1_0.created_at,
-        mp1_0.currency,
-        mp1_0.input_cost_unit,
-        mp1_0.input_price_unit,
-        mp1_0.output_cost_unit,
-        mp1_0.output_price_unit,
-        mp1_0.provider_id,
-        mp1_0.tenant_group,
-        mp1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        model_pricing mp1_0 
+        agent_health_status ahs1_0 
     where
-        mp1_0.provider_id=? 
-        and mp1_0.tenant_group=?
-2026-02-02T13:17:42.095+08:00 DEBUG 26011 --- [orin-backend] [AsyncExecutor-4] org.hibernate.SQL                        : 
-    insert 
-    into
-        audit_logs
-        (api_key_id, completion_tokens, conversation_id, created_at, endpoint, error_message, estimated_cost, external_price, internal_cost, ip_address, method, model, profit, prompt_tokens, provider_id, provider_type, request_params, response_content, response_time, status_code, success, tenant_id, total_tokens, user_agent, user_id, workflow_id, id) 
-    values
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ahs1_0.agent_id=?
+2026-02-02T18:05:14.510+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
 Hibernate: 
-    insert 
-    into
-        audit_logs
-        (api_key_id, completion_tokens, conversation_id, created_at, endpoint, error_message, estimated_cost, external_price, internal_cost, ip_address, method, model, profit, prompt_tokens, provider_id, provider_type, request_params, response_content, response_time, status_code, success, tenant_id, total_tokens, user_agent, user_id, workflow_id, id) 
-    values
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-2026-02-02T13:17:42.097+08:00  INFO 26011 --- [orin-backend] [AsyncExecutor-4] c.a.o.m.audit.service.AuditLogService    : Audit log saved successfully: id=ec72e1fc-6068-4ec4-b6c0-8cbc00a82d29, providerId=SiliconFlow, conversationId=null, endpoint=/multimodal/vlm
-2026-02-02T13:17:45.072+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:45.073+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:17:45.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:17:45.074+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:05:14.512+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 7f1f1495 is healthy
+2026-02-02T18:05:14.512+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-Hibernate: 
-    select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
-    from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:18:18.948+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/models
-2026-02-02T13:18:18.958+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:18:18.962+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/models
-2026-02-02T13:18:18.970+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-8] org.hibernate.SQL                        : 
-    select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
-    from
-        model_metadata mm1_0
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
 Hibernate: 
     select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        model_metadata mm1_0
-2026-02-02T13:18:18.992+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:18:18.994+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:18:18.995+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:18:18.997+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-9] org.hibernate.SQL                        : 
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:05:14.788+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
 Hibernate: 
     select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
-2026-02-02T13:18:35.037+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/knowledge/list
-2026-02-02T13:18:35.037+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/models
-2026-02-02T13:18:35.039+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:18:35.039+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:18:35.039+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/knowledge/list
-2026-02-02T13:18:35.039+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/models
-2026-02-02T13:18:35.041+08:00 DEBUG 26011 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:05:14.789+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:05:14.792+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 85d06644 is healthy
+2026-02-02T18:05:14.793+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        model_metadata mm1_0
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
 Hibernate: 
     select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        model_metadata mm1_0
-2026-02-02T13:18:35.041+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-1] org.hibernate.SQL                        : 
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:05:16.027+08:00  INFO 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.s.DeepSeekIntegrationService   : DeepSeek connection test successful: 200 OK
+2026-02-02T18:05:16.029+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        kb1_0.id,
-        kb1_0.configuration,
-        kb1_0.created_at,
-        kb1_0.description,
-        kb1_0.doc_count,
-        kb1_0.name,
-        kb1_0.source_agent_id,
-        kb1_0.status,
-        kb1_0.sync_time,
-        kb1_0.total_size_mb,
-        kb1_0.type 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        knowledge_bases kb1_0
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
 Hibernate: 
     select
-        kb1_0.id,
-        kb1_0.configuration,
-        kb1_0.created_at,
-        kb1_0.description,
-        kb1_0.doc_count,
-        kb1_0.name,
-        kb1_0.source_agent_id,
-        kb1_0.status,
-        kb1_0.sync_time,
-        kb1_0.total_size_mb,
-        kb1_0.type 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        knowledge_bases kb1_0
-2026-02-02T13:18:37.047+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/models
-2026-02-02T13:18:37.049+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:18:37.050+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/models
-2026-02-02T13:18:37.052+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:05:16.031+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:05:16.035+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 9209f6a0 is healthy
+2026-02-02T18:05:16.037+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        model_metadata mm1_0
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
 Hibernate: 
     select
-        mm1_0.id,
-        mm1_0.create_time,
-        mm1_0.description,
-        mm1_0.model_id,
-        mm1_0.name,
-        mm1_0.provider,
-        mm1_0.status,
-        mm1_0.type 
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
     from
-        model_metadata mm1_0
-2026-02-02T13:18:37.068+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/tasks/list
-2026-02-02T13:18:37.069+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
-2026-02-02T13:18:37.070+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/tasks/list
-2026-02-02T13:18:37.071+08:00 DEBUG 26011 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:05:16.329+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
     select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
 Hibernate: 
     select
-        mt1_0.id,
-        mt1_0.created_at,
-        mt1_0.execution_time,
-        mt1_0.model_name,
-        mt1_0.result,
-        mt1_0.status,
-        mt1_0.target_url,
-        mt1_0.updated_at 
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
     from
-        multimodal_tasks mt1_0 
-    order by
-        mt1_0.created_at desc
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:05:16.331+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:05:16.334+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent f639900f is healthy
+2026-02-02T18:05:16.335+08:00  INFO 46986 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed
+2026-02-02T18:06:13.484+08:00  INFO 46986 --- [orin-backend] [MessageBroker-2] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 6, active threads = 1, queued tasks = 4, completed tasks = 1]
+2026-02-02T18:06:13.517+08:00  INFO 46986 --- [orin-backend] [MessageBroker-3] c.adlin.orin.config.CacheMetricsConfig   : === Cache Statistics ===
+2026-02-02T18:06:13.522+08:00  INFO 46986 --- [orin-backend] [MessageBroker-3] c.adlin.orin.config.CacheMetricsConfig   : ========================
+2026-02-02T18:10:13.518+08:00  INFO 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Starting agent health check...
+2026-02-02T18:10:13.564+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-02T18:10:13.587+08:00  INFO 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Checking health for 5 agents
+2026-02-02T18:10:13.592+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:10:13.987+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:10:13.990+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:10:14.003+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 5d695503 is healthy
+2026-02-02T18:10:14.004+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:10:14.298+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:10:14.300+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:10:14.303+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 7f1f1495 is healthy
+2026-02-02T18:10:14.304+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:10:14.598+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:10:14.601+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:10:14.604+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 85d06644 is healthy
+2026-02-02T18:10:14.606+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:10:15.752+08:00  INFO 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.s.DeepSeekIntegrationService   : DeepSeek connection test successful: 200 OK
+2026-02-02T18:10:15.754+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:10:15.756+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:10:15.759+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 9209f6a0 is healthy
+2026-02-02T18:10:15.760+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-02T18:10:16.015+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-02T18:10:16.018+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-02T18:10:16.020+08:00 DEBUG 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Agent f639900f is healthy
+2026-02-02T18:10:16.020+08:00  INFO 46986 --- [orin-backend] [MessageBroker-5] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed
+2026-02-02T18:11:13.529+08:00  INFO 46986 --- [orin-backend] [MessageBroker-1] c.adlin.orin.config.CacheMetricsConfig   : === Cache Statistics ===
+2026-02-02T18:11:13.531+08:00  INFO 46986 --- [orin-backend] [MessageBroker-1] c.adlin.orin.config.CacheMetricsConfig   : ========================
+2026-02-02T18:14:47.631+08:00  INFO 46986 --- [orin-backend] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-02-02T18:14:47.631+08:00  INFO 46986 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-02-02T18:14:47.638+08:00  INFO 46986 --- [orin-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 7 ms
+2026-02-02T18:14:47.656+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/files
+2026-02-02T18:14:47.700+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-02T18:14:47.705+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/files
+2026-02-02T18:14:47.719+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0
+Hibernate: 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0
+2026-02-02T18:14:47.756+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/files/01135d4e-19bb-4f30-a50e-d2bf98c77810/thumbnail
+2026-02-02T18:14:47.756+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/files/136dff30-502e-44e2-b590-1fb21443c4fe/thumbnail
+2026-02-02T18:14:47.757+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-2] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+2026-02-02T18:14:47.757+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-3] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+2026-02-02T18:14:47.757+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/files/01135d4e-19bb-4f30-a50e-d2bf98c77810/thumbnail
+2026-02-02T18:14:47.757+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/multimodal/files/5b43d2b6-a35a-4963-8552-6cf8ae382539/thumbnail
+2026-02-02T18:14:47.757+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/files/136dff30-502e-44e2-b590-1fb21443c4fe/thumbnail
+2026-02-02T18:14:47.757+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-4] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+2026-02-02T18:14:47.757+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/multimodal/files/5b43d2b6-a35a-4963-8552-6cf8ae382539/thumbnail
+2026-02-02T18:14:47.768+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0 
+    where
+        mf1_0.id=?
+2026-02-02T18:14:47.768+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0 
+    where
+        mf1_0.id=?
+Hibernate: 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0 
+    where
+        mf1_0.id=?
+Hibernate: 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0 
+    where
+        mf1_0.id=?
+2026-02-02T18:14:47.768+08:00 DEBUG 46986 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0 
+    where
+        mf1_0.id=?
+Hibernate: 
+    select
+        mf1_0.id,
+        mf1_0.ai_summary,
+        mf1_0.duration,
+        mf1_0.embedding_status,
+        mf1_0.file_name,
+        mf1_0.file_size,
+        mf1_0.file_type,
+        mf1_0.height,
+        mf1_0.metadata,
+        mf1_0.mime_type,
+        mf1_0.ocr_text,
+        mf1_0.storage_path,
+        mf1_0.task_retry_count,
+        mf1_0.thumbnail_path,
+        mf1_0.transcription,
+        mf1_0.uploaded_at,
+        mf1_0.uploaded_by,
+        mf1_0.width 
+    from
+        multimodal_files mf1_0 
+    where
+        mf1_0.id=?

@@ -24,10 +24,28 @@ public class LoginController {
     @Autowired
     private com.adlin.orin.security.JwtService jwtService;
 
+    @Autowired
+    private com.adlin.orin.modules.audit.service.AuditLogService auditLogService;
+
     @Operation(summary = "用户登录")
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO) {
-        Map<String, Object> authResult = authService.login(loginDTO.getUsername(), loginDTO.getPassword());
+    public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO, jakarta.servlet.http.HttpServletRequest request) {
+        String ipAddress = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        Map<String, Object> authResult = null;
+
+        try {
+            authResult = authService.login(loginDTO.getUsername(), loginDTO.getPassword());
+        } catch (Exception e) {
+            auditLogService.logApiCall(
+                    loginDTO.getUsername(), null, "SYSTEM", "AUTH",
+                    "/api/v1/auth/login", "POST", null, ipAddress, userAgent,
+                    "username=" + loginDTO.getUsername(), "Login Failed: " + e.getMessage(),
+                    401, 0L, 0, 0, 0.0, false, e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "登录失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
 
         if (authResult != null) {
             com.adlin.orin.modules.system.entity.SysUser user = (com.adlin.orin.modules.system.entity.SysUser) authResult
@@ -39,12 +57,26 @@ public class LoginController {
 
             String token = jwtService.generateToken(String.valueOf(user.getUserId()), user.getUsername(), extraClaims);
 
+            // Log Success
+            auditLogService.logApiCall(
+                    String.valueOf(user.getUserId()), null, "SYSTEM", "AUTH",
+                    "/api/v1/auth/login", "POST", "UserLogin", ipAddress, userAgent,
+                    "username=" + loginDTO.getUsername(), "Login Success",
+                    200, 0L, 0, 0, 0.0, true, null);
+
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
             response.put("user", user);
             response.put("roles", roles); // 包含用户角色
             return ResponseEntity.ok(response);
         } else {
+            // Log Fail (Invalid credentials)
+            auditLogService.logApiCall(
+                    loginDTO.getUsername(), null, "SYSTEM", "AUTH",
+                    "/api/v1/auth/login", "POST", null, ipAddress, userAgent,
+                    "username=" + loginDTO.getUsername(), "Invalid Credentials",
+                    401, 0L, 0, 0, 0.0, false, "Invalid Credentials");
+
             Map<String, String> error = new HashMap<>();
             error.put("message", "用户名或密码错误");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);

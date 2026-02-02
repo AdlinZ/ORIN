@@ -59,6 +59,12 @@ const routes = [
                     {
                         path: 'logs',
                         name: 'AgentLogs',
+                        component: () => import('../views/Knowledge/AgentLogs.vue'),
+                        meta: { title: 'AI 调用日志' }
+                    },
+                    {
+                        path: 'chat-history',
+                        name: 'ChatLogs',
                         component: () => import('../views/Agent/ChatLogs.vue'),
                         meta: { title: '会话记录' }
                     },
@@ -92,6 +98,24 @@ const routes = [
                         name: 'KnowledgeOverview',
                         component: () => import('../views/Knowledge/KBList.vue'),
                         meta: { title: '知识库列表', icon: 'Reading' }
+                    },
+                    {
+                        path: 'create',
+                        name: 'KnowledgeCreate',
+                        component: () => import('../views/Knowledge/KBCreate.vue'),
+                        meta: { title: '创建知识库', icon: 'Plus' }
+                    },
+                    {
+                        path: 'detail/:id',
+                        name: 'KnowledgeDetail',
+                        component: () => import('../views/Knowledge/KBDetail.vue'),
+                        meta: { title: '知识库详情', icon: 'Document' }
+                    },
+                    {
+                        path: ':kbId/document/:docId',
+                        name: 'DocumentDetail',
+                        component: () => import('../views/Knowledge/DocumentDetail.vue'),
+                        meta: { title: '文档详情', icon: 'Document' }
                     },
                     {
                         path: 'intelligence',

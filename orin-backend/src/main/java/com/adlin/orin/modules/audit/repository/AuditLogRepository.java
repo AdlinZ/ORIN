@@ -135,4 +135,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          */
         @Query("SELECT a.providerId, SUM(a.estimatedCost) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 GROUP BY a.providerId")
         List<Object[]> sumCostByProviderIdBetween(LocalDateTime start, LocalDateTime end);
+
+        /**
+         * Find logs where providerType is IN the given list
+         */
+        Page<AuditLog> findByProviderTypeInOrderByCreatedAtDesc(List<String> providerTypes, Pageable pageable);
+
+        /**
+         * Find logs where providerType is NOT IN the given list
+         */
+        Page<AuditLog> findByProviderTypeNotInOrderByCreatedAtDesc(List<String> providerTypes, Pageable pageable);
 }
