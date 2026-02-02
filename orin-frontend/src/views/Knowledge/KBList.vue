@@ -221,7 +221,7 @@ import {
 } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import axios from 'axios';
+import request from '@/utils/request';
 
 const loading = ref(false);
 const inspectorVisible = ref(false);
@@ -242,8 +242,8 @@ const fetchData = async () => {
     // In a real app, agentId would come from state or route
     // Here we use a fallback or placeholder
     const agentId = 'default-agent'; 
-    const res = await axios.get(`/api/v1/knowledge/agents/${agentId}/unified`);
-    rawData.value = res.data || [];
+    const res = await request.get(`/knowledge/agents/${agentId}/unified`);
+    rawData.value = res || [];
     total.value = rawData.value.length;
   } catch (e) {
     console.warn('Backend API not ready or failed, using mock data for demo', e);

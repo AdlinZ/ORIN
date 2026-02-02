@@ -119,4 +119,20 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          * Find all logs in a conversation by conversation ID (paginated)
          */
         Page<AuditLog> findByConversationIdOrderByCreatedAtAsc(String conversationId, Pageable pageable);
+
+        /**
+         * 统计时间范围内各智能体的Token总消耗
+         * 
+         * @return List of [providerId, totalTokens]
+         */
+        @Query("SELECT a.providerId, SUM(a.totalTokens) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 GROUP BY a.providerId")
+        List<Object[]> sumTokensByProviderIdBetween(LocalDateTime start, LocalDateTime end);
+
+        /**
+         * 统计时间范围内各智能体的成本总消耗
+         * 
+         * @return List of [providerId, estimatedCost]
+         */
+        @Query("SELECT a.providerId, SUM(a.estimatedCost) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 GROUP BY a.providerId")
+        List<Object[]> sumCostByProviderIdBetween(LocalDateTime start, LocalDateTime end);
 }

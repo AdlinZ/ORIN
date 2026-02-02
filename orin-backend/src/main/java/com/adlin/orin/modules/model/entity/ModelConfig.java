@@ -54,6 +54,15 @@ public class ModelConfig {
     @Column(name = "silicon_flow_model")
     private String siliconFlowModel;
 
+    @Column(name = "vlm_model")
+    private String vlmModel;
+
+    @Column(name = "embedding_model")
+    private String embeddingModel;
+
+    @Column(name = "auto_analysis_enabled")
+    private Boolean autoAnalysisEnabled;
+
     @Column(name = "create_time")
     private LocalDateTime createTime;
 
@@ -178,6 +187,30 @@ public class ModelConfig {
 
     public void setSiliconFlowModel(String siliconFlowModel) {
         this.siliconFlowModel = siliconFlowModel;
+    }
+
+    public String getVlmModel() {
+        return vlmModel;
+    }
+
+    public void setVlmModel(String vlmModel) {
+        this.vlmModel = vlmModel;
+    }
+
+    public String getEmbeddingModel() {
+        return embeddingModel;
+    }
+
+    public void setEmbeddingModel(String embeddingModel) {
+        this.embeddingModel = embeddingModel;
+    }
+
+    public Boolean getAutoAnalysisEnabled() {
+        return autoAnalysisEnabled;
+    }
+
+    public void setAutoAnalysisEnabled(Boolean autoAnalysisEnabled) {
+        this.autoAnalysisEnabled = autoAnalysisEnabled;
     }
 
     public LocalDateTime getCreateTime() {

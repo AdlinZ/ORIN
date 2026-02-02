@@ -133,7 +133,31 @@ public class AuditLog {
     private Integer totalTokens = 0;
 
     /**
-     * 估算成本（美元）
+     * 租户ID (用于区分不同客户)
+     */
+    @Column(name = "tenant_id", length = 50)
+    private String tenantId;
+
+    /**
+     * 内部成本 (实际支付给供应商)
+     */
+    @Column(name = "internal_cost", precision = 19, scale = 8)
+    private java.math.BigDecimal internalCost;
+
+    /**
+     * 外部报价 (向用户展示/收取)
+     */
+    @Column(name = "external_price", precision = 19, scale = 8)
+    private java.math.BigDecimal externalPrice;
+
+    /**
+     * 利润 (External - Internal)
+     */
+    @Column(precision = 19, scale = 8)
+    private java.math.BigDecimal profit;
+
+    /**
+     * 估算成本（兼容旧字段，映射到 external_price）
      */
     @Builder.Default
     private Double estimatedCost = 0.0;

@@ -5,6 +5,10 @@ import com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
+import com.adlin.orin.modules.knowledge.event.TaskCreatedEvent;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,6 +32,8 @@ import java.util.UUID;
 public class MultimodalFileService {
 
     private final MultimodalFileRepository fileRepository;
+    private final KnowledgeTaskRepository taskRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final String UPLOAD_DIR = "storage/uploads/multimodal";
     private static final int THUMBNAIL_SIZE = 200;
@@ -79,6 +85,9 @@ public class MultimodalFileService {
         MultimodalFile multimodalFile = builder.build();
         multimodalFile = fileRepository.save(multimodalFile);
 
+        // Trigger Async Analysis
+        triggerAnalysisTask(multimodalFile);
+
         log.info("Uploaded multimodal file: {} (type: {})", originalFilename, fileType);
         return multimodalFile;
     }
@@ -121,9 +130,28 @@ public class MultimodalFileService {
         MultimodalFile multimodalFile = builder.build();
         multimodalFile = fileRepository.save(multimodalFile);
 
+        // Trigger Async Analysis
+        triggerAnalysisTask(multimodalFile);
+
         log.info("Uploaded generated file: {} (type: {})", originalFilename, fileType);
         return multimodalFile;
 
+    }
+
+    private void triggerAnalysisTask(MultimodalFile file) {
+        if ("IMAGE".equals(file.getFileType())) {
+            KnowledgeTask task = KnowledgeTask.builder()
+                    .assetId(file.getId())
+                    .assetType("MULTIMODAL_FILE")
+                    .taskType("CAPTIONING")
+                    .status("PENDING")
+                    .build();
+            taskRepository.save(task);
+            eventPublisher.publishEvent(new TaskCreatedEvent(this, task.getId()));
+
+            file.setEmbeddingStatus("PENDING");
+            fileRepository.save(file);
+        }
     }
 
     /**

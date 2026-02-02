@@ -45,8 +45,28 @@ public class MonitorServiceImpl implements MonitorService {
         // ForkJoinPool
         // which might have limited parallelism (e.g. 1 thread) in some containerized
         // environments.
-        private final java.util.concurrent.ExecutorService prometheusExecutor = java.util.concurrent.Executors
-                        .newCachedThreadPool();
+        // Dedicated thread pool for Prometheus queries with a fixed size to prevent
+        // exhaustion
+        private final java.util.concurrent.ExecutorService prometheusExecutor = new java.util.concurrent.ThreadPoolExecutor(
+                        5, 10, 60L, java.util.concurrent.TimeUnit.SECONDS,
+                        new java.util.concurrent.LinkedBlockingQueue<>(50),
+                        new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+
+        private Map<String, Object> cachedHardwareStatus;
+        private long lastHardwareUpdate = 0;
+        private static final long HARDWARE_CACHE_TTL = 10000; // 10 seconds cache
+
+        @jakarta.annotation.PostConstruct
+        public void init() {
+                if (prometheusConfigRepository.findById("DEFAULT").isEmpty()) {
+                        PrometheusConfig defaultConfig = PrometheusConfig.builder()
+                                        .id("DEFAULT")
+                                        .enabled(false)
+                                        .prometheusUrl("")
+                                        .build();
+                        prometheusConfigRepository.save(defaultConfig);
+                }
+        }
 
         @Override
         public Map<String, Object> getGlobalSummary() {
@@ -190,30 +210,37 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         @Override
-        public Map<String, Long> getTokenStats() {
-                Map<String, Long> stats = new HashMap<>();
+        public Map<String, Object> getTokenStats() {
+                Map<String, Object> stats = new HashMap<>();
                 LocalDateTime now = LocalDateTime.now();
-
-                // 今日
                 LocalDateTime startOfDay = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
-                Long daily = auditLogRepository.sumTotalTokensAfter(startOfDay);
-                stats.put("daily", daily != null ? daily : 0L);
-
-                // 本周
                 LocalDateTime startOfWeek = startOfDay.minusDays(now.getDayOfWeek().getValue() - 1);
-                Long weekly = auditLogRepository.sumTotalTokensAfter(startOfWeek);
-                stats.put("weekly", weekly != null ? weekly : 0L);
-
-                // 本月
                 LocalDateTime startOfMonth = startOfDay.withDayOfMonth(1);
-                Long monthly = auditLogRepository.sumTotalTokensAfter(startOfMonth);
-                stats.put("monthly", monthly != null ? monthly : 0L);
 
-                // 总计
-                Long total = auditLogRepository.sumTotalTokensAll();
-                stats.put("total", total != null ? total : 0L);
+                // Token 统计
+                stats.put("daily", orZero(auditLogRepository.sumTotalTokensAfter(startOfDay)));
+                stats.put("weekly", orZero(auditLogRepository.sumTotalTokensAfter(startOfWeek)));
+                stats.put("monthly", orZero(auditLogRepository.sumTotalTokensAfter(startOfMonth)));
+                stats.put("total", orZero(auditLogRepository.sumTotalTokensAll()));
+
+                // 成本统计
+                stats.put("daily_cost", orZero(auditLogRepository.sumCostByUserIdAndDateRange(null, startOfDay, now)));
+                stats.put("weekly_cost",
+                                orZero(auditLogRepository.sumCostByUserIdAndDateRange(null, startOfWeek, now)));
+                stats.put("monthly_cost",
+                                orZero(auditLogRepository.sumCostByUserIdAndDateRange(null, startOfMonth, now)));
+                stats.put("total_cost", orZero(auditLogRepository.sumCostByUserIdAndDateRange(null,
+                                LocalDateTime.of(2000, 1, 1, 0, 0), now)));
 
                 return stats;
+        }
+
+        private Long orZero(Long val) {
+                return val != null ? val : 0L;
+        }
+
+        private Double orZero(Double val) {
+                return val != null ? val : 0.0;
         }
 
         @Override
@@ -263,12 +290,6 @@ public class MonitorServiceImpl implements MonitorService {
                 for (AuditLog log : logs) {
                         if (log.getTotalTokens() != null) {
                                 String key = log.getCreatedAt().format(formatter);
-                                // 对于 weekly，我们需要找到该周的 key。简单起见，如果 format 是 yyyy-MM-dd，我们不做复杂周对齐，
-                                // 而是依靠 TreeMap 的 containsKey (如果初始化正确)。
-                                // 这里的简单实现：仅仅依靠 formatter。对于 daily 和 monthly 没问题。
-                                // 对于 weekly，formatter pattern 需要能区分周。
-
-                                // 修正：更简单的聚合逻辑
                                 if (groupedData.containsKey(key)) {
                                         groupedData.put(key, groupedData.get(key) + log.getTotalTokens());
                                 }
@@ -303,6 +324,56 @@ public class MonitorServiceImpl implements MonitorService {
                 }
 
                 return auditLogRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end, pageable);
+        }
+
+        @Override
+        public List<Map<String, Object>> getTokenDistribution(Long startDate, Long endDate) {
+                return getDistributionData(startDate, endDate, true);
+        }
+
+        @Override
+        public List<Map<String, Object>> getCostDistribution(Long startDate, Long endDate) {
+                return getDistributionData(startDate, endDate, false);
+        }
+
+        private List<Map<String, Object>> getDistributionData(Long startDate, Long endDate, boolean isToken) {
+                LocalDateTime start;
+                LocalDateTime end;
+
+                if (startDate != null && endDate != null) {
+                        start = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneId.systemDefault());
+                        end = LocalDateTime.ofInstant(Instant.ofEpochMilli(endDate), ZoneId.systemDefault());
+                } else {
+                        end = LocalDateTime.now();
+                        start = end.minusDays(30);
+                }
+
+                List<Object[]> rawData = isToken
+                                ? auditLogRepository.sumTokensByProviderIdBetween(start, end)
+                                : auditLogRepository.sumCostByProviderIdBetween(start, end);
+
+                Map<String, String> agentNames = healthStatusRepository.findAll().stream()
+                                .collect(Collectors.toMap(AgentHealthStatus::getAgentId,
+                                                AgentHealthStatus::getAgentName, (a, b) -> a));
+
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (Object[] row : rawData) {
+                        String providerId = (String) row[0];
+                        Number value = (Number) row[1];
+
+                        Map<String, Object> item = new HashMap<>();
+                        String name = agentNames.getOrDefault(providerId, "Unknown Agent ("
+                                        + (providerId != null ? (providerId.length() > 8 ? providerId.substring(0, 8)
+                                                        : providerId) : "null")
+                                        + ")");
+
+                        item.put("name", name);
+                        item.put("value", value);
+                        item.put("agentId", providerId);
+
+                        result.add(item);
+                }
+                return result;
         }
 
         @Override
@@ -405,6 +476,11 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public Map<String, Object> getServerHardware() {
+                long now = System.currentTimeMillis();
+                if (cachedHardwareStatus != null && (now - lastHardwareUpdate) < HARDWARE_CACHE_TTL) {
+                        return cachedHardwareStatus;
+                }
+
                 PrometheusConfig config = getPrometheusConfig();
                 Map<String, Object> status = new HashMap<>();
 
@@ -462,11 +538,11 @@ public class MonitorServiceImpl implements MonitorService {
                                                 .supplyAsync(() -> prometheusService.getGpuModel(url),
                                                                 prometheusExecutor);
 
-                                // Wait for all with a strict timeout
+                                // Wait for all with a strict timeout (reduced to 4s)
                                 CompletableFuture.allOf(cpuFuture, memFuture, diskFuture, coresFuture, totalMemFuture,
                                                 netInFuture, netOutFuture, osFuture, diskTotalFuture, cpuModelFuture,
                                                 gpuUsageFuture, gpuMemFuture, gpuModelFuture)
-                                                .get(10, java.util.concurrent.TimeUnit.SECONDS);
+                                                .get(4, java.util.concurrent.TimeUnit.SECONDS);
 
                                 status.put("cpuUsage", cpuFuture.get());
                                 status.put("memoryUsage", memFuture.get());
@@ -513,9 +589,14 @@ public class MonitorServiceImpl implements MonitorService {
                                 status.put("networkUpload", "0 KB/s");
                                 status.put("cpuModel", "Unknown");
                                 status.put("gpuModel", "N/A");
+                                status.put("error", "Connection error: " + e.getMessage());
                         }
+
+                        cachedHardwareStatus = status;
+                        lastHardwareUpdate = now;
                 } else {
                         status.put("online", false);
+                        status.put("error", "Prometheus monitoring is disabled or not configured.");
                 }
                 return status;
         }
@@ -543,6 +624,8 @@ public class MonitorServiceImpl implements MonitorService {
         @Override
         public void updatePrometheusConfig(PrometheusConfig config) {
                 config.setId("DEFAULT");
+                log.info("Updating Prometheus config: enabled={}, url={}", config.getEnabled(),
+                                config.getPrometheusUrl());
                 prometheusConfigRepository.save(config);
         }
 

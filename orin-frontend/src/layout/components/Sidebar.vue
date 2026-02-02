@@ -36,13 +36,15 @@
         <el-sub-menu index="/dashboard/knowledge">
           <template #title>
             <el-icon><Collection /></el-icon>
-            <span>知识管理</span>
+            <span>语义资产中心</span>
           </template>
-          <el-menu-item index="/dashboard/knowledge/overview">知识资产架构</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/unstructured">非结构化知识</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/structured">结构化知识</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/procedural">程序化知识</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/meta">元知识与记忆</el-menu-item>
+          <el-menu-item index="/dashboard/knowledge/media">多模态素材库</el-menu-item>
+          <el-menu-item index="/dashboard/knowledge/list">知识库列表</el-menu-item>
+          <el-menu-item index="/dashboard/knowledge/lab">RAG 检索实验室</el-menu-item>
+          <el-menu-item index="/dashboard/knowledge/vlm-playground">VLM 视觉实验室</el-menu-item>
+          <el-menu-item index="/dashboard/knowledge/embedding-lab">向量匹配实验室</el-menu-item>
+          <el-menu-item index="/dashboard/knowledge/intelligence">智力资产中心</el-menu-item>
+          <el-menu-item index="/dashboard/knowledge/architecture">资产架构定义</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="/dashboard/workflow">
@@ -65,6 +67,8 @@
           <el-menu-item index="/dashboard/system/alerts">告警管理</el-menu-item>
           <el-menu-item index="/dashboard/system/api-management">API端点管理</el-menu-item>
           <el-menu-item index="/dashboard/system/api-keys">API密钥管理</el-menu-item>
+          <el-menu-item index="/dashboard/system/pricing">定价策略</el-menu-item>
+          <el-menu-item index="/dashboard/system/monitor-config">监控设置</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </div>
@@ -449,33 +453,31 @@ router.afterEach(() => {
 
 /* Dark mode support */
 html.dark .sidebar-container {
-  background-color: var(--neutral-gray-900);
-  border-right-color: var(--neutral-gray-700);
+  /* Using CSS variables effectively via main.css flipping */
 }
 
 html.dark .logo-container {
-  border-bottom-color: var(--neutral-gray-700);
+  /* Using CSS variables effectively */
 }
 
 html.dark .title {
-  color: var(--neutral-white);
+  /* Using CSS variables effectively */
 }
 
 html.dark .user-section {
-  background-color: var(--neutral-gray-900);
-  border-top-color: var(--neutral-gray-700);
+  /* Using CSS variables effectively */
 }
 
 html.dark .user-wrapper:hover {
-  background: var(--neutral-gray-800);
+  background: var(--neutral-gray-100);
 }
 
 html.dark .user-name {
-  color: var(--neutral-white);
+  /* Using CSS variables effectively */
 }
 
 html.dark .user-avatar {
-  border-color: var(--neutral-gray-700);
+  /* Using CSS variables effectively */
 }
 
 /* Floating Toggle Button */

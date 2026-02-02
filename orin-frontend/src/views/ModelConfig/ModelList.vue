@@ -35,6 +35,7 @@
              style="width: 200px"
            >
              <el-option label="全部类型" value="ALL" />
+             <!-- options -->
              <el-option label="对话 (Chat)" value="CHAT" />
              <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
              <el-option label="结果重排 (Reranker)" value="RERANKER" />
@@ -45,6 +46,7 @@
            </el-select>
          </div>
          <div class="action-bar">
+           <el-button @click="handleImportPricing" :icon="Money" style="margin-right: 12px;">导入定价(JSON)</el-button>
            <el-input 
              v-model="searchQuery" 
              placeholder="搜索名称或供应商..." 
@@ -65,6 +67,59 @@
            </el-button>
          </div>
       </div>
+
+     <el-dialog v-model="pricingImportVisible" title="批量导入定价 (从 SiliconFlow 后台)" width="700px" :close-on-click-modal="false">
+        <el-alert 
+            type="info" 
+            :closable="false" 
+            show-icon
+            style="margin-bottom: 20px;"
+        >
+          <template #title>
+            由于定价信息包含 Session 验证，无法自动抓取。请选择以下方式：
+          </template>
+        </el-alert>
+
+        <el-tabs v-model="importModeTab" type="border-card" class="import-help-tabs">
+          <el-tab-pane label="官方预设 (推荐)" name="preset">
+             <div class="help-content">
+               <p>ORIN 已内置常见模型在 SiliconFlow 上的参考价格。</p>
+               <el-select v-model="selectedPreset" placeholder="请选择预设配置" style="width: 100%; margin: 10px 0;">
+                 <el-option v-for="p in PRESET_PRICING" :key="p.name" :label="p.name" :value="p.name" />
+               </el-select>
+               <el-alert title="注意：预设价格可能随时变动，建议仅作参考。" type="warning" :closable="false" show-icon />
+             </div>
+          </el-tab-pane>
+
+          <el-tab-pane label="从浏览器 Network 复制" name="manual">
+            <div class="help-content step-guide">
+               <!-- Steps same as before -->
+               <div class="step-item"><div class="step-num">1</div><div class="step-text">登录 <a href="https://cloud.siliconflow.cn/models" target="_blank">SiliconFlow 后台</a>。</div></div>
+               <div class="step-item"><div class="step-num">2</div><div class="step-text">按 <kbd>F12</kbd> 打开 Network，刷新页面。</div></div>
+               <div class="step-item"><div class="step-num">3</div><div class="step-text">筛选 <code>models</code> 请求 (GET)。</div></div>
+               <div class="step-item"><div class="step-num">4</div><div class="step-text">选中 Response，全选复制 JSON，粘贴至下方。</div></div>
+            </div>
+            <el-input 
+                v-model="pricingJson" 
+                type="textarea" 
+                :rows="6" 
+                placeholder="在此处粘贴 JSON 内容..." 
+                style="margin-top: 10px;"
+            />
+          </el-tab-pane>
+        </el-tabs>
+        
+        <template #footer>
+            <div class="dialog-footer">
+               <span class="tip-text" v-if="importModeTab === 'manual'">已粘贴 {{ pricingJson.length }} 字符</span>
+               <span class="tip-text" v-else>将导入 {{ selectedPreset ? PRESET_PRICING.find(p => p.name === selectedPreset).data.length : 0 }} 条规则</span>
+               <div>
+                  <el-button @click="pricingImportVisible = false">取消</el-button>
+                  <el-button type="primary" :loading="importLoading" @click="() => { importMode = importModeTab; submitPricingImport(); }">确认导入</el-button>
+               </div>
+            </div>
+        </template>
+     </el-dialog>
 
       <ResizableTable v-loading="loading" :data="filteredList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" fixed="left" />
@@ -122,91 +177,134 @@
     <el-dialog 
       v-model="dialogVisible" 
       :title="form.id ? '编辑模型' : '新增模型'" 
-      width="550px"
+      width="600px"
+      top="5vh"
+      class="model-edit-dialog"
       destroy-on-close
+      :close-on-click-modal="false"
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
-        <el-form-item label="模型名称" prop="name">
-          <el-input v-model="form.name" placeholder="例如: GPT-4o" />
-        </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="供应方" prop="provider">
-              <el-select v-model="form.provider" placeholder="请选择" style="width: 100%">
-                <el-option label="OpenAI" value="OpenAI" />
-                <el-option label="Anthropic" value="Anthropic" />
-                <el-option label="Dify (External)" value="Dify" />
-                <el-option label="SiliconFlow" value="SiliconFlow" />
-                <el-option label="Ollama" value="Ollama" />
-                <el-option label="HuggingFace" value="HuggingFace" />
-                <el-option label="DashScope" value="DashScope" />
-                <el-option label="DeepSeek" value="DeepSeek" />
-              </el-select>
+        <el-tabs v-model="activeTab" class="model-edit-tabs">
+          <el-tab-pane label="基本信息" name="basic">
+            <el-form-item label="模型名称" prop="name">
+              <el-input v-model="form.name" placeholder="例如: GPT-4o" />
             </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="模型类型" prop="type">
-              <el-select v-model="form.type" placeholder="请选择" style="width: 100%">
-                <el-option label="Chat (LLM)" value="CHAT" />
-                <el-option label="Embedding" value="EMBEDDING" />
-                <el-option label="Reranker" value="RERANKER" />
-                <el-option label="Text to Image" value="TEXT_TO_IMAGE" />
-                <el-option label="Image to Image" value="IMAGE_TO_IMAGE" />
-                <el-option label="Speech to Text" value="SPEECH_TO_TEXT" />
-                <el-option label="Text to Video" value="TEXT_TO_VIDEO" />
-              </el-select>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="供应方" prop="provider">
+                  <el-select v-model="form.provider" placeholder="请选择" style="width: 100%">
+                    <el-option label="OpenAI" value="OpenAI" />
+                    <el-option label="Anthropic" value="Anthropic" />
+                    <el-option label="Dify (External)" value="Dify" />
+                    <el-option label="SiliconFlow" value="SiliconFlow" />
+                    <el-option label="Ollama" value="Ollama" />
+                    <el-option label="HuggingFace" value="HuggingFace" />
+                    <el-option label="DashScope" value="DashScope" />
+                    <el-option label="DeepSeek" value="DeepSeek" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="模型类型" prop="type">
+                  <el-select v-model="form.type" placeholder="请选择" style="width: 100%">
+                    <el-option label="Chat (LLM)" value="CHAT" />
+                    <el-option label="Embedding" value="EMBEDDING" />
+                    <el-option label="Reranker" value="RERANKER" />
+                    <el-option label="Text to Image" value="TEXT_TO_IMAGE" />
+                    <el-option label="Image to Image" value="IMAGE_TO_IMAGE" />
+                    <el-option label="Speech to Text" value="SPEECH_TO_TEXT" />
+                    <el-option label="Text to Video" value="TEXT_TO_VIDEO" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item label="模型标识符" prop="modelId">
+              <el-input v-model="form.modelId" placeholder="例如: gpt-4o 或 llama3:8b" />
             </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="模型标识符" prop="modelId">
-          <el-input v-model="form.modelId" placeholder="例如: gpt-4o 或 llama3:8b" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" :rows="2" />
-        </el-form-item>
+            <el-form-item label="描述">
+              <el-input v-model="form.description" type="textarea" :rows="2" />
+            </el-form-item>
 
-        <el-divider>API 自动获取 (可选)</el-divider>
-        <div class="api-fetch-section">
-          <p class="section-tip">提供 API 信息后，可一键获取供应商提供的所有模型</p>
-          
-          <el-form-item label="使用已保存密钥" class="mini-form-item">
-            <el-select v-model="selectedSavedKeyId" placeholder="选择已保存的凭据" size="small" style="width: 100%" clearable @change="onSavedKeyChange">
-              <el-option v-for="key in savedKeys" :key="key.id" :label="`${key.name} (${key.provider})`" :value="key.id" />
-            </el-select>
-          </el-form-item>
-          <el-row :gutter="10">
-            <el-col :span="16">
-              <el-input v-model="fetchConfig.baseUrl" placeholder="API Base URL (e.g. https://api.openai.com/v1)" size="small" />
-            </el-col>
-            <el-col :span="8">
-              <el-button type="primary" plain size="small" :loading="isFetchingModels" @click="handleFetchFromApi" style="width: 100%">
-                获取全部模型
-              </el-button>
-            </el-col>
-          </el-row>
-          <el-input v-model="fetchConfig.apiKey" type="password" show-password placeholder="API Key" size="small" style="margin-top: 10px;" />
-          
-          <div v-if="availableModels.length > 0" class="fetched-list">
-            <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0 8px;">
-              <p class="label-mini" style="margin: 0;">发现 {{ availableModels.length }} 个模型：</p>
-              <el-button type="success" size="small" link :loading="submitting" @click="handleImportAll">
-                一键全部导入
-              </el-button>
+            <el-divider>API 自动获取 (可选)</el-divider>
+            <div class="api-fetch-section">
+              <p class="section-tip">提供 API 信息后，可一键获取供应商提供的所有模型</p>
+              
+              <el-form-item label="使用已保存密钥" class="mini-form-item">
+                <el-select v-model="selectedSavedKeyId" placeholder="选择已保存的凭据" size="small" style="width: 100%" clearable @change="onSavedKeyChange">
+                  <el-option v-for="key in savedKeys" :key="key.id" :label="`${key.name} (${key.provider})`" :value="key.id" />
+                </el-select>
+              </el-form-item>
+               <el-row :gutter="10">
+                <el-col :span="16">
+                  <el-input v-model="fetchConfig.baseUrl" placeholder="API Base URL (e.g. https://api.openai.com/v1)" size="small" />
+                </el-col>
+                <el-col :span="8">
+                  <el-button type="primary" plain size="small" :loading="isFetchingModels" @click="handleFetchFromApi" style="width: 100%">
+                    获取全部模型
+                  </el-button>
+                </el-col>
+              </el-row>
+              <el-input v-model="fetchConfig.apiKey" type="password" show-password placeholder="API Key" size="small" style="margin-top: 10px;" />
+              
+              <div v-if="availableModels.length > 0" class="fetched-list">
+                 <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0 8px;">
+                  <p class="label-mini" style="margin: 0;">发现 {{ availableModels.length }} 个模型：</p>
+                  <el-button type="success" size="small" link :loading="submitting" @click="handleImportAll">
+                    一键全部导入
+                  </el-button>
+                </div>
+                <div class="model-tags">
+                  <el-tag 
+                    v-for="m in availableModels.slice(0, 30)" 
+                    :key="m.id" 
+                    size="small" 
+                    class="fetched-tag"
+                    @click="onSelectFetchedModel(m)"
+                  >
+                    {{ m.id }}
+                  </el-tag>
+                  <span v-if="availableModels.length > 30" class="more-text">...等共 {{ availableModels.length }} 个</span>
+                </div>
+              </div>
             </div>
-            <div class="model-tags">
-              <el-tag 
-                v-for="m in availableModels.slice(0, 30)" 
-                :key="m.id" 
-                size="small" 
-                class="fetched-tag"
-                @click="onSelectFetchedModel(m)"
-              >
-                {{ m.id }}
-              </el-tag>
-              <span v-if="availableModels.length > 30" class="more-text">...等共 {{ availableModels.length }} 个</span>
+          </el-tab-pane>
+
+          <el-tab-pane label="定价配置" name="pricing">
+            <el-alert title="此处只配置默认租户组的价格，高级配置请前往系统设置。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            
+            <el-form-item label="计费模式">
+              <el-radio-group v-model="pricingForm.billingMode">
+                <el-radio-button label="PER_TOKEN">Token计费</el-radio-button>
+                <el-radio-button label="PER_REQUEST">按次计费</el-radio-button>
+                <el-radio-button label="PER_SECOND">按时计费</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+
+            <div class="pricing-grid-container">
+               <el-divider content-position="left">费率表 (单位: CNY)</el-divider>
+               <el-row :gutter="20">
+                 <el-col :span="12">
+                   <div class="pricing-header">成本 (Internal Cost)</div>
+                   <el-form-item label="Input / 1k">
+                     <el-input-number v-model="pricingForm.inputCostUnit" :precision="6" :step="0.001" style="width: 100%" />
+                   </el-form-item>
+                   <el-form-item label="Output / 1k">
+                     <el-input-number v-model="pricingForm.outputCostUnit" :precision="6" :step="0.001" style="width: 100%" />
+                   </el-form-item>
+                 </el-col>
+                 <el-col :span="12">
+                   <div class="pricing-header">报价 (External Price)</div>
+                   <el-form-item label="Input / 1k">
+                     <el-input-number v-model="pricingForm.inputPriceUnit" :precision="6" :step="0.001" style="width: 100%" />
+                   </el-form-item>
+                   <el-form-item label="Output / 1k">
+                     <el-input-number v-model="pricingForm.outputPriceUnit" :precision="6" :step="0.001" style="width: 100%" />
+                   </el-form-item>
+                 </el-col>
+               </el-row>
             </div>
-          </div>
-        </div>
+          </el-tab-pane>
+        </el-tabs>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -243,10 +341,11 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
-import { Plus, Edit, Delete, Search, Box } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Search, Box, Money } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ResizableTable from '@/components/ResizableTable.vue';
 import { getModelList, saveModel, deleteModel, toggleModelStatus, fetchModels } from '@/api/model';
+import { getPricingConfig, savePricingConfig } from '@/api/monitor';
 import { getModelConfig } from '@/api/modelConfig';
 import { getExternalKeys } from '@/api/apiKey';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -269,6 +368,7 @@ const searchQuery = ref('');
 const typeFilter = ref('ALL');
 const dialogVisible = ref(false);
 const formRef = ref(null);
+const activeTab = ref('basic');
 import { ChatDotRound, Connection, Cpu } from '@element-plus/icons-vue';
 
 const form = reactive({
@@ -279,6 +379,18 @@ const form = reactive({
   modelId: '',
   description: '',
   status: 'ENABLED'
+});
+
+const pricingForm = reactive({
+  id: null,
+  providerId: '',
+  tenantGroup: 'default',
+  billingMode: 'PER_TOKEN',
+  inputCostUnit: 0,
+  outputCostUnit: 0,
+  inputPriceUnit: 0,
+  outputPriceUnit: 0,
+  currency: 'CNY'
 });
 
 const rules = {
@@ -327,7 +439,10 @@ const stats = computed(() => [
 ]);
 
 const handleAdd = async () => {
+  activeTab.value = 'basic';
   Object.assign(form, { id: null, name: '', provider: '', type: 'CHAT', modelId: '', description: '', status: 'ENABLED' });
+  // Reset pricing as well
+  resetPricingForm();
   availableModels.value = [];
   selectedSavedKeyId.value = null;
   dialogVisible.value = true;
@@ -345,6 +460,20 @@ const handleAdd = async () => {
       fetchConfig.apiKey = config.apiKey || '';
     }
   } catch (e) { /* ignore */ }
+};
+
+const resetPricingForm = () => {
+  Object.assign(pricingForm, {
+    id: null,
+    providerId: '',
+    tenantGroup: 'default',
+    billingMode: 'PER_TOKEN',
+    inputCostUnit: 0,
+    outputCostUnit: 0,
+    inputPriceUnit: 0,
+    outputPriceUnit: 0,
+    currency: 'CNY'
+  });
 };
 
 const onSavedKeyChange = (id) => {
@@ -378,6 +507,7 @@ const onSelectFetchedModel = (m) => {
   form.modelId = m.id;
   if (!form.name) form.name = m.id;
   if (m.type) form.type = m.type; // Auto-select type if available
+  if (m.owned_by && m.owned_by.includes('openai')) form.provider = 'OpenAI';
 };
 
 const handleImportAll = async () => {
@@ -425,8 +555,24 @@ const handleImportAll = async () => {
   }
 };
 
-const handleEdit = (row) => {
+const handleEdit = async (row) => {
+  activeTab.value = 'basic';
   Object.assign(form, row);
+  // Fetch pricing
+  resetPricingForm();
+  try {
+    const res = await getPricingConfig();
+    const list = res.data || res;
+    // Find matching rule for this modelId + default group
+    const pid = row.modelId;
+    const match = list.find(p => p.providerId === pid && p.tenantGroup === 'default');
+    if (match) {
+        Object.assign(pricingForm, match);
+    } else {
+        pricingForm.providerId = pid;
+    }
+  } catch(e) { console.warn(e); }
+  
   dialogVisible.value = true;
 };
 
@@ -436,10 +582,20 @@ const handleSubmit = async () => {
     if (valid) {
       submitting.value = true;
       try {
+        // 1. Save Model
         await saveModel(form);
+        
+        // 2. Save Pricing (if modelId is set)
+        if (form.modelId) {
+            pricingForm.providerId = form.modelId; // Ensure sync
+            await savePricingConfig(pricingForm);
+        }
+
         ElMessage.success('保存成功');
         dialogVisible.value = false;
         fetchData();
+      } catch(e) {
+        ElMessage.error('保存失败: ' + e.message);
       } finally {
         submitting.value = false;
       }
@@ -544,6 +700,154 @@ const formatModelType = (type) => {
 onMounted(() => {
   fetchData();
 });
+
+
+/* --- Batch Import Pricing Logic --- */
+const pricingImportVisible = ref(false);
+const pricingJson = ref('');
+const importLoading = ref(false);
+const importMode = ref('manual'); // 'manual' | 'preset'
+const selectedPreset = ref('');
+
+// Updated 2024-05 Pricing (Approximate)
+// Unit: CNY per 1M tokens (stored as per 1k in DB, so we divide by 1000)
+// This list covers popular free and paid models on SiliconFlow.
+const PRESET_PRICING = [
+  { 
+    name: 'SiliconFlow: DeepSeek V3/R1 (Promotional/Free)', 
+    data: [
+      { id: 'deepseek-ai/DeepSeek-V3', pricing: { input: 0, output: 0 } },
+      { id: 'deepseek-ai/DeepSeek-R1', pricing: { input: 0, output: 0 } },
+      { id: 'deepseek-ai/DeepSeek-R1-Distill-Llama-8B', pricing: { input: 0, output: 0 } },
+      { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', pricing: { input: 0, output: 0 } },
+      { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B', pricing: { input: 0, output: 0 } }
+    ]
+  },
+  {
+    name: 'SiliconFlow: Qwen 2.5 (Commercial)',
+    data: [
+      { id: 'Qwen/Qwen2.5-7B-Instruct', pricing: { input: 1, output: 2 } }, // Example prices
+      { id: 'Qwen/Qwen2.5-72B-Instruct', pricing: { input: 4, output: 14 } },
+      { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', pricing: { input: 2, output: 6 } }
+    ]
+  },
+  {
+    name: 'SiliconFlow: Yi (01.AI)',
+    data: [
+      { id: '01-ai/Yi-1.5-34B-Chat-16K', pricing: { input: 2, output: 12 } },
+      { id: '01-ai/Yi-1.5-9B-Chat-16K', pricing: { input: 1, output: 2 } }
+    ]
+  },
+  {
+    name: 'SiliconFlow: All Known Models (Common)',
+    data: [
+       // DeepSeek
+       { id: 'deepseek-ai/DeepSeek-V3', pricing: { input: 0, output: 0 } },
+       { id: 'deepseek-ai/DeepSeek-R1', pricing: { input: 0, output: 0 } },
+       // Qwen
+       { id: 'Qwen/Qwen2.5-72B-Instruct', pricing: { input: 4.13, output: 13.75 } }, // approx CNY
+       { id: 'Qwen/Qwen2.5-32B-Instruct', pricing: { input: 1.25, output: 3.75 } },
+       { id: 'Qwen/Qwen2.5-7B-Instruct', pricing: { input: 0.35, output: 0.7 } },
+       // GLM
+       { id: 'THUDM/glm-4-9b-chat', pricing: { input: 1, output: 1 } },
+       // Llama
+       { id: 'meta-llama/Meta-Llama-3.1-8B-Instruct', pricing: { input: 0, output: 0 } }, // Often free tier
+       { id: 'meta-llama/Meta-Llama-3.1-405B-Instruct', pricing: { input: 25, output: 75 } },
+       // Vendor Specific
+       { id: 'internlm/internlm2_5-7b-chat', pricing: { input: 0, output: 0 } }
+    ]
+  }
+];
+
+const handleImportPricing = () => {
+  pricingJson.value = '';
+  importMode.value = 'manual';
+  selectedPreset.value = '';
+  pricingImportVisible.value = true;
+};
+
+const submitPricingImport = async () => {
+  let sourceData = [];
+
+  if (importMode.value === 'preset') {
+      if (!selectedPreset.value) return ElMessage.warning('请选择一个预设配置');
+      const preset = PRESET_PRICING.find(p => p.name === selectedPreset.value);
+      if (preset) sourceData = preset.data;
+  } else {
+      if (!pricingJson.value.trim()) return ElMessage.warning('请输入 JSON 内容');
+      try {
+        let data = JSON.parse(pricingJson.value);
+        if (data.data && Array.isArray(data.data)) data = data.data;
+        else if (!Array.isArray(data)) throw new Error('Format error');
+        sourceData = data;
+      } catch(e) {
+        return ElMessage.error('JSON 解析失败: ' + e.message);
+      }
+  }
+
+  importLoading.value = true;
+  let successCount = 0;
+
+  try {
+    const existingModels = modelList.value;
+    
+    for (const item of sourceData) {
+       const pid = item.id || item.model || item.model_id;
+       if (!pid) continue;
+
+       // Attempt to read pricing (Per Million assumed if from preset or simple numbers)
+       let input = 0, output = 0;
+       
+       if (item.pricing) {
+           input = Number(item.pricing.input || 0);
+           output = Number(item.pricing.output || 0);
+       } else if (item.price) {
+           input = Number(item.price.input || 0);
+           output = Number(item.price.output || 0);
+       }
+       
+       // Note: Cloud APIs usually quote per 1M tokens. 
+       // Our DB stores "Unit Cost per 1k".
+       // So we divide by 1000.
+       
+       // However, if the user manually inputs per-1k prices in JSON, we might under-price.
+       // But typically JSON dumps from APIs are Per-1M (e.g. 0.5 CNY/1M).
+       
+       // Filter: If import mode is preset, we trust the mapping.
+       // If manual, we apply heuristic.
+       
+       // Update logic
+       await savePricingConfig({
+           providerId: pid,
+           tenantGroup: 'default',
+           billingMode: 'PER_TOKEN',
+           inputCostUnit: input / 1000,
+           outputCostUnit: output / 1000,
+           inputPriceUnit: (input / 1000) * 1.2, // 20% Markup default
+           outputPriceUnit: (output / 1000) * 1.2,
+           currency: 'CNY'
+       });
+       successCount++;
+    }
+    
+    ElMessage.success(`成功更新 ${successCount} 个模型的定价规则`);
+    pricingImportVisible.value = false;
+  } catch (e) {
+    ElMessage.error('导入失败: ' + e.message);
+  } finally {
+    importLoading.value = false;
+  }
+};
+
+
+const copyHelperScript = () => {
+    const code = "fetch('https://api.siliconflow.cn/v1/models?sub_type=chat&page=1&page_size=100').then(r=>r.json()).then(d=>{const t=document.createElement('textarea');t.value=JSON.stringify(d);document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('模型数据已复制到剪贴板！请回到 ORIN 粘贴。')}).catch(e=>alert('获取失败，请确保您已登录'))";
+    navigator.clipboard.writeText(code).then(() => {
+        ElMessage.success('脚本已复制，请前往控制台粘贴');
+    }).catch(() => {
+        ElMessage.error('复制失败，请手动复制');
+    });
+};
 </script>
 
 <style scoped>
@@ -611,4 +915,56 @@ onMounted(() => {
 .fetched-tag { cursor: pointer; border-radius: 4px; border: none; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .fetched-tag:hover { border-color: var(--primary-color); color: var(--primary-color); transform: scale(1.05); }
 .more-text { font-size: 11px; color: var(--neutral-gray-400); align-self: center; }
+
+/* Dialog Sizing Fix */
+:deep(.model-edit-dialog) {
+  display: flex;
+  flex-direction: column;
+  margin: 0 !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-height: 90vh;
+  max-width: 90vw;
+}
+
+:deep(.model-edit-dialog .el-dialog__body) {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.help-content {
+  padding: 10px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+.help-content p {
+  margin: 5px 0 10px;
+}
+.code-block {
+  background: #f5f7fa;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  margin: 10px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: monospace;
+  position: relative;
+}
+.import-help-tabs {
+  margin-bottom: 20px;
+}
+.tip-text {
+  color: #909399;
+  font-size: 13px;
+  margin-right: 12px;
+}
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 </style>

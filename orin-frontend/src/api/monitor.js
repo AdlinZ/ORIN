@@ -44,6 +44,20 @@ export const getTokenHistory = (params = {}, config = {}) => {
     });
 };
 
+export const getTokenDistribution = (params = {}, config = {}) => {
+    return request.get('/monitor/tokens/distribution', {
+        params,
+        ...config
+    });
+};
+
+export const getCostDistribution = (params = {}, config = {}) => {
+    return request.get('/monitor/costs/distribution', {
+        params,
+        ...config
+    });
+};
+
 export const getTokenTrend = (period = 'daily', config = {}) => {
     return request.get('/monitor/tokens/trend', {
         params: { period },
@@ -68,4 +82,17 @@ export const getLatencyTrend = (period = 'daily', config = {}) => {
         params: { period },
         ...config
     });
+};
+
+// Pricing Config API
+export const getPricingConfig = () => {
+    return request.get('/pricing/config');
+};
+
+export const savePricingConfig = (data) => {
+    return request.post('/pricing/config', data);
+};
+
+export const deletePricingConfig = (id) => {
+    return request.delete(`/pricing/config/${id}`);
 };

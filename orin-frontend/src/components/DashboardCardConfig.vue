@@ -135,7 +135,7 @@ const detailedConfig = ref({});
 // 默认启用的卡片
 const defaultEnabledCards = [
   'stat-agents', 'stat-requests', 'stat-tokens', 'stat-latency',
-  'module-agents', 'module-distribution', 'module-activity'
+  'module-agents', 'module-distribution', 'module-activity', 'module-server'
 ];
 
 // 当前启用的卡片
@@ -154,6 +154,11 @@ const initConfig = () => {
     resetToDefault();
   }
 };
+
+import { onMounted } from 'vue';
+onMounted(() => {
+  initConfig();
+});
 
 const isCardEnabled = (cardId) => {
   return detailedConfig.value[cardId]?.enabled;

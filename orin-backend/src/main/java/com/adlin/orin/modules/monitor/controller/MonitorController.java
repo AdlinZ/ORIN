@@ -72,7 +72,7 @@ public class MonitorController {
 
     @Operation(summary = "获取Token消耗统计")
     @GetMapping("/tokens/stats")
-    public Map<String, Long> getTokenStats() {
+    public Map<String, Object> getTokenStats() {
         return monitorService.getTokenStats();
     }
 
@@ -90,6 +90,22 @@ public class MonitorController {
             @RequestParam(required = false) Long startDate,
             @RequestParam(required = false) Long endDate) {
         return monitorService.getTokenHistory(page, size, startDate, endDate);
+    }
+
+    @Operation(summary = "获取Token分布")
+    @GetMapping("/tokens/distribution")
+    public List<Map<String, Object>> getTokenDistribution(
+            @RequestParam(required = false) Long startDate,
+            @RequestParam(required = false) Long endDate) {
+        return monitorService.getTokenDistribution(startDate, endDate);
+    }
+
+    @Operation(summary = "获取成本分布")
+    @GetMapping("/costs/distribution")
+    public List<Map<String, Object>> getCostDistribution(
+            @RequestParam(required = false) Long startDate,
+            @RequestParam(required = false) Long endDate) {
+        return monitorService.getCostDistribution(startDate, endDate);
     }
 
     @Operation(summary = "获取延迟统计")

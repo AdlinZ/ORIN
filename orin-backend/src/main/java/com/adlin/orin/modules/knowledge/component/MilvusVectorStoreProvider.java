@@ -30,7 +30,6 @@ public class MilvusVectorStoreProvider implements VectorStoreProvider {
 
     private final MilvusServiceClient milvusClient;
     private static final int DIMENSION = 1536; // OpenAI Ada-002 dimension
-    private static final String DEFAULT_COLLECTION = "orin_knowledge_base";
 
     @Override
     public void addDocuments(String collectionName, List<KnowledgeDocument> documents) {

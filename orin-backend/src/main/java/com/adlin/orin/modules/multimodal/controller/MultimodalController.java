@@ -2,6 +2,7 @@ package com.adlin.orin.modules.multimodal.controller;
 
 import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
+import com.adlin.orin.modules.multimodal.service.VisualAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,13 @@ import java.util.Map;
 public class MultimodalController {
 
     private final MultimodalFileService fileService;
+    private final VisualAnalysisService visualAnalysisService;
+
+    @Operation(summary = "Get available AI models from SiliconFlow")
+    @GetMapping("/models")
+    public List<Map<String, String>> getModels() {
+        return visualAnalysisService.getAvailableModels();
+    }
 
     @Operation(summary = "上传多模态文件")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

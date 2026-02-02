@@ -163,16 +163,15 @@ const handleRefresh = () => {
 
 /* Dark mode support */
 html.dark .header-container {
-  background: var(--neutral-gray-900);
-  border-bottom-color: var(--neutral-gray-700);
+  /* No specific override needed, base class uses var(--neutral-white) which flips */
 }
 
 html.dark .action-items {
-  border-left-color: var(--neutral-gray-700);
+  /* var(--neutral-gray-100) flips to dark */
 }
 
 html.dark .action-icon {
-  color: var(--neutral-gray-400);
+  /* var(--neutral-gray-600) flips to light-ish */
 }
 
 html.dark .action-icon:hover {

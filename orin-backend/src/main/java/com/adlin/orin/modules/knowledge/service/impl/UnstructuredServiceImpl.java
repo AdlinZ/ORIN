@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service.impl;
 
+import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.knowledge.component.MilvusVectorStoreProvider;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
@@ -23,10 +24,21 @@ public class UnstructuredServiceImpl implements UnstructuredService {
 
     private final KnowledgeDocumentRepository documentRepository;
     private final VectorStoreProvider vectorStoreProvider;
+    private final FileStorageService fileStorageService;
 
     @Override
     public KnowledgeDocument uploadDocument(MultipartFile file, String kbId, String agentId) {
         log.info("Uploading document: {} for agent: {}", file.getOriginalFilename(), agentId);
+
+        String storagePath = null;
+        try {
+            // Save physical copy to "knowledge" subdirectory (more specific than
+            // "documents")
+            storagePath = fileStorageService.storeFile(file, "knowledge");
+        } catch (Exception e) {
+            log.error("Failed to store physical file", e);
+            throw new RuntimeException("Failed to store file", e);
+        }
 
         // 1. Save metadata (Fixed Builder Fields)
         KnowledgeDocument doc = KnowledgeDocument.builder()
@@ -34,6 +46,7 @@ public class UnstructuredServiceImpl implements UnstructuredService {
                 .knowledgeBaseId(kbId)
                 .fileName(file.getOriginalFilename())
                 .fileSize(file.getSize())
+                .storagePath(storagePath) // Persist path
                 .vectorStatus("PENDING")
                 .uploadTime(LocalDateTime.now())
                 .lastModified(LocalDateTime.now())

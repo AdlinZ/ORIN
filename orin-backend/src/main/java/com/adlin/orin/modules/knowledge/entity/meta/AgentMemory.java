@@ -28,6 +28,23 @@ public class AgentMemory {
     @Column(name = "memory_value", columnDefinition = "TEXT")
     private String value;
 
+    @Column(name = "metadata", columnDefinition = "TEXT")
+    private String metadata; // JSON metadata
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

@@ -306,7 +306,16 @@ const initCardConfig = () => {
       enabledCards.value = {};
     }
   } else {
-    enabledCards.value = {};
+    // Default config if none exists
+    const defaults = [
+      'stat-agents', 'stat-requests', 'stat-tokens', 'stat-latency',
+      'module-agents', 'module-distribution', 'module-activity', 'module-server'
+    ];
+    const initialConfig = {};
+    defaults.forEach(id => {
+      initialConfig[id] = { enabled: true };
+    });
+    enabledCards.value = initialConfig;
   }
 };
 
@@ -327,10 +336,43 @@ const formatTime = (ts) => new Date(ts).toLocaleTimeString();
 
 const sortedLogs = computed(() => [...logs.value].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 
-const typeDistribution = computed(() => [
-  { value: agents.value.filter(a => a.mode === 'chat' || !a.mode).length, name: '对话型 (Chat)' },
-  { value: agents.value.filter(a => a.mode === 'workflow').length, name: '工作流 (Workflow)' }
-]);
+const typeDistribution = computed(() => {
+  const map = {};
+  
+  // 规范化映射：将多种 Type 代码映射到统一的 Key
+  const normalizeType = (t) => {
+    if (!t) return 'CHAT';
+    const up = t.toUpperCase();
+    if (up === 'TEXT_TO_IMAGE' || up === 'IMAGE_TO_IMAGE') return 'TTI';
+    if (up === 'TEXT_TO_SPEECH') return 'TTS';
+    if (up === 'SPEECH_TO_TEXT') return 'STT';
+    if (up === 'TEXT_TO_VIDEO' || up === 'VIDEO_GENERATION') return 'TTV';
+    return up;
+  };
+
+  agents.value.forEach(a => {
+    // 优先使用 viewType, 降级使用 mode, 默认 CHAT
+    const rawType = a.viewType || a.mode || 'CHAT';
+    const type = normalizeType(rawType);
+    map[type] = (map[type] || 0) + 1;
+  });
+
+  const nameMap = {
+    'CHAT': '对话助手',
+    'WORKFLOW': '工作流',
+    'TTI': '绘图生成',
+    'TTS': '语音合成',
+    'STT': '语音识别',
+    'TTV': '视频生成',
+    'AGENT': '智能体',
+    'COMPLETION': '文本补全'
+  };
+
+  return Object.keys(map).map(key => ({
+    value: map[key],
+    name: nameMap[key] || `${key}` // 未知类型直接显示代码
+  }));
+});
 
 const statusDistribution = computed(() => [
   { value: agents.value.filter(a => a.status === 'RUNNING').length, name: '运行中' },
@@ -341,7 +383,7 @@ const statusDistribution = computed(() => [
 let pollTimer = null;
 let detailPollTimer = null;
 
-// 显示 Token 统计详情
+// 跳转逻辑增强: 支持更多类型
 const handleCardClick = (item) => {
   if (!item.clickable) return;
   
@@ -468,6 +510,7 @@ const fetchData = async () => {
 };
 
 const handleRefreshToggle = (val) => {
+  localStorage.setItem('dashboard_auto_refresh', val);
   if (val) {
     pollTimer = setInterval(fetchData, 5000);
     ElMessage.success('已开启自动刷新');
@@ -523,8 +566,17 @@ const getHealthStatus = (s) => s >= 90 ? 'success' : (s >= 60 ? 'warning' : 'exc
 
 onMounted(() => {
   initCardConfig();
+  
+  // Restore auto-refresh state
+  const savedAutoRefresh = localStorage.getItem('dashboard_auto_refresh');
+  if (savedAutoRefresh !== null) {
+    autoRefresh.value = savedAutoRefresh === 'true';
+  }
+
   fetchData();
-  pollTimer = setInterval(fetchData, 5000);
+  if (autoRefresh.value) {
+    pollTimer = setInterval(fetchData, 5000);
+  }
   
   // 监听全局刷新事件（来自Navbar的刷新按钮）
   window.addEventListener('global-refresh', fetchData);

@@ -111,6 +111,24 @@ public class MultimodalFile {
     @Column(name = "uploaded_at", nullable = false, updatable = false)
     private LocalDateTime uploadedAt;
 
+    /**
+     * AI generated summary for multimodal content
+     */
+    @Column(name = "ai_summary", columnDefinition = "TEXT")
+    private String aiSummary;
+
+    /**
+     * Status of the embedding process for this file
+     */
+    @Column(name = "embedding_status", length = 50)
+    private String embeddingStatus; // PENDING, PROCESSING, COMPLETED, FAILED
+
+    /**
+     * Number of times the task has been retried
+     */
+    @Column(name = "task_retry_count", columnDefinition = "INT DEFAULT 0")
+    private Integer taskRetryCount;
+
     @PrePersist
     protected void onCreate() {
         if (uploadedAt == null) {

@@ -30,6 +30,13 @@ public class KnowledgeManageController {
     private final com.adlin.orin.modules.knowledge.service.RetrievalService retrievalService;
     private final com.adlin.orin.modules.knowledge.service.StructuredService structuredService;
     private final com.adlin.orin.modules.knowledge.service.ProceduralService proceduralService;
+    private final com.adlin.orin.modules.agent.service.AgentManageService agentManageService;
+
+    @Operation(summary = "获取所有知识库列表")
+    @GetMapping("/list")
+    public List<KnowledgeBase> getAllKnowledgeBases() {
+        return knowledgeManageService.getAllKnowledgeBases();
+    }
 
     @Operation(summary = "获取智能体绑定的知识列表 (支持分类型 DOCUMENT/STRUCTURED/API)")
     @GetMapping("/agents/{agentId}")
@@ -152,15 +159,22 @@ public class KnowledgeManageController {
         return knowledgeManageService.getDocumentChunks(collectionName, docId);
     }
 
-    @Operation(summary = "检索效果测试")
+    @Operation(summary = "检索效果测试 (支持多模态与模型测试)")
     @PostMapping("/retrieve/test")
-    public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.SearchResult> testRetrieval(
+    public Object testRetrieval(
             @RequestBody Map<String, Object> payload) {
         String query = (String) payload.get("query");
         String kbId = (String) payload.get("kbId");
         Integer topK = (Integer) payload.getOrDefault("topK", 3);
+        String embeddingModel = (String) payload.get("embeddingModel");
+        String imageUrl = (String) payload.get("imageUrl");
+        String vlmModel = (String) payload.get("vlmModel");
 
-        return retrievalService.hybridSearch(kbId, query, topK);
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            return retrievalService.multimodalSearch(kbId, imageUrl, vlmModel, embeddingModel, topK);
+        }
+
+        return retrievalService.hybridSearch(kbId, query, topK, embeddingModel);
     }
 
     @Operation(summary = "获取元知识 (Prompt模板)")
@@ -227,7 +241,7 @@ public class KnowledgeManageController {
         return Map.of("status", "success");
     }
 
-    private final com.adlin.orin.modules.agent.service.AgentManageService agentManageService;
+    // Field moved to top for consistency
 
     @Operation(summary = "从对话中提取记忆")
     @PostMapping("/agents/{agentId}/meta/extract_memory")

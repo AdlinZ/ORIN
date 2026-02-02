@@ -71,22 +71,7 @@
           show-icon
           style="margin-bottom: var(--spacing-lg);"
         />
-        <el-form-item v-if="form.providerType" label="使用已保存密钥" class="saved-key-selector">
-          <el-select 
-            v-model="selectedSavedKeyId" 
-            placeholder="快速填写：选择已保存的外部供应商密钥" 
-            size="large" 
-            clearable 
-            @change="handleSavedKeySelect"
-          >
-            <el-option 
-              v-for="key in providerKeys" 
-              :key="key.id" 
-              :label="`${key.name} (${key.provider})`" 
-              :value="key.id" 
-            />
-          </el-select>
-        </el-form-item>
+
 
         <!-- 动态表单字段 -->
         <template v-if="form.providerType === 'dify'">
@@ -112,6 +97,23 @@
             >
               <template #prefix>
                 <el-icon><Key /></el-icon>
+              </template>
+              <template #append>
+                <el-select 
+                  v-model="selectedSavedKeyId" 
+                  placeholder="使用保存的密钥" 
+                  size="large" 
+                  style="width: 160px;"
+                  clearable 
+                  @change="handleSavedKeySelect"
+                >
+                  <el-option 
+                    v-for="key in providerKeys" 
+                    :key="key.id" 
+                    :label="key.name" 
+                    :value="key.id" 
+                  />
+                </el-select>
               </template>
             </el-input>
           </el-form-item>
@@ -160,6 +162,23 @@
               <template #prefix>
                 <el-icon><Key /></el-icon>
               </template>
+              <template #append>
+                <el-select 
+                  v-model="selectedSavedKeyId" 
+                  placeholder="使用保存的密钥" 
+                  size="large" 
+                  style="width: 160px;"
+                  clearable 
+                  @change="handleSavedKeySelect"
+                >
+                  <el-option 
+                    v-for="key in providerKeys" 
+                    :key="key.id" 
+                    :label="key.name" 
+                    :value="key.id" 
+                  />
+                </el-select>
+              </template>
             </el-input>
           </el-form-item>
 
@@ -176,24 +195,39 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-select 
-              v-model="form.model" 
-              placeholder="请选择或输入模型名称"
-              size="large"
-              filterable
-              allow-create
-              default-first-option
-            >
-              <el-option
-                v-for="model in filteredModels"
-                :key="model.modelId"
-                :label="model.name"
-                :value="model.modelId"
-              />
-              <template #prefix>
-                <el-icon><Service /></el-icon>
-              </template>
-            </el-select>
+            <div class="integrated-select-group">
+              <el-select 
+                v-model="form.model" 
+                placeholder="请选择或输入模型名称"
+                size="large"
+                filterable
+                allow-create
+                default-first-option
+                class="main-select"
+              >
+                <el-option
+                  v-for="model in filteredModels"
+                  :key="model.modelId"
+                  :label="model.name"
+                  :value="model.modelId"
+                />
+                <template #prefix>
+                  <el-icon><Service /></el-icon>
+                </template>
+              </el-select>
+              <el-select 
+                v-model="modelTypeFilter" 
+                size="large" 
+                class="append-select"
+                style="width: 120px;"
+              >
+                <el-option label="全部类型" value="ALL" />
+                <el-option label="对话" value="CHAT" />
+                <el-option label="向量" value="EMBEDDING" />
+                <el-option label="生图" value="TEXT_TO_IMAGE" />
+                <el-option label="视频" value="TEXT_TO_VIDEO" />
+              </el-select>
+            </div>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
                 例如：Pro/zai-org/GLM-4.7 或 Qwen/Qwen2-7B-Instruct
@@ -225,6 +259,23 @@
             >
               <template #prefix>
                 <el-icon><Key /></el-icon>
+              </template>
+              <template #append>
+                <el-select 
+                  v-model="selectedSavedKeyId" 
+                  placeholder="使用保存的密钥" 
+                  size="large" 
+                  style="width: 160px;"
+                  clearable 
+                  @change="handleSavedKeySelect"
+                >
+                  <el-option 
+                    v-for="key in providerKeys" 
+                    :key="key.id" 
+                    :label="key.name" 
+                    :value="key.id" 
+                  />
+                </el-select>
               </template>
             </el-input>
           </el-form-item>
@@ -261,24 +312,39 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-select 
-              v-model="form.model" 
-              placeholder="请选择或输入模型名称"
-              size="large"
-              filterable
-              allow-create
-              default-first-option
-            >
-              <el-option
-                v-for="model in filteredModels"
-                :key="model.modelId"
-                :label="model.name"
-                :value="model.modelId"
-              />
-              <template #prefix>
-                <el-icon><Service /></el-icon>
-              </template>
-            </el-select>
+            <div class="integrated-select-group">
+              <el-select 
+                v-model="form.model" 
+                placeholder="请选择或输入模型名称"
+                size="large"
+                filterable
+                allow-create
+                default-first-option
+                class="main-select"
+              >
+                <el-option
+                  v-for="model in filteredModels"
+                  :key="model.modelId"
+                  :label="model.name"
+                  :value="model.modelId"
+                />
+                <template #prefix>
+                  <el-icon><Service /></el-icon>
+                </template>
+              </el-select>
+              <el-select 
+                v-model="modelTypeFilter" 
+                size="large" 
+                class="append-select"
+                style="width: 120px;"
+              >
+                <el-option label="全部类型" value="ALL" />
+                <el-option label="对话" value="CHAT" />
+                <el-option label="向量" value="EMBEDDING" />
+                <el-option label="生图" value="TEXT_TO_IMAGE" />
+                <el-option label="视频" value="TEXT_TO_VIDEO" />
+              </el-select>
+            </div>
           </el-form-item>
         </template>
 
@@ -311,6 +377,23 @@
               <template #prefix>
                 <el-icon><Key /></el-icon>
               </template>
+              <template #append>
+                <el-select 
+                  v-model="selectedSavedKeyId" 
+                  placeholder="使用保存的密钥" 
+                  size="large" 
+                  style="width: 160px;"
+                  clearable 
+                  @change="handleSavedKeySelect"
+                >
+                  <el-option 
+                    v-for="key in providerKeys" 
+                    :key="key.id" 
+                    :label="key.name" 
+                    :value="key.id" 
+                  />
+                </el-select>
+              </template>
             </el-input>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
@@ -320,24 +403,39 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-select 
-              v-model="form.model" 
-              placeholder="请选择或输入模型名称"
-              size="large"
-              filterable
-              allow-create
-              default-first-option
-            >
-              <el-option
-                v-for="model in filteredModels"
-                :key="model.modelId"
-                :label="model.name"
-                :value="model.modelId"
-              />
-              <template #prefix>
-                <el-icon><Service /></el-icon>
-              </template>
-            </el-select>
+            <div class="integrated-select-group">
+              <el-select 
+                v-model="form.model" 
+                placeholder="请选择或输入模型名称"
+                size="large"
+                filterable
+                allow-create
+                default-first-option
+                class="main-select"
+              >
+                <el-option
+                  v-for="model in filteredModels"
+                  :key="model.modelId"
+                  :label="model.name"
+                  :value="model.modelId"
+                />
+                <template #prefix>
+                  <el-icon><Service /></el-icon>
+                </template>
+              </el-select>
+              <el-select 
+                v-model="modelTypeFilter" 
+                size="large" 
+                class="append-select"
+                style="width: 120px;"
+              >
+                <el-option label="全部类型" value="ALL" />
+                <el-option label="对话" value="CHAT" />
+                <el-option label="向量" value="EMBEDDING" />
+                <el-option label="生图" value="TEXT_TO_IMAGE" />
+                <el-option label="视频" value="TEXT_TO_VIDEO" />
+              </el-select>
+            </div>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
                 可选模型：glm-4、glm-4-flash、glm-4-air、glm-3-turbo 等
@@ -355,22 +453,6 @@
                 <el-icon><User /></el-icon>
               </template>
             </el-input>
-          </el-form-item>
-
-          <el-form-item label="Temperature（可选）">
-            <el-slider 
-              v-model="form.temperature" 
-              :min="0" 
-              :max="2" 
-              :step="0.1" 
-              show-input
-              :marks="{ 0: '精确', 1: '平衡', 2: '创造' }"
-            />
-            <template #extra>
-              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
-                控制输出的随机性，范围 0-2，默认 1.0
-              </span>
-            </template>
           </el-form-item>
         </template>
 
@@ -403,6 +485,23 @@
               <template #prefix>
                 <el-icon><Key /></el-icon>
               </template>
+              <template #append>
+                <el-select 
+                  v-model="selectedSavedKeyId" 
+                  placeholder="使用保存的密钥" 
+                  size="large" 
+                  style="width: 160px;"
+                  clearable 
+                  @change="handleSavedKeySelect"
+                >
+                  <el-option 
+                    v-for="key in providerKeys" 
+                    :key="key.id" 
+                    :label="key.name" 
+                    :value="key.id" 
+                  />
+                </el-select>
+              </template>
             </el-input>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
@@ -412,24 +511,39 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="model">
-            <el-select 
-              v-model="form.model" 
-              placeholder="请选择或输入模型名称"
-              size="large"
-              filterable
-              allow-create
-              default-first-option
-            >
-              <el-option
-                v-for="model in filteredModels"
-                :key="model.modelId"
-                :label="model.name"
-                :value="model.modelId"
-              />
-              <template #prefix>
-                <el-icon><Service /></el-icon>
-              </template>
-            </el-select>
+            <div class="integrated-select-group">
+              <el-select 
+                v-model="form.model" 
+                placeholder="请选择或输入模型名称"
+                size="large"
+                filterable
+                allow-create
+                default-first-option
+                class="main-select"
+              >
+                <el-option
+                  v-for="model in filteredModels"
+                  :key="model.modelId"
+                  :label="model.name"
+                  :value="model.modelId"
+                />
+                <template #prefix>
+                  <el-icon><Service /></el-icon>
+                </template>
+              </el-select>
+              <el-select 
+                v-model="modelTypeFilter" 
+                size="large" 
+                class="append-select"
+                style="width: 120px;"
+              >
+                <el-option label="全部类型" value="ALL" />
+                <el-option label="对话" value="CHAT" />
+                <el-option label="向量" value="EMBEDDING" />
+                <el-option label="生图" value="TEXT_TO_IMAGE" />
+                <el-option label="视频" value="TEXT_TO_VIDEO" />
+              </el-select>
+            </div>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
                 可选模型：deepseek-chat (V3.2)、deepseek-reasoner (R1)
@@ -449,21 +563,6 @@
             </el-input>
           </el-form-item>
 
-          <el-form-item label="Temperature（可选）">
-            <el-slider 
-              v-model="form.temperature" 
-              :min="0" 
-              :max="2" 
-              :step="0.1" 
-              show-input
-              :marks="{ 0: '精确', 1: '平衡', 2: '创造' }"
-            />
-            <template #extra>
-              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
-                控制输出的随机性，范围 0-2，默认 1.0
-              </span>
-            </template>
-          </el-form-item>
         </template>
 
         <!-- 操作按钮 -->
@@ -534,6 +633,7 @@ const connectionTested = ref(false);
 const allModels = ref([]);
 const providerKeys = ref([]);
 const selectedSavedKeyId = ref(null);
+const modelTypeFilter = ref('ALL');
 
 import { onMounted } from 'vue';
 
@@ -561,23 +661,33 @@ const handleSavedKeySelect = (id) => {
 };
 
 const filteredModels = computed(() => {
-  if (!form.providerType) return allModels.value;
+  let list = allModels.value;
   
-  // Try to match providerType with model provider
-  const mapping = {
-    'siliconflow': 'SiliconFlow',
-    'deepseek': 'DeepSeek',
-    'zhipu': 'Zhipu', // Need to check backend exact spelling, assuming title case
-    'openai': 'OpenAI',
-    'anthropic': 'Anthropic',
-    'local': 'Ollama' // Local usually maps to Ollama in current common use
-  };
+  if (form.providerType) {
+    const mapping = {
+      'siliconflow': 'SiliconFlow',
+      'deepseek': 'DeepSeek',
+      'zhipu': 'Zhipu',
+      'openai': 'OpenAI',
+      'anthropic': 'Anthropic',
+      'local': 'Ollama'
+    };
+    const targetProvider = mapping[form.providerType];
+    if (targetProvider) {
+      list = list.filter(m => m.provider.toLowerCase() === targetProvider.toLowerCase());
+    }
+  }
+
+  if (modelTypeFilter.value !== 'ALL') {
+    list = list.filter(m => {
+      if (modelTypeFilter.value === 'CHAT') {
+        return m.type === 'CHAT' || m.type === 'LLM';
+      }
+      return m.type === modelTypeFilter.value;
+    });
+  }
   
-  const targetProvider = mapping[form.providerType];
-  return allModels.value.filter(m => {
-    if (!targetProvider) return true;
-    return m.provider.toLowerCase() === targetProvider.toLowerCase();
-  });
+  return list;
 });
 
 const currentStepIndex = computed(() => {
@@ -896,15 +1006,7 @@ const onSubmit = async () => {
             form.temperature
           );
           ElMessage.success('智谱AI Agent 接入成功！');
-        } else if (form.providerType === 'zhipu') {
-          await onboardZhipuAgent(
-            form.endpointUrl, 
-            form.apiKey, 
-            form.model,
-            form.agentName,
-            form.temperature
-          );
-          ElMessage.success('智谱AI Agent 接入成功！');
+
         } else if (form.providerType === 'deepseek') {
           await onboardDeepSeekAgent({
             endpointUrl: form.endpointUrl, 
@@ -1101,5 +1203,45 @@ html.dark .step-item.active .step-line {
 
 html.dark .provider-label {
   color: var(--neutral-gray-100);
+}
+
+/* Integrated Select Group Styling */
+.integrated-select-group {
+  display: flex;
+  width: 100%;
+}
+
+.integrated-select-group .main-select {
+  flex: 1;
+}
+
+.integrated-select-group .main-select :deep(.el-input__wrapper) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+  box-shadow: 1px 0 0 0 var(--el-border-color) inset, 0 1px 0 0 var(--el-border-color) inset, 0 -1px 0 0 var(--el-border-color) inset !important;
+}
+
+.integrated-select-group .main-select :deep(.el-input__wrapper.is-focus) {
+  z-index: 2;
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset !important;
+}
+
+.integrated-select-group .append-select {
+  flex-shrink: 0;
+}
+
+.integrated-select-group .append-select :deep(.el-input__wrapper) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  background-color: var(--el-fill-color-light);
+}
+
+.integrated-select-group .append-select :deep(.el-input__wrapper.is-focus) {
+  z-index: 2;
+}
+
+html.dark .integrated-select-group .append-select :deep(.el-input__wrapper) {
+  background-color: var(--neutral-gray-200);
 }
 </style>

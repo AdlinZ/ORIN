@@ -4,12 +4,10 @@ import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.grpc.SearchResults;
-import io.milvus.grpc.ShowCollectionsResponse;
 import io.milvus.param.ConnectParam;
 import io.milvus.param.R;
 import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.SearchParam;
-import io.milvus.param.collection.HasCollectionParam;
 import io.milvus.param.partition.CreatePartitionParam;
 import io.milvus.param.partition.HasPartitionParam;
 import lombok.extern.slf4j.Slf4j;
@@ -103,7 +101,6 @@ public class MilvusVectorService implements VectorStoreProvider {
             // We'll iterate docs. If they have no vectors, we generate them.
 
             List<List<Float>> vectors = new ArrayList<>();
-            List<Long> documentIdsMapped = new ArrayList<>(); // Milvus usually uses Long ID or String
             // or we use insert with fields.
 
             // Field structure: [id (Long/String), vector (FloatVector), doc_id (String),
@@ -265,8 +262,13 @@ public class MilvusVectorService implements VectorStoreProvider {
 
     @Override
     public List<SearchResult> search(String kbId, String query, int k) {
+        return search(kbId, query, k, null);
+    }
+
+    @Override
+    public List<SearchResult> search(String kbId, String query, int k, String embeddingModel) {
         String partitionName = "kb_" + kbId.replace("-", "_");
-        List<Float> queryVector = textToVector(query, null);
+        List<Float> queryVector = textToVector(query, embeddingModel);
 
         MilvusServiceClient client = null;
         try {

@@ -25,6 +25,13 @@ public interface VectorStoreProvider {
     List<SearchResult> search(String collectionName, String query, int k);
 
     /**
+     * Search for similar documents with specific embedding model
+     */
+    default List<SearchResult> search(String collectionName, String query, int k, String embeddingModel) {
+        return search(collectionName, query, k);
+    }
+
+    /**
      * Get chunks for a specific document
      */
     List<DocumentChunk> getDocumentChunks(String collectionName, String docId);

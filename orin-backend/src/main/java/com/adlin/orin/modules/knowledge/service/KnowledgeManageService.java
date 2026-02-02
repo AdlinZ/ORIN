@@ -34,6 +34,13 @@ public class KnowledgeManageService {
         private final MetaKnowledgeService metaKnowledgeService;
 
         /**
+         * 获取所有知识库
+         */
+        public List<KnowledgeBase> getAllKnowledgeBases() {
+                return knowledgeBaseRepository.findAll();
+        }
+
+        /**
          * 获取指定 Agent 绑定的知识库 (优先从本地库取，如果为空则尝试同步)
          */
         public List<KnowledgeBase> getBoundKnowledge(String agentId) {

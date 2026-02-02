@@ -122,6 +122,109 @@
             </el-row>
           </el-card>
 
+            <!-- SiliconFlow Scheduling Core Configuration -->
+            <el-card shadow="never" class="premium-card vendor-card" style="margin-top: 24px;">
+              <template #header>
+                <div class="card-header">
+                  <div class="header-left">
+                    <el-icon><Connection /></el-icon>
+                    <span>SiliconFlow 调度中枢配置</span>
+                  </div>
+                  <el-button type="primary" link @click="onTestSFConnection" :loading="sfTestLoading">
+                    测试连接
+                  </el-button>
+                </div>
+              </template>
+              
+              <el-row :gutter="20">
+                <el-col :span="24">
+                  <el-form-item label="API Endpoint" prop="siliconFlowEndpoint">
+                    <el-input v-model.trim="form.siliconFlowEndpoint" placeholder="https://api.siliconflow.cn/v1">
+                      <template #prefix><el-icon><Link /></el-icon></template>
+                    </el-input>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="24">
+                  <el-form-item label="API Key" prop="siliconFlowApiKey">
+                    <el-input v-model.trim="form.siliconFlowApiKey" type="password" show-password placeholder="sk-...">
+                      <template #prefix><el-icon><Key /></el-icon></template>
+                    </el-input>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="24">
+                   <el-form-item label="默认调度模型" prop="siliconFlowModel">
+                    <el-input v-model.trim="form.siliconFlowModel" placeholder="Qwen/Qwen2-7B-Instruct">
+                      <template #prefix><el-icon><Service /></el-icon></template>
+                    </el-input>
+                    <p class="input-desc">全局默认使用的 LLM 模型标识</p>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </el-card>
+
+          <!-- Multimodal Configuration Card -->
+          <el-card shadow="never" class="premium-card multimodal-card" style="margin-top: 24px;">
+            <template #header>
+              <div class="card-header">
+                <div class="header-left">
+                  <el-icon><Picture /></el-icon>
+                  <span>多模态与知识库模型配置</span>
+                </div>
+              </div>
+            </template>
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="Vision-Language Model (VLM)" prop="vlmModel">
+                  <el-select 
+                    v-model="form.vlmModel" 
+                    placeholder="选择用于图像分析的视觉大模型" 
+                    filterable 
+                    style="width: 100%"
+                    :loading="modelsLoading"
+                    @visible-change="loadModels"
+                  >
+                    <el-option
+                        v-for="item in vlmOptions"
+                        :key="item.id"
+                        :label="item.name || item.id"
+                        :value="item.id"
+                    />
+                  </el-select>
+                  <p class="input-desc">用于生成图片、视频的语义描述，推荐使用 Qwen-VL-Max 或 Yi-Vision</p>
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                 <el-form-item label="Embedding Model (向量模型)" prop="embeddingModel">
+                  <el-select 
+                    v-model="form.embeddingModel" 
+                    placeholder="选择用于知识库构建的向量模型" 
+                    filterable 
+                    style="width: 100%"
+                    :loading="modelsLoading"
+                    @visible-change="loadModels"
+                  >
+                     <el-option
+                        v-for="item in embedOptions"
+                        :key="item.id"
+                        :label="item.name || item.id"
+                        :value="item.id"
+                    />
+                  </el-select>
+                   <p class="input-desc">用于将文本转化为向量（Embedding），推荐 BGE-M3 (支持多语言)</p>
+                </el-form-item>
+              </el-col>
+               <el-col :span="24">
+                <el-form-item label="自动化策略" prop="autoAnalysisEnabled">
+                  <el-switch 
+                    v-model="form.autoAnalysisEnabled" 
+                    active-text="上传素材后立即触发 AI 自动解析"
+                    inactive-text="仅手动触发"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-card>
+
           <el-card shadow="never" class="premium-card remark-card" style="margin-top: 24px;">
             <template #header>
               <div class="card-header">
@@ -176,7 +279,7 @@
           </el-card>
 
           <!-- Help Card -->
-          <el-card shadow="none" class="help-info-card">
+          <el-card shadow="never" class="help-info-card">
             <div class="help-content">
               <h4><el-icon><InfoFilled /></el-icon> 配置指南</h4>
               <ul>
@@ -205,21 +308,29 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
 import { 
-  Setting, Connection, Link, Place, User, Lock, 
-  Document, FolderOpened, Cpu, Monitor, Folder, 
-  InfoFilled, RefreshLeft, Key
+  Close, Edit, RefreshRight, Connection, UploadFilled, 
+  Cpu, Coin, EditPen, Setting, Link, Key, Service, FolderOpened, Monitor, InfoFilled, Document, DataLine, Picture, User, Lock, Place, RefreshLeft
 } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
-import { ElMessage } from 'element-plus';
-import { getModelConfig, updateModelConfig } from '@/api/modelConfig';
-import { testDifyConnection } from '@/api/modelConfig';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { 
+  getModelConfig, updateModelConfig, 
+  testDifyConnection, testSiliconFlowConnection,
+  testZhipuConnection, testDeepSeekConnection 
+} from '@/api/modelConfig';
+import request from '@/utils/request';
 
 const formRef = ref(null);
 const loading = ref(false);
 const testLoading = ref(false);
+const sfTestLoading = ref(false);
 const difyTestLoading = ref(false);
 const lastTestSuccess = ref(false);
 const initialForm = ref({}); 
+
+const modelsLoading = ref(false);
+const vlmOptions = ref([]);
+const embedOptions = ref([]);
 
 const form = reactive({
   baseUrl: '',
@@ -231,8 +342,14 @@ const form = reactive({
   llamaFactoryWebUI: '',
   modelSavePath: '',
   remark: '',
-  difyEndpoint: 'http://localhost:3000/v1',  // Added Dify endpoint
-  difyApiKey: ''  // Added Dify API key
+  difyEndpoint: 'http://localhost:3000/v1',
+  difyApiKey: '',
+  siliconFlowEndpoint: 'https://api.siliconflow.cn/v1',
+  siliconFlowApiKey: '',
+  siliconFlowModel: 'Qwen/Qwen2-7B-Instruct',
+  vlmModel: '',
+  embeddingModel: '',
+  autoAnalysisEnabled: true
 });
 
 const rules = {
@@ -255,6 +372,45 @@ const rules = {
   ]
 };
 
+import { getModelList } from '@/api/model';
+
+const loadModels = async () => {
+  if (vlmOptions.value.length > 0) return; // Cached
+
+  modelsLoading.value = true;
+  try {
+      // Fetch the actual registered models in ORIN
+      const res = await getModelList();
+      
+      // Filter for VLM (usually CHAT/LLM models that the user designated for this)
+      // and Embedding models
+      vlmOptions.value = res.filter(m => 
+        (m.type === 'CHAT' || m.type === 'LLM' || m.type === 'TEXT_TO_IMAGE') && 
+        m.status === 'ENABLED'
+      ).map(m => ({ id: m.modelId, name: `${m.name} (${m.provider})` }));
+
+      embedOptions.value = res.filter(m => 
+        m.type === 'EMBEDDING' && 
+        m.status === 'ENABLED'
+      ).map(m => ({ id: m.modelId, name: `${m.name} (${m.provider})` }));
+      
+      // Add defaults if nothing found in the registered list
+      if (vlmOptions.value.length === 0) {
+            vlmOptions.value = [{ id: 'Qwen/Qwen2-VL-72B-Instruct', name: 'Qwen/Qwen2-VL-72B-Instruct (Default)' }];
+      }
+      if (embedOptions.value.length === 0) {
+            embedOptions.value = [{ id: 'BAAI/bge-m3', name: 'BAAI/bge-m3 (Default)' }];
+      }
+  } catch (e) {
+      console.error('Failed to load registered models', e);
+      // Fallback to presets
+      vlmOptions.value = [{ id: 'Qwen/Qwen2-VL-72B-Instruct', name: 'Qwen/Qwen2-VL-72B-Instruct (Fallback)' }];
+      embedOptions.value = [{ id: 'BAAI/bge-m3', name: 'BAAI/bge-m3 (Fallback)' }];
+  } finally {
+      modelsLoading.value = false;
+  }
+};
+
 const onTestConnection = async () => {
   if (!form.baseUrl) return ElMessage.warning('请先输入访问网址');
   testLoading.value = true;
@@ -268,6 +424,28 @@ const onTestConnection = async () => {
   } finally {
     testLoading.value = false;
   }
+};
+
+const onTestSFConnection = async () => {
+    if (!form.siliconFlowEndpoint || !form.siliconFlowApiKey) {
+        return ElMessage.warning('请先输入 SiliconFlow API 端点和密钥');
+    }
+    sfTestLoading.value = true;
+    try {
+        const response = await testSiliconFlowConnection(form.siliconFlowEndpoint, form.siliconFlowApiKey, form.siliconFlowModel || 'Qwen/Qwen2-7B-Instruct');
+        if (response) {
+            ElMessage.success('SiliconFlow 连接测试成功！');
+            lastTestSuccess.value = true;
+        } else {
+            ElMessage.error('SiliconFlow 连接测试失败，请检查配置信息');
+            lastTestSuccess.value = false;
+        }
+    } catch (e) {
+        ElMessage.error('SiliconFlow 连接测试失败: ' + (e.response?.data?.message || e.message));
+        lastTestSuccess.value = false;
+    } finally {
+        sfTestLoading.value = false;
+    }
 };
 
 const onTestDifyConnection = async () => {

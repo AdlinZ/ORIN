@@ -53,6 +53,7 @@
     <el-skeleton :loading="loading" animated :rows="3">
       <div v-if="!serverInfo.online && !loading" class="offline-placeholder">
         <el-empty description="Prometheus 未配置或无法连接">
+           <p v-if="serverInfo.error" class="error-text">{{ serverInfo.error }}</p>
            <el-button type="primary" @click="openConfig">去配置</el-button>
         </el-empty>
       </div>
@@ -159,32 +160,12 @@
       </div>
     </el-skeleton>
 
-    <!-- Prometheus Config Dialog -->
-    <el-dialog
-      v-model="configVisible"
-      title="Prometheus 监控配置"
-      width="450px"
-      append-to-body
-    >
-      <el-form :model="configForm" label-position="top">
-        <el-form-item label="启用监控">
-          <el-switch v-model="configForm.enabled" />
-        </el-form-item>
-        <el-form-item label="Prometheus 地址" v-if="configForm.enabled">
-          <el-input v-model="configForm.prometheusUrl" placeholder="http://1.2.3.4:9090" />
-          <div class="form-tip">Prometheus 服务器的可访问 URL</div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="configVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveConfig">保存并刷新</el-button>
-      </template>
-    </el-dialog>
   </el-card>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { 
   Setting, Cpu, Memo, FolderOpened, Connection, 
   SuccessFilled, CircleCloseFilled, Top, Bottom, Refresh, VideoPlay 
@@ -192,14 +173,13 @@ import {
 import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
 
+const router = useRouter();
 const loading = ref(true);
-const saving = ref(false);
-const configVisible = ref(false);
 const serverInfo = ref({
   online: false,
   cpuUsage: 0,
   cpuCores: 0,
-  cpuModel: '', // Add cpuModel here
+  cpuModel: '', 
   gpuUsage: 0,
   gpuMemoryUsage: 0,
   gpuModel: '',
@@ -207,52 +187,23 @@ const serverInfo = ref({
   diskUsage: 0,
   os: '',
   host: '',
-  lastUpdated: null // Add timestamp
-});
-
-const configForm = ref({
-  prometheusUrl: '',
-  enabled: false
+  lastUpdated: null,
+  error: null
 });
 
 let refreshTimer = null;
 
-const fetchConfig = async () => {
-  try {
-    const res = await request.get('/monitor/prometheus/config');
-    if (res.data) {
-      configForm.value = res.data;
-    }
-  } catch (e) {
-    console.error('Failed to fetch config', e);
-  }
-};
-
-const openConfig = async () => {
-  await fetchConfig();
-  configVisible.value = true;
-};
-
-const saveConfig = async () => {
-  saving.value = true;
-  try {
-    await request.post('/monitor/prometheus/config', configForm.value);
-    ElMessage.success('配置已保存');
-    configVisible.value = false;
-    fetchServerInfo();
-  } catch (e) {
-    ElMessage.error('保存失败: ' + e.message);
-  } finally {
-    saving.value = false;
-  }
+const openConfig = () => {
+  router.push('/dashboard/system/monitor-config');
 };
 
 const fetchServerInfo = async () => {
   try {
     const res = await request.get('/monitor/server-hardware');
-    if (res.data) {
+    // Note: res is already the data object because of axios interceptor
+    if (res) {
       serverInfo.value = {
-        ...res.data,
+        ...res,
         lastUpdated: Date.now()
       };
       // Save local cache
@@ -260,9 +211,8 @@ const fetchServerInfo = async () => {
     }
   } catch (error) {
     console.error('Failed to fetch server info:', error);
-    // If request fails, we must indicate offline status
     serverInfo.value.online = false;
-    ElMessage.error('无法连接到监控服务器');
+    serverInfo.value.error = error.message;
   } finally {
     loading.value = false;
   }
@@ -468,4 +418,12 @@ onUnmounted(() => {
   gap: 8px;
 }
 
+
+.error-text {
+  color: var(--error-color, #F56C6C);
+  font-size: 13px;
+  margin-bottom: 12px;
+  max-width: 300px;
+  text-align: center;
+}
 </style>

@@ -49,14 +49,12 @@ public interface MonitorService {
     Object getDifyApps(String endpointUrl, String apiKey);
 
     /**
-     * 获取Token消耗统计数据 (今日、本周、本月、总计)
+     * 获取消耗统计数据 (包含 Token 和 成本)
      */
-    Map<String, Long> getTokenStats();
+    Map<String, Object> getTokenStats();
 
     /**
      * 获取Token消耗趋势
-     * 
-     * @param period 周期: daily, weekly, monthly
      */
     List<Map<String, Object>> getTokenTrend(String period);
 
@@ -64,6 +62,16 @@ public interface MonitorService {
      * 获取Token消耗历史记录
      */
     Page<AuditLog> getTokenHistory(int page, int size, Long startDate, Long endDate);
+
+    /**
+     * 获取Token消耗分布（按Agent）
+     */
+    List<Map<String, Object>> getTokenDistribution(Long startDate, Long endDate);
+
+    /**
+     * 获取成本消耗分布（按Agent）
+     */
+    List<Map<String, Object>> getCostDistribution(Long startDate, Long endDate);
 
     /**
      * 获取延迟统计数据

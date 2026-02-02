@@ -1,35 +1,16 @@
 <template>
   <div class="page-container">
     <PageHeader 
-      title="Token 消耗统计" 
-      description="查看系统 Token 使用情况、成本分析和历史趋势"
+      title="资源消耗分析" 
+      description="查看全平台（文本、图形、视频等）资源消耗明细、成本分布和增长趋势"
       icon="Cpu"
 
     >
       <template #actions>
-        <el-button :icon="Setting" @click="showCostConfig = true">设置单价</el-button>
         <el-button :icon="Download" @click="handleExport">导出报告</el-button>
         <el-button :icon="Refresh" @click="fetchData">刷新数据</el-button>
       </template>
     </PageHeader>
-
-    <!-- Cost Config Dialog -->
-    <el-dialog v-model="showCostConfig" title="成本设置" width="400px">
-      <el-form :model="costConfig" label-width="120px">
-        <el-form-item label="单价 (/1K Tokens)">
-          <el-input-number v-model="costConfig.unitPrice" :precision="4" :step="0.0001" :min="0" />
-        </el-form-item>
-        <el-form-item label="货币符号">
-          <el-input v-model="costConfig.currency" placeholder="$ 或 ¥" style="width: 100px;" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showCostConfig = false">取消</el-button>
-          <el-button type="primary" @click="saveCostConfig">保存</el-button>
-        </span>
-      </template>
-    </el-dialog>
 
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
@@ -41,21 +22,27 @@
             </div>
             <div class="stat-content">
               <div class="stat-label">{{ item.label }}</div>
-              <div class="stat-value">{{ formatNumber(tokenStats[item.key]) }}</div>
-              <div class="stat-unit">{{ item.unit }}</div>
+              <div class="stat-value">
+                <span class="cost-currency">{{ currency }}</span>
+                {{ (tokenStats[item.costKey] || 0).toFixed(2) }}
+              </div>
+              <div class="stat-sub">
+                <span class="tokens-label">Tokens:</span>
+                <span class="tokens-value">{{ formatNumber(tokenStats[item.key]) }}</span>
+              </div>
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 趋势图表 -->
+    <!-- 趋势与分布图表 -->
     <el-row :gutter="20" style="margin-top: 24px;">
-      <el-col :span="24">
+      <el-col :span="16">
         <el-card shadow="never" class="chart-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">Token 消耗趋势</span>
+              <span class="card-title">资源消耗趋势</span>
               <el-radio-group v-model="trendPeriod" size="small" @change="fetchTrendData">
                 <el-radio-button value="daily">每日</el-radio-button>
                 <el-radio-button value="weekly">每周</el-radio-button>
@@ -68,41 +55,19 @@
           </div>
         </el-card>
       </el-col>
-    </el-row>
 
-    <!-- 成本分析 -->
-    <el-row :gutter="20" style="margin-top: 24px;">
-      <el-col :span="12">
-        <el-card shadow="never" class="cost-card">
-          <template #header>
-            <span class="card-title">成本估算</span>
-          </template>
-          <div class="cost-content">
-            <p class="cost-note">基于设置单价 {{ costConfig.currency }}{{ costConfig.unitPrice }} / 1K tokens</p>
-            <el-descriptions :column="1" border>
-              <el-descriptions-item label="今日成本">
-                <span class="cost-value">${{ calculateCost(tokenStats.daily) }}</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="本周成本">
-                <span class="cost-value">${{ calculateCost(tokenStats.weekly) }}</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="本月成本">
-                <span class="cost-value">${{ calculateCost(tokenStats.monthly) }}</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="总成本">
-                <span class="cost-value highlight">${{ calculateCost(tokenStats.total) }}</span>
-              </el-descriptions-item>
-            </el-descriptions>
-          </div>
-        </el-card>
-      </el-col>
-
-      <el-col :span="12">
+      <el-col :span="8">
         <el-card shadow="never" class="distribution-card">
           <template #header>
-            <span class="card-title">Token 分布</span>
+            <div class="card-header">
+              <span class="card-title">渠道分布</span>
+              <el-select v-model="distType" size="small" style="width: 100px;" @change="fetchDistributionData">
+                <el-option label="按成本" value="cost" />
+                <el-option label="按 Token" value="token" />
+              </el-select>
+            </div>
           </template>
-          <div v-loading="distributionLoading" style="height: 300px;">
+          <div v-loading="distributionLoading" style="height: 400px;">
             <div ref="distributionChart" style="width: 100%; height: 100%;"></div>
           </div>
         </el-card>
@@ -131,7 +96,11 @@
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column prop="providerId" label="智能体 ID" width="180" show-overflow-tooltip />
+        <el-table-column prop="providerId" label="智能体" width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ getAgentName(row.providerId) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="totalTokens" label="Token 消耗" width="120" align="right">
           <template #default="{ row }">
             {{ formatNumber(row.totalTokens) }}
@@ -139,7 +108,7 @@
         </el-table-column>
         <el-table-column prop="responseTime" label="耗时 (ms)" width="100" align="center" />
         <el-table-column prop="model" label="模型" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="estimatedCost" label="估算成本" min-width="100" align="right">
+        <el-table-column prop="estimatedCost" label="费用 (Cost)" min-width="100" align="right">
           <template #default="{ row }">
             ${{ (row.estimatedCost || 0).toFixed(6) }}
           </template>
@@ -163,9 +132,9 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
-import { Download, Refresh, Cpu, TrendCharts, Tickets, Connection, Setting } from '@element-plus/icons-vue';
+import { Download, Refresh, Cpu, TrendCharts, Tickets, Connection } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
-import { getTokenStats, getTokenHistory, getTokenTrend } from '@/api/monitor';
+import { getTokenStats, getTokenHistory, getTokenTrend, getAgentList, getTokenDistribution, getCostDistribution } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
 import * as echarts from 'echarts';
 
@@ -173,10 +142,15 @@ const tokenStats = ref({
   daily: 0,
   weekly: 0,
   monthly: 0,
-  total: 0
+  total: 0,
+  daily_cost: 0,
+  weekly_cost: 0,
+  monthly_cost: 0,
+  total_cost: 0
 });
 
 const trendPeriod = ref('daily');
+const distType = ref('cost'); // 'token' or 'cost'
 const trendLoading = ref(false);
 const distributionLoading = ref(false);
 const historyLoading = ref(false);
@@ -185,24 +159,19 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 const historyData = ref([]);
+const agentMap = ref({});
+const currency = ref('¥');
 
 const trendChart = ref(null);
 const distributionChart = ref(null);
 let trendChartInstance = null;
 let distributionChartInstance = null;
 
-// Cost Config
-const showCostConfig = ref(false);
-const costConfig = ref({
-  unitPrice: 0.002, // Default price per 1k tokens
-  currency: '$'
-});
-
 const statsCards = computed(() => [
   { 
     label: '今日消耗', 
     key: 'daily', 
-    unit: 'tokens',
+    costKey: 'daily_cost',
     icon: Cpu, 
     color: 'var(--orin-primary)', 
     bgColor: 'var(--orin-primary-soft)' 
@@ -210,7 +179,7 @@ const statsCards = computed(() => [
   { 
     label: '本周消耗', 
     key: 'weekly', 
-    unit: 'tokens',
+    costKey: 'weekly_cost',
     icon: TrendCharts, 
     color: '#26FFDF', 
     bgColor: 'rgba(38, 255, 223, 0.1)' 
@@ -218,15 +187,15 @@ const statsCards = computed(() => [
   { 
     label: '本月消耗', 
     key: 'monthly', 
-    unit: 'tokens',
+    costKey: 'monthly_cost',
     icon: Tickets, 
     color: '#14B8A6', 
     bgColor: 'rgba(20, 184, 166, 0.1)' 
   },
   { 
-    label: '总计消耗', 
+    label: '年度总计', 
     key: 'total', 
-    unit: 'tokens',
+    costKey: 'total_cost',
     icon: Connection, 
     color: '#0D9488', 
     bgColor: 'rgba(13, 148, 136, 0.1)' 
@@ -239,18 +208,28 @@ const formatNumber = (num) => {
   return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
 };
 
-// 计算成本
-const calculateCost = (tokens) => {
-  if (!tokens) return '0.0000';
-  return (tokens / 1000 * costConfig.value.unitPrice).toFixed(4);
-};
-
 const formatDateTime = (val) => {
   if (!val) return '-';
   return new Date(val).toLocaleString();
 };
 
-// 获取统计数据
+const getAgentName = (id) => {
+  if (!id) return '-';
+  return agentMap.value[id] || id;
+};
+
+// 获取 Agent 列表映射
+const fetchAgents = async () => {
+    try {
+        const list = await getAgentList();
+        if (list) {
+            list.forEach(agent => {
+                agentMap.value[agent.agentId] = agent.agentName;
+            });
+        }
+    } catch (e) { console.warn(e); }
+};
+
 // 获取统计数据
 const fetchData = async () => {
   try {
@@ -259,13 +238,10 @@ const fetchData = async () => {
       tokenStats.value = res;
     }
   } catch (error) {
-    console.warn('获取 Token 统计失败');
-    tokenStats.value = { daily: 0, weekly: 0, monthly: 0, total: 0 };
+    console.warn('获取统计数据失败');
   }
 };
 
-// 获取趋势数据
-// 获取趋势数据
 // 获取趋势数据
 const fetchTrendData = async () => {
   trendLoading.value = true;
@@ -277,42 +253,20 @@ const fetchTrendData = async () => {
       throw new Error('No trend data');
     }
   } catch (error) {
-    // Mock 趋势数据
-    const mockTrend = [];
-    const days = trendPeriod.value === 'monthly' ? 30 : (trendPeriod.value === 'weekly' ? 12 : 7);
-    
-    for (let i = days - 1; i >= 0; i--) {
-        const d = new Date();
-        // Correct date calculation for weekly/monthly
-        if (trendPeriod.value === 'weekly') {
-             d.setDate(d.getDate() - i * 7);
-        } else {
-             d.setDate(d.getDate() - i);
-        }
-        
-        mockTrend.push({
-            date: d.toISOString().slice(5, 10),
-            tokens: Math.floor(Math.random() * 5000) + 1000 + (Math.random() * 2000)
-        });
-    }
-    renderTrendChart(mockTrend);
+    console.warn('Trend data fetch error', error);
   } finally {
     trendLoading.value = false;
   }
 };
 
 // 渲染趋势图表
-// 渲染趋势图表
 const renderTrendChart = (data) => {
   nextTick(() => {
     if (!trendChart.value) return;
-    
-    // Dispose old instance if exists to prevent memory leaks
     if (trendChartInstance) {
       trendChartInstance.dispose();
       trendChartInstance = null;
     }
-    
     trendChartInstance = echarts.init(trendChart.value);
 
     const option = {
@@ -332,10 +286,10 @@ const renderTrendChart = (data) => {
           name: 'Token 消耗',
           type: 'bar',
           data: data.map(item => item.tokens),
-          barMaxWidth: 50,
+          barMaxWidth: 30,
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#00BFA5' },   // Use explicit color
+              { offset: 0, color: '#00BFA5' },
               { offset: 1, color: '#64FFDA' }
             ]),
             borderRadius: [4, 4, 0, 0]
@@ -344,38 +298,59 @@ const renderTrendChart = (data) => {
         }
       ]
     };
-
     trendChartInstance.setOption(option);
   });
 };
 
-// 渲染分布图表
+// 获取分布数据 (Support both Token and Cost)
+const fetchDistributionData = async () => {
+    distributionLoading.value = true;
+    try {
+        const params = {};
+        if (dateRange.value && dateRange.value.length === 2) {
+            params.startDate = dateRange.value[0].getTime();
+            params.endDate = dateRange.value[1].getTime();
+        }
+        
+        const res = distType.value === 'cost' 
+            ? await getCostDistribution(params)
+            : await getTokenDistribution(params);
+            
+        renderDistributionChart(res || []);
+    } catch (e) {
+        console.warn('Fetch distribution failed', e);
+        renderDistributionChart([]);
+    } finally {
+        distributionLoading.value = false;
+    }
+};
+
 // 渲染分布图表
 const renderDistributionChart = (data) => {
   nextTick(() => {
     if (!distributionChart.value) return;
-    
     if (distributionChartInstance) {
        distributionChartInstance.dispose();
        distributionChartInstance = null;
     }
-    
     distributionChartInstance = echarts.init(distributionChart.value);
 
+    const unit = distType.value === 'cost' ? currency.value : 'Tokens';
+
     const option = {
-      tooltip: { trigger: 'item', formatter: '{a} <br/>{b}: {c} ({d}%)' },
-      legend: { orient: 'vertical', left: 'left', top: 'center' },
+      tooltip: { trigger: 'item', formatter: `{a} <br/>{b}: {c} (${unit}) ({d}%)` },
+      legend: { orient: 'horizontal', bottom: '0', icon: 'circle' },
       series: [
         {
-          name: 'Token 分布',
+          name: distType.value === 'cost' ? '成本预览' : '消耗预览',
           type: 'pie',
-          radius: ['50%', '75%'],
-          center: ['60%', '50%'],
+          radius: ['45%', '70%'],
+          center: ['50%', '45%'],
           avoidLabelOverlap: false,
-          itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
-          label: { show: false, position: 'center' },
+          itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+          label: { show: false },
           emphasis: {
-            label: { show: true, fontSize: 16, fontWeight: 'bold' }
+            label: { show: true, fontSize: 14, fontWeight: 'bold' }
           },
           data: data
         }
@@ -386,7 +361,6 @@ const renderDistributionChart = (data) => {
   });
 };
 
-// 获取历史数据
 // 获取历史数据
 const fetchHistoryData = async () => {
   historyLoading.value = true;
@@ -401,36 +375,23 @@ const fetchHistoryData = async () => {
     if (res && res.content) {
       historyData.value = res.content || [];
       total.value = res.totalElements || 0;
-      
-      // Calculate distribution from history if backend doesn't provide it
-      if (historyData.value.length > 0) {
-        const distMap = {};
-        historyData.value.forEach(item => {
-          const key = item.providerId || 'Unknown Agent';
-          distMap[key] = (distMap[key] || 0) + (item.totalTokens || 0);
-        });
-        const distData = Object.entries(distMap).map(([name, value]) => ({ name, value }));
-        renderDistributionChart(distData);
-      } else {
-        renderDistributionChart([]);
-      }
     }
   } catch (error) {
     console.warn('获取历史数据失败:', error);
     historyData.value = [];
     total.value = 0;
-    renderDistributionChart([]);
   } finally {
     historyLoading.value = false;
   }
+  fetchDistributionData();
 };
 
 // 导出报告
 const handleExport = () => {
-  const headers = ['日期', '智能体', 'Token消耗', '请求次数', '平均Token', '成本', '模型'];
+  const headers = ['日期', '智能体', 'Token消耗', '费用', '模型'];
   const rows = historyData.value.map(item => [
-    item.date, item.agentName, item.tokens, item.requests, item.avgTokens.toFixed(2),
-    '$' + item.cost.toFixed(4), item.model
+    formatDateTime(item.createdAt), getAgentName(item.providerId), item.totalTokens,
+    currency.value + (item.estimatedCost || 0).toFixed(6), item.model
   ]);
 
   const csvContent = "\ufeff" + [headers, ...rows].map(e => e.join(",")).join("\n");
@@ -438,38 +399,22 @@ const handleExport = () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `Token_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute("download", `Consumption_Report_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
   ElMessage.success('报告导出成功');
 };
 
 const handleGlobalRefresh = () => {
+  fetchAgents();
   fetchData();
   fetchTrendData();
   fetchHistoryData();
 };
 
-const loadCostConfig = () => {
-  const saved = localStorage.getItem('orin_cost_config');
-  if (saved) {
-    try {
-      costConfig.value = JSON.parse(saved);
-    } catch(e) {}
-  }
-};
-
-const saveCostConfig = () => {
-  localStorage.setItem('orin_cost_config', JSON.stringify(costConfig.value));
-  showCostConfig.value = false;
-  ElMessage.success('成本配置已保存');
-  fetchHistoryData(); // Recalculate with new cost if possible (mock data will use new cost)
-};
-
 onMounted(() => {
-  loadCostConfig();
+  fetchAgents();
   fetchData();
   fetchTrendData();
   fetchHistoryData();
@@ -479,124 +424,81 @@ onMounted(() => {
     distributionChartInstance?.resize();
   });
 });
-
-onUnmounted(() => {
-  window.removeEventListener('global-refresh', handleGlobalRefresh);
-  window.removeEventListener('resize', () => {});
-  trendChartInstance?.dispose();
-  distributionChartInstance?.dispose();
-});
 </script>
 
 <style scoped>
-.page-container {
-  padding: 0;
-}
-
-.stats-row {
-  margin-bottom: 24px;
-}
-
+.page-container { padding: 0; }
+.stats-row { margin-bottom: 24px; }
 .stat-card {
   border-radius: var(--radius-xl) !important;
   border: 1px solid var(--neutral-gray-100) !important;
   transition: all 0.3s ease;
 }
-
 .stat-card:hover {
   transform: translateY(-5px);
   box-shadow: var(--shadow-premium) !important;
 }
-
-.stat-card-inner {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
+.stat-card-inner { display: flex; align-items: center; gap: 16px; }
 .stat-icon {
-  width: 56px;
-  height: 56px;
+  width: 48px; height: 48px;
   border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
 }
-
-.stat-content {
-  flex: 1;
-}
-
+.stat-content { flex: 1; }
 .stat-label {
-  font-size: 12px;
-  color: var(--neutral-gray-500);
-  margin-bottom: 8px;
-  font-weight: 600;
-  text-transform: uppercase;
+  font-size: 11px; color: var(--neutral-gray-500);
+  margin-bottom: 4px; font-weight: 600; text-transform: uppercase;
 }
-
 .stat-value {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--neutral-gray-900);
-  font-family: var(--font-heading);
-  margin-bottom: 4px;
+  font-size: 22px; font-weight: 800; color: var(--neutral-gray-900);
+  font-family: var(--font-heading); line-height: 1.2;
 }
-
-.stat-unit {
-  font-size: 11px;
-  color: var(--neutral-gray-400);
+.cost-currency { font-size: 14px; margin-right: 2px; color: var(--neutral-gray-500); }
+.stat-sub {
+  margin-top: 4px; font-size: 11px; color: var(--neutral-gray-400);
+  display: flex; gap: 4px; border-top: 1px solid var(--neutral-gray-50); padding-top: 4px;
 }
+.tokens-value { color: var(--neutral-gray-600); font-weight: 500; }
 
-.chart-card,
-.cost-card,
-.distribution-card,
-.table-card {
+.chart-card, .distribution-card, .table-card {
   border-radius: var(--radius-lg) !important;
   border: 1px solid var(--neutral-gray-100) !important;
 }
+.card-header { display: flex; justify-content: space-between; align-items: center; }
+.card-title { font-size: 15px; font-weight: 700; color: var(--neutral-gray-900); }
+.pagination-container { margin-top: 20px; display: flex; justify-content: flex-end; }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Dark Mode Adaptation */
+html.dark .chart-card,
+html.dark .distribution-card,
+html.dark .table-card,
+html.dark .stat-card {
+  background-color: var(--neutral-gray-900);
+  border-color: var(--neutral-gray-800) !important;
 }
 
-.card-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--neutral-gray-900);
+html.dark .card-title {
+  color: var(--neutral-white);
 }
 
-.cost-content {
-  padding: 10px 0;
+html.dark .stat-label {
+  color: var(--neutral-gray-400);
 }
 
-.cost-note {
-  font-size: 12px;
+html.dark .stat-value {
+  color: var(--neutral-white);
+}
+
+html.dark .stat-sub {
+  border-top-color: var(--neutral-gray-800);
+}
+
+html.dark .tokens-value {
+  color: var(--neutral-gray-400);
+}
+
+html.dark .cost-currency {
   color: var(--neutral-gray-500);
-  margin-bottom: 16px;
-  text-align: center;
-}
-
-.cost-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--primary-color);
-}
-
-.cost-value.highlight {
-  font-size: 20px;
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--warning-color) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
 }
 </style>

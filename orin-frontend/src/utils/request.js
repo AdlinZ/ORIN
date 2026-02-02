@@ -6,7 +6,7 @@ import Cookies from 'js-cookie';
 // Create Axios Instance
 const service = axios.create({
     baseURL: '/api/v1', // Global Base URL
-    timeout: 20000 // Request Timeout
+    timeout: 60000 // Global Default Timeout (60s)
 });
 
 // 重试配置

@@ -19,4 +19,11 @@ public class PrometheusConfig {
     private String id; // 默认使用 "DEFAULT"
     private String prometheusUrl;
     private Boolean enabled;
+
+    @jakarta.persistence.PrePersist
+    public void prePersist() {
+        if (this.id == null) {
+            this.id = "DEFAULT";
+        }
+    }
 }

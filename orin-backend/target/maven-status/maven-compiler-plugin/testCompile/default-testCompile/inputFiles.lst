@@ -4,6 +4,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/workflow/engine/GraphExecutorTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/workflow/mapper/WorkflowMapperTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/agent/service/AgentExecutorTest.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/monitor/service/PricingServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/skill/mapper/SkillMapperTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/knowledge/mapper/KnowledgeMapperTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/runtime/service/RuntimeManageServiceTest.java

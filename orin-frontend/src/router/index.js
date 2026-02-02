@@ -82,35 +82,47 @@ const routes = [
                 redirect: '/dashboard/knowledge/overview',
                 children: [
                     {
-                        path: 'overview',
+                        path: 'architecture',
+                        name: 'AssetSchema',
+                        component: () => import('../views/Knowledge/AssetSchema.vue'),
+                        meta: { title: '知识资产架构', icon: 'Grid' }
+                    },
+                    {
+                        path: 'list',
                         name: 'KnowledgeOverview',
                         component: () => import('../views/Knowledge/KBList.vue'),
-                        meta: { title: '知识架构', icon: 'Reading' }
+                        meta: { title: '知识库列表', icon: 'Reading' }
                     },
                     {
-                        path: 'unstructured',
-                        name: 'KnowledgeUnstructured',
-                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
-                        meta: { title: '非结构化知识', type: 'DOCUMENT' }
+                        path: 'intelligence',
+                        name: 'IntelligenceCenter',
+                        component: () => import('../views/Knowledge/IntelligenceCenter.vue'),
+                        meta: { title: '智力资产中心', icon: 'Cpu' }
                     },
                     {
-                        path: 'structured',
-                        name: 'KnowledgeStructured',
-                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
-                        meta: { title: '结构化知识', type: 'STRUCTURED' }
+                        path: 'lab',
+                        name: 'RetrievalLab',
+                        component: () => import('../views/Knowledge/RetrievalLab.vue'),
+                        meta: { title: 'RAG 检索实验室', icon: 'Flask' }
                     },
                     {
-                        path: 'procedural',
-                        name: 'KnowledgeProcedural',
-                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
-                        meta: { title: '程序化知识', type: 'API' }
+                        path: 'vlm-playground',
+                        name: 'VlmPlayground',
+                        component: () => import('../views/Knowledge/VlmPlayground.vue'),
+                        meta: { title: 'VLM 视觉实验室', icon: 'View' }
                     },
                     {
-                        path: 'meta',
-                        name: 'KnowledgeMeta',
-                        component: () => import('../views/Knowledge/UnifiedKnowledgeView.vue'),
-                        meta: { title: '元知识与记忆', type: 'META' }
-                    }
+                        path: 'embedding-lab',
+                        name: 'EmbeddingLab',
+                        component: () => import('../views/Knowledge/EmbeddingLab.vue'),
+                        meta: { title: '向量匹配实验室', icon: 'Aim' }
+                    },
+                    {
+                        path: 'media',
+                        name: 'MediaHub',
+                        component: () => import('../views/Knowledge/MediaHub.vue'),
+                        meta: { title: '多模态素材库', icon: 'Picture' }
+                    },
                 ]
             },
             {
@@ -208,6 +220,18 @@ const routes = [
                         name: 'ApiKeyManagement',
                         component: () => import('../views/System/ApiKeyManagement.vue'),
                         meta: { title: 'API密钥管理', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'pricing',
+                        name: 'PricingConfig',
+                        component: () => import('../views/System/PricingConfig.vue'),
+                        meta: { title: '定价策略', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'monitor-config',
+                        name: 'MonitorConfig',
+                        component: () => import('../views/System/MonitorSettings.vue'),
+                        meta: { title: '监控设置', roles: ['ROLE_ADMIN'] }
                     }
                 ]
             },

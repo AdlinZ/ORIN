@@ -298,25 +298,28 @@ public class SkillServiceImplEnhanced implements SkillService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(inputs, headers);
 
             // 根据 HTTP 方法执行请求
-            ResponseEntity<Map> response;
+            ResponseEntity<Map<String, Object>> response;
             switch (method.toUpperCase()) {
                 case "GET":
                     String queryParams = buildQueryParams(inputs);
                     String getUrl = url + (queryParams.isEmpty() ? "" : "?" + queryParams);
                     response = restTemplate.exchange(getUrl, HttpMethod.GET,
-                            new HttpEntity<>(headers), Map.class);
+                            new HttpEntity<>(headers), (Class<Map<String, Object>>) (Class<?>) Map.class);
                     break;
 
                 case "POST":
-                    response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+                    response = restTemplate.exchange(url, HttpMethod.POST, entity,
+                            (Class<Map<String, Object>>) (Class<?>) Map.class);
                     break;
 
                 case "PUT":
-                    response = restTemplate.exchange(url, HttpMethod.PUT, entity, Map.class);
+                    response = restTemplate.exchange(url, HttpMethod.PUT, entity,
+                            (Class<Map<String, Object>>) (Class<?>) Map.class);
                     break;
 
                 case "DELETE":
-                    response = restTemplate.exchange(url, HttpMethod.DELETE, entity, Map.class);
+                    response = restTemplate.exchange(url, HttpMethod.DELETE, entity,
+                            (Class<Map<String, Object>>) (Class<?>) Map.class);
                     break;
 
                 default:

@@ -40,7 +40,15 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     public ModelConfig getConfig() {
         Optional<ModelConfig> existingConfig = modelConfigRepository.findFirstByOrderByIdDesc();
         if (existingConfig.isPresent()) {
-            return existingConfig.get();
+            ModelConfig config = existingConfig.get();
+            // Ensure defaults for new fields if they are null
+            if (config.getVlmModel() == null)
+                config.setVlmModel("Qwen/Qwen2-VL-72B-Instruct");
+            if (config.getEmbeddingModel() == null)
+                config.setEmbeddingModel("BAAI/bge-m3");
+            if (config.getAutoAnalysisEnabled() == null)
+                config.setAutoAnalysisEnabled(true);
+            return config;
         }
 
         // Create default configuration if none exists
@@ -58,6 +66,11 @@ public class ModelConfigServiceImpl implements ModelConfigService {
         defaultConfig.setSiliconFlowEndpoint("https://api.siliconflow.cn/v1");
         defaultConfig.setSiliconFlowApiKey("");
         defaultConfig.setSiliconFlowModel("Qwen/Qwen2-7B-Instruct");
+
+        // Multimodal defaults
+        defaultConfig.setVlmModel("Qwen/Qwen2-VL-72B-Instruct");
+        defaultConfig.setEmbeddingModel("BAAI/bge-m3");
+        defaultConfig.setAutoAnalysisEnabled(true);
 
         return modelConfigRepository.save(defaultConfig);
     }
@@ -93,6 +106,11 @@ public class ModelConfigServiceImpl implements ModelConfigService {
                 existing.setSiliconFlowApiKey(config.getSiliconFlowApiKey());
             }
             existing.setSiliconFlowModel(config.getSiliconFlowModel());
+
+            // Update Multimodal configuration
+            existing.setVlmModel(config.getVlmModel());
+            existing.setEmbeddingModel(config.getEmbeddingModel());
+            existing.setAutoAnalysisEnabled(config.getAutoAnalysisEnabled());
 
             return modelConfigRepository.save(existing);
         } else {

@@ -28,14 +28,21 @@ public class RetrievalService {
     /**
      * 混合检索
      *
-     * @param kbId  知识库 ID
-     * @param query 查询语句
-     * @param topK  返回结果数量
+     * @param kbId           知识库 ID
+     * @param query          查询语句
+     * @param topK           返回结果数量
+     * @param embeddingModel 嵌入模型名称 (可选)
      * @return 检索结果列表
      */
     public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK) {
+        return hybridSearch(kbId, query, topK, null);
+    }
+
+    public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
+            String embeddingModel) {
         // 1. 向量检索
-        List<VectorStoreProvider.SearchResult> vectorResults = vectorService.search(kbId, query, topK * 2);
+        List<VectorStoreProvider.SearchResult> vectorResults = vectorService.search(kbId, query, topK * 2,
+                embeddingModel);
 
         // 2. 关键词检索
         List<KnowledgeDocumentChunk> keywordChunks = chunkRepository.searchByKeyword(kbId, query);
@@ -90,5 +97,30 @@ public class RetrievalService {
                     return res;
                 })
                 .collect(Collectors.toList());
+    }
+
+    private final com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService;
+
+    /**
+     * 多模态检索 (图片 -> 文本分析 -> 混合检索)
+     */
+    public Map<String, Object> multimodalSearch(String kbId, String imageUrl, String vlmModel, String embeddingModel,
+            int topK) {
+        // 1. VLM 分析图片
+        String description = visualAnalysisService.analyzeImage(imageUrl, vlmModel);
+
+        // 2. 执行混合检索 (如果提供了 kbId)
+        List<VectorStoreProvider.SearchResult> results = new ArrayList<>();
+        if (kbId != null && !kbId.isEmpty() && !kbId.equalsIgnoreCase("none")) {
+            results = hybridSearch(kbId, description, topK, embeddingModel);
+        }
+
+        // 3. 封装结果
+        Map<String, Object> response = new HashMap<>();
+        response.put("description", description);
+        response.put("results", results);
+        response.put("vlmModel", vlmModel);
+        response.put("embeddingModel", embeddingModel);
+        return response;
     }
 }

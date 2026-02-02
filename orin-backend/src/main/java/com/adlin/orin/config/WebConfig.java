@@ -6,7 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.nio.file.Paths;
 
 /**
  * Web MVC配置
@@ -32,5 +35,14 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/v1/**")
                 .excludePathPatterns("/v1/health", "/v1/providers")
                 .order(2);
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // Map /uploads/** to the local storage/uploads directory
+        String uploadPath = Paths.get("storage/uploads").toAbsolutePath().toUri().toString();
+
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(uploadPath);
     }
 }

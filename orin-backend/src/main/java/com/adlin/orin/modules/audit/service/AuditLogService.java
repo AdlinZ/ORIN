@@ -24,6 +24,7 @@ public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
     private final LogConfigService logConfigService;
+    private final com.adlin.orin.modules.monitor.service.PricingService pricingService;
 
     /**
      * 异步记录审计日志
@@ -99,13 +100,30 @@ public class AuditLogService {
                     .completionTokens(completionTokens != null ? completionTokens : 0)
                     .totalTokens((promptTokens != null ? promptTokens : 0) +
                             (completionTokens != null ? completionTokens : 0))
-                    .estimatedCost(estimatedCost != null ? estimatedCost : 0.0)
+                    // estimatedCost passed from caller is ignored in favor of backend calculation
+                    // if possible
+                    // but kept as default if calculation returns zero?
+                    // Actually, let's let backend overwrite it.
                     .success(success)
                     .errorMessage(errorMessage)
                     .workflowId(workflowId)
                     .conversationId(conversationId)
                     .createdAt(LocalDateTime.now())
                     .build();
+
+            // Calculate Pricing (Dual-Track)
+            try {
+                var pricingResult = pricingService.calculate(auditLog);
+                auditLog.setInternalCost(pricingResult.getInternalCost());
+                auditLog.setExternalPrice(pricingResult.getExternalPrice());
+                auditLog.setProfit(pricingResult.getProfit());
+                // Map external price to legacy estimatedCost for compatibility
+                auditLog.setEstimatedCost(
+                        pricingResult.getExternalPrice() != null ? pricingResult.getExternalPrice().doubleValue()
+                                : 0.0);
+            } catch (Exception e) {
+                log.warn("Pricing calculation failed for log {}: {}", auditLog.getId(), e.getMessage());
+            }
 
             auditLogRepository.save(auditLog);
             log.info("Audit log saved successfully: id={}, providerId={}, conversationId={}, endpoint={}",
