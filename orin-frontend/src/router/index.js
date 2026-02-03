@@ -57,7 +57,7 @@ const routes = [
                         meta: { title: '接入新 Agent' }
                     },
                     {
-                        path: 'logs',
+                        path: 'conversation-logs',
                         name: 'AgentLogs',
                         component: () => import('../views/Knowledge/AgentLogs.vue'),
                         meta: { title: 'AI 调用日志' }

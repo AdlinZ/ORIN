@@ -14,6 +14,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/monitor/entity/PrometheusConfig.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/entity/KnowledgeDocumentChunk.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/component/SiliconFlowEmbeddingAdapter.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/conversation/entity/ConversationLog.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/adapter/impl/N8nWorkflowAdapter.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/entity/KnowledgeTask.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/runtime/service/RuntimeManageService.java
@@ -36,6 +37,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/repository/KnowledgeDocumentRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/service/impl/ProceduralServiceImpl.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/repository/KnowledgeTaskRepository.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/conversation/service/ConversationLogService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/entity/ApiKey.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/entity/meta/PromptTemplate.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/service/DocumentManageService.java
@@ -71,6 +73,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/service/AgentManageService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/gateway/controller/ApiGatewayController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/dto/AgentListResponse.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/conversation/repository/ConversationLogRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/controller/KnowledgeManageController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/gateway/dto/ChatCompletionRequest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/service/StructuredService.java
@@ -115,6 +118,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/gateway/interceptor/RateLimitInterceptor.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/monitor/controller/PricingController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/controller/LoginController.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/conversation/controller/ConversationLogController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/service/provider/DifyProvider.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/service/LogConfigService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/config/RestConfig.java

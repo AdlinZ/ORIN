@@ -50,6 +50,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
     private final AuditLogService auditLogService;
+    private final com.adlin.orin.modules.conversation.service.ConversationLogService conversationLogService;
     private final MultimodalFileService multimodalFileService;
     private final MetaKnowledgeService metaKnowledgeService;
     private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
@@ -64,6 +65,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             AgentMetadataRepository metadataRepository,
             AgentHealthStatusRepository healthStatusRepository,
             AuditLogService auditLogService,
+            com.adlin.orin.modules.conversation.service.ConversationLogService conversationLogService,
             MultimodalFileService multimodalFileService,
             MetaKnowledgeService metaKnowledgeService,
             com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
@@ -74,6 +76,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
         this.auditLogService = auditLogService;
+        this.conversationLogService = conversationLogService;
         this.multimodalFileService = multimodalFileService;
         this.metaKnowledgeService = metaKnowledgeService;
         this.modelMetadataRepository = modelMetadataRepository;
@@ -993,6 +996,22 @@ public class AgentManageServiceImpl implements AgentManageService {
                         errorMessage,
                         null,
                         conversationId);
+
+                // Independent Conversation Log
+                conversationLogService.log(com.adlin.orin.modules.conversation.entity.ConversationLog.builder()
+                        .userId("admin")
+                        .agentId(agentId)
+                        .conversationId(conversationId)
+                        .model(metadata.getModelName())
+                        .query(message)
+                        .response(responseContent)
+                        .promptTokens(promptTokens)
+                        .completionTokens(completionTokens)
+                        .totalTokens(promptTokens + completionTokens)
+                        .responseTime(duration)
+                        .success(success)
+                        .errorMessage(errorMessage)
+                        .build());
             } catch (Exception e) {
                 log.error("Failed to save audit log in finally block", e);
             }

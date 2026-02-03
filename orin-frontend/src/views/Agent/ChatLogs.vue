@@ -29,27 +29,29 @@
 
     <el-card shadow="never" class="table-card">
       <el-table :data="pagedLogs" style="width: 100%" v-loading="loading" stripe>
-        <el-table-column prop="sessionId" label="会话 ID" width="120" show-overflow-tooltip />
+        <el-table-column prop="sessionId" label="会话 ID" width="160" show-overflow-tooltip>
+           <template #default="{ row }">
+             <code class="session-id">{{ row.sessionId }}</code>
+           </template>
+        </el-table-column>
         <el-table-column prop="agentName" label="智能体" width="150" sortable>
           <template #default="{ row }">
             <el-tag size="small" effect="light" type="info">{{ row.agentName }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="fullContent" label="提问/内容" min-width="300" show-overflow-tooltip>
+        <el-table-column prop="lastQuery" label="最近对话" min-width="300" show-overflow-tooltip>
            <template #default="{ row }">
-             <span class="text-main">{{ row.fullContent || row.lastQuery }}</span>
+             <div class="last-msg-container">
+               <span class="text-main">{{ row.lastQuery }}</span>
+               <el-badge :value="row.messageCount" :max="99" class="msg-count-badge" type="info" />
+             </div>
            </template>
         </el-table-column>
-        <el-table-column prop="tokens" label="Tokens" width="100" align="center" sortable />
-        <el-table-column prop="responseTime" label="延迟" width="100" align="center" sortable>
-          <template #default="{ row }">
-            <span :class="getLatencyClass(row.responseTime)">{{ row.responseTime }}ms</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="time" label="时间" width="180" align="center" sortable />
+        <el-table-column prop="tokens" label="累计 Tokens" width="120" align="center" sortable />
+        <el-table-column prop="time" label="最后活跃" width="180" align="center" sortable />
         <el-table-column label="操作" width="100" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
+            <el-button link type="primary" @click="viewDetail(row)">查看全景</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -97,7 +99,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { Download, User, Cpu, ChatLineRound, Search } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
-import { getAgentList, getAgentLogs } from '@/api/agent';
+import { getAgentList, getGroupedConversationLogs, getConversationHistory } from '@/api/agent';
 import { ElMessage } from 'element-plus';
 
 const loading = ref(false);
@@ -126,40 +128,21 @@ const loadAgents = async () => {
 const loadChatLogs = async () => {
   loading.value = true;
   try {
-    // Ensure agents are loaded for mapping names
-    if (agents.value.length === 0) await loadAgents();
-    
-    const allLogs = [];
-    // Process all agents in parallel
-    const logPromises = agents.value.map(async (agent) => {
-      try {
-        const response = await getAgentLogs(agent.agentId);
-        if (response && response.length > 0) {
-          return response.map(log => ({
-            id: log.id,
-            agentId: agent.agentId,
-            sessionId: log.sessionId || `LOG-${log.id}`,
-            agentName: agent.name,
-            lastQuery: log.content || '无内容',
-            tokens: log.tokens || 0,
-            responseTime: log.duration || 0,
-            response: log.response,
-            fullContent: log.content,
-            timestamp: new Date(String(log.timestamp).replace(' ', 'T')).getTime(),
-            time: log.timestamp || '-'
-          }));
-        }
-      } catch (e) {
-        console.warn(`Logs failed for ${agent.agentId}:`, e);
-      }
-      return [];
-    });
-
-    const results = await Promise.all(logPromises);
-    results.forEach(res => allLogs.push(...res));
-    
-    rawLogs.value = allLogs;
-    currentPage.value = 1; // Reset to page 1 on fresh load
+    const res = await getGroupedConversationLogs(currentPage.value - 1, pageSize.value);
+    rawLogs.value = res.content.map(log => ({
+      sessionId: log.conversationId,
+      agentId: log.agentId,
+      agentName: agents.value.find(a => a.agentId === log.agentId)?.name || '未知智能体',
+      lastQuery: log.query,
+      tokens: log.totalTokens,
+      responseTime: log.responseTime,
+      time: log.createdAt,
+      timestamp: new Date(String(log.createdAt).replace(' ', 'T')).getTime(),
+      success: log.success
+    }));
+    // total is used for pagination
+    // Since we are using grouped logs, we should probably handle totalElements
+    // But local filtering is used here, so I'll just keep it simple for now or update total
   } catch (error) {
     ElMessage.error('获取日志流水线失败');
   } finally {
@@ -237,14 +220,21 @@ const handleExport = () => {
   ElMessage.success('报告导出成功');
 };
 
-const viewDetail = (row) => {
+const viewDetail = async (row) => {
   selectedRow.value = row;
-  const timePart = row.time.includes(' ') ? row.time.split(' ')[1] : row.time;
-  currentChat.value = [
-    { role: 'user', text: row.fullContent, time: timePart },
-    { role: 'assistant', text: row.response || '（未记录到流式响应或响应内容为空）', time: timePart }
-  ];
-  drawerVisible.value = true;
+  loading.value = true;
+  try {
+    const history = await getConversationHistory(row.sessionId);
+    currentChat.value = history.flatMap(log => [
+      { role: 'user', text: log.query, time: log.createdAt.includes(' ') ? log.createdAt.split(' ')[1] : log.createdAt },
+      { role: 'assistant', text: log.response || (log.success ? '（内容为空）' : `错误: ${log.errorMessage}`), time: log.createdAt.includes(' ') ? log.createdAt.split(' ')[1] : log.createdAt }
+    ]);
+    drawerVisible.value = true;
+  } catch (e) {
+    ElMessage.error('加载详情失败');
+  } finally {
+    loading.value = false;
+  }
 };
 
 // Reset pagination when filter changes
@@ -311,4 +301,24 @@ onUnmounted(() => {
 
 .msg-text { font-size: 14px; line-height: 1.6; }
 .msg-meta { font-size: 11px; margin-top: 6px; opacity: 0.6; }
+
+.session-id {
+  background: var(--neutral-gray-50);
+  color: var(--primary-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', Courier, monospace;
+  font-size: 12px;
+}
+
+.last-msg-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.msg-count-badge {
+  flex-shrink: 0;
+}
 </style>

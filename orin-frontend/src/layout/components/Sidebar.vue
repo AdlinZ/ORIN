@@ -28,7 +28,7 @@
             <span>智能体管理</span>
           </template>
           <el-menu-item index="/dashboard/agent/list">智能体列表</el-menu-item>
-          <el-menu-item index="/dashboard/agent/logs">会话记录</el-menu-item>
+          <el-menu-item index="/dashboard/agent/conversation-logs">会话记录</el-menu-item>
           <el-menu-item index="/dashboard/agent/model-list">模型列表</el-menu-item>
           <el-menu-item index="/dashboard/agent/model-config">模型基础项</el-menu-item>
         </el-sub-menu>

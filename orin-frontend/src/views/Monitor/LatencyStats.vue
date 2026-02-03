@@ -70,24 +70,24 @@
           />
         </div>
       </template>
-      <el-table :data="historyData" v-loading="historyLoading" stripe>
-        <el-table-column prop="createdAt" label="时间" width="180">
+      <el-table :data="historyData" v-loading="historyLoading" stripe style="width: 100%">
+        <el-table-column prop="createdAt" label="时间" min-width="180">
             <template #default="{ row }">
                 {{ formatDateTime(row.createdAt) }}
             </template>
         </el-table-column>
-        <el-table-column prop="providerId" label="Agent ID/Name" width="200" show-overflow-tooltip />
-        <el-table-column prop="responseTime" label="响应耗时" width="150" align="right">
+        <el-table-column prop="providerId" label="Agent ID/Name" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="responseTime" label="响应耗时" min-width="150" align="right">
           <template #default="{ row }">
             <span :class="getLatencyClass(row.responseTime)">{{ formatNumber(row.responseTime) }} ms</span>
           </template>
         </el-table-column>
-        <el-table-column prop="totalTokens" label="Total Tokens" width="150" align="right">
+        <el-table-column prop="totalTokens" label="Total Tokens" min-width="150" align="right">
           <template #default="{ row }">
             {{ formatNumber(row.totalTokens) }}
           </template>
         </el-table-column>
-         <el-table-column prop="success" label="状态" width="100" align="center">
+         <el-table-column prop="success" label="状态" width="120" align="center">
               <template #default="{ row }">
                  <el-tag v-if="row.success" type="success" size="small">成功</el-tag>
                  <el-tag v-else type="danger" size="small">失败</el-tag>
@@ -189,8 +189,9 @@ const formatDateTime = (val) => {
 
 const getLatencyClass = (val) => {
     if (!val) return '';
-    if (val > 5000) return 'text-danger';
-    if (val > 2000) return 'text-warning';
+    if (val > 60000) return 'text-extreme'; // > 60s
+    if (val > 30000) return 'text-danger';  // > 30s
+    if (val > 10000) return 'text-warning'; // > 10s
     return 'text-success';
 }
 
@@ -288,20 +289,22 @@ const renderTrendChart = (data) => {
 
 // 渲染分布图表（基于当前数据简单分类）
 const updateDistribution = (logs) => {
-    let fast = 0, medium = 0, slow = 0, verySlow = 0;
+    let fast = 0, normal = 0, standard = 0, slow = 0, extreme = 0;
     logs.forEach(log => {
         const l = log.responseTime || 0;
-        if (l < 500) fast++;
-        else if (l < 2000) medium++;
-        else if (l < 5000) slow++;
-        else verySlow++;
+        if (l < 5000) fast++;
+        else if (l < 15000) normal++;
+        else if (l < 30000) standard++;
+        else if (l < 60000) slow++;
+        else extreme++;
     });
 
     const data = [
-        { value: fast, name: '< 500ms' },
-        { value: medium, name: '500-2s' },
-        { value: slow, name: '2s-5s' },
-        { value: verySlow, name: '> 5s' }
+        { value: fast, name: '< 5s', itemStyle: { color: '#10B981' } },
+        { value: normal, name: '5s-15s', itemStyle: { color: '#3B82F6' } },
+        { value: standard, name: '15s-30s', itemStyle: { color: '#6366F1' } },
+        { value: slow, name: '30s-60s', itemStyle: { color: '#F59E0B' } },
+        { value: extreme, name: '> 60s', itemStyle: { color: '#EF4444' } }
     ];
 
     if (!distributionChartInstance) {
@@ -456,4 +459,5 @@ onUnmounted(() => {
 .text-danger { color: var(--error-color); font-weight: bold; }
 .text-warning { color: var(--warning-color); font-weight: bold; }
 .text-success { color: var(--success-color); }
+.text-extreme { color: #7F1D1D; font-weight: 800; text-decoration: underline; }
 </style>

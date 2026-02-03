@@ -73,6 +73,15 @@ export const deleteAgent = (agentId) => {
     return request.delete(`/agents/${agentId}`);
 };
 
+
 export const getJobStatus = (agentId, jobId) => {
     return request.get(`/agents/${agentId}/jobs/${jobId}`);
+};
+
+export const getGroupedConversationLogs = (page = 0, size = 15) => {
+    return request.get('/conversation-logs/grouped', { params: { page, size } });
+};
+
+export const getConversationHistory = (conversationId) => {
+    return request.get(`/conversation-logs/${conversationId}/history`);
 };

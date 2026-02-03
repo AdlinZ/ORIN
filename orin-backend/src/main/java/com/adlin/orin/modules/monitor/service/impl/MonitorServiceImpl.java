@@ -99,10 +99,10 @@ public class MonitorServiceImpl implements MonitorService {
                                 .orElse(0.0);
                 summary.put("averageHealthScore", Math.round(avgHealthScore * 100.0) / 100.0);
 
-                // 获取最近一条审计日志判断 Dify 连接状态
+                // 获取最近一条审计日志判断 Dify 连接状态 (仅限业务日志)
                 LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
                 List<com.adlin.orin.modules.audit.entity.AuditLog> todayLogs = auditLogRepository
-                                .findByCreatedAtBetween(startOfDay, LocalDateTime.now());
+                                .findBusinessLogsByCreatedAtBetween(startOfDay, LocalDateTime.now());
 
                 // Frontend expects: daily_requests, total_tokens, avg_latency
                 summary.put("daily_requests", todayLogs.size());
@@ -266,8 +266,8 @@ public class MonitorServiceImpl implements MonitorService {
                         groupingUnit = ChronoUnit.DAYS;
                 }
 
-                // 获取时间范围内的所有日志
-                List<AuditLog> logs = auditLogRepository.findByCreatedAtBetween(start, end);
+                // 获取时间范围内的所有业务日志 (排除系统日志)
+                List<AuditLog> logs = auditLogRepository.findBusinessLogsByCreatedAtBetween(start, end);
 
                 // 在内存中分组统计
                 Map<String, Long> groupedData = new TreeMap<>(); // 使用 TreeMap 保持顺序
@@ -324,7 +324,7 @@ public class MonitorServiceImpl implements MonitorService {
                         start = end.minusDays(30);
                 }
 
-                return auditLogRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end, pageable);
+                return auditLogRepository.findBusinessLogsByCreatedAtBetweenOrderByCreatedAtDesc(start, end, pageable);
         }
 
         @Override
@@ -425,7 +425,7 @@ public class MonitorServiceImpl implements MonitorService {
                         groupingUnit = ChronoUnit.DAYS;
                 }
 
-                List<AuditLog> logs = auditLogRepository.findByCreatedAtBetween(start, end);
+                List<AuditLog> logs = auditLogRepository.findBusinessLogsByCreatedAtBetween(start, end);
 
                 Map<String, Long> sumMap = new TreeMap<>();
                 Map<String, Integer> countMap = new HashMap<>();

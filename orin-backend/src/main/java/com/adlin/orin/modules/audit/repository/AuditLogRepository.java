@@ -45,9 +45,9 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
         Long sumTokensByApiKeyIdAndCreatedAtAfter(String apiKeyId, LocalDateTime after);
 
         /**
-         * 统计用户的总成本
+         * 统计用户的总成本 (支持排除系统日志)
          */
-        @Query("SELECT SUM(a.estimatedCost) FROM AuditLog a WHERE a.userId = ?1 AND a.createdAt BETWEEN ?2 AND ?3")
+        @Query("SELECT SUM(a.estimatedCost) FROM AuditLog a WHERE (?1 IS NULL OR a.userId = ?1) AND a.createdAt BETWEEN ?2 AND ?3 AND a.providerId != 'ORIN_CORE'")
         Double sumCostByUserIdAndDateRange(String userId, LocalDateTime start, LocalDateTime end);
 
         /**
@@ -70,16 +70,23 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
         int deleteByCreatedAtBefore(LocalDateTime cutoff);
 
         /**
-         * 统计指定时间之后的总Token使用量
+         * 统计指定时间之后的总Token使用量 (排除系统日志)
          */
-        @Query("SELECT SUM(a.totalTokens) FROM AuditLog a WHERE a.createdAt >= ?1")
+        @Query("SELECT SUM(a.totalTokens) FROM AuditLog a WHERE a.createdAt >= ?1 AND a.providerId != 'ORIN_CORE'")
         Long sumTotalTokensAfter(LocalDateTime after);
 
         /**
-         * 统计所有时间的总Token使用量
+         * 统计所有时间的总Token使用量 (排除系统日志)
          */
-        @Query("SELECT SUM(a.totalTokens) FROM AuditLog a")
+        @Query("SELECT SUM(a.totalTokens) FROM AuditLog a WHERE a.providerId != 'ORIN_CORE'")
         Long sumTotalTokensAll();
+
+        /**
+         * 分页查询指定时间范围内的日志 (业务日志，排除系统日志)
+         */
+        @Query("SELECT a FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 AND a.providerId != 'ORIN_CORE' ORDER BY a.createdAt DESC")
+        Page<AuditLog> findBusinessLogsByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime start, LocalDateTime end,
+                        Pageable pageable);
 
         /**
          * 分页查询指定时间范围内的日志
@@ -88,21 +95,21 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
                         Pageable pageable);
 
         /**
-         * 统计指定时间之后的平均响应时间
+         * 统计指定时间之后的平均响应时间 (排除系统日志)
          */
-        @Query("SELECT AVG(a.responseTime) FROM AuditLog a WHERE a.createdAt >= ?1")
+        @Query("SELECT AVG(a.responseTime) FROM AuditLog a WHERE a.createdAt >= ?1 AND a.providerId != 'ORIN_CORE'")
         Double avgResponseTimeAfter(LocalDateTime after);
 
         /**
-         * 统计所有时间的平均响应时间
+         * 统计所有时间的平均响应时间 (排除系统日志)
          */
-        @Query("SELECT AVG(a.responseTime) FROM AuditLog a")
+        @Query("SELECT AVG(a.responseTime) FROM AuditLog a WHERE a.providerId != 'ORIN_CORE'")
         Double avgResponseTimeAll();
 
         /**
-         * 获取历史最大响应时间
+         * 获取历史最大响应时间 (排除系统日志)
          */
-        @Query("SELECT MAX(a.responseTime) FROM AuditLog a")
+        @Query("SELECT MAX(a.responseTime) FROM AuditLog a WHERE a.providerId != 'ORIN_CORE'")
         Long maxResponseTimeAll();
 
         /**
@@ -111,29 +118,24 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
         Page<AuditLog> findByProviderIdOrderByCreatedAtDesc(String providerId, Pageable pageable);
 
         /**
-         * Find all logs in a conversation by conversation ID (ordered chronologically)
-         */
-        List<AuditLog> findByConversationIdOrderByCreatedAtAsc(String conversationId);
-
-        /**
          * Find all logs in a conversation by conversation ID (paginated)
          */
-        Page<AuditLog> findByConversationIdOrderByCreatedAtAsc(String conversationId, Pageable pageable);
+        Page<AuditLog> findByConversationId(String conversationId, Pageable pageable);
 
         /**
-         * 统计时间范围内各智能体的Token总消耗
+         * 统计时间范围内各智能体的Token总消耗 (排除系统日志)
          * 
          * @return List of [providerId, totalTokens]
          */
-        @Query("SELECT a.providerId, SUM(a.totalTokens) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 GROUP BY a.providerId")
+        @Query("SELECT a.providerId, SUM(a.totalTokens) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 AND a.providerId != 'ORIN_CORE' GROUP BY a.providerId")
         List<Object[]> sumTokensByProviderIdBetween(LocalDateTime start, LocalDateTime end);
 
         /**
-         * 统计时间范围内各智能体的成本总消耗
+         * 统计时间范围内各智能体的成本总消耗 (排除系统日志)
          * 
          * @return List of [providerId, estimatedCost]
          */
-        @Query("SELECT a.providerId, SUM(a.estimatedCost) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 GROUP BY a.providerId")
+        @Query("SELECT a.providerId, SUM(a.estimatedCost) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 AND a.providerId != 'ORIN_CORE' GROUP BY a.providerId")
         List<Object[]> sumCostByProviderIdBetween(LocalDateTime start, LocalDateTime end);
 
         /**
@@ -150,4 +152,21 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          * Find recent logs by conversation ID (for chat history context)
          */
         Page<AuditLog> findByConversationIdOrderByCreatedAtDesc(String conversationId, Pageable pageable);
+
+        @Query(value = "SELECT * FROM audit_logs " +
+                        "WHERE id IN (" +
+                        "  SELECT latest_id FROM (" +
+                        "    SELECT MAX(id) as latest_id FROM audit_logs " +
+                        "    WHERE (?1 = 'ALL' OR provider_type = ?1) " +
+                        "    GROUP BY CASE WHEN conversation_id IS NOT NULL THEN conversation_id ELSE id END" +
+                        "  ) sub" +
+                        ") " +
+                        "ORDER BY created_at DESC", countQuery = "SELECT COUNT(DISTINCT CASE WHEN conversation_id IS NOT NULL THEN conversation_id ELSE id END) FROM audit_logs WHERE (?1 = 'ALL' OR provider_type = ?1)", nativeQuery = true)
+        Page<AuditLog> findGroupedByConversationLatestEntry(String type, Pageable pageable);
+
+        /**
+         * 获取业务日志 (排除系统日志)
+         */
+        @Query("SELECT a FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 AND a.providerId != 'ORIN_CORE'")
+        List<AuditLog> findBusinessLogsByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 }

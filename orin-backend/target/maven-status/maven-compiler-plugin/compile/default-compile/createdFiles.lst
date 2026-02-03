@@ -9,6 +9,7 @@ com/adlin/orin/modules/agent/dto/AgentOnboardRequest.class
 com/adlin/orin/gateway/dto/EmbeddingResponse$EmbeddingResponseBuilder.class
 com/adlin/orin/gateway/dto/EmbeddingResponse.class
 com/adlin/orin/gateway/dto/EmbeddingResponse$Usage$UsageBuilder.class
+com/adlin/orin/modules/conversation/controller/ConversationLogController.class
 com/adlin/orin/modules/agent/service/DifyIntegrationService$1.class
 com/adlin/orin/modules/apikey/controller/ApiEndpointController$ApiEndpointResponse$ApiEndpointResponseBuilder.class
 com/adlin/orin/modules/knowledge/entity/KnowledgeType.class
@@ -19,6 +20,7 @@ com/adlin/orin/modules/model/service/DeepSeekIntegrationService.class
 com/adlin/orin/modules/alert/entity/AlertRule.class
 com/adlin/orin/modules/multimodal/repository/MultimodalTaskRepository.class
 com/adlin/orin/config/SystemAuditListener.class
+com/adlin/orin/modules/monitor/entity/AgentStatus.class
 com/adlin/orin/modules/workflow/entity/WorkflowStepEntity$WorkflowStepEntityBuilder.class
 com/adlin/orin/modules/knowledge/component/SiliconFlowEmbeddingAdapter.class
 com/adlin/orin/modules/workflow/engine/handler/AgentNodeHandler.class
@@ -108,6 +110,7 @@ com/adlin/orin/modules/runtime/service/RuntimeManageService.class
 com/adlin/orin/modules/system/service/DynamicLoggerService$1.class
 com/adlin/orin/gateway/dto/EmbeddingRequest.class
 com/adlin/orin/gateway/dto/ChatCompletionRequest.class
+com/adlin/orin/modules/conversation/repository/ConversationLogRepository.class
 com/adlin/orin/modules/knowledge/service/impl/StructuredServiceImpl.class
 com/adlin/orin/modules/knowledge/service/meta/MetaKnowledgeService$2.class
 com/adlin/orin/modules/knowledge/dto/KnowledgeBaseCreateRequest$KnowledgeBaseCreateRequestBuilder.class
@@ -143,6 +146,7 @@ com/adlin/orin/modules/workflow/entity/WorkflowEntity$WorkflowEntityBuilder.clas
 com/adlin/orin/modules/trace/interceptor/SkillTraceInterceptor.class
 com/adlin/orin/modules/knowledge/event/TaskCreatedEvent.class
 com/adlin/orin/modules/knowledge/dto/KnowledgeBaseCreateRequest.class
+com/adlin/orin/modules/conversation/entity/ConversationLog$ConversationLogBuilder.class
 com/adlin/orin/modules/multimodal/entity/MultimodalFile.class
 com/adlin/orin/modules/knowledge/controller/IntelligenceCenterController.class
 com/adlin/orin/modules/agent/service/ZhipuAgentManageService.class
@@ -192,6 +196,7 @@ com/adlin/orin/common/exception/ErrorCode.class
 com/adlin/orin/modules/monitor/entity/AgentMetric.class
 com/adlin/orin/modules/knowledge/entity/KnowledgeBase.class
 com/adlin/orin/modules/model/service/ZhipuIntegrationService.class
+com/adlin/orin/modules/workflow/engine/handler/NodeExecutionResult.class
 com/adlin/orin/modules/agent/service/DifyIntegrationService$9.class
 com/adlin/orin/gateway/dto/ChatCompletionResponse$Choice$ChoiceBuilder.class
 com/adlin/orin/modules/workflow/dto/WorkflowExecutionEvent.class
@@ -242,6 +247,7 @@ com/adlin/orin/modules/knowledge/component/VectorStoreProvider$SearchResult$Sear
 com/adlin/orin/modules/monitor/service/impl/MonitorServiceImpl.class
 com/adlin/orin/modules/trace/controller/TraceController.class
 com/adlin/orin/modules/knowledge/dto/KnowledgeBaseResponse$KnowledgeBaseResponseBuilder.class
+com/adlin/orin/modules/conversation/service/ConversationLogService.class
 com/adlin/orin/common/exception/ResourceNotFoundException.class
 com/adlin/orin/modules/workflow/entity/WorkflowStepEntity$StepType.class
 com/adlin/orin/modules/apikey/entity/ApiKey$ApiKeyBuilder.class
@@ -292,6 +298,7 @@ com/adlin/orin/modules/multimodal/controller/MultimodalTaskController.class
 com/adlin/orin/modules/workflow/entity/WorkflowInstanceEntity.class
 com/adlin/orin/gateway/service/RouterService$RoutingStrategy.class
 com/adlin/orin/modules/adapter/impl/N8nWorkflowAdapter.class
+com/adlin/orin/modules/conversation/entity/ConversationLog.class
 com/adlin/orin/modules/system/controller/LoginController.class
 com/adlin/orin/modules/workflow/entity/WorkflowStepEntity.class
 com/adlin/orin/modules/model/service/DeepSeekIntegrationService$3.class

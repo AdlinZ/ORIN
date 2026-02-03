@@ -216,6 +216,13 @@ public class AuditLogService {
     }
 
     /**
+     * 分页获取审计日志 (按会话分组)
+     */
+    public Page<AuditLog> getAuditLogsGrouped(String filterType, Pageable pageable) {
+        return auditLogRepository.findGroupedByConversationLatestEntry(filterType, pageable);
+    }
+
+    /**
      * 手动清理指定天数之前的日志
      */
     @Transactional
@@ -274,16 +281,12 @@ public class AuditLogService {
         return logs;
     }
 
-    /**
-     * Get recent N logs for a specific conversation ID
-     */
     public java.util.List<AuditLog> getRecentConversationLogs(String conversationId, int limit) {
-        Page<AuditLog> page = auditLogRepository.findByConversationIdOrderByCreatedAtDesc(
+        // 使用明确的排序查询，并限制返回条数
+        return auditLogRepository.findByConversationId(
                 conversationId,
-                org.springframework.data.domain.PageRequest.of(0, limit));
-
-        java.util.List<AuditLog> logs = new java.util.ArrayList<>(page.getContent());
-        java.util.Collections.reverse(logs);
-        return logs;
+                org.springframework.data.domain.PageRequest.of(0, limit,
+                        org.springframework.data.domain.Sort.by("createdAt").ascending()))
+                .getContent();
     }
 }

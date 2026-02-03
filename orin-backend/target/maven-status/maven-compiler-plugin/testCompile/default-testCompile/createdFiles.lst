@@ -2,11 +2,15 @@ com/adlin/orin/modules/agent/service/AgentExecutorTest.class
 com/adlin/orin/modules/skill/mapper/SkillMapperTest.class
 com/adlin/orin/modules/knowledge/mapper/KnowledgeMapperTest.class
 com/adlin/orin/modules/workflow/mapper/WorkflowMapperTest.class
+com/adlin/orin/modules/monitor/service/MonitorServiceTest.class
 com/adlin/orin/modules/monitor/service/PricingServiceTest.class
+com/adlin/orin/modules/agent/mapper/AgentMapperTest.class
+com/adlin/orin/modules/workflow/service/WorkflowServiceTest.class
 com/adlin/orin/modules/system/mapper/SystemMapperTest.class
 com/adlin/orin/modules/runtime/service/RuntimeManageServiceTest.class
 com/adlin/orin/modules/multimodal/service/MultimodalFileServiceTest.class
 com/adlin/orin/modules/alert/service/AlertServiceTest.class
 com/adlin/orin/modules/system/service/DynamicLoggerServiceTest.class
 com/adlin/orin/BaseTest.class
+com/adlin/orin/modules/workflow/engine/GraphExecutorTest.class
 com/adlin/orin/modules/knowledge/service/DocumentManageServiceTest.class
