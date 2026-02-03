@@ -145,7 +145,7 @@ const loadChatLogs = async () => {
             responseTime: log.duration || 0,
             response: log.response,
             fullContent: log.content,
-            timestamp: new Date(log.timestamp).getTime(),
+            timestamp: new Date(String(log.timestamp).replace(' ', 'T')).getTime(),
             time: log.timestamp || '-'
           }));
         }
