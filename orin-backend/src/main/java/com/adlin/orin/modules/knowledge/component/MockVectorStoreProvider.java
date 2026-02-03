@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Component
+@org.springframework.context.annotation.Primary
 public class MockVectorStoreProvider implements VectorStoreProvider {
 
     @Override
@@ -17,8 +18,18 @@ public class MockVectorStoreProvider implements VectorStoreProvider {
     }
 
     @Override
+    public void addChunks(String kbId, List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks) {
+        System.out.println("Mock adding " + chunks.size() + " chunks to KB: " + kbId);
+    }
+
+    @Override
     public void deleteDocuments(String collectionName, List<String> docIds) {
         System.out.println("Mock deleting documents from collection: " + collectionName);
+    }
+
+    @Override
+    public void deleteKnowledgeBase(String kbId) {
+        System.out.println("Mock deleting entire knowledge base: " + kbId);
     }
 
     @Override

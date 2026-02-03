@@ -23,6 +23,13 @@ public class ProceduralServiceImpl implements ProceduralService {
     private final KnowledgeWorkflowEngine workflowExecutor;
 
     @Override
+    @Transactional
+    public void deleteAgentSkills(String agentId) {
+        log.info("Deleting all skills for agent {}", agentId);
+        skillRepository.deleteByAgentId(agentId);
+    }
+
+    @Override
     public List<KnowledgeSkill> getAgentSkills(String agentId) {
         return skillRepository.findByAgentId(agentId);
     }
@@ -73,5 +80,23 @@ public class ProceduralServiceImpl implements ProceduralService {
                 skill.getDescription() != null ? skill.getDescription() : "Dynamically registered skill");
         definition.put("parameters", new HashMap<>());
         return definition;
+    }
+
+    @Override
+    @Transactional
+    public void deleteSkill(String skillId) {
+        log.info("Deleting skill {}", skillId);
+        skillRepository.deleteById(skillId);
+    }
+
+    @Override
+    @Transactional
+    public void updateSkill(KnowledgeSkill skill) {
+        log.info("Updating skill {} ({})", skill.getName(), skill.getId());
+        if (skill.getCreatedAt() == null) {
+            skill.setCreatedAt(LocalDateTime.now());
+        }
+        skill.setUpdatedAt(LocalDateTime.now());
+        skillRepository.save(skill);
     }
 }

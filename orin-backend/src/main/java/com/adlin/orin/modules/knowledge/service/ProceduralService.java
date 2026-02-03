@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.modules.knowledge.entity.KnowledgeSkill;
 import java.util.Map;
 
 /**
@@ -37,4 +38,19 @@ public interface ProceduralService {
      * Used to provide tool info to the LLM.
      */
     Map<String, Object> getSkillDefinition(String agentId, String triggerName);
+
+    /**
+     * Delete all skills associated with an Agent.
+     */
+    void deleteAgentSkills(String agentId);
+
+    /**
+     * Delete a specific skill by its ID.
+     */
+    void deleteSkill(String skillId);
+
+    /**
+     * Update/Register a full skill entity.
+     */
+    void updateSkill(KnowledgeSkill skill);
 }

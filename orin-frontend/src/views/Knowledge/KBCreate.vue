@@ -374,7 +374,8 @@ import {
   Close, Setting, CopyDocument, QuestionFilled, Cpu, Operation, View, Search,
   Loading, Connection, Right, Reading, Aim
 } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElNotification } from 'element-plus';
+import request from '@/utils/request';
 import { getModelList } from '@/api/model';
 
 const router = useRouter();
@@ -592,37 +593,56 @@ const startProcessing = () => {
     });
 };
 
-const saveKB = () => {
-    const local = localStorage.getItem('orin_mock_kbs');
-    let kbs = [];
-    try { kbs = JSON.parse(local) || []; } catch(e) {}
-    
-    const docCount = fileList.value.length;
-    const totalChunks = showPreview.value ? previewChunks.value.length : docCount * 8; 
-    const newId = `kb-${Date.now()}`;
-    const nowStr = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
-      
-    const newDocs = fileList.value.map((f, index) => ({
-         id: `doc-${Date.now()}-${index}`,
-         name: f.name,
-         mode: form.segmentMode === 'general' ? '自动' : '自定义', 
-         wordCount: Math.floor(Math.random() * 5000) + 500,
-         hitCount: 0,
-         uploadTime: nowStr,
-         enabled: true,
-         status: 'available'
-    }));
+const saveKB = async () => {
+    try {
+        // Prepare creating status for UI
+        isFinished.value = false;
+        
+        const payload = {
+            name: kbName.value || '未命名知识库',
+            description: form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index',
+            type: 'UNSTRUCTURED',
+            status: 'ENABLED'
+        };
 
-    localStorage.setItem(`orin_mock_docs_${newId}`, JSON.stringify(newDocs));
-    kbs.push({
-         id: newId,
-         name: kbName.value || 'Untitled Knowledge Base',
-         description: form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index',
-         type: 'UNSTRUCTURED',
-         status: 'ENABLED',
-         stats: { documentCount: docCount, chunkCount: totalChunks }
-    });
-    localStorage.setItem('orin_mock_kbs', JSON.stringify(kbs));
+        // 1. Create Knowledge Base via API
+        const kb = await request.post('/knowledge', payload);
+        const newKbId = kb.id;
+
+        // 2. Upload files if any
+        if (fileList.value.length > 0) {
+            for (let i = 0; i < fileList.value.length; i++) {
+                const f = fileList.value[i];
+                const formData = new FormData();
+                formData.append('file', f.rawFile);
+                
+                try {
+                    const doc = await request.post(`/knowledge/${newKbId}/documents/upload`, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    
+                    // Trigger vectorization right away
+                    await request.post(`/knowledge/documents/${doc.id}/vectorize`);
+                    
+                    creatingFiles.value[i].progress = 100;
+                } catch (uploadErr) {
+                    console.error(`Failed to upload ${f.name}:`, uploadErr);
+                    ElNotification({
+                        title: '上传失败',
+                        message: `文件 ${f.name} 上传失败，请稍后手动重试。`,
+                        type: 'error'
+                    });
+                }
+            }
+        }
+
+        isFinished.value = true;
+        ElMessage.success('知识库创建成功');
+    } catch (err) {
+        console.error('Failed to create KB:', err);
+        ElMessage.error('创建知识库失败: ' + (err.response?.data?.message || err.message));
+        isFinished.value = true;
+    }
 };
 
 const handleGoToDocument = () => {

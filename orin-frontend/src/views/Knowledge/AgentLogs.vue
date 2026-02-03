@@ -127,7 +127,16 @@ const fetchLogs = async () => {
 
 const formatDateTime = (val) => {
   if (!val) return '-';
-  const d = new Date(val);
+  
+  // Handle Array format [yyyy, MM, dd, HH, mm, ss]
+  if (Array.isArray(val)) {
+    return new Date(val[0], val[1] - 1, val[2], val[3] || 0, val[4] || 0, val[5] || 0).toLocaleString();
+  }
+
+  // Handle space separator for Safari compatibility
+  const dateStr = String(val).replace(' ', 'T');
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleString();
 };
 

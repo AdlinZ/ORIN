@@ -270,6 +270,16 @@ public class SiliconFlowIntegrationService {
     public Optional<Object> sendMessageWithFullParams(String url, String apiKey, String model,
             List<Map<String, Object>> messages,
             double temperature, double topP, int maxTokens) {
+        return sendMessageWithFullParams(url, apiKey, model, messages, temperature, topP, maxTokens, null, null);
+    }
+
+    /**
+     * 使用完整参数向硅基流动API发送消息 (支持深度思考)
+     */
+    public Optional<Object> sendMessageWithFullParams(String url, String apiKey, String model,
+            List<Map<String, Object>> messages,
+            double temperature, double topP, int maxTokens,
+            Boolean enableThinking, Integer thinkingBudget) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(apiKey);
@@ -281,6 +291,14 @@ public class SiliconFlowIntegrationService {
             requestBody.put("temperature", temperature);
             requestBody.put("top_p", topP);
             requestBody.put("max_tokens", maxTokens);
+
+            // Add thinking parameters if enabled (for DeepSeek R1, etc.)
+            if (enableThinking != null && enableThinking) {
+                requestBody.put("enable_thinking", true);
+                if (thinkingBudget != null && thinkingBudget > 0) {
+                    requestBody.put("thinking_budget", thinkingBudget);
+                }
+            }
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 

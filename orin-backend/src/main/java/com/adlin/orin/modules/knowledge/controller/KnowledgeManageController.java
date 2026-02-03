@@ -34,7 +34,7 @@ public class KnowledgeManageController {
 
     @Operation(summary = "获取所有知识库列表")
     @GetMapping("/list")
-    public List<KnowledgeBase> getAllKnowledgeBases() {
+    public List<UnifiedKnowledgeDTO> getAllKnowledgeBases() {
         return knowledgeManageService.getAllKnowledgeBases();
     }
 
@@ -81,6 +81,19 @@ public class KnowledgeManageController {
     @PostMapping
     public KnowledgeBase createKnowledgeBase(@RequestBody com.adlin.orin.modules.knowledge.entity.KnowledgeBase kb) {
         return knowledgeManageService.createKnowledgeBase(kb);
+    }
+
+    @Operation(summary = "更新知识库基础信息")
+    @PutMapping("/{kbId}")
+    public KnowledgeBase updateKnowledgeBase(@PathVariable String kbId, @RequestBody KnowledgeBase kb) {
+        return knowledgeManageService.updateKnowledgeBase(kbId, kb);
+    }
+
+    @Operation(summary = "删除知识库")
+    @DeleteMapping("/{kbId}")
+    public Map<String, String> deleteKnowledgeBase(@PathVariable String kbId) {
+        knowledgeManageService.deleteKnowledgeBase(kbId);
+        return Map.of("status", "success", "message", "Knowledge Base deleted successfully");
     }
 
     // ==================== 文档管理 API ====================
@@ -151,11 +164,10 @@ public class KnowledgeManageController {
 
     @Operation(summary = "获取文档的分片详情")
     @GetMapping("/documents/{docId}/chunks")
-    public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.DocumentChunk> getDocumentChunks(
+    public List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> getDocumentChunks(
             @PathVariable String docId) {
-        // Assume default collection or look up based on doc's KB
-        // For simplicity, using a default name or derived from logic
-        String collectionName = "default";
+        KnowledgeDocument doc = documentManageService.getDocument(docId);
+        String collectionName = "kb_" + doc.getKnowledgeBaseId();
         return knowledgeManageService.getDocumentChunks(collectionName, docId);
     }
 

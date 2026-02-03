@@ -273,4 +273,17 @@ public class AuditLogService {
         java.util.Collections.reverse(logs);
         return logs;
     }
+
+    /**
+     * Get recent N logs for a specific conversation ID
+     */
+    public java.util.List<AuditLog> getRecentConversationLogs(String conversationId, int limit) {
+        Page<AuditLog> page = auditLogRepository.findByConversationIdOrderByCreatedAtDesc(
+                conversationId,
+                org.springframework.data.domain.PageRequest.of(0, limit));
+
+        java.util.List<AuditLog> logs = new java.util.ArrayList<>(page.getContent());
+        java.util.Collections.reverse(logs);
+        return logs;
+    }
 }

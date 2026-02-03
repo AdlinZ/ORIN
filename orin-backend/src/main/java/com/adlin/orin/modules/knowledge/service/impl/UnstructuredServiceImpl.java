@@ -1,7 +1,6 @@
 package com.adlin.orin.modules.knowledge.service.impl;
 
 import com.adlin.orin.common.service.FileStorageService;
-import com.adlin.orin.modules.knowledge.component.MilvusVectorStoreProvider;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
@@ -93,30 +92,30 @@ public class UnstructuredServiceImpl implements UnstructuredService {
             // Simple chunking (e.g., every 500 chars)
             int chunkSize = 500;
             int length = content.length();
-            int chunks = 0;
+            java.util.List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks_list = new java.util.ArrayList<>();
 
             // Limit content preview
             doc.setContentPreview(content.substring(0, Math.min(length, 200)));
 
-            // Simulate Embedding & Upserting to VectorStore
             for (int i = 0; i < length; i += chunkSize) {
-                String chunk = content.substring(i, Math.min(length, i + chunkSize));
-                // Call provider to insert chunk
-                // Assuming provider impl handles collection creation lazy
-                if (vectorStoreProvider instanceof MilvusVectorStoreProvider milvusProvider) {
-                    milvusProvider.insertChunk(doc.getId(), chunk, "kb_" + doc.getKnowledgeBaseId());
-                } else {
-                    log.warn("Vector provider does not support direct chunk insertion or is not Milvus");
-                }
-                chunks++;
+                String chunkContent = content.substring(i, Math.min(length, i + chunkSize));
+                chunks_list.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
+                        .documentId(doc.getId())
+                        .content(chunkContent)
+                        .charCount(chunkContent.length())
+                        .chunkIndex(chunks_list.size())
+                        .build());
             }
 
+            // Call provider to insert chunks
+            vectorStoreProvider.addChunks(doc.getKnowledgeBaseId(), chunks_list);
+
             doc.setVectorStatus("COMPLETED");
-            doc.setChunkCount(chunks);
+            doc.setChunkCount(chunks_list.size());
             doc.setCharCount(length);
             documentRepository.save(doc);
 
-            log.info("Document processed successfully: {}. Chunks: {}", doc.getFileName(), chunks);
+            log.info("Document processed successfully: {}. Chunks: {}", doc.getFileName(), chunks_list.size());
 
         } catch (Exception e) {
             log.error("Failed to process document: {}", e.getMessage(), e);

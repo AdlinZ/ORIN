@@ -31,6 +31,12 @@ public class PromptTemplate {
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "user_id")
+    private String userId;
+
+    @Column(name = "description", length = 500)
+    private String description;
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

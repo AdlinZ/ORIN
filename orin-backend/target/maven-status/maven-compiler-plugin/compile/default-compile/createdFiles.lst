@@ -145,6 +145,7 @@ com/adlin/orin/modules/knowledge/event/TaskCreatedEvent.class
 com/adlin/orin/modules/workflow/engine/handler/NodeHandler$NodeExecutionResult.class
 com/adlin/orin/modules/knowledge/dto/KnowledgeBaseCreateRequest.class
 com/adlin/orin/modules/multimodal/entity/MultimodalFile.class
+com/adlin/orin/modules/knowledge/controller/IntelligenceCenterController.class
 com/adlin/orin/modules/agent/service/ZhipuAgentManageService.class
 com/adlin/orin/modules/knowledge/component/VectorStoreProvider.class
 com/adlin/orin/modules/knowledge/entity/meta/PromptTemplate$PromptTemplateBuilder.class

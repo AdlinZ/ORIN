@@ -500,17 +500,26 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     private java.util.Optional<Object> chatWithSiliconFlow(AgentAccessProfile profile, AgentMetadata metadata,
-            String message, String fileId) {
+            String message, String fileId, String overrideSystemPrompt, String conversationId,
+            Boolean enableThinking, Integer thinkingBudget) {
 
         java.util.List<java.util.Map<String, Object>> messages = new java.util.ArrayList<>();
 
         // 1. Dynamic System Prompt Assembly (Includes Memory)
-        String dynamicSystemPrompt = metaKnowledgeService.assembleSystemPrompt(metadata.getAgentId());
+        String dynamicSystemPrompt;
 
-        // Fallback to static if dynamic is empty
-        if (dynamicSystemPrompt.trim().isEmpty()) {
-            if (metadata.getSystemPrompt() != null && !metadata.getSystemPrompt().isEmpty()) {
-                dynamicSystemPrompt = metadata.getSystemPrompt();
+        if (overrideSystemPrompt != null && !overrideSystemPrompt.trim().isEmpty()) {
+            // Using Override Prompt for Sandbox testing
+            dynamicSystemPrompt = overrideSystemPrompt;
+        } else {
+            // Normal flow: Assemble from DB
+            dynamicSystemPrompt = metaKnowledgeService.assembleSystemPrompt(metadata.getAgentId());
+
+            // Fallback to static if dynamic is empty
+            if (dynamicSystemPrompt.trim().isEmpty()) {
+                if (metadata.getSystemPrompt() != null && !metadata.getSystemPrompt().isEmpty()) {
+                    dynamicSystemPrompt = metadata.getSystemPrompt();
+                }
             }
         }
 
@@ -519,9 +528,15 @@ public class AgentManageServiceImpl implements AgentManageService {
         }
 
         // 1.5. Add Short-term History (Context Window)
-        // Retrieve last 10 messages for this agent to provide context
+        // Retrieve last 10 messages for this agent AND conversation to provide context
         try {
-            java.util.List<AuditLog> historyLogs = auditLogService.getRecentAgentLogs(metadata.getAgentId(), 10);
+            java.util.List<AuditLog> historyLogs;
+            if (conversationId != null && !conversationId.isEmpty()) {
+                historyLogs = auditLogService.getRecentConversationLogs(conversationId, 10);
+            } else {
+                historyLogs = auditLogService.getRecentAgentLogs(metadata.getAgentId(), 10);
+            }
+
             for (AuditLog logItem : historyLogs) {
                 // Add User Question
                 if (logItem.getRequestParams() != null && !logItem.getRequestParams().isEmpty()) {
@@ -558,7 +573,9 @@ public class AgentManageServiceImpl implements AgentManageService {
                 messages,
                 temperature,
                 topP,
-                maxTokens);
+                maxTokens,
+                enableThinking,
+                thinkingBudget);
     }
 
     /**
@@ -754,9 +771,25 @@ public class AgentManageServiceImpl implements AgentManageService {
 
     @Override
     public java.util.Optional<Object> chat(String agentId, String message, String fileId) {
-        // Generate a new conversation ID for this chat session
-        String conversationId = UUID.randomUUID().toString();
-        return chatWithConversation(agentId, message, fileId, conversationId);
+        return chat(agentId, message, fileId, null);
+    }
+
+    @Override
+    public java.util.Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt,
+            String conversationId) {
+        return chat(agentId, message, fileId, overrideSystemPrompt, conversationId, null, null);
+    }
+
+    @Override
+    public java.util.Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt,
+            String conversationId, Boolean enableThinking, Integer thinkingBudget) {
+        // Use provided conversation ID or generate a new one
+        String effectiveConversationId = (conversationId != null && !conversationId.isEmpty())
+                ? conversationId
+                : UUID.randomUUID().toString();
+
+        return chatWithConversation(agentId, message, fileId, effectiveConversationId, overrideSystemPrompt,
+                enableThinking, thinkingBudget);
     }
 
     /**
@@ -764,7 +797,18 @@ public class AgentManageServiceImpl implements AgentManageService {
      */
     public java.util.Optional<Object> chatWithConversation(String agentId, String message, String fileId,
             String conversationId) {
-        log.info("Chatting with agent: {} (conversationId: {}, fileId: {})", agentId, conversationId, fileId);
+        return chatWithConversation(agentId, message, fileId, conversationId, null, null, null);
+    }
+
+    public java.util.Optional<Object> chatWithConversation(String agentId, String message, String fileId,
+            String conversationId, String overrideSystemPrompt) {
+        return chatWithConversation(agentId, message, fileId, conversationId, overrideSystemPrompt, null, null);
+    }
+
+    public java.util.Optional<Object> chatWithConversation(String agentId, String message, String fileId,
+            String conversationId, String overrideSystemPrompt, Boolean enableThinking, Integer thinkingBudget) {
+        log.info("Chatting with agent: {} (conversationId: {}, fileId: {}, hasOverride: {}, thinking: {})",
+                agentId, conversationId, fileId, overrideSystemPrompt != null, enableThinking);
 
         AgentAccessProfile profile = accessProfileRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
@@ -804,7 +848,8 @@ public class AgentManageServiceImpl implements AgentManageService {
                 response = generateVideoWithSiliconFlow(profile, metadata, message);
             } else {
                 // 默认聊天类型
-                response = chatWithSiliconFlow(profile, metadata, message, fileId);
+                response = chatWithSiliconFlow(profile, metadata, message, fileId, overrideSystemPrompt,
+                        conversationId, enableThinking, thinkingBudget);
             }
 
             if (response.isPresent()) {
@@ -872,6 +917,13 @@ public class AgentManageServiceImpl implements AgentManageService {
             try {
                 long duration = System.currentTimeMillis() - startTime;
                 String provider = metadata.getProviderType();
+
+                // Include system prompt override in logged message for visibility
+                String loggedMessage = message;
+                if (overrideSystemPrompt != null && !overrideSystemPrompt.trim().isEmpty()) {
+                    loggedMessage = "[System Prompt Override: " + overrideSystemPrompt + "] " + message;
+                }
+
                 auditLogService.logApiCall(
                         "admin",
                         profile.getApiKey(),
@@ -882,7 +934,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                         metadata.getModelName(),
                         "127.0.0.1",
                         "ORIN-Backend",
-                        message,
+                        loggedMessage,
                         responseContent,
                         statusCode,
                         duration,
@@ -1020,7 +1072,7 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         // ... (Call chatWithSiliconFlow) ...
         // Simplification: just call the existing private method
-        return chatWithSiliconFlow(profile, metadata, fileNote + message, fileUrl);
+        return chatWithSiliconFlow(profile, metadata, fileNote + message, fileUrl, null, conversationId, null, null);
     }
 
     @Override

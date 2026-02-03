@@ -228,12 +228,12 @@
           <div class="log-stream" v-if="logsExpanded">
             <template v-for="(log, index) in logs" :key="index">
               <div class="log-entry" :class="log.type">
-                <span class="log-time">{{ new Date(log.timestamp).toLocaleTimeString() }}</span>
+                <span class="log-time">{{ formatTime(log.timestamp) }}</span>
                 <span class="log-tag">[{{ log.type }}]</span>
                 <span class="log-msg"><span class="prefix req">REQ:</span> {{ log.content }}</span>
               </div>
               <div v-if="log.response" class="log-entry resp" :class="log.type">
-                <span class="log-time" style="visibility: hidden">{{ new Date(log.timestamp).toLocaleTimeString() }}</span>
+                <span class="log-time" style="visibility: hidden">{{ formatTime(log.timestamp) }}</span>
                 <span class="log-tag" style="visibility: hidden">[{{ log.type }}]</span>
                 <span class="log-msg"><span class="prefix res">RES:</span> {{ log.response }}</span>
               </div>
@@ -253,7 +253,7 @@
            <div class="empty-history" v-if="!logs || logs.length === 0">暂无历史记录</div>
            <div v-else class="history-list">
               <div v-for="(log, idx) in logs" :key="idx" class="history-item" @click="restoreHistory(log)">
-                  <div class="h-time">{{ new Date(log.timestamp).toLocaleTimeString() }}</div>
+                  <div class="h-time">{{ formatTime(log.timestamp) }}</div>
                   <div class="h-preview">{{ log.content }}</div>
                   <el-tag size="small" v-if="log.type" class="h-tag">{{ log.type }}</el-tag>
               </div>
@@ -361,7 +361,21 @@ const promptTemplates = ref([]);
 const selectedPromptTemplate = ref('');
 
 // Runner Logic
-const currentMode = ref('chat');
+// Initialize currentMode from tab parameter IMMEDIATELY (before activeRunner computed runs)
+const initMode = (() => {
+  if (route.query.tab) {
+    const tab = route.query.tab.toLowerCase();
+    console.log('[AgentConsole] Initializing mode from tab parameter:', tab);
+    if (tab === 'image') return 'image';
+    if (tab === 'stt' || tab === 'audio') return 'stt';
+    if (tab === 'tts') return 'tts';
+    if (tab === 'video') return 'video';
+    if (tab === 'workflow') return 'workflow';
+  }
+  return 'chat'; // default
+})();
+
+const currentMode = ref(initMode);
 
 // 动态参数 - 包含当前 editForm 的值
 const currentParameters = computed(() => {
@@ -422,22 +436,60 @@ const isTTVAgent = computed(() => {
 });
 
 const activeRunner = computed(() => {
-  // Check Mode first (manually set or query)
-  if (currentMode.value === 'tts') return AudioGenerator;
-  if (currentMode.value === 'stt') return AudioTranscriber;
-  if (currentMode.value === 'image') return ImageGenerator;
-  if (currentMode.value === 'video') return VideoGenerator;
-
-  // Check View Type next
-  const viewType = (agentInfo.value.viewType || '').toUpperCase();
-  if (viewType === 'STT' || viewType === 'SPEECH_TO_TEXT') return AudioTranscriber;
-  if (viewType === 'TTS' || viewType === 'TEXT_TO_SPEECH') return AudioGenerator;
-  if (viewType === 'TEXT_TO_IMAGE' || viewType === 'IMAGE_TO_IMAGE' || viewType === 'TTI') return ImageGenerator;
-  if (viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV' || viewType === 'VIDEO') return VideoGenerator;
+  console.log('[ActiveRunner] Determining component:', {
+    currentMode: currentMode.value,
+    viewType: agentInfo.value.viewType,
+    agentInfo: agentInfo.value
+  });
   
-  // Fallback to Mode
-  if (currentMode.value === 'workflow') return WorkflowRunner;
-  if (currentMode.value === 'completion') return CompletionRunner;
+  // Check Mode FIRST (from tab parameter or manual selection)
+  // This allows URL-based navigation to override viewType
+  if (currentMode.value === 'tts') {
+    console.log('[ActiveRunner] → AudioGenerator (TTS from mode)');
+    return AudioGenerator;
+  }
+  if (currentMode.value === 'stt') {
+    console.log('[ActiveRunner] → AudioTranscriber (STT from mode)');
+    return AudioTranscriber;
+  }
+  if (currentMode.value === 'image') {
+    console.log('[ActiveRunner] → ImageGenerator (from mode)');
+    return ImageGenerator;
+  }
+  if (currentMode.value === 'video') {
+    console.log('[ActiveRunner] → VideoGenerator (from mode)');
+    return VideoGenerator;
+  }
+  if (currentMode.value === 'workflow') {
+    console.log('[ActiveRunner] → WorkflowRunner (from mode)');
+    return WorkflowRunner;
+  }
+  if (currentMode.value === 'completion') {
+    console.log('[ActiveRunner] → CompletionRunner (from mode)');
+    return CompletionRunner;
+  }
+  
+  // Then check View Type (from agent metadata) as fallback
+  const viewType = (agentInfo.value.viewType || '').toUpperCase();
+  if (viewType === 'STT' || viewType === 'SPEECH_TO_TEXT') {
+    console.log('[ActiveRunner] → AudioTranscriber (STT from viewType)');
+    return AudioTranscriber;
+  }
+  if (viewType === 'TTS' || viewType === 'TEXT_TO_SPEECH') {
+    console.log('[ActiveRunner] → AudioGenerator (TTS from viewType)');
+    return AudioGenerator;
+  }
+  if (viewType === 'TEXT_TO_IMAGE' || viewType === 'IMAGE_TO_IMAGE' || viewType === 'TTI') {
+    console.log('[ActiveRunner] → ImageGenerator (from viewType)');
+    return ImageGenerator;
+  }
+  if (viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV' || viewType === 'VIDEO') {
+    console.log('[ActiveRunner] → VideoGenerator (from viewType)');
+    return VideoGenerator;
+  }
+  
+  // Default to ChatWindow
+  console.log('[ActiveRunner] → ChatWindow (default)');
   return ChatWindow;
 });
 
@@ -490,24 +542,22 @@ const fetchData = async () => {
       if (metaRes.viewType) {
          agentInfo.value = { ...agentInfo.value, viewType: metaRes.viewType, providerType: metaRes.providerType };
       }
+      
+      // Debug: Log the viewType to help diagnose routing issues
+      console.log('[AgentConsole] Agent loaded:', {
+        agentId,
+        viewType: agentInfo.value.viewType,
+        currentMode: currentMode.value,
+        activeRunner: activeRunner.value?.$options?.name || activeRunner.value?.name || 'Unknown'
+      });
     }
     promptTemplates.value = promptRes || [];
 
     // fetchMetrics(); // Metrics now handled by ChatWindow (or we can keep it here for logs?)
-    // Logs are shared, metrics are mode-specific (Chat mostly). 
     // AgentConsole logic cleanup: We don't need fetchMetrics here unless we show global stats.
     // For now we removed the global monitor bar in favor of component-specific bars.
     
     fetchLogs();
-    
-    // Handle tab query parameter from routing
-    if (route.query.tab) {
-      const tab = route.query.tab.toLowerCase();
-      if (tab === 'image') currentMode.value = 'image';
-      if (tab === 'audio') currentMode.value = 'stt';
-      if (tab === 'tts') currentMode.value = 'tts';
-      if (tab === 'workflow') currentMode.value = 'workflow';
-    }
   } catch (error) {
     ElMessage.error('加载智能体数据失败');
   } finally {
@@ -602,6 +652,21 @@ const getProviderColor = (p) => {
     if (p.toLowerCase().includes('silicon')) return '#fb923c';
     if (p.toLowerCase().includes('dify')) return '#155eef';
     return '#666';
+};
+
+const formatTime = (ts) => {
+  if (!ts) return '-';
+  
+  // Handle Array format [yyyy, MM, dd, HH, mm, ss]
+  if (Array.isArray(ts)) {
+    return new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0).toLocaleTimeString();
+  }
+
+  // Handle String format
+  const dateStr = String(ts).replace(' ', 'T');
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleTimeString();
 };
 
 const getViewTagType = (v) => {

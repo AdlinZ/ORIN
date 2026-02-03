@@ -159,7 +159,7 @@
         
         <el-table-column prop="createTime" label="创建时间" width="160" align="center">
            <template #default="{ row }">
-             {{ new Date(row.createTime).toLocaleDateString() }}
+             {{ formatTime(row.createTime) }}
            </template>
         </el-table-column>
         
@@ -695,6 +695,22 @@ const formatModelType = (type) => {
     'TEXT_TO_SPEECH': '文字转语音'
   };
   return map[type] || type;
+};
+
+const formatTime = (ts) => {
+  if (!ts) return '-';
+  
+  // Handle Array format [yyyy, MM, dd, HH, mm, ss]
+  if (Array.isArray(ts)) {
+    // Note: Month in JS Date is 0-indexed
+    return new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0).toLocaleString();
+  }
+
+  // Handle String format
+  const dateStr = String(ts).replace(' ', 'T');
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleString();
 };
 
 onMounted(() => {

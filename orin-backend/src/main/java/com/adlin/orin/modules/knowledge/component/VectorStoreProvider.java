@@ -11,9 +11,19 @@ public interface VectorStoreProvider {
     void addDocuments(String collectionName, List<KnowledgeDocument> documents);
 
     /**
+     * Add document chunks to the vector store
+     */
+    void addChunks(String kbId, List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks);
+
+    /**
      * Delete documents from the vector store
      */
     void deleteDocuments(String collectionName, List<String> docIds);
+
+    /**
+     * Delete an entire knowledge base (e.g. drop collection or partition)
+     */
+    void deleteKnowledgeBase(String kbId);
 
     /**
      * Search for similar documents

@@ -213,6 +213,29 @@
                    <p class="input-desc">用于将文本转化为向量（Embedding），推荐 BGE-M3 (支持多语言)</p>
                 </el-form-item>
               </el-col>
+
+               <el-col :span="24">
+                 <el-form-item label="System AI Model (系统评估模型)" prop="systemModel">
+                  <el-select 
+                    v-model="form.systemModel" 
+                    placeholder="选择用于 System AI 评估的后台模型" 
+                    filterable 
+                    clearable
+                    style="width: 100%"
+                    :loading="modelsLoading"
+                    @visible-change="loadModels"
+                  >
+                     <el-option
+                        v-for="item in chatModelOptions"
+                        :key="item.id"
+                        :label="item.name || item.id"
+                        :value="item.id"
+                    />
+                  </el-select>
+                   <p class="input-desc">指定 System AI (右上角入口) 所使用的底层模型，留空则默认自动选择。</p>
+                </el-form-item>
+              </el-col>
+
                <el-col :span="24">
                 <el-form-item label="自动化策略" prop="autoAnalysisEnabled">
                   <el-switch 
@@ -331,6 +354,7 @@ const initialForm = ref({});
 const modelsLoading = ref(false);
 const vlmOptions = ref([]);
 const embedOptions = ref([]);
+const chatModelOptions = ref([]);
 
 const form = reactive({
   baseUrl: '',
@@ -349,6 +373,7 @@ const form = reactive({
   siliconFlowModel: 'Qwen/Qwen2-7B-Instruct',
   vlmModel: '',
   embeddingModel: '',
+  systemModel: '',
   autoAnalysisEnabled: true
 });
 
@@ -375,7 +400,7 @@ const rules = {
 import { getModelList } from '@/api/model';
 
 const loadModels = async () => {
-  if (vlmOptions.value.length > 0) return; // Cached
+  if (chatModelOptions.value.length > 0) return; // Cached
 
   modelsLoading.value = true;
   try {
@@ -391,6 +416,11 @@ const loadModels = async () => {
 
       embedOptions.value = res.filter(m => 
         m.type === 'EMBEDDING' && 
+        m.status === 'ENABLED'
+      ).map(m => ({ id: m.modelId, name: `${m.name} (${m.provider})` }));
+
+      chatModelOptions.value = res.filter(m =>
+        (m.type === 'CHAT' || m.type === 'LLM') &&
         m.status === 'ENABLED'
       ).map(m => ({ id: m.modelId, name: `${m.name} (${m.provider})` }));
       

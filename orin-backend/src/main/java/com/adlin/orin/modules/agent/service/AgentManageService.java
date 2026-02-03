@@ -49,6 +49,36 @@ public interface AgentManageService {
     java.util.Optional<Object> chat(String agentId, String message, String fileId);
 
     /**
+     * 与智能体对话 (支持覆盖系统提示词)
+     *
+     * @param agentId              智能体ID
+     * @param message              用户消息
+     * @param fileId               上传的文件ID (可选)
+     * @param overrideSystemPrompt 覆盖的系统提示词 (用于Sandbox测试)
+     * @return 响应内容
+     */
+    default java.util.Optional<Object> chat(String agentId, String message, String fileId,
+            String overrideSystemPrompt) {
+        return chat(agentId, message, fileId, overrideSystemPrompt, null);
+    }
+
+    /**
+     * 与智能体对话 (支持覆盖系统提示词和会话ID)
+     */
+    default java.util.Optional<Object> chat(String agentId, String message, String fileId,
+            String overrideSystemPrompt, String conversationId) {
+        return chat(agentId, message, fileId, overrideSystemPrompt, conversationId, null, null);
+    }
+
+    /**
+     * 与智能体对话 (完整参数版本，支持深度思考)
+     */
+    default java.util.Optional<Object> chat(String agentId, String message, String fileId,
+            String overrideSystemPrompt, String conversationId, Boolean enableThinking, Integer thinkingBudget) {
+        return chat(agentId, message, fileId);
+    }
+
+    /**
      * 获取所有已纳管的智能体
      */
     List<AgentMetadata> getAllAgents();

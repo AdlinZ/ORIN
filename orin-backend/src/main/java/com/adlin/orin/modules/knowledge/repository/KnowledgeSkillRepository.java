@@ -9,4 +9,6 @@ public interface KnowledgeSkillRepository extends JpaRepository<KnowledgeSkill, 
     List<KnowledgeSkill> findByAgentId(String agentId);
 
     Optional<KnowledgeSkill> findByAgentIdAndTriggerName(String agentId, String triggerName);
+
+    void deleteByAgentId(String agentId);
 }

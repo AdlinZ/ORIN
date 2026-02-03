@@ -96,3 +96,7 @@ export const savePricingConfig = (data) => {
 export const deletePricingConfig = (id) => {
     return request.delete(`/pricing/config/${id}`);
 };
+
+export const getServerHardware = () => {
+    return request.get('/monitor/server-hardware');
+};

@@ -12,15 +12,23 @@
         <!-- Tab 1: Long-term Memory -->
         <el-tab-pane label="长期记忆 (Memory)" name="memory">
           <div class="tab-pane-content">
-            <div class="toolbar">
-                <el-input 
-                  v-model="memorySearch" 
-                  placeholder="搜索记忆片段..." 
-                  prefix-icon="Search" 
-                  style="width: 300px" 
-                />
-                <el-button type="primary" :icon="Plus" @click="openAddMemory">新增记忆</el-button>
-            </div>
+                <el-select v-model="selectedAgentId" placeholder="选择智能体" style="width: 250px" @change="loadAllData">
+                    <el-option v-for="agent in agentOptions" :key="agent.agentId" :label="agent.name" :value="agent.agentId">
+                        <div style="display: flex; align-items: center; gap: 8px">
+                            <span v-if="agent.icon">{{ agent.icon }}</span>
+                            <span>{{ agent.name }}</span>
+                        </div>
+                    </el-option>
+                </el-select>
+                <div class="right-tools">
+                    <el-input 
+                    v-model="memorySearch" 
+                    placeholder="搜索记忆片段..." 
+                    prefix-icon="Search" 
+                    style="width: 250px; margin-right: 15px;" 
+                    />
+                    <el-button type="primary" :icon="Plus" @click="openAddMemory">新增记忆</el-button>
+                </div>
 
             <!-- Vertical Timeline View -->
             <div class="memory-timeline-view">
@@ -109,23 +117,53 @@
         </el-tab-pane>
 
         <!-- Tab 3: Prompt Versioning -->
-        <el-tab-pane label="Prompt 版本管理" name="prompts">
+        <el-tab-pane label="Prompt 编排与管理" name="prompts">
             <div class="prompt-container">
+                <!-- Left Sidebar: Prompt List -->
+                <div class="prompt-list-sidebar">
+                    <div class="sidebar-header">
+                        <span>Prompt 列表</span>
+                        <el-button type="primary" link :icon="Plus" @click="createNewPrompt">新建</el-button>
+                    </div>
+                    <div class="prompt-list">
+                        <div 
+                            v-for="p in promptList" 
+                            :key="p.id" 
+                            class="prompt-item"
+                            :class="{ active: currentPrompt && currentPrompt.id === p.id }"
+                            @click="selectPrompt(p)"
+                        >
+                            <div class="prompt-item-header">
+                                <span class="prompt-name">{{ p.name || '未命名 Prompt' }}</span>
+                                <el-tag size="small" v-if="p.userId === userStore.userId">Private</el-tag>
+                                <el-tag size="small" type="info" v-else>System</el-tag>
+                            </div>
+                            <div class="prompt-desc">{{ p.description || '暂无描述' }}</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Main Editor Area -->
-                <div class="prompt-editor-area">
+                <div class="prompt-editor-area" v-if="currentPrompt">
                     <div class="editor-header">
-                        <span>System Prompt (v2.1)</span>
+                        <div class="header-inputs">
+                             <el-input v-model="currentPrompt.name" placeholder="Prompt 名称" style="width: 200px; margin-right: 10px;" />
+                             <el-input v-model="currentPrompt.description" placeholder="用途描述" style="width: 300px;" />
+                        </div>
                         <div class="editor-actions">
-                             <el-switch v-model="showDiff" active-text="Show Diff" />
-                             <el-button type="primary" size="small" @click="savePrompt">Save Version</el-button>
+                             <el-button type="danger" link :icon="Delete" @click="deletePrompt" v-if="currentPrompt.id">删除</el-button>
+                             <el-button type="primary" size="small" @click="savePrompt">保存 Prompt</el-button>
                         </div>
                     </div>
                     <el-input 
-                        v-model="prompts.current" 
+                        v-model="currentPrompt.content" 
                         type="textarea" 
                         class="main-textarea"
                         placeholder="Enter system prompt..."
                     />
+                </div>
+                <div v-else class="empty-prompt">
+                    <el-empty description="请选择或创建一个 Prompt" />
                 </div>
 
                 <!-- Floating Diff Window (Right Side) -->
@@ -151,30 +189,6 @@
                     </div>
                 </transition>
 
-                <!-- Sandbox FAB -->
-                <div class="sandbox-fab" @click="toggleSandbox" title="试一试 (Sandbox)">
-                    <el-icon :size="24"><ChatLineRound /></el-icon>
-                </div>
-
-                <!-- Sandbox Chat Window -->
-                <transition name="pop-up">
-                    <div class="sandbox-window" v-if="showSandbox">
-                        <div class="sandbox-header">
-                            <span>Prompt Sandbox (Preview)</span>
-                            <el-icon @click="showSandbox = false" style="cursor:pointer"><Close /></el-icon>
-                        </div>
-                        <div class="sandbox-messages">
-                            <div class="msg ai">Hello! I am running with your UNSAVED prompt. How can I help?</div>
-                            <div class="msg user">Test command execution.</div>
-                            <div class="msg ai">I can verify that command. Please provide specific args...</div>
-                        </div>
-                        <div class="sandbox-input">
-                            <el-input placeholder="Type a message..." size="small">
-                                <template #append><el-button :icon="Position" /></template>
-                            </el-input>
-                        </div>
-                    </div>
-                </transition>
             </div>
         </el-tab-pane>
 
@@ -200,23 +214,63 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive, watch, onMounted } from 'vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { 
   Plus, Search, Check, CircleCheck, Warning, 
   Delete, Edit, ChatLineRound, Close, Position 
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useUserStore } from '@/stores/user';
+import { 
+    getMemories, saveMemory, deleteMemory as apiDeleteMemory,
+    getSkills, saveSkill as apiSaveSkill, deleteSkill as apiDeleteSkill,
+    getPrompts, savePrompt as apiSavePrompt, deletePrompt as apiDeletePrompt
+} from '@/api/knowledge';
+// chatAgent import removed as Sandbox is gone
 
+const userStore = useUserStore();
 const activeTab = ref('memory');
+const selectedAgentId = ref('');
+const agentOptions = ref([]);
+
+const loadAgents = async () => {
+    try {
+        const res = await getAgentList();
+        agentOptions.value = res.data || res;
+        if (agentOptions.value.length > 0) {
+            selectedAgentId.value = agentOptions.value[0].agentId;
+            loadAllData();
+        }
+    } catch (e) {
+        ElMessage.error('加载智能体列表失败');
+    }
+};
+
+const loadAllData = () => {
+    if (!selectedAgentId.value) return;
+    loadMemories();
+    loadSkills();
+    loadPrompts();
+};
+
+onMounted(() => {
+    loadAgents();
+});
 
 // --- Memory Logic ---
 const memorySearch = ref('');
-const memories = ref([
-    { memoryId: 'M001', key: 'user_profile', value: '用户是高级Java工程师，偏好Spring Boot架构', createdAt: '2026-01-20 10:00' },
-    { memoryId: 'M002', key: 'project_preference', value: '项目倾向于使用 DDD 领域驱动设计', createdAt: '2026-01-22 14:30' },
-    { memoryId: 'M003', key: 'ui_theme', value: '喜欢深色模式 (Dark Mode)', createdAt: '2026-01-25 09:15' }
-]);
+const memories = ref([]);
+
+const loadMemories = async () => {
+    if (!selectedAgentId.value) return;
+    try {
+        const res = await getMemories(selectedAgentId.value);
+        memories.value = res.data || res;
+    } catch (e) {
+        console.error(e);
+    }
+};
 
 const filteredMemories = computed(() => {
     if(!memorySearch.value) return memories.value;
@@ -241,27 +295,29 @@ const editMemory = (row) => {
     memoryDialog.visible = true;
 };
 
-const deleteMemory = (row) => {
-    // Already confirmed by popconfirm
-    memories.value = memories.value.filter(m => m.memoryId !== row.memoryId);
-    ElMessage.success('记忆已物理删除 (Forgotten)');
+const deleteMemory = async (row) => {
+    try {
+        await apiDeleteMemory(row.id || row.memoryId);
+        ElMessage.success('记忆已物理删除 (Forgotten)');
+        loadMemories();
+    } catch (e) {
+        ElMessage.error('删除失败');
+    }
 };
 
-const submitMemory = () => {
-    if(memoryDialog.isEdit) {
-        // Find and update
-        const idx = memories.value.findIndex(m => m.memoryId === memoryDialog.form.memoryId);
-        if(idx !== -1) memories.value[idx] = { ...memories.value[idx], ...memoryDialog.form };
-    } else {
-        memories.value.unshift({
-            memoryId: 'M' + Date.now(),
-            key: memoryDialog.form.key,
-            value: memoryDialog.form.value,
-            createdAt: new Date().toLocaleString()
-        });
+const submitMemory = async () => {
+    if (!selectedAgentId.value) {
+        ElMessage.warning('请先选择智能体');
+        return;
     }
-    memoryDialog.visible = false;
-    ElMessage.success('记忆已保存');
+    try {
+        await saveMemory(selectedAgentId.value, memoryDialog.form.key, memoryDialog.form.value);
+        memoryDialog.visible = false;
+        ElMessage.success('记忆已保存');
+        loadMemories();
+    } catch (e) {
+        ElMessage.error('保存失败');
+    }
 };
 
 const getMemoryType = (key) => {
@@ -277,10 +333,22 @@ const getMemoryColor = (key) => {
 };
 
 // --- Skills Logic ---
-const skills = ref([
-    { id: 'S1', name: 'google_search', type: 'tool', schema: '{\n  "type": "function",\n  "function": {\n    "name": "google_search",\n    "description": "Search query on Google",\n    "parameters": {\n      "type": "object",\n      "properties": {\n        "query": { "type": "string" }\n      }\n    }\n  }\n}' },
-    { id: 'S2', name: 'send_email', type: 'action', schema: '{\n  "type": "function",\n  "function": {\n    "name": "send_email",\n    "parameters": { ... }\n  }\n}' }
-]);
+const skills = ref([]);
+const loadSkills = async () => {
+    if (!selectedAgentId.value) return;
+    try {
+        const res = await getSkills(selectedAgentId.value);
+        const rawSkills = res.data || res;
+        // Transform backend definition (DSL) to schema for UI if needed, 
+        // but here we just use it as 'schema'
+        skills.value = rawSkills.map(s => ({
+            ...s,
+            schema: s.definition
+        }));
+    } catch (e) {
+        console.error(e);
+    }
+};
 const selectedSkill = ref(null);
 const jsonValid = ref(true);
 
@@ -308,43 +376,92 @@ watch(() => selectedSkill.value?.schema, () => {
     validateJson();
 });
 
-const saveSkill = () => {
+const saveSkill = async () => {
     if(!jsonValid.value) {
         ElMessage.error('JSON 格式错误，请修正后再保存');
         return;
     }
-    // Update list
-    const idx = skills.value.findIndex(s => s.id === selectedSkill.value.id);
-    if(idx !== -1) skills.value[idx] = { ...selectedSkill.value };
-    ElMessage.success('技能定义已保存');
+    try {
+        const payload = {
+            ...selectedSkill.value,
+            agentId: selectedAgentId.value,
+            definition: selectedSkill.value.schema,
+            triggerName: selectedSkill.value.name
+        };
+        await apiSaveSkill(payload);
+        ElMessage.success('技能定义已保存');
+        loadSkills();
+    } catch (e) {
+        ElMessage.error('保存失败');
+    }
 };
 
 // --- Prompt Logic ---
-const showDiff = ref(false);
 const showSandbox = ref(false);
-const vRight = ref('v1.9');
-const prompts = reactive({
-    current: `You are ORIN, an advanced AI Assistant.
-Your primary goal is to assist users with system operations.
-
-Rules:
-1. Be concise.
-2. Always output JSON for structured data.
-3. Verify actions before execution.`,
-    previous: `You are ORIN, an AI Assistant.
-Your goal is to help users.
-
-Rules:
-1. Be helpful.
-2. Verify actions.`
-});
+const promptList = ref([]);
+const currentPrompt = ref(null);
 
 const toggleSandbox = () => {
     showSandbox.value = !showSandbox.value;
 };
 
-const savePrompt = () => {
-    ElMessage.success('Prompt saved as new version v2.2');
+const loadPrompts = async () => {
+    if (!selectedAgentId.value) return;
+    try {
+        const res = await getPrompts(selectedAgentId.value, userStore.userId);
+        promptList.value = res.data || res;
+        
+        // Auto select first if available and nothing selected
+        if (promptList.value.length > 0 && !currentPrompt.value) {
+            currentPrompt.value = { ...promptList.value[0] };
+        }
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const selectPrompt = (p) => {
+    currentPrompt.value = { ...p };
+};
+
+const createNewPrompt = () => {
+    currentPrompt.value = {
+        agentId: selectedAgentId.value,
+        name: 'New Prompt',
+        description: '',
+        content: '',
+        type: 'INSTRUCTION',
+        userId: userStore.userId,
+        isActive: true
+    };
+};
+
+const savePrompt = async () => {
+    if (!currentPrompt.value) return;
+    try {
+        const payload = { ...currentPrompt.value };
+        // Ensure core fields
+        if (!payload.agentId) payload.agentId = selectedAgentId.value;
+        if (!payload.userId) payload.userId = userStore.userId;
+        
+        await apiSavePrompt(payload);
+        ElMessage.success('Prompt saved');
+        loadPrompts();
+    } catch (e) {
+        ElMessage.error('保存失败');
+    }
+};
+
+const deletePrompt = async () => {
+    if (!currentPrompt.value || !currentPrompt.value.id) return;
+    try {
+        await apiDeletePrompt(currentPrompt.value.id);
+        ElMessage.success('已删除');
+        currentPrompt.value = null;
+        loadPrompts();
+    } catch(e) {
+        ElMessage.error('删除失败');
+    }
 };
 
 </script>
@@ -496,9 +613,49 @@ const savePrompt = () => {
 .prompt-container {
     height: 100%;
     display: flex;
-    position: relative;
     overflow: hidden;
+    position: relative;
 }
+
+.prompt-list-sidebar {
+    width: 280px;
+    border-right: 1px solid #ebeef5;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid #ebeef5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+}
+
+.prompt-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.prompt-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f2f5;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.prompt-item:hover { background: #f0f2f5; }
+.prompt-item.active { background: white; border-left: 3px solid var(--primary-color); }
+
+.prompt-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.prompt-name { font-weight: 500; font-size: 14px; color: #303133; }
+.prompt-desc { font-size: 12px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .prompt-editor-area {
     flex: 1;
@@ -512,7 +669,12 @@ const savePrompt = () => {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
-    font-weight: 600;
+}
+
+.header-inputs {
+    display: flex;
+    gap: 10px;
+    flex: 1;
 }
 
 .editor-actions {
@@ -528,85 +690,10 @@ const savePrompt = () => {
     line-height: 1.6;
 }
 
-/* Floating Diff Sidebar */
-.diff-sidebar {
-    width: 350px;
-    background: white;
-    box-shadow: -5px 0 20px rgba(0,0,0,0.1);
-    border-left: 1px solid #ebeef5;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-}
+/* Floating Diff Sidebar - Hidden for now */
+.diff-sidebar { display: none; }
 
-.diff-header {
-    padding: 15px;
-    border-bottom: 1px solid #ebeef5;
-    font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-}
-
-.diff-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
-    font-family: monospace;
-    font-size: 13px;
-    background: #2d2d2d;
-}
-
-.diff-line { padding: 2px 4px; white-space: pre-wrap; }
-.diff-line.removed { background: #4b1818; color: #ffa39e; text-decoration: line-through; }
-.diff-line.added { background: #135200; color: #b7eb8f; }
-.diff-line.unchanged { color: #8b949e; }
-
-.diff-actions {
-    padding: 15px;
-    border-top: 1px solid #ebeef5;
-}
-
-/* Sandbox FAB & Window */
-.sandbox-fab {
-    position: absolute;
-    bottom: 30px;
-    right: 30px;
-    width: 56px;
-    height: 56px;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 50%;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 100;
-}
-
-.sandbox-fab:hover {
-    transform: scale(1.1);
-}
-
-.sandbox-window {
-    position: absolute;
-    bottom: 100px;
-    right: 30px;
-    width: 320px;
-    height: 400px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.12);
-    display: flex;
-    flex-direction: column;
-    z-index: 99;
-    border: 1px solid #ebeef5;
-}
+/* Old Sandbox styles removed */
 
 .sandbox-header {
     padding: 12px 16px;

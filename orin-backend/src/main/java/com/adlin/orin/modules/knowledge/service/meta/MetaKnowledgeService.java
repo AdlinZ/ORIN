@@ -122,6 +122,34 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
         }
 
         /**
+         * Get prompt templates for a specific agent and user.
+         * Returns system prompts (userId is null) AND user's specific prompts.
+         */
+        public List<Map<String, Object>> getPromptTemplatesByUser(String agentId, String userId) {
+                // Fetch all prompts for the agent first
+                List<PromptTemplate> allTemplates = promptTemplateRepository.findByAgentId(agentId);
+
+                return allTemplates.stream()
+                                // Filter: Include if Global (userId is null/empty) OR belongs to current user
+                                .filter(t -> (t.getUserId() == null || t.getUserId().isEmpty())
+                                                || (userId != null && userId.equals(t.getUserId())))
+                                .map(t -> {
+                                        Map<String, Object> map = new java.util.HashMap<>();
+                                        map.put("id", t.getId());
+                                        map.put("name", t.getName());
+                                        map.put("description", t.getDescription());
+                                        map.put("content", t.getContent());
+                                        map.put("type", t.getType());
+                                        map.put("isActive", t.getIsActive());
+                                        map.put("userId", t.getUserId());
+                                        map.put("createdAt",
+                                                        t.getCreatedAt() != null ? t.getCreatedAt().toString() : null);
+                                        return map;
+                                })
+                                .collect(Collectors.toList());
+        }
+
+        /**
          * Create or Update a Prompt Template
          */
         @Transactional
@@ -130,6 +158,9 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
                 if (template.getId() == null) {
                         template.setId(UUID.randomUUID().toString());
                         template.setCreatedAt(LocalDateTime.now());
+                }
+                if (template.getIsActive() == null) {
+                        template.setIsActive(true);
                 }
                 return promptTemplateRepository.save(template);
         }
@@ -188,6 +219,18 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
                 agentMemoryRepository.deleteByAgentId(agentId);
         }
 
+        @Transactional
+        public void clearPromptTemplates(String agentId) {
+                promptTemplateRepository.deleteByAgentId(agentId);
+        }
+
+        public void clearAllShortTermMemory(String agentId) {
+                Set<String> keys = redisTemplate.keys("orin:memory:short:" + agentId + ":*");
+                if (keys != null && !keys.isEmpty()) {
+                        redisTemplate.delete(keys);
+                }
+        }
+
         public List<String> getShortTermSessions(String agentId) {
                 Set<String> keys = redisTemplate.keys("orin:memory:short:" + agentId + ":*");
                 if (keys == null || keys.isEmpty())
@@ -216,10 +259,15 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
                                 .ifPresent(t -> systemPrompt.append(t.getContent()).append("\n\n"));
 
                 // 2. Instructions
-                systemPrompt.append("## Instructions\n");
-                templates.stream()
+                List<PromptTemplate> instructionTemplates = templates.stream()
                                 .filter(t -> "INSTRUCTION".equals(t.getType()) && t.getIsActive())
-                                .forEach(t -> systemPrompt.append("- ").append(t.getContent()).append("\n"));
+                                .collect(Collectors.toList());
+
+                if (!instructionTemplates.isEmpty()) {
+                        systemPrompt.append("## Instructions\n");
+                        instructionTemplates
+                                        .forEach(t -> systemPrompt.append("- ").append(t.getContent()).append("\n"));
+                }
 
                 // 3. Long Term Memory Injection (Context)
                 // A. Explicit Key-Value Memory (Current Implementation)

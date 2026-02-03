@@ -39,7 +39,8 @@ import { chatAgent } from '@/api/agent'; // Reuse chat API
 import { ElMessage } from 'element-plus';
 
 const props = defineProps({
-  agentId: { type: String, required: true }
+  agentId: { type: String, required: true },
+  parameters: { type: Object, default: () => ({}) }
 });
 
 const prompt = ref('');
@@ -54,7 +55,10 @@ const generate = async () => {
     result.value = '';
     
     try {
-        const res = await chatAgent(props.agentId, prompt.value);
+        const systemPrompt = props.parameters?.systemPrompt;
+        const enableThinking = props.parameters?.enableThinking;
+        const thinkingBudget = props.parameters?.thinkingBudget;
+        const res = await chatAgent(props.agentId, prompt.value, null, systemPrompt, null, enableThinking, thinkingBudget);
         // Completion response commonly has 'answer' or 'message.content'
         if (typeof res === 'string') {
             result.value = res;

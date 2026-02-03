@@ -25,6 +25,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/engine/GraphExecutor.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/repository/meta/AgentMemoryRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/config/CacheMetricsConfig.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/controller/IntelligenceCenterController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/alert/repository/AlertHistoryRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/model/controller/ModelConfigController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/engine/handler/KnowledgeNodeHandler.java

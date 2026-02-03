@@ -9,4 +9,8 @@ import java.util.List;
 @Repository
 public interface PromptTemplateRepository extends JpaRepository<PromptTemplate, String> {
     List<PromptTemplate> findByAgentId(String agentId);
+
+    List<PromptTemplate> findByAgentIdAndUserId(String agentId, String userId);
+
+    void deleteByAgentId(String agentId);
 }

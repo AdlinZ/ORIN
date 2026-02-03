@@ -109,6 +109,7 @@ public class MultimodalFile {
      * 上传时间
      */
     @Column(name = "uploaded_at", nullable = false, updatable = false)
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime uploadedAt;
 
     /**

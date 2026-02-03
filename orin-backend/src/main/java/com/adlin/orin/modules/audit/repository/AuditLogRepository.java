@@ -145,4 +145,9 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          * Find logs where providerType is NOT IN the given list
          */
         Page<AuditLog> findByProviderTypeNotInOrderByCreatedAtDesc(List<String> providerTypes, Pageable pageable);
+
+        /**
+         * Find recent logs by conversation ID (for chat history context)
+         */
+        Page<AuditLog> findByConversationIdOrderByCreatedAtDesc(String conversationId, Pageable pageable);
 }

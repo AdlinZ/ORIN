@@ -60,6 +60,9 @@ public class ModelConfig {
     @Column(name = "embedding_model")
     private String embeddingModel;
 
+    @Column(name = "system_model")
+    private String systemModel;
+
     @Column(name = "auto_analysis_enabled")
     private Boolean autoAnalysisEnabled;
 
@@ -203,6 +206,14 @@ public class ModelConfig {
 
     public void setEmbeddingModel(String embeddingModel) {
         this.embeddingModel = embeddingModel;
+    }
+
+    public String getSystemModel() {
+        return systemModel;
+    }
+
+    public void setSystemModel(String systemModel) {
+        this.systemModel = systemModel;
     }
 
     public Boolean getAutoAnalysisEnabled() {

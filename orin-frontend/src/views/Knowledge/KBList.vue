@@ -301,63 +301,24 @@ const mockDocs = ref([]);
 const fetchData = async () => {
   loading.value = true;
   try {
-     // Check LocalStorage First for persistence
-     const local = localStorage.getItem('orin_mock_kbs');
-     if(local) {
-        rawData.value = JSON.parse(local);
-     } else {
-        generateMockData();
+     const res = await request.get('/knowledge/list');
+     if (Array.isArray(res)) {
+        rawData.value = res.map(kb => ({
+            ...kb,
+            // Map backend fields to frontend expected fields if needed
+            type: kb.type || 'UNSTRUCTURED',
+            stats: kb.stats || { documentCount: kb.docCount || 0 }
+        }));
      }
   } catch (e) {
-    console.warn('Backend API not ready or failed, using mock data for demo', e);
-    generateMockData();
+    console.error('Failed to load KB list:', e);
+    ElMessage.error('加载知识库列表失败');
   } finally {
     loading.value = false;
   }
 };
 
-const generateMockData = () => {
-  const defaults = [
-    {
-      id: 'kb-1',
-      name: '核心产品文档库',
-      description: '包含 ORIN 2026 技术规格说明、用户手册及接入指南。',
-      type: 'UNSTRUCTURED',
-      status: 'ENABLED',
-      stats: { documentCount: 124, chunkCount: 45200 }
-    },
-    {
-      id: 'kb-2',
-      name: '生产运行数据库',
-      description: '实时同步生产环境的核心业务表结构与元数据。',
-      type: 'STRUCTURED',
-      status: 'ENABLED',
-      stats: { tableCount: 18 }
-    },
-    {
-      id: 'kb-3',
-      name: '标准作业 SOP 集',
-      description: '自动化执行流程与专家经验的程序化抽象。',
-      type: 'PROCEDURAL',
-      status: 'ENABLED',
-      stats: { skillCount: 42 }
-    },
-    {
-      id: 'kb-4',
-      name: '用户画像与意图记忆',
-      description: '基于多轮对话动态沉淀的用户长期偏好记忆。',
-      type: 'META_MEMORY',
-      status: 'ENABLED',
-      stats: { memoryEntryCount: 1258 }
-    }
-  ];
-  rawData.value = defaults;
-  saveMockData();
-};
-
-const saveMockData = () => {
-   localStorage.setItem('orin_mock_kbs', JSON.stringify(rawData.value));
-};
+// Mock data generation removed
 
 const getIcon = (type) => {
   if (type === 'UNSTRUCTURED') return Document;
@@ -432,6 +393,7 @@ const handleAdd = () => {
 };
 
 const handleEdit = (kb) => {
+  selectedKB.value = kb;
   dialogType.value = 'edit';
   form.name = kb.name;
   form.remark = kb.description || '';
@@ -441,36 +403,43 @@ const handleEdit = (kb) => {
 // Update existing KB
 const onSubmit = async () => {
   submitting.value = true;
-  setTimeout(() => {
-    // Determine which item to update
-    const targetId = selectedKB.value ? selectedKB.value.id : null;
-    const target = rawData.value.find(k => k.id === targetId || k.name === form.name);
+  try {
+    const payload = {
+        name: form.name,
+        description: form.remark,
+        // Include other fields if your API expects them
+    };
     
-    if(target) {
-       target.name = form.name;
-       target.description = form.remark;
-       if(selectedKB.value) {
-          selectedKB.value.name = form.name;
-          selectedKB.value.description = form.remark;
-       }
-       saveMockData();
-       ElMessage.success('配置已更新');
-    }
+    // Replace with real PUT API if exists, or common pattern
+    // Note: Based on knowledgeManageService.java, updateStatus is available but 
+    // full update might need a new endpoint or using create with ID if it overwrites.
+    // For now, let's assume standard REST PUT /knowledge/{id}
+    await request.put(`/knowledge/${selectedKB.value.id}`, payload);
     
-    submitting.value = false;
+    ElMessage.success('配置已更新');
     dialogVisible.value = false;
-  }, 500);
+    fetchData(); // Refresh list
+  } catch (err) {
+    ElMessage.error('更新失败: ' + err.message);
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const handleDelete = (kb) => {
+  selectedKB.value = kb; // Ensure selectedKB is set if deleting from list
   ElMessageBox.confirm(`确认删除知识资产 [${kb.name}] 吗？`, '警告', {
     type: 'warning',
     confirmButtonClass: 'el-button--danger'
-  }).then(() => {
-    rawData.value = rawData.value.filter(k => k.id !== kb.id);
-    saveMockData();
-    ElMessage.success('已移除知识资产');
-    closeInspector();
+  }).then(async () => {
+    try {
+        await request.delete(`/knowledge/${kb.id}`);
+        ElMessage.success('已移除知识资产');
+        closeInspector();
+        fetchData();
+    } catch (err) {
+        ElMessage.error('删除失败: ' + err.message);
+    }
   });
 };
 

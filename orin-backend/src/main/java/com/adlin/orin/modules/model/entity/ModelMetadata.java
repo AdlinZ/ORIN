@@ -32,6 +32,7 @@ public class ModelMetadata {
 
     private String description;
 
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "create_time")
     private LocalDateTime createTime;
 

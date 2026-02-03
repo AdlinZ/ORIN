@@ -112,7 +112,9 @@
                     @click="enableInlineEdit(file)"
                     title="点击修改 AI 摘要"
                   >
-                    {{ file.aiSummary || '等待 AI 生成摘要...' }}
+                    <div 
+                      v-html="renderMarkdown(file.aiSummary || '等待 AI 生成摘要...')"
+                    ></div>
                     <el-icon v-if="file.embeddingStatus !== 'PROCESSING'" class="edit-icon"><EditPen /></el-icon>
                   </div>
               </div>
@@ -145,7 +147,7 @@
             <div class="ai-summary-section">
                 <!-- Read Mode -->
                 <div v-if="!isEditingSummary" class="summary-read">
-                    <p class="summary-text">{{ selectedFile.aiSummary }}</p>
+                    <div class="summary-markdown" v-html="renderMarkdown(selectedFile.aiSummary)"></div>
                     <div class="actions">
                         <el-button link type="primary" :icon="Edit" @click="startEditSummary">人工校准</el-button>
                         <el-button link :icon="RefreshRight" @click="reanalyze">重新生成</el-button>
@@ -239,6 +241,7 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
+import { marked } from 'marked';
 
 // State
 const loading = ref(false);
@@ -379,6 +382,11 @@ const saveInlineSummary = (file) => {
     tempSummary.value = '';
 };
 
+const renderMarkdown = (text) => {
+    if (!text) return '';
+    return marked.parse(text);
+};
+
 // ... Actions ...
 const reanalyze = () => {
     ElMessage.info('已提交 VLM 重新解析任务');
@@ -432,9 +440,16 @@ const formatSize = (bytes) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const formatDate = (iso) => {
-    if (!iso) return '-';
-    return new Date(iso).toLocaleString();
+const formatDate = (val) => {
+    if (!val) return '-';
+    // Handle array format [YYYY, MM, DD, HH, mm, ss] from Jackson
+    if (Array.isArray(val)) {
+        const [year, month, day, hour = 0, minute = 0, second = 0] = val;
+        return new Date(year, month - 1, day, hour, minute, second).toLocaleString();
+    }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleString();
 };
 
 onMounted(() => {
@@ -588,6 +603,30 @@ onMounted(() => {
     display: inline-block;
 }
 
+.summary-preview :deep(p) {
+    display: inline;
+    margin: 0;
+}
+
+.summary-preview :deep(ul), .summary-preview :deep(ol) {
+    display: inline;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.summary-preview :deep(li) {
+    display: inline;
+}
+
+.summary-preview :deep(li)::after {
+    content: "; ";
+}
+
+.summary-preview :deep(li:last-child)::after {
+    content: "";
+}
+
 .summary-edit-inline {
     width: 100%;
 }
@@ -644,6 +683,23 @@ onMounted(() => {
     border: 1px solid #ebeef5;
     margin-bottom: 10px;
 }
+
+.summary-markdown {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #303133;
+}
+
+.summary-markdown :deep(p) { margin: 0 0 10px 0; }
+.summary-markdown :deep(p:last-child) { margin-bottom: 0; }
+.summary-markdown :deep(ul), .summary-markdown :deep(ol) { padding-left: 20px; margin-bottom: 10px; }
+.summary-markdown :deep(code) { 
+    background: #f0f2f5; 
+    padding: 2px 4px; 
+    border-radius: 4px; 
+    font-family: monospace; 
+}
+.summary-markdown :deep(strong) { font-weight: 600; }
 
 .dependency-list {
     margin-bottom: 20px;

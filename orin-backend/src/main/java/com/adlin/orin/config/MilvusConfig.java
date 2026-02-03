@@ -25,7 +25,8 @@ public class MilvusConfig {
         log.info("Connecting to Milvus at {}:{}", host, port);
         ConnectParam.Builder builder = ConnectParam.newBuilder()
                 .withHost(host)
-                .withPort(port);
+                .withPort(port)
+                .withConnectTimeout(2, java.util.concurrent.TimeUnit.SECONDS);
 
         if (token != null && !token.isEmpty()) {
             builder.withToken(token);

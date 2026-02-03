@@ -106,7 +106,7 @@
                     <el-progress :percentage="agent.healthScore" :show-text="false" :stroke-width="6" :status="getHealthStatus(agent.healthScore)" />
                   </div>
                   <div class="item-footer">
-                    <span class="time">{{ new Date(agent.lastHeartbeat).toLocaleTimeString() }}</span>
+                    <span class="time">{{ formatTime(agent.lastHeartbeat) }}</span>
                     <el-icon class="arrow-right"><ArrowRight /></el-icon>
                   </div>
                 </div>
@@ -209,7 +209,7 @@
           <el-tab-pane label="运行日志" name="logs">
              <div class="log-stream">
                 <div v-for="(log, index) in logs" :key="index" class="log-entry" :class="log.type">
-                   <span class="log-time">{{ new Date(log.timestamp).toLocaleTimeString() }}</span>
+                   <span class="log-time">{{ formatTime(log.timestamp) }}</span>
                    <span class="log-tag">{{ log.type }}</span>
                    <span class="log-msg">{{ log.content }}</span>
                 </div>
@@ -332,7 +332,19 @@ const getModuleSize = (cardId, defaultSize = 24) => {
   return enabledCards.value[cardId]?.size || defaultSize;
 };
 
-const formatTime = (ts) => new Date(ts).toLocaleTimeString();
+const formatTime = (ts) => {
+  if (!ts) return '-';
+
+  // Handle Array format [yyyy, MM, dd, HH, mm, ss]
+  if (Array.isArray(ts)) {
+    return new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0).toLocaleTimeString();
+  }
+
+  const dateStr = String(ts).replace(' ', 'T');
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleTimeString();
+};
 
 const sortedLogs = computed(() => [...logs.value].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 
@@ -557,7 +569,7 @@ const openAgentDetail = (agent) => {
   router.push({ 
     name: 'AgentConsole', 
     params: { id: agent.agentId },
-    query: { tab: 'monitor' } // Default to monitor tab when coming from dashboard
+    query: { tab: 'chat' } // Default to chat when coming from dashboard
   });
 };
 

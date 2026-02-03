@@ -26,7 +26,7 @@ public class DocumentManageService {
 
     private final KnowledgeDocumentRepository documentRepository;
     private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository chunkRepository;
-    private final MilvusVectorService vectorService;
+    private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorService;
 
     // 文件存储根目录 (可配置)
     private static final String UPLOAD_DIR = "storage/uploads/documents";
@@ -126,16 +126,45 @@ public class DocumentManageService {
         KnowledgeDocument document = getDocument(documentId);
 
         // 删除物理文件
-        try {
-            Path filePath = Paths.get(document.getStoragePath());
-            Files.deleteIfExists(filePath);
-        } catch (IOException e) {
-            log.warn("Failed to delete physical file: {}", document.getStoragePath(), e);
+        if (document.getStoragePath() != null) {
+            try {
+                Path filePath = Paths.get(document.getStoragePath());
+                Files.deleteIfExists(filePath);
+            } catch (IOException e) {
+                log.warn("Failed to delete physical file: {}", document.getStoragePath(), e);
+            }
         }
 
         // 删除数据库记录
         documentRepository.delete(document);
+
+        // 删除向量记录
+        vectorService.deleteDocuments(document.getKnowledgeBaseId(), List.of(documentId));
+
         log.info("Deleted document: {}", documentId);
+    }
+
+    /**
+     * 批量删除知识库下的所有文档（优化版：不建议在删除 KB 时逐个调用 deleteDocument）
+     */
+    @Transactional
+    public void deleteByKnowledgeBaseId(String kbId) {
+        List<KnowledgeDocument> documents = documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(kbId);
+
+        // 1. 批量删除物理文件
+        for (KnowledgeDocument doc : documents) {
+            if (doc.getStoragePath() != null) {
+                try {
+                    Files.deleteIfExists(Paths.get(doc.getStoragePath()));
+                } catch (IOException e) {
+                    log.warn("Failed to delete file during bulk cleanup: {}", doc.getStoragePath());
+                }
+            }
+        }
+
+        // 2. 批量删除数据库记录
+        documentRepository.deleteByKnowledgeBaseId(kbId);
+        log.info("Bulk deleted {} documents for KB: {}", documents.size(), kbId);
     }
 
     /**

@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@org.springframework.context.annotation.Primary
 public class MilvusVectorService implements VectorStoreProvider {
 
     @Value("${orin.milvus.host:localhost}")
@@ -49,7 +48,9 @@ public class MilvusVectorService implements VectorStoreProvider {
         ConnectParam connectParam = ConnectParam.newBuilder()
                 .withHost(host)
                 .withPort(port)
-                .withAuthorization("root", token) // 简单处理 token
+                .withAuthorization("root", token)
+                .withConnectTimeout(2, java.util.concurrent.TimeUnit.SECONDS) // 2s timeout
+                .withKeepAliveTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
         return new MilvusServiceClient(connectParam);
     }
@@ -252,8 +253,29 @@ public class MilvusVectorService implements VectorStoreProvider {
                     .withPartitionName(partitionName)
                     .withExpr(expression)
                     .build());
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Delete error: {}", e.getMessage());
+        } finally {
+            if (client != null)
+                client.close();
+        }
+    }
+
+    @Override
+    public void deleteKnowledgeBase(String kbId) {
+        String partitionName = "kb_" + kbId.replace("-", "_");
+        log.info("Deleting Milvus partition {} from collection {}", partitionName, COLLECTION_NAME);
+        MilvusServiceClient client = null;
+        try {
+            client = createClient();
+            if (checkPartitionExists(client, COLLECTION_NAME, partitionName)) {
+                client.dropPartition(io.milvus.param.partition.DropPartitionParam.newBuilder()
+                        .withCollectionName(COLLECTION_NAME)
+                        .withPartitionName(partitionName)
+                        .build());
+            }
+        } catch (Throwable e) {
+            log.error("Failed to drop Milvus partition: {}", e.getMessage());
         } finally {
             if (client != null)
                 client.close();

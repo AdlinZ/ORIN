@@ -30,6 +30,9 @@
                 <el-descriptions-item label="请求参数 (JSON)" :span="2">
                   <pre class="json-block">{{ row.requestParams }}</pre>
                 </el-descriptions-item>
+                <el-descriptions-item label="响应内容 (JSON)" :span="2">
+                  <pre class="json-block">{{ row.responseContent || '无响应内容' }}</pre>
+                </el-descriptions-item>
               </el-descriptions>
             </div>
           </template>

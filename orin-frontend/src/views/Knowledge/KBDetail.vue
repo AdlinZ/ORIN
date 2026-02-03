@@ -139,6 +139,7 @@ import {
   DataLine, Cpu, Opportunity
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import request from '@/utils/request';
 
 const route = useRoute();
 const router = useRouter();
@@ -168,53 +169,53 @@ const getIconClass = (type) => {
   return 'icon-default';
 };
 
-const loadKBData = () => {
-  // Load from localStorage
-  const allKBs = JSON.parse(localStorage.getItem('orin_mock_kbs') || '[]');
-  const kb = allKBs.find(k => k.id === kbId.value);
-  
-  if (!kb) {
-    ElMessage.error('知识库不存在');
-    router.push('/dashboard/knowledge/list');
-    return;
-  }
-  
-  kbData.value = kb;
-  form.name = kb.name;
-  form.remark = kb.description || '';
-  
-  // Load documents if UNSTRUCTURED
-  if (kb.type === 'UNSTRUCTURED') {
-    const stored = localStorage.getItem(`orin_mock_docs_${kbId.value}`);
-    if (stored) {
-      documents.value = JSON.parse(stored);
-    } else {
-      generateMockDocs();
+const loadKBData = async () => {
+  try {
+    // Load all KBs to find the current one (fallback if detail API not specific)
+    const kbs = await request.get('/knowledge/list');
+    const kb = kbs.find(k => k.id === kbId.value);
+    
+    if (!kb) {
+      ElMessage.error('知识库不存在');
+      router.push('/dashboard/knowledge/list');
+      return;
     }
+    
+    kbData.value = kb;
+    form.name = kb.name;
+    form.remark = kb.description || '';
+    
+    // Load documents if UNSTRUCTURED or default
+    if (kb.type === 'UNSTRUCTURED' || !kb.type) {
+        const docs = await request.get(`/knowledge/${kbId.value}/documents`);
+        if (Array.isArray(docs)) {
+            documents.value = docs.map(doc => ({
+                id: doc.id,
+                name: doc.fileName,
+                mode: doc.vectorStatus === 'INDEXED' ? '自动' : '手动',
+                wordCount: doc.charCount || 0,
+                hitCount: 0,
+                uploadTime: formatDate(doc.uploadTime),
+                enabled: true,
+                status: doc.vectorStatus
+            }));
+        }
+    }
+  } catch (error) {
+    ElMessage.error('加载知识库详情失败: ' + error.message);
   }
 };
 
-const generateMockDocs = () => {
-  const docs = [];
-  const names = [
-    'Architecture_Orin_V2.pdf', 'Product_Manual_EN.docx', 'API_Reference_v1.md', 
-    'Deployment_Guide_K8s.pdf', 'Security_Whitepaper.pdf', 'Q3_Roadmap.pptx'
-  ];
-  for(let i=0; i<8; i++) {
-    docs.push({
-      id: `doc-${Date.now()}-${i}`,
-      name: names[i % names.length],
-      mode: '自动',
-      wordCount: Math.floor(Math.random() * 50000) + 1000,
-      hitCount: Math.floor(Math.random() * 100),
-      uploadTime: '2026-02-02 14:20',
-      enabled: true,
-      status: 'ready'
-    });
-  }
-  documents.value = docs;
-  localStorage.setItem(`orin_mock_docs_${kbId.value}`, JSON.stringify(docs));
+const formatDate = (val) => {
+    if (!val) return '-';
+    if (Array.isArray(val)) {
+        const [year, month, day, hour = 0, minute = 0] = val;
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
+    return new Date(val).toLocaleString();
 };
+
+// generateMockDocs removed
 
 const onSubmit = () => {
   submitting.value = true;

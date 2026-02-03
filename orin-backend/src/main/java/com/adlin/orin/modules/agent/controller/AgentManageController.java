@@ -101,7 +101,9 @@ public class AgentManageController {
     public Object chatJson(
             @PathVariable String agentId,
             @RequestBody ChatRequest request) {
-        return agentManageService.chat(agentId, request.getMessage(), request.getFileId())
+        return agentManageService
+                .chat(agentId, request.getMessage(), request.getFileId(), request.getOverrideSystemPrompt(),
+                        request.getConversationId(), request.getEnableThinking(), request.getThinkingBudget())
                 .orElseThrow(() -> new RuntimeException("Chat failed"));
     }
 
@@ -110,6 +112,14 @@ public class AgentManageController {
         private String message;
         @com.fasterxml.jackson.annotation.JsonProperty("file_id")
         private String fileId;
+        @com.fasterxml.jackson.annotation.JsonProperty("system_prompt")
+        private String overrideSystemPrompt;
+        @com.fasterxml.jackson.annotation.JsonProperty("conversation_id")
+        private String conversationId;
+        @com.fasterxml.jackson.annotation.JsonProperty("enable_thinking")
+        private Boolean enableThinking;
+        @com.fasterxml.jackson.annotation.JsonProperty("thinking_budget")
+        private Integer thinkingBudget;
     }
 
     @Operation(summary = "获取所有已接入的智能体档案")

@@ -20,10 +20,22 @@ export const updateAgent = (agentId, data) => {
     return request.put(`/agents/${agentId}`, data);
 };
 
-export const chatAgent = (agentId, message, fileId) => {
+export const chatAgent = (agentId, message, fileId, overrideSystemPrompt, conversationId, enableThinking, thinkingBudget) => {
     const data = { message };
     if (fileId) {
         data.file_id = fileId;
+    }
+    if (overrideSystemPrompt) {
+        data.system_prompt = overrideSystemPrompt;
+    }
+    if (conversationId) {
+        data.conversation_id = conversationId;
+    }
+    if (enableThinking !== undefined) {
+        data.enable_thinking = enableThinking;
+    }
+    if (thinkingBudget !== undefined) {
+        data.thinking_budget = thinkingBudget;
     }
     // Extended timeout for thinking models (e.g., DeepSeek-R1)
     return request.post(`/agents/${agentId}/chat`, data, {

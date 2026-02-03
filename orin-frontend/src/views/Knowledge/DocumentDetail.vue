@@ -169,6 +169,7 @@ import {
   Document, Search, Plus, Setting, Delete, Refresh, Edit
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import request from '@/utils/request';
 
 const route = useRoute();
 const router = useRouter();
@@ -205,66 +206,76 @@ const filteredSegments = computed(() => {
   );
 });
 
-const loadDocumentData = () => {
-  // Load KB name
-  const allKBs = JSON.parse(localStorage.getItem('orin_mock_kbs') || '[]');
-  const kb = allKBs.find(k => k.id === kbId.value);
-  if (kb) {
-    kbName.value = kb.name;
-  }
+const loadDocumentData = async () => {
+  try {
+    // Load document data from real API
+    const doc = await request.get(`/knowledge/documents/${docId.value}`);
+    if (!doc) {
+      ElMessage.error('文档不存在');
+      router.push(`/dashboard/knowledge/list`);
+      return;
+    }
+    
+    documentData.value = {
+        id: doc.id,
+        name: doc.fileName,
+        uploadTime: formatDate(doc.uploadTime),
+        wordCount: doc.charCount || 0,
+        hitCount: 0, // Backend might not have this yet
+        mode: doc.vectorStatus === 'INDEXED' ? '自动' : '手动',
+        enabled: true
+    };
+    
+    form.name = doc.fileName;
+    form.mode = doc.vectorStatus === 'INDEXED' ? 'auto' : 'manual';
+    form.enabled = true;
 
-  // Load document data
-  const docs = JSON.parse(localStorage.getItem(`orin_mock_docs_${kbId.value}`) || '[]');
-  const doc = docs.find(d => d.id === docId.value);
-  
-  if (!doc) {
-    ElMessage.error('文档不存在');
-    router.push(`/dashboard/knowledge/detail/${kbId.value}`);
-    return;
+    // Try to find KB name from local storage or simplified way
+    kbName.value = '知识库'; // Fallback
+    try {
+        const kbs = await request.get('/knowledge/list');
+        const kb = kbs.find(k => k.id === kbId.value);
+        if (kb) kbName.value = kb.name;
+    } catch (e) {
+        console.warn('Failed to load KB name');
+    }
+    
+    await loadSegments();
+  } catch (error) {
+    ElMessage.error('加载文档详情失败: ' + error.message);
   }
-  
-  documentData.value = doc;
-  form.name = doc.name;
-  form.mode = doc.mode === '自动' ? 'auto' : 'manual';
-  form.enabled = doc.enabled;
-  
-  loadSegments();
 };
 
-const loadSegments = () => {
-  // Load or generate segments
-  const stored = localStorage.getItem(`orin_mock_segments_${docId.value}`);
-  if (stored) {
-    segments.value = JSON.parse(stored);
-  } else {
-    generateMockSegments();
-  }
+const loadSegments = async () => {
+    try {
+        const res = await request.get(`/knowledge/documents/${docId.value}/chunks`);
+        if (Array.isArray(res)) {
+            segments.value = res.map((chunk, idx) => ({
+                id: chunk.id || `chunk-${idx}`,
+                content: chunk.content || chunk.text || '',
+                wordCount: (chunk.content || chunk.text || '').length,
+                hitCount: chunk.score ? Math.round(chunk.score * 100) : 0,
+                status: 'indexed'
+            }));
+        } else {
+            segments.value = [];
+        }
+    } catch (error) {
+        console.error('Failed to load segments:', error);
+        segments.value = [];
+    }
 };
 
-const generateMockSegments = () => {
-  const sampleTexts = [
-    'ORIN 是一个先进的 AI 助手平台，集成了多模态能力和知识库管理功能。它能够处理文本、图像和语音输入，为用户提供智能化的交互体验。',
-    '系统架构采用微服务设计，前端使用 Vue 3 + Element Plus，后端基于 Spring Boot。数据库使用 PostgreSQL 存储结构化数据，向量数据库用于语义检索。',
-    '知识库支持四种类型：非结构化文档、结构化数据、程序化技能和元记忆。每种类型都有专门的处理流程和检索策略。',
-    '文档分段采用智能算法，能够根据语义边界自动切分文本。分段长度可以自定义，支持 100-2000 字符范围。',
-    '检索系统使用混合策略，结合关键词匹配和语义相似度计算。Top K 参数可调，支持重排序优化。',
-    '用户可以通过 Web 界面管理知识库，包括上传文档、编辑分段、调整检索参数等操作。系统提供实时预览和测试功能。'
-  ];
-
-  const segs = [];
-  for (let i = 0; i < 6; i++) {
-    segs.push({
-      id: `seg-${Date.now()}-${i}`,
-      content: sampleTexts[i],
-      wordCount: sampleTexts[i].length,
-      hitCount: Math.floor(Math.random() * 50),
-      status: 'indexed'
-    });
-  }
-  
-  segments.value = segs;
-  localStorage.setItem(`orin_mock_segments_${docId.value}`, JSON.stringify(segs));
+const formatDate = (val) => {
+    if (!val) return '-';
+    if (Array.isArray(val)) {
+        const [year, month, day, hour = 0, minute = 0] = val;
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
+    return new Date(val).toLocaleString();
 };
+
+// generateMockSegments removed as we use real API now
 
 const selectSegment = (segment) => {
   selectedSegment.value = segment;

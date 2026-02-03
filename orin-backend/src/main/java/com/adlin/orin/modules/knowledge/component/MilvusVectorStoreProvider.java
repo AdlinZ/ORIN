@@ -36,6 +36,14 @@ public class MilvusVectorStoreProvider implements VectorStoreProvider {
         // Not used directly in current flow, we insert chunks
     }
 
+    @Override
+    public void addChunks(String kbId, List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks) {
+        String collectionName = "kb_" + kbId;
+        for (var chunk : chunks) {
+            insertChunk(chunk.getDocumentId(), chunk.getContent(), collectionName);
+        }
+    }
+
     // Custom method to insert chunks directly
     public void insertChunk(String docId, String content, String collectionName) {
         ensureCollectionExists(collectionName);
@@ -102,6 +110,31 @@ public class MilvusVectorStoreProvider implements VectorStoreProvider {
 
     @Override
     public void deleteDocuments(String collectionName, List<String> docIds) {
+        log.info("Deleting documents from Milvus collection {}: {}", collectionName, docIds);
+        String expr = "doc_id in " + docIds.stream().map(id -> "\"" + id + "\"").collect(Collectors.toList());
+        try {
+            milvusClient.delete(io.milvus.param.dml.DeleteParam.newBuilder()
+                    .withCollectionName(collectionName)
+                    .withExpr(expr)
+                    .build());
+        } catch (Throwable e) {
+            log.error("Milvus delete documents error: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void deleteKnowledgeBase(String kbId) {
+        String collectionName = "kb_" + kbId;
+        log.info("Deleting Milvus collection: {}", collectionName);
+        try {
+            if (hasCollection(collectionName)) {
+                milvusClient.dropCollection(io.milvus.param.collection.DropCollectionParam.newBuilder()
+                        .withCollectionName(collectionName)
+                        .build());
+            }
+        } catch (Throwable e) {
+            log.error("Milvus drop collection error: {}", e.getMessage());
+        }
     }
 
     private synchronized void ensureCollectionExists(String collectionName) {
@@ -160,10 +193,15 @@ public class MilvusVectorStoreProvider implements VectorStoreProvider {
     }
 
     private boolean hasCollection(String collectionName) {
-        R<Boolean> response = milvusClient.hasCollection(HasCollectionParam.newBuilder()
-                .withCollectionName(collectionName)
-                .build());
-        return response.getData() != null && response.getData();
+        try {
+            R<Boolean> response = milvusClient.hasCollection(HasCollectionParam.newBuilder()
+                    .withCollectionName(collectionName)
+                    .build());
+            return response.getData() != null && response.getData();
+        } catch (Throwable e) {
+            log.error("Milvus hasCollection error: {}", e.getMessage());
+            return false;
+        }
     }
 
     private List<Float> mockEmbedding(String text) {
