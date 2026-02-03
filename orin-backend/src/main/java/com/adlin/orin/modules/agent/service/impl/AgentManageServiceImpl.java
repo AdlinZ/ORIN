@@ -21,6 +21,7 @@ import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
+import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
 import lombok.extern.slf4j.Slf4j;
@@ -226,7 +227,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         AgentHealthStatus healthStatus = AgentHealthStatus.builder()
                 .agentId(agentId)
                 .agentName(agentName)
-                .status(AgentHealthStatus.Status.RUNNING)
+                .status(AgentStatus.RUNNING)
                 .healthScore(100)
                 .lastHeartbeat(System.currentTimeMillis())
                 .providerType(provider)
@@ -826,30 +827,77 @@ public class AgentManageServiceImpl implements AgentManageService {
         double cost = 0.0;
 
         try {
-            // 根据 viewType 路由到不同的处理逻辑
+            // 根据 providerType 和 viewType 路由到不同的处理逻辑
+            String providerType = metadata.getProviderType();
             String viewType = metadata.getViewType();
             java.util.Optional<Object> response;
 
-            if ("TEXT_TO_IMAGE".equals(viewType) || "IMAGE_TO_IMAGE".equals(viewType) || "TTI".equals(viewType)) {
-                // 文生图类型 - 调用图像生成API
-                log.info("Routing to image generation for agent {} with viewType: {}", agentId, viewType);
-                response = generateImageWithSiliconFlow(profile, metadata, message);
-            } else if ("SPEECH_TO_TEXT".equals(viewType) || "STT".equals(viewType)) {
-                // 语音转文字类型
-                log.info("Routing to audio transcription for agent {} with viewType: {}", agentId, viewType);
-                response = transcribeAudioWithSiliconFlow(profile, metadata, fileId);
-            } else if ("TEXT_TO_SPEECH".equals(viewType) || "TTS".equals(viewType)) {
-                // 语音合成类型
-                log.info("Routing to audio generation for agent {} with viewType: {}", agentId, viewType);
-                response = generateAudioWithSiliconFlow(profile, metadata, message);
-            } else if ("TEXT_TO_VIDEO".equals(viewType) || "TTV".equals(viewType) || "VIDEO".equals(viewType)) {
-                // 视频生成类型
-                log.info("Routing to video generation for agent {} with viewType: {}", agentId, viewType);
-                response = generateVideoWithSiliconFlow(profile, metadata, message);
+            if ("DIFY".equalsIgnoreCase(providerType)) {
+                log.info("Routing to Dify interaction for agent {} (viewType: {})", agentId, viewType);
+                MultiModalProvider provider = providerMap.get("DIFY");
+                if (provider != null) {
+                    Map<String, Object> context = new HashMap<>();
+                    context.put("conversationId", conversationId);
+                    MultiModalProvider.InteractionRequest req = new MultiModalProvider.InteractionRequest(
+                            fileId != null ? "IMAGE" : "TEXT",
+                            message,
+                            null,
+                            context);
+                    MultiModalProvider.InteractionResult result = provider.process(metadata, req);
+                    Map<String, Object> responseMap = new HashMap<>();
+                    responseMap.put("status", result.getStatus());
+                    responseMap.put("data", result.getData());
+                    responseMap.put("dataType", result.getDataType());
+                    responseMap.put("viewType", metadata.getViewType());
+
+                    if (result.getData() instanceof java.util.Map) {
+                        java.util.Map<?, ?> dataMap = (java.util.Map<?, ?>) result.getData();
+                        if (dataMap.containsKey("conversation_id")) {
+                            responseMap.put("conversation_id", dataMap.get("conversation_id"));
+                        } else {
+                            responseMap.put("conversation_id", conversationId);
+                        }
+                    } else {
+                        responseMap.put("conversation_id", conversationId);
+                    }
+                    response = java.util.Optional.of(responseMap);
+                } else {
+                    response = difyIntegrationService.sendMessage(profile.getEndpointUrl(), profile.getApiKey(),
+                            conversationId, message);
+                    if (response.isPresent() && response.get() instanceof Map) {
+                        ((Map<String, Object>) response.get()).put("conversation_id", conversationId);
+                    }
+                }
+            } else if ("SiliconFlow".equalsIgnoreCase(providerType) || "SiliconCloud".equalsIgnoreCase(providerType)) {
+                if ("TEXT_TO_IMAGE".equals(viewType) || "IMAGE_TO_IMAGE".equals(viewType) || "TTI".equals(viewType)) {
+                    response = generateImageWithSiliconFlow(profile, metadata, message);
+                } else if ("SPEECH_TO_TEXT".equals(viewType) || "STT".equals(viewType)) {
+                    response = transcribeAudioWithSiliconFlow(profile, metadata, fileId);
+                } else if ("TEXT_TO_SPEECH".equals(viewType) || "TTS".equals(viewType)) {
+                    response = generateAudioWithSiliconFlow(profile, metadata, message);
+                } else if ("TEXT_TO_VIDEO".equals(viewType) || "TTV".equals(viewType) || "VIDEO".equals(viewType)) {
+                    response = generateVideoWithSiliconFlow(profile, metadata, message);
+                } else {
+                    response = chatWithSiliconFlow(profile, metadata, message, fileId, overrideSystemPrompt,
+                            conversationId, enableThinking, thinkingBudget);
+                }
             } else {
-                // 默认聊天类型
-                response = chatWithSiliconFlow(profile, metadata, message, fileId, overrideSystemPrompt,
-                        conversationId, enableThinking, thinkingBudget);
+                MultiModalProvider provider = providerMap.get(providerType != null ? providerType.toUpperCase() : "");
+                if (provider != null) {
+                    Map<String, Object> context = new HashMap<>();
+                    context.put("conversationId", conversationId);
+                    MultiModalProvider.InteractionRequest req = new MultiModalProvider.InteractionRequest(
+                            "TEXT", message, null, context);
+                    MultiModalProvider.InteractionResult result = provider.process(metadata, req);
+                    Map<String, Object> resp = new java.util.HashMap<>();
+                    resp.put("data", result.getData());
+                    resp.put("status", result.getStatus());
+                    resp.put("conversation_id", conversationId);
+                    response = java.util.Optional.of(resp);
+                } else {
+                    response = chatWithSiliconFlow(profile, metadata, message, fileId, overrideSystemPrompt,
+                            conversationId, enableThinking, thinkingBudget);
+                }
             }
 
             if (response.isPresent()) {

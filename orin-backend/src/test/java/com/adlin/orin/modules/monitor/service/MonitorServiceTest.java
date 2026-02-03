@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.monitor.service;
 
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
+import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,7 @@ class MonitorServiceTest {
         AgentHealthStatus mockStatus = AgentHealthStatus.builder()
                 .agentId("agent-1")
                 .healthScore(95)
-                .status(AgentHealthStatus.Status.RUNNING)
+                .status(AgentStatus.RUNNING)
                 .lastHeartbeat(System.currentTimeMillis())
                 .build();
 
@@ -59,7 +60,7 @@ class MonitorServiceTest {
 
         assertNotNull(result);
         assertEquals("agent-1", result.getAgentId());
-        assertEquals(AgentHealthStatus.Status.RUNNING, result.getStatus());
+        assertEquals(AgentStatus.RUNNING, result.getStatus());
         assertEquals(95, result.getHealthScore());
     }
 

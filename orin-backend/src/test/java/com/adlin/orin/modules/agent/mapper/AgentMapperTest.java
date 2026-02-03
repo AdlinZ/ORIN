@@ -6,6 +6,7 @@ import com.adlin.orin.modules.agent.dto.AgentUpdateRequest;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
+import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
@@ -48,7 +49,7 @@ class AgentMapperTest {
 
         AgentHealthStatus healthStatus = new AgentHealthStatus();
         healthStatus.setAgentId("test-agent-001");
-        healthStatus.setStatus(AgentHealthStatus.Status.RUNNING);
+        healthStatus.setStatus(AgentStatus.RUNNING);
         healthStatus.setLastHeartbeat(System.currentTimeMillis());
 
         // When

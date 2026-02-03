@@ -142,7 +142,6 @@ com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced.class
 com/adlin/orin/modules/workflow/entity/WorkflowEntity$WorkflowEntityBuilder.class
 com/adlin/orin/modules/trace/interceptor/SkillTraceInterceptor.class
 com/adlin/orin/modules/knowledge/event/TaskCreatedEvent.class
-com/adlin/orin/modules/workflow/engine/handler/NodeHandler$NodeExecutionResult.class
 com/adlin/orin/modules/knowledge/dto/KnowledgeBaseCreateRequest.class
 com/adlin/orin/modules/multimodal/entity/MultimodalFile.class
 com/adlin/orin/modules/knowledge/controller/IntelligenceCenterController.class
@@ -288,7 +287,6 @@ com/adlin/orin/config/AsyncConfig.class
 com/adlin/orin/modules/knowledge/service/impl/ProceduralServiceImpl.class
 com/adlin/orin/modules/workflow/engine/handler/KnowledgeNodeHandler.class
 com/adlin/orin/modules/agent/service/impl/AgentManageServiceImpl$3.class
-com/adlin/orin/modules/monitor/entity/AgentHealthStatus$Status.class
 com/adlin/orin/modules/multimodal/entity/MultimodalFile$MultimodalFileBuilder.class
 com/adlin/orin/modules/multimodal/controller/MultimodalTaskController.class
 com/adlin/orin/modules/workflow/entity/WorkflowInstanceEntity.class

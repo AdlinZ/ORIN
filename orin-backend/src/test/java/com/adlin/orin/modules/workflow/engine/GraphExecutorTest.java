@@ -2,6 +2,7 @@ package com.adlin.orin.modules.workflow.engine;
 
 import com.adlin.orin.modules.trace.service.TraceService;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
+import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,16 +33,16 @@ class GraphExecutorTest {
 
         // Mock Handlers
         nodeHandlers.put("startNodeHandler",
-                (data, ctx) -> NodeHandler.NodeExecutionResult.success(Collections.emptyMap()));
+                (data, ctx) -> NodeExecutionResult.success(Collections.emptyMap()));
         nodeHandlers.put("endNodeHandler",
-                (data, ctx) -> NodeHandler.NodeExecutionResult.success(Collections.emptyMap()));
+                (data, ctx) -> NodeExecutionResult.success(Collections.emptyMap()));
 
         // Generic Action Handler
         nodeHandlers.put("actionNodeHandler", (data, ctx) -> {
             System.out.println("Executing Action: " + data);
             Map<String, Object> out = new HashMap<>();
             out.put("executed", true);
-            return NodeHandler.NodeExecutionResult.success(out);
+            return NodeExecutionResult.success(out);
         });
 
         // IfElse Handler (Mock behavior)
@@ -49,7 +50,7 @@ class GraphExecutorTest {
             boolean condition = (Boolean) data.get("condition"); // Cast directly
             String handle = condition ? "if" : "else";
             System.out.println("IfElse Condition: " + condition + " -> " + handle);
-            return NodeHandler.NodeExecutionResult.success(Collections.emptyMap(), handle);
+            return NodeExecutionResult.success(Collections.emptyMap(), handle);
         });
 
         graphExecutor = new GraphExecutor(nodeHandlers, eventPublisher, traceService);

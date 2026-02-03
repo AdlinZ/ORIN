@@ -3,6 +3,7 @@ package com.adlin.orin.modules.workflow.engine;
 import com.adlin.orin.modules.trace.interceptor.SkillTraceInterceptor;
 import com.adlin.orin.modules.trace.service.TraceService;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
+import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
 import com.adlin.orin.exception.WorkflowExecutionException;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -80,16 +81,9 @@ public class GraphExecutor {
         }
 
         // Futures Map to track node completion
-        Map<String, CompletableFuture<NodeHandler.NodeExecutionResult>> nodeFutures = new ConcurrentHashMap<>();
+        Map<String, CompletableFuture<NodeExecutionResult>> nodeFutures = new ConcurrentHashMap<>();
 
-        // 2. Identify Start Nodes
-        List<String> startNodes = nodes.stream()
-                .map(n -> (String) n.get("id"))
-                .filter(id -> {
-                    List<Map<String, Object>> incoming = reverseAdjacencyList.get(id);
-                    return incoming == null || incoming.isEmpty();
-                })
-                .collect(Collectors.toList());
+        // Context propagation
 
         // Capture initial Trace Context from current thread to propagate to async
         // threads
@@ -137,7 +131,7 @@ public class GraphExecutor {
                 .findFirst();
 
         if (endNodeId.isPresent()) {
-            NodeHandler.NodeExecutionResult endResult = nodeFutures.get(endNodeId.get()).getNow(null);
+            NodeExecutionResult endResult = nodeFutures.get(endNodeId.get()).getNow(null);
             if (endResult != null && endResult.getOutputs() != null) {
                 finalResult.putAll(endResult.getOutputs());
             }
@@ -149,11 +143,11 @@ public class GraphExecutor {
     /**
      * Recursive method to create a CompletableFuture for a node.
      */
-    private CompletableFuture<NodeHandler.NodeExecutionResult> createNodeFuture(
+    private CompletableFuture<NodeExecutionResult> createNodeFuture(
             String nodeId,
             Map<String, Map<String, Object>> nodeMap,
             Map<String, List<Map<String, Object>>> reverseAdjacencyList,
-            Map<String, CompletableFuture<NodeHandler.NodeExecutionResult>> nodeFutures,
+            Map<String, CompletableFuture<NodeExecutionResult>> nodeFutures,
             Map<String, NodeExecutionStatus> nodeStates,
             Map<String, Object> context,
             String parentTraceId // passed for context propagation
@@ -165,7 +159,7 @@ public class GraphExecutor {
         // Get Input Dependencies
         List<Map<String, Object>> incomingEdges = reverseAdjacencyList.getOrDefault(nodeId, Collections.emptyList());
 
-        List<CompletableFuture<NodeHandler.NodeExecutionResult>> dependencyFutures = new ArrayList<>();
+        List<CompletableFuture<NodeExecutionResult>> dependencyFutures = new ArrayList<>();
         for (Map<String, Object> edge : incomingEdges) {
             String source = (String) edge.get("source");
             dependencyFutures.add(createNodeFuture(source, nodeMap, reverseAdjacencyList, nodeFutures, nodeStates,
@@ -173,7 +167,7 @@ public class GraphExecutor {
         }
 
         // Define the task for THIS node
-        CompletableFuture<NodeHandler.NodeExecutionResult> thisFuture = CompletableFuture.allOf(
+        CompletableFuture<NodeExecutionResult> thisFuture = CompletableFuture.allOf(
                 dependencyFutures.toArray(new CompletableFuture[0])).thenApplyAsync(v -> {
                     // --- INSIDE WORKER THREAD ---
 
@@ -204,7 +198,7 @@ public class GraphExecutor {
                                                                                          // FROM
 
                                 // Get upstream result (already completed because of allOf)
-                                NodeHandler.NodeExecutionResult sourceResult = nodeFutures.get(sourceId).join();
+                                NodeExecutionResult sourceResult = nodeFutures.get(sourceId).join();
                                 NodeExecutionStatus sourceStatus = nodeStates.get(sourceId);
 
                                 if (sourceStatus == NodeExecutionStatus.SKIPPED) {
@@ -250,7 +244,7 @@ public class GraphExecutor {
                         if (isSkipped) {
                             nodeStates.put(nodeId, NodeExecutionStatus.SKIPPED);
                             log.info("Node SKIPPED: {}", nodeId);
-                            return new NodeHandler.NodeExecutionResult(null, null, true);
+                            return new NodeExecutionResult(null, null, true);
                         }
 
                         // 3. Execute Node
@@ -272,8 +266,9 @@ public class GraphExecutor {
                         }
                         eventPublisher.publishNodeStarted(currentInstanceId, nodeId, (String) nodeDef.get("type"));
 
-                        NodeHandler.NodeExecutionResult result = handler.execute(
-                                nodeDef.get("data") != null ? (Map) nodeDef.get("data") : Collections.emptyMap(),
+                        NodeExecutionResult result = handler.execute(
+                                nodeDef.get("data") != null ? (Map<String, Object>) nodeDef.get("data")
+                                        : Collections.emptyMap(),
                                 context);
 
                         // Update Context
@@ -327,7 +322,7 @@ public class GraphExecutor {
         if (handler == null) {
             log.warn("No handler found for type: {}, using generic/mock", type);
             // Fallback or throw
-            return (data, ctx) -> NodeHandler.NodeExecutionResult.success(Collections.emptyMap());
+            return (data, ctx) -> NodeExecutionResult.success(Collections.emptyMap());
         }
         return handler;
     }

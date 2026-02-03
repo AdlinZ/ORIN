@@ -3,6 +3,7 @@ package com.adlin.orin.modules.monitor.task;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
+import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
@@ -78,7 +79,7 @@ public class AgentHealthCheckTask {
             AgentAccessProfile profile = accessProfileRepository.findById(agentId).orElse(null);
             if (profile == null) {
                 log.warn("No access profile found for agent: {}", agentId);
-                updateAgentStatus(agent, AgentHealthStatus.Status.ERROR, 0);
+                updateAgentStatus(agent, AgentStatus.ERROR, 0);
                 return;
             }
 
@@ -95,22 +96,22 @@ public class AgentHealthCheckTask {
                 isHealthy = checkDeepSeekAgent(profile, agent);
             } else {
                 log.warn("Unknown provider type for agent {}: {}", agentId, providerType);
-                updateAgentStatus(agent, AgentHealthStatus.Status.UNKNOWN, 50);
+                updateAgentStatus(agent, AgentStatus.UNKNOWN, 50);
                 return;
             }
 
             // 更新健康状态
             if (isHealthy) {
-                updateAgentStatus(agent, AgentHealthStatus.Status.RUNNING, 100);
+                updateAgentStatus(agent, AgentStatus.RUNNING, 100);
                 log.debug("Agent {} is healthy", agentId);
             } else {
-                updateAgentStatus(agent, AgentHealthStatus.Status.ERROR, 0);
+                updateAgentStatus(agent, AgentStatus.ERROR, 0);
                 log.warn("Agent {} health check failed", agentId);
             }
 
         } catch (Exception e) {
             log.error("Error checking agent {}: {}", agent.getAgentId(), e.getMessage());
-            updateAgentStatus(agent, AgentHealthStatus.Status.ERROR, 0);
+            updateAgentStatus(agent, AgentStatus.ERROR, 0);
         }
     }
 
@@ -120,10 +121,9 @@ public class AgentHealthCheckTask {
     private boolean checkSiliconFlowAgent(AgentAccessProfile profile) {
         try {
             // 使用 testConnection 方法检查连接
-            siliconFlowIntegrationService.testConnection(
+            return siliconFlowIntegrationService.testConnection(
                     profile.getEndpointUrl(),
                     profile.getApiKey());
-            return true;
         } catch (Exception e) {
             log.debug("SiliconFlow agent {} connection test failed: {}",
                     profile.getAgentId(), e.getMessage());
@@ -155,11 +155,10 @@ public class AgentHealthCheckTask {
             // 使用 testConnection 方法检查连接
             // 需要传入模型名称，从 agent 的 modelName 获取
             String modelName = agent.getModelName() != null ? agent.getModelName() : "glm-4";
-            zhipuIntegrationService.testConnection(
+            return zhipuIntegrationService.testConnection(
                     profile.getEndpointUrl(),
                     profile.getApiKey(),
                     modelName);
-            return true;
         } catch (Exception e) {
             log.debug("Zhipu AI agent {} connection test failed: {}",
                     profile.getAgentId(), e.getMessage());
@@ -175,11 +174,10 @@ public class AgentHealthCheckTask {
             // 使用 testConnection 方法检查连接
             // 需要传入模型名称，从 agent 的 modelName 获取
             String modelName = agent.getModelName() != null ? agent.getModelName() : "deepseek-chat";
-            deepSeekIntegrationService.testConnection(
+            return deepSeekIntegrationService.testConnection(
                     profile.getEndpointUrl(),
                     profile.getApiKey(),
                     modelName);
-            return true;
         } catch (Exception e) {
             log.debug("DeepSeek agent {} connection test failed: {}",
                     profile.getAgentId(), e.getMessage());
@@ -190,7 +188,7 @@ public class AgentHealthCheckTask {
     /**
      * 更新智能体状态
      */
-    private void updateAgentStatus(AgentHealthStatus agent, AgentHealthStatus.Status status, int healthScore) {
+    private void updateAgentStatus(AgentHealthStatus agent, AgentStatus status, int healthScore) {
         agent.setStatus(status);
         agent.setHealthScore(healthScore);
         agent.setLastHeartbeat(System.currentTimeMillis());

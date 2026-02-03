@@ -6,6 +6,7 @@ import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
+import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +106,7 @@ public class DeepSeekAgentManageService implements AgentManageService {
         AgentHealthStatus health = AgentHealthStatus.builder()
                 .agentId(generatedId)
                 .agentName(finalName)
-                .status(AgentHealthStatus.Status.RUNNING)
+                .status(AgentStatus.RUNNING)
                 .healthScore(100)
                 .lastHeartbeat(System.currentTimeMillis())
                 .providerType("DeepSeek")

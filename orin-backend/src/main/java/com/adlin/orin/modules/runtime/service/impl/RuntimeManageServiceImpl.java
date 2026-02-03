@@ -6,6 +6,7 @@ import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
+import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.runtime.entity.AgentLog;
 import com.adlin.orin.modules.runtime.repository.AgentLogRepository;
@@ -40,15 +41,15 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
 
         switch (action.toLowerCase()) {
             case "stop":
-                status.setStatus(AgentHealthStatus.Status.STOPPED);
+                status.setStatus(AgentStatus.STOPPED);
                 log.info("Stopping agent: {}", agentId);
                 break;
             case "start":
-                status.setStatus(AgentHealthStatus.Status.RUNNING);
+                status.setStatus(AgentStatus.RUNNING);
                 log.info("Starting agent: {}", agentId);
                 break;
             case "restart":
-                status.setStatus(AgentHealthStatus.Status.RUNNING);
+                status.setStatus(AgentStatus.RUNNING);
                 log.info("Restarting agent: {}", agentId);
                 break;
             default:

@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.monitor.service.impl;
 
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
+import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import com.adlin.orin.modules.monitor.entity.PrometheusConfig;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
@@ -76,13 +77,13 @@ public class MonitorServiceImpl implements MonitorService {
 
                 // 统计各状态的Agent数量
                 long runningCount = allAgents.stream()
-                                .filter(a -> a.getStatus() == AgentHealthStatus.Status.RUNNING)
+                                .filter(a -> a.getStatus() == AgentStatus.RUNNING)
                                 .count();
                 long stoppedCount = allAgents.stream()
-                                .filter(a -> a.getStatus() == AgentHealthStatus.Status.STOPPED)
+                                .filter(a -> a.getStatus() == AgentStatus.STOPPED)
                                 .count();
                 long highLoadCount = allAgents.stream()
-                                .filter(a -> a.getStatus() == AgentHealthStatus.Status.HIGH_LOAD)
+                                .filter(a -> a.getStatus() == AgentStatus.HIGH_LOAD)
                                 .count();
 
                 summary.put("total_agents", allAgents.size());

@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.monitor.controller;
 
-import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
@@ -22,7 +21,6 @@ import java.util.Map;
 public class MonitorController {
 
     private final MonitorService monitorService;
-    private final DifyIntegrationService difyIntegrationService;
 
     @Operation(summary = "获取全局监控看板数据")
     @GetMapping("/dashboard/summary")

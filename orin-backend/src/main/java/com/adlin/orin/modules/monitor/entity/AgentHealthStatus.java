@@ -10,6 +10,19 @@ import jakarta.persistence.Enumerated;
  * 智能体健康状态聚合实体
  * 用于列表页快速展示
  */
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * 智能体健康状态聚合实体
+ * 用于列表页快速展示
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "agent_health_status")
 public class AgentHealthStatus {
@@ -35,7 +48,7 @@ public class AgentHealthStatus {
      * 运行状态
      */
     @Enumerated(EnumType.STRING)
-    private Status status;
+    private AgentStatus status;
 
     /**
      * 最后心跳/更新时间
@@ -62,166 +75,4 @@ public class AgentHealthStatus {
      * 例如: CHAT, STT, TTI, WORKFLOW
      */
     private String viewType;
-
-    public enum Status {
-        RUNNING,
-        STOPPED,
-        HIGH_LOAD, // 高负载
-        ERROR, // 异常
-        UNKNOWN // 未知
-    }
-
-    public AgentHealthStatus() {
-    }
-
-    public AgentHealthStatus(String agentId, String agentName, Integer healthScore, Status status, Long lastHeartbeat,
-            String providerType, String mode, String modelName, String viewType) {
-        this.agentId = agentId;
-        this.agentName = agentName;
-        this.healthScore = healthScore;
-        this.status = status;
-        this.lastHeartbeat = lastHeartbeat;
-        this.providerType = providerType;
-        this.mode = mode;
-        this.modelName = modelName;
-        this.viewType = viewType;
-    }
-
-    public String getAgentId() {
-        return agentId;
-    }
-
-    public void setAgentId(String agentId) {
-        this.agentId = agentId;
-    }
-
-    public String getAgentName() {
-        return agentName;
-    }
-
-    public void setAgentName(String agentName) {
-        this.agentName = agentName;
-    }
-
-    public Integer getHealthScore() {
-        return healthScore;
-    }
-
-    public void setHealthScore(Integer healthScore) {
-        this.healthScore = healthScore;
-    }
-
-    public Status getStatus() {
-        return status;
-    }
-
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
-    public Long getLastHeartbeat() {
-        return lastHeartbeat;
-    }
-
-    public void setLastHeartbeat(Long lastHeartbeat) {
-        this.lastHeartbeat = lastHeartbeat;
-    }
-
-    public String getProviderType() {
-        return providerType;
-    }
-
-    public void setProviderType(String providerType) {
-        this.providerType = providerType;
-    }
-
-    public String getMode() {
-        return mode;
-    }
-
-    public void setMode(String mode) {
-        this.mode = mode;
-    }
-
-    public String getModelName() {
-        return modelName;
-    }
-
-    public void setModelName(String modelName) {
-        this.modelName = modelName;
-    }
-
-    public String getViewType() {
-        return viewType;
-    }
-
-    public void setViewType(String viewType) {
-        this.viewType = viewType;
-    }
-
-    public static AgentHealthStatusBuilder builder() {
-        return new AgentHealthStatusBuilder();
-    }
-
-    public static class AgentHealthStatusBuilder {
-        private String agentId;
-        private String agentName;
-        private Integer healthScore;
-        private Status status;
-        private Long lastHeartbeat;
-        private String providerType;
-        private String mode;
-        private String modelName;
-        private String viewType;
-
-        public AgentHealthStatusBuilder agentId(String agentId) {
-            this.agentId = agentId;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder agentName(String agentName) {
-            this.agentName = agentName;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder healthScore(Integer healthScore) {
-            this.healthScore = healthScore;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder status(Status status) {
-            this.status = status;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder lastHeartbeat(Long lastHeartbeat) {
-            this.lastHeartbeat = lastHeartbeat;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder providerType(String providerType) {
-            this.providerType = providerType;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder mode(String mode) {
-            this.mode = mode;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder modelName(String modelName) {
-            this.modelName = modelName;
-            return this;
-        }
-
-        public AgentHealthStatusBuilder viewType(String viewType) {
-            this.viewType = viewType;
-            return this;
-        }
-
-        public AgentHealthStatus build() {
-            return new AgentHealthStatus(agentId, agentName, healthScore, status, lastHeartbeat, providerType, mode,
-                    modelName, viewType);
-        }
-    }
 }

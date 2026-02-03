@@ -150,9 +150,9 @@ public class DifyIntegrationService {
     }
 
     /**
-     * 发送消息到Dify应用
+     * 发送消息到Dify应用 (支持对话ID)
      */
-    public Optional<Object> sendMessage(String endpointUrl, String apiKey, String appId, String message) {
+    public Optional<Object> sendMessage(String endpointUrl, String apiKey, String conversationId, String message) {
         try {
             String url = buildUrl(endpointUrl, "/chat-messages");
 
@@ -164,7 +164,8 @@ public class DifyIntegrationService {
             requestBody.put("inputs", new HashMap<>());
             requestBody.put("query", message);
             requestBody.put("response_mode", "blocking"); // 同步响应
-            requestBody.put("conversation_id", ""); // 新对话
+            requestBody.put("conversation_id",
+                    (conversationId != null && !conversationId.isEmpty()) ? conversationId : "");
             requestBody.put("user", "orin-system");
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
