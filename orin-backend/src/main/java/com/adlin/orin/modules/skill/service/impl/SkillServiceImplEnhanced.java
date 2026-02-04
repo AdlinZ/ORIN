@@ -68,6 +68,7 @@ public class SkillServiceImplEnhanced implements SkillService {
                 .workflowId(request.getWorkflowId())
                 .externalPlatform(request.getExternalPlatform())
                 .externalReference(request.getExternalReference())
+                .shellCommand(request.getShellCommand())
                 .inputSchema(request.getInputSchema())
                 .outputSchema(request.getOutputSchema())
                 .version(request.getVersion() != null ? request.getVersion() : "1.0.0")
@@ -102,6 +103,8 @@ public class SkillServiceImplEnhanced implements SkillService {
             entity.setApiMethod(request.getApiMethod());
         if (request.getApiHeaders() != null)
             entity.setApiHeaders(request.getApiHeaders());
+        if (request.getShellCommand() != null)
+            entity.setShellCommand(request.getShellCommand());
         if (request.getInputSchema() != null)
             entity.setInputSchema(request.getInputSchema());
         if (request.getOutputSchema() != null)
@@ -196,10 +199,13 @@ public class SkillServiceImplEnhanced implements SkillService {
                 case COMPOSITE:
                     result = executeCompositeSkill(skill, inputs);
                     break;
+                case SHELL:
+                    result = executeShellSkill(skill, inputs);
+                    break;
                 default:
                     throw new UnsupportedOperationException("Unsupported skill type: " + skill.getSkillType());
             }
-            result.put("success", true);
+            // result.put("success", true);
         } catch (Exception e) {
             log.error("Error executing skill: {}", e.getMessage(), e);
             result.put("success", false);
@@ -226,6 +232,8 @@ public class SkillServiceImplEnhanced implements SkillService {
                 return request.getKnowledgeConfigId() != null;
             case COMPOSITE:
                 return request.getWorkflowId() != null || request.getExternalReference() != null;
+            case SHELL:
+                return request.getShellCommand() != null && !request.getShellCommand().trim().isEmpty();
             default:
                 return false;
         }
@@ -254,6 +262,13 @@ public class SkillServiceImplEnhanced implements SkillService {
             md.append("## API Configuration\n\n");
             md.append("- **Endpoint**: ").append(skill.getApiEndpoint()).append("\n");
             md.append("- **Method**: ").append(skill.getApiMethod()).append("\n\n");
+        }
+
+        if (skill.getSkillType() == SkillEntity.SkillType.SHELL) {
+            md.append("## Shell Configuration\n\n");
+            md.append("```bash\n");
+            md.append(skill.getShellCommand()).append("\n");
+            md.append("```\n\n");
         }
 
         if (skill.getInputSchema() != null) {
@@ -467,6 +482,76 @@ public class SkillServiceImplEnhanced implements SkillService {
             result.put("error", e.getMessage());
         }
 
+        return result;
+    }
+
+    /**
+     * 执行 Shell 类型技能
+     */
+    private Map<String, Object> executeShellSkill(SkillEntity skill, Map<String, Object> inputs) {
+        log.info("Executing Shell skill: {}", skill.getSkillName());
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            String commandTemplate = skill.getShellCommand();
+            if (commandTemplate == null || commandTemplate.trim().isEmpty()) {
+                throw new IllegalStateException("Shell command is empty for skill: " + skill.getSkillName());
+            }
+
+            // Simple variable substitution: ${var}
+            String commandToRun = commandTemplate;
+            if (inputs != null) {
+                for (Map.Entry<String, Object> entry : inputs.entrySet()) {
+                    String key = entry.getKey();
+                    String value = String.valueOf(entry.getValue());
+                    commandToRun = commandToRun.replace("${" + key + "}", value);
+                }
+            }
+
+            log.info("Running command: {}", commandToRun);
+
+            // Execute command using ProcessBuilder (splitting by space is simplistic,
+            // improved by using a shell wrapper 'sh -c')
+            ProcessBuilder processBuilder = new ProcessBuilder();
+            // Using bash -c allows pipes and complex commands
+            processBuilder.command("bash", "-c", commandToRun);
+
+            Process process = processBuilder.start();
+
+            // Read output
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()));
+            StringBuilder output = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+
+            // Read error
+            java.io.BufferedReader errorReader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getErrorStream()));
+            StringBuilder errorOutput = new StringBuilder();
+            while ((line = errorReader.readLine()) != null) {
+                errorOutput.append(line).append("\n");
+            }
+
+            int exitCode = process.waitFor();
+            log.info("Command exited with code: {}", exitCode);
+
+            result.put("success", exitCode == 0);
+            result.put("exitCode", exitCode);
+            result.put("stdout", output.toString());
+            result.put("stderr", errorOutput.toString());
+
+            if (exitCode != 0) {
+                result.put("error", "Command exited with code " + exitCode + ": " + errorOutput.toString());
+            }
+
+        } catch (Exception e) {
+            log.error("Shell skill execution failed", e);
+            result.put("success", false);
+            result.put("error", e.getMessage());
+        }
         return result;
     }
 }

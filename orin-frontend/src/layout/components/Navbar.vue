@@ -93,9 +93,7 @@
                                 系统初始化已完成。我是您的系统级 AI 管理助手。<br/><br/>
                                 您可以询问关于系统硬件、软件配置的问题，或者要求我执行脚本、清理日志等操作。
                             </div>
-                            <div class="markdown-body" v-else>
-                                {{ msg.content }}
-                            </div>
+                            <div class="markdown-body" v-else v-html="renderMarkdown(msg.content)"></div>
 
                             <!-- Quick Actions (Only for first message) -->
                             <div class="quick-actions" v-if="msg.role === 'ai' && index === 0">
@@ -170,6 +168,7 @@ import { getModelConfig } from '@/api/modelConfig';
 import { getKnowledgeList } from '@/api/knowledge';
 import { nextTick } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
+import { marked } from 'marked';
 
 const router = useRouter();
 const route = useRoute();
@@ -225,6 +224,14 @@ const systemMessages = ref([
 ]);
 const currentKernelAgent = ref(null);
 const currentConversationId = ref(null);
+
+const renderMarkdown = (text) => {
+    try {
+        return marked.parse(text || '');
+    } catch (e) {
+        return text;
+    }
+};
 
 const scrollToBottom = async () => {
     await nextTick();
@@ -301,7 +308,13 @@ const sendSystemMessage = async () => {
 
         // Format Recent Logs
         const logs = logsRes.status === 'fulfilled' ? (logsRes.value.content || []) : [];
-        const logSummary = logs.map(l => `- [${l.timestamp}] ${l.actionType}: ${l.details}`).join('\n').slice(0, 500);
+        const logSummary = logs.map(l => {
+            const time = l.createdAt || 'N/A';
+            const action = l.endpoint ? l.endpoint.split('/').pop() : 'Request'; // Simple action name
+            let detail = l.errorMessage || (l.success ? 'Success' : 'Failed');
+            if (detail.length > 30) detail = detail.substring(0, 30) + '...';
+            return `- [${time}] ${action}: ${detail}`;
+        }).join('\n').slice(0, 500);
 
         // Construct System Persona Prompt
         const systemPersona = `
@@ -800,4 +813,12 @@ html.dark .action-icon {
 html.dark .action-icon:hover {
   color: var(--orin-primary);
 }
+
+/* Markdown Styles */
+.markdown-body :deep(h1), .markdown-body :deep(h2), .markdown-body :deep(h3) { margin-top: 12px; margin-bottom: 8px; font-weight: 700; }
+.markdown-body :deep(p) { margin-bottom: 8px; line-height: 1.5; }
+.markdown-body :deep(pre) { background: var(--el-fill-color-dark); padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace; margin-bottom: 8px; }
+.markdown-body :deep(code) { background: var(--el-fill-color); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+.markdown-body :deep(ul), .markdown-body :deep(ol) { padding-left: 20px; margin-bottom: 8px; }
+.markdown-body :deep(strong) { font-weight: 700; color: var(--el-color-primary); }
 </style>

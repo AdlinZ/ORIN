@@ -3,7 +3,7 @@
     <!-- Logo Section -->
     <div class="logo-container">
       <div class="logo-box">
-        <img src="/vite.svg" alt="Logo" class="logo" />
+        <img src="/logo.png" alt="Logo" class="logo" />
       </div>
       <span class="title" v-show="!appStore.isCollapse">ORIN <span class="highlight">Monitor</span></span>
     </div>

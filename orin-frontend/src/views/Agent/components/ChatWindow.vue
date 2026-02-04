@@ -28,7 +28,8 @@
               <el-avatar :size="18" icon="UserFilled" />
               <span class="name">{{ agentInfo.agentName }}</span>
             </div>
-            {{ msg.content }}
+            <div v-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
+            <div v-else>{{ msg.content }}</div>
           </div>
         </div>
         <div v-if="chatLoading" class="chat-bubble assistant">
@@ -58,6 +59,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { Position, UserFilled } from '@element-plus/icons-vue';
 import { chatAgent } from '@/api/agent';
 import { getAgentMetrics } from '@/api/monitor';
+import { marked } from 'marked';
 
 const props = defineProps({
   agentId: { type: String, required: true },
@@ -72,6 +74,14 @@ const messagesContainer = ref(null);
 const metrics = ref({ latency: [], tokens: [] });
 
 let pollTimer = null;
+
+const renderMarkdown = (text) => {
+  try {
+    return marked.parse(text || '');
+  } catch (e) {
+    return text;
+  }
+};
 
 const latestTokenCount = computed(() => {
   if (metrics.value.tokens.length > 0) return metrics.value.tokens[metrics.value.tokens.length - 1].value;
@@ -186,4 +196,10 @@ onUnmounted(() => {
 
 .chat-input-area { padding: 12px; border-top: 1px solid #eee; }
 .icon-send { cursor: pointer; color: var(--orin-primary, #409EFF); }
+
+/* Markdown Styles */
+.markdown-body :deep(p) { margin-bottom: 8px; line-height: 1.5; }
+.markdown-body :deep(pre) { background: #f6f8fa; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace; }
+.markdown-body :deep(code) { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+.markdown-body :deep(ul), .markdown-body :deep(ol) { padding-left: 20px; margin-bottom: 8px; }
 </style>

@@ -3,7 +3,7 @@
     <div class="login-box animate-scale">
       <div class="login-left">
         <div class="app-info">
-          <img src="/vite.svg" alt="Logo" class="login-logo" />
+          <img src="/logo.png" alt="Logo" class="login-logo" />
           <h1>ORIN Platform</h1>
           <p>智能体管理与全链路监控系统</p>
           <div class="feature-list">

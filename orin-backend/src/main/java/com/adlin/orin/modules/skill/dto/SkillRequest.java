@@ -48,6 +48,9 @@ public class SkillRequest {
     private String externalPlatform;
     private String externalReference;
 
+    // Shell 类型配置
+    private String shellCommand;
+
     // Schema 定义
     private Map<String, Object> inputSchema;
     private Map<String, Object> outputSchema;

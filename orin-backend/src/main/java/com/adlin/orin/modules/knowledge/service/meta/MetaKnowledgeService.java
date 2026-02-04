@@ -4,6 +4,8 @@ import com.adlin.orin.modules.knowledge.entity.meta.AgentMemory;
 import com.adlin.orin.modules.knowledge.entity.meta.PromptTemplate;
 import com.adlin.orin.modules.knowledge.repository.meta.AgentMemoryRepository;
 import com.adlin.orin.modules.knowledge.repository.meta.PromptTemplateRepository;
+import com.adlin.orin.modules.skill.entity.SkillEntity;
+import com.adlin.orin.modules.skill.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
         private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
         private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+        private final SkillRepository skillRepository;
 
         // --- MetaMemoryService Implementation ---
 
@@ -277,6 +280,27 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
                         moments.forEach(m -> systemPrompt.append("- ").append(m.getKey()).append(": ")
                                         .append(m.getValue())
                                         .append("\n"));
+                }
+
+                // 4. Capabilities (SHELL Skills)
+                List<SkillEntity> shellSkills = skillRepository.findBySkillType(SkillEntity.SkillType.SHELL);
+                if (!shellSkills.isEmpty()) {
+                        systemPrompt.append("\n## System Capabilities\n");
+                        systemPrompt.append("You have access to the following system tools.\n");
+                        systemPrompt.append("To execute a tool, strictly follow this format:\n");
+                        systemPrompt.append("`Suggest Command: <ToolName> <params>`\n\n");
+                        systemPrompt.append("### Available Tools:\n");
+
+                        for (SkillEntity skill : shellSkills) {
+                                systemPrompt.append("- **").append(skill.getSkillName()).append("**: ");
+                                if (skill.getDescription() != null) {
+                                        systemPrompt.append(skill.getDescription()).append("\n");
+                                } else {
+                                        systemPrompt.append("No description.\n");
+                                }
+                                systemPrompt.append("  - Template: `").append(skill.getShellCommand()).append("`\n");
+                        }
+                        systemPrompt.append("\n");
                 }
 
                 return systemPrompt.toString();

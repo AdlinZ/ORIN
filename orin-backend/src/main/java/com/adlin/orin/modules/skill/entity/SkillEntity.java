@@ -70,6 +70,10 @@ public class SkillEntity {
     @Column(name = "external_reference", length = 500)
     private String externalReference;
 
+    // Shell 类型技能配置
+    @Column(name = "shell_command", columnDefinition = "TEXT")
+    private String shellCommand;
+
     // 输入输出定义
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "input_schema", columnDefinition = "JSON")
@@ -115,7 +119,8 @@ public class SkillEntity {
     public enum SkillType {
         API, // API 调用类型
         KNOWLEDGE, // 知识库检索类型
-        COMPOSITE // 复合类型 (引用其他工作流)
+        COMPOSITE, // 复合类型 (引用其他工作流)
+        SHELL // 系统命令类型
     }
 
     /**

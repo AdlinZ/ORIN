@@ -9,8 +9,10 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/knowledge/mapper/KnowledgeMapperTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/runtime/service/RuntimeManageServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/system/service/DynamicLoggerServiceTest.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/knowledge/service/meta/MetaKnowledgeServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/workflow/service/WorkflowServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/multimodal/service/MultimodalFileServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/BaseTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/monitor/service/MonitorServiceTest.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/skill/service/impl/SkillShellExecutionTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/system/mapper/SystemMapperTest.java
