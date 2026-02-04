@@ -102,4 +102,9 @@ public interface MonitorService {
      * 获取 Prometheus 配置
      */
     com.adlin.orin.modules.monitor.entity.PrometheusConfig getPrometheusConfig();
+
+    /**
+     * 测试 Prometheus 连接 (轻量级)
+     */
+    Map<String, Object> testPrometheusConnection();
 }

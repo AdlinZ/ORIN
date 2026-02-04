@@ -169,25 +169,36 @@ const saveConfig = async () => {
     try {
         await request.post('/monitor/prometheus/config', config);
         ElMessage.success('配置已生效并保存');
+        // Force reload to confirm persistence
         await loadConfig();
     } catch (error) {
-        ElMessage.error('保存失败: ' + error.message);
+        if (error.response && error.response.status === 401) {
+             ElMessage.error('保存失败：登录已过期，请重新登录');
+        } else {
+             ElMessage.error('保存失败: ' + error.message);
+        }
     } finally {
         saving.value = false;
     }
 };
 
-const testConnection = async () => {
+  const testConnection = async () => {
   testing.value = true;
   try {
-    // We reuse the server-hardware endpoint to see if it responds without error
-    const res = await request.get('/monitor/server-hardware');
+    // Use the dedicated test endpoint
+    const res = await request.get('/monitor/prometheus/test');
+    console.log('Test Connection Response:', res);
+    if (res.probedUrl) {
+        console.log('Backend actually probed this URL:', res.probedUrl);
+    }
+    
     if (res.online) {
       ElMessage.success('连接成功！Prometheus 响应正常。');
     } else {
       ElMessage.warning('连接测试失败: ' + (res.error || '无法解析数据'));
     }
   } catch (e) {
+    console.error('Test Connection Error:', e);
     ElMessage.error('测试失败: ' + e.message);
   } finally {
     testing.value = false;

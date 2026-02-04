@@ -145,4 +145,10 @@ public class MonitorController {
     public void updatePrometheusConfig(@RequestBody com.adlin.orin.modules.monitor.entity.PrometheusConfig config) {
         monitorService.updatePrometheusConfig(config);
     }
+
+    @Operation(summary = "测试Prometheus连接")
+    @GetMapping("/prometheus/test")
+    public Map<String, Object> testPrometheusConnection() {
+        return monitorService.testPrometheusConnection();
+    }
 }

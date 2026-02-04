@@ -300,34 +300,37 @@ const sendSystemMessage = async () => {
         
         // Format Agents
         const agents = agentsRes.status === 'fulfilled' ? (agentsRes.value.data || agentsRes.value) : [];
-        const agentSummary = agents.map(a => `- [${a.enabled ? 'ON' : 'OFF'}] ${a.name} (${a.modelName})`).join('\n').slice(0, 500); // Truncate
+        const activeAgentsCount = agents.filter(a => a.enabled).length;
+        const agentSummary = agents.slice(0, 10).map(a => `- [${a.enabled ? 'ON' : 'OFF'}] ${a.name} (${a.modelName})`).join('\n') 
+            + (agents.length > 10 ? `\n... and ${agents.length - 10} more` : '');
 
         // Format Knowledge Bases
         const kbs = kbRes.status === 'fulfilled' ? (kbRes.value.data?.list || []) : [];
-        const kbSummary = kbs.map(k => `- ${k.name} (${k.docCount} docs)`).join('\n').slice(0, 500);
+        const kbSummary = kbs.slice(0, 10).map(k => `- ${k.name} (${k.docCount} docs)`).join('\n')
+            + (kbs.length > 10 ? `\n... and ${kbs.length - 10} more` : '');
 
         // Format Recent Logs
         const logs = logsRes.status === 'fulfilled' ? (logsRes.value.content || []) : [];
         const logSummary = logs.map(l => {
             const time = l.createdAt || 'N/A';
-            const action = l.endpoint ? l.endpoint.split('/').pop() : 'Request'; // Simple action name
+            const action = l.endpoint ? l.endpoint.split('/').pop() : 'Request'; 
             let detail = l.errorMessage || (l.success ? 'Success' : 'Failed');
-            if (detail.length > 30) detail = detail.substring(0, 30) + '...';
+            if (detail.length > 50) detail = detail.substring(0, 50) + '...';
             return `- [${time}] ${action}: ${detail}`;
-        }).join('\n').slice(0, 500);
+        }).join('\n').slice(0, 2000);
 
         // Construct System Persona Prompt
         const systemPersona = `
 You are the **ORIN System Core AI** (ORIN 系统中枢 AI).
 You have access to REAL-TIME system metrics. Use them to answer user questions.
 
-### REAL-TIME SYSTEM STATUS (DO NOT HALUCINATE, USE THIS DATA):
+### REAL-TIME SYSTEM STATUS:
 
 **1. Hardware Topology:**
-- CPU Status: ${cpuInfo}
-- Memory Status: ${memInfo}
+- CPU: ${cpuInfo}
+- Memory: ${memInfo}
 
-**2. Active Agents (${agents.length} Total):**
+**2. Active Agents (${activeAgentsCount} Active / ${agents.length} Total):**
 ${agentSummary}
 
 **3. Knowledge Bases:**
@@ -336,10 +339,12 @@ ${kbSummary}
 **4. Recent System Events (logs):**
 ${logSummary}
 
-### Your Persona:
+### Instructions:
 - **Role**: System Administrator & DevOps AI.
 - **Tone**: Professional, precise, technical (Cyberpunk style preferred).
 - **Language**: Chinese (Simplified).
+- **Conciseness**: **Be extremely concise.** Do NOT repeat the full lists of agents or logs unless explicitly asked. Summarize status instead.
+- **Output Limit**: Ensure your response fits within standard token limits.
 
 ### User Query:
 ${userMsg}

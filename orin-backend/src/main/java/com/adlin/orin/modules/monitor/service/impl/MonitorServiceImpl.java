@@ -476,6 +476,43 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         @Override
+        public Map<String, Object> testPrometheusConnection() {
+                PrometheusConfig config = getPrometheusConfig();
+                Map<String, Object> status = new HashMap<>();
+
+                if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
+                        String url = config.getPrometheusUrl();
+                        status.put("probedUrl", url); // Base URL from config
+
+                        try {
+                                log.info("Testing Prometheus Connection: {}", url);
+                                // Use supplyAsync + get to handle timeouts safely
+                                CompletableFuture<Map<String, String>> probeTask = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.probe(url), prometheusExecutor);
+
+                                // 5 seconds timeout for test is plenty since we fixed proxy
+                                Map<String, String> probeResult = probeTask.get(5,
+                                                java.util.concurrent.TimeUnit.SECONDS);
+
+                                status.put("online", true);
+                                status.put("probeUrl", probeResult.get("targetUrl"));
+                                status.put("probeResponse", probeResult.get("response"));
+                                status.put("message", "Connection Successful");
+                        } catch (Exception e) {
+                                status.put("online", false);
+                                String errorMsg = e.getMessage();
+                                if (e.getCause() != null)
+                                        errorMsg = e.getCause().getMessage();
+                                status.put("error", errorMsg);
+                        }
+                } else {
+                        status.put("online", false);
+                        status.put("error", "Prometheus is disabled in settings");
+                }
+                return status;
+        }
+
+        @Override
         public Map<String, Object> getServerHardware() {
                 long now = System.currentTimeMillis();
                 if (cachedHardwareStatus != null && (now - lastHardwareUpdate) < HARDWARE_CACHE_TTL) {
@@ -487,11 +524,20 @@ public class MonitorServiceImpl implements MonitorService {
 
                 if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
                         String url = config.getPrometheusUrl();
+                        status.put("probedUrl", url);
 
                         try {
-                                // First probe if Prometheus is actually reachable
-                                prometheusService.probe(url);
+                                log.info("Probing Prometheus URL: {}", url);
+                                // First probe if Prometheus is actually reachable with a timeout (25s > 20s
+                                // read timeout for metadata)
+                                CompletableFuture<Map<String, String>> probeTask = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.probe(url), prometheusExecutor);
+                                Map<String, String> probeResult = probeTask.get(25,
+                                                java.util.concurrent.TimeUnit.SECONDS);
+
                                 status.put("online", true);
+                                status.put("probeUrl", probeResult.get("targetUrl"));
+                                status.put("probeResponse", probeResult.get("response"));
 
                                 CompletableFuture<Double> cpuFuture = CompletableFuture
                                                 .supplyAsync(() -> prometheusService.getCpuUsage(url),
@@ -539,58 +585,88 @@ public class MonitorServiceImpl implements MonitorService {
                                                 .supplyAsync(() -> prometheusService.getGpuModel(url),
                                                                 prometheusExecutor);
 
-                                // Wait for all with a strict timeout (reduced to 4s)
+                                // Wait for all with a strict timeout (5s)
                                 CompletableFuture.allOf(cpuFuture, memFuture, diskFuture, coresFuture, totalMemFuture,
                                                 netInFuture, netOutFuture, osFuture, diskTotalFuture, cpuModelFuture,
                                                 gpuUsageFuture, gpuMemFuture, gpuModelFuture)
-                                                .get(4, java.util.concurrent.TimeUnit.SECONDS);
+                                                .get(5, java.util.concurrent.TimeUnit.SECONDS);
 
-                                status.put("cpuUsage", cpuFuture.get());
-                                status.put("memoryUsage", memFuture.get());
-                                status.put("diskUsage", diskFuture.get());
-                                status.put("cpuCores", coresFuture.get());
-                                status.put("os", osFuture.get());
-                                status.put("cpuModel", cpuModelFuture.get());
+                                // Safe retrieval using getNow to avoid exceptions if any failed
+                                status.put("cpuUsage", cpuFuture.getNow(0.0));
+                                status.put("memoryUsage", memFuture.getNow(0.0));
+                                status.put("diskUsage", diskFuture.getNow(0.0));
+                                status.put("cpuCores", coresFuture.getNow(0));
+                                status.put("os", osFuture.getNow("Unknown"));
+                                status.put("cpuModel", cpuModelFuture.getNow("Unknown"));
 
                                 // GPU
-                                status.put("gpuUsage", gpuUsageFuture.get());
-                                status.put("gpuMemoryUsage", gpuMemFuture.get());
-                                status.put("gpuModel", gpuModelFuture.get());
+                                status.put("gpuUsage", gpuUsageFuture.getNow(0.0));
+                                status.put("gpuMemoryUsage", gpuMemFuture.getNow(0.0));
+                                status.put("gpuModel", gpuModelFuture.getNow("Unknown"));
 
                                 // Format Memory
-                                long totalMemBytes = totalMemFuture.get();
+                                long totalMemBytes = totalMemFuture.getNow(0L);
                                 status.put("memoryTotal", formatBytes(totalMemBytes));
 
                                 // Calculate Used Memory
-                                long usedMemBytes = (long) (totalMemBytes * (memFuture.get() / 100.0));
+                                double memPct = memFuture.getNow(0.0);
+                                long usedMemBytes = (long) (totalMemBytes * (memPct / 100.0));
                                 status.put("memoryUsed", formatBytes(usedMemBytes));
 
                                 // Format Disk
-                                long totalDiskBytes = diskTotalFuture.get().longValue();
+                                long totalDiskBytes = diskTotalFuture.getNow(0.0).longValue();
                                 status.put("diskTotal", formatBytes(totalDiskBytes));
-                                long usedDiskBytes = (long) (totalDiskBytes * (diskFuture.get() / 100.0));
+                                double diskPct = diskFuture.getNow(0.0);
+                                long usedDiskBytes = (long) (totalDiskBytes * (diskPct / 100.0));
                                 status.put("diskUsed", formatBytes(usedDiskBytes));
 
                                 // Format Network
-                                status.put("networkDownload", formatSpeed(netInFuture.get()));
-                                status.put("networkUpload", formatSpeed(netOutFuture.get()));
+                                status.put("networkDownload", formatSpeed(netInFuture.getNow(0.0)));
+                                status.put("networkUpload", formatSpeed(netOutFuture.getNow(0.0)));
 
+                        } catch (java.util.concurrent.TimeoutException e) {
+                                log.warn("Prometheus connection timed out for url: {}", url);
+                                // If we already probed successfully, don't flap the online status just because
+                                // metrics were slow. And don't show error message.
+                                if (!Boolean.TRUE.equals(status.get("online"))) {
+                                        status.put("online", false);
+                                        status.put("error", "连接超时 (响应过慢，请检查网络或端点)");
+                                        setEmptyStatus(status);
+                                }
                         } catch (Exception e) {
-                                log.error("Error fetching Prometheus metrics: {}", e.getMessage());
-                                status.put("online", false);
-                                status.put("cpuUsage", 0.0);
-                                status.put("memoryUsage", 0.0);
-                                status.put("diskUsage", 0.0);
-                                status.put("cpuCores", 0);
-                                status.put("memoryTotal", "N/A");
-                                status.put("memoryUsed", "N/A");
-                                status.put("diskTotal", "N/A");
-                                status.put("diskUsed", "N/A");
-                                status.put("networkDownload", "0 KB/s");
-                                status.put("networkUpload", "0 KB/s");
-                                status.put("cpuModel", "Unknown");
-                                status.put("gpuModel", "N/A");
-                                status.put("error", "Connection error: " + e.getMessage());
+                                log.error("Error fetching Prometheus metrics: {}", e.getMessage(), e);
+
+                                if (!Boolean.TRUE.equals(status.get("online"))) {
+                                        status.put("online", false);
+                                        setEmptyStatus(status);
+                                }
+
+                                String errorMsg = e.getMessage();
+                                // Unwrap cause if available
+                                if (e.getCause() != null && e.getCause().getMessage() != null) {
+                                        errorMsg = e.getCause().getMessage();
+                                }
+                                if (errorMsg == null)
+                                        errorMsg = e.getClass().getSimpleName();
+
+                                // Only report error if we failed the initial probe
+                                if (!Boolean.TRUE.equals(status.get("online"))) {
+                                        status.put("error", errorMsg);
+                                }
+
+                                // Friendly error messages
+                                if (errorMsg.contains("Connect timed out")) {
+                                        errorMsg = "连接超时 (Connect Timed Out)";
+                                } else if (errorMsg.contains("Read timed out")) {
+                                        errorMsg = "读取超时 (数据量过大或服务端响应慢)";
+                                } else if (errorMsg.contains("Connection refused")) {
+                                        errorMsg = "连接被拒绝 (端口未开放或服务未启动)";
+                                } else if (errorMsg.contains("host")) { // Unknown host
+                                        errorMsg = "无法解析主机地址";
+                                }
+
+                                status.put("error", "连接失败: " + errorMsg);
+                                setEmptyStatus(status);
                         }
 
                         cachedHardwareStatus = status;
@@ -600,6 +676,21 @@ public class MonitorServiceImpl implements MonitorService {
                         status.put("error", "Prometheus monitoring is disabled or not configured.");
                 }
                 return status;
+        }
+
+        private void setEmptyStatus(Map<String, Object> status) {
+                status.put("cpuUsage", 0.0);
+                status.put("memoryUsage", 0.0);
+                status.put("diskUsage", 0.0);
+                status.put("cpuCores", 0);
+                status.put("memoryTotal", "N/A");
+                status.put("memoryUsed", "N/A");
+                status.put("diskTotal", "N/A");
+                status.put("diskUsed", "N/A");
+                status.put("networkDownload", "0 KB/s");
+                status.put("networkUpload", "0 KB/s");
+                status.put("cpuModel", "Unknown");
+                status.put("gpuModel", "N/A");
         }
 
         private String formatBytes(long bytes) {
@@ -623,11 +714,15 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         @Override
+        @org.springframework.transaction.annotation.Transactional
         public void updatePrometheusConfig(PrometheusConfig config) {
                 config.setId("DEFAULT");
                 log.info("Updating Prometheus config: enabled={}, url={}", config.getEnabled(),
                                 config.getPrometheusUrl());
                 prometheusConfigRepository.save(config);
+
+                // Invalidate hardware cache so changes take effect immediately
+                this.cachedHardwareStatus = null;
         }
 
         @Override

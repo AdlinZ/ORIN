@@ -161,14 +161,19 @@ const viewFullDoc = (item) => {
     flex: 1;
     display: flex;
     overflow: hidden;
-    background: #f5f7fa;
+    background: var(--app-bg);
 }
 
 .lab-sidebar {
     width: 320px;
-    background: white;
-    border-right: 1px solid #ebeef5;
+    background: var(--glass-bg);
+    border-right: 1px solid var(--border-subtle);
     padding: 24px;
+    backdrop-filter: blur(20px);
+}
+
+.lab-sidebar h3 {
+    color: var(--text-primary);
 }
 
 .lab-main {
@@ -179,8 +184,8 @@ const viewFullDoc = (item) => {
 
 .search-hero {
     padding: 30px 5%;
-    background: white;
-    border-bottom: 1px solid #ebeef5;
+    background: var(--glass-bg);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .results-container {
@@ -196,12 +201,12 @@ const viewFullDoc = (item) => {
 }
 
 .chunk-card {
-    background: white;
+    background: var(--glass-bg);
     border-radius: 12px;
     padding: 20px;
     position: relative;
     box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-    border: 1px solid #f0f0f0;
+    border: 1px solid var(--border-subtle);
 }
 
 .chunk-rank {
@@ -210,8 +215,8 @@ const viewFullDoc = (item) => {
     left: -10px;
     width: 30px;
     height: 30px;
-    background: #1890ff;
-    color: white;
+    background: var(--orin-primary);
+    color: var(--orin-bg-white);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -237,13 +242,13 @@ const viewFullDoc = (item) => {
 
 .source-info {
     font-size: 12px;
-    color: #909399;
+    color: var(--text-secondary);
 }
 
 .chunk-content {
     font-size: 14px;
     line-height: 1.6;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 15px;
     display: -webkit-box;
     -webkit-line-clamp: 6;
@@ -252,11 +257,11 @@ const viewFullDoc = (item) => {
 }
 
 .chunk-footer {
-    border-top: 1px solid #f5f5f5;
+    border-top: 1px solid var(--border-subtle);
     padding-top: 12px;
     display: flex;
     justify-content: space-between;
     font-size: 12px;
-    color: #909399;
+    color: var(--text-secondary);
 }
 </style>

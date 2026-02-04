@@ -16,6 +16,46 @@ public class PrometheusService {
 
     private final RestTemplate restTemplate;
 
+    public PrometheusService() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(2000); // 2 seconds connect timeout
+        factory.setReadTimeout(3000); // 3 seconds read timeout (Fast for dashboard)
+        // FORCE DIRECT CONNECTION: Bypass system proxies for queries too
+        factory.setProxy(java.net.Proxy.NO_PROXY);
+        this.restTemplate = new RestTemplate(factory);
+    }
+
+    private URI buildUri(String baseUrl, String endpointPath, String queryParamName, String queryParamValue) {
+        String clean = baseUrl.trim();
+        if (clean.endsWith("/")) {
+            clean = clean.substring(0, clean.length() - 1);
+        }
+
+        // Aggressively strip known suffixes to get to the root
+        if (clean.endsWith("/metadata")) {
+            clean = clean.substring(0, clean.length() - "/metadata".length());
+        }
+        if (clean.endsWith("/status/buildinfo")) {
+            clean = clean.substring(0, clean.length() - "/status/buildinfo".length());
+        }
+
+        // Strip /api/v1 to ensure we have the pure host root (e.g.
+        // http://192.168.1.107:9090)
+        int idx = clean.indexOf("/api/v1");
+        if (idx != -1) {
+            clean = clean.substring(0, idx);
+        }
+
+        // Always reconstruct from root
+        String finalUrl = clean + endpointPath;
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(finalUrl);
+        if (queryParamName != null && queryParamValue != null) {
+            builder.queryParam(queryParamName, queryParamValue);
+        }
+        return builder.build().toUri();
+    }
+
     /**
      * 查询 Prometheus 的当前数据
      * 
@@ -25,16 +65,12 @@ public class PrometheusService {
      */
     public Double queryValue(String baseUrl, String query) {
         try {
-            // Clean up baseUrl to ensure no trailing slash logic issues
-            String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+            if (baseUrl == null)
+                return Double.NaN;
 
-            URI url = UriComponentsBuilder.fromHttpUrl(cleanBaseUrl)
-                    .path("/api/v1/query")
-                    .queryParam("query", query)
-                    .build()
-                    .toUri();
+            URI url = buildUri(baseUrl, "/api/v1/query", "query", query);
 
-            log.debug("Querying Prometheus: {}", url);
+            log.debug("Probing URL: '{}'", url);
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
 
             if (response != null && "success".equals(response.get("status"))) {
@@ -51,7 +87,9 @@ public class PrometheusService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to query Prometheus at {} with query [{}]: {}", baseUrl, query, e.getMessage());
+            // Log only if it's not a common "no data" case or for debugging
+            // For now, let's log debug to avoid flooding if offline
+            log.info("Failed to query Prometheus at {} with query [{}]: {}", baseUrl, query, e.getMessage());
         }
         return Double.NaN;
     }
@@ -62,13 +100,19 @@ public class PrometheusService {
 
     public Double getCpuUsage(String baseUrl) {
         // Try Linux node_exporter
-        String linuxQuery = "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)";
+        String linuxQuery = "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)";
         Double value = queryValue(baseUrl, linuxQuery);
 
         if (Double.isNaN(value)) {
-            // Fallback to Windows windows_exporter
-            String winQuery = "100 - (avg(irate(windows_cpu_time_total{mode=\"idle\"}[5m])) * 100)";
+            // Windows (modern)
+            String winQuery = "100 - (avg(irate(windows_cpu_time_total{mode=\"idle\"}[1m])) * 100)";
             value = queryValue(baseUrl, winQuery);
+        }
+
+        if (Double.isNaN(value)) {
+            // Windows (legacy wmi_exporter)
+            String winQueryOld = "100 - (avg(irate(wmi_cpu_time_total{mode=\"idle\"}[1m])) * 100)";
+            value = queryValue(baseUrl, winQueryOld);
         }
 
         return Double.isNaN(value) ? 0.0 : Math.round(value * 100.0) / 100.0;
@@ -113,16 +157,12 @@ public class PrometheusService {
      */
     public String queryLabel(String baseUrl, String query, String label) {
         try {
-            // Clean up baseUrl
-            String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+            if (baseUrl == null)
+                return "Unknown";
 
-            URI url = UriComponentsBuilder.fromHttpUrl(cleanBaseUrl)
-                    .path("/api/v1/query")
-                    .queryParam("query", query)
-                    .build()
-                    .toUri();
+            URI url = buildUri(baseUrl, "/api/v1/query", "query", query);
 
-            log.debug("Querying Prometheus Label: {}", url);
+            log.debug("Probing URL Label: '{}'", url);
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
 
             if (response != null && "success".equals(response.get("status"))) {
@@ -142,7 +182,7 @@ public class PrometheusService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to query Prometheus label at {} query {}: {}", baseUrl, query, e.getMessage());
+            log.info("Failed to query Prometheus label at {} query {}: {}", baseUrl, query, e.getMessage());
         }
         return "Unknown";
     }
@@ -169,7 +209,6 @@ public class PrometheusService {
             if (!"Unknown".equals(product)) {
                 return product;
             }
-            return "Windows (Detected)";
         }
         return osName;
     }
@@ -221,14 +260,28 @@ public class PrometheusService {
         String model = queryLabel(baseUrl, linuxQuery, "model_name");
 
         if ("Unknown".equals(model)) {
-            // Try Windows: windows_cs_processor -> name (Computer System Processor)
+            // Try Windows Exporter 0.31.x: windows_cpu_info -> name
+            String winQuery = "windows_cpu_info";
+            model = queryLabel(baseUrl, winQuery, "name");
+        }
+
+        if ("Unknown".equals(model)) {
+            // Try Windows Exporter 0.31.x: windows_cpu_info -> description
+            String winQuery = "windows_cpu_info";
+            model = queryLabel(baseUrl, winQuery, "description");
+        }
+
+        if ("Unknown".equals(model)) {
+            // Try older Windows Exporter: windows_cs_processor -> name (Computer System
+            // Processor)
             String winQuery = "windows_cs_processor";
             model = queryLabel(baseUrl, winQuery, "name");
         }
 
         if ("Unknown".equals(model)) {
-            // Fallback for some Windows exporters: windows_cpu_info -> description?
-            model = queryLabel(baseUrl, "windows_cpu_info", "description");
+            // Try Windows (legacy): wmi_cs_processor -> name
+            String wmiQuery = "wmi_cs_processor";
+            model = queryLabel(baseUrl, wmiQuery, "name");
         }
 
         return model;
@@ -295,15 +348,24 @@ public class PrometheusService {
     /**
      * 获取网络下载速率 (Bytes/s)
      */
+    /**
+     * 获取网络下载速率 (Bytes/s)
+     */
     public Double getNetworkReceiveRate(String baseUrl) {
         // Sum of all non-loopback interfaces
-        String linuxQuery = "sum(irate(node_network_receive_bytes_total{device!=\"lo\"}[5m]))";
+        String linuxQuery = "sum(irate(node_network_receive_bytes_total{device!=\"lo\"}[1m]))";
         Double val = queryValue(baseUrl, linuxQuery);
 
         if (Double.isNaN(val)) {
-            // Windows fallback
-            String winQuery = "sum(irate(windows_net_bytes_received_total[5m]))";
+            // Windows fallback (exclude loopback and virtuals to avoid double counting or
+            // noise)
+            String winQuery = "sum(irate(windows_net_bytes_received_total{nic!~'isatap.*|Teredo.*|.*Loopback.*'}[1m]))";
             val = queryValue(baseUrl, winQuery);
+        }
+        if (Double.isNaN(val)) {
+            // Legacy wmi
+            String wmiQuery = "sum(irate(wmi_net_bytes_received_total{nic!~'isatap.*|Teredo.*|.*Loopback.*'}[1m]))";
+            val = queryValue(baseUrl, wmiQuery);
         }
         return !Double.isNaN(val) ? val : 0.0;
     }
@@ -313,13 +375,18 @@ public class PrometheusService {
      */
     public Double getNetworkTransmitRate(String baseUrl) {
         // Sum of all non-loopback interfaces
-        String linuxQuery = "sum(irate(node_network_transmit_bytes_total{device!=\"lo\"}[5m]))";
+        String linuxQuery = "sum(irate(node_network_transmit_bytes_total{device!=\"lo\"}[1m]))";
         Double val = queryValue(baseUrl, linuxQuery);
 
         if (Double.isNaN(val)) {
             // Windows fallback
-            String winQuery = "sum(irate(windows_net_bytes_sent_total[5m]))";
+            String winQuery = "sum(irate(windows_net_bytes_sent_total{nic!~'isatap.*|Teredo.*|.*Loopback.*'}[1m]))";
             val = queryValue(baseUrl, winQuery);
+        }
+        if (Double.isNaN(val)) {
+            // Legacy wmi
+            String wmiQuery = "sum(irate(wmi_net_bytes_sent_total{nic!~'isatap.*|Teredo.*|.*Loopback.*'}[1m]))";
+            val = queryValue(baseUrl, wmiQuery);
         }
         return !Double.isNaN(val) ? val : 0.0;
     }
@@ -328,13 +395,43 @@ public class PrometheusService {
      * Probe if Prometheus is reachable.
      * Throws exception if unreachable.
      */
-    public void probe(String baseUrl) {
-        String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        URI url = UriComponentsBuilder.fromHttpUrl(cleanBaseUrl)
-                .path("/api/v1/query")
-                .queryParam("query", "up")
-                .build()
-                .toUri();
-        restTemplate.getForObject(url, Map.class);
+    public Map<String, String> probe(String baseUrl) {
+        if (baseUrl == null)
+            throw new IllegalArgumentException("URL cannot be null");
+
+        // Automatically append the standard buildinfo endpoint
+        URI url = buildUri(baseUrl, "/api/v1/status/buildinfo", null, null);
+
+        log.debug("Probing Connectivity: {}", url);
+        Map<String, String> result = new HashMap<>();
+        result.put("targetUrl", url.toString());
+
+        try {
+            // Use a custom RestTemplate with specific timeout for probe
+            org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(5000); // 5s connect
+            factory.setReadTimeout(10000); // 10s read
+
+            // FORCE DIRECT CONNECTION: Bypass system proxies that might choke on LAN IPs
+            factory.setProxy(java.net.Proxy.NO_PROXY);
+
+            RestTemplate probeTemplate = new RestTemplate(factory);
+
+            // Expecting valid JSON with "success"
+            String response = probeTemplate.getForObject(url, String.class);
+            log.debug("Probe response: {}", response);
+
+            result.put("response", response);
+
+            if (response == null || !response.contains("success")) {
+                throw new RuntimeException("Invalid response: "
+                        + (response != null && response.length() > 100 ? response.substring(0, 100) + "..."
+                                : response));
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Probe failed for {}: {}", url, e.getMessage());
+            throw new RuntimeException("Probe failed: " + e.getMessage(), e);
+        }
     }
 }

@@ -316,7 +316,7 @@ const handleTest = async () => {
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: #f8fafc;
+    background: var(--app-bg);
 }
 
 .lab-layout {
@@ -330,14 +330,15 @@ const handleTest = async () => {
     display: flex;
     flex-direction: column;
     gap: 24px;
-    background: #f1f5f9;
+    background: var(--app-bg);
 }
 
 .stream-header-card {
-    background: white;
+    background: var(--glass-bg);
     padding: 20px;
     border-radius: 16px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border-subtle);
 }
 
 .input-row {
@@ -358,29 +359,30 @@ const handleTest = async () => {
 
 /* Card Styling */
 .task-card {
-    background: white;
+    background: var(--glass-bg);
     border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
-    border: 2px solid transparent;
+    border: 1px solid var(--border-subtle);
 }
 
 .task-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    border-color: var(--orin-primary);
 }
 
 .task-card.active {
-    border-color: #409eff;
-    box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.1);
+    border-color: var(--orin-primary);
+    box-shadow: 0 0 0 4px var(--orin-primary-glow);
 }
 
 .card-image-box {
     position: relative;
     height: 160px;
-    background: #e2e8f0;
+    background: var(--orin-primary-soft);
     overflow: hidden;
 }
 
@@ -397,8 +399,8 @@ const handleTest = async () => {
     align-items: center;
     width: 100%;
     height: 100%;
-    color: #94a3b8;
-    background: #f8fafc;
+    color: var(--text-secondary);
+    background: var(--orin-primary-soft);
 }
 
 /* Amber Flow Animation */
@@ -423,7 +425,7 @@ const handleTest = async () => {
     left: -100%;
     width: 200%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 191, 0, 0.4), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--orin-primary), 0.4), transparent);
     animation: flow 1.5s infinite linear;
 }
 
@@ -448,9 +450,9 @@ const handleTest = async () => {
     content: '';
     width: 8px;
     height: 8px;
-    background: #fbbf24;
+    background: var(--orin-amber);
     border-radius: 50%;
-    box-shadow: 0 0 8px #fbbf24;
+    box-shadow: 0 0 8px var(--orin-amber);
     animation: blink 1s infinite;
 }
 
@@ -469,7 +471,7 @@ const handleTest = async () => {
 .model-name {
     font-weight: 600;
     font-size: 14px;
-    color: #334155;
+    color: var(--text-primary);
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
@@ -478,13 +480,13 @@ const handleTest = async () => {
 
 .time-info {
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--text-secondary);
 }
 
 /* Detail Dashboard (Right) */
 .detail-dashboard {
-    background: white;
-    border-left: 1px solid #e2e8f0;
+    background: var(--glass-bg);
+    border-left: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
 }
@@ -498,12 +500,12 @@ const handleTest = async () => {
 
 .detail-section {
     padding: 24px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 /* Image Preview */
 .image-preview-section {
-    background: #f8fafc;
+    background: var(--orin-primary-soft);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -515,8 +517,8 @@ const handleTest = async () => {
     height: 240px;
     border-radius: 8px;
     overflow: hidden;
-    background: white;
-    border: 1px solid #e2e8f0;
+    background: var(--glass-bg);
+    border: 1px solid var(--border-subtle);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -541,7 +543,7 @@ const handleTest = async () => {
 .section-title {
     font-size: 16px;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text-primary);
     margin-bottom: 16px;
     display: flex;
     align-items: center;
@@ -558,14 +560,14 @@ const handleTest = async () => {
     box-shadow: none !important;
     background: transparent;
     padding: 0;
-    color: #334155;
+    color: var(--text-primary);
     line-height: 1.6;
     font-size: 14px;
 }
 
 .summary-editor-box :deep(.el-textarea__inner:focus) {
-    box-shadow: 0 0 0 1px #e2e8f0 !important;
-    background: white;
+    box-shadow: 0 0 0 1px var(--orin-primary) !important;
+    background: var(--glass-bg);
     padding: 12px;
 }
 
@@ -588,7 +590,7 @@ const handleTest = async () => {
 .tag-row .label {
     width: 60px;
     font-size: 13px;
-    color: #64748b;
+    color: var(--text-secondary);
 }
 
 .kb-tags {

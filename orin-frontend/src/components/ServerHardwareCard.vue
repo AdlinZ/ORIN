@@ -150,7 +150,7 @@
           </div>
           <div class="info-row">
             <span class="info-label">采集来源</span>
-            <span class="info-value">Prometheus (Node Exporter)</span>
+            <span class="info-value">Prometheus ({{ getExporterType() }})</span>
           </div>
           <div class="info-row">
             <span class="info-label">监控实例</span>
@@ -212,10 +212,27 @@ const fetchServerInfo = async () => {
   } catch (error) {
     console.error('Failed to fetch server info:', error);
     serverInfo.value.online = false;
-    serverInfo.value.error = error.message;
+    
+    if (error.response && error.response.status === 401) {
+      serverInfo.value.error = '登录凭证已失效 (401)';
+    } else if (error.message && error.message.includes('401')) {
+      serverInfo.value.error = '登录凭证已失效 (401)';
+    } else {
+      serverInfo.value.error = error.message;
+    }
   } finally {
     loading.value = false;
   }
+};
+
+const getExporterType = () => {
+  const os = serverInfo.value.os || '';
+  if (os.toLowerCase().includes('windows')) {
+    return 'Windows Exporter';
+  } else if (os.toLowerCase().includes('linux') || os.toLowerCase().includes('ubuntu') || os.toLowerCase().includes('debian') || os.toLowerCase().includes('centos')) {
+    return 'Node Exporter';
+  }
+  return 'Exporter';
 };
 
 const getProgressStatus = (percentage) => {

@@ -250,14 +250,14 @@ watch(config, () => {
     display: flex;
     flex-direction: column;
     padding: 20px;
-    background: #f5f7fa;
+    background: var(--app-bg);
     gap: 20px;
     overflow-y: auto;
 }
 
 /* Pipeline Visual */
 .pipeline-area {
-    background: white;
+    background: var(--glass-bg);
     padding: 24px;
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.03);
@@ -270,6 +270,11 @@ watch(config, () => {
     margin-bottom: 30px;
 }
 
+.pipeline-header h3 {
+    color: var(--text-primary);
+    margin: 0;
+}
+
 .visual-pipeline {
     display: flex;
     justify-content: center;
@@ -280,7 +285,7 @@ watch(config, () => {
 .pipe-node {
     width: 140px;
     height: 100px;
-    border: 2px solid #e4e7ed;
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
     display: flex;
     flex-direction: column;
@@ -288,35 +293,35 @@ watch(config, () => {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s;
-    background: white;
+    background: var(--glass-bg);
 }
 
 .pipe-node:hover {
-    border-color: var(--primary-color-light-5, #a0cfff);
+    border-color: var(--orin-primary-glow);
     transform: translateY(-2px);
 }
 
 .pipe-node.active {
-    border-color: var(--primary-color);
-    background: var(--primary-color-light-9, #ecf5ff);
-    box-shadow: 0 0 0 4px var(--primary-color-light-8, rgba(64,158,255,0.1));
+    border-color: var(--orin-primary);
+    background: var(--orin-primary-soft);
+    box-shadow: 0 0 0 4px var(--orin-primary-glow);
 }
 
-.node-icon { font-size: 24px; margin-bottom: 8px; color: #606266; }
-.pipe-node.active .node-icon { color: var(--primary-color); }
+.node-icon { font-size: 24px; margin-bottom: 8px; color: var(--text-secondary); }
+.pipe-node.active .node-icon { color: var(--orin-primary); }
 
-.node-label { font-size: 14px; font-weight: 600; color: #303133; }
-.node-sub { font-size: 11px; color: #909399; margin-top: 4px; }
+.node-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.node-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
 
 .pipe-arrow {
     margin: 0 20px;
-    color: #c0c4cc;
+    color: var(--text-secondary);
     font-size: 20px;
 }
 
 .node-config-panel {
-    background: #fdfdfd;
-    border: 1px dashed #dcdfe6;
+    background: var(--glass-bg);
+    border: 1px dashed var(--border-subtle);
     padding: 20px;
     border-radius: 8px;
     max-width: 800px;
@@ -327,14 +332,14 @@ watch(config, () => {
     margin-top: 0;
     margin-bottom: 20px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #ebeef5;
+    border-bottom: 1px solid var(--border-subtle);
     color: var(--text-primary);
 }
 
 /* Preview Area */
 .preview-area {
     flex: 1;
-    background: white;
+    background: var(--glass-bg);
     padding: 24px;
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.03);
@@ -347,6 +352,7 @@ watch(config, () => {
     font-weight: 600;
     margin-bottom: 20px;
     font-size: 16px;
+    color: var(--text-primary);
 }
 
 .upload-zone {
@@ -354,9 +360,9 @@ watch(config, () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px dashed #dcdfe6;
+    border: 2px dashed var(--border-subtle);
     border-radius: 8px;
-    background: #fafafa;
+    background: var(--orin-primary-soft);
 }
 
 .upload-zone :deep(.el-upload-dragger) {
@@ -374,27 +380,27 @@ watch(config, () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #f0f2f5;
+    background: var(--orin-primary-soft);
     padding: 10px 15px;
     border-radius: 8px 8px 0 0;
     font-size: 13px;
-    color: #606266;
+    color: var(--text-primary);
 }
 
 .chunks-visualizer {
     flex: 1;
-    border: 1px solid #dcdfe6;
+    border: 1px solid var(--border-subtle);
     border-top: none;
     border-radius: 0 0 8px 8px;
     padding: 20px;
-    background: #fafafa;
+    background: var(--app-bg);
     overflow-y: auto;
     max-height: 500px;
 }
 
 .chunk-stats {
     font-size: 12px;
-    color: #909399;
+    color: var(--text-secondary);
     margin-bottom: 15px;
     text-align: right;
 }
@@ -406,17 +412,18 @@ watch(config, () => {
 }
 
 .chunk-item {
-    background: white;
+    background: var(--glass-bg);
     padding: 15px;
-    border: 1px solid #ebeef5;
+    border: 1px solid var(--border-subtle);
     border-radius: 6px;
     font-size: 13px;
     line-height: 1.6;
+    color: var(--text-primary);
 }
 
 .chunk-idx {
     font-size: 11px;
-    color: var(--primary-color);
+    color: var(--orin-primary);
     font-weight: 600;
     margin-bottom: 6px;
     display: block;
