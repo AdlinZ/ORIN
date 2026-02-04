@@ -19,6 +19,8 @@ public class PrometheusConfig {
     private String id; // 默认使用 "DEFAULT"
     private String prometheusUrl;
     private Boolean enabled;
+    private Integer cacheTtl; // 后端缓存周期（秒），默认 10
+    private Integer refreshInterval; // 前端刷新频率（秒），默认 15
 
     @jakarta.persistence.PrePersist
     public void prePersist() {

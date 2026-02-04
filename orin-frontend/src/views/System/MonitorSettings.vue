@@ -68,13 +68,29 @@
               <div class="strategy-list">
                 <div class="strategy-item">
                   <div class="item-title">后端缓存周期</div>
-                  <div class="item-value">10s</div>
+                  <el-input-number 
+                    v-model="config.cacheTtl" 
+                    :min="5" 
+                    :max="300" 
+                    :step="5"
+                    size="small"
+                    style="width: 120px"
+                  />
+                  <span style="margin-left: 8px; color: var(--neutral-gray-600);">秒</span>
                   <div class="item-desc">为了降低对 Prometheus 的请求压力，后端会对硬件数据进行短时缓存。</div>
                 </div>
                 <div class="strategy-item">
                    <div class="item-title">前端刷新频率</div>
-                   <div class="item-value">15s</div>
-                   <div class="item-desc">监控看板会每隔 15 秒主动请求一次后端接口。</div>
+                   <el-input-number 
+                     v-model="config.refreshInterval" 
+                     :min="5" 
+                     :max="300" 
+                     :step="5"
+                     size="small"
+                     style="width: 120px"
+                   />
+                   <span style="margin-left: 8px; color: var(--neutral-gray-600);">秒</span>
+                   <div class="item-desc">监控看板会每隔指定秒数主动请求一次后端接口。</div>
                 </div>
               </div>
             </el-card>
@@ -148,7 +164,9 @@ const testing = ref(false);
 
 const config = reactive({
   prometheusUrl: '',
-  enabled: false
+  enabled: false,
+  cacheTtl: 10,  // 后端缓存周期（秒）
+  refreshInterval: 15  // 前端刷新频率（秒）
 });
 
 const loadConfig = async () => {
@@ -158,6 +176,8 @@ const loadConfig = async () => {
     if (res) {
       config.prometheusUrl = res.prometheusUrl || '';
       config.enabled = res.enabled || false;
+      config.cacheTtl = res.cacheTtl || 10;
+      config.refreshInterval = res.refreshInterval || 15;
     }
   } catch (error) {
     ElMessage.error('加载监控配置失败');

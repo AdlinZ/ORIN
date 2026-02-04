@@ -312,7 +312,7 @@ public class PrometheusService {
      * Get GPU Usage %
      */
     public Double getGpuUsage(String baseUrl) {
-        // Try nvidia_smi_utilization_gpu_ratio (0.0-1.0)
+        // nvidia_smi_utilization_gpu_ratio is 0-1, multiply by 100 for percentage
         String query1 = "avg(nvidia_smi_utilization_gpu_ratio) * 100";
         Double val = queryValue(baseUrl, query1);
 
@@ -327,22 +327,42 @@ public class PrometheusService {
      * Get GPU Memory Usage %
      */
     public Double getGpuMemoryUsage(String baseUrl) {
-        // nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes
-        String query = "sum(nvidia_smi_memory_used_bytes) / sum(nvidia_smi_memory_total_bytes) * 100";
+        // For single GPU: direct division
+        String query = "(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100";
         Double val = queryValue(baseUrl, query);
 
         if (Double.isNaN(val)) {
-            // Fallback: 0
+            // For multiple GPUs: average
+            String queryAvg = "avg(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100";
+            val = queryValue(baseUrl, queryAvg);
         }
         return !Double.isNaN(val) ? val : 0.0;
+    }
+
+    /**
+     * Get GPU Total Memory in Bytes
+     */
+    public Long getGpuMemoryTotalBytes(String baseUrl) {
+        String query = "nvidia_smi_memory_total_bytes";
+        Double val = queryValue(baseUrl, query);
+        return !Double.isNaN(val) ? val.longValue() : 0L;
+    }
+
+    /**
+     * Get GPU Used Memory in Bytes
+     */
+    public Long getGpuMemoryUsedBytes(String baseUrl) {
+        String query = "nvidia_smi_memory_used_bytes";
+        Double val = queryValue(baseUrl, query);
+        return !Double.isNaN(val) ? val.longValue() : 0L;
     }
 
     /**
      * Get GPU Model
      */
     public String getGpuModel(String baseUrl) {
-        // nvidia_smi_gpu_info -> product_name
-        return queryLabel(baseUrl, "nvidia_smi_gpu_info", "product_name");
+        // nvidia_smi_gpu_info -> name label
+        return queryLabel(baseUrl, "nvidia_smi_gpu_info", "name");
     }
 
     /**

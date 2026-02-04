@@ -88,7 +88,10 @@
             :status="getProgressStatus(serverInfo.gpuUsage)"
             :show-text="false"
           />
-          <div class="item-detail">{{ (serverInfo.gpuModel && serverInfo.gpuModel !== 'N/A' && serverInfo.gpuModel !== 'Unknown') ? serverInfo.gpuModel : '无 GPU 数据' }} (显存: {{ serverInfo.gpuMemoryUsage }}%)</div>
+          <div class="item-detail">
+            <div>{{ (serverInfo.gpuModel && serverInfo.gpuModel !== 'N/A' && serverInfo.gpuModel !== 'Unknown') ? serverInfo.gpuModel : '无 GPU 数据' }}</div>
+            <div v-if="serverInfo.gpuMemory && serverInfo.gpuMemory !== 'N/A'">{{ serverInfo.gpuMemory }}</div>
+          </div>
         </div>
 
         <!-- Memory Usage -->
@@ -241,7 +244,7 @@ const getProgressStatus = (percentage) => {
   return 'success';
 };
 
-onMounted(() => {
+onMounted(async () => {
   // Load cache first
   const cached = localStorage.getItem('orin_server_hardware');
   if (cached) {
@@ -251,9 +254,20 @@ onMounted(() => {
     } catch (e) { /* ignore */ }
   }
 
+  // Fetch config to get refresh interval
+  let refreshIntervalMs = 15000; // Default 15 seconds
+  try {
+    const config = await request.get('/monitor/prometheus/config');
+    if (config && config.refreshInterval) {
+      refreshIntervalMs = config.refreshInterval * 1000;
+    }
+  } catch (e) {
+    console.warn('Failed to load refresh interval config, using default 15s');
+  }
+
   fetchServerInfo();
-  // 每5秒刷新一次
-  refreshTimer = setInterval(fetchServerInfo, 15000);
+  // Use configured refresh interval
+  refreshTimer = setInterval(fetchServerInfo, refreshIntervalMs);
 });
 
 onUnmounted(() => {

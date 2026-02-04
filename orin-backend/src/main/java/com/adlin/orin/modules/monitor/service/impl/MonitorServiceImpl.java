@@ -55,7 +55,7 @@ public class MonitorServiceImpl implements MonitorService {
 
         private Map<String, Object> cachedHardwareStatus;
         private long lastHardwareUpdate = 0;
-        private static final long HARDWARE_CACHE_TTL = 10000; // 10 seconds cache
+        // Cache TTL is now dynamic, read from PrometheusConfig
 
         @jakarta.annotation.PostConstruct
         public void init() {
@@ -64,6 +64,8 @@ public class MonitorServiceImpl implements MonitorService {
                                         .id("DEFAULT")
                                         .enabled(false)
                                         .prometheusUrl("")
+                                        .cacheTtl(10) // 默认 10 秒
+                                        .refreshInterval(15) // 默认 15 秒
                                         .build();
                         prometheusConfigRepository.save(defaultConfig);
                 }
@@ -514,12 +516,16 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public Map<String, Object> getServerHardware() {
+                // Get config first to check cache TTL
+                PrometheusConfig config = getPrometheusConfig();
+                int cacheTtlSeconds = (config != null && config.getCacheTtl() != null) ? config.getCacheTtl() : 10;
+                long cacheTtlMs = cacheTtlSeconds * 1000L;
+
                 long now = System.currentTimeMillis();
-                if (cachedHardwareStatus != null && (now - lastHardwareUpdate) < HARDWARE_CACHE_TTL) {
+                if (cachedHardwareStatus != null && (now - lastHardwareUpdate) < cacheTtlMs) {
                         return cachedHardwareStatus;
                 }
 
-                PrometheusConfig config = getPrometheusConfig();
                 Map<String, Object> status = new HashMap<>();
 
                 if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
@@ -585,10 +591,19 @@ public class MonitorServiceImpl implements MonitorService {
                                                 .supplyAsync(() -> prometheusService.getGpuModel(url),
                                                                 prometheusExecutor);
 
+                                CompletableFuture<Long> gpuMemTotalFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getGpuMemoryTotalBytes(url),
+                                                                prometheusExecutor);
+
+                                CompletableFuture<Long> gpuMemUsedFuture = CompletableFuture
+                                                .supplyAsync(() -> prometheusService.getGpuMemoryUsedBytes(url),
+                                                                prometheusExecutor);
+
                                 // Wait for all with a strict timeout (5s)
                                 CompletableFuture.allOf(cpuFuture, memFuture, diskFuture, coresFuture, totalMemFuture,
                                                 netInFuture, netOutFuture, osFuture, diskTotalFuture, cpuModelFuture,
-                                                gpuUsageFuture, gpuMemFuture, gpuModelFuture)
+                                                gpuUsageFuture, gpuMemFuture, gpuModelFuture, gpuMemTotalFuture,
+                                                gpuMemUsedFuture)
                                                 .get(5, java.util.concurrent.TimeUnit.SECONDS);
 
                                 // Safe retrieval using getNow to avoid exceptions if any failed
@@ -603,6 +618,16 @@ public class MonitorServiceImpl implements MonitorService {
                                 status.put("gpuUsage", gpuUsageFuture.getNow(0.0));
                                 status.put("gpuMemoryUsage", gpuMemFuture.getNow(0.0));
                                 status.put("gpuModel", gpuModelFuture.getNow("Unknown"));
+
+                                // Format GPU Memory (like "17 MB / 8 GB")
+                                long gpuMemTotal = gpuMemTotalFuture.getNow(0L);
+                                long gpuMemUsed = gpuMemUsedFuture.getNow(0L);
+                                if (gpuMemTotal > 0) {
+                                        status.put("gpuMemory",
+                                                        formatBytes(gpuMemUsed) + " / " + formatBytes(gpuMemTotal));
+                                } else {
+                                        status.put("gpuMemory", "N/A");
+                                }
 
                                 // Format Memory
                                 long totalMemBytes = totalMemFuture.getNow(0L);
