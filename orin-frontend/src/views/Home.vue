@@ -4,7 +4,7 @@
     <nav class="landing-nav animate-fade">
       <div class="nav-content">
         <div class="logo-area">
-          <img src="/logo.png" alt="Logo" class="mini-logo" />
+          <img src="/vite.svg" alt="Logo" class="mini-logo" />
           <span class="logo-text">ORIN Platform</span>
         </div>
         <div class="nav-links">
@@ -213,7 +213,7 @@ const features = [
     title: '全链路监控', 
     desc: '实时追踪 CPU、内存利用率及令牌消耗，秒级洞察系统性能瓶颈。', 
     icon: Monitor, 
-    color: 'var(--orin-primary)', 
+    color: '#409EFF', 
     bgColor: 'rgba(64, 158, 255, 0.1)' 
   },
   { 
@@ -313,7 +313,7 @@ html.dark .landing-nav {
   align-items: center;
   gap: 12px;
   padding: 4px 12px;
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s;
   background: rgba(255,255,255,0.5);
@@ -344,7 +344,7 @@ html.dark .landing-nav {
   color: var(--primary-color);
   background: var(--primary-light);
   padding: 0 4px;
-  border-radius: var(--radius-xs);
+  border-radius: 4px;
   text-transform: uppercase;
 }
 
@@ -401,14 +401,14 @@ html.dark .landing-nav {
 .start-btn {
   padding: 15px 35px;
   font-weight: 600;
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   box-shadow: 0 8px 20px var(--primary-glow);
 }
 
 .secondary-btn {
   padding: 15px 35px;
   font-weight: 600;
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
 }
 
 .hero-image {
@@ -425,7 +425,7 @@ html.dark .landing-nav {
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--radius-2xl);
+  border-radius: 24px;
   z-index: 2;
   padding: 30px;
   box-shadow: 0 25px 50px rgba(0,0,0,0.1);
@@ -453,7 +453,7 @@ html.dark .landing-nav {
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
 }
 
-.line { height: 8px; border-radius: var(--radius-xs); background: rgba(0,0,0,0.05); margin-bottom: 12px; }
+.line { height: 8px; border-radius: 4px; background: rgba(0,0,0,0.05); margin-bottom: 12px; }
 .line.short { width: 40%; }
 .line.medium { width: 70%; }
 .line.long { width: 90%; }
@@ -495,7 +495,7 @@ html.dark .line { background: rgba(255,255,255,0.1); }
 .feature-card {
   background: var(--neutral-white);
   padding: 40px;
-  border-radius: var(--radius-2xl);
+  border-radius: 20px;
   border: 1px solid var(--neutral-gray-2);
   height: 100%;
   margin-bottom: 30px;
@@ -509,7 +509,7 @@ html.dark .line { background: rgba(255,255,255,0.1); }
 .feature-icon {
   width: 56px;
   height: 56px;
-  border-radius: var(--radius-lg);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;

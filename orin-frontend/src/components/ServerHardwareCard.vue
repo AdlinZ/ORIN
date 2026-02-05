@@ -200,6 +200,60 @@ const openConfig = () => {
   router.push('/dashboard/system/monitor-config');
 };
 
+// Helper function to extract concise error message
+const getErrorMessage = (error) => {
+  let msg = '';
+  
+  // Get the raw message
+  if (error.response && error.response.data) {
+    msg = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+  } else if (error.message) {
+    msg = error.message;
+  }
+  
+  // Check for HTTP status codes from response
+  if (error.response) {
+    const status = error.response.status;
+    if (status === 401) return '登录凭证已失效';
+    if (status === 403) return '无权限访问';
+    if (status === 404) return 'Prometheus 接口未找到';
+    if (status === 503) return 'Prometheus 服务不可用';
+    if (status >= 500) return '服务器错误';
+  }
+  
+  // Extract meaningful part from backend error messages
+  // Format: "连接失败: Probe failed: 503 Service Unavailable: "<!DOCTYPE html>..."
+  if (msg.includes('连接失败:') || msg.includes('Probe failed:')) {
+    // Extract the part before HTML content
+    const parts = msg.split(':');
+    if (parts.length >= 2) {
+      // Get first two parts: "连接失败" and "Probe failed"
+      const meaningful = parts.slice(0, 2).join(':').trim();
+      if (meaningful.includes('Probe failed')) {
+        return 'Prometheus 连接失败，请检查配置';
+      }
+      return meaningful;
+    }
+  }
+  
+  // Check error message for common patterns
+  if (msg.includes('401')) return '登录凭证已失效';
+  if (msg.includes('503') || msg.includes('Service Unavailable')) return 'Prometheus 服务不可用';
+  if (msg.includes('Network Error') || msg.includes('timeout')) return '网络连接超时';
+  
+  // For HTML responses or very long messages, show generic error
+  if (msg.includes('<!DOCTYPE') || msg.includes('<html') || msg.length > 150) {
+    return 'Prometheus 连接失败，请检查配置';
+  }
+  
+  // Return original message if it's short and meaningful
+  if (msg.length > 0 && msg.length <= 100) {
+    return msg;
+  }
+  
+  return 'Prometheus 未配置或无法连接';
+};
+
 const fetchServerInfo = async () => {
   try {
     const res = await request.get('/monitor/server-hardware');
@@ -215,14 +269,7 @@ const fetchServerInfo = async () => {
   } catch (error) {
     console.error('Failed to fetch server info:', error);
     serverInfo.value.online = false;
-    
-    if (error.response && error.response.status === 401) {
-      serverInfo.value.error = '登录凭证已失效 (401)';
-    } else if (error.message && error.message.includes('401')) {
-      serverInfo.value.error = '登录凭证已失效 (401)';
-    } else {
-      serverInfo.value.error = error.message;
-    }
+    serverInfo.value.error = getErrorMessage(error);
   } finally {
     loading.value = false;
   }

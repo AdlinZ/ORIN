@@ -18,6 +18,12 @@ const routes = [
         meta: { title: '用户登录' }
     },
     {
+        path: '/datawall',
+        name: 'DataWall',
+        component: () => import('@/views/DataWall.vue'),
+        meta: { title: '数据大屏' }
+    },
+    {
         path: '/dashboard',
         component: MainLayout,
         redirect: '/dashboard/monitor',
