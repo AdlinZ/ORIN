@@ -25,20 +25,28 @@
         </div>
         <el-divider direction="vertical" />
         <div class="action-group">
-          <el-button link class="preview-btn" @click="handlePreview"><el-icon><VideoPlay /></el-icon> 预览</el-button>
-          <el-button link @click="handleSave()"><el-icon><RefreshRight /></el-icon> 保存</el-button>
-          <el-button link><el-icon><Operation /></el-icon></el-button>
-          <el-button plain class="func-btn">功能</el-button>
-          <el-button type="primary" @click="handleSave()">保存</el-button>
-          <el-button link><el-icon><Clock /></el-icon></el-button>
+          <el-button text @click="handlePreview">
+            <el-icon><VideoPlay /></el-icon>
+            预览
+          </el-button>
+          <el-button type="primary" @click="handleSave()" :loading="saving">
+            保存
+          </el-button>
           
           <el-dropdown trigger="click">
-            <el-button link><el-icon><MoreFilled /></el-icon></el-button>
+            <el-button text>
+              <el-icon><MoreFilled /></el-icon>
+            </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="onExportWorkflow">导出工作流</el-dropdown-item>
-                <el-dropdown-item>导入工作流</el-dropdown-item>
-                <el-dropdown-item divided style="color: #f56c6c" @click="onDeleteWorkflow">删除工作流</el-dropdown-item>
+                <el-dropdown-item @click="onExportWorkflow">
+                  <el-icon><DocumentCopy /></el-icon>
+                  导出工作流
+                </el-dropdown-item>
+                <el-dropdown-item divided style="color: #f56c6c" @click="onDeleteWorkflow">
+                  <el-icon><Delete /></el-icon>
+                  删除工作流
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -584,10 +592,36 @@
       </transition>
     </div>
 
-    <!-- Mini Map -->
-    <div class="mini-map-container" v-show="activeTab === 'orchestrate' && !showPalette">
+    <!-- Mini Map Toggle Button -->
+    <div class="mini-map-container" v-show="activeTab === 'orchestrate'" @click="toggleMiniMap" :class="{ active: showMiniMap }">
         <el-icon><MapLocation /></el-icon>
     </div>
+    
+    <!-- Mini Map Panel -->
+    <transition name="fade">
+      <div class="mini-map-panel" v-if="showMiniMap && activeTab === 'orchestrate'">
+        <div class="mini-map-header">
+          <span>画布导航</span>
+          <el-icon class="close-btn" @click="showMiniMap = false"><Close /></el-icon>
+        </div>
+        <div class="mini-map-content">
+          <div class="mini-map-info">
+            <div class="info-item">
+              <span class="label">节点数:</span>
+              <span class="value">{{ elements.filter(el => !el.source).length }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">连线数:</span>
+              <span class="value">{{ elements.filter(el => el.source).length }}</span>
+            </div>
+          </div>
+          <el-button size="small" @click="onFitView" style="width: 100%; margin-top: 8px;">
+            <el-icon><FullScreen /></el-icon>
+            适应画布
+          </el-button>
+        </div>
+      </div>
+    </transition>
 
     <!-- Preview/Run Dialog -->
     <el-dialog v-model="showPreviewDialog" title="运行预览" width="600px" append-to-body>
@@ -657,11 +691,12 @@ const isEdit = ref(false);
 const saving = ref(false);
 const elements = ref([]);
 const selectedNode = ref(null);
-const showPalette = ref(true);
+const showPalette = ref(false); // 默认隐藏节点库
+const showMiniMap = ref(false);
 const interactionMode = ref('pointer'); // 'pointer' or 'hand'
 const agentList = ref([]);
 const availableModels = ref([]);
-const lastSavedTime = ref('16:12:45');
+const lastSavedTime = ref('未保存');
 let nodeIdCounter = Date.now();
 
 // Preview/Run state
@@ -675,6 +710,11 @@ const { fitView } = useVueFlow();
 
 const onFitView = () => {
     fitView();
+};
+
+const toggleMiniMap = () => {
+    showMiniMap.value = !showMiniMap.value;
+    ElMessage.info(showMiniMap.value ? '小地图已开启' : '小地图已关闭');
 };
 
 const onAddNote = () => {
@@ -706,6 +746,24 @@ const onGlobalKeyDown = async (event) => {
         event.preventDefault();
         await handleSave();
         ElMessage.success('已保存');
+    }
+    
+    // Handle Pointer Mode (V key)
+    if (event.key === 'v' || event.key === 'V') {
+        // Don't trigger if typing in input/textarea
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+        event.preventDefault();
+        interactionMode.value = 'pointer';
+        ElMessage.info('切换到指针模式');
+    }
+    
+    // Handle Hand Mode (H key)
+    if (event.key === 'h' || event.key === 'H') {
+        // Don't trigger if typing in input/textarea
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+        event.preventDefault();
+        interactionMode.value = 'hand';
+        ElMessage.info('切换到手模式');
     }
 };
 
@@ -902,11 +960,17 @@ onMounted(async () => {
   await fetchAgents();
   await fetchModelsList();
   
-  // Timer for "last saved"
-  setInterval(() => {
-    const now = new Date();
-    lastSavedTime.value = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-  }, 60000);
+  // 真正的自动保存 - 每2分钟保存一次
+  setInterval(async () => {
+    if (route.params.id && elements.value.length > 0) {
+      try {
+        await handleSave(true); // true 表示自动保存，不显示成功提示
+        console.log('工作流已自动保存');
+      } catch (e) {
+        console.error('自动保存失败:', e);
+      }
+    }
+  }, 120000); // 2分钟 = 120000ms
 });
 
 onUnmounted(() => {
@@ -985,8 +1049,12 @@ const loadWorkflow = async (id) => {
           ...rawEdges
         ];
     }
+    
+    // 加载成功后更新保存时间
+    const now = new Date();
+    lastSavedTime.value = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
   } catch (e) { 
-      console.error(e);
+      console.error('加载工作流失败:', e);
       ElMessage.error('加载失败'); 
   }
 };
@@ -1080,6 +1148,7 @@ const onConnect = (params) => {
 // (Implemented above as getDifyWorkflowData)
 
 const handleSave = async (isAuto = false) => {
+  console.log('🔵 handleSave 被调用, isAuto:', isAuto);
   if (!isAuto) saving.value = true;
   try {
     // Default name if empty
@@ -1088,6 +1157,8 @@ const handleSave = async (isAuto = false) => {
     }
 
     const workflowData = getDifyWorkflowData();
+    console.log('📦 工作流数据:', { id: route.params.id, name: workflowName.value, nodes: elements.value.filter(el => !el.source).length });
+    
     // Assuming createWorkflow can update if ID exists, or we use update endpoint
     const res = await createWorkflow({
         id: route.params.id, // Pass ID if updating
@@ -1096,9 +1167,12 @@ const handleSave = async (isAuto = false) => {
         workflowDefinition: workflowData 
     });
     
+    console.log('✅ 保存成功, 响应:', res);
+    
     // Update last saved time
     const now = new Date();
     lastSavedTime.value = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    console.log('⏰ 更新保存时间为:', lastSavedTime.value);
     
     if (res && res.id && !route.params.id) {
         // New workflow created, navigate to it
@@ -1109,7 +1183,7 @@ const handleSave = async (isAuto = false) => {
         if (!isAuto) ElMessage.success('保存成功');
     }
   } catch (e) {
-    console.error(e);
+    console.error('❌ 保存失败:', e);
     if (!isAuto) ElMessage.error('保存失败');
   } finally {
     if (!isAuto) saving.value = false;
@@ -1425,27 +1499,30 @@ const runWorkflow = async () => {
 .action-group { 
   display: flex; 
   align-items: center; 
-  gap: 4px; 
+  gap: 8px; 
   height: 100%;
 }
 
-.action-group .el-button, 
-.action-group .el-dropdown {
+.action-group .el-button { 
   vertical-align: middle;
   display: inline-flex;
   align-items: center;
   height: 32px !important;
+  font-size: 14px;
 }
 
-.func-btn { 
-  border-color: #d1d5db !important; 
-  color: #374151 !important; 
-  padding: 0 12px !important;
-}
-
-.preview-btn {
+.action-group .el-button--text {
   color: #64748b !important;
   font-weight: 500 !important;
+}
+
+.action-group .el-button--text:hover {
+  color: #155eef !important;
+  background: transparent !important;
+}
+
+.action-group .el-button--primary {
+  padding: 0 20px !important;
 }
 
 /* --- Editor Layout --- */
@@ -1762,6 +1839,68 @@ const runWorkflow = async () => {
     justify-content: center;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
     cursor: pointer;
+    transition: all 0.2s;
+    z-index: 90;
+}
+
+.mini-map-container:hover {
+    background: #f8fafc;
+    box-shadow: 0 6px 8px -1px rgba(0,0,0,0.15);
+}
+
+.mini-map-container.active {
+    background: #155eef;
+    color: white;
+}
+
+.mini-map-panel {
+    position: absolute;
+    right: 20px;
+    bottom: 70px;
+    width: 220px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 90;
+    overflow: hidden;
+}
+
+.mini-map-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.mini-map-content {
+    padding: 12px 16px;
+}
+
+.mini-map-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.info-item .label {
+    color: #64748b;
+}
+
+.info-item .value {
+    font-weight: 600;
+    color: #155eef;
 }
 
 /* Animations */
@@ -1770,6 +1909,9 @@ const runWorkflow = async () => {
 
 .slide-left-enter-active, .slide-left-leave-active { transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1); }
 .slide-left-enter-from, .slide-left-leave-to { transform: translateX(100%); }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* Context Selector Styles */
 .context-selector {

@@ -17,6 +17,9 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WorkflowRequest {
+    // ID for updates (optional, null for new workflows)
+    private Long id;
+
     @NotBlank(message = "工作流名称不能为空")
     @Size(max = 100, message = "工作流名称长度不能超过100个字符")
     private String workflowName;

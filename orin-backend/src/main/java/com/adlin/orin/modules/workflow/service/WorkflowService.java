@@ -59,6 +59,11 @@ public class WorkflowService {
     public WorkflowResponse createWorkflow(WorkflowRequest request) {
         log.info("Creating workflow: {}", request.getWorkflowName());
 
+        // Check if this is an update (has ID) or create (no ID)
+        if (request.getId() != null) {
+            return updateWorkflow(request.getId(), request);
+        }
+
         if (workflowRepository.existsByWorkflowName(request.getWorkflowName())) {
             throw new IllegalArgumentException("Workflow name already exists: " + request.getWorkflowName());
         }
@@ -83,6 +88,39 @@ public class WorkflowService {
                 addStep(saved.getId(), stepRequest);
             }
         }
+
+        return WorkflowResponse.fromEntity(saved);
+    }
+
+    @Transactional
+    public WorkflowResponse updateWorkflow(Long id, WorkflowRequest request) {
+        log.info("Updating workflow: {}", id);
+
+        WorkflowEntity entity = workflowRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+
+        // Update fields
+        if (request.getWorkflowName() != null) {
+            entity.setWorkflowName(request.getWorkflowName());
+        }
+        if (request.getDescription() != null) {
+            entity.setDescription(request.getDescription());
+        }
+        if (request.getWorkflowType() != null) {
+            entity.setWorkflowType(request.getWorkflowType());
+        }
+        if (request.getWorkflowDefinition() != null) {
+            entity.setWorkflowDefinition(request.getWorkflowDefinition());
+        }
+        if (request.getTimeoutSeconds() != null) {
+            entity.setTimeoutSeconds(request.getTimeoutSeconds());
+        }
+        if (request.getRetryPolicy() != null) {
+            entity.setRetryPolicy(request.getRetryPolicy());
+        }
+
+        WorkflowEntity saved = workflowRepository.save(entity);
+        log.info("Workflow updated with ID: {}", saved.getId());
 
         return WorkflowResponse.fromEntity(saved);
     }

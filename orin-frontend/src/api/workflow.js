@@ -25,6 +25,15 @@ export function createWorkflow(data) {
     })
 }
 
+export function updateWorkflow(id, data) {
+    return request({
+        baseURL: '',
+        url: `/api/workflows/${id}`,
+        method: 'put',
+        data
+    })
+}
+
 export function executeWorkflow(id, inputs) {
     return request({
         baseURL: '',
