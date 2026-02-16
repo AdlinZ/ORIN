@@ -50,26 +50,32 @@
     <!-- 右侧操作区 -->
     <div class="navbar-actions">
       <!-- 刷新按钮 -->
-      <el-tooltip content="刷新页面" placement="bottom">
-        <el-button text :icon="Refresh" @click="handleRefresh" class="action-btn" />
-      </el-tooltip>
+      <div class="action-item">
+        <el-tooltip content="刷新页面" placement="bottom">
+          <el-button text :icon="Refresh" @click="handleRefresh" class="action-btn" />
+        </el-tooltip>
+      </div>
 
       <!-- 主题切换按钮 -->
-      <el-tooltip :content="isDarkMode ? '切换到浅色模式' : '切换到深色模式'" placement="bottom">
-        <el-button 
-          text 
-          :icon="isDarkMode ? Sunny : Moon" 
-          @click="toggleTheme" 
-          class="action-btn" 
-        />
-      </el-tooltip>
+      <div class="action-item">
+        <el-tooltip :content="isDarkMode ? '切换到浅色模式' : '切换到深色模式'" placement="bottom">
+          <el-button 
+            text 
+            :icon="isDarkMode ? Sunny : Moon" 
+            @click="toggleTheme" 
+            class="action-btn" 
+          />
+        </el-tooltip>
+      </div>
 
       <!-- 通知图标 -->
-      <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notification-badge">
-        <el-tooltip content="通知中心" placement="bottom">
-          <el-button text :icon="Bell" @click="showNotifications" class="action-btn" />
-        </el-tooltip>
-      </el-badge>
+      <div class="action-item">
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notification-badge">
+          <el-tooltip content="通知中心" placement="bottom">
+            <el-button text :icon="Bell" @click="showNotifications" class="action-btn" />
+          </el-tooltip>
+        </el-badge>
+      </div>
 
       <!-- 分隔线 -->
       <div class="action-divider"></div>
@@ -473,6 +479,11 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
 }
 
 .action-btn {
