@@ -51,7 +51,7 @@
     <div class="navbar-actions">
       <!-- 刷新按钮 -->
       <el-tooltip content="刷新页面" placement="bottom">
-        <el-button text :icon="Refresh" @click="handleRefresh" circle class="action-btn" />
+        <el-button text :icon="Refresh" @click="handleRefresh" class="action-btn" />
       </el-tooltip>
 
       <!-- 主题切换按钮 -->
@@ -60,15 +60,27 @@
           text 
           :icon="isDarkMode ? Sunny : Moon" 
           @click="toggleTheme" 
-          circle 
           class="action-btn" 
         />
       </el-tooltip>
 
       <!-- 通知图标 -->
       <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notification-badge">
-        <el-button text :icon="Bell" @click="showNotifications" circle class="action-btn" />
+        <el-tooltip content="通知中心" placement="bottom">
+          <el-button text :icon="Bell" @click="showNotifications" class="action-btn" />
+        </el-tooltip>
       </el-badge>
+
+      <!-- 分隔线 -->
+      <div class="action-divider"></div>
+
+      <!-- 系统 AI 按钮 -->
+      <el-tooltip content="系统 AI 助手" placement="bottom">
+        <div class="system-ai-btn" @click="showSystemAI">
+          <el-icon><DataAnalysis /></el-icon>
+          <span>AI</span>
+        </div>
+      </el-tooltip>
 
       <!-- 用户下拉菜单 -->
       <el-dropdown trigger="click" @command="handleUserCommand">
@@ -153,7 +165,7 @@ import { ROUTES } from '@/router/routes'
 import { TOP_MENU_CONFIG, getVisibleMenus, getActiveMenuId } from '@/router/topMenuConfig'
 import NotificationCenter from './NotificationCenter.vue'
 import {
-  Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh,
+  Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
   Box, Monitor, Collection, Setting as SettingIcon,
   List, ChatDotRound, Cpu, MagicStick, Connection,
   DataLine, TrendCharts, Share, Warning,
@@ -268,6 +280,10 @@ const closeDropdown = () => {
 
 const showNotifications = () => {
   showNotificationCenter.value = true
+}
+
+const showSystemAI = () => {
+  ElMessage.info('系统 AI 助手功能开发中')
 }
 
 const handleUnreadCountUpdate = (count) => {
@@ -460,8 +476,14 @@ onMounted(() => {
 }
 
 .action-btn {
+  width: 36px;
+  height: 36px;
   color: var(--neutral-gray-600);
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
 
 .action-btn:hover {
@@ -470,7 +492,48 @@ onMounted(() => {
 }
 
 .notification-badge {
+  display: flex;
+  align-items: center;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--neutral-gray-300);
+  margin: 0 4px;
+}
+
+.system-ai-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--neutral-gray-50);
+  border: 1px solid var(--neutral-gray-200);
+  color: var(--orin-primary);
   cursor: pointer;
+  transition: all 0.3s;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.system-ai-btn:hover {
+  background: var(--orin-primary);
+  color: white;
+  border-color: var(--orin-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(21, 94, 239, 0.2);
+}
+
+.system-ai-btn .el-icon {
+  font-size: 16px;
+}
+
+.system-ai-btn span {
+  font-size: 12px;
+  letter-spacing: 0.5px;
 }
 
 .user-info {
@@ -676,5 +739,22 @@ html.dark .mobile-menu-title {
 
 html.dark .mobile-menu-item {
   color: #b0b0b0;
+}
+
+html.dark .action-divider {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html.dark .system-ai-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #667eea;
+}
+
+html.dark .system-ai-btn:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 </style>

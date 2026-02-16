@@ -11137,3 +11137,5179 @@ Hibernate:
         agent_id=?
 2026-02-16T21:33:47.108+08:00 DEBUG 32024 --- [orin-backend] [essageBroker-10] c.a.o.m.m.task.AgentHealthCheckTask      : Agent f639900f is healthy
 2026-02-16T21:33:47.108+08:00  INFO 32024 --- [orin-backend] [essageBroker-10] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed
+2026-02-16T21:34:44.252+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:34:44.255+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:34:44.255+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:34:44.258+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:34:44.258+08:00  INFO 32024 --- [orin-backend] [MessageBroker-8] c.adlin.orin.config.CacheMetricsConfig   : === Cache Statistics ===
+2026-02-16T21:34:44.258+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:34:44.258+08:00  INFO 32024 --- [orin-backend] [MessageBroker-8] c.adlin.orin.config.CacheMetricsConfig   : ========================
+2026-02-16T21:34:44.259+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:34:44.260+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:34:44.261+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:34:44.262+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:34:44.264+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:34:44.265+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:34:44.267+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:34:44.267+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:34:44.269+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:35:44.255+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:35:44.257+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:35:44.258+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:35:44.260+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:35:44.261+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:35:44.263+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:35:44.263+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:35:44.265+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:35:44.265+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:35:44.266+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:35:44.267+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:35:44.268+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:35:44.269+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:35:44.269+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:36:44.254+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:36:44.257+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:36:44.259+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:36:44.263+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:36:44.264+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:36:44.266+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:36:44.267+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:36:44.268+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:36:44.269+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:36:44.271+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:36:44.271+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:36:44.273+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:36:44.274+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:36:44.275+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:37:44.255+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:37:44.257+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:37:44.259+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:37:44.262+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:37:44.263+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:37:44.264+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:37:44.265+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:37:44.267+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:37:44.268+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:37:44.271+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:37:44.272+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:37:44.274+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:37:44.274+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:37:44.276+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:38:44.246+08:00  INFO 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Starting agent health check...
+2026-02-16T21:38:44.251+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:38:44.255+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:38:44.260+08:00  INFO 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Checking health for 6 agents
+2026-02-16T21:38:44.260+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:44.260+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-16T21:38:44.270+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:44.288+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:44.295+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:44.301+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:44.303+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:44.307+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:44.308+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:44.310+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:44.311+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:44.313+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:44.313+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:44.315+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:38:45.076+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:45.078+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:45.081+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 2199ab4f is healthy
+2026-02-16T21:38:45.082+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-16T21:38:45.388+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:45.390+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:45.393+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 5d695503 is healthy
+2026-02-16T21:38:45.395+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-16T21:38:45.649+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:45.652+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:45.655+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 7f1f1495 is healthy
+2026-02-16T21:38:45.656+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-16T21:38:45.993+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:45.995+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:45.998+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 85d06644 is healthy
+2026-02-16T21:38:45.999+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-16T21:38:47.392+08:00  INFO 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.s.DeepSeekIntegrationService   : DeepSeek connection test successful: 200 OK
+2026-02-16T21:38:47.394+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:47.396+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:47.398+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent 9209f6a0 is healthy
+2026-02-16T21:38:47.399+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+Hibernate: 
+    select
+        aap1_0.agent_id,
+        aap1_0.api_key,
+        aap1_0.connection_status,
+        aap1_0.created_at,
+        aap1_0.dataset_api_key,
+        aap1_0.endpoint_url,
+        aap1_0.updated_at 
+    from
+        agent_access_profiles aap1_0 
+    where
+        aap1_0.agent_id=?
+2026-02-16T21:38:47.641+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:38:47.642+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:38:47.645+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent f639900f is healthy
+2026-02-16T21:38:47.645+08:00  INFO 32024 --- [orin-backend] [MessageBroker-1] c.a.o.m.m.task.AgentHealthCheckTask      : Agent health check completed
+2026-02-16T21:39:44.261+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:39:44.265+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:39:44.266+08:00  INFO 32024 --- [orin-backend] [MessageBroker-6] c.adlin.orin.config.CacheMetricsConfig   : === Cache Statistics ===
+2026-02-16T21:39:44.267+08:00  INFO 32024 --- [orin-backend] [MessageBroker-6] c.adlin.orin.config.CacheMetricsConfig   : ========================
+2026-02-16T21:39:44.268+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:39:44.272+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:39:44.274+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:39:44.278+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:39:44.280+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:39:44.283+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:39:44.285+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:39:44.288+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:39:44.290+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:39:44.293+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:39:44.295+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:39:44.297+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-7] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:40:44.260+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:40:44.263+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:40:44.264+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:40:44.268+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:40:44.269+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:40:44.272+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:40:44.272+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:40:44.274+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:40:44.275+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:40:44.277+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:40:44.278+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:40:44.280+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:40:44.280+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:40:44.282+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:41:06.836+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/dashboard/summary
+2026-02-16T21:41:06.836+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/agents/list
+2026-02-16T21:41:06.838+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:06.838+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:06.838+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/agents/list
+2026-02-16T21:41:06.838+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/dashboard/summary
+2026-02-16T21:41:06.841+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:41:06.841+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:41:06.846+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] org.hibernate.SQL                        : 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:06.869+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/runtime/agents/2199ab4f/logs
+2026-02-16T21:41:06.871+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:06.872+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/runtime/agents/2199ab4f/logs
+2026-02-16T21:41:06.874+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+Hibernate: 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0 
+    where
+        lc1_0.config_key=?
+2026-02-16T21:41:06.876+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id=? 
+        and al1_0.created_at between ? and ? 
+    order by
+        al1_0.created_at desc
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id=? 
+        and al1_0.created_at between ? and ? 
+    order by
+        al1_0.created_at desc
+2026-02-16T21:41:06.878+08:00  INFO 32024 --- [orin-backend] [nio-8080-exec-7] c.a.o.m.r.s.i.RuntimeManageServiceImpl   : Retrieving logs for agent: 2199ab4f, found 29 audit logs from 2026-01-17T21:41:06.875423
+2026-02-16T21:41:07.986+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/tokens/stats
+2026-02-16T21:41:07.986+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/agents/list
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/tokens/trend?period=daily
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/tokens/history?page=0&size=20
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/agents/list
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/tokens/stats
+2026-02-16T21:41:07.987+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/tokens/trend?period=daily
+2026-02-16T21:41:07.988+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:07.988+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/tokens/history?page=0&size=20
+2026-02-16T21:41:07.989+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] org.hibernate.SQL                        : 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:07.989+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at>=? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at>=? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:07.992+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] org.hibernate.SQL                        : 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE' 
+    order by
+        al1_0.created_at desc 
+    limit
+        ?, ?
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE' 
+    order by
+        al1_0.created_at desc 
+    limit
+        ?, ?
+2026-02-16T21:41:07.992+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:41:07.992+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at>=? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at>=? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.000+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] org.hibernate.SQL                        : 
+    select
+        count(al1_0.id) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        count(al1_0.id) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.001+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at>=? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at>=? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.003+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.total_tokens) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.006+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.010+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.015+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.019+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+Hibernate: 
+    select
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        (
+            ? is null 
+            or al1_0.user_id=?
+        ) 
+        and al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE'
+2026-02-16T21:41:08.041+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/costs/distribution
+2026-02-16T21:41:08.041+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:08.042+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/costs/distribution
+2026-02-16T21:41:08.044+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        al1_0.provider_id,
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE' 
+    group by
+        al1_0.provider_id
+Hibernate: 
+    select
+        al1_0.provider_id,
+        sum(al1_0.estimated_cost) 
+    from
+        audit_logs al1_0 
+    where
+        al1_0.created_at between ? and ? 
+        and al1_0.provider_id<>'ORIN_CORE' 
+    group by
+        al1_0.provider_id
+2026-02-16T21:41:08.049+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:41:09.088+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/alerts/rules
+2026-02-16T21:41:09.088+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/alerts/stats
+2026-02-16T21:41:09.088+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:09.088+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:09.089+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/alerts/rules
+2026-02-16T21:41:09.089+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/alerts/stats
+2026-02-16T21:41:09.090+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    select
+        count(*) 
+    from
+        alert_rules ar1_0
+Hibernate: 
+    select
+        count(*) 
+    from
+        alert_rules ar1_0
+2026-02-16T21:41:09.091+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        ar1_0.id,
+        ar1_0.condition_expr,
+        ar1_0.cooldown_minutes,
+        ar1_0.created_at,
+        ar1_0.enabled,
+        ar1_0.notification_channels,
+        ar1_0.recipient_list,
+        ar1_0.rule_name,
+        ar1_0.rule_type,
+        ar1_0.severity,
+        ar1_0.threshold_value,
+        ar1_0.updated_at 
+    from
+        alert_rules ar1_0
+Hibernate: 
+    select
+        ar1_0.id,
+        ar1_0.condition_expr,
+        ar1_0.cooldown_minutes,
+        ar1_0.created_at,
+        ar1_0.enabled,
+        ar1_0.notification_channels,
+        ar1_0.recipient_list,
+        ar1_0.rule_name,
+        ar1_0.rule_type,
+        ar1_0.severity,
+        ar1_0.threshold_value,
+        ar1_0.updated_at 
+    from
+        alert_rules ar1_0
+2026-02-16T21:41:09.093+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    select
+        ar1_0.id,
+        ar1_0.condition_expr,
+        ar1_0.cooldown_minutes,
+        ar1_0.created_at,
+        ar1_0.enabled,
+        ar1_0.notification_channels,
+        ar1_0.recipient_list,
+        ar1_0.rule_name,
+        ar1_0.rule_type,
+        ar1_0.severity,
+        ar1_0.threshold_value,
+        ar1_0.updated_at 
+    from
+        alert_rules ar1_0 
+    where
+        ar1_0.enabled
+Hibernate: 
+    select
+        ar1_0.id,
+        ar1_0.condition_expr,
+        ar1_0.cooldown_minutes,
+        ar1_0.created_at,
+        ar1_0.enabled,
+        ar1_0.notification_channels,
+        ar1_0.recipient_list,
+        ar1_0.rule_name,
+        ar1_0.rule_type,
+        ar1_0.severity,
+        ar1_0.threshold_value,
+        ar1_0.updated_at 
+    from
+        alert_rules ar1_0 
+    where
+        ar1_0.enabled
+2026-02-16T21:41:09.096+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    select
+        count(ah1_0.id) 
+    from
+        alert_history ah1_0 
+    where
+        ah1_0.status=?
+Hibernate: 
+    select
+        count(ah1_0.id) 
+    from
+        alert_history ah1_0 
+    where
+        ah1_0.status=?
+2026-02-16T21:41:09.098+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    select
+        count(*) 
+    from
+        alert_history ah1_0
+Hibernate: 
+    select
+        count(*) 
+    from
+        alert_history ah1_0
+2026-02-16T21:41:15.634+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/system/log-config/loggers
+2026-02-16T21:41:15.634+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/system/log-config
+2026-02-16T21:41:15.636+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:15.636+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:15.636+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/system/log-config/loggers
+2026-02-16T21:41:15.636+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/system/log-config
+2026-02-16T21:41:15.639+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] org.hibernate.SQL                        : 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0
+Hibernate: 
+    select
+        lc1_0.config_key,
+        lc1_0.config_value,
+        lc1_0.description,
+        lc1_0.updated_at 
+    from
+        sys_log_config lc1_0
+2026-02-16T21:41:15.677+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/system/log-config/stats
+2026-02-16T21:41:15.678+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:15.679+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/system/log-config/stats
+2026-02-16T21:41:15.682+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        count(*) 
+    from
+        audit_logs al1_0
+Hibernate: 
+    select
+        count(*) 
+    from
+        audit_logs al1_0
+2026-02-16T21:41:15.686+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    order by
+        al1_0.created_at 
+    limit
+        ?, ?
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    order by
+        al1_0.created_at 
+    limit
+        ?, ?
+2026-02-16T21:41:15.688+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        count(al1_0.id) 
+    from
+        audit_logs al1_0
+Hibernate: 
+    select
+        count(al1_0.id) 
+    from
+        audit_logs al1_0
+2026-02-16T21:41:16.065+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/audit/logs?page=0&size=15&sortBy=createdAt&direction=desc&type=ALL
+2026-02-16T21:41:16.065+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:16.066+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/audit/logs?page=0&size=15&sortBy=createdAt&direction=desc&type=ALL
+2026-02-16T21:41:16.069+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    order by
+        al1_0.created_at desc 
+    limit
+        ?, ?
+Hibernate: 
+    select
+        al1_0.id,
+        al1_0.api_key_id,
+        al1_0.completion_tokens,
+        al1_0.conversation_id,
+        al1_0.created_at,
+        al1_0.endpoint,
+        al1_0.error_message,
+        al1_0.estimated_cost,
+        al1_0.external_price,
+        al1_0.internal_cost,
+        al1_0.ip_address,
+        al1_0.method,
+        al1_0.model,
+        al1_0.profit,
+        al1_0.prompt_tokens,
+        al1_0.provider_id,
+        al1_0.provider_type,
+        al1_0.request_params,
+        al1_0.response_content,
+        al1_0.response_time,
+        al1_0.status_code,
+        al1_0.success,
+        al1_0.tenant_id,
+        al1_0.total_tokens,
+        al1_0.user_agent,
+        al1_0.user_id,
+        al1_0.workflow_id 
+    from
+        audit_logs al1_0 
+    order by
+        al1_0.created_at desc 
+    limit
+        ?, ?
+2026-02-16T21:41:16.072+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        count(al1_0.id) 
+    from
+        audit_logs al1_0
+Hibernate: 
+    select
+        count(al1_0.id) 
+    from
+        audit_logs al1_0
+2026-02-16T21:41:16.856+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/api-endpoints
+2026-02-16T21:41:16.856+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/api-endpoints/stats
+2026-02-16T21:41:16.857+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:16.858+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:16.858+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/api-endpoints
+2026-02-16T21:41:16.858+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/api-endpoints/stats
+2026-02-16T21:41:16.860+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-8] org.hibernate.SQL                        : 
+    select
+        ae1_0.id,
+        ae1_0.avg_response_time_ms,
+        ae1_0.created_at,
+        ae1_0.description,
+        ae1_0.enabled,
+        ae1_0.failed_calls,
+        ae1_0.method,
+        ae1_0.name,
+        ae1_0.path,
+        ae1_0.permission_required,
+        ae1_0.rate_limit_per_day,
+        ae1_0.rate_limit_per_hour,
+        ae1_0.rate_limit_per_minute,
+        ae1_0.require_auth,
+        ae1_0.success_calls,
+        ae1_0.total_calls,
+        ae1_0.updated_at 
+    from
+        api_endpoints ae1_0
+Hibernate: 
+    select
+        ae1_0.id,
+        ae1_0.avg_response_time_ms,
+        ae1_0.created_at,
+        ae1_0.description,
+        ae1_0.enabled,
+        ae1_0.failed_calls,
+        ae1_0.method,
+        ae1_0.name,
+        ae1_0.path,
+        ae1_0.permission_required,
+        ae1_0.rate_limit_per_day,
+        ae1_0.rate_limit_per_hour,
+        ae1_0.rate_limit_per_minute,
+        ae1_0.require_auth,
+        ae1_0.success_calls,
+        ae1_0.total_calls,
+        ae1_0.updated_at 
+    from
+        api_endpoints ae1_0
+2026-02-16T21:41:16.860+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-6] org.hibernate.SQL                        : 
+    select
+        ae1_0.id,
+        ae1_0.avg_response_time_ms,
+        ae1_0.created_at,
+        ae1_0.description,
+        ae1_0.enabled,
+        ae1_0.failed_calls,
+        ae1_0.method,
+        ae1_0.name,
+        ae1_0.path,
+        ae1_0.permission_required,
+        ae1_0.rate_limit_per_day,
+        ae1_0.rate_limit_per_hour,
+        ae1_0.rate_limit_per_minute,
+        ae1_0.require_auth,
+        ae1_0.success_calls,
+        ae1_0.total_calls,
+        ae1_0.updated_at 
+    from
+        api_endpoints ae1_0
+Hibernate: 
+    select
+        ae1_0.id,
+        ae1_0.avg_response_time_ms,
+        ae1_0.created_at,
+        ae1_0.description,
+        ae1_0.enabled,
+        ae1_0.failed_calls,
+        ae1_0.method,
+        ae1_0.name,
+        ae1_0.path,
+        ae1_0.permission_required,
+        ae1_0.rate_limit_per_day,
+        ae1_0.rate_limit_per_hour,
+        ae1_0.rate_limit_per_minute,
+        ae1_0.require_auth,
+        ae1_0.success_calls,
+        ae1_0.total_calls,
+        ae1_0.updated_at 
+    from
+        api_endpoints ae1_0
+2026-02-16T21:41:17.379+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/pricing/config
+2026-02-16T21:41:17.381+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:17.382+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/pricing/config
+2026-02-16T21:41:17.385+08:00 DEBUG 32024 --- [orin-backend] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        mp1_0.id,
+        mp1_0.billing_mode,
+        mp1_0.created_at,
+        mp1_0.currency,
+        mp1_0.input_cost_unit,
+        mp1_0.input_price_unit,
+        mp1_0.output_cost_unit,
+        mp1_0.output_price_unit,
+        mp1_0.provider_id,
+        mp1_0.tenant_group,
+        mp1_0.updated_at 
+    from
+        model_pricing mp1_0
+Hibernate: 
+    select
+        mp1_0.id,
+        mp1_0.billing_mode,
+        mp1_0.created_at,
+        mp1_0.currency,
+        mp1_0.input_cost_unit,
+        mp1_0.input_price_unit,
+        mp1_0.output_cost_unit,
+        mp1_0.output_price_unit,
+        mp1_0.provider_id,
+        mp1_0.tenant_group,
+        mp1_0.updated_at 
+    from
+        model_pricing mp1_0
+2026-02-16T21:41:17.958+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/prometheus/config
+2026-02-16T21:41:17.959+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:17.960+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/prometheus/config
+2026-02-16T21:41:17.962+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        pc1_0.id,
+        pc1_0.cache_ttl,
+        pc1_0.enabled,
+        pc1_0.prometheus_url,
+        pc1_0.refresh_interval 
+    from
+        mon_prometheus_config pc1_0 
+    where
+        pc1_0.id=?
+Hibernate: 
+    select
+        pc1_0.id,
+        pc1_0.cache_ttl,
+        pc1_0.enabled,
+        pc1_0.prometheus_url,
+        pc1_0.refresh_interval 
+    from
+        mon_prometheus_config pc1_0 
+    where
+        pc1_0.id=?
+2026-02-16T21:41:27.758+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/agents/list
+2026-02-16T21:41:27.759+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:27.760+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/agents/list
+2026-02-16T21:41:27.762+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:41:36.562+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/conversation-logs/grouped?page=0&size=10
+2026-02-16T21:41:36.563+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:36.564+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/conversation-logs/grouped?page=0&size=10
+2026-02-16T21:41:36.568+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    SELECT
+        * 
+    FROM
+        conversation_logs 
+    WHERE
+        id IN (  SELECT
+            latest_id 
+        FROM
+            (    SELECT
+                MAX(id) as latest_id 
+            FROM
+                conversation_logs     
+            GROUP BY
+                conversation_id  ) sub) 
+    ORDER BY
+        created_at DESC 
+    limit
+        ?
+Hibernate: 
+    SELECT
+        * 
+    FROM
+        conversation_logs 
+    WHERE
+        id IN (  SELECT
+            latest_id 
+        FROM
+            (    SELECT
+                MAX(id) as latest_id 
+            FROM
+                conversation_logs     
+            GROUP BY
+                conversation_id  ) sub) 
+    ORDER BY
+        created_at DESC 
+    limit
+        ?
+2026-02-16T21:41:36.571+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    SELECT
+        COUNT(DISTINCT conversation_id) 
+    FROM
+        conversation_logs
+Hibernate: 
+    SELECT
+        COUNT(DISTINCT conversation_id) 
+    FROM
+        conversation_logs
+2026-02-16T21:41:38.068+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/models
+2026-02-16T21:41:38.070+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:38.071+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/models
+2026-02-16T21:41:38.073+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-9] org.hibernate.SQL                        : 
+    select
+        mm1_0.id,
+        mm1_0.create_time,
+        mm1_0.description,
+        mm1_0.model_id,
+        mm1_0.name,
+        mm1_0.provider,
+        mm1_0.status,
+        mm1_0.type 
+    from
+        model_metadata mm1_0
+Hibernate: 
+    select
+        mm1_0.id,
+        mm1_0.create_time,
+        mm1_0.description,
+        mm1_0.model_id,
+        mm1_0.name,
+        mm1_0.provider,
+        mm1_0.status,
+        mm1_0.type 
+    from
+        model_metadata mm1_0
+2026-02-16T21:41:39.560+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] o.s.security.web.FilterChainProxy        : Securing GET /api/skills
+2026-02-16T21:41:39.561+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-5] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+2026-02-16T21:41:40.472+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Securing GET /api/workflows
+2026-02-16T21:41:40.473+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:40.473+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] o.s.security.web.FilterChainProxy        : Secured GET /api/workflows
+2026-02-16T21:41:40.474+08:00  INFO 32024 --- [orin-backend] [nio-8080-exec-7] c.a.o.m.w.controller.WorkflowController  : REST request to get all workflows
+2026-02-16T21:41:40.477+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        we1_0.id,
+        we1_0.created_at,
+        we1_0.created_by,
+        we1_0.description,
+        we1_0.retry_policy,
+        we1_0.status,
+        we1_0.timeout_seconds,
+        we1_0.updated_at,
+        we1_0.version,
+        we1_0.workflow_definition,
+        we1_0.workflow_name,
+        we1_0.workflow_type 
+    from
+        workflows we1_0
+Hibernate: 
+    select
+        we1_0.id,
+        we1_0.created_at,
+        we1_0.created_by,
+        we1_0.description,
+        we1_0.retry_policy,
+        we1_0.status,
+        we1_0.timeout_seconds,
+        we1_0.updated_at,
+        we1_0.version,
+        we1_0.workflow_definition,
+        we1_0.workflow_name,
+        we1_0.workflow_type 
+    from
+        workflows we1_0
+2026-02-16T21:41:41.424+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Securing GET /api/v1/monitor/agents/list
+2026-02-16T21:41:41.425+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] c.a.o.security.JwtAuthenticationFilter   : User authenticated: admin
+2026-02-16T21:41:41.425+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/v1/monitor/agents/list
+2026-02-16T21:41:41.427+08:00 DEBUG 32024 --- [orin-backend] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:41:44.276+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:41:44.278+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:41:44.279+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:41:44.282+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:41:44.283+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:41:44.285+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:41:44.286+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:41:44.287+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:41:44.288+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:41:44.290+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:41:44.291+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:41:44.293+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:41:44.294+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:41:44.296+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-4] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
+2026-02-16T21:42:44.275+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0
+2026-02-16T21:42:44.277+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:42:44.279+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:42:44.281+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:42:44.282+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:42:44.283+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:42:44.284+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:42:44.285+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:42:44.286+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:42:44.287+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:42:44.288+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:42:44.289+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+Hibernate: 
+    select
+        ahs1_0.agent_id,
+        ahs1_0.agent_name,
+        ahs1_0.health_score,
+        ahs1_0.last_heartbeat,
+        ahs1_0.mode,
+        ahs1_0.model_name,
+        ahs1_0.provider_type,
+        ahs1_0.status,
+        ahs1_0.view_type 
+    from
+        agent_health_status ahs1_0 
+    where
+        ahs1_0.agent_id=?
+2026-02-16T21:42:44.289+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] org.hibernate.SQL                        : 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+Hibernate: 
+    update
+        agent_health_status 
+    set
+        agent_name=?,
+        health_score=?,
+        last_heartbeat=?,
+        mode=?,
+        model_name=?,
+        provider_type=?,
+        status=?,
+        view_type=? 
+    where
+        agent_id=?
+2026-02-16T21:42:44.290+08:00 DEBUG 32024 --- [orin-backend] [MessageBroker-9] c.a.o.m.monitor.job.AgentStatusUpdater   : Updated heartbeat for 6 agents
