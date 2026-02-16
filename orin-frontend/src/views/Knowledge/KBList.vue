@@ -273,6 +273,7 @@
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { 
   Plus, Refresh, Document, Search, Close, 
   DataLine, Cpu, Opportunity, Edit, Delete, Grid, MoreFilled,
@@ -389,7 +390,7 @@ const closeInspector = () => {
 };
 
 const handleAdd = () => {
-  router.push('/dashboard/knowledge/create');
+  router.push(ROUTES.RESOURCES.KNOWLEDGE_CREATE);
 };
 
 const handleEdit = (kb) => {

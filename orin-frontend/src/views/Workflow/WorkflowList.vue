@@ -149,6 +149,7 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { Plus, Search, VideoPlay, DataLine, Timer, Connection, Upload } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import dayjs from 'dayjs';
@@ -177,11 +178,11 @@ onMounted(() => {
 });
 
 const handleCreate = () => {
-  router.push('/dashboard/workflow/visual');
+  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL_CREATE);
 };
 
 const handleCreateVisual = () => {
-  router.push('/dashboard/workflow/visual');
+  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL_CREATE);
 };
 
 const handleEdit = (row) => {

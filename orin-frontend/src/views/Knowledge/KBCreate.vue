@@ -369,6 +369,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { 
   ArrowLeft, Document, Check, UploadFilled, FolderAdd, Link, Notebook,
   Close, Setting, CopyDocument, QuestionFilled, Cpu, Operation, View, Search,
@@ -646,7 +647,7 @@ const saveKB = async () => {
 };
 
 const handleGoToDocument = () => {
-    router.push('/dashboard/knowledge/list'); 
+    router.push(ROUTES.RESOURCES.KNOWLEDGE); 
 };
 </script>
 

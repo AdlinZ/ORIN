@@ -3,7 +3,7 @@
     <!-- Header with Breadcrumb -->
     <div class="detail-header">
       <div class="breadcrumb">
-        <span class="back-link" @click="$router.push('/dashboard/knowledge/list')">知识库</span>
+        <span class="back-link" @click="$router.push(ROUTES.RESOURCES.KNOWLEDGE)">知识库</span>
         <span class="separator">/</span>
         <span class="back-link" @click="goBackToKB">{{ kbName }}</span>
         <span class="separator">/</span>
@@ -165,6 +165,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { 
   Document, Search, Plus, Setting, Delete, Refresh, Edit
 } from '@element-plus/icons-vue';

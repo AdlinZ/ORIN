@@ -660,6 +660,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { VueFlow, Handle, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
@@ -776,7 +777,7 @@ const onDeleteWorkflow = () => {
         // Implement actual deletion logic here
         // API call to delete...
         ElMessage.success('工作流已删除');
-        router.push('/dashboard/workflow');
+        router.push(ROUTES.APPLICATIONS.WORKFLOWS);
     }).catch(() => {});
 };
 

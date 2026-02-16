@@ -607,4 +607,74 @@ onMounted(() => {
     font-size: 18px;
   }
 }
+
+/* 深色模式适配 */
+html.dark .top-navbar {
+  background: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html.dark .logo-text {
+  color: #ffffff;
+}
+
+html.dark .menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .menu-item.active {
+  background: rgba(21, 94, 239, 0.2);
+}
+
+html.dark .menu-title {
+  color: #e0e0e0;
+}
+
+html.dark .dropdown-menu {
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+html.dark .dropdown-item {
+  color: #e0e0e0;
+}
+
+html.dark .dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+html.dark .user-info {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+html.dark .user-info:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .user-name {
+  color: #ffffff;
+}
+
+html.dark .mobile-menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .mobile-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .drawer-title {
+  color: #ffffff;
+}
+
+html.dark .mobile-menu-title {
+  color: #e0e0e0;
+}
+
+html.dark .mobile-menu-item {
+  color: #b0b0b0;
+}
 </style>

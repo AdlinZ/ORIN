@@ -15,7 +15,7 @@
         >
           批量注销 ({{ selectedRows.length }})
         </el-button>
-        <el-button type="primary" :icon="Plus" @click="$router.push('/dashboard/agent/onboard')">接入新智能体</el-button>
+        <el-button type="primary" :icon="Plus" @click="$router.push(ROUTES.APPLICATIONS.AGENT_ONBOARD)">接入新智能体</el-button>
         <el-button :icon="Refresh" @click="fetchData">刷新列表</el-button>
       </template>
 
@@ -114,6 +114,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { 
   Plus, Search, Refresh, UserFilled, Delete, ArrowRight 
 } from '@element-plus/icons-vue';

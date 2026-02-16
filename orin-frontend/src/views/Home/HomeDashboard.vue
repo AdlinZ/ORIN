@@ -190,4 +190,44 @@ import { ROUTES } from '@/router/routes'
   font-size: 14px;
   font-weight: 500;
 }
+
+/* 深色模式适配 */
+html.dark .home-dashboard {
+  background: #0f0f0f;
+}
+
+html.dark .dashboard-header h1 {
+  color: #ffffff;
+}
+
+html.dark .dashboard-header p {
+  color: #a0a0a0;
+}
+
+html.dark .stat-card {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .card-header {
+  color: #ffffff;
+}
+
+html.dark .stat-label {
+  color: #a0a0a0;
+}
+
+html.dark .quick-access {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .quick-link {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e0e0e0;
+}
+
+html.dark .quick-link:hover {
+  background: rgba(21, 94, 239, 0.2);
+}
 </style>

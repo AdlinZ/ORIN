@@ -76,6 +76,7 @@ import { useRouter } from 'vue-router';
 import { User, Lock, CircleCheckFilled, Share, Link } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
+import { ROUTES } from '@/router/routes';
 
 import { login } from '../api/auth';
 
@@ -124,7 +125,7 @@ const handleLogin = async () => {
         localStorage.setItem('orin_user', JSON.stringify(user));
         
         setTimeout(() => {
-          router.push('/dashboard/monitor');
+          router.push(ROUTES.HOME);
         }, 500);
       } catch (error) {
         console.error('Login failed:', error);

@@ -3,7 +3,7 @@
     <!-- Header with Breadcrumb -->
     <div class="detail-header">
       <div class="breadcrumb">
-        <span class="back-link" @click="$router.push('/dashboard/knowledge/list')">知识库</span>
+        <span class="back-link" @click="$router.push(ROUTES.RESOURCES.KNOWLEDGE)">知识库</span>
         <span class="separator">/</span>
         <span class="current">{{ kbData.name }}</span>
       </div>
@@ -140,6 +140,7 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
+import { ROUTES } from '@/router/routes';
 
 const route = useRoute();
 const router = useRouter();
@@ -177,7 +178,7 @@ const loadKBData = async () => {
     
     if (!kb) {
       ElMessage.error('知识库不存在');
-      router.push('/dashboard/knowledge/list');
+      router.push(ROUTES.RESOURCES.KNOWLEDGE);
       return;
     }
     
@@ -242,7 +243,7 @@ const handleDelete = () => {
     const filtered = allKBs.filter(k => k.id !== kbId.value);
     localStorage.setItem('orin_mock_kbs', JSON.stringify(filtered));
     ElMessage.success('已删除');
-    router.push('/dashboard/knowledge/list');
+    router.push(ROUTES.RESOURCES.KNOWLEDGE);
   });
 };
 

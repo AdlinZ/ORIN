@@ -48,4 +48,13 @@ const $route = useRoute()
   opacity: 0;
   transform: translateX(10px);
 }
+
+/* 深色模式适配 */
+html.dark .main-layout {
+  background: #0f0f0f;
+}
+
+html.dark .content-area {
+  background: #0f0f0f;
+}
 </style>
