@@ -69,19 +69,19 @@
         </div>
       </template>
       <div class="quick-links">
-        <router-link to="/dashboard/applications/agents" class="quick-link">
+        <router-link :to="ROUTES.APPLICATIONS.AGENTS" class="quick-link">
           <el-icon><Box /></el-icon>
           <span>应用管理</span>
         </router-link>
-        <router-link to="/dashboard/runtime/overview" class="quick-link">
+        <router-link :to="ROUTES.RUNTIME.OVERVIEW" class="quick-link">
           <el-icon><Monitor /></el-icon>
           <span>运行监控</span>
         </router-link>
-        <router-link to="/dashboard/resources/knowledge" class="quick-link">
+        <router-link :to="ROUTES.RESOURCES.KNOWLEDGE" class="quick-link">
           <el-icon><Document /></el-icon>
           <span>知识库</span>
         </router-link>
-        <router-link to="/dashboard/control/users" class="quick-link">
+        <router-link :to="ROUTES.CONTROL.USERS" class="quick-link">
           <el-icon><Setting /></el-icon>
           <span>系统设置</span>
         </router-link>
@@ -92,6 +92,7 @@
 
 <script setup>
 import { Box, ChatDotRound, Coin, Timer, Grid, Monitor, Document, Setting } from '@element-plus/icons-vue'
+import { ROUTES } from '@/router/routes'
 </script>
 
 <style scoped>
