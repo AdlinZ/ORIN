@@ -17,59 +17,32 @@
         unique-opened
         class="el-menu-vertical"
       >
-        <el-menu-item index="/dashboard/monitor">
-          <el-icon><Monitor /></el-icon>
-          <template #title>智能看板</template>
+        <!-- 首页 -->
+        <el-menu-item index="/dashboard/home">
+          <el-icon><HomeFilled /></el-icon>
+          <template #title>首页</template>
         </el-menu-item>
 
-        <el-sub-menu index="/dashboard/agent">
-          <template #title>
-            <el-icon><Cpu /></el-icon>
-            <span>智能体管理</span>
-          </template>
-          <el-menu-item index="/dashboard/agent/list">智能体列表</el-menu-item>
-          <el-menu-item index="/dashboard/agent/conversation-logs">会话记录</el-menu-item>
-          <el-menu-item index="/dashboard/agent/model-list">模型列表</el-menu-item>
-          <el-menu-item index="/dashboard/agent/model-config">模型基础项</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="/dashboard/knowledge">
-          <template #title>
-            <el-icon><Collection /></el-icon>
-            <span>语义资产中心</span>
-          </template>
-          <el-menu-item index="/dashboard/knowledge/media">多模态素材库</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/list">知识库列表</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/lab">RAG 检索实验室</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/vlm-playground">VLM 视觉实验室</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/embedding-lab">向量匹配实验室</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/intelligence">智力资产中心</el-menu-item>
-          <el-menu-item index="/dashboard/knowledge/architecture">资产架构定义</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="/dashboard/workflow">
-          <template #title>
-            <el-icon><Connection /></el-icon>
-            <span>工作流管理</span>
-          </template>
-          <el-menu-item index="/dashboard/workflow/list">工作流列表</el-menu-item>
-          <el-menu-item index="/dashboard/skill/management">技能管理</el-menu-item>
-          <el-menu-item index="/dashboard/workflow/management">工作流编排</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="/dashboard/system" v-if="isAdmin">
-          <template #title>
-            <el-icon><Setting /></el-icon>
-            <span>系统设置</span>
-          </template>
-          <el-menu-item index="/dashboard/system/log-config">日志配置</el-menu-item>
-          <el-menu-item index="/dashboard/system/audit-logs">审计日志</el-menu-item>
-          <el-menu-item index="/dashboard/system/alerts">告警管理</el-menu-item>
-          <el-menu-item index="/dashboard/system/api-management">API端点管理</el-menu-item>
-          <el-menu-item index="/dashboard/system/api-keys">API密钥管理</el-menu-item>
-          <el-menu-item index="/dashboard/system/pricing">定价策略</el-menu-item>
-          <el-menu-item index="/dashboard/system/monitor-config">监控设置</el-menu-item>
-        </el-sub-menu>
+        <!-- 动态渲染四大模块 -->
+        <template v-for="menu in visibleMenus" :key="menu.id">
+          <el-sub-menu :index="menu.path" :class="`menu-${menu.id}`">
+            <template #title>
+              <el-icon :style="{ color: menu.color }">
+                <component :is="getIconComponent(menu.icon)" />
+              </el-icon>
+              <span>{{ menu.title }}</span>
+            </template>
+            
+            <!-- 二级菜单 -->
+            <el-menu-item 
+              v-for="child in menu.children" 
+              :key="child.path" 
+              :index="child.path"
+            >
+              {{ child.title }}
+            </el-menu-item>
+          </el-sub-menu>
+        </template>
       </el-menu>
     </div>
 
@@ -122,112 +95,135 @@
 </template>
 
 <script setup>
-import { computed, reactive, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useAppStore } from '@/stores/app';
-import { useUserStore } from '@/stores/user';
-import Cookies from 'js-cookie';
-import { ElMessage } from 'element-plus';
+import { computed, reactive, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAppStore } from '@/stores/app'
+import { useUserStore } from '@/stores/user'
+import Cookies from 'js-cookie'
+import { ElMessage } from 'element-plus'
+import { ROUTES, SIDEBAR_MENU_CONFIG } from '@/router/routes'
 import { 
-  Monitor, Cpu, Collection, Setting, Connection,
-  User, SwitchButton, DArrowLeft, DArrowRight
-} from '@element-plus/icons-vue';
+  HomeFilled, User, SwitchButton, DArrowLeft, DArrowRight, Setting,
+  Box, Monitor, Collection, Setting as SettingIcon
+} from '@element-plus/icons-vue'
 
-const appStore = useAppStore();
-const userStore = useUserStore();
-const route = useRoute();
-const router = useRouter();
+const appStore = useAppStore()
+const userStore = useUserStore()
+const route = useRoute()
+const router = useRouter()
 
-const activeMenu = computed(() => route.path);
-const isAdmin = computed(() => userStore.isAdmin);
+const activeMenu = computed(() => route.path)
+const isAdmin = computed(() => userStore.isAdmin)
 
 // 用户信息状态
 const userInfo = reactive({
   name: '',
   role: '',
   avatar: ''
-});
+})
 
 // 角色代码到显示名称的映射
 const roleNameMap = {
   'ROLE_ADMIN': '管理员',
   'ROLE_USER': '用户'
-};
+}
+
+// 可见菜单（根据权限过滤）
+const visibleMenus = computed(() => {
+  return SIDEBAR_MENU_CONFIG.filter(menu => {
+    // 如果菜单需要管理员权限，检查用户是否是管理员
+    if (menu.requiresAdmin) {
+      return isAdmin.value
+    }
+    return true
+  })
+})
+
+// 获取图标组件
+const getIconComponent = (iconName) => {
+  const iconMap = {
+    'Box': Box,
+    'Monitor': Monitor,
+    'Collection': Collection,
+    'Setting': SettingIcon
+  }
+  return iconMap[iconName] || Box
+}
 
 // 检查登录状态并更新用户信息
 const checkLoginStatus = () => {
-  const token = Cookies.get('orin_token');
+  const token = Cookies.get('orin_token')
   if (token) {
     if (userStore.userInfo) {
-      userInfo.name = userStore.userInfo.username || userStore.userInfo.nickname || '用户';
-      userInfo.avatar = userStore.userInfo.avatar || '';
+      userInfo.name = userStore.userInfo.username || userStore.userInfo.nickname || '用户'
+      userInfo.avatar = userStore.userInfo.avatar || ''
       if (userStore.roles && userStore.roles.length > 0) {
-        userInfo.role = roleNameMap[userStore.roles[0]] || userStore.roles[0];
+        userInfo.role = roleNameMap[userStore.roles[0]] || userStore.roles[0]
       } else {
-        userInfo.role = '用户';
+        userInfo.role = '用户'
       }
     } else {
-      const storedUser = localStorage.getItem('orin_user');
+      const storedUser = localStorage.getItem('orin_user')
       if (storedUser) {
         try {
-          const user = JSON.parse(storedUser);
-          userInfo.name = user.username || user.nickname || '用户';
-          userInfo.avatar = user.avatar || '';
-          const storedRoles = Cookies.get('orin_roles');
+          const user = JSON.parse(storedUser)
+          userInfo.name = user.username || user.nickname || '用户'
+          userInfo.avatar = user.avatar || ''
+          const storedRoles = Cookies.get('orin_roles')
           if (storedRoles) {
-            const roles = JSON.parse(storedRoles);
-            userInfo.role = roleNameMap[roles[0]] || roles[0] || '用户';
+            const roles = JSON.parse(storedRoles)
+            userInfo.role = roleNameMap[roles[0]] || roles[0] || '用户'
           } else {
-            userInfo.role = '用户';
+            userInfo.role = '用户'
           }
         } catch (e) {
-          console.error('解析用户信息失败:', e);
-          userInfo.name = '用户';
-          userInfo.role = '用户';
+          console.error('解析用户信息失败:', e)
+          userInfo.name = '用户'
+          userInfo.role = '用户'
         }
       } else {
-        userInfo.name = '用户';
-        userInfo.role = '用户';
+        userInfo.name = '用户'
+        userInfo.role = '用户'
       }
     }
   } else {
-    userInfo.name = '';
-    userInfo.role = '';
-    userInfo.avatar = '';
+    userInfo.name = ''
+    userInfo.role = ''
+    userInfo.avatar = ''
   }
-};
+}
 
 const handleLogout = () => {
-  userStore.logout();
-  localStorage.removeItem('orin_user');
-  ElMessage.success('已安全退出登录');
-  router.push('/login');
-};
+  userStore.logout()
+  localStorage.removeItem('orin_user')
+  ElMessage.success('已安全退出登录')
+  router.push('/login')
+}
 
 const handleCommand = (command) => {
   switch (command) {
     case 'logout':
-      handleLogout();
-      break;
+      handleLogout()
+      break
     case 'profile':
-      router.push('/dashboard/profile');
-      break;
+      router.push(ROUTES.PROFILE)
+      break
     case 'settings':
-      ElMessage.info('系统设置模块开发中');
-      break;
+      ElMessage.info('系统设置模块开发中')
+      break
     case 'login':
-      router.push('/login');
-      break;
+      router.push('/login')
+      break
   }
-};
+}
 
 onMounted(() => {
-  checkLoginStatus();
-});
+  checkLoginStatus()
+})
 
 router.afterEach(() => {
-  checkLoginStatus();
-});
+  checkLoginStatus()
+})
 </script>
 
 <style scoped>
@@ -344,6 +340,23 @@ router.afterEach(() => {
   background-color: var(--neutral-gray-1);
 }
 
+/* 一级菜单主题色 */
+:deep(.menu-applications .el-sub-menu__title:hover) {
+  background-color: rgba(21, 94, 239, 0.05);
+}
+
+:deep(.menu-runtime .el-sub-menu__title:hover) {
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+:deep(.menu-resources .el-sub-menu__title:hover) {
+  background-color: rgba(139, 92, 246, 0.05);
+}
+
+:deep(.menu-control .el-sub-menu__title:hover) {
+  background-color: rgba(100, 116, 139, 0.05);
+}
+
 /* User Section - fixed at bottom */
 .user-section {
   flex-shrink: 0;
@@ -451,35 +464,6 @@ router.afterEach(() => {
   background-color: #fff1f0 !important;
 }
 
-/* Dark mode support */
-html.dark .sidebar-container {
-  /* Using CSS variables effectively via main.css flipping */
-}
-
-html.dark .logo-container {
-  /* Using CSS variables effectively */
-}
-
-html.dark .title {
-  /* Using CSS variables effectively */
-}
-
-html.dark .user-section {
-  /* Using CSS variables effectively */
-}
-
-html.dark .user-wrapper:hover {
-  background: var(--neutral-gray-100);
-}
-
-html.dark .user-name {
-  /* Using CSS variables effectively */
-}
-
-html.dark .user-avatar {
-  /* Using CSS variables effectively */
-}
-
 /* Floating Toggle Button */
 .sidebar-toggle-btn {
   position: absolute;
@@ -517,25 +501,6 @@ html.dark .user-avatar {
 }
 
 .sidebar-toggle-btn:hover .el-icon {
-  color: var(--orin-primary);
-}
-
-/* Dark mode for toggle button */
-html.dark .sidebar-toggle-btn {
-  background: var(--neutral-gray-800);
-  border-color: var(--neutral-gray-700);
-}
-
-html.dark .sidebar-toggle-btn:hover {
-  background: var(--neutral-gray-700);
-  border-color: var(--orin-primary);
-}
-
-html.dark .sidebar-toggle-btn .el-icon {
-  color: var(--neutral-gray-400);
-}
-
-html.dark .sidebar-toggle-btn:hover .el-icon {
   color: var(--orin-primary);
 }
 </style>

@@ -1,63 +1,51 @@
 <template>
-  <div class="app-wrapper">
-    <Sidebar class="sidebar-container" />
-    <div class="main-container" :class="{ 'collapsed': appStore.isCollapse }">
-      <Navbar />
-      <div class="app-main">
-        <router-view v-slot="{ Component }">
-           <component :is="Component" :key="$route.fullPath" />
-        </router-view>
-      </div>
+  <div class="main-layout">
+    <!-- 顶部导航栏 -->
+    <TopNavbar />
+    
+    <!-- 主内容区域 -->
+    <div class="content-area">
+      <router-view v-slot="{ Component }">
+        <transition name="fade-transform" mode="out-in">
+          <component :is="Component" :key="$route.fullPath" />
+        </transition>
+      </router-view>
     </div>
   </div>
 </template>
 
 <script setup>
-import Sidebar from './components/Sidebar.vue';
-import Navbar from './components/Navbar.vue';
-import { useAppStore } from '@/stores/app';
-import { useRoute } from 'vue-router';
+import TopNavbar from './components/TopNavbar.vue'
+import { useRoute } from 'vue-router'
 
-const appStore = useAppStore();
-const route = useRoute();
+const $route = useRoute()
 </script>
 
 <style scoped>
-.app-wrapper {
-  display: flex;
-  width: 100%;
-  height: 100vh;
-  position: relative;
-}
-
-.main-container {
+.main-layout {
   min-height: 100vh;
-  width: calc(100% - var(--sidebar-width));
-  transition: width 0.3s, margin-left 0.3s;
-  margin-left: var(--sidebar-width);
-  background-color: var(--neutral-bg);
+  background: #f5f7fa;
 }
 
-.main-container.collapsed {
-  width: calc(100% - var(--sidebar-width-collapsed));
-  margin-left: var(--sidebar-width-collapsed);
-}
-
-.app-main {
+.content-area {
+  margin-top: 60px; /* 顶部导航栏高度 */
   padding: 20px;
-  /* (100vh - header height) */
-  min-height: calc(100vh - var(--header-height)); 
-  overflow-y: auto;
+  min-height: calc(100vh - 60px);
 }
 
-/* Page transition logic */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+/* 页面切换动画 */
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.3s;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.fade-transform-enter-from {
   opacity: 0;
+  transform: translateX(-10px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
 }
 </style>
