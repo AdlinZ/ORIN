@@ -345,7 +345,7 @@ Object.entries(LEGACY_ROUTE_REDIRECTS).forEach(([oldPath, newPath]) => {
         const relativePath = oldPath.replace('/dashboard/', '')
         dashboardRoute.children.push({
             path: relativePath,
-            redirect: newPath.replace('/dashboard/', '')
+            redirect: newPath  // 使用完整路径，不要移除前缀
         })
     }
 })
