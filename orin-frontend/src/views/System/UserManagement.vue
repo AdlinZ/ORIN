@@ -419,4 +419,15 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
 }
+
+/* 深色模式适配 */
+html.dark .user-management {
+  background: #0f0f0f;
+}
+
+html.dark .content-wrapper {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
 </style>
