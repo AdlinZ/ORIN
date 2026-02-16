@@ -492,8 +492,14 @@ onMounted(() => {
 }
 
 .notification-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+}
+
+.notification-badge :deep(.el-badge__content) {
+  transform: translateY(-50%) translateX(50%);
+  right: 8px;
+  top: 8px;
 }
 
 .action-divider {
