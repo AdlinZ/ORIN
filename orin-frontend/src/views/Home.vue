@@ -8,8 +8,8 @@
           <span class="logo-text">ORIN Platform</span>
         </div>
         <div class="nav-links">
-          <el-button link @click="$router.push('/dashboard/monitor')">监控中心</el-button>
-          <el-button link @click="$router.push('/dashboard/agent/list')">智能体管理</el-button>
+          <el-button link @click="$router.push(ROUTES.RUNTIME.OVERVIEW)">监控中心</el-button>
+          <el-button link @click="$router.push(ROUTES.APPLICATIONS.AGENTS)">智能体管理</el-button>
           
           <template v-if="isLoggedIn">
             <el-dropdown trigger="click" @command="handleCommand">
@@ -56,10 +56,10 @@
           实现全链路监控、知识库同步与模型智能调度。
         </p>
         <div class="hero-actions animate-up delay-2">
-          <el-button type="primary" size="large" class="start-btn" @click="$router.push('/dashboard/monitor')">
+          <el-button type="primary" size="large" class="start-btn" @click="$router.push(ROUTES.RUNTIME.OVERVIEW)">
              进入监控大屏 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
           </el-button>
-          <el-button size="large" class="secondary-btn" @click="$router.push('/dashboard/agent/onboard')">
+          <el-button size="large" class="secondary-btn" @click="$router.push(ROUTES.APPLICATIONS.AGENT_ONBOARD)">
              接入新智能体
           </el-button>
         </div>
@@ -128,6 +128,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import Cookies from 'js-cookie';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
@@ -193,10 +194,10 @@ const handleLogout = () => {
 const handleCommand = (command) => {
   switch (command) {
     case 'console':
-      router.push('/dashboard/monitor');
+      router.push(ROUTES.RUNTIME.OVERVIEW);
       break;
     case 'profile':
-      router.push('/dashboard/profile');
+      router.push(ROUTES.CONTROL.PROFILE);
       break;
     case 'logout':
       handleLogout();

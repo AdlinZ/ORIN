@@ -8,12 +8,19 @@
           <div class="avatar-wrapper">
             <el-avatar 
               :size="120" 
-              src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" 
+              :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'" 
               class="main-avatar"
             />
-            <div class="avatar-edit-badge">
-              <el-icon><Camera /></el-icon>
+            <div class="avatar-edit-badge" @click="handleAvatarClick">
+              <el-icon v-loading="avatarLoading"><Camera /></el-icon>
             </div>
+            <input 
+              type="file" 
+              ref="avatarInput" 
+              style="display: none" 
+              accept="image/*"
+              @change="onAvatarFileChange"
+            />
             <div class="online-indicator"></div>
           </div>
           <div class="user-info">
@@ -357,12 +364,15 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { getUserProfile, updateUserProfile, uploadAvatar, updateUserAvatar } from '@/api/user';
 
 const router = useRouter();
 const userStore = useUserStore();
 const activeTab = ref('settings');
 const twoFA = ref(true);
 const activityPeriod = ref('7d');
+const avatarLoading = ref(false);
+const avatarInput = ref(null);
 
 // User data
 const defaultUserData = {
@@ -370,7 +380,9 @@ const defaultUserData = {
   username: '',
   email: '',
   bio: '',
-  address: ''
+  address: '',
+  avatar: '',
+  userId: null
 };
 
 const userInfo = reactive({ ...defaultUserData });
@@ -505,24 +517,82 @@ const getRandomTagType = () => {
   return types[Math.floor(Math.random() * types.length)];
 };
 
-onMounted(() => {
-  const storedUser = localStorage.getItem('orin_user');
-  if (storedUser) {
+onMounted(async () => {
+  // Sync with store first
+  if (userStore.userInfo) {
+    Object.assign(userInfo, userStore.userInfo);
+    Object.assign(userForm, userInfo);
+  }
+
+  // Then fetch latest from backend
+  if (userStore.username) {
     try {
-      const data = JSON.parse(storedUser);
+      const data = await getUserProfile(userStore.username);
       Object.assign(userInfo, {
         nickname: data.nickname || data.username || '未设置昵称',
         username: data.username || '',
         email: data.email || '未设置邮箱',
         bio: data.bio || '这个人很懒，还没有填写个人简介',
-        address: data.address || '未设置地址'
+        address: data.address || '未设置地址',
+        avatar: data.avatar || '',
+        userId: data.userId || null
       });
       Object.assign(userForm, userInfo);
+      // Update store as well
+      userStore.updateUserInfo(data);
     } catch (e) {
-      console.error('解析用户信息失败:', e);
+      console.error('获取用户信息失败:', e);
     }
   }
 });
+
+const handleAvatarClick = () => {
+  if (avatarInput.value) {
+    avatarInput.value.click();
+  }
+};
+
+const onAvatarFileChange = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('头像文件不能超过 2MB');
+    return;
+  }
+
+  avatarLoading.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploadedBy', userInfo.username);
+    
+    // 1. Upload file
+    const uploadRes = await uploadAvatar(formData);
+    const avatarUrl = `/api/v1/multimodal/files/${uploadRes.id}/download`;
+    
+    // 2. Update user avatar URL
+    await updateUserAvatar(userInfo.userId, avatarUrl);
+    
+    // 3. Update local state
+    userInfo.avatar = avatarUrl;
+    userForm.avatar = avatarUrl;
+    
+    // 4. Update store
+    const updatedUserInfo = { ...userInfo };
+    userStore.updateUserInfo(updatedUserInfo);
+    
+    ElMessage.success('头像更新成功');
+  } catch (e) {
+    console.error('头像上传失败:', e);
+    ElMessage.error('头像更新失败');
+  } finally {
+    avatarLoading.value = false;
+    if (avatarInput.value) {
+      avatarInput.value.value = ''; // Reset input
+    }
+  }
+};
 
 const handleLogout = () => {
   ElMessageBox.confirm('确定要退出当前账号吗？', '安全退出', {
@@ -539,14 +609,24 @@ const handleLogout = () => {
   });
 };
 
-const handleSave = () => {
-  Object.assign(userInfo, userForm);
-  localStorage.setItem('orin_user', JSON.stringify(userInfo));
-  ElMessage({
-    message: '个人资料已更新存档',
-    type: 'success',
-    duration: 3000
-  });
+const handleSave = async () => {
+  try {
+    const updateData = {
+      ...userForm,
+      userId: userInfo.userId
+    };
+    const updated = await updateUserProfile(updateData);
+    Object.assign(userInfo, updated);
+    userStore.updateUserInfo(updated);
+    
+    ElMessage({
+      message: '个人资料已成功同步到服务器',
+      type: 'success',
+      duration: 3000
+    });
+  } catch (e) {
+    console.error('更新资料失败:', e);
+  }
 };
 
 const resetForm = () => {

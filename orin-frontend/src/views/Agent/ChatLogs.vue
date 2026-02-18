@@ -20,7 +20,7 @@
           <el-option 
             v-for="agent in agents" 
             :key="agent.agentId" 
-            :label="agent.name" 
+            :label="agent.agentName || agent.name" 
             :value="agent.agentId" />
         </el-select>
       </template>
@@ -100,6 +100,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { Download, User, Cpu, ChatLineRound, Search } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { getAgentList, getGroupedConversationLogs, getConversationHistory } from '@/api/agent';
+import { getAgentList as getStatusAgentList } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
 
 const loading = ref(false);
@@ -118,7 +119,7 @@ const currentChat = ref([]);
 
 const loadAgents = async () => {
   try {
-    const response = await getAgentList();
+    const response = await getAgentList(); // Using Metadata API
     agents.value = response || [];
   } catch (error) {
     ElMessage.error('获取智能体列表失败: ' + error.message);
@@ -132,7 +133,8 @@ const loadChatLogs = async () => {
     rawLogs.value = res.content.map(log => ({
       sessionId: log.conversationId,
       agentId: log.agentId,
-      agentName: agents.value.find(a => a.agentId === log.agentId)?.name || '未知智能体',
+      agentName: '', // Will be resolved by computed
+      modelName: log.model,
       lastQuery: log.query,
       tokens: log.totalTokens,
       responseTime: log.responseTime,
@@ -175,7 +177,25 @@ const filteredChatLogs = computed(() => {
 
 const pagedLogs = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
-  return filteredChatLogs.value.slice(start, start + pageSize.value);
+  const paged = filteredChatLogs.value.slice(start, start + pageSize.value);
+  
+  // Resolve agent names dynamically with multiple fallbacks
+  return paged.map(log => {
+    const agentId = log.agentId;
+    const agent = agents.value.find(a => a.agentId === agentId || a.id === agentId);
+    
+    let resolvedName = agent?.agentName || agent?.name;
+    
+    // If still unknown, try to use model name as a clue
+    if (!resolvedName) {
+      resolvedName = log.modelName ? `未知智能体 (${log.modelName})` : '未知智能体';
+    }
+    
+    return {
+      ...log,
+      agentName: resolvedName
+    };
+  });
 });
 
 const getLatencyClass = (ms) => {
@@ -242,7 +262,8 @@ watch([filterAgent, searchQuery], () => {
   currentPage.value = 1;
 });
 
-onMounted(() => {
+onMounted(async () => {
+  await loadAgents();
   loadChatLogs();
   
   // 监听全局刷新事件

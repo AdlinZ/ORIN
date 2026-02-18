@@ -59,7 +59,7 @@
       <!-- 3. Procedural View -->
       <div v-if="activeTab === 'PROCEDURAL'">
           <div class="mb-4 flex justify-between">
-              <el-button type="primary" @click="$router.push('/dashboard/workflow/create')">创建新技能</el-button>
+              <el-button type="primary" @click="$router.push(ROUTES.APPLICATIONS.WORKFLOWS)">创建新技能</el-button>
           </div>
           <knowledge-table type="api" :data="knowledgeStore.knowledgeList" />
       </div>
@@ -75,7 +75,8 @@
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { ROUTES } from '@/router/routes'
 import { useKnowledgeStore } from '@/stores/knowledgeStore'
 import { Document, DataLine, Cpu, User, Upload } from '@element-plus/icons-vue'
 import KnowledgeTable from './components/KnowledgeTable.vue'

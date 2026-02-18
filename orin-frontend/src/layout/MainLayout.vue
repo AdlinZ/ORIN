@@ -6,7 +6,7 @@
     <!-- 主内容区域 -->
     <div class="content-area">
       <router-view v-slot="{ Component }">
-        <transition name="fade-transform" mode="out-in">
+        <transition name="fade-transform">
           <component :is="Component" :key="$route.fullPath" />
         </transition>
       </router-view>
@@ -28,9 +28,8 @@ const $route = useRoute()
 }
 
 .content-area {
-  margin-top: 60px; /* 顶部导航栏高度 */
-  padding: 20px;
-  min-height: calc(100vh - 60px);
+  padding: 12px 16px;
+  min-height: calc(100vh - 64px);
 }
 
 /* 页面切换动画 */

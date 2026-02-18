@@ -178,15 +178,15 @@ onMounted(() => {
 });
 
 const handleCreate = () => {
-  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL_CREATE);
+  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL);
 };
 
 const handleCreateVisual = () => {
-  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL_CREATE);
+  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL);
 };
 
 const handleEdit = (row) => {
-  router.push(`/dashboard/workflow/visual/${row.id}`);
+  router.push(`${ROUTES.APPLICATIONS.WORKFLOW_VISUAL}/${row.id}`);
 };
 
 const handleRun = (row) => {

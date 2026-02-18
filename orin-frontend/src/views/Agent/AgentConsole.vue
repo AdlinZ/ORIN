@@ -7,8 +7,11 @@
           <template #header>
             <div class="sidebar-header">
               <div class="header-left">
-                <el-button link :icon="ArrowLeft" @click="$router.push('/dashboard/agent/list')" class="back-btn" />
-                <span>配置中心</span>
+                <el-button link :icon="ArrowLeft" @click="$router.push(ROUTES.APPLICATIONS.AGENTS)" class="back-btn" />
+                <div class="agent-brand">
+                  <span class="agent-name-text">{{ agentInfo.agentName || editForm.name }}</span>
+                  <span class="view-tag">{{ getViewLabel(agentInfo.viewType || currentMode) }}</span>
+                </div>
               </div>
               <div class="header-actions">
                 <el-button type="primary" size="small" @click="saveConfig" :loading="saveLoading">保存</el-button>
@@ -264,33 +267,12 @@
   </div>
 
 
-<!-- Simplified Identity Teleport -->
-<Teleport to="#navbar-actions" v-if="isMounted && agentInfo.agentId">
-  <div class="agent-identity" v-if="agentInfo.agentId">
-    <div class="agent-info-main">
-      <el-icon class="provider-mini-icon" :style="{ color: getProviderColor(agentInfo.providerType) }">
-        <component :is="getProviderIcon(agentInfo.providerType)" />
-      </el-icon>
-      <span class="agent-name">{{ agentInfo.agentName || editForm.name }}</span>
-      <span class="info-divider">/</span>
-      <span class="view-label-minimal">
-        <el-icon><component :is="getViewIcon(agentInfo.viewType || currentMode)" /></el-icon>
-        {{ getViewLabel(agentInfo.viewType || currentMode) }}
-      </span>
-    </div>
-
-    <el-tooltip content="执行历史" placement="bottom" v-if="currentMode !== 'chat'">
-      <el-button @click="showHistorySidebar = !showHistorySidebar" circle size="small" class="history-trigger-minimal">
-        <el-icon><Clock /></el-icon>
-      </el-button>
-    </el-tooltip>
-  </div>
-</Teleport>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, onBeforeUnmount, reactive, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { 
   ChatDotRound, Monitor, Setting, Position, UserFilled,
   VideoPlay, VideoPause, VideoCamera, Refresh, Cpu, ArrowLeft,
@@ -706,6 +688,10 @@ onMounted(() => {
   }, 5000);
 });
 
+onBeforeUnmount(() => {
+  isMounted.value = false;
+});
+
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer);
 });
@@ -714,7 +700,7 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   padding: 0;
-  height: calc(100vh - 100px); /* Account for navbar + margin/padding */
+  height: calc(100vh - 88px); /* 100vh - 64px(nav) - 24px(layout padding) */
   background: var(--neutral-gray-50);
 }
 
@@ -756,14 +742,35 @@ onUnmounted(() => {
 .sidebar-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-weight: 700;
-  font-size: 13px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.agent-brand {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-name-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--neutral-gray-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.view-tag {
+  font-size: 11px;
+  color: var(--neutral-gray-500);
+  font-weight: 500;
 }
 
 .back-btn { font-size: 16px; margin-right: -4px; }

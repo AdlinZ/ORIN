@@ -16,6 +16,11 @@ export const ROUTES = {
         MODELS: '/dashboard/applications/models',
         SKILLS: '/dashboard/applications/skills',
         WORKFLOWS: '/dashboard/applications/workflows',
+        WORKFLOW_CREATE: '/dashboard/applications/workflows/create',
+        WORKFLOW_EDIT: '/dashboard/applications/workflows/edit',
+        WORKFLOW_VISUAL: '/dashboard/applications/workflows/visual',
+        AGENT_CONSOLE: '/dashboard/applications/agents/console',
+        AGENT_ONBOARD: '/dashboard/applications/agents/onboard',
     },
 
     // 运行模块
@@ -65,6 +70,8 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/skill/management': ROUTES.APPLICATIONS.SKILLS,
     '/dashboard/workflow/list': ROUTES.APPLICATIONS.WORKFLOWS,
     '/dashboard/workflow/management': ROUTES.APPLICATIONS.WORKFLOWS,
+    '/dashboard/workflow/visual': ROUTES.APPLICATIONS.WORKFLOW_VISUAL,
+    '/dashboard/workflow/visual/:id': ROUTES.APPLICATIONS.WORKFLOW_VISUAL,
 
     // 运行模块
     '/dashboard/monitor': ROUTES.RUNTIME.OVERVIEW,

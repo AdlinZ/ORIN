@@ -193,6 +193,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/gateway/adapter/impl/DifyProviderAdapter.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/multimodal/entity/MultimodalTask.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/alert/entity/AlertRule.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/service/UserService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/dto/WorkflowStepRequest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/workflow/engine/handler/LLMNodeHandler.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/repository/LogConfigRepository.java
@@ -209,6 +210,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/knowledge/entity/meta/AgentMemory.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/service/ProviderKeyService.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/apikey/repository/ApiKeyRepository.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/system/controller/UserController.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/OrinApplication.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/trace/repository/WorkflowTraceRepository.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/main/java/com/adlin/orin/modules/agent/service/provider/MultiModalProvider.java

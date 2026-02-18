@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -248,66 +247,81 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public List<Map<String, Object>> getTokenTrend(String period) {
-                LocalDateTime end = LocalDateTime.now();
+                ZoneId dbZone = ZoneId.systemDefault();
+                LocalDateTime end = LocalDateTime.now(dbZone);
                 LocalDateTime start;
-                String formatPattern;
                 ChronoUnit groupingUnit;
+                int stepMinutes = 1;
 
-                if ("weekly".equals(period)) {
-                        start = end.minusWeeks(12); // Past 12 weeks
-                        formatPattern = "yyyy-MM-dd"; // 使用周一开始的日期
-                        groupingUnit = ChronoUnit.WEEKS;
-                } else if ("monthly".equals(period)) {
-                        start = end.minusMonths(12); // Past 12 months
-                        formatPattern = "yyyy-MM";
-                        groupingUnit = ChronoUnit.MONTHS;
+                if ("7d".equalsIgnoreCase(period)) {
+                        start = end.minusDays(7);
+                        groupingUnit = ChronoUnit.HOURS;
+                        stepMinutes = 120; // 2 hour steps
+                } else if ("24h".equalsIgnoreCase(period)) {
+                        start = end.minusDays(1);
+                        groupingUnit = ChronoUnit.HOURS;
+                        stepMinutes = 30; // 30 min steps
+                } else if ("6h".equalsIgnoreCase(period)) {
+                        start = end.minusHours(6);
+                        groupingUnit = ChronoUnit.MINUTES;
+                        stepMinutes = 10;
+                } else if ("1h".equalsIgnoreCase(period)) {
+                        start = end.minusHours(1);
+                        groupingUnit = ChronoUnit.MINUTES;
+                        stepMinutes = 2;
+                } else if ("30m".equalsIgnoreCase(period)) {
+                        start = end.minusMinutes(30);
+                        groupingUnit = ChronoUnit.MINUTES;
+                        stepMinutes = 1;
+                } else if ("5m".equalsIgnoreCase(period)) {
+                        start = end.minusMinutes(5);
+                        groupingUnit = ChronoUnit.SECONDS;
+                        stepMinutes = 30; // reusing stepMinutes as stepSeconds for 5m
                 } else {
-                        // Default to daily
-                        start = end.minusDays(30); // Past 30 days
-                        formatPattern = "yyyy-MM-dd";
+                        // Default to weekly/monthly (legacy support)
+                        if ("monthly".equalsIgnoreCase(period))
+                                start = end.minusMonths(1);
+                        else
+                                start = end.minusWeeks(1);
                         groupingUnit = ChronoUnit.DAYS;
                 }
 
-                // 获取时间范围内的所有业务日志 (排除系统日志)
-                List<AuditLog> logs = auditLogRepository.findBusinessLogsByCreatedAtBetween(start, end);
-
-                // 在内存中分组统计
-                Map<String, Long> groupedData = new TreeMap<>(); // 使用 TreeMap 保持顺序
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(formatPattern);
-
-                // 初始化所有时间点为 0，防止只有数据的日期才显示
-                LocalDateTime current = start;
+                // Initialize buckets
+                NavigableMap<LocalDateTime, Long> bucketMap = new TreeMap<>();
+                LocalDateTime current = start.truncatedTo(groupingUnit);
                 while (!current.isAfter(end)) {
-                        String key = current.format(formatter);
-                        groupedData.put(key, 0L);
-
+                        bucketMap.put(current, 0L);
                         if (groupingUnit == ChronoUnit.DAYS)
                                 current = current.plusDays(1);
-                        else if (groupingUnit == ChronoUnit.WEEKS)
-                                current = current.plusWeeks(1);
-                        else if (groupingUnit == ChronoUnit.MONTHS)
-                                current = current.plusMonths(1);
+                        else if (groupingUnit == ChronoUnit.HOURS)
+                                current = current.plusMinutes(stepMinutes);
+                        else if (groupingUnit == ChronoUnit.MINUTES)
+                                current = current.plusMinutes(stepMinutes);
+                        else if (groupingUnit == ChronoUnit.SECONDS)
+                                current = current.plusSeconds(stepMinutes);
                 }
 
-                // 填充实际数据
+                List<AuditLog> logs = auditLogRepository.findBusinessLogsByCreatedAtBetween(start, end);
+
                 for (AuditLog log : logs) {
                         if (log.getTotalTokens() != null) {
-                                String key = log.getCreatedAt().format(formatter);
-                                if (groupedData.containsKey(key)) {
-                                        groupedData.put(key, groupedData.get(key) + log.getTotalTokens());
+                                LocalDateTime logTime = log.getCreatedAt();
+                                // Match nearest bucket (the one starting before or at logTime)
+                                LocalDateTime targetBucket = bucketMap.floorKey(logTime);
+                                if (targetBucket != null) {
+                                        bucketMap.put(targetBucket, bucketMap.get(targetBucket) + log.getTotalTokens());
                                 }
                         }
                 }
 
-                // 转换为 List
                 List<Map<String, Object>> result = new ArrayList<>();
-                for (Map.Entry<String, Long> entry : groupedData.entrySet()) {
+                for (Map.Entry<LocalDateTime, Long> entry : bucketMap.entrySet()) {
                         Map<String, Object> item = new HashMap<>();
-                        item.put("date", entry.getKey());
+                        // Convert DB UTC time to System Default for frontend
+                        item.put("timestamp", entry.getKey().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
                         item.put("tokens", entry.getValue());
                         result.add(item);
                 }
-
                 return result;
         }
 
@@ -408,67 +422,80 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public List<Map<String, Object>> getLatencyTrend(String period) {
-                LocalDateTime end = LocalDateTime.now();
+                ZoneId dbZone = ZoneId.systemDefault();
+                LocalDateTime end = LocalDateTime.now(dbZone);
                 LocalDateTime start;
-                String formatPattern;
                 ChronoUnit groupingUnit;
+                int stepMinutes = 1;
 
-                if ("weekly".equals(period)) {
-                        start = end.minusWeeks(12);
-                        formatPattern = "yyyy-MM-dd";
-                        groupingUnit = ChronoUnit.WEEKS;
-                } else if ("monthly".equals(period)) {
-                        start = end.minusMonths(12);
-                        formatPattern = "yyyy-MM";
-                        groupingUnit = ChronoUnit.MONTHS;
+                if ("7d".equalsIgnoreCase(period)) {
+                        start = end.minusDays(7);
+                        groupingUnit = ChronoUnit.HOURS;
+                        stepMinutes = 120;
+                } else if ("24h".equalsIgnoreCase(period)) {
+                        start = end.minusDays(1);
+                        groupingUnit = ChronoUnit.HOURS;
+                        stepMinutes = 30;
+                } else if ("6h".equalsIgnoreCase(period)) {
+                        start = end.minusHours(6);
+                        groupingUnit = ChronoUnit.MINUTES;
+                        stepMinutes = 10;
+                } else if ("1h".equalsIgnoreCase(period)) {
+                        start = end.minusHours(1);
+                        groupingUnit = ChronoUnit.MINUTES;
+                        stepMinutes = 2;
+                } else if ("30m".equalsIgnoreCase(period)) {
+                        start = end.minusMinutes(30);
+                        groupingUnit = ChronoUnit.MINUTES;
+                        stepMinutes = 1;
+                } else if ("5m".equalsIgnoreCase(period)) {
+                        start = end.minusMinutes(5);
+                        groupingUnit = ChronoUnit.SECONDS;
+                        stepMinutes = 30;
                 } else {
-                        start = end.minusDays(30);
-                        formatPattern = "yyyy-MM-dd";
+                        start = end.minusWeeks(1);
                         groupingUnit = ChronoUnit.DAYS;
+                }
+
+                NavigableMap<LocalDateTime, Long> sumBucket = new TreeMap<>();
+                Map<LocalDateTime, Integer> countBucket = new HashMap<>();
+                LocalDateTime current = start.truncatedTo(groupingUnit);
+                while (!current.isAfter(end)) {
+                        sumBucket.put(current, 0L);
+                        countBucket.put(current, 0);
+                        if (groupingUnit == ChronoUnit.DAYS)
+                                current = current.plusDays(1);
+                        else if (groupingUnit == ChronoUnit.HOURS)
+                                current = current.plusMinutes(stepMinutes);
+                        else if (groupingUnit == ChronoUnit.MINUTES)
+                                current = current.plusMinutes(stepMinutes);
+                        else if (groupingUnit == ChronoUnit.SECONDS)
+                                current = current.plusSeconds(stepMinutes);
                 }
 
                 List<AuditLog> logs = auditLogRepository.findBusinessLogsByCreatedAtBetween(start, end);
 
-                Map<String, Long> sumMap = new TreeMap<>();
-                Map<String, Integer> countMap = new HashMap<>();
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(formatPattern);
-
-                // Initialize
-                LocalDateTime current = start;
-                while (!current.isAfter(end)) {
-                        String key = current.format(formatter);
-                        sumMap.put(key, 0L);
-                        countMap.put(key, 0);
-                        if (groupingUnit == ChronoUnit.DAYS)
-                                current = current.plusDays(1);
-                        else if (groupingUnit == ChronoUnit.WEEKS)
-                                current = current.plusWeeks(1);
-                        else if (groupingUnit == ChronoUnit.MONTHS)
-                                current = current.plusMonths(1);
-                }
-
-                // Aggregate
                 for (AuditLog log : logs) {
                         if (log.getResponseTime() != null) {
-                                String key = log.getCreatedAt().format(formatter);
-                                if (sumMap.containsKey(key)) {
-                                        sumMap.put(key, sumMap.get(key) + log.getResponseTime());
-                                        countMap.put(key, countMap.get(key) + 1);
+                                LocalDateTime logTime = log.getCreatedAt();
+                                LocalDateTime targetBucket = sumBucket.floorKey(logTime);
+                                if (targetBucket != null) {
+                                        sumBucket.put(targetBucket,
+                                                        sumBucket.get(targetBucket) + log.getResponseTime());
+                                        countBucket.put(targetBucket, countBucket.get(targetBucket) + 1);
                                 }
                         }
                 }
 
-                // Result
                 List<Map<String, Object>> result = new ArrayList<>();
-                for (Map.Entry<String, Long> entry : sumMap.entrySet()) {
-                        String key = entry.getKey();
-                        Integer count = countMap.get(key);
+                for (Map.Entry<LocalDateTime, Long> entry : sumBucket.entrySet()) {
+                        LocalDateTime key = entry.getKey();
+                        Integer count = countBucket.get(key);
                         Map<String, Object> item = new HashMap<>();
-                        item.put("date", key);
+                        item.put("timestamp", key.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
                         item.put("latency", count > 0 ? entry.getValue() / count : 0);
                         result.add(item);
                 }
-
                 return result;
         }
 

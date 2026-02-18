@@ -94,3 +94,9 @@ secrets/
 application-local.properties
 application-*.local.properties
 .orin.pids
+
+
+# ============================================
+# Storage
+# ============================================
+orin-backend/storage/

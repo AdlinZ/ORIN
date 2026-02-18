@@ -235,6 +235,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import { useDark } from '@vueuse/core';
 const isDark = useDark();
 import { getGlobalSummary, getAgentList, getAgentMetrics } from '../api/monitor';
@@ -402,9 +403,9 @@ const handleCardClick = (item) => {
   if (item.cardId === 'stat-tokens') {
     router.push('/dashboard/stats/tokens');
   } else if (item.cardId === 'stat-latency') {
-    router.push('/dashboard/monitor/latency');
+    router.push(ROUTES.RUNTIME.METRICS);
   } else if (item.cardId === 'stat-agents') {
-    router.push('/dashboard/agent/list');
+    router.push(ROUTES.APPLICATIONS.AGENTS);
   }
 };
 

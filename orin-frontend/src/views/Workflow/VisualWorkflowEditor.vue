@@ -1177,7 +1177,7 @@ const handleSave = async (isAuto = false) => {
     
     if (res && res.id && !route.params.id) {
         // New workflow created, navigate to it
-        router.push(`/dashboard/workflow/visual/${res.id}`); // Fix redirect path
+        router.push(`${ROUTES.APPLICATIONS.WORKFLOW_VISUAL}/${res.id}`); // Fix redirect path
         // If it was manual save, show success
         if (!isAuto) ElMessage.success('保存成功');
     } else {
