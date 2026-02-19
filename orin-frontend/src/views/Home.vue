@@ -8,7 +8,7 @@
           <span class="logo-text">ORIN Platform</span>
         </div>
         <div class="nav-links">
-          <el-button link @click="$router.push(ROUTES.RUNTIME.OVERVIEW)">监控中心</el-button>
+          <el-button link @click="$router.push(ROUTES.HOME)">监控中心</el-button>
           <el-button link @click="$router.push(ROUTES.APPLICATIONS.AGENTS)">智能体管理</el-button>
           
           <template v-if="isLoggedIn">
@@ -56,7 +56,7 @@
           实现全链路监控、知识库同步与模型智能调度。
         </p>
         <div class="hero-actions animate-up delay-2">
-          <el-button type="primary" size="large" class="start-btn" @click="$router.push(ROUTES.RUNTIME.OVERVIEW)">
+          <el-button type="primary" size="large" class="start-btn" @click="$router.push(ROUTES.HOME)">
              进入监控大屏 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
           </el-button>
           <el-button size="large" class="secondary-btn" @click="$router.push(ROUTES.APPLICATIONS.AGENT_ONBOARD)">
@@ -114,8 +114,14 @@
 
     <!-- Footer Meta -->
     <footer class="landing-footer">
-       <p>© 2024 ORIN - Advanced Agent Management & Monitoring System</p>
+       <p>
+         © 2025-2026 ORIN 
+         <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none; margin-left: 10px; transition: color 0.3s;" onmouseover="this.style.color='var(--primary-color)'" onmouseout="this.style.color='inherit'">
+           蜀ICP备2025125402号-3
+         </a>
+       </p>
        <div class="links">
+          <a href="https://github.com/AdlinZ/ORIN/" target="_blank">GitHub</a>
           <span>Documentation</span>
           <span>Privacy Policy</span>
           <span>API References</span>
@@ -194,7 +200,7 @@ const handleLogout = () => {
 const handleCommand = (command) => {
   switch (command) {
     case 'console':
-      router.push(ROUTES.RUNTIME.OVERVIEW);
+      router.push(ROUTES.HOME);
       break;
     case 'profile':
       router.push(ROUTES.CONTROL.PROFILE);
@@ -554,8 +560,8 @@ html.dark .line { background: rgba(255,255,255,0.1); }
 }
 
 .links { display: flex; gap: 30px; }
-.links span { cursor: pointer; transition: color 0.3s; }
-.links span:hover { color: var(--primary-color); }
+.links span, .links a { cursor: pointer; transition: color 0.3s; color: inherit; text-decoration: none; }
+.links span:hover, .links a:hover { color: var(--primary-color); }
 
 /* Animations */
 .animate-up { opacity: 0; transform: translateY(20px); animation: fadeUp 0.8s forwards; }

@@ -638,13 +638,67 @@
            <div v-if="executionLoading" class="loading-state">
               <el-icon class="is-loading"><Loading /></el-icon> 运行中...
            </div>
-           <div v-else-if="executionResult" class="result-display">
-              <div v-if="executionResult.error" class="result-status error"><el-icon><CircleClose /></el-icon> 运行失败</div>
-              <div v-else-if="executionResult.status === 'succeeded' || executionResult.outputs" class="result-status success"><el-icon><CircleCheck /></el-icon> 运行成功</div>
-              <div v-else class="result-status info"><el-icon><InfoFilled /></el-icon> 运行完成</div>
-              
-              <pre class="json-viewer">{{ JSON.stringify(executionResult, null, 2) }}</pre>
-           </div>
+            <div v-else-if="executionResult" class="result-display">
+               <!-- Status Header -->
+               <div class="result-header">
+                  <div v-if="executionResult.error" class="result-status error">
+                    <el-icon><CircleClose /></el-icon> 运行失败
+                  </div>
+                  <div v-else-if="executionResult.status === 'succeeded' || (executionResult.status === 'partial' && !executionResult.error)" class="result-status success">
+                    <el-icon><CircleCheck /></el-icon> 运行成功
+                  </div>
+                  <div v-else class="result-status info">
+                    <el-icon><InfoFilled /></el-icon> 运行完成 ({{ executionResult.status }})
+                  </div>
+                  
+                  <div class="result-meta" v-if="executionResult.trace">
+                     共执行 {{ executionResult.trace.length }} 个节点
+                  </div>
+               </div>
+
+               <!-- Trace Timeline -->
+               <div class="trace-list" v-if="executionResult.trace">
+                  <div v-for="item in executionResult.trace" :key="item.node_id" class="trace-item" :class="item.status">
+                    <div class="trace-item-header">
+                       <div class="node-info">
+                          <span class="node-id-badge">{{ item.node_id }}</span>
+                          <span class="node-type-label">{{ getNodeLabelById(item.node_id) }}</span>
+                       </div>
+                       <div class="node-status-badge">
+                          <el-icon v-if="item.status === 'completed'"><CircleCheck /></el-icon>
+                          <el-icon v-else-if="item.status === 'failed'"><CircleClose /></el-icon>
+                          <el-icon v-else-if="item.status === 'skipped'"><Remove /></el-icon>
+                          {{ formatStatus(item.status) }}
+                       </div>
+                    </div>
+                    
+                    <div class="trace-item-content" v-if="item.outputs || item.error">
+                       <div v-if="item.outputs" class="outputs-section">
+                          <div v-for="(val, key) in item.outputs" :key="key" class="output-row">
+                             <span class="output-key">{{ key }}:</span>
+                             <div class="output-val">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</div>
+                          </div>
+                       </div>
+                       <div v-if="item.error" class="error-msg">
+                          {{ item.error }}
+                       </div>
+                    </div>
+                    
+                    <div class="trace-item-footer">
+                       <span class="duration">{{ item.duration.toFixed(3) }}s</span>
+                       <span class="usage" v-if="item.outputs?.tokens_used">
+                          {{ item.outputs.tokens_used }} tokens
+                       </span>
+                    </div>
+                  </div>
+               </div>
+               
+               <el-collapse v-if="executionResult">
+                  <el-collapse-item title="原始 JSON 响应" name="raw">
+                    <pre class="json-viewer">{{ JSON.stringify(executionResult, null, 2) }}</pre>
+                  </el-collapse-item>
+               </el-collapse>
+            </div>
            <div v-else class="empty-result">点击运行开始调试</div>
         </el-tab-pane>
       </el-tabs>
@@ -675,7 +729,7 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getAgentList } from '@/api/agent';
-import { createWorkflow, getWorkflow, executeWorkflow } from '@/api/workflow';
+import { createWorkflow, getWorkflow, executeWorkflow, runWorkflowPreview } from '@/api/workflow';
 import { getModelList } from '@/api/model';
 import WorkflowApiAccess from './WorkflowApiAccess.vue';
 import { dump } from 'js-yaml';
@@ -1371,6 +1425,23 @@ const handlePreview = () => {
     showPreviewDialog.value = true;
 };
 
+
+const getNodeLabelById = (id) => {
+   const node = elements.value.find(el => el.id === id);
+   if (!node) return id;
+   return node.data?.label || node.data?.title || node.type || id;
+};
+
+const formatStatus = (status) => {
+   const MAP = {
+      'completed': '完成',
+      'failed': '失败',
+      'skipped': '跳过',
+      'running': '进行中'
+   };
+   return MAP[status] || status;
+};
+
 const runWorkflow = async () => {
     activePreviewTab.value = 'result';
     executionLoading.value = true;
@@ -1393,17 +1464,49 @@ const runWorkflow = async () => {
              });
         }
 
-        // 2. Execute
-        // Add response_mode and user for Dify compatibility
+        // 2. Construct DSL for Execution
+        // We need to transform VueFlow elements to clean WorkflowDSL
+        const nodes = elements.value.filter(el => !el.source).map(n => {
+            return {
+                id: n.id,
+                type: n.type === 'custom-note' ? 'note' : n.type,
+                position: n.position,
+                data: n.data // Pass full data, backend ignores extra fields partially but clean schema is better
+            };
+        });
+        
+        const edges = elements.value.filter(el => el.source).map(e => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle,
+            targetHandle: e.targetHandle
+        }));
+        
         const payload = {
-            inputs,
-            response_mode: 'blocking',
-            user: 'user-preview' 
+            dsl: {
+                nodes,
+                edges
+            },
+            context: {
+                inputs
+            }
         };
-        const res = await executeWorkflow(route.params.id, payload);
+
+        const res = await runWorkflowPreview(payload);
         executionResult.value = res;
+        
+        if (res.status === 'error') {
+             ElMessage.error(res.error || '执行出错');
+        } else if (res.status === 'partial') {
+             ElMessage.warning('部分执行成功');
+        } else {
+             ElMessage.success('执行成功');
+        }
     } catch (e) {
+        console.error("Execution Error:", e);
         executionResult.value = { error: '执行失败', details: e.message || e };
+        ElMessage.error('执行失败');
     } finally {
         executionLoading.value = false;
     }
@@ -1983,12 +2086,43 @@ const runWorkflow = async () => {
 /* Preview Dialog Styles */
 .no-inputs-hint { color: #94a3b8; font-size: 13px; padding: 20px 0; text-align: center; }
 .loading-state { display: flex; align-items: center; justify-content: center; gap: 8px; color: #155eef; padding: 40px; }
-.result-display { background: #f8fafc; border-radius: 8px; padding: 12px; }
-.result-status { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
-.result-status.success { color: #10b981; }
-.result-status.error { color: #ef4444; }
-.result-status.info { color: #3b82f6; }
-.json-viewer { font-family: monospace; white-space: pre-wrap; font-size: 12px; color: #334155; margin: 0; }
+.result-display { background: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #e5e7eb; }
+.result-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; margin-bottom: 16px; }
+.result-status { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; }
+.result-status.success { color: #059669; }
+.result-status.error { color: #dc2626; }
+.result-status.info { color: #2563eb; }
+.result-meta { font-size: 12px; color: #64748b; }
+
+.trace-list { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; margin-bottom: 16px; padding-right: 4px; }
+.trace-item { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; transition: all 0.2s; }
+.trace-item:hover { border-color: #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+.trace-item.failed { border-left: 4px solid #ef4444; }
+.trace-item.completed { border-left: 4px solid #10b981; }
+.trace-item.skipped { border-left: 4px solid #94a3b8; opacity: 0.8; }
+
+.trace-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.node-info { display: flex; align-items: center; gap: 8px; }
+.node-id-badge { font-family: monospace; font-size: 10px; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; }
+.node-type-label { font-size: 13px; font-weight: 600; color: #1e293b; }
+
+.node-status-badge { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
+.completed .node-status-badge { background: #ecfdf5; color: #059669; }
+.failed .node-status-badge { background: #fef2f2; color: #dc2626; }
+.skipped .node-status-badge { background: #f8fafc; color: #64748b; }
+
+.trace-item-content { background: #f8fafc; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 12px; }
+.output-row { display: flex; gap: 8px; margin-bottom: 4px; }
+.output-key { color: #64748b; font-weight: 600; min-width: 60px; }
+.output-val { color: #334155; word-break: break-all; white-space: pre-wrap; flex: 1; }
+.error-msg { color: #dc2626; font-family: monospace; font-size: 11px; }
+
+.trace-item-footer { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8; }
+.duration { font-family: monospace; }
+.usage { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+
+.json-viewer { font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; font-size: 11px; color: #475569; background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 8px; }
+
 .empty-result { color: #94a3b8; text-align: center; padding: 40px; font-size: 13px; }
 
 </style>

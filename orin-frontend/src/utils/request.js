@@ -102,6 +102,9 @@ service.interceptors.response.use(
     async (error) => {
         console.error('Request Error:', error);
         const config = error.config;
+        if (error.response && error.response.status === 401) {
+            console.warn(`401 Unauthorized for URL: ${config.url}`);
+        }
 
         // 防止刷新请求本身进入无限循环
         if (config.url === '/auth/refresh') {

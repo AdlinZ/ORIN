@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 配置相对路径
 BACKEND_DIR="$SCRIPT_DIR/orin-backend"
 FRONTEND_DIR="$SCRIPT_DIR/orin-frontend"
+AI_ENGINE_DIR="$SCRIPT_DIR/orin-ai-engine"
 PID_FILE="$SCRIPT_DIR/.orin.pids"
 
 # 颜色定义
@@ -95,14 +96,25 @@ function start() {
         exit 1
     fi
 
-    # 1. 启动后端
+    # 1. 启动后端 (Java)
     echo -e "启动后端服务 (Port: 8080)..."
     cd $BACKEND_DIR
     nohup mvn spring-boot:run < /dev/null > backend.log 2>&1 &
     BPID=$!
     echo $BPID > $PID_FILE
 
-    # 2. 启动前端
+    # 2. 启动 AI 引擎 (Python)
+    echo -e "启动 AI 引擎 (Port: 8000)..."
+    cd $AI_ENGINE_DIR
+    if [ -d "venv" ]; then
+        nohup venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 < /dev/null > ai_engine.log 2>&1 &
+        APID=$!
+        echo $APID >> $PID_FILE
+    else
+        echo -e "${RED}警告: Python 虚拟环境未找到，AI 引擎启动失败${NC}"
+    fi
+
+    # 3. 启动前端 (Vue)
     echo -e "启动前端服务 (Port: 5173)..."
     cd $FRONTEND_DIR
     nohup npm run dev < /dev/null > frontend.log 2>&1 &
@@ -112,6 +124,7 @@ function start() {
     echo -e "${GREEN}启动成功！${NC}"
     echo -e "后端日志: $BACKEND_DIR/backend.log"
     echo -e "前端日志: $FRONTEND_DIR/frontend.log"
+    echo -e "AI引擎日志: $AI_ENGINE_DIR/ai_engine.log"
     echo -e "访问地址: ${GREEN}http://localhost:5173${NC}"
 }
 
@@ -131,6 +144,7 @@ function stop() {
     echo "清理端口占用..."
     lsof -ti:8080 | xargs kill -9 > /dev/null 2>&1
     lsof -ti:5173 | xargs kill -9 > /dev/null 2>&1
+    lsof -ti:8000 | xargs kill -9 > /dev/null 2>&1
 
     echo -e "${RED}系统已安全停止。${NC}"
 }
@@ -140,17 +154,24 @@ function status() {
     
     B_RUNNING=$(lsof -i:8080)
     F_RUNNING=$(lsof -i:5173)
+    A_RUNNING=$(lsof -i:8000)
 
     if [ ! -z "$B_RUNNING" ]; then
-        echo -e "后端服务: ${GREEN}运行中${NC}"
+        echo -e "后端服务 (Java):   ${GREEN}运行中${NC}"
     else
-        echo -e "后端服务: ${RED}已停止${NC}"
+        echo -e "后端服务 (Java):   ${RED}已停止${NC}"
+    fi
+
+    if [ ! -z "$A_RUNNING" ]; then
+        echo -e "AI 引擎 (Python):  ${GREEN}运行中${NC}"
+    else
+        echo -e "AI 引擎 (Python):  ${RED}已停止${NC}"
     fi
 
     if [ ! -z "$F_RUNNING" ]; then
-        echo -e "前端服务: ${GREEN}运行中${NC}"
+        echo -e "前端服务 (Vue):    ${GREEN}运行中${NC}"
     else
-        echo -e "前端服务: ${RED}已停止${NC}"
+        echo -e "前端服务 (Vue):    ${RED}已停止${NC}"
     fi
     
     echo ""

@@ -43,6 +43,15 @@ export function executeWorkflow(id, inputs) {
     })
 }
 
+export function runWorkflowPreview(payload) {
+    return request({
+        baseURL: '',
+        url: '/api/v1/workflow/run',
+        method: 'post',
+        data: payload
+    })
+}
+
 export function getWorkflowInstances(id) {
     return request({
         baseURL: '',

@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: false # Disable Flyway for tests to speed up startup
+  
+  # Disable Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379 
+      
+# Disable Security for this specific test IF needed, but better to mock User
+server:
+  port: 0
+
+# Initial AI Engine URL (will be overwritten by dynamic property in test)
+orin:
+  ai-engine:
+    url: http://localhost:8000
+
+logging:
+  level:
+    com.adlin.orin: DEBUG
+    org.springframework.web: INFO
