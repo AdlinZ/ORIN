@@ -46,3 +46,11 @@ export function testDeepSeekConnection(endpoint, apiKey, model) {
         params: { endpoint, apiKey, model }
     })
 }
+
+export function testMinimaxConnection(endpoint, apiKey, model) {
+    return request({
+        url: '/model-config/test-minimax-connection',
+        method: 'post',
+        params: { endpoint, apiKey, model }
+    })
+}

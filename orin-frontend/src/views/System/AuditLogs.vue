@@ -28,10 +28,10 @@
                   <span :class="row.success ? '' : 'text-danger'">{{ row.errorMessage || '无异常' }}</span>
                 </el-descriptions-item>
                 <el-descriptions-item label="请求参数 (JSON)" :span="2">
-                  <pre class="json-block">{{ row.requestParams }}</pre>
+                  <JsonViewer :data="row.requestParams" title="Request Payload" />
                 </el-descriptions-item>
                 <el-descriptions-item label="响应内容 (JSON)" :span="2">
-                  <pre class="json-block">{{ row.responseContent || '无响应内容' }}</pre>
+                  <JsonViewer :data="row.responseContent || '{}'" title="Response Payload" />
                 </el-descriptions-item>
               </el-descriptions>
             </div>
@@ -92,6 +92,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import ResizableTable from '@/components/ResizableTable.vue';
 import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
+import JsonViewer from '@/components/JsonViewer.vue';
 
 const loading = ref(false);
 const logs = ref([]);
@@ -227,12 +228,12 @@ onMounted(() => {
   fetchLogs();
   
   // 监听全局刷新事件
-  window.addEventListener('global-refresh', fetchLogs);
+  window.addEventListener('page-refresh', fetchLogs);
 });
 
 onUnmounted(() => {
   // 清理全局刷新事件监听器
-  window.removeEventListener('global-refresh', fetchLogs);
+  window.removeEventListener('page-refresh', fetchLogs);
 });
 </script>
 
@@ -251,18 +252,7 @@ onUnmounted(() => {
   background: var(--neutral-gray-50);
 }
 
-.json-block {
-  background: #fdfdfd;
-  padding: 10px;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 12px;
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #ebeef5;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
+
 
 .pagination-container {
   margin-top: 20px;

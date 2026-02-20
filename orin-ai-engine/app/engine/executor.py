@@ -6,6 +6,8 @@ from app.engine.handlers.base import BaseNodeHandler
 from app.engine.handlers.standard import StartNodeHandler, EndNodeHandler
 # Replace Mock with Real Handler
 from app.engine.handlers.llm import RealLLMNodeHandler
+from app.engine.handlers.code import CodeNodeHandler
+from app.engine.handlers.variable_assigner import VariableAssignerNodeHandler
 from app.core.config import settings
 
 class GraphExecutor:
@@ -16,6 +18,8 @@ class GraphExecutor:
             "end": EndNodeHandler(),
             "llm": RealLLMNodeHandler(),
             "agent": RealLLMNodeHandler(),
+            "code": CodeNodeHandler(),
+            "variable_assigner": VariableAssignerNodeHandler(),
         }
 
     def _build_adjacency_list(self, dsl: WorkflowDSL) -> Dict[str, List[str]]:

@@ -7,8 +7,17 @@
       <div class="sub-left">
         <div class="breadcrumb">
           <el-icon class="app-icon"><TrendCharts /></el-icon>
-          <span class="app-name">{{ workflowName || '未命名工作流' }}</span>
-          <el-icon class="edit-icon"><Edit /></el-icon>
+          <div v-if="isEditingName" class="name-edit-wrapper">
+            <el-input 
+              v-model="workflowName" 
+              size="small" 
+              ref="nameInput"
+              @blur="isEditingName = false"
+              @keyup.enter="isEditingName = false"
+            />
+          </div>
+          <span v-else class="app-name" @click="startEditName">{{ workflowName || '未命名工作流' }}</span>
+          <el-icon class="edit-icon" @click="startEditName"><Edit /></el-icon>
         </div>
         <nav class="sub-nav">
           <a href="#" class="sub-nav-item" :class="{ active: activeTab === 'orchestrate' }" @click.prevent="activeTab = 'orchestrate'">编排</a>
@@ -28,6 +37,10 @@
           <el-button text @click="handlePreview">
             <el-icon><VideoPlay /></el-icon>
             预览
+          </el-button>
+          <el-button type="success" plain @click="showAIDialog = true">
+            <el-icon><MagicStick /></el-icon>
+            AI 生成
           </el-button>
           <el-button type="primary" @click="handleSave()" :loading="saving">
             保存
@@ -172,7 +185,7 @@
           tabindex="0"
         >
           <!-- Custom Background (Dotted) -->
-          <Background pattern-color="#f0f0f0" :gap="20" />
+          <Background :pattern-color="isDark ? '#334155' : '#f0f0f0'" :gap="20" />
           
           <!-- Custom Node Templates (Dify Accent Style) -->
           <template #node-start="{ data }">
@@ -639,6 +652,12 @@
               <el-icon class="is-loading"><Loading /></el-icon> 运行中...
            </div>
             <div v-else-if="executionResult" class="result-display">
+               <!-- 最终结果 (Final Output) -->
+               <div v-if="executionResult.outputs && Object.keys(executionResult.outputs).length > 0" class="final-output-section">
+                  <div class="section-title">最终输出 (Final Output)</div>
+                  <JsonViewer :data="executionResult.outputs" :expand-all="true" :dark="isDark" />
+               </div>
+
                <!-- Status Header -->
                <div class="result-header">
                   <div v-if="executionResult.error" class="result-status error">
@@ -673,11 +692,15 @@
                     </div>
                     
                     <div class="trace-item-content" v-if="item.outputs || item.error">
+                       <!-- Special handling for Code Node -->
+                       <div v-if="getNodeTypeById(item.node_id) === 'code'" class="code-execution-section">
+                          <div class="sub-section-title">执行代码</div>
+                          <pre class="code-preview">{{ getCodePayload(item.node_id) }}</pre>
+                       </div>
+
                        <div v-if="item.outputs" class="outputs-section">
-                          <div v-for="(val, key) in item.outputs" :key="key" class="output-row">
-                             <span class="output-key">{{ key }}:</span>
-                             <div class="output-val">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</div>
-                          </div>
+                          <div class="sub-section-title">节点输出</div>
+                          <JsonViewer :data="item.outputs" :dark="isDark" />
                        </div>
                        <div v-if="item.error" class="error-msg">
                           {{ item.error }}
@@ -685,7 +708,7 @@
                     </div>
                     
                     <div class="trace-item-footer">
-                       <span class="duration">{{ item.duration.toFixed(3) }}s</span>
+                       <span class="duration">{{ (item.duration || 0).toFixed(3) }}s</span>
                        <span class="usage" v-if="item.outputs?.tokens_used">
                           {{ item.outputs.tokens_used }} tokens
                        </span>
@@ -694,8 +717,14 @@
                </div>
                
                <el-collapse v-if="executionResult">
+                  <el-collapse-item title="执行上下文 (Context)" name="context" v-if="executionResult.context">
+                    <JsonViewer :data="executionResult.context" title="Global Context" :dark="isDark" />
+                  </el-collapse-item>
+                  <el-collapse-item title="DSL 定义 (Translated Definition)" name="dsl">
+                    <JsonViewer :data="lastExecutionDsl" title="Workflow DSL" :dark="isDark" />
+                  </el-collapse-item>
                   <el-collapse-item title="原始 JSON 响应" name="raw">
-                    <pre class="json-viewer">{{ JSON.stringify(executionResult, null, 2) }}</pre>
+                    <JsonViewer :data="executionResult" title="Raw Response" :dark="isDark" />
                   </el-collapse-item>
                </el-collapse>
             </div>
@@ -705,6 +734,26 @@
       <template #footer>
         <el-button @click="showPreviewDialog = false">关闭</el-button>
         <el-button type="primary" :loading="executionLoading" @click="runWorkflow">运行</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- AI Generation Dialog -->
+    <el-dialog v-model="showAIDialog" title="AI 辅助生成工作流" width="500px">
+      <el-form label-position="top">
+        <el-form-item label="描述您想要的工作流需求">
+          <el-input 
+            type="textarea" 
+            v-model="aiPrompt" 
+            :rows="4" 
+            placeholder="例如：创建一个翻译流程，接收中文输入，使用 LLM 翻译成英文，然后直接回复。"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showAIDialog = false">取消</el-button>
+        <el-button type="primary" :loading="aiGenerating" @click="onGenerateAIWorkflow">
+          开始生成
+        </el-button>
       </template>
     </el-dialog>
 
@@ -725,14 +774,19 @@ import {
   RefreshRight, MoreFilled, Loading, Plus, Close, Pointer, FullScreen, Aim,
   Right, MapLocation, Delete, Clock, Cpu, ChatDotSquare, Monitor, DocumentCopy,
   Files, EditPen, Link, Document, Scissor, Postcard, Sunny, Refresh,
-  CirclePlusFilled, DocumentAdd
+  CirclePlusFilled, DocumentAdd, MagicStick
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getAgentList } from '@/api/agent';
-import { createWorkflow, getWorkflow, executeWorkflow, runWorkflowPreview } from '@/api/workflow';
+import { createWorkflow, getWorkflow, executeWorkflow, runWorkflowPreview, generateAIWorkflow } from '@/api/workflow';
 import { getModelList } from '@/api/model';
 import WorkflowApiAccess from './WorkflowApiAccess.vue';
+import JsonViewer from '@/components/JsonViewer.vue';
 import { dump } from 'js-yaml';
+import { useDark } from '@vueuse/core';
+
+// Dark mode support
+const isDark = useDark();
 
 // HandIcon placeholder for Pointer (can use Pointer icon instead)
 const HandIcon = Pointer;
@@ -741,6 +795,8 @@ const router = useRouter();
 const route = useRoute();
 
 const workflowName = ref('');
+const isEditingName = ref(false);
+const nameInput = ref(null);
 const activeTab = ref('orchestrate');
 const isEdit = ref(false);
 const saving = ref(false);
@@ -759,12 +815,25 @@ const showPreviewDialog = ref(false);
 const activePreviewTab = ref('input');
 const previewInputs = ref([]);
 const executionResult = ref(null);
+const lastExecutionDsl = ref(null);
 const executionLoading = ref(false);
+
+// AI Generation state
+const showAIDialog = ref(false);
+const aiGenerating = ref(false);
+const aiPrompt = ref('');
 
 const { fitView } = useVueFlow();
 
 const onFitView = () => {
     fitView();
+};
+
+const startEditName = () => {
+    isEditingName.value = true;
+    nextTick(() => {
+        nameInput.value?.focus();
+    });
 };
 
 const toggleMiniMap = () => {
@@ -785,6 +854,42 @@ const onAddNote = () => {
         }
     };
     elements.value.push(newNode);
+};
+
+const onGenerateAIWorkflow = async () => {
+    if (!aiPrompt.value) {
+        ElMessage.warning('请输入您的需求描述');
+        return;
+    }
+    aiGenerating.value = true;
+    try {
+        const res = await generateAIWorkflow(aiPrompt.value);
+        if (res && res.nodes) {
+            // Replace or Merge? Let's Replace for now for simplicity, or we could merge and layout.
+            // But usually AI generation is for a fresh start.
+            elements.value = res.nodes.map(n => ({
+                ...n,
+                // Ensure nodes have standard types as expected by our templates
+                // and data property is present
+                data: n.data || {}
+            }));
+            
+            if (res.edges) {
+                elements.value.push(...res.edges);
+            }
+            
+            showAIDialog.value = false;
+            ElMessage.success('工作流已生成');
+            nextTick(() => {
+                onFitView();
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        ElMessage.error('AI 生成失败: ' + (e.response?.data?.error || e.message));
+    } finally {
+        aiGenerating.value = false;
+    }
 };
 
 const onKeyDown = (event) => {
@@ -1432,6 +1537,16 @@ const getNodeLabelById = (id) => {
    return node.data?.label || node.data?.title || node.type || id;
 };
 
+const getNodeTypeById = (id) => {
+    const node = elements.value.find(el => el.id === id);
+    return node?.type || '';
+};
+
+const getCodePayload = (id) => {
+    const node = elements.value.find(el => el.id === id);
+    return node?.data?.code || '# No code provided';
+};
+
 const formatStatus = (status) => {
    const MAP = {
       'completed': '完成',
@@ -1493,6 +1608,7 @@ const runWorkflow = async () => {
             }
         };
 
+        lastExecutionDsl.value = payload.dsl;
         const res = await runWorkflowPreview(payload);
         executionResult.value = res;
         
@@ -2125,4 +2241,290 @@ const runWorkflow = async () => {
 
 .empty-result { color: #94a3b8; text-align: center; padding: 40px; font-size: 13px; }
 
+/* --- Dark Mode Styles --- */
+.dark .visual-workflow-editor {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+.dark .dify-sub-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+
+.dark .breadcrumb .app-icon {
+  background: #451a03;
+  color: #fbbf24;
+}
+
+.dark .app-name {
+  color: #f1f5f9;
+}
+
+.dark .sub-nav-item {
+  color: #94a3b8;
+}
+
+.dark .sub-nav-item:hover {
+  color: #f1f5f9;
+}
+
+.dark .sub-nav-item.active {
+  color: #3b82f6;
+}
+
+.dark .sub-nav-item.active::after {
+  background: #3b82f6;
+}
+
+.dark .tool-rail {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+.dark .tool-item:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.dark .tool-item.active {
+  background: #1e293b;
+  color: #3b82f6;
+}
+
+.dark .node-palette {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.dark .palette-header {
+  border-bottom-color: #334155;
+}
+
+.dark .palette-header h3 {
+  color: #f1f5f9;
+}
+
+.dark .palette-node-card {
+  background: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+.dark .palette-node-card:hover {
+  border-color: #3b82f6;
+  background: #1e293b;
+}
+
+.dark .group-title {
+  color: #64748b;
+}
+
+.dark .dify-node {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+.dark .dify-node.selected {
+  border-color: #3b82f6;
+}
+
+.dark .node-body .body-text {
+  color: #94a3b8;
+}
+
+.dark .start .node-header { background: #064e3b; border-bottom-color: #065f46; color: #10b981; }
+.dark .end .node-header { background: #7f1d1d; border-bottom-color: #991b1b; color: #f87171; }
+.dark .llm .node-header { background: #064e3b; border-bottom-color: #065f46; color: #34d399; }
+.dark .agent .node-header { background: #4c1d95; border-bottom-color: #5b21b6; color: #c084fc; }
+.dark .logic .node-header { background: #334155; border-bottom-color: #475569; color: #94a3b8; }
+
+.dark .node-header {
+  border-bottom-color: #334155;
+}
+
+.dark .node-header .title {
+  color: #f1f5f9;
+}
+
+.dark .properties-panel {
+  background: #1e293b;
+  border-left-color: #334155;
+}
+
+.dark .panel-header {
+  border-bottom-color: #334155;
+  color: #f1f5f9;
+}
+
+.dark .panel-header h3 {
+  color: #f1f5f9;
+}
+
+.dark .var-item {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.dark .var-name {
+  color: #60a5fa;
+}
+
+.dark .var-type {
+  color: #64748b;
+}
+
+.dark .panel-footer {
+  border-top-color: #334155;
+}
+
+.dark .mini-map-container {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+.dark .mini-map-container:hover {
+  background: #334155;
+}
+
+.dark .info-item {
+  background: #334155;
+  border-color: #475569;
+}
+
+.dark .info-item .label {
+  color: #94a3b8;
+}
+
+.dark .info-item .value {
+  color: #60a5fa;
+}
+
+.dark .context-selector {
+  background: #334155;
+  border-color: #475569;
+}
+
+.dark .context-tag {
+  background: #1e3a8a;
+  color: #93c5fd;
+}
+
+.dark .add-context-input:hover {
+  background: #1e293b;
+}
+
+.dark .code-preview {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+.dark .assign-operation {
+  background: #334155;
+}
+
+.dark .vue-flow__handle {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+.dark .result-display {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark .trace-item {
+  background: #334155;
+  border-color: #475569;
+}
+
+.dark .trace-item-header .node-type-label {
+  color: #f1f5f9;
+}
+
+.dark .trace-item-content {
+  background: #1e293b;
+}
+
+.dark .output-val {
+  color: #e2e8f0;
+}
+
+.final-output-section {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.dark .final-output-section {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.section-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #1e293b;
+}
+
+.dark .section-title {
+  color: #f1f5f9;
+}
+
+.sub-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 12px 0 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.code-execution-section {
+  margin-bottom: 16px;
+}
+
+.code-preview {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.dark .code-preview {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.dark .node-id-badge {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+.dark .el-dialog {
+  background-color: #1e293b !important;
+}
+
+.dark .el-tabs__nav {
+  color: #94a3b8;
+}
+
+.dark .el-form-item__label {
+  color: #e2e8f0 !important;
+}
+
+.dark .json-viewer {
+  background: #0f172a;
+}
 </style>

@@ -14,4 +14,6 @@ public interface ModelConfigService {
     boolean testZhipuConnection(String endpoint, String apiKey, String model);
 
     boolean testDeepSeekConnection(String endpoint, String apiKey, String model);
+
+    boolean testMinimaxConnection(String endpoint, String apiKey, String model);
 }

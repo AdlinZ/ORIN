@@ -108,10 +108,22 @@ public class MonitorServiceImpl implements MonitorService {
                 // Frontend expects: daily_requests, total_tokens, avg_latency
                 summary.put("daily_requests", todayLogs.size());
 
-                int totalTokens = todayLogs.stream()
-                                .mapToInt(log -> log.getTotalTokens() != null ? log.getTotalTokens() : 0)
-                                .sum();
-                summary.put("total_tokens", totalTokens);
+                long totalTokensToday = orZero(
+                                auditLogRepository.sumTotalTokensBetween(startOfDay, LocalDateTime.now()));
+                summary.put("total_tokens", totalTokensToday);
+
+                // Calculate Token Trend (compared to same period yesterday)
+                LocalDateTime startOfYesterday = startOfDay.minusDays(1);
+                LocalDateTime sameTimeYesterday = LocalDateTime.now().minusDays(1);
+                long totalTokensYesterday = orZero(
+                                auditLogRepository.sumTotalTokensBetween(startOfYesterday, sameTimeYesterday));
+
+                double tokensTrend = 0.0;
+                if (totalTokensYesterday > 0) {
+                        tokensTrend = ((double) (totalTokensToday - totalTokensYesterday) / totalTokensYesterday)
+                                        * 100.0;
+                }
+                summary.put("total_tokens_trend", Math.round(tokensTrend * 10.0) / 10.0);
 
                 // Calculate average latency
                 double avgLatency = todayLogs.stream()
@@ -120,10 +132,20 @@ public class MonitorServiceImpl implements MonitorService {
                                 .orElse(0.0);
                 summary.put("avg_latency", Math.round(avgLatency) + "ms");
 
-                double totalCost = todayLogs.stream()
-                                .mapToDouble(log -> log.getEstimatedCost() != null ? log.getEstimatedCost() : 0.0)
-                                .sum();
-                summary.put("todayCost", Math.round(totalCost * 10000.0) / 10000.0);
+                double totalCostToday = orZero(auditLogRepository.sumTotalCostBetween(startOfDay, LocalDateTime.now()));
+                summary.put("todayCost", Math.round(totalCostToday * 100.0) / 100.0);
+
+                // Calculate Cost Trend
+                double totalCostYesterday = orZero(
+                                auditLogRepository.sumTotalCostBetween(startOfYesterday, sameTimeYesterday));
+                double costTrend = 0.0;
+                if (totalCostYesterday > 0) {
+                        costTrend = ((totalCostToday - totalCostYesterday) / totalCostYesterday) * 100.0;
+                }
+                summary.put("today_cost_trend", Math.round(costTrend * 10.0) / 10.0);
+
+                // Add real system uptime (milliseconds)
+                summary.put("system_uptime", java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime());
 
                 return summary;
         }

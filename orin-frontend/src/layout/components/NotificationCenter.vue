@@ -105,49 +105,13 @@ const visible = computed({
 
 const activeTab = ref('all')
 
-// 模拟通知数据
-const notifications = ref([
-  {
-    id: 1,
-    type: 'error',
-    title: 'Agent-GPT-4 响应超时',
-    message: '调用超时，请检查网络连接或模型配置',
-    time: new Date(Date.now() - 2 * 60 * 1000),
-    read: false
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Token 使用量接近配额',
-    message: '当前 Token 使用量已达 85%，建议及时充值',
-    time: new Date(Date.now() - 15 * 60 * 1000),
-    read: false
-  },
-  {
-    id: 3,
-    type: 'info',
-    title: '知识库同步延迟',
-    message: '知识库"产品文档"正在同步中，预计 1 小时后完成',
-    time: new Date(Date.now() - 60 * 60 * 1000),
-    read: false
-  },
-  {
-    id: 4,
-    type: 'success',
-    title: '工作流执行成功',
-    message: '工作流"数据处理"已成功执行完成',
-    time: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    read: true
-  },
-  {
-    id: 5,
-    type: 'info',
-    title: '系统维护通知',
-    message: '系统将于今晚 22:00 进行例行维护，预计持续 30 分钟',
-    time: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    read: true
-  }
-])
+// 初始通知数据 (已移除 Mock 数据)
+const notifications = ref([])
+
+onMounted(async () => {
+  // TODO: 从后端加载真实的告警/通知数据 (AlertHistory)
+  // fetchNotifications()
+})
 
 const filteredNotifications = computed(() => {
   return notifications.value

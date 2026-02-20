@@ -565,6 +565,94 @@
 
         </template>
 
+        <template v-else-if="form.providerType === 'minimax'">
+          <el-form-item label="MiniMax API Endpoint" prop="endpointUrl">
+            <el-input 
+              v-model.trim="form.endpointUrl" 
+              placeholder="https://api.minimaxi.chat/v1"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Link /></el-icon>
+              </template>
+            </el-input>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                MiniMax 官方接口。对话使用 chatcompletion_v2，语音使用 t2a_v2
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="API Key" prop="apiKey">
+            <el-input 
+              v-model.trim="form.apiKey" 
+              type="password" 
+              show-password 
+              placeholder="YOUR_API_KEY"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><Key /></el-icon>
+              </template>
+              <template #append>
+                <el-select 
+                  v-model="selectedSavedKeyId" 
+                  placeholder="使用保存的密钥" 
+                  size="large" 
+                  style="width: 160px;"
+                  clearable 
+                  @change="handleSavedKeySelect"
+                >
+                  <el-option 
+                    v-for="key in providerKeys" 
+                    :key="key.id" 
+                    :label="key.name" 
+                    :value="key.id" 
+                  />
+                </el-select>
+              </template>
+            </el-input>
+          </el-form-item>
+
+          <el-form-item label="模型名称" prop="model">
+            <div class="integrated-select-group">
+              <el-select 
+                v-model="form.model" 
+                placeholder="请选择或输入模型名称"
+                size="large"
+                filterable
+                allow-create
+                default-first-option
+                class="main-select"
+              >
+                <el-option label="abab6.5g-chat" value="abab6.5g-chat" />
+                <el-option label="abab6.5t-chat" value="abab6.5t-chat" />
+                <el-option label="speech-01-hd (TTS)" value="speech-01-hd" />
+                <template #prefix>
+                  <el-icon><Service /></el-icon>
+                </template>
+              </el-select>
+            </div>
+            <template #extra>
+              <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
+                常用模型：abab6.5g-chat、abab6.5t-chat、speech-01-hd
+              </span>
+            </template>
+          </el-form-item>
+
+          <el-form-item label="智能体名称（可选）" prop="agentName">
+            <el-input 
+              v-model.trim="form.agentName" 
+              placeholder="自定义智能体名称，留空则自动生成"
+              size="large"
+            >
+              <template #prefix>
+                <el-icon><User /></el-icon>
+              </template>
+            </el-input>
+          </el-form-item>
+        </template>
+
         <!-- 操作按钮 -->
         <div v-if="form.providerType" class="action-bar" style="margin-top: var(--spacing-2xl); gap: var(--spacing-md);">
           <el-button 
@@ -611,7 +699,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { onboardAgent } from '../api/agent';
-import { testDifyConnection, testSiliconFlowConnection, testZhipuConnection, testDeepSeekConnection } from '../api/modelConfig';
+import { testDifyConnection, testSiliconFlowConnection, testZhipuConnection, testDeepSeekConnection, testMinimaxConnection } from '../api/modelConfig';
 import { onboardSiliconFlowAgent } from '../api/siliconFlowAgent';
 import { onboardZhipuAgent } from '../api/zhipuAgent';
 import { onboardDeepSeekAgent } from '../api/deepseekAgent';
@@ -751,6 +839,12 @@ const providerOptions = [
     label: '本地模型',
     icon: Monitor,
     description: 'Ollama、LocalAI 等私有化部署'
+  },
+  {
+    value: 'minimax',
+    label: 'MiniMax',
+    icon: Opportunity,
+    description: '强大国产大模型及领先 TTS 语音能力'
   }
 ];
 
@@ -780,7 +874,7 @@ const rules = computed(() => {
     ]
   };
 
-  if (['siliconflow', 'local', 'zhipu', 'deepseek'].includes(form.providerType)) {
+  if (['siliconflow', 'local', 'zhipu', 'deepseek', 'minimax'].includes(form.providerType)) {
     baseRules.model = [
       { required: true, message: '请输入模型名称', trigger: 'blur' }
     ];
@@ -836,6 +930,11 @@ const currentProviderInfo = computed(() => {
       title: '本地模型接入提示',
       type: 'success',
       description: '支持 Ollama、LocalAI 等本地模型服务。请确保服务已启动并可访问'
+    },
+    minimax: {
+      title: 'MiniMax 接入提示',
+      type: 'info',
+      description: 'MiniMax 提供了业内顶尖的文本和语音能力。端点通常为 https://api.minimaxi.chat/v1'
     }
   };
   return infoMap[form.providerType] || { title: '', type: 'info', description: '' };
@@ -899,6 +998,9 @@ const handleProviderChange = () => {
   } else if (form.providerType === 'local') {
     form.endpointUrl = 'http://localhost:11434/v1';
     form.model = 'llama2';
+  } else if (form.providerType === 'minimax') {
+    form.endpointUrl = 'https://api.minimaxi.chat/v1';
+    form.model = 'abab6.5g-chat';
   }
 };
 
@@ -962,6 +1064,18 @@ const testConnection = async () => {
           } else {
             ElMessage.error('DeepSeek 连接测试失败，请检查配置信息');
           }
+        } else if (form.providerType === 'minimax') {
+          const response = await testMinimaxConnection(
+            form.endpointUrl, 
+            form.apiKey, 
+            form.model
+          );
+          if (response) {
+            ElMessage.success('MiniMax 连接测试成功！');
+            connectionTested.value = true;
+          } else {
+            ElMessage.error('MiniMax 连接测试失败，请检查配置信息');
+          }
         } else {
           ElMessage.warning('该Provider暂不支持连接测试');
         }
@@ -1016,6 +1130,15 @@ const onSubmit = async () => {
             temperature: form.temperature
           });
           ElMessage.success('DeepSeek Agent 接入成功！');
+        } else if (form.providerType === 'minimax') {
+          await onboardAgent({
+            endpointUrl: form.endpointUrl, 
+            apiKey: form.apiKey, 
+            model: form.model,
+            agentName: form.agentName,
+            providerType: 'MiniMax' // Backend identifies this, but we can clarify
+          });
+          ElMessage.success('MiniMax Agent 接入成功！');
         } else {
           ElMessage.warning('该Provider接入功能正在开发中');
           loading.value = false;

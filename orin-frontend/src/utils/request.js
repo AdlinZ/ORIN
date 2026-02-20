@@ -184,27 +184,36 @@ service.interceptors.response.use(
 
         if (error.response) {
             const status = error.response.status;
-            switch (status) {
-                case 400:
-                    message = '请求参数错误';
-                    break;
-                case 403:
-                    message = '权限不足，拒绝访问';
-                    break;
-                case 404:
-                    message = '请求资源不存在';
-                    break;
-                case 500:
-                    message = '服务器内部错误';
-                    break;
-                default:
-                    message = `请求失败 (${status})`;
+            // 优先使用服务器返回的错误消息
+            if (error.response.data && error.response.data.message) {
+                message = error.response.data.message;
+            } else {
+                switch (status) {
+                    case 400:
+                        message = '请求参数错误';
+                        break;
+                    case 401:
+                        message = '登录已过期，请重新登录';
+                        break;
+                    case 403:
+                        message = '权限不足，拒绝访问';
+                        break;
+                    case 404:
+                        message = '请求资源不存在';
+                        break;
+                    case 500:
+                        message = '服务器内部错误';
+                        break;
+                    default:
+                        message = `请求失败 (${status})`;
+                }
             }
         } else if (error.message.includes('timeout')) {
             message = '请求超时，请检查网络连接';
         } else if (error.message.includes('Network Error')) {
             message = '网络连接失败，请检查网络后重试';
         }
+
 
         // 只在最后一次重试失败后才显示错误消息
         if (config.retryCount >= MAX_RETRIES || !shouldRetry) {

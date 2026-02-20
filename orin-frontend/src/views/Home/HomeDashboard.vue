@@ -54,14 +54,18 @@
               <span class="m-lbl">今日消耗 TOKEN</span>
               <div class="m-val-group">
                 <span class="m-num primary-text">{{ formatK(summary.total_tokens) }}</span>
-                <span class="m-trend up">↑ 2.1%</span>
+                <span class="m-trend" :class="summary.total_tokens_trend >= 0 ? 'up' : 'down'">
+                  {{ summary.total_tokens_trend >= 0 ? '↑' : '↓' }} {{ Math.abs(summary.total_tokens_trend || 0) }}%
+                </span>
               </div>
             </div>
             <div class="m-box">
               <span class="m-lbl">估算成本 COST</span>
               <div class="m-val-group">
                 <span class="m-num">¥{{ (summary.todayCost || 0).toFixed(2) }}</span>
-                <span class="m-trend down">↓ 0.4%</span>
+                <span class="m-trend" :class="summary.today_cost_trend >= 0 ? 'up' : 'down'">
+                  {{ summary.today_cost_trend >= 0 ? '↑' : '↓' }} {{ Math.abs(summary.today_cost_trend || 0) }}%
+                </span>
               </div>
             </div>
           </div>
@@ -306,7 +310,14 @@ const fetchData = async () => {
     const [s, a, h, l, d] = await Promise.allSettled([
       getGlobalSummary(), getAgentList(), getServerHardware(), getTokenHistory({ size: 10 }), getTokenDistribution()
     ])
-    if (s.status === 'fulfilled') summary.value = s.value
+    if (s.status === 'fulfilled') {
+      summary.value = s.value
+      if (s.value.system_uptime) {
+        const totalMinutes = Math.floor(s.value.system_uptime / (1000 * 60))
+        uptimeHours.value = Math.floor(totalMinutes / 60)
+        uptimeMinutes.value = totalMinutes % 60
+      }
+    }
     if (a.status === 'fulfilled') agents.value = a.value
     if (h.status === 'fulfilled') hardware.value = h.value
     if (l.status === 'fulfilled' && l.value.content) {

@@ -23,6 +23,7 @@ import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
+import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -46,6 +47,7 @@ public class AgentManageServiceImpl implements AgentManageService {
 
     private final DifyIntegrationService difyIntegrationService;
     private final SiliconFlowIntegrationService siliconFlowIntegrationService;
+    private final MinimaxIntegrationService minimaxIntegrationService;
     private final AgentAccessProfileRepository accessProfileRepository;
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
@@ -69,9 +71,11 @@ public class AgentManageServiceImpl implements AgentManageService {
             MultimodalFileService multimodalFileService,
             MetaKnowledgeService metaKnowledgeService,
             com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
+            MinimaxIntegrationService minimaxIntegrationService,
             List<MultiModalProvider> providers) {
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
+        this.minimaxIntegrationService = minimaxIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
@@ -82,7 +86,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.modelMetadataRepository = modelMetadataRepository;
 
         for (MultiModalProvider p : providers) {
-            this.providerMap.put(p.getProviderName(), p);
+            this.providerMap.put(p.getProviderName().toUpperCase(), p);
         }
     }
 
@@ -176,6 +180,12 @@ public class AgentManageServiceImpl implements AgentManageService {
             modelName = "deepseek-ai/DeepSeek-V3"; // Default or detect
             // In a real scenario, we might want to list models or let user specify which
             // model to use
+        } else if ("MiniMax".equals(provider)) {
+            if (!minimaxIntegrationService.testConnection(endpointUrl, apiKey, "abab6.5g-chat")) {
+                throw new RuntimeException("Failed to connect to MiniMax agent");
+            }
+            agentName = "MiniMax Agent";
+            modelName = "abab6.5g-chat";
         } else {
             throw new RuntimeException("Unsupported provider or unable to identify");
         }
@@ -250,6 +260,8 @@ public class AgentManageServiceImpl implements AgentManageService {
             return "SiliconFlow";
         } else if (url.contains("deepseek")) {
             return "DeepSeek";
+        } else if (url.contains("minimax")) {
+            return "MiniMax";
         }
         return "DIFY"; // Default fallback
     }
@@ -868,7 +880,9 @@ public class AgentManageServiceImpl implements AgentManageService {
                     response = difyIntegrationService.sendMessage(profile.getEndpointUrl(), profile.getApiKey(),
                             conversationId, message);
                     if (response.isPresent() && response.get() instanceof Map) {
-                        ((Map<String, Object>) response.get()).put("conversation_id", conversationId);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> castedResponse = (Map<String, Object>) response.get();
+                        castedResponse.put("conversation_id", conversationId);
                     }
                 }
             } else if ("SiliconFlow".equalsIgnoreCase(providerType) || "SiliconCloud".equalsIgnoreCase(providerType)) {

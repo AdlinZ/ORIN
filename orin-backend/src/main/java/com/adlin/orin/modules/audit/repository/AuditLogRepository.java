@@ -50,6 +50,9 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
         @Query("SELECT SUM(a.estimatedCost) FROM AuditLog a WHERE (?1 IS NULL OR a.userId = ?1) AND a.createdAt BETWEEN ?2 AND ?3 AND a.providerId != 'ORIN_CORE'")
         Double sumCostByUserIdAndDateRange(String userId, LocalDateTime start, LocalDateTime end);
 
+        @Query("SELECT SUM(a.estimatedCost) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 AND a.providerId != 'ORIN_CORE'")
+        Double sumTotalCostBetween(LocalDateTime start, LocalDateTime end);
+
         /**
          * 获取指定智能体时间范围内的审计日志
          */
@@ -74,6 +77,9 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          */
         @Query("SELECT SUM(a.totalTokens) FROM AuditLog a WHERE a.createdAt >= ?1 AND a.providerId != 'ORIN_CORE'")
         Long sumTotalTokensAfter(LocalDateTime after);
+
+        @Query("SELECT SUM(a.totalTokens) FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 AND a.providerId != 'ORIN_CORE'")
+        Long sumTotalTokensBetween(LocalDateTime start, LocalDateTime end);
 
         /**
          * 统计所有时间的总Token使用量 (排除系统日志)

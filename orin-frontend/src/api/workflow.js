@@ -87,3 +87,13 @@ export function getWorkflowAccess(id) {
         method: 'get'
     })
 }
+
+export function generateAIWorkflow(prompt) {
+    return request({
+        baseURL: '',
+        url: '/api/workflows/generate',
+        method: 'post',
+        data: { prompt }
+    })
+}
+

@@ -272,7 +272,16 @@ const handleImportSubmit = async () => {
 
 const formatTime = (time) => {
   if (!time) return '-';
-  return dayjs(time).format('YYYY-MM-DD HH:mm');
+  
+  // Handle array format [2024, 10, 27, 10, 0, 0] often returned by Spring/Jackson
+  if (Array.isArray(time)) {
+    // dayjs can't handle [2024, 10, 27...] directly
+    const [year, month, day, hour, minute] = time;
+    return dayjs(new Date(year, month - 1, day, hour || 0, minute || 0)).format('YYYY-MM-DD HH:mm');
+  }
+  
+  const d = dayjs(time);
+  return d.isValid() ? d.format('YYYY-MM-DD HH:mm') : '-';
 };
 </script>
 

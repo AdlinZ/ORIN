@@ -2,9 +2,11 @@ package com.adlin.orin.modules.workflow.controller;
 
 import com.adlin.orin.modules.workflow.dto.WorkflowRequest;
 import com.adlin.orin.modules.workflow.dto.WorkflowResponse;
+import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
 import com.adlin.orin.modules.workflow.entity.WorkflowInstanceEntity;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
+import com.adlin.orin.modules.workflow.service.WorkflowGenerationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,28 @@ import java.util.Map;
 public class WorkflowController {
 
     private final WorkflowService workflowService;
+    private final WorkflowGenerationService workflowGenerationService;
+
+    @PostMapping("/generate")
+    @Operation(summary = "AI 辅助生成工作流图结构")
+    public ResponseEntity<Map<String, Object>> generateWorkflow(@RequestBody Map<String, String> request) {
+        String prompt = request.get("prompt");
+        if (prompt == null || prompt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Prompt is required"));
+        }
+        log.info("REST request to generate AI workflow: {}", prompt);
+        try {
+            Map<String, Object> graph = workflowGenerationService.generateWorkflow(prompt);
+            return ResponseEntity.ok(graph);
+        } catch (BusinessException e) {
+            throw e; // Let GlobalExceptionHandler handle BusinessException with proper structure
+        } catch (Exception e) {
+            log.error("AI generation failed unexpectedly", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "AI 生成工作流失败"));
+        }
+
+    }
 
     @PostMapping
     @Operation(summary = "创建工作流")

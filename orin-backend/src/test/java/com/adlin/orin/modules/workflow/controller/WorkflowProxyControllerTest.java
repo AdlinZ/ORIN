@@ -60,7 +60,8 @@ public class WorkflowProxyControllerTest {
         var dsl = mapper.readTree("{\"nodes\": [], \"edges\": []}");
 
         // Execute Controller Method
-        var responseEntity = controller.runWorkflowProxy(dsl);
+        var responseEntity = controller.runWorkflowProxy(dsl,
+                new org.springframework.mock.web.MockHttpServletRequest());
 
         // Verify
         assertThat(responseEntity).isNotNull();

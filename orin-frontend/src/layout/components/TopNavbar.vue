@@ -303,7 +303,7 @@ const iconMap = {
 const activeDropdown = ref(null)
 const showMobileMenu = ref(false)
 const showNotificationCenter = ref(false)
-const unreadCount = ref(3) // 初始未读数量
+const unreadCount = ref(0) // 初始未读数量为 0
 
 // Dark mode logic (from original Navbar)
 const isDarkMode = useDark({

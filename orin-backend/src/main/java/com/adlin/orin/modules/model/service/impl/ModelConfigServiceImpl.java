@@ -4,6 +4,7 @@ import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.model.service.ZhipuIntegrationService;
 import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
+import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
 import com.adlin.orin.modules.model.repository.ModelConfigRepository;
 import com.adlin.orin.modules.model.service.ModelConfigService;
@@ -22,18 +23,21 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     private final SiliconFlowIntegrationService siliconFlowIntegrationService;
     private final ZhipuIntegrationService zhipuIntegrationService;
     private final DeepSeekIntegrationService deepSeekIntegrationService;
+    private final MinimaxIntegrationService minimaxIntegrationService;
 
     @Autowired
     public ModelConfigServiceImpl(ModelConfigRepository modelConfigRepository,
             DifyIntegrationService difyIntegrationService,
             SiliconFlowIntegrationService siliconFlowIntegrationService,
             ZhipuIntegrationService zhipuIntegrationService,
-            DeepSeekIntegrationService deepSeekIntegrationService) {
+            DeepSeekIntegrationService deepSeekIntegrationService,
+            MinimaxIntegrationService minimaxIntegrationService) {
         this.modelConfigRepository = modelConfigRepository;
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.zhipuIntegrationService = zhipuIntegrationService;
         this.deepSeekIntegrationService = deepSeekIntegrationService;
+        this.minimaxIntegrationService = minimaxIntegrationService;
     }
 
     @Override
@@ -155,6 +159,16 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             return deepSeekIntegrationService.testConnection(endpoint, apiKey, model);
         } catch (Exception e) {
             log.error("Error testing DeepSeek connection: ", e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean testMinimaxConnection(String endpoint, String apiKey, String model) {
+        try {
+            return minimaxIntegrationService.testConnection(endpoint, apiKey, model);
+        } catch (Exception e) {
+            log.error("Error testing MiniMax connection: ", e);
             return false;
         }
     }
