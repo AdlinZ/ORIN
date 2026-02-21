@@ -27,7 +27,7 @@
 
     <!-- 文档列表 -->
     <el-card class="premium-card">
-      <el-table :data="documents" v-loading="loading" stripe>
+      <el-table border :data="documents" v-loading="loading" stripe>
         <el-table-column prop="fileName" label="文件名" min-width="200">
           <template #default="{ row }">
             <div class="file-info">

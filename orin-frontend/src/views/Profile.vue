@@ -364,7 +364,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-import { getUserProfile, updateUserProfile, uploadAvatar, updateUserAvatar } from '@/api/user';
+import { getUserProfile, updateUserProfile, uploadAvatar, updateUserAvatar, getUserDashboard } from '@/api/user';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -388,88 +388,22 @@ const defaultUserData = {
 const userInfo = reactive({ ...defaultUserData });
 const userForm = reactive({ ...defaultUserData });
 
-// Stats data
+// Stats data (Mock defaults, will be overwritten by API)
 const stats = ref([
-  { 
-    label: '知识库', 
-    value: '12', 
-    trend: 12.5,
-    icon: 'Collection',
-    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  { 
-    label: '已训模型', 
-    value: '48', 
-    trend: 8.2,
-    icon: 'DataAnalysis',
-    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-  },
-  { 
-    label: '总会话', 
-    value: '1.2k', 
-    trend: -3.1,
-    icon: 'ChatDotRound',
-    color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-  },
-  { 
-    label: '活跃天数', 
-    value: '89', 
-    trend: 5.7,
-    icon: 'Calendar',
-    color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-  }
+  { label: '知识库', value: '0', trend: 0.0, icon: 'Collection', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+  { label: '已训模型', value: '0', trend: 0.0, icon: 'DataAnalysis', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+  { label: 'Token 消耗', value: '0', trend: 0.0, icon: 'ChatDotRound', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+  { label: '活跃天数', value: '0', trend: 0.0, icon: 'Calendar', color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }
 ]);
 
 // Activity data for chart
-const activityData = ref([
-  { label: '周一', value: 65, count: 12 },
-  { label: '周二', value: 85, count: 18 },
-  { label: '周三', value: 45, count: 9 },
-  { label: '周四', value: 95, count: 21 },
-  { label: '周五', value: 75, count: 15 },
-  { label: '周六', value: 55, count: 11 },
-  { label: '周日', value: 40, count: 8 }
-]);
+const activityData = ref([]);
 
 // Skills
-const skills = ref([
-  'AI/ML', 'Python', 'Vue.js', 'React', 'Node.js', 
-  'Docker', 'Kubernetes', 'AWS', 'RAG', 'LLM'
-]);
+const skills = ref([]);
 
 // Activity logs
-const activityLogs = ref([
-  {
-    action: '登录系统',
-    detail: '登录成功 (IP: 192.168.1.182)',
-    time: '2小时前',
-    type: 'success'
-  },
-  {
-    action: '更新智能体',
-    detail: '修改了 "Code Assistant" 的检索阈值参数',
-    time: '5小时前',
-    type: 'info'
-  },
-  {
-    action: '敏感操作',
-    detail: '异常尝试停止节点 "Runtime-Server-02"',
-    time: '1天前',
-    type: 'warning'
-  },
-  {
-    action: '创建知识库',
-    detail: '成功创建新库 "ORIN 核心技术文档"',
-    time: '2天前',
-    type: 'success'
-  },
-  {
-    action: '模型训练完成',
-    detail: '模型 "Customer-Service-v2" 训练完成',
-    time: '3天前',
-    type: 'success'
-  }
-]);
+const activityLogs = ref([]);
 
 // Notifications
 const notifications = ref([
@@ -540,6 +474,18 @@ onMounted(async () => {
       Object.assign(userForm, userInfo);
       // Update store as well
       userStore.updateUserInfo(data);
+      // Fetch dashboard data
+      try {
+        const dashData = await getUserDashboard(userStore.username);
+        if (dashData) {
+          if (dashData.stats) stats.value = dashData.stats;
+          if (dashData.activityData) activityData.value = dashData.activityData;
+          if (dashData.activityLogs) activityLogs.value = dashData.activityLogs;
+          if (dashData.skills) skills.value = dashData.skills;
+        }
+      } catch (err) {
+        console.error('获取监控面板数据失败:', err);
+      }
     } catch (e) {
       console.error('获取用户信息失败:', e);
     }

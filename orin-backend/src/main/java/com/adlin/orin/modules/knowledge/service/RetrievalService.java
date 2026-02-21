@@ -59,6 +59,7 @@ public class RetrievalService {
         // 处理向量结果
         for (VectorStoreProvider.SearchResult res : vectorResults) {
             scoreMap.put(res.getContent(), res.getScore() * WEIGHT_VECTOR);
+            res.setMatchType("VECTOR");
             contentMap.put(res.getContent(), res);
         }
 
@@ -72,6 +73,7 @@ public class RetrievalService {
 
             if (scoreMap.containsKey(chunk.getContent())) {
                 scoreMap.put(chunk.getContent(), scoreMap.get(chunk.getContent()) + finalScore);
+                contentMap.get(chunk.getContent()).setMatchType("HYBRID"); // Found by both
             } else {
                 scoreMap.put(chunk.getContent(), finalScore);
 
@@ -82,6 +84,7 @@ public class RetrievalService {
                 contentMap.put(chunk.getContent(), VectorStoreProvider.SearchResult.builder()
                         .content(chunk.getContent())
                         .score(finalScore) // Initial low score for keyword only, but will rank
+                        .matchType("KEYWORD")
                         .metadata(meta)
                         .build());
             }

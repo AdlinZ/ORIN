@@ -65,7 +65,7 @@
     <!-- 追踪详情表格 -->
     <el-card class="table-card">
       <h3>步骤详情</h3>
-      <el-table :data="traces" stripe>
+      <el-table border :data="traces" stripe>
         <el-table-column prop="stepName" label="步骤名称" min-width="150" />
         <el-table-column prop="skillName" label="技能名称" min-width="150" />
         <el-table-column prop="status" label="状态" width="100">

@@ -17,7 +17,7 @@
             </div>
           </template>
 
-          <el-table :data="rules" v-loading="loading" stripe>
+          <el-table border :data="rules" v-loading="loading" stripe>
             <el-table-column prop="ruleName" label="规则名称" min-width="150" />
             <el-table-column prop="ruleType" label="类型" width="120">
               <template #default="{ row }">
@@ -89,7 +89,7 @@
             </div>
           </template>
 
-          <el-table :data="history" v-loading="loadingHistory" stripe>
+          <el-table border :data="history" v-loading="loadingHistory" stripe>
             <el-table-column prop="alertMessage" label="告警消息" min-width="200" />
             <el-table-column prop="severity" label="严重程度" width="100">
               <template #default="{ row }">
@@ -205,6 +205,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
+import dayjs from 'dayjs'
 import {
   Bell, Plus, View, Notification, Delete, Clock
 } from '@element-plus/icons-vue'
@@ -400,7 +401,19 @@ const getSeverityType = (severity) => {
 
 const formatTime = (time) => {
   if (!time) return ''
-  return new Date(time).toLocaleString('zh-CN')
+  // Handle Spring Boot LocalDateTime array format: [year, month, day, hour, minute, second, ns]
+  if (Array.isArray(time)) {
+    if (time.length >= 3) {
+      const year = time[0]
+      const month = String(time[1]).padStart(2, '0')
+      const day = String(time[2]).padStart(2, '0')
+      const hour = time.length >= 4 ? String(time[3]).padStart(2, '0') : '00'
+      const minute = time.length >= 5 ? String(time[4]).padStart(2, '0') : '00'
+      const second = time.length >= 6 ? String(time[5]).padStart(2, '0') : '00'
+      return `${year}/${month}/${day} ${hour}:${minute}:${second}`
+    }
+  }
+  return dayjs(time).format('YYYY/MM/DD HH:mm:ss')
 }
 
 watch(activeTab, (newTab) => {

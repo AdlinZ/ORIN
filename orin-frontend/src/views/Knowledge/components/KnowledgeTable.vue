@@ -1,6 +1,6 @@
 <template>
   <el-card class="box-card">
-    <el-table :data="data" style="width: 100%">
+    <el-table border :data="data" style="width: 100%">
       <el-table-column prop="name" label="名称" min-width="180">
         <template #default="scope">
           <span style="font-weight: 600">{{ scope.row.fileName || scope.row.name || scope.row.tableName }}</span>

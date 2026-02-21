@@ -188,6 +188,11 @@ public class WorkflowService {
         return WorkflowResponse.fromEntity(entity);
     }
 
+    public WorkflowInstanceEntity getInstance(Long instanceId) {
+        return instanceRepository.findById(instanceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow instance not found: " + instanceId));
+    }
+
     public List<WorkflowInstanceEntity> getWorkflowInstances(Long workflowId) {
         return instanceRepository.findByWorkflowIdOrderByStartedAtDesc(workflowId);
     }

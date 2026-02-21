@@ -14,7 +14,7 @@
     <el-tabs v-model="activeTab" class="api-key-tabs">
       <el-tab-pane label="平台访问密钥" name="platform">
         <el-card shadow="never" class="table-card premium-card">
-          <el-table :data="apiKeys" style="width: 100%" v-loading="loading" stripe>
+          <el-table border :data="apiKeys" style="width: 100%" v-loading="loading" stripe>
             <!-- ... existing platform table columns (truncated for brevity in ReplacementContent but will be kept in full file) ... -->
             <el-table-column type="expand">
               <template #default="{ row }">
@@ -104,7 +104,7 @@
 
       <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
         <el-card shadow="never" class="table-card premium-card">
-          <el-table :data="externalKeys" style="width: 100%" v-loading="loading" stripe>
+          <el-table border :data="externalKeys" style="width: 100%" v-loading="loading" stripe>
             <el-table-column prop="name" label="密钥名称" min-width="150" />
             <el-table-column prop="provider" label="供应商" width="150">
               <template #default="{ row }">

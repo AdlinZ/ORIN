@@ -29,6 +29,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Bell, WarningFilled } from '@element-plus/icons-vue'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
+
+dayjs.extend(relativeTime)
+dayjs.locale('zh-cn')
 
 const props = defineProps({
   config: {
@@ -37,26 +43,9 @@ const props = defineProps({
   }
 })
 
-const alerts = ref([
-  {
-    id: 1,
-    title: 'Agent-GPT-4 响应超时',
-    time: '2分钟前',
-    severity: 'error'
-  },
-  {
-    id: 2,
-    title: 'Token 使用量接近配额',
-    time: '15分钟前',
-    severity: 'warning'
-  },
-  {
-    id: 3,
-    title: '知识库同步延迟',
-    time: '1小时前',
-    severity: 'info'
-  }
-])
+const alerts = ref([])
+
+import { getAlertHistory } from '@/api/alert'
 
 const displayAlerts = computed(() => {
   return alerts.value.slice(0, props.config.limit || 5)
@@ -71,8 +60,42 @@ const getSeverityType = (severity) => {
   return map[severity] || 'info'
 }
 
+const loadAlerts = async () => {
+  try {
+    const res = await getAlertHistory({ page: 0, size: props.config.limit || 10 })
+    if (res && res.content) {
+      alerts.value = res.content.map(item => ({
+        id: item.id,
+        title: item.alertMessage,
+        time: formatTimeAgo(item.triggeredAt),
+        severity: item.severity.toLowerCase()
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load alerts:', error)
+  }
+}
+
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return ''
+  // Handle Spring Boot LocalDateTime array format: [year, month, day, hour, minute, second, ns]
+  if (Array.isArray(dateStr)) {
+    if (dateStr.length >= 3) {
+      const year = dateStr[0]
+      const month = String(dateStr[1]).padStart(2, '0')
+      const day = String(dateStr[2]).padStart(2, '0')
+      const hour = dateStr.length >= 4 ? String(dateStr[3]).padStart(2, '0') : '00'
+      const minute = dateStr.length >= 5 ? String(dateStr[4]).padStart(2, '0') : '00'
+      const second = dateStr.length >= 6 ? String(dateStr[5]).padStart(2, '0') : '00'
+      const isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}`
+      return dayjs(isoString).fromNow()
+    }
+  }
+  return dayjs(dateStr).fromNow()
+}
+
 onMounted(() => {
-  // TODO: Load alerts from API
+  loadAlerts()
 })
 </script>
 

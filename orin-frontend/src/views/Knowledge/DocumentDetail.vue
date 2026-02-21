@@ -194,11 +194,7 @@ const form = reactive({
   enabled: true 
 });
 
-const history = ref([
-  { timestamp: '2026-02-02 14:20', type: 'create', description: '文档已上传' },
-  { timestamp: '2026-02-02 14:25', type: 'update', description: '完成自动分段处理' },
-  { timestamp: '2026-02-02 15:10', type: 'update', description: '索引已更新' }
-]);
+const history = ref([]);
 
 const filteredSegments = computed(() => {
   if (!searchKeyword.value) return segments.value;
@@ -213,7 +209,7 @@ const loadDocumentData = async () => {
     const doc = await request.get(`/knowledge/documents/${docId.value}`);
     if (!doc) {
       ElMessage.error('文档不存在');
-      router.push(`/dashboard/knowledge/list`);
+      router.push(ROUTES.RESOURCES.KNOWLEDGE);
       return;
     }
     
@@ -241,10 +237,21 @@ const loadDocumentData = async () => {
         console.warn('Failed to load KB name');
     }
     
+    
     await loadSegments();
+    await loadHistory();
   } catch (error) {
     ElMessage.error('加载文档详情失败: ' + error.message);
   }
+};
+
+const loadHistory = async () => {
+    try {
+        const res = await request.get(`/knowledge/documents/${docId.value}/history`);
+        history.value = res || [];
+    } catch (error) {
+        console.warn('Failed to load history', error);
+    }
 };
 
 const loadSegments = async () => {
@@ -288,43 +295,49 @@ const editSegment = (segment) => {
   editDialogVisible.value = true;
 };
 
-const saveSegment = () => {
-  const segment = segments.value.find(s => s.id === editingSegment.id);
-  if (segment) {
-    segment.content = editingSegment.content;
-    segment.wordCount = editingSegment.content.length;
-    localStorage.setItem(`orin_mock_segments_${docId.value}`, JSON.stringify(segments.value));
+const saveSegment = async () => {
+  try {
+    const payload = { content: editingSegment.content };
+    await request.put(`/knowledge/documents/chunks/${editingSegment.id}`, payload);
     ElMessage.success('分段已更新');
+    editDialogVisible.value = false;
+    loadSegments(); // reload to get exact changes including charCount updates
+  } catch (err) {
+    ElMessage.error('保存分段失败: ' + err.message);
   }
-  editDialogVisible.value = false;
 };
 
 const deleteSegment = (segment) => {
   ElMessageBox.confirm('确认删除此分段吗？', '警告', {
     type: 'warning',
     confirmButtonClass: 'el-button--danger'
-  }).then(() => {
-    segments.value = segments.value.filter(s => s.id !== segment.id);
-    localStorage.setItem(`orin_mock_segments_${docId.value}`, JSON.stringify(segments.value));
-    ElMessage.success('已删除');
+  }).then(async () => {
+    try {
+      await request.delete(`/knowledge/documents/chunks/${segment.id}`);
+      ElMessage.success('已删除');
+      loadSegments(); // refresh segments list
+    } catch (err) {
+      ElMessage.error('删除分段失败: ' + err.message);
+    }
   });
 };
 
-const onSubmit = () => {
+const onSubmit = async () => {
   submitting.value = true;
-  setTimeout(() => {
-    const docs = JSON.parse(localStorage.getItem(`orin_mock_docs_${kbId.value}`) || '[]');
-    const doc = docs.find(d => d.id === docId.value);
-    if (doc) {
-      doc.name = form.name;
-      doc.mode = form.mode === 'auto' ? '自动' : '手动';
-      doc.enabled = form.enabled;
-      localStorage.setItem(`orin_mock_docs_${kbId.value}`, JSON.stringify(docs));
-      documentData.value = doc;
-      ElMessage.success('保存成功');
-    }
+  try {
+    const payload = {
+        name: form.name,
+        enabled: form.enabled
+    };
+    await request.put(`/knowledge/documents/${docId.value}`, payload);
+    documentData.value.name = form.name;
+    documentData.value.enabled = form.enabled;
+    ElMessage.success('保存成功');
+  } catch (err) {
+    ElMessage.error('保存失败: ' + err.message);
+  } finally {
     submitting.value = false;
-  }, 500);
+  }
 };
 
 const handleDelete = () => {
@@ -336,12 +349,12 @@ const handleDelete = () => {
     const filtered = docs.filter(d => d.id !== docId.value);
     localStorage.setItem(`orin_mock_docs_${kbId.value}`, JSON.stringify(filtered));
     ElMessage.success('已删除');
-    router.push(`/dashboard/knowledge/detail/${kbId.value}`);
+    router.push(`/dashboard/resources/knowledge/detail/${kbId.value}`);
   });
 };
 
 const goBackToKB = () => {
-  router.push(`/dashboard/knowledge/detail/${kbId.value}`);
+  router.push(`/dashboard/resources/knowledge/detail/${kbId.value}`);
 };
 
 onMounted(() => {

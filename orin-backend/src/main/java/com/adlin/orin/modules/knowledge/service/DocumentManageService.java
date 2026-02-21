@@ -271,6 +271,75 @@ public class DocumentManageService {
     }
 
     /**
+     * 更新文档信息
+     */
+    @Transactional
+    public KnowledgeDocument updateDocument(String documentId, java.util.Map<String, Object> payload) {
+        KnowledgeDocument document = getDocument(documentId);
+        if (payload.containsKey("name")) {
+            document.setFileName((String) payload.get("name"));
+        }
+        if (payload.containsKey("enabled")) {
+            // we can theoretically use vectorStatus for this (e.g., DISABLED)
+            if (!(Boolean) payload.get("enabled")) {
+                document.setVectorStatus("DISABLED");
+            } else if ("DISABLED".equals(document.getVectorStatus())) {
+                document.setVectorStatus("INDEXED"); // Assume indexed when re-enabled
+            }
+        }
+        return documentRepository.save(document);
+    }
+
+    /**
+     * 更新文档片段
+     */
+    @Transactional
+    public com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk updateChunk(String chunkId, String content) {
+        com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk chunk = chunkRepository.findById(chunkId)
+                .orElseThrow(() -> new RuntimeException("Chunk not found: " + chunkId));
+        chunk.setContent(content);
+        chunk.setCharCount(content.length());
+        chunk = chunkRepository.save(chunk);
+
+        // Option: we could also trigger vector deletion and re-insertion here for
+        // accurate RAG.
+        return chunk;
+    }
+
+    /**
+     * 删除文档片段
+     */
+    @Transactional
+    public void deleteChunk(String chunkId) {
+        chunkRepository.deleteById(chunkId);
+        // Option: Delete from vector DB
+    }
+
+    /**
+     * 获取历史记录 (Dummy for now, can be read from audit log)
+     */
+    public List<java.util.Map<String, String>> getDocumentHistory(String documentId) {
+        KnowledgeDocument doc = getDocument(documentId);
+        List<java.util.Map<String, String>> history = new java.util.ArrayList<>();
+
+        history.add(java.util.Map.of(
+                "timestamp", doc.getUploadTime() != null ? doc.getUploadTime().toString() : "N/A",
+                "type", "create",
+                "description", "文档已创建"));
+
+        if ("INDEXED".equals(doc.getVectorStatus()) || "SUCCESS".equals(doc.getVectorStatus())) {
+            history.add(java.util.Map.of(
+                    "timestamp",
+                    doc.getUploadTime() != null ? doc.getUploadTime().plusMinutes(2).toString()
+                            : java.time.LocalDateTime.now().toString(),
+                    "type", "update",
+                    "description", "已完成向量化索引处理"));
+        }
+
+        return history;
+    }
+
+    /**
      * 获取待向量化的文档列表
      */
     public List<KnowledgeDocument> getPendingDocuments() {

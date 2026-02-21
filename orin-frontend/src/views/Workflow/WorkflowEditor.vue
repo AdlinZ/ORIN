@@ -135,7 +135,7 @@ import { ref, onMounted, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { Plus } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import { createWorkflow } from '@/api/workflow';
+import { createWorkflow, getWorkflow, updateWorkflow } from '@/api/workflow';
 // Assuming we have a generic agent API. If not, I'll need to double check the path. 
 // Based on file list, src/api/agent.js exists.
 import { getAgentList } from '@/api/agent'; 
@@ -164,10 +164,38 @@ const rules = {
 onMounted(async () => {
   if (route.params.id) {
     isEdit.value = true;
-    // fetchWorkflow(route.params.id); // TODO: Implement edit mode
+    fetchWorkflow(route.params.id);
   }
   await fetchAgents();
 });
+
+const fetchWorkflow = async (id) => {
+  try {
+    const res = await getWorkflow(id);
+    const wf = res.data || res;
+    
+    form.workflowName = wf.workflowName;
+    form.description = wf.description;
+    form.workflowType = wf.workflowType || 'SEQUENTIAL';
+    form.timeoutSeconds = wf.timeoutSeconds || 300;
+    
+    if (wf.steps && wf.steps.length > 0) {
+      form.steps = wf.steps.map(step => ({
+        id: step.id,
+        stepName: step.stepName,
+        stepType: step.stepType,
+        stepOrder: step.stepOrder,
+        agentId: step.agentId,
+        skillId: step.skillId,
+        inputMappingStr: JSON.stringify(step.inputMapping || {}, null, 2)
+      }));
+      activeSteps.value = form.steps.map((_, i) => i);
+    }
+  } catch (error) {
+    console.error('Failed to fetch workflow', error);
+    ElMessage.error('无法加载工作流数据');
+  }
+};
 
 const fetchAgents = async () => {
   try {
@@ -231,7 +259,7 @@ const handleSubmit = async () => {
         };
 
         if (isEdit.value) {
-          // await updateWorkflow(payload);
+          await updateWorkflow(route.params.id, payload);
         } else {
           await createWorkflow(payload);
         }

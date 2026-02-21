@@ -53,6 +53,7 @@ public interface VectorStoreProvider {
     class SearchResult {
         private String content;
         private Double score;
+        private String matchType; // "VECTOR" or "KEYWORD" or "HYBRID"
         private Map<String, Object> metadata;
     }
 

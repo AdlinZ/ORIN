@@ -12,7 +12,7 @@
 
     <!-- 工作流列表 -->
     <el-card class="table-card">
-      <el-table :data="workflows" v-loading="loading" stripe>
+      <el-table border :data="workflows" v-loading="loading" stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="workflowName" label="工作流名称" min-width="180" />
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
@@ -94,7 +94,7 @@
 
     <!-- 执行实例列表对话框 -->
     <el-dialog v-model="instancesDialogVisible" title="执行记录" width="900px">
-      <el-table :data="instances" v-loading="instancesLoading">
+      <el-table border :data="instances" v-loading="instancesLoading">
         <el-table-column prop="id" label="实例 ID" width="100" />
         <el-table-column prop="traceId" label="Trace ID" width="200" />
         <el-table-column prop="status" label="状态" width="100">

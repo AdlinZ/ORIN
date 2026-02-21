@@ -49,7 +49,7 @@
 import { ref, onMounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { Position } from '@element-plus/icons-vue';
-import { executeWorkflow, getWorkflow } from '@/api/workflow';
+import { executeWorkflow, getWorkflow, getWorkflowInstance } from '@/api/workflow';
 import { ElMessage } from 'element-plus';
 
 const route = useRoute();
@@ -65,7 +65,8 @@ const messagesContainer = ref(null);
 onMounted(async () => {
     if (workflowId) {
         try {
-            const wf = await getWorkflow(workflowId);
+            const res = await getWorkflow(workflowId);
+            const wf = res.data || res;
             workflowName.value = wf.workflowName;
         } catch (e) {
             console.error(e);
@@ -91,25 +92,47 @@ const sendMessage = async () => {
     loading.value = true;
 
     try {
-        // Construct inputs for the workflow
-        // Assuming the workflow has a 'sys.query' or similar input
-        const inputs = {
-            query: query,
-            // Add other inputs if needed
-        };
-
+        const inputs = { query };
         const res = await executeWorkflow(workflowId, inputs);
-        
-        // TODO: Handle real streaming or output parsing
-        // For now, assuming standard response format
-        let reply = "Workflow executed successfully.";
-        // Check if there's a specific output field
-        
-        messages.value.push({ role: 'assistant', content: reply });
+        const data = res.data || res;
+        const instanceId = data.instanceId;
+
+        if (!instanceId) {
+            throw new Error('No instance ID returned');
+        }
+
+        // Check handle real streaming or output parsing (Polling for now)
+        let status = 'RUNNING';
+        let instance = null;
+        let retryCount = 0;
+        const maxRetries = 60; // 60 seconds timeout
+
+        while (status === 'RUNNING' && retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            instance = await getWorkflowInstance(instanceId);
+            const instData = instance.data || instance;
+            status = instData.status;
+            retryCount++;
+            
+            if (status === 'SUCCESS') {
+                const outputs = instData.outputData || {};
+                // Try to find a meaningful output field
+                let reply = outputs.output || outputs.result || outputs.response || JSON.stringify(outputs);
+                messages.value.push({ role: 'assistant', content: reply });
+                break;
+            } else if (status === 'FAILED') {
+                throw new Error('Workflow execution failed');
+            }
+        }
+
+        if (retryCount >= maxRetries) {
+            throw new Error('Workflow execution timed out');
+        }
+
     } catch (error) {
         console.error(error);
-        ElMessage.error('Failed to send message');
-        messages.value.push({ role: 'assistant', content: 'Error: Could not execute workflow.' });
+        ElMessage.error(error.message || 'Failed to send message');
+        messages.value.push({ role: 'assistant', content: 'Error: ' + (error.message || 'Could not execute workflow.') });
     } finally {
         loading.value = false;
         scrollToBottom();

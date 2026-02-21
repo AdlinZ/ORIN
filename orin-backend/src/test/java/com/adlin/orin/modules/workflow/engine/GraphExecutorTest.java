@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.workflow.engine;
 
+import com.adlin.orin.common.exception.WorkflowExecutionException;
 import com.adlin.orin.modules.trace.service.TraceService;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
@@ -130,6 +131,29 @@ class GraphExecutorTest {
         Map<String, Object> resContext = (Map<String, Object>) result.get("context");
         assertFalse(resContext.containsKey("actionA"));
         assertTrue(resContext.containsKey("actionB"));
+    }
+
+    @Test
+    void testNodeFailure() {
+        // Mock a failing node
+        nodeHandlers.put("failnodeNodeHandler", (data, ctx) -> {
+            throw new RuntimeException("Node execution failed");
+        });
+
+        Map<String, Object> graph = new HashMap<>();
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        List<Map<String, Object>> edges = new ArrayList<>();
+
+        nodes.add(createNode("start", "start", Collections.emptyMap()));
+        nodes.add(createNode("failNode", "failNode", Collections.emptyMap()));
+        edges.add(createEdge("start", "failNode", null));
+
+        graph.put("nodes", nodes);
+        graph.put("edges", edges);
+
+        assertThrows(WorkflowExecutionException.class, () -> {
+            graphExecutor.executeGraph(graph, new ConcurrentHashMap<>());
+        });
     }
 
     private Map<String, Object> createNode(String id, String type, Map<String, Object> data) {

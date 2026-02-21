@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 告警服务
@@ -25,6 +27,10 @@ public class AlertService {
     private final AlertRuleRepository ruleRepository;
     private final AlertHistoryRepository historyRepository;
     private final NotificationService notificationService;
+
+    // Cooldown cache: key = ruleType + ":" + agentId, value = last trigger
+    // timestamp
+    private final Map<String, Long> alertCooldownCache = new ConcurrentHashMap<>();
 
     /**
      * 创建告警规则
@@ -108,6 +114,56 @@ public class AlertService {
         }
 
         return history;
+    }
+
+    /**
+     * 触发系统级告警 (无具体规则ID，依据类型兜底匹配)
+     * 加入防爆冷却机制 (5分钟内同类型同智能体不重复通知)
+     */
+    @Transactional
+    public void triggerSystemAlert(String ruleType, String agentId, String message) {
+        String cacheKey = ruleType + ":" + agentId;
+        long currentTime = System.currentTimeMillis();
+
+        // 5 minute cooldown (300,000 ms)
+        long cooldownPeriod = 5 * 60 * 1000;
+
+        if (alertCooldownCache.containsKey(cacheKey)) {
+            long lastTriggerTime = alertCooldownCache.get(cacheKey);
+            if (currentTime - lastTriggerTime < cooldownPeriod) {
+                log.debug("Alert cooldown active for {}. Skipping notification.", cacheKey);
+                return; // Suppress alert during cooldown
+            }
+        }
+
+        // Update cache
+        alertCooldownCache.put(cacheKey, currentTime);
+
+        // Find active rules matching the type
+        List<AlertRule> rules = ruleRepository.findByEnabledTrue().stream()
+                .filter(r -> ruleType.equals(r.getRuleType()))
+                .toList();
+
+        if (!rules.isEmpty()) {
+            // Trigger alert for matched rules
+            for (AlertRule rule : rules) {
+                triggerAlert(rule.getId(), agentId, message);
+            }
+        } else {
+            // Fallback: create a generic alert history if no rule is configured
+            log.warn("No active rule found for type {}. Generating generic alert.", ruleType);
+            AlertHistory history = AlertHistory.builder()
+                    .ruleId("SYSTEM_DEFAULT")
+                    .agentId(agentId)
+                    .alertMessage(message)
+                    .severity("WARNING") // Default severity
+                    .status("TRIGGERED")
+                    .build();
+
+            historyRepository.save(history);
+            // We could optionally send a default notification here if a generic channel is
+            // configured
+        }
     }
 
     /**

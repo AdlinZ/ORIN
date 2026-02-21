@@ -12,6 +12,17 @@ export function getUserProfile(username) {
 }
 
 /**
+ * 获取用户看板
+ * @param {string} username 
+ */
+export function getUserDashboard(username) {
+    return request({
+        url: `/users/dashboard/${username}`,
+        method: 'get'
+    });
+}
+
+/**
  * 更新用户资料
  * @param {Object} data 
  */

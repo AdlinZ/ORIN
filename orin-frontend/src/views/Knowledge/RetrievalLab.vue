@@ -240,9 +240,9 @@ const handleSearch = async () => {
         results.value = (Array.isArray(data) ? data : (data.results || [])).map(r => ({
             score: r.score,
             content: r.content,
-            sourceDoc: r.metadata?.source || 'Unknown',
+            sourceDoc: r.metadata?.source || r.metadata?.doc_id || 'Unknown',
             chunkIndex: r.metadata?.chunk_id || '0',
-            matchType: r.score > 0.4 ? 'VECTOR' : 'KEYWORD' // Mock logic since backend doesn't return type yet
+            matchType: r.matchType || (r.score > 0.4 ? 'VECTOR' : 'KEYWORD') // Fallback if old data format
         }));
     } catch (e) {
         ElMessage.error('检索失败');

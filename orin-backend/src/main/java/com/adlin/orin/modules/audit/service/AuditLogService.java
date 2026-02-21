@@ -25,6 +25,7 @@ public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final LogConfigService logConfigService;
     private final com.adlin.orin.modules.monitor.service.PricingService pricingService;
+    private final com.adlin.orin.modules.alert.service.AlertService alertService;
 
     /**
      * 异步记录审计日志
@@ -129,6 +130,11 @@ public class AuditLogService {
             log.info("Audit log saved successfully: id={}, providerId={}, conversationId={}, endpoint={}",
                     auditLog.getId(),
                     providerId, conversationId, endpoint);
+
+            if (Boolean.FALSE.equals(success)) {
+                String errorMsg = errorMessage != null ? errorMessage : "未知API调用错误";
+                alertService.triggerSystemAlert("ERROR_RATE", providerId, "API调用失败: " + errorMsg);
+            }
         } catch (Exception e) {
             log.error("Failed to save audit log: {}", e.getMessage(), e);
         }

@@ -82,12 +82,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { 
   Warning, SuccessFilled, InfoFilled,
   Bell, ChatDotRound, Setting
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getAlertHistory } from '@/api/alert'
+import dayjs from 'dayjs'
 
 const props = defineProps({
   modelValue: {
@@ -108,9 +110,58 @@ const activeTab = ref('all')
 // 初始通知数据 (已移除 Mock 数据)
 const notifications = ref([])
 
-onMounted(async () => {
-  // TODO: 从后端加载真实的告警/通知数据 (AlertHistory)
-  // fetchNotifications()
+const fetchNotifications = async () => {
+  try {
+    const res = await getAlertHistory({ page: 0, size: 20 })
+    const data = res.data?.content || res.content || []
+    
+    notifications.value = data.map(alert => ({
+      id: alert.id,
+      title: alert.ruleName || '系统告警',
+      message: alert.alertMessage,
+      type: mapSeverityToType(alert.severity),
+      time: parseSpringDate(alert.triggeredAt),
+      read: alert.status === 'RESOLVED'
+    }))
+    
+    emit('update:unreadCount', unreadCount.value)
+  } catch (error) {
+    console.error('Failed to fetch notifications:', error)
+  }
+}
+
+const mapSeverityToType = (severity) => {
+  const map = {
+    'CRITICAL': 'error',
+    'ERROR': 'error',
+    'WARNING': 'warning',
+    'INFO': 'info'
+  }
+  return map[severity] || 'info'
+}
+
+const parseSpringDate = (dateStr) => {
+  if (!dateStr) return new Date()
+  if (Array.isArray(dateStr)) {
+    if (dateStr.length >= 3) {
+      const year = dateStr[0]
+      const month = String(dateStr[1]).padStart(2, '0')
+      const day = String(dateStr[2]).padStart(2, '0')
+      const hour = dateStr.length >= 4 ? String(dateStr[3]).padStart(2, '0') : '00'
+      const minute = dateStr.length >= 5 ? String(dateStr[4]).padStart(2, '0') : '00'
+      const second = dateStr.length >= 6 ? String(dateStr[5]).padStart(2, '0') : '00'
+      const isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}`
+      return dayjs(isoString).toDate()
+    }
+  }
+  return dayjs(dateStr).toDate()
+}
+
+onMounted(() => {
+  fetchNotifications()
+  // 每 30 秒轮询一次
+  const timer = setInterval(fetchNotifications, 30000)
+  onUnmounted(() => clearInterval(timer))
 })
 
 const filteredNotifications = computed(() => {

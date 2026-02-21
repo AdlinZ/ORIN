@@ -11,7 +11,7 @@
     </PageHeader>
 
     <el-card class="table-card" shadow="never">
-      <el-table :data="tableData" v-loading="loading" style="width: 100%">
+      <el-table border :data="tableData" v-loading="loading" style="width: 100%">
         <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
         <el-table-column prop="tenantGroup" label="租户分组" width="120">
           <template #default="{ row }">

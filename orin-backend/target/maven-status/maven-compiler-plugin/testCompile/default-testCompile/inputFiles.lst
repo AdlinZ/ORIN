@@ -13,6 +13,7 @@
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/workflow/service/WorkflowServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/multimodal/service/MultimodalFileServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/workflow/controller/WorkflowProxyControllerTest.java
+/Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/workflow/engine/WorkflowEngineTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/BaseTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/monitor/service/MonitorServiceTest.java
 /Users/adlin/Documents/Code/ORIN/orin-backend/src/test/java/com/adlin/orin/modules/skill/service/impl/SkillShellExecutionTest.java

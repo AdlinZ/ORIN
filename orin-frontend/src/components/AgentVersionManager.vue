@@ -156,7 +156,7 @@
 
       <div v-if="comparisonResult" class="comparison-result">
         <h4>差异列表</h4>
-        <el-table :data="comparisonResult.differences" stripe>
+        <el-table border :data="comparisonResult.differences" stripe>
           <el-table-column prop="field" label="字段" width="150" />
           <el-table-column prop="oldValue" label="旧值" />
           <el-table-column prop="newValue" label="新值" />

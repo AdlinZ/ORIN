@@ -13,7 +13,7 @@
               </div>
             </div>
           </template>
-          <el-table :data="prompts" style="width: 100%" v-loading="loading">
+          <el-table border :data="prompts" style="width: 100%" v-loading="loading">
             <el-table-column prop="name" label="模板名称" />
             <el-table-column prop="type" label="类型" width="120">
               <template #default="{ row }">
@@ -44,7 +44,7 @@
               </div>
             </div>
           </template>
-          <el-table :data="memory" style="width: 100%" v-loading="loading">
+          <el-table border :data="memory" style="width: 100%" v-loading="loading">
             <el-table-column prop="key" label="键 (Key)" width="180" />
             <el-table-column prop="value" label="内容 (Value)" show-overflow-tooltip />
             <el-table-column prop="updatedAt" label="最后更新" width="160">

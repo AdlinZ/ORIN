@@ -321,11 +321,16 @@ const fetchData = async () => {
     if (a.status === 'fulfilled') agents.value = a.value
     if (h.status === 'fulfilled') hardware.value = h.value
     if (l.status === 'fulfilled' && l.value.content) {
-      recentLogs.value = l.value.content.map(i => ({
-        time: new Date(i.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `${i.agentName || 'SYS'} | ${i.endpoint?.split('/').pop() || 'Processing'}`,
-        status: i.success ? 'healthy' : 'critical'
-      }))
+      recentLogs.value = l.value.content.map(i => {
+        let name = i.agentName || i.providerId || 'SYSTEM';
+        if (name.length > 12) name = name.substring(0, 8) + '...';
+        
+        return {
+          time: new Date(i.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `${name} | ${i.endpoint?.split('/').pop() || 'Processing'}`,
+          status: i.success ? 'healthy' : 'critical'
+        };
+      })
     }
     if (d.status === 'fulfilled') distribution.value = d.value.sort((a,b) => b.value - a.value)
     await fetchTrend()

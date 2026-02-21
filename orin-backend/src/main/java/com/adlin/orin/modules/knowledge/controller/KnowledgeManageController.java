@@ -148,6 +148,35 @@ public class KnowledgeManageController {
         return documentManageService.updateVectorizationStatus(docId, status, vectorIndexId, chunkCount);
     }
 
+    @Operation(summary = "更新文档基本信息")
+    @PutMapping("/documents/{docId}")
+    public KnowledgeDocument updateDocument(
+            @PathVariable String docId,
+            @RequestBody Map<String, Object> payload) {
+        return documentManageService.updateDocument(docId, payload);
+    }
+
+    @Operation(summary = "更新文档分段")
+    @PutMapping("/documents/chunks/{chunkId}")
+    public com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk updateChunk(
+            @PathVariable String chunkId,
+            @RequestBody Map<String, String> payload) {
+        return documentManageService.updateChunk(chunkId, payload.get("content"));
+    }
+
+    @Operation(summary = "删除文档分段")
+    @DeleteMapping("/documents/chunks/{chunkId}")
+    public Map<String, String> deleteChunk(@PathVariable String chunkId) {
+        documentManageService.deleteChunk(chunkId);
+        return Map.of("status", "success");
+    }
+
+    @Operation(summary = "获取文档修改历史")
+    @GetMapping("/documents/{docId}/history")
+    public List<Map<String, String>> getDocumentHistory(@PathVariable String docId) {
+        return documentManageService.getDocumentHistory(docId);
+    }
+
     @Operation(summary = "获取知识库统计信息")
     @GetMapping("/{kbId}/stats")
     public DocumentManageService.DocumentStats getKnowledgeBaseStats(@PathVariable String kbId) {

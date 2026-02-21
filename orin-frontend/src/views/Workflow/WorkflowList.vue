@@ -67,7 +67,7 @@
         </div>
       </template>
 
-      <el-table :data="workflows" style="width: 100%" v-loading="loading">
+      <el-table border :data="workflows" style="width: 100%" v-loading="loading">
         <el-table-column prop="name" label="工作流名称" min-width="180">
           <template #default="{ row }">
             <div class="workflow-name">

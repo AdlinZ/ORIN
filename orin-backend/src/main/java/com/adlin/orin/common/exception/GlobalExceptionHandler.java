@@ -1,7 +1,6 @@
-package com.adlin.orin.exception;
+package com.adlin.orin.common.exception;
 
-import com.adlin.orin.common.dto.ErrorResponse;
-import com.adlin.orin.common.exception.*;
+import com.adlin.orin.common.dto.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -21,7 +20,7 @@ import java.util.UUID;
 
 /**
  * 全局异常处理器
- * 统一处理所有异常并返回标准化的错误响应
+ * 统一处理所有异常并返回标准化的 Result 格式
  */
 @Slf4j
 @RestControllerAdvice
@@ -34,19 +33,18 @@ public class GlobalExceptionHandler {
      * 处理业务异常
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessException(
+    public ResponseEntity<Result<Object>> handleBusinessException(
             BusinessException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
         log.warn("[TraceId: {}] Business exception: code={}, message={}",
                 traceId, ex.getErrorCode().getCode(), ex.getMessage());
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ex.getErrorCode().getCode())
                 .message(ex.getMessage())
                 .detail(isDevMode() ? ex.getErrorCode().getMessage() : null)
                 .path(request.getRequestURI())
-                .status(determineHttpStatus(ex.getErrorCode()).value())
                 .metadata(ex.getDetails())
                 .traceId(traceId)
                 .build();
@@ -60,17 +58,16 @@ public class GlobalExceptionHandler {
      * 处理资源未找到异常
      */
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+    public ResponseEntity<Result<Object>> handleResourceNotFoundException(
             ResourceNotFoundException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
         log.warn("[TraceId: {}] Resource not found: {}", traceId, ex.getMessage());
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ex.getErrorCode().getCode())
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
-                .status(HttpStatus.NOT_FOUND.value())
                 .traceId(traceId)
                 .build();
 
@@ -81,17 +78,16 @@ public class GlobalExceptionHandler {
      * 处理验证异常
      */
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(
+    public ResponseEntity<Result<Object>> handleValidationException(
             ValidationException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
         log.warn("[TraceId: {}] Validation exception: {}", traceId, ex.getMessage());
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ex.getErrorCode().getCode())
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
-                .status(HttpStatus.BAD_REQUEST.value())
                 .metadata(ex.getDetails())
                 .traceId(traceId)
                 .build();
@@ -103,17 +99,16 @@ public class GlobalExceptionHandler {
      * 处理认证异常
      */
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ErrorResponse> handleAuthenticationException(
+    public ResponseEntity<Result<Object>> handleAuthenticationException(
             AuthenticationException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
         log.warn("[TraceId: {}] Authentication failed: {}", traceId, ex.getMessage());
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ex.getErrorCode().getCode())
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
-                .status(HttpStatus.UNAUTHORIZED.value())
                 .traceId(traceId)
                 .build();
 
@@ -124,17 +119,16 @@ public class GlobalExceptionHandler {
      * 处理授权异常
      */
     @ExceptionHandler(AuthorizationException.class)
-    public ResponseEntity<ErrorResponse> handleAuthorizationException(
+    public ResponseEntity<Result<Object>> handleAuthorizationException(
             AuthorizationException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
         log.warn("[TraceId: {}] Authorization failed: {}", traceId, ex.getMessage());
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ex.getErrorCode().getCode())
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
-                .status(HttpStatus.FORBIDDEN.value())
                 .traceId(traceId)
                 .build();
 
@@ -142,54 +136,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理工作流执行异常
-     */
-    @ExceptionHandler(WorkflowExecutionException.class)
-    public ResponseEntity<ErrorResponse> handleWorkflowException(
-            WorkflowExecutionException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.error("[TraceId: {}] Workflow execution failed: {}", traceId, ex.getMessage(), ex);
-
-        ErrorResponse response = ErrorResponse.builder()
-                .code(ErrorCode.WORKFLOW_EXECUTION_FAILED.getCode())
-                .message(ex.getMessage())
-                .detail(isDevMode() ? getStackTrace(ex) : null)
-                .path(request.getRequestURI())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-
-    /**
-     * 处理向量化异常
-     */
-    @ExceptionHandler(VectorizationException.class)
-    public ResponseEntity<ErrorResponse> handleVectorizationException(
-            VectorizationException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.error("[TraceId: {}] Vectorization failed: {}", traceId, ex.getMessage(), ex);
-
-        ErrorResponse response = ErrorResponse.builder()
-                .code(ErrorCode.VECTORIZATION_FAILED.getCode())
-                .message(ex.getMessage())
-                .detail(isDevMode() ? getStackTrace(ex) : null)
-                .path(request.getRequestURI())
-                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
-    }
-
-    /**
-     * 处理Spring Validation异常（@Valid注解触发）
+     * 处理参数映射异常 (@Valid 触发)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(
+    public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
@@ -201,13 +151,12 @@ public class GlobalExceptionHandler {
             fieldErrors.put(fieldName, errorMessage);
         });
 
-        log.warn("[TraceId: {}] Validation failed: {}", traceId, fieldErrors);
+        log.warn("[TraceId: {}] Method argument validation failed: {}", traceId, fieldErrors);
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ErrorCode.VALIDATION_ERROR.getCode())
                 .message("数据验证失败")
                 .path(request.getRequestURI())
-                .status(HttpStatus.BAD_REQUEST.value())
                 .metadata(fieldErrors)
                 .traceId(traceId)
                 .build();
@@ -219,7 +168,7 @@ public class GlobalExceptionHandler {
      * 处理约束违反异常
      */
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+    public ResponseEntity<Result<Object>> handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
@@ -233,11 +182,10 @@ public class GlobalExceptionHandler {
 
         log.warn("[TraceId: {}] Constraint violation: {}", traceId, violations);
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ErrorCode.VALIDATION_ERROR.getCode())
                 .message("约束验证失败")
                 .path(request.getRequestURI())
-                .status(HttpStatus.BAD_REQUEST.value())
                 .metadata(violations)
                 .traceId(traceId)
                 .build();
@@ -249,7 +197,7 @@ public class GlobalExceptionHandler {
      * 处理参数类型不匹配异常
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+    public ResponseEntity<Result<Object>> handleTypeMismatch(
             MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
@@ -258,11 +206,10 @@ public class GlobalExceptionHandler {
 
         log.warn("[TraceId: {}] Type mismatch: {}", traceId, message);
 
-        ErrorResponse response = ErrorResponse.builder()
+        Result<Object> response = Result.<Object>builder()
                 .code(ErrorCode.INVALID_PARAMETER.getCode())
                 .message(message)
                 .path(request.getRequestURI())
-                .status(HttpStatus.BAD_REQUEST.value())
                 .traceId(traceId)
                 .build();
 
@@ -270,43 +217,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理运行时异常
-     */
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponse> handleRuntimeException(
-            RuntimeException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.error("[TraceId: {}] Runtime exception: {}", traceId, ex.getMessage(), ex);
-
-        ErrorResponse response = ErrorResponse.builder()
-                .code(ErrorCode.SYSTEM_ERROR.getCode())
-                .message("系统内部错误")
-                .detail(isDevMode() ? ex.getMessage() : "请联系系统管理员")
-                .path(request.getRequestURI())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-
-    /**
-     * 处理所有未捕获的异常
+     * 处理通用异常
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(
+    public ResponseEntity<Result<Object>> handleException(
             Exception ex, HttpServletRequest request) {
 
         String traceId = UUID.randomUUID().toString();
-        log.error("[TraceId: {}] Unhandled exception: {}", traceId, ex.getMessage(), ex);
+        log.error("[TraceId: {}] Internal server error: ", traceId, ex);
 
-        ErrorResponse response = ErrorResponse.builder()
-                .code(ErrorCode.SYSTEM_ERROR.getCode())
-                .message("系统发生未知错误")
-                .detail(isDevMode() ? ex.getMessage() : "请联系系统管理员")
+        ErrorCode errorCode = ErrorCode.SYSTEM_ERROR;
+        Result<Object> response = Result.<Object>builder()
+                .code(errorCode.getCode())
+                .message(errorCode.getMessage())
+                .detail(isDevMode() ? ex.getMessage() : "请联系管理员并提供 TraceId: " + traceId)
                 .path(request.getRequestURI())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .traceId(traceId)
                 .build();
 
@@ -314,27 +239,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 根据错误代码确定HTTP状态码
+     * 根据 ErrorCode 确定 HTTP 状态码
      */
     private HttpStatus determineHttpStatus(ErrorCode errorCode) {
         String code = errorCode.getCode();
-
-        // 2xxxx - 资源相关 -> 404
-        if (code.startsWith("2")) {
+        if (code.startsWith("2"))
             return HttpStatus.NOT_FOUND;
-        }
-        // 7xxxx - 认证授权 -> 401/403
         if (code.startsWith("7")) {
-            if (code.equals("70004")) {
+            if (code.equals("70004"))
                 return HttpStatus.FORBIDDEN;
-            }
             return HttpStatus.UNAUTHORIZED;
         }
-        // 9xxxx - 验证错误 -> 400
-        if (code.startsWith("9")) {
+        if (code.startsWith("9"))
             return HttpStatus.BAD_REQUEST;
-        }
-        // 其他 -> 500
         return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
@@ -343,23 +260,5 @@ public class GlobalExceptionHandler {
      */
     private boolean isDevMode() {
         return "dev".equalsIgnoreCase(activeProfile);
-    }
-
-    /**
-     * 获取异常堆栈信息
-     */
-    private String getStackTrace(Throwable throwable) {
-        if (throwable == null) {
-            return null;
-        }
-        StringBuilder sb = new StringBuilder();
-        for (StackTraceElement element : throwable.getStackTrace()) {
-            sb.append(element.toString()).append("\n");
-            if (sb.length() > 2000) { // 限制长度
-                sb.append("...(truncated)");
-                break;
-            }
-        }
-        return sb.toString();
     }
 }

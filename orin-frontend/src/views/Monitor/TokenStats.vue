@@ -90,7 +90,7 @@
           />
         </div>
       </template>
-      <el-table :data="historyData" v-loading="historyLoading" stripe>
+      <el-table border :data="historyData" v-loading="historyLoading" stripe>
         <el-table-column prop="createdAt" label="时间" width="160">
           <template #default="{ row }">
             {{ formatDateTime(row.createdAt) }}

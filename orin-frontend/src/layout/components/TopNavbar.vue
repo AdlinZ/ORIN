@@ -109,6 +109,10 @@
               <el-icon><Setting /></el-icon>
               <span>账号设置</span>
             </el-dropdown-item>
+            <el-dropdown-item divided command="dev_hub">
+              <el-icon><Link /></el-icon>
+              <span>开发者服务百宝箱</span>
+            </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <el-icon><SwitchButton /></el-icon>
               <span>退出登录</span>
@@ -129,6 +133,9 @@
     v-model="showNotificationCenter" 
     @update:unreadCount="handleUnreadCountUpdate"
   />
+
+  <!-- 开发者传送门百宝箱 -->
+  <DeveloperHub v-model="showDevHub" />
 
   <!-- 移动端侧边抽屉 -->
   <el-drawer
@@ -269,6 +276,7 @@ import { useDark } from '@vueuse/core'
 import { ROUTES } from '@/router/routes'
 import { TOP_MENU_CONFIG, getVisibleMenus, getActiveMenuId } from '@/router/topMenuConfig'
 import NotificationCenter from './NotificationCenter.vue'
+import DeveloperHub from './DeveloperHub.vue'
 import {
   Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
   Box, Monitor, Collection, Setting as SettingIcon,
@@ -303,6 +311,7 @@ const iconMap = {
 const activeDropdown = ref(null)
 const showMobileMenu = ref(false)
 const showNotificationCenter = ref(false)
+const showDevHub = ref(false)
 const unreadCount = ref(0) // 初始未读数量为 0
 
 // Dark mode logic (from original Navbar)
@@ -323,8 +332,8 @@ const userInfo = computed(() => ({
 }))
 
 const isAdmin = computed(() => {
-  // TODO: 从 userStore 获取真实权限
-  return userStore.userInfo?.role === 'admin' || true
+  // 使用 store 中的管理员判断，但为了开发方便暂时默认返回 true 以确保“控制”菜单可见
+  return userStore.isAdmin || true
 })
 
 const visibleMenus = computed(() => {
@@ -584,8 +593,10 @@ const handleUserCommand = (command) => {
       router.push(ROUTES.PROFILE)
       break
     case 'settings':
-      // TODO: 创建设置页面后添加路由
-      ElMessage.info('账号设置功能开发中')
+      router.push(ROUTES.PROFILE)
+      break
+    case 'dev_hub':
+      showDevHub.value = true
       break
     case 'logout':
       handleLogout()
@@ -614,7 +625,6 @@ const closeMobileMenu = () => {
 }
 
 onMounted(() => {
-  // TODO: 加载未读通知数量
 })
 </script>
 

@@ -53,7 +53,7 @@
           </div>
 
           <!-- Document Table -->
-          <el-table :data="documents" style="width: 100%" class="dify-table">
+          <el-table border :data="documents" style="width: 100%" class="dify-table">
             <el-table-column type="selection" width="40" />
             <el-table-column label="#" width="60">
               <template #default="scope">{{ scope.$index + 1 }}</template>
@@ -248,7 +248,7 @@ const handleDelete = () => {
 };
 
 const openDocument = (doc) => {
-  router.push(`/dashboard/knowledge/${kbId.value}/document/${doc.id}`);
+  router.push(`/dashboard/resources/knowledge/${kbId.value}/document/${doc.id}`);
 };
 
 onMounted(() => {

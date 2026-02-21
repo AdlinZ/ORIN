@@ -135,7 +135,7 @@
                   </div>
 
                   <!-- Dify-like Table -->
-                  <el-table :data="mockDocs" style="width: 100%" class="dify-table">
+                  <el-table border :data="mockDocs" style="width: 100%" class="dify-table">
                      <el-table-column type="selection" width="40" />
                      <el-table-column label="#" width="60">
                         <template #default="scope">{{ scope.$index + 1 }}</template>
@@ -381,7 +381,7 @@ const generateMockDocs = (kb) => {
 
 const openInspector = (kb) => {
   // Navigate to detail page instead of opening drawer
-  router.push(`/dashboard/knowledge/detail/${kb.id}`);
+  router.push(`/dashboard/resources/knowledge/detail/${kb.id}`);
 };
 
 const closeInspector = () => {

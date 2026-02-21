@@ -190,7 +190,7 @@
           </template>
 
           <div class="logger-manager">
-            <el-table :data="loggers" stripe v-loading="loadingLoggers">
+            <el-table border :data="loggers" stripe v-loading="loadingLoggers">
               <el-table-column label="Logger 名称" prop="name" min-width="200">
                 <template #default="{ row }">
                   <code class="logger-name">{{ row.name }}</code>

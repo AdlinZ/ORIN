@@ -28,6 +28,16 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "获取用户看板数据(统计、最近活动)")
+    @GetMapping("/dashboard/{username}")
+    public ResponseEntity<?> getDashboard(@PathVariable String username) {
+        try {
+            return ResponseEntity.ok(userService.getUserDashboard(username));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @Operation(summary = "更新用户信息")
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(@RequestBody SysUser user) {

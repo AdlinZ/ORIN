@@ -36,7 +36,7 @@
       </div>
 
       <!-- 用户列表 -->
-      <el-table
+      <el-table border
         :data="filteredUsers"
         style="width: 100%"
         v-loading="loading"

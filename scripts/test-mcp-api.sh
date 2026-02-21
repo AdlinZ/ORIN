@@ -57,7 +57,7 @@ echo ""
 # 6. 测试创建技能 (通过标准 API)
 echo "6. 测试创建 API 技能"
 echo "-----------------------------------------"
-curl -X POST "${BASE_URL}/api/skills" \
+curl -X POST "${BASE_URL}/api/v1/skills" \
   -H "Content-Type: application/json" \
   -d '{
     "skillName": "WeatherAPI",

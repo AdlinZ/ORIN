@@ -38,44 +38,82 @@ const loading = ref(false)
 const stats = ref([
   {
     key: 'apps',
-    label: '活跃应用',
-    value: '12',
+    label: '活跃智能体',
+    value: '0',
     icon: Box,
-    color: '#155eef',
-    trend: 8.5
+    color: '#155eef'
   },
   {
     key: 'calls',
     label: '今日调用',
-    value: '2,847',
+    value: '0',
     icon: ChatDotRound,
-    color: '#10b981',
-    trend: 12.3
+    color: '#10b981'
   },
   {
     key: 'tokens',
-    label: 'Token 用量',
-    value: '1.2M',
+    label: '今日 Token',
+    value: '0',
     icon: Coin,
     color: '#f59e0b',
-    trend: -3.2
+    trend: 0
   },
   {
     key: 'latency',
     label: '平均延迟',
-    value: '234ms',
+    value: '0ms',
     icon: Timer,
-    color: '#8b5cf6',
-    trend: -5.1
+    color: '#8b5cf6'
   }
 ])
+
+import { getGlobalSummary } from '@/api/monitor'
+
+const formatNumber = (num) => {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
+  return num.toString()
+}
 
 const loadStats = async () => {
   loading.value = true
   try {
-    // TODO: Call API
-    // const data = await getDashboardStats()
-    // stats.value = data
+    const data = await getGlobalSummary()
+    if (data) {
+      stats.value = [
+        {
+          key: 'apps',
+          label: '活跃智能体',
+          value: `${data.online_agents} / ${data.total_agents}`,
+          icon: Box,
+          color: '#155eef'
+        },
+        {
+          key: 'calls',
+          label: '今日调用',
+          value: formatNumber(data.daily_requests || 0),
+          icon: ChatDotRound,
+          color: '#10b981'
+        },
+        {
+          key: 'tokens',
+          label: '今日 Token',
+          value: formatNumber(data.total_tokens || 0),
+          icon: Coin,
+          color: '#f59e0b',
+          trend: data.total_tokens_trend
+        },
+        {
+          key: 'latency',
+          label: '平均延迟',
+          value: data.avg_latency || '0ms',
+          icon: Timer,
+          color: '#8b5cf6'
+        }
+      ]
+    }
+  } catch (error) {
+    console.error('Failed to load dashboard stats:', error)
   } finally {
     loading.value = false
   }

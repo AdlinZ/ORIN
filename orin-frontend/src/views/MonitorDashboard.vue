@@ -216,7 +216,7 @@
              </div>
           </el-tab-pane>
           <el-tab-pane label="资料库" name="knowledge">
-             <el-table :data="knowledgeList" size="small">
+             <el-table border :data="knowledgeList" size="small">
                 <el-table-column prop="name" label="名称" />
                 <el-table-column prop="docCount" label="文件" width="70" align="center" />
                 <el-table-column prop="status" label="状态" width="90" align="center">

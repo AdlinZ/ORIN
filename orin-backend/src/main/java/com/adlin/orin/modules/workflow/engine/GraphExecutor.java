@@ -4,7 +4,7 @@ import com.adlin.orin.modules.trace.interceptor.SkillTraceInterceptor;
 import com.adlin.orin.modules.trace.service.TraceService;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
-import com.adlin.orin.exception.WorkflowExecutionException;
+import com.adlin.orin.common.exception.WorkflowExecutionException;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

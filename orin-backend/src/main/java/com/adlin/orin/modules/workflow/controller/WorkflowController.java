@@ -113,6 +113,14 @@ public class WorkflowController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/instances/{instanceId}")
+    @Operation(summary = "获取工作流执行实例详情")
+    public ResponseEntity<WorkflowInstanceEntity> getInstance(@PathVariable Long instanceId) {
+        log.info("REST request to get workflow instance: {}", instanceId);
+        WorkflowInstanceEntity instance = workflowService.getInstance(instanceId);
+        return ResponseEntity.ok(instance);
+    }
+
     @GetMapping("/{id}/instances")
     @Operation(summary = "获取工作流执行实例列表")
     public ResponseEntity<List<WorkflowInstanceEntity>> getWorkflowInstances(@PathVariable Long id) {

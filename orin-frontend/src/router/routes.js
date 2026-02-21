@@ -36,6 +36,7 @@ export const ROUTES = {
     RESOURCES: {
         ROOT: '/dashboard/resources',
         KNOWLEDGE: '/dashboard/resources/knowledge',
+        KNOWLEDGE_CREATE: '/dashboard/resources/knowledge/create',
         MEDIA: '/dashboard/resources/media',
         EMBEDDING_LAB: '/dashboard/resources/embedding-lab',
         RAG_LAB: '/dashboard/resources/rag-lab',

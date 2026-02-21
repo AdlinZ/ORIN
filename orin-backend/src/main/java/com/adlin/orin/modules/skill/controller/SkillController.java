@@ -20,7 +20,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/skills")
+@RequestMapping("/api/v1/skills")
 @RequiredArgsConstructor
 @Tag(name = "Skill Management", description = "技能管理 API")
 public class SkillController {

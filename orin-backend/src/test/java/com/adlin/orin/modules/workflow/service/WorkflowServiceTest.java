@@ -1,7 +1,6 @@
 package com.adlin.orin.modules.workflow.service;
 
 import com.adlin.orin.modules.workflow.dto.WorkflowRequest;
-import com.adlin.orin.modules.workflow.dto.WorkflowResponse;
 import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
 import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
 import com.adlin.orin.modules.workflow.entity.WorkflowStepEntity;
@@ -78,7 +77,7 @@ class WorkflowServiceTest {
                 when(workflowRepository.existsById(1L)).thenReturn(true);
 
                 // Act
-                WorkflowResponse response = workflowService.createWorkflow(request);
+                workflowService.createWorkflow(request);
 
                 // Assert
                 verify(workflowRepository).save(any(WorkflowEntity.class));

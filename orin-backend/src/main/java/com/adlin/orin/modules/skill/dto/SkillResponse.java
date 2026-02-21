@@ -42,6 +42,9 @@ public class SkillResponse {
     private String externalPlatform;
     private String externalReference;
 
+    // Shell 配置
+    private String shellCommand;
+
     // Schema
     private Map<String, Object> inputSchema;
     private Map<String, Object> outputSchema;
@@ -71,6 +74,7 @@ public class SkillResponse {
                 .workflowId(entity.getWorkflowId())
                 .externalPlatform(entity.getExternalPlatform())
                 .externalReference(entity.getExternalReference())
+                .shellCommand(entity.getShellCommand())
                 .inputSchema(entity.getInputSchema())
                 .outputSchema(entity.getOutputSchema())
                 .status(entity.getStatus())

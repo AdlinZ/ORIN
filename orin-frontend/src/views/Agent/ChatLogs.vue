@@ -28,7 +28,7 @@
 
 
     <el-card shadow="never" class="table-card">
-      <el-table :data="pagedLogs" style="width: 100%" v-loading="loading" stripe>
+      <el-table border :data="pagedLogs" style="width: 100%" v-loading="loading" stripe>
         <el-table-column prop="sessionId" label="会话 ID" width="160" show-overflow-tooltip>
            <template #default="{ row }">
              <code class="session-id">{{ row.sessionId }}</code>

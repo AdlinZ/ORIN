@@ -16,6 +16,14 @@ export function getWorkflow(id) {
     })
 }
 
+export function getWorkflowInstance(instanceId) {
+    return request({
+        baseURL: '',
+        url: `/api/workflows/instances/${instanceId}`,
+        method: 'get'
+    })
+}
+
 export function createWorkflow(data) {
     return request({
         baseURL: '',

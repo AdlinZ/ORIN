@@ -35,7 +35,7 @@
     </PageHeader>
 
     <el-card shadow="never" class="table-card">
-      <el-table 
+      <el-table border 
         v-loading="loading" 
         :data="paginatedAgentList"
         style="width: 100%"
