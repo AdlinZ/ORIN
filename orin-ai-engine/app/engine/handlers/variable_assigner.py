@@ -1,9 +1,8 @@
-from typing import Any, Dict
-from app.models.workflow import Node
+from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 
 class VariableAssignerNodeHandler(BaseNodeHandler):
-    async def run(self, node: Node, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Assigns a value to a target variable in the execution context.
         """
@@ -18,10 +17,10 @@ class VariableAssignerNodeHandler(BaseNodeHandler):
             # and potentially flattens standard variables if needed.
             
             # For now, we return the assignment result
-            return {
+            return NodeExecutionOutput(outputs={
                 "assigned_variable": target_var,
                 "value": value,
                 "mode": write_mode
-            }
+            })
         
-        return {"status": "skipped", "reason": "No target variable defined"}
+        return NodeExecutionOutput(outputs={"status": "skipped", "reason": "No target variable defined"})

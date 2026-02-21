@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Dict
 from openai import AsyncOpenAI, APITimeoutError, APIConnectionError, RateLimitError
-from app.models.workflow import Node
+from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 from app.core.config import settings
 
@@ -20,7 +20,7 @@ class RealLLMNodeHandler(BaseNodeHandler):
             )
         return self._client
 
-    async def run(self, node: Node, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Executes LLM call using OpenAI compatible SDK.
         """
@@ -132,11 +132,11 @@ class RealLLMNodeHandler(BaseNodeHandler):
              content = response.choices[0].message.content
              usage = response.usage
              
-             return {
+             return NodeExecutionOutput(outputs={
                  "text": content,
                  "model": model,
                  "tokens_used": usage.total_tokens if usage else 0
-             }
+             })
 
         except RateLimitError:
             raise RuntimeError("LLM Rate Limit Exceeded")

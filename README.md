@@ -27,6 +27,13 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 │   │   └── resources/
 │   │       ├── db/migration/     # Flyway 数据库迁移脚本
 │   └── pom.xml
+├── orin-ai-engine/           # Python AI 执行引擎 (FastAPI)
+│   ├── app/
+│   │   ├── engine/           # 核心引擎 (含各节点处理器)
+│   │   ├── models/           # Pydantic 数据模型
+│   │   └── api/              # API 路由
+│   ├── tests/                # 测试用例
+│   └── main.py               # 入口文件
 ├── orin-frontend/          # 前端 Vue 3 + Vite 项目
 │   ├── src/
 │   │   ├── api/            # API 接口定义
@@ -56,7 +63,11 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 ### 核心功能
 - **全链路监控**：实时追踪 CPU、内存利用率及令牌消耗，集成 Micrometer 链路追踪与 Trace ID 溯源，秒级洞察系统性能瓶颈
 - **知识库自动同步**：深度集成 Dify 知识库，支持 Milvus 向量引擎同步，实现文档版本管理与云端动态资产更新
-- **可视化工作流**：支持编排复杂的 AI 工作流，拖拽式编辑器实现业务逻辑与智能体能力的敏捷组合
+- **可视化工作流**：支持编排复杂的 AI 工作流，提供强大的节点处理器：
+    - **逻辑控制**：代码执行 (Python)、条件分支、意图识别、变量聚合。
+    - **数据处理**：模板转换 (Jinja2)、参数提取 (JSON)、知识检索 (RAG)、文档解析。
+    - **工具交互**：HTTP 请求 (HTTpx)、列表操作、直接回复。
+- **预览与调试**：支持工作流实时预览运行，可视化展示执行轨迹 (Node Trace)、变量快照及 DSL 定义。
 - **插件化技能系统**：一键为智能体挂载计算、搜索、执行等扩展技能，快速响应业务需求
 - **智能告警中心**：支持多指标阈值监控，自动触发邮件、钉钉、企业微信异步通知，支持动态告警规则配置
 - **多模型平台适配**：统一适配 Dify、OpenAI、SiliconFlow (硅基流动) 等主流模型提供商，支持 OpenAI 兼容接口转发
@@ -87,6 +98,13 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 - **其他**: Maven, Hibernate, MapStruct, Micrometer Tracing (Zipkin 可选)
 - **通知**: JavaMailSender, DingTalk/WeChat Webhook
 
+### AI 引擎 (Python)
+- **核心**: Python 3.10+, FastAPI
+- **执行器**: 异步图执行架构 (Asyncio Graph Executor)
+- **模板**: Jinja2
+- **通信**: HTTpx
+- **智能**: OpenAI SDK (多模型兼容)
+
 ### 前端
 - **框架**: Vue 3 + Vite
 - **UI 库**: Element Plus
@@ -100,6 +118,7 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 ### 环境要求
 - Java 17+
 - Node.js 16+
+- Python 3.10+
 - npm 或 yarn
 - MySQL 8.0+
 - Redis 6.0+ (可选，用于缓存和限流)
@@ -139,6 +158,14 @@ CREATE DATABASE orindb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER 'orin_user'@'localhost' IDENTIFIED BY 'your_secure_password';
 GRANT ALL PRIVILEGES ON orindb.* TO 'orin_user'@'localhost';
 FLUSH PRIVILEGES;
+```
+
+#### 3. AI 引擎启动 (Python)
+
+```bash
+cd orin-ai-engine
+./venv/bin/python3 -m pip install -r requirements.txt
+./venv/bin/python3 main.py
 ```
 
 ### 一键启动

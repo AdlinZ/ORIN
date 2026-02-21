@@ -14,6 +14,10 @@ class WorkflowStatus(str, Enum):
     PARTIAL = "partial" # Some nodes failed, but workflow finished
     ERROR = "error"     # Engine execution error
 
+class NodeExecutionOutput(BaseModel):
+    outputs: Dict[str, Any]
+    selected_handle: Optional[str] = None
+
 class NodeData(BaseModel):
     label: Optional[str] = None
     prompt: Optional[str] = None
@@ -58,6 +62,7 @@ class NodeTrace(BaseModel):
     end_time: float
     duration: float
     outputs: Optional[Dict[str, Any]] = None
+    selected_handle: Optional[str] = None
     error: Optional[str] = None
 
 class ExecutionResult(BaseModel):

@@ -3,11 +3,11 @@ import sys
 import io
 import traceback
 from typing import Any, Dict
-from app.models.workflow import Node
+from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 
 class CodeNodeHandler(BaseNodeHandler):
-    async def run(self, node: Node, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Executes arbitrary Python code.
         The code can access variables from 'context' (inputs and previous node outputs).
@@ -15,7 +15,7 @@ class CodeNodeHandler(BaseNodeHandler):
         """
         code = node.data.get("code", "")
         if not code:
-            return {"result": "No code provided", "status": "skipped"}
+            return NodeExecutionOutput(outputs={"result": "No code provided", "status": "skipped"})
 
         # Prepare execution environment
         # We copy context to avoid accidental corruption of the main engine context
@@ -51,7 +51,7 @@ class CodeNodeHandler(BaseNodeHandler):
             if logs:
                 result["logs"] = logs.strip()
                 
-            return result
+            return NodeExecutionOutput(outputs=result)
             
         except Exception as e:
             sys.stdout = original_stdout
