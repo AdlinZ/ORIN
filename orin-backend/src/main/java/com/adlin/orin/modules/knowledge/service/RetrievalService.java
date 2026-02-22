@@ -45,7 +45,12 @@ public class RetrievalService {
                 embeddingModel);
 
         // 2. 关键词检索
-        List<KnowledgeDocumentChunk> keywordChunks = chunkRepository.searchByKeyword(kbId, query);
+        List<KnowledgeDocumentChunk> keywordChunks;
+        if ("all".equalsIgnoreCase(kbId)) {
+            keywordChunks = chunkRepository.searchAllByKeyword(query);
+        } else {
+            keywordChunks = chunkRepository.searchByKeyword(kbId, query);
+        }
         // Limit keyword results manually if too many
         if (keywordChunks.size() > topK * 2) {
             keywordChunks = keywordChunks.subList(0, topK * 2);

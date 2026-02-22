@@ -54,11 +54,12 @@ public class SimpleTextSplitter {
             chunks.add(text.substring(start, end).trim());
 
             // 移动 start 指针，考虑重叠
-            start += (end - start) - overlap;
-
-            // 防止死循环 (如果 split 没有前进)
-            if (start >= end) {
+            // 确保 start 至少向前移动一步，防止死循环
+            int nextStart = end - overlap;
+            if (nextStart <= start) {
                 start = end;
+            } else {
+                start = nextStart;
             }
         }
 

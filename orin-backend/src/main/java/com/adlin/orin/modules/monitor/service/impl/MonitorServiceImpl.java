@@ -804,4 +804,72 @@ public class MonitorServiceImpl implements MonitorService {
                 return prometheusConfigRepository.findById("DEFAULT").orElse(null);
         }
 
+        @Override
+        public Map<String, String> getSystemProperties() {
+                Map<String, String> props = new HashMap<>();
+                try {
+                        java.nio.file.Path path = java.nio.file.Paths
+                                        .get("src/main/resources/application-dev.properties");
+                        if (!java.nio.file.Files.exists(path)) {
+                                path = java.nio.file.Paths
+                                                .get("orin-backend/src/main/resources/application-dev.properties");
+                        }
+                        if (java.nio.file.Files.exists(path)) {
+                                List<String> lines = java.nio.file.Files.readAllLines(path);
+                                for (String line : lines) {
+                                        if (line.trim().isEmpty() || line.trim().startsWith("#"))
+                                                continue;
+                                        String[] parts = line.split("=", 2);
+                                        if (parts.length == 2) {
+                                                props.put(parts[0].trim(), parts[1].trim());
+                                        }
+                                }
+                        }
+                } catch (Exception e) {
+                        log.error("Failed to read system properties", e);
+                }
+                return props;
+        }
+
+        @Override
+        public void updateSystemProperties(Map<String, String> properties) {
+                try {
+                        java.nio.file.Path path = java.nio.file.Paths
+                                        .get("src/main/resources/application-dev.properties");
+                        if (!java.nio.file.Files.exists(path)) {
+                                path = java.nio.file.Paths
+                                                .get("orin-backend/src/main/resources/application-dev.properties");
+                        }
+                        if (java.nio.file.Files.exists(path)) {
+                                List<String> lines = java.nio.file.Files.readAllLines(path);
+                                List<String> newLines = new ArrayList<>();
+                                Set<String> updatedKeys = new HashSet<>();
+
+                                for (String line : lines) {
+                                        if (line.trim().isEmpty() || line.trim().startsWith("#")) {
+                                                newLines.add(line);
+                                                continue;
+                                        }
+                                        String[] parts = line.split("=", 2);
+                                        if (parts.length == 2 && properties.containsKey(parts[0].trim())) {
+                                                newLines.add(parts[0].trim() + "=" + properties.get(parts[0].trim()));
+                                                updatedKeys.add(parts[0].trim());
+                                        } else {
+                                                newLines.add(line);
+                                        }
+                                }
+
+                                // Add remaining keys to the end
+                                for (Map.Entry<String, String> entry : properties.entrySet()) {
+                                        if (!updatedKeys.contains(entry.getKey())) {
+                                                newLines.add(entry.getKey() + "=" + entry.getValue());
+                                        }
+                                }
+                                java.nio.file.Files.write(path, newLines);
+                        }
+                } catch (Exception e) {
+                        log.error("Failed to write system properties", e);
+                }
+        }
+
 }

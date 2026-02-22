@@ -92,6 +92,27 @@ public class KnowledgeDocument {
     private Integer charCount = 0;
 
     /**
+     * 切分模式: auto, manual, smart
+     */
+    @Column(name = "chunk_method", length = 20)
+    @Builder.Default
+    private String chunkMethod = "auto";
+
+    /**
+     * 切分长度
+     */
+    @Column(name = "chunk_size")
+    @Builder.Default
+    private Integer chunkSize = 500;
+
+    /**
+     * 重叠长度
+     */
+    @Column(name = "chunk_overlap")
+    @Builder.Default
+    private Integer chunkOverlap = 50;
+
+    /**
      * 上传时间
      */
     @Column(name = "upload_time", nullable = false, updatable = false)

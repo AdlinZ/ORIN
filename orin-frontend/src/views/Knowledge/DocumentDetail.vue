@@ -27,6 +27,12 @@
         </div>
       </div>
       <div class="header-actions">
+        <el-button 
+          v-if="documentData.vectorStatus !== 'SUCCESS'"
+          type="primary" 
+          :loading="vectorizing"
+          @click="handleVectorize"
+        >立即向量化</el-button>
         <el-button :icon="Setting">设置</el-button>
         <el-button type="danger" plain :icon="Delete" @click="handleDelete">删除</el-button>
       </div>
@@ -54,36 +60,47 @@
           </div>
 
           <!-- Segments List -->
-          <div class="segments-list">
-            <div 
-              v-for="(segment, index) in filteredSegments" 
-              :key="segment.id"
-              class="segment-card"
-              @click="selectSegment(segment)"
-              :class="{ 'selected': selectedSegment?.id === segment.id }"
-            >
-              <div class="segment-header">
-                <div class="segment-number">分段 {{ index + 1 }}</div>
-                <div class="segment-meta">
-                  <span>{{ segment.wordCount }} 字符</span>
-                  <span class="separator">·</span>
-                  <span>{{ segment.hitCount }} 次召回</span>
+          <div class="segments-list" v-loading="loading">
+            <template v-if="filteredSegments.length > 0">
+              <div 
+                v-for="(segment, index) in filteredSegments" 
+                :key="segment.id"
+                class="segment-card"
+                @click="selectSegment(segment)"
+                :class="{ 'selected': selectedSegment?.id === segment.id }"
+              >
+                <div class="segment-header">
+                  <div class="segment-number">分段 {{ index + 1 }}</div>
+                  <div class="segment-meta">
+                    <span>{{ segment.wordCount }} 字符</span>
+                    <span class="separator">·</span>
+                    <span>{{ segment.hitCount }} 次召回</span>
+                  </div>
+                </div>
+                <div class="segment-content">
+                  {{ segment.content }}
+                </div>
+                <div class="segment-footer">
+                  <el-tag size="small" :type="segment.status === 'indexed' ? 'success' : 'info'" effect="plain">
+                    {{ segment.status === 'indexed' ? '已索引' : '待处理' }}
+                  </el-tag>
+                  <div class="segment-actions">
+                    <el-button link type="primary" size="small" @click.stop="editSegment(segment)">
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                    <el-button link type="danger" size="small" @click.stop="deleteSegment(segment)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
                 </div>
               </div>
-              <div class="segment-content">
-                {{ segment.content }}
-              </div>
-              <div class="segment-footer">
-                <el-tag size="small" effect="plain">{{ segment.status === 'indexed' ? '已索引' : '待索引' }}</el-tag>
-                <div class="segment-actions">
-                  <el-button link type="primary" size="small" @click.stop="editSegment(segment)">
-                    <el-icon><Edit /></el-icon>
-                  </el-button>
-                  <el-button link type="danger" size="small" @click.stop="deleteSegment(segment)">
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
-                </div>
-              </div>
+            </template>
+            <div v-else class="empty-segments">
+              <el-empty description="该文档尚未进行分段向量化">
+                <el-button type="primary" @click="handleVectorize" :loading="vectorizing">
+                  点击开始向量化
+                </el-button>
+              </el-empty>
             </div>
           </div>
 
@@ -116,6 +133,10 @@
             <el-form-item label="分段长度">
               <el-slider v-model="form.chunkSize" :min="100" :max="2000" :step="100" />
               <span class="slider-value">{{ form.chunkSize }} 字符</span>
+            </el-form-item>
+            <el-form-item label="分段重叠">
+              <el-slider v-model="form.chunkOverlap" :min="0" :max="500" :step="10" />
+              <span class="slider-value">{{ form.chunkOverlap }} 字符</span>
             </el-form-item>
             <el-form-item label="启用状态">
               <el-switch v-model="form.enabled" />
@@ -183,14 +204,15 @@ const segments = ref([]);
 const selectedSegment = ref(null);
 const activeTab = ref('segments');
 const searchKeyword = ref('');
-const submitting = ref(false);
-const editDialogVisible = ref(false);
+const loading = ref(false);
+const vectorizing = ref(false);
 const editingSegment = reactive({ id: '', content: '' });
 
 const form = reactive({ 
   name: '', 
   mode: 'auto',
   chunkSize: 500,
+  chunkOverlap: 50,
   enabled: true 
 });
 
@@ -218,13 +240,16 @@ const loadDocumentData = async () => {
         name: doc.fileName,
         uploadTime: formatDate(doc.uploadTime),
         wordCount: doc.charCount || 0,
-        hitCount: 0, // Backend might not have this yet
-        mode: doc.vectorStatus === 'INDEXED' ? '自动' : '手动',
+        hitCount: 0,
+        vectorStatus: doc.vectorStatus,
+        mode: doc.vectorStatus === 'SUCCESS' ? '自动' : '待处理',
         enabled: true
     };
     
     form.name = doc.fileName;
-    form.mode = doc.vectorStatus === 'INDEXED' ? 'auto' : 'manual';
+    form.mode = doc.chunkMethod || 'auto';
+    form.chunkSize = doc.chunkSize || 500;
+    form.chunkOverlap = doc.chunkOverlap || 50;
     form.enabled = true;
 
     // Try to find KB name from local storage or simplified way
@@ -255,6 +280,7 @@ const loadHistory = async () => {
 };
 
 const loadSegments = async () => {
+    loading.value = true;
     try {
         const res = await request.get(`/knowledge/documents/${docId.value}/chunks`);
         if (Array.isArray(res)) {
@@ -271,6 +297,22 @@ const loadSegments = async () => {
     } catch (error) {
         console.error('Failed to load segments:', error);
         segments.value = [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+const handleVectorize = async () => {
+    vectorizing.value = true;
+    try {
+        await request.post(`/knowledge/documents/${docId.value}/vectorize`);
+        ElMessage.success('已提交向量化任务，请稍后刷新');
+        // Poll for status or just wait
+        setTimeout(loadDocumentData, 2000);
+    } catch (error) {
+        ElMessage.error('触发向量化失败: ' + error.message);
+    } finally {
+        vectorizing.value = false;
     }
 };
 
@@ -327,7 +369,10 @@ const onSubmit = async () => {
   try {
     const payload = {
         name: form.name,
-        enabled: form.enabled
+        enabled: form.enabled,
+        mode: form.mode,
+        chunkSize: form.chunkSize,
+        chunkOverlap: form.chunkOverlap
     };
     await request.put(`/knowledge/documents/${docId.value}`, payload);
     documentData.value.name = form.name;

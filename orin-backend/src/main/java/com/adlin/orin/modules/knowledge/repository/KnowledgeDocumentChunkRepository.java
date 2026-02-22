@@ -26,6 +26,12 @@ public interface KnowledgeDocumentChunkRepository extends JpaRepository<Knowledg
     List<KnowledgeDocumentChunk> searchByKeyword(@Param("kbId") String kbId, @Param("keyword") String keyword);
 
     /**
+     * 全局关键词检索 (跨所有知识库)
+     */
+    @Query("SELECT c FROM KnowledgeDocumentChunk c WHERE c.content LIKE %:keyword%")
+    List<KnowledgeDocumentChunk> searchAllByKeyword(@Param("keyword") String keyword);
+
+    /**
      * 删除文档的所有分片
      */
     void deleteByDocumentId(String documentId);

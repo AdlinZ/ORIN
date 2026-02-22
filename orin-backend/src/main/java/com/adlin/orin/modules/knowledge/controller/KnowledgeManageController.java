@@ -20,6 +20,7 @@ import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 @RestController
 @RequestMapping("/api/v1/knowledge")
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 @Tag(name = "Phase 4: Asset Management", description = "知识资产管理")
 @CrossOrigin(origins = "*")
 public class KnowledgeManageController {
@@ -299,5 +300,17 @@ public class KnowledgeManageController {
 
         metaKnowledgeService.extractMemory(agentId, content, modelName);
         return Map.of("status", "success", "message", "Memory extracted successfully");
+    }
+
+    @Operation(summary = "解析文件为文本 (用于预览)")
+    @PostMapping(value = "/documents/parse-text", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, String> parseText(@RequestParam("file") MultipartFile file) {
+        try {
+            String text = documentManageService.parseFileToText(file);
+            return Map.of("text", text != null ? text : "");
+        } catch (Exception e) {
+            log.error("Failed to parse text from file", e);
+            return Map.of("text", "Error: " + e.getMessage());
+        }
     }
 }

@@ -27,6 +27,7 @@ public class DocumentManageService {
     private final KnowledgeDocumentRepository documentRepository;
     private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository chunkRepository;
     private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorService;
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     // 文件存储根目录 (可配置)
     private static final String UPLOAD_DIR = "storage/uploads/documents";
@@ -178,74 +179,83 @@ public class DocumentManageService {
         document.setVectorStatus("INDEXING");
         document = documentRepository.save(document);
 
-        // 模拟异步向量化过程
-        // 实际生产环境中，这里应该调用 Dify API 或提交任务到消息队列
-        final String docId = documentId;
+        final String documentIdFinal = documentId;
+        final String kbId = document.getKnowledgeBaseId();
+        final Integer chunkSizeCfg = document.getChunkSize();
+        final Integer overlapCfg = document.getChunkOverlap();
+
+        log.info("Starting asynchronous vectorization for document: {}", documentId);
         new Thread(() -> {
+            org.springframework.transaction.support.TransactionTemplate transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(
+                    transactionManager);
             try {
-                // 读取文件内容 (简化版: 假设是文本文件，直接读)
+                // 读取文件内容
                 String content = null;
-                try {
-                    // Re-read file from path.
-                    KnowledgeDocument currentDoc = documentRepository.findById(docId).orElse(null);
-                    if (currentDoc != null) {
-                        content = readFileContent(currentDoc);
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to read file content", e);
+                KnowledgeDocument currentDocForSplit = documentRepository.findById(documentIdFinal).orElse(null);
+                if (currentDocForSplit != null) {
+                    content = readFileContent(currentDocForSplit);
                 }
 
                 if (content == null || content.isEmpty()) {
-                    documentRepository.updateVectorStatus(docId, "FAILED");
+                    transactionTemplate.executeWithoutResult(status -> {
+                        documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                    });
                     return;
                 }
 
-                // Split
-                List<String> chunksText = com.adlin.orin.modules.knowledge.util.SimpleTextSplitter.split(content);
+                // 1. Split text
+                int chunkSize = chunkSizeCfg != null ? chunkSizeCfg : 500;
+                int overlap = overlapCfg != null ? overlapCfg : 50;
+                List<String> chunksText = com.adlin.orin.modules.knowledge.util.SimpleTextSplitter.split(content,
+                        chunkSize, overlap);
 
-                // Save Chunks to DB
                 List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks = new java.util.ArrayList<>();
                 for (int i = 0; i < chunksText.size(); i++) {
                     chunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
-                            .documentId(docId)
+                            .id(UUID.randomUUID().toString())
+                            .documentId(documentIdFinal)
                             .chunkIndex(i)
                             .content(chunksText.get(i))
                             .charCount(chunksText.get(i).length())
                             .build());
                 }
 
-                // 需要在 Bean 上下文中处理
-                // 由于我们在 Thread 中，无法获得事务支持 (Repository save is fine, but service logic isn't)
-                // 且 vectorService 是 Spring Bean
-                // 为了避免依赖注入问题 (lambda capture is fine for final fields), 这里的 fields 必须是 final
-                // 并且被构造器初始化
-
-                // 获取当前 doc 以得到 kbId
-                KnowledgeDocument currentDoc = documentRepository.findById(docId).orElse(null);
-                if (currentDoc != null) {
+                // 2. DB Operations in transaction (Delete old, Save new)
+                transactionTemplate.executeWithoutResult(status -> {
+                    chunkRepository.deleteByDocumentId(documentIdFinal);
                     chunkRepository.saveAll(chunks);
+                });
 
-                    // Call Milvus (Using Chunk objects)
-                    vectorService.addChunks(currentDoc.getKnowledgeBaseId(), chunks);
+                // 3. Vector Store Operation (Milvus) - Outside DB transaction
+                vectorService.deleteDocuments(kbId, java.util.Collections.singletonList(documentIdFinal));
+                vectorService.addChunks(kbId, chunks);
 
-                    documentRepository.updateVectorStatus(docId, "SUCCESS");
+                // 4. Update status and count in transaction
+                transactionTemplate.executeWithoutResult(status -> {
+                    documentRepository.updateVectorStatus(documentIdFinal, "SUCCESS");
+                    KnowledgeDocument finalDoc = documentRepository.findById(documentIdFinal).orElse(null);
+                    if (finalDoc != null) {
+                        finalDoc.setChunkCount(chunks.size());
+                        finalDoc.setVectorIndexId("milvus_partition_" + kbId);
+                        documentRepository.save(finalDoc);
+                    }
+                });
 
-                    // Update stats
-                    KnowledgeDocument finalDoc = currentDoc;
-                    finalDoc.setChunkCount(chunks.size());
-                    finalDoc.setVectorIndexId("milvus_partition_" + finalDoc.getKnowledgeBaseId());
-                    documentRepository.save(finalDoc);
+                log.info("Vectorization completed for document: {}, chunks: {}", documentIdFinal, chunks.size());
 
-                    log.info("Vectorization completed for document: {}, chunks: {}", docId, chunks.size());
+            } catch (Throwable e) {
+                log.error("Vectorization CRITICAL FAILURE for document: " + documentIdFinal, e);
+                try {
+                    transactionTemplate.executeWithoutResult(status -> {
+                        documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                    });
+                } catch (Exception ex) {
+                    log.error("Failed to update status to FAILED for document: " + documentIdFinal, ex);
                 }
-
-            } catch (Exception e) {
-                log.error("Vectorization failed for document: " + docId, e);
-                documentRepository.updateVectorStatus(docId, "FAILED");
             }
-        }).start();
+        }, "VectorizationThread-" + documentId).start();
 
-        log.info("Triggered vectorization for document: {}", documentId);
+        log.info("Triggered vectorization background task for document: {}", documentId);
 
         return document;
     }
@@ -280,11 +290,26 @@ public class DocumentManageService {
             document.setFileName((String) payload.get("name"));
         }
         if (payload.containsKey("enabled")) {
-            // we can theoretically use vectorStatus for this (e.g., DISABLED)
             if (!(Boolean) payload.get("enabled")) {
                 document.setVectorStatus("DISABLED");
             } else if ("DISABLED".equals(document.getVectorStatus())) {
-                document.setVectorStatus("INDEXED"); // Assume indexed when re-enabled
+                document.setVectorStatus("PENDING");
+            }
+        }
+        // Handle chunking configuration
+        if (payload.containsKey("mode")) {
+            document.setChunkMethod((String) payload.get("mode"));
+        }
+        if (payload.containsKey("chunkSize")) {
+            Object size = payload.get("chunkSize");
+            if (size instanceof Number) {
+                document.setChunkSize(((Number) size).intValue());
+            }
+        }
+        if (payload.containsKey("chunkOverlap")) {
+            Object overlap = payload.get("chunkOverlap");
+            if (overlap instanceof Number) {
+                document.setChunkOverlap(((Number) overlap).intValue());
             }
         }
         return documentRepository.save(document);
@@ -448,5 +473,41 @@ public class DocumentManageService {
      * 文档统计信息
      */
     public record DocumentStats(long documentCount, long totalCharCount) {
+    }
+
+    /**
+     * 解析文件为文本 (用于预览)
+     */
+    public String parseFileToText(MultipartFile file) throws IOException {
+        String filename = file.getOriginalFilename();
+        if (filename == null)
+            return "";
+        String extension = getFileExtension(filename);
+
+        if (extension.equals("txt") || extension.equals("md")) {
+            return new String(file.getBytes());
+        } else if (extension.equals("pdf")) {
+            try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(file.getBytes())) {
+                org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+                return stripper.getText(document).trim();
+            } catch (Exception e) {
+                log.warn("Failed to parse PDF: {}", e.getMessage());
+                return "Failed to parse PDF content.";
+            }
+        } else if (extension.equals("docx")) {
+            try (java.io.InputStream is = file.getInputStream();
+                    org.apache.poi.xwpf.usermodel.XWPFDocument document = new org.apache.poi.xwpf.usermodel.XWPFDocument(
+                            is)) {
+                StringBuilder text = new StringBuilder();
+                for (org.apache.poi.xwpf.usermodel.XWPFParagraph p : document.getParagraphs()) {
+                    text.append(p.getText()).append("\n");
+                }
+                return text.toString();
+            } catch (Exception e) {
+                log.warn("Failed to parse DOCX: {}", e.getMessage());
+                return "Failed to parse DOCX content.";
+            }
+        }
+        return "";
     }
 }

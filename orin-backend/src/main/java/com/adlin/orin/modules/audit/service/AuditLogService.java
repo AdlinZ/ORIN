@@ -131,7 +131,7 @@ public class AuditLogService {
                     auditLog.getId(),
                     providerId, conversationId, endpoint);
 
-            if (Boolean.FALSE.equals(success)) {
+            if (Boolean.FALSE.equals(success) && !"SYSTEM".equals(providerId)) {
                 String errorMsg = errorMessage != null ? errorMessage : "未知API调用错误";
                 alertService.triggerSystemAlert("ERROR_RATE", providerId, "API调用失败: " + errorMsg);
             }

@@ -39,6 +39,16 @@ public interface MonitorService {
     void triggerMockDataGeneration();
 
     /**
+     * 获取系统环境变量 (从 application-dev.properties 解析)
+     */
+    Map<String, String> getSystemProperties();
+
+    /**
+     * 更新系统环境变量
+     */
+    void updateSystemProperties(Map<String, String> properties);
+
+    /**
      * 测试与Dify服务的连接
      */
     boolean testDifyConnection(String endpointUrl, String apiKey);

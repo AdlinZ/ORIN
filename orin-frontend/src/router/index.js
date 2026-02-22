@@ -232,20 +232,18 @@ const routes = [
                         meta: { title: '素材库', icon: 'Picture' }
                     },
 
-                    // 向量实验室
+                    // RAG 实验室（合并了原「向量实验室」+「检索实验室」）
                     {
                         path: 'embedding-lab',
                         name: 'ResourcesEmbeddingLab',
                         component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
-                        meta: { title: '向量实验室', icon: 'Aim' }
+                        meta: { title: 'RAG 实验室', icon: 'Aim' }
                     },
 
-                    // 检索实验室
+                    // 检索实验室 → 重定向到 RAG 实验室（已合并）
                     {
                         path: 'rag-lab',
-                        name: 'ResourcesRagLab',
-                        component: () => import('@/views/Knowledge/RetrievalLab.vue'),
-                        meta: { title: '检索实验室', icon: 'Search' }
+                        redirect: '/dashboard/resources/embedding-lab'
                     },
 
                     // 视觉实验室

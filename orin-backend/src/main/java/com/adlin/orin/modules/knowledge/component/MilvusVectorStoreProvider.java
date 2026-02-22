@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@org.springframework.context.annotation.Profile("mock") // 旧实现，使用 mock embedding，仅在 mock profile 激活
 public class MilvusVectorStoreProvider implements VectorStoreProvider {
 
     private final MilvusServiceClient milvusClient;

@@ -208,7 +208,11 @@ onMounted(async () => {
             request.get('/knowledge/list')
         ]);
         embeddingModels.value = (modelsRes || []).filter(m => m.type?.toUpperCase() === 'EMBEDDING');
-        knowledgeBases.value = (kbRes || []).filter(kb => kb.status === 'ENABLED');
+        let kbs = (kbRes || []).filter(kb => kb.status === 'ENABLED');
+        knowledgeBases.value = [
+            { id: 'all', name: '全生态全局检索 (Global Search)' },
+            ...kbs
+        ];
         if (knowledgeBases.value.length > 0) selectedKbId.value = knowledgeBases.value[0].id;
     } catch (e) {
         console.error('Failed to load lab data', e);
@@ -237,7 +241,8 @@ const handleSearch = async () => {
 
         executionTime.value = Date.now() - startTime;
         const data = response || {};
-        results.value = (Array.isArray(data) ? data : (data.results || [])).map(r => ({
+        const items = Array.isArray(data) ? data : (data.data || data.results || []);
+        results.value = items.map(r => ({
             score: r.score,
             content: r.content,
             sourceDoc: r.metadata?.source || r.metadata?.doc_id || 'Unknown',

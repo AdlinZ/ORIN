@@ -151,4 +151,16 @@ public class MonitorController {
     public Map<String, Object> testPrometheusConnection() {
         return monitorService.testPrometheusConnection();
     }
+
+    @Operation(summary = "获取系统环境变量配置")
+    @GetMapping("/system/properties")
+    public Map<String, String> getSystemProperties() {
+        return monitorService.getSystemProperties();
+    }
+
+    @Operation(summary = "更新系统环境变量配置")
+    @PostMapping("/system/properties")
+    public void updateSystemProperties(@RequestBody Map<String, String> properties) {
+        monitorService.updateSystemProperties(properties);
+    }
 }

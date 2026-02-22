@@ -79,14 +79,25 @@
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
                 <div class="status-dot">
-                  <span class="dot accepted"></span>
-                  <span>可用</span>
+                  <span class="dot" :class="row.status === 'SUCCESS' ? 'accepted' : (row.status === 'FAILED' ? 'rejected' : 'waiting')"></span>
+                  <span>{{ row.status === 'SUCCESS' ? '可用' : (row.status === 'FAILED' ? '失败' : '处理中') }}</span>
                 </div>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="120" fixed="right">
               <template #default="{ row }">
                 <el-switch v-model="row.enabled" size="small" />
+                <el-tooltip content="触发向量化" placement="top">
+                    <el-button 
+                        v-if="row.status !== 'SUCCESS'"
+                        link type="primary" 
+                        size="small" 
+                        style="margin-left: 12px;"
+                        @click="handleVectorize(row)"
+                    >
+                        <el-icon><Cpu /></el-icon>
+                    </el-button>
+                </el-tooltip>
                 <el-button link type="primary" size="small" style="margin-left: 12px;"><el-icon><Setting /></el-icon></el-button>
                 <el-button link type="danger" size="small"><el-icon><Delete /></el-icon></el-button>
               </template>
@@ -245,6 +256,16 @@ const handleDelete = () => {
     ElMessage.success('已删除');
     router.push(ROUTES.RESOURCES.KNOWLEDGE);
   });
+};
+
+const handleVectorize = async (row) => {
+    try {
+        await request.post(`/knowledge/documents/${row.id}/vectorize`);
+        ElMessage.success('已启动任务');
+        loadKBDetail(); // Refresh
+    } catch (e) {
+        ElMessage.error('触发失败: ' + e.message);
+    }
 };
 
 const openDocument = (doc) => {

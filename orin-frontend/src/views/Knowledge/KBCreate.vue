@@ -547,17 +547,39 @@ const handlePreview = async () => {
    try {
       const targetFile = fileList.value[0];
       let text = '';
-      if (targetFile.type.startsWith('text/') || targetFile.name.endsWith('.md') || targetFile.name.endsWith('.json')) {
-         text = await readFileAsText(targetFile.rawFile);
-      } else {
-         text = "（注意：此处显示示例文本。）\n\n" + getMockText(1) + "\n\n" + getMockText(2) + "\n\n" + getMockText(3);
+      
+      // Try to parse file content from backend (for real data preview)
+      const formData = new FormData();
+      formData.append('file', targetFile.rawFile);
+      
+      try {
+         const res = await request.post('/knowledge/documents/parse-text', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+         });
+         text = res.text;
+      } catch (err) {
+         console.warn('Backend parsing failed, falling back to local reading', err);
       }
+
+      if (!text) {
+         if (targetFile.type.startsWith('text/') || targetFile.name.endsWith('.md') || targetFile.name.endsWith('.json')) {
+            text = await readFileAsText(targetFile.rawFile);
+         } else {
+            text = "（注意：此处显示示例文本。）\n\n" + getMockText(1) + "\n\n" + getMockText(2) + "\n\n" + getMockText(3);
+         }
+      }
+
       if (form.cleanSpaces) text = text.replace(/[ \t]+/g, ' '); 
       if (form.cleanUrls) text = text.replace(/https?:\/\/[^\s]+/g, '');
       const chunks = chunkText(text, form.maxTokens, form.overlap, form.separator);
       previewChunks.value = chunks.map((c, i) => ({ id: i + 1, content: c, length: c.length }));
       showPreview.value = true;
-   } catch (e) { ElMessage.error(e.message); } finally { previewLoading.value = false; }
+   } catch (e) {
+      console.error('Preview error:', e);
+      ElMessage.error(e.message); 
+   } finally {
+      previewLoading.value = false;
+   }
 };
 
 const handleResetParams = () => {

@@ -89,14 +89,9 @@ export const TOP_MENU_CONFIG = [
                 icon: 'Picture'
             },
             {
-                title: '向量实验室',
+                title: 'RAG 实验室',
                 path: ROUTES.RESOURCES.EMBEDDING_LAB,
-                icon: 'Histogram'
-            },
-            {
-                title: '检索实验室',
-                path: ROUTES.RESOURCES.RAG_LAB,
-                icon: 'Search'
+                icon: 'Aim'
             },
             {
                 title: '视觉实验室',

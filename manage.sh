@@ -99,7 +99,12 @@ function start() {
     # 1. 启动后端 (Java)
     echo -e "启动后端服务 (Port: 8080)..."
     cd $BACKEND_DIR
-    nohup mvn spring-boot:run < /dev/null > backend.log 2>&1 &
+    # 确保 JAR 包存在
+    if [ ! -f target/orin-backend-*.jar ]; then
+        echo -e "正在编译后端..."
+        mvn clean package -DskipTests -q
+    fi
+    nohup java -jar target/orin-backend-*.jar --spring.profiles.active=dev < /dev/null > backend.log 2>&1 &
     BPID=$!
     echo $BPID > $PID_FILE
 

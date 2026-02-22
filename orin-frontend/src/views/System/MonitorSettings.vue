@@ -140,6 +140,74 @@
         </el-row>
       </el-tab-pane>
 
+      <!-- 外部连接配置 -->
+      <el-tab-pane label="外部依赖环境 (全局架构)" name="env">
+        <el-row :gutter="24">
+          <el-col :lg="24">
+            <el-card class="premium-card margin-bottom-lg">
+              <template #header>
+                <div class="card-header">
+                  <el-icon><Connection /></el-icon>
+                  <span>核心中间件与外部服务地址池</span>
+                </div>
+              </template>
+              <el-alert 
+                title="高危操作警告：以下配置项是支撑 ORIN 智能体骨干通讯的关键组件参数，如无必要请勿修改。修改后需在服务器内执行 ./manage.sh restart -b 才能应用到底层连接池。" 
+                type="warning" show-icon :closable="false" style="margin-bottom: 24px" />
+                
+              <el-form label-position="left" label-width="180px">
+                <el-divider content-position="left">🗄️ MySQL 关系型数据库 (核心主库)</el-divider>
+                <el-form-item label="MySQL Host/Port" style="font-family: monospace;">
+                  <div style="display:flex; gap: 10px; width: 100%">
+                    <el-input v-model="envConfig['spring.datasource.url']" placeholder="例如: jdbc:mysql://localhost:3306/orindb..." style="flex:1" />
+                  </div>
+                </el-form-item>
+                <el-form-item label="MySQL Username">
+                  <el-input v-model="envConfig['spring.datasource.username']" />
+                </el-form-item>
+                <el-form-item label="MySQL Password">
+                  <el-input v-model="envConfig['spring.datasource.password']" type="password" show-password />
+                </el-form-item>
+                
+                <el-divider content-position="left">🧠 Milvus 向量搜索引擎 (AI大脑)</el-divider>
+                <el-form-item label="Milvus Host">
+                  <el-input v-model="envConfig['milvus.host']" />
+                </el-form-item>
+                <el-form-item label="Milvus Port">
+                  <el-input v-model="envConfig['milvus.port']" />
+                </el-form-item>
+                <el-form-item label="Milvus Root Token">
+                  <el-input v-model="envConfig['milvus.token']" type="password" show-password />
+                </el-form-item>
+
+                <el-divider content-position="left">⚡ Redis 分布式高速缓存</el-divider>
+                <el-form-item label="Redis Host">
+                  <el-input v-model="envConfig['spring.data.redis.host']" />
+                </el-form-item>
+                <el-form-item label="Redis Port">
+                  <el-input v-model="envConfig['spring.data.redis.port']" />
+                </el-form-item>
+                <el-form-item label="Redis Password">
+                  <el-input v-model="envConfig['spring.data.redis.password']" type="password" show-password />
+                </el-form-item>
+
+                <el-divider content-position="left">🌐 SiliconFlow (应急算力降级池)</el-divider>
+                <el-form-item label="Silicon API Key">
+                  <el-input v-model="envConfig['siliconflow.api.key']" type="password" show-password />
+                </el-form-item>
+                <el-form-item label="Silicon Base URL">
+                  <el-input v-model="envConfig['siliconflow.api.base-url']" />
+                </el-form-item>
+
+              </el-form>
+              <div style="text-align: right">
+                <el-button type="primary" :loading="envSaving" @click="saveEnvConfig">执行覆盖保存</el-button>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
+
       <!-- 告警阈值配置 (占位) -->
       <el-tab-pane label="监控告警阈值" name="alerts" disabled>
         <!-- Future development -->
@@ -225,8 +293,35 @@ const saveConfig = async () => {
   }
 };
 
+const envConfig = ref({});
+const envSaving = ref(false);
+
+const loadEnvConfig = async () => {
+    try {
+        const res = await request.get('/monitor/system/properties');
+        if (res) {
+            envConfig.value = res;
+        }
+    } catch(e) { 
+        console.error("Failed to load environment system properties:", e);
+    }
+};
+
+const saveEnvConfig = async () => {
+    envSaving.value = true;
+    try {
+        await request.post('/monitor/system/properties', envConfig.value);
+        ElMessage.success('外部依赖环境配置已成功注入底层 properties 文件！请记得适时重启系统生效！');
+    } catch(e) {
+        ElMessage.error('配置注入写入失败: ' + e.message);
+    } finally {
+        envSaving.value = false;
+    }
+};
+
 onMounted(() => {
     loadConfig();
+    loadEnvConfig();
 });
 </script>
 

@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Component
-@org.springframework.context.annotation.Primary
+@org.springframework.context.annotation.Profile("mock") // 仅在 mock profile 下激活，生产环境使用 MilvusVectorService
 public class MockVectorStoreProvider implements VectorStoreProvider {
 
     @Override

@@ -10,6 +10,14 @@ import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.SearchParam;
 import io.milvus.param.partition.CreatePartitionParam;
 import io.milvus.param.partition.HasPartitionParam;
+import io.milvus.grpc.DataType;
+import io.milvus.param.MetricType;
+import io.milvus.param.collection.CreateCollectionParam;
+import io.milvus.param.collection.FieldType;
+import io.milvus.param.collection.HasCollectionParam;
+import io.milvus.param.index.CreateIndexParam;
+import io.milvus.param.IndexType;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -24,9 +32,10 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
+@org.springframework.context.annotation.Primary
 public class MilvusVectorService implements VectorStoreProvider {
 
-    @Value("${orin.milvus.host:localhost}")
+    @Value("${orin.milvus.host:127.0.0.1}")
     private String host;
 
     @Value("${orin.milvus.port:19530}")
@@ -40,6 +49,82 @@ public class MilvusVectorService implements VectorStoreProvider {
 
     @org.springframework.beans.factory.annotation.Autowired
     private com.adlin.orin.gateway.service.ProviderRegistry providerRegistry;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.adlin.orin.modules.knowledge.component.EmbeddingService embeddingService;
+
+    @PostConstruct
+    public void initCollection() {
+        MilvusServiceClient client = null;
+        try {
+            client = createClient();
+            R<Boolean> response = client.hasCollection(HasCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .build());
+            if (response.getData() != null && response.getData()) {
+                log.info("Milvus collection '{}' already exists.", COLLECTION_NAME);
+                return;
+            }
+
+            log.info("Creating Milvus collection '{}'...", COLLECTION_NAME);
+            FieldType docIdField = FieldType.newBuilder()
+                    .withName("doc_id")
+                    .withDataType(DataType.VarChar)
+                    .withMaxLength(64)
+                    .withPrimaryKey(false)
+                    .build();
+
+            FieldType chunkIdField = FieldType.newBuilder()
+                    .withName("chunk_id")
+                    .withDataType(DataType.VarChar)
+                    .withMaxLength(64)
+                    .withPrimaryKey(true)
+                    .build();
+
+            FieldType contentField = FieldType.newBuilder()
+                    .withName("content")
+                    .withDataType(DataType.VarChar)
+                    .withMaxLength(8192)
+                    .build();
+
+            FieldType vectorField = FieldType.newBuilder()
+                    .withName("embedding")
+                    .withDataType(DataType.FloatVector)
+                    .withDimension(1024) // bge-m3 outputs 1024-dim
+                    .build();
+
+            CreateCollectionParam createParam = CreateCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .addFieldType(chunkIdField)
+                    .addFieldType(docIdField)
+                    .addFieldType(contentField)
+                    .addFieldType(vectorField)
+                    .build();
+
+            client.createCollection(createParam);
+
+            CreateIndexParam indexParam = CreateIndexParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .withFieldName("embedding")
+                    .withIndexType(IndexType.IVF_FLAT)
+                    .withMetricType(MetricType.COSINE)
+                    .withExtraParam("{\"nlist\":1024}")
+                    .build();
+
+            client.createIndex(indexParam);
+
+            client.loadCollection(io.milvus.param.collection.LoadCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .build());
+
+            log.info("Milvus collection '{}' created successfully.", COLLECTION_NAME);
+        } catch (Exception e) {
+            log.error("Failed to init Milvus collection", e);
+        } finally {
+            if (client != null)
+                client.close();
+        }
+    }
 
     /**
      * 创建 Milvus 客户端连接
@@ -296,25 +381,38 @@ public class MilvusVectorService implements VectorStoreProvider {
         try {
             client = createClient();
 
-            // Check if partition exists first
-            if (!checkPartitionExists(client, COLLECTION_NAME, partitionName)) {
+            boolean isGlobalSearch = "all".equalsIgnoreCase(kbId);
+
+            // Check if partition exists first for specific kb
+            if (!isGlobalSearch && !checkPartitionExists(client, COLLECTION_NAME, partitionName)) {
                 return Collections.emptyList();
             }
 
-            client.loadPartitions(io.milvus.param.partition.LoadPartitionsParam.newBuilder()
-                    .withCollectionName(COLLECTION_NAME)
-                    .withPartitionNames(Collections.singletonList(partitionName))
-                    .build());
+            if (isGlobalSearch) {
+                // If global, load the entire collection
+                client.loadCollection(io.milvus.param.collection.LoadCollectionParam.newBuilder()
+                        .withCollectionName(COLLECTION_NAME)
+                        .build());
+            } else {
+                client.loadPartitions(io.milvus.param.partition.LoadPartitionsParam.newBuilder()
+                        .withCollectionName(COLLECTION_NAME)
+                        .withPartitionNames(Collections.singletonList(partitionName))
+                        .build());
+            }
 
-            SearchParam searchParam = SearchParam.newBuilder()
+            SearchParam.Builder searchBuilder = SearchParam.newBuilder()
                     .withCollectionName(COLLECTION_NAME)
-                    .withPartitionNames(Collections.singletonList(partitionName))
                     .withMetricType(io.milvus.param.MetricType.COSINE)
                     .withTopK(k)
                     .withVectors(Collections.singletonList(queryVector))
                     .withVectorFieldName("embedding")
-                    .withOutFields(Arrays.asList("content", "doc_id", "chunk_id"))
-                    .build();
+                    .withOutFields(Arrays.asList("content", "doc_id", "chunk_id"));
+
+            if (!isGlobalSearch) {
+                searchBuilder.withPartitionNames(Collections.singletonList(partitionName));
+            }
+
+            SearchParam searchParam = searchBuilder.build();
 
             R<SearchResults> response = client.search(searchParam);
 
@@ -482,36 +580,28 @@ public class MilvusVectorService implements VectorStoreProvider {
     }
 
     /**
-     * Text to Vector (Same as before)
+     * Text to Vector
+     * 优先使用 SiliconFlowEmbeddingAdapter (via EmbeddingService) 生成真实向量。
+     * 若失败则降级为随机向量（维度使用固定1024匹配bge-m3）。
      */
     public List<Float> textToVector(String text, String embeddingModel) {
-        var providers = providerRegistry.getHealthyProviders();
-        for (var provider : providers) {
-            if ("openai".equals(provider.getProviderType())) {
-                try {
-                    com.adlin.orin.gateway.dto.EmbeddingResponse response = provider.embedding(
-                            com.adlin.orin.gateway.dto.EmbeddingRequest.builder()
-                                    .model(embeddingModel != null ? embeddingModel : "text-embedding-ada-002")
-                                    .input(Collections.singletonList(text))
-                                    .build())
-                            .block();
-
-                    if (response != null && !response.getData().isEmpty()) {
-                        List<Double> embedding = response.getData().get(0).getEmbedding();
-                        List<Float> floatEmbedding = new ArrayList<>(embedding.size());
-                        for (Double d : embedding)
-                            floatEmbedding.add(d.floatValue());
-                        return floatEmbedding;
-                    }
-                } catch (Exception e) {
-                    log.warn("Embedding failed: {}", e.getMessage());
+        // 优先使用已注入的 EmbeddingService (SiliconFlowEmbeddingAdapter)
+        if (embeddingService != null) {
+            try {
+                List<Float> embedding = embeddingService.embed(text);
+                if (embedding != null && !embedding.isEmpty()) {
+                    log.debug("Embedding generated via SiliconFlow, dim={}", embedding.size());
+                    return embedding;
                 }
+            } catch (Exception e) {
+                log.warn("SiliconFlow embedding failed, falling back: {}", e.getMessage());
             }
         }
-        // Fallback Random
+        // 降级: 随机向量 (index(text.hashCode) 保证同一文本向量一致)
+        log.warn("Using deterministic random vector for text (EmbeddingService unavailable or failed)");
         List<Float> vector = new ArrayList<>();
         Random random = new Random(text.hashCode());
-        for (int i = 0; i < 768; i++)
+        for (int i = 0; i < 1024; i++)
             vector.add(random.nextFloat());
         return vector;
     }
