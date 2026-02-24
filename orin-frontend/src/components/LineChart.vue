@@ -205,6 +205,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .chart-wrapper {
   width: 100%;
+  height: 100%;
   position: relative;
   background: transparent;
 }
