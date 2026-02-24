@@ -283,13 +283,7 @@ const routes = [
                         meta: { title: '用户权限', icon: 'User', roles: ['ROLE_ADMIN'] }
                     },
 
-                    // 日志配置
-                    {
-                        path: 'log-config',
-                        name: 'ControlLogConfig',
-                        component: () => import('@/views/System/LogConfig.vue'),
-                        meta: { title: '日志配置', icon: 'Document', roles: ['ROLE_ADMIN'] }
-                    },
+
 
                     // 审计日志
                     {

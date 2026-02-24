@@ -48,7 +48,6 @@ export const ROUTES = {
     CONTROL: {
         ROOT: '/dashboard/control',
         USERS: '/dashboard/control/users',
-        LOG_CONFIG: '/dashboard/control/log-config',
         AUDIT_LOGS: '/dashboard/control/audit-logs',
         API_MANAGEMENT: '/dashboard/control/api-management',
         PRICING: '/dashboard/control/pricing',
@@ -89,7 +88,7 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/knowledge/intelligence': ROUTES.RESOURCES.ARCHITECTURE,
 
     // 控制模块
-    '/dashboard/system/log-config': ROUTES.CONTROL.LOG_CONFIG,
+    '/dashboard/system/log-config': ROUTES.CONTROL.AUDIT_LOGS,
     '/dashboard/system/audit-logs': ROUTES.CONTROL.AUDIT_LOGS,
     '/dashboard/system/api-management': ROUTES.CONTROL.API_MANAGEMENT,
     '/dashboard/system/api-keys': ROUTES.CONTROL.API_MANAGEMENT,
@@ -215,12 +214,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'User',
             },
             {
-                title: '日志配置',
-                path: ROUTES.CONTROL.LOG_CONFIG,
-                icon: 'Document',
-            },
-            {
-                title: '审计日志',
+                title: '审计与日志',
                 path: ROUTES.CONTROL.AUDIT_LOGS,
                 icon: 'List',
             },

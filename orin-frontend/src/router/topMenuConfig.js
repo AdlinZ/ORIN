@@ -119,12 +119,7 @@ export const TOP_MENU_CONFIG = [
                 icon: 'User'
             },
             {
-                title: '日志配置',
-                path: ROUTES.CONTROL.LOG_CONFIG,
-                icon: 'Document'
-            },
-            {
-                title: '审计日志',
+                title: '审计与日志',
                 path: ROUTES.CONTROL.AUDIT_LOGS,
                 icon: 'Notebook'
             },
