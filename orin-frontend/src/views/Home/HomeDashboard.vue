@@ -77,12 +77,20 @@
           <h3 class="card-head">物理负载 / LOAD<span class="head-line"></span></h3>
           <div class="load-bars">
             <div class="l-item">
+              <div class="l-info"><span>CPU_LOAD</span><span class="l-val">{{ (hardware.cpuUsage || 0).toFixed(1) }}%</span></div>
+              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.cpuUsage + '%', background: getBarColor(hardware.cpuUsage) }"></div></div>
+            </div>
+            <div class="l-item">
               <div class="l-info"><span>GPU_LOAD</span><span class="l-val">{{ (hardware.gpuUsage || 0).toFixed(1) }}%</span></div>
               <div class="l-rail"><div class="l-fill" :style="{ width: hardware.gpuUsage + '%', background: getBarColor(hardware.gpuUsage) }"></div></div>
             </div>
             <div class="l-item">
-              <div class="l-info"><span>CPU_LOAD</span><span class="l-val">{{ (hardware.cpuUsage || 0).toFixed(1) }}%</span></div>
-              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.cpuUsage + '%', background: getBarColor(hardware.cpuUsage) }"></div></div>
+              <div class="l-info"><span>RAM_LOAD</span><span class="l-val">{{ (hardware.memoryUsage || 0).toFixed(1) }}%</span></div>
+              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.memoryUsage + '%', background: getBarColor(hardware.memoryUsage) }"></div></div>
+            </div>
+            <div class="l-item">
+              <div class="l-info"><span>DISK_LOAD</span><span class="l-val">{{ (hardware.diskUsage || 0).toFixed(1) }}%</span></div>
+              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.diskUsage + '%', background: getBarColor(hardware.diskUsage) }"></div></div>
             </div>
           </div>
         </div>
@@ -252,7 +260,7 @@ const trendData = ref([])
 
 const summary = ref({})
 const agents = ref([])
-const hardware = ref({ cpuUsage: 0, gpuUsage: 0 })
+const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0 })
 const recentLogs = ref([])
 const distribution = ref([])
 
@@ -408,7 +416,7 @@ onMounted(() => {
   position: relative;
   background: #ffffff;
   border-radius: 14px;
-  padding: 18px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(0,0,0,0.05);
@@ -416,26 +424,27 @@ onMounted(() => {
 }
 .theme-dark .premium-card { background: rgba(19, 23, 31, 0.6); border-color: rgba(255,255,255,0.06); box-shadow: none; }
 
-.card-head { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.card-head { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
 .head-line { flex: 1; height: 1px; background: rgba(148, 163, 184, 0.15); }
 
 /* CONTENT */
-.asset-bubbles { display: flex; flex-direction: column; gap: 14px; }
-.bubble-item { display: flex; align-items: center; gap: 16px; padding: 14px; border-radius: 12px; background: #f8fafc; }
+.asset-bubbles { display: flex; flex-direction: column; gap: 10px; }
+.bubble-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; background: #f8fafc; }
 .theme-dark .bubble-item { background: rgba(255,255,255,0.03); }
-.bubble-item .el-icon { font-size: 24px; color: var(--orin-primary); }
-.b-num { font-size: 20px; font-weight: 800; display: block; }
+.bubble-item .el-icon { font-size: 20px; color: var(--orin-primary); }
+.b-num { font-size: 18px; font-weight: 800; display: block; }
 .b-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; }
 
-.matrix-grid { display: grid; gap: 18px; }
+.matrix-grid { display: grid; gap: 8px; }
 .m-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; }
-.m-num { font-size: 24px; font-weight: 800; }
+.m-num { font-size: 18px; font-weight: 800; }
 .m-num.primary-text { color: var(--orin-primary); }
 .m-trend { font-size: 11px; font-weight: 800; margin-left: 8px; }
 .m-trend.up { color: #ef4444; } .m-trend.down { color: #10b981; }
 
-.load-bars { display: flex; flex-direction: column; gap: 18px; }
-.l-info { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; color: #64748b; }
+.load-bars { display: flex; flex-direction: column; gap: 10px; }
+.l-item { display: flex; flex-direction: column; gap: 4px; }
+.l-info { display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; color: #64748b; }
 .l-val { color: #1a1c21; }
 .theme-dark .l-val { color: #f9fafb; }
 .l-rail { height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }

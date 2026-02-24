@@ -16,4 +16,6 @@ public interface ModelConfigService {
     boolean testDeepSeekConnection(String endpoint, String apiKey, String model);
 
     boolean testMinimaxConnection(String endpoint, String apiKey, String model);
+
+    boolean testOllamaConnection(String endpoint, String apiKey, String model);
 }

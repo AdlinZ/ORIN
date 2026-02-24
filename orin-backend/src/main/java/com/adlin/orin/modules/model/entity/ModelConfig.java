@@ -63,6 +63,15 @@ public class ModelConfig {
     @Column(name = "system_model")
     private String systemModel;
 
+    @Column(name = "ollama_endpoint")
+    private String ollamaEndpoint;
+
+    @Column(name = "ollama_api_key")
+    private String ollamaApiKey;
+
+    @Column(name = "ollama_model")
+    private String ollamaModel;
+
     @Column(name = "auto_analysis_enabled")
     private Boolean autoAnalysisEnabled;
 
@@ -214,6 +223,30 @@ public class ModelConfig {
 
     public void setSystemModel(String systemModel) {
         this.systemModel = systemModel;
+    }
+
+    public String getOllamaEndpoint() {
+        return ollamaEndpoint;
+    }
+
+    public void setOllamaEndpoint(String ollamaEndpoint) {
+        this.ollamaEndpoint = ollamaEndpoint;
+    }
+
+    public String getOllamaApiKey() {
+        return ollamaApiKey;
+    }
+
+    public void setOllamaApiKey(String ollamaApiKey) {
+        this.ollamaApiKey = ollamaApiKey;
+    }
+
+    public String getOllamaModel() {
+        return ollamaModel;
+    }
+
+    public void setOllamaModel(String ollamaModel) {
+        this.ollamaModel = ollamaModel;
     }
 
     public Boolean getAutoAnalysisEnabled() {

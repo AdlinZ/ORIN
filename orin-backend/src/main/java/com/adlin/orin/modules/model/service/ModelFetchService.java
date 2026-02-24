@@ -21,6 +21,10 @@ public class ModelFetchService {
             return fetchSiliconFlowModels(baseUrl, apiKey);
         }
 
+        if (baseUrl.contains("11434") || baseUrl.toLowerCase().contains("ollama")) {
+            return fetchOllamaModels(baseUrl);
+        }
+
         try {
             String url = baseUrl;
             if (!url.endsWith("/models") && !url.contains("/models?")) {
@@ -134,7 +138,9 @@ public class ModelFetchService {
     private void fetchAndMerge(String url, String apiKey, String type, Map<String, Map<String, Object>> masterList) {
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(apiKey);
+            if (apiKey != null && !apiKey.isEmpty() && !"sk-placeholder".equals(apiKey)) {
+                headers.setBearerAuth(apiKey);
+            }
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -158,5 +164,73 @@ public class ModelFetchService {
         } catch (Exception e) {
             log.warn("SiliconFlow fetch failed for url {}: {}", url, e.getMessage());
         }
+    }
+
+    /**
+     * Ollama 专属抓取逻辑
+     */
+    private List<Map<String, Object>> fetchOllamaModels(String baseUrl) {
+        String url = baseUrl;
+        // Try to handle both /v1 and raw base URL
+        if (url.endsWith("/v1") || url.endsWith("/v1/")) {
+            url = url.replaceAll("/v1/?$", "") + "/api/tags";
+        } else if (!url.contains("/api/tags")) {
+            if (url.endsWith("/")) {
+                url += "api/tags";
+            } else {
+                url += "/api/tags";
+            }
+        }
+
+        try {
+            log.info("Fetching Ollama models from {}", url);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Object modelsObj = response.getBody().get("models");
+                if (modelsObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> ollamaModels = (List<Map<String, Object>>) modelsObj;
+                    List<Map<String, Object>> result = new java.util.ArrayList<>();
+
+                    for (Map<String, Object> om : ollamaModels) {
+                        Map<String, Object> model = new java.util.HashMap<>();
+                        String name = (String) om.get("name");
+                        model.put("id", name);
+                        model.put("name", name);
+
+                        // Basic type inference for Ollama
+                        if (name.contains("embed") || name.contains("bert") || name.contains("bge")) {
+                            model.put("type", "EMBEDDING");
+                        } else {
+                            model.put("type", "CHAT");
+                        }
+                        result.add(model);
+                    }
+                    return result;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch Ollama models: {}", e.getMessage());
+        }
+
+        // Fallback to OpenAI compatible /v1/models if we haven't tried it
+        if (!baseUrl.contains("/v1/models")) {
+            String openAiUrl = baseUrl;
+            if (!openAiUrl.contains("/v1")) {
+                openAiUrl = openAiUrl.endsWith("/") ? openAiUrl + "v1/models" : openAiUrl + "/v1/models";
+            } else if (!openAiUrl.contains("/models")) {
+                openAiUrl = openAiUrl.endsWith("/") ? openAiUrl + "models" : openAiUrl + "/models";
+            }
+            log.info("Ollama /api/tags failed, trying OpenAI compatible at {}", openAiUrl);
+            return fetchModelsFromApi(openAiUrl, "");
+        }
+
+        return Collections.emptyList();
     }
 }

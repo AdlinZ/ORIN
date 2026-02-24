@@ -8,6 +8,7 @@ public class AgentOnboardRequest {
     private String endpointUrl;
     private String apiKey;
     private String datasetApiKey;
+    private String providerType;
 
     public String getEndpointUrl() {
         return endpointUrl;

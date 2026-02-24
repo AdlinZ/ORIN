@@ -699,7 +699,11 @@
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { onboardAgent } from '../api/agent';
-import { testDifyConnection, testSiliconFlowConnection, testZhipuConnection, testDeepSeekConnection, testMinimaxConnection } from '../api/modelConfig';
+import { 
+  testDifyConnection, testSiliconFlowConnection, 
+  testZhipuConnection, testDeepSeekConnection, 
+  testMinimaxConnection, testOllamaConnection 
+} from '../api/modelConfig';
 import { onboardSiliconFlowAgent } from '../api/siliconFlowAgent';
 import { onboardZhipuAgent } from '../api/zhipuAgent';
 import { onboardDeepSeekAgent } from '../api/deepseekAgent';
@@ -1076,6 +1080,18 @@ const testConnection = async () => {
           } else {
             ElMessage.error('MiniMax 连接测试失败，请检查配置信息');
           }
+        } else if (form.providerType === 'local') {
+          const response = await testOllamaConnection(
+            form.endpointUrl, 
+            form.apiKey, 
+            form.model
+          );
+          if (response) {
+            ElMessage.success('Ollama 连接测试成功！');
+            connectionTested.value = true;
+          } else {
+            ElMessage.error('Ollama 连接测试失败，请确保本地 Ollama 已启动且模型已拉取');
+          }
         } else {
           ElMessage.warning('该Provider暂不支持连接测试');
         }
@@ -1139,6 +1155,15 @@ const onSubmit = async () => {
             providerType: 'MiniMax' // Backend identifies this, but we can clarify
           });
           ElMessage.success('MiniMax Agent 接入成功！');
+        } else if (form.providerType === 'local') {
+          await onboardAgent({
+            endpointUrl: form.endpointUrl, 
+            apiKey: form.apiKey, 
+            model: form.model,
+            agentName: form.agentName,
+            providerType: 'Ollama'
+          });
+          ElMessage.success('Ollama 本地 Agent 接入成功！');
         } else {
           ElMessage.warning('该Provider接入功能正在开发中');
           loading.value = false;

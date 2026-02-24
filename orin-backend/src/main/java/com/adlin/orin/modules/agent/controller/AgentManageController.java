@@ -42,11 +42,10 @@ public class AgentManageController {
         this.agentVersionService = agentVersionService;
     }
 
-    @Operation(summary = "接入新智能体(Dify)")
+    @Operation(summary = "接入新智能体")
     @PostMapping("/onboard")
     public AgentMetadata onboardAgent(@RequestBody AgentOnboardRequest request) {
-        return agentManageService.onboardAgent(request.getEndpointUrl(), request.getApiKey(),
-                request.getDatasetApiKey());
+        return agentManageService.onboardAgent(request);
     }
 
     @Operation(summary = "接入硅基流动智能体")

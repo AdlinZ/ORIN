@@ -38,6 +38,7 @@ com/adlin/orin/modules/monitor/repository/AgentMetricRepository.class
 com/adlin/orin/modules/knowledge/entity/AgentKnowledge$AgentKnowledgeBuilder.class
 com/adlin/orin/modules/knowledge/component/AgentContextAssembler.class
 com/adlin/orin/gateway/dto/ChatCompletionResponse$Delta$DeltaBuilder.class
+com/adlin/orin/modules/model/service/OllamaIntegrationService$1.class
 com/adlin/orin/modules/system/dto/UserDashboardResponse$ActivityLog$ActivityLogBuilder.class
 com/adlin/orin/modules/workflow/mapper/WorkflowMapper.class
 com/adlin/orin/modules/agent/service/DifyIntegrationService$6.class
@@ -125,6 +126,7 @@ com/adlin/orin/modules/knowledge/service/impl/StructuredServiceImpl.class
 com/adlin/orin/modules/knowledge/service/meta/MetaKnowledgeService$2.class
 com/adlin/orin/modules/knowledge/dto/KnowledgeBaseCreateRequest$KnowledgeBaseCreateRequestBuilder.class
 com/adlin/orin/modules/agent/service/DifyIntegrationService$4.class
+com/adlin/orin/modules/model/service/OllamaIntegrationService$3.class
 com/adlin/orin/modules/monitor/job/AgentStatusUpdater.class
 com/adlin/orin/modules/agent/service/provider/MinimaxProvider$1.class
 com/adlin/orin/modules/workflow/entity/WorkflowDefinition.class
@@ -152,6 +154,7 @@ com/adlin/orin/modules/apikey/controller/ApiEndpointController$UpdateEndpointReq
 com/adlin/orin/modules/agent/dto/AgentUpdateRequest.class
 com/adlin/orin/modules/workflow/dto/WorkflowResponse.class
 com/adlin/orin/modules/knowledge/component/EmbeddingService.class
+com/adlin/orin/modules/model/service/OllamaIntegrationService$2.class
 com/adlin/orin/modules/workflow/entity/WorkflowInstanceEntity$WorkflowInstanceEntityBuilder.class
 com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced.class
 com/adlin/orin/common/exception/VectorizationException.class
@@ -169,6 +172,7 @@ com/adlin/orin/modules/knowledge/entity/meta/PromptTemplate$PromptTemplateBuilde
 com/adlin/orin/modules/model/service/ModelConfigService.class
 com/adlin/orin/modules/alert/entity/AlertHistory.class
 com/adlin/orin/modules/agent/service/DifyIntegrationService$8.class
+com/adlin/orin/gateway/service/ProviderInitializer.class
 com/adlin/orin/modules/workflow/engine/handler/NodeHandler.class
 com/adlin/orin/modules/knowledge/repository/KnowledgeSkillRepository.class
 com/adlin/orin/modules/knowledge/component/MockVectorStoreProvider.class
@@ -245,6 +249,7 @@ com/adlin/orin/config/CacheMetricsConfig.class
 com/adlin/orin/modules/system/entity/SysUserRole.class
 com/adlin/orin/modules/monitor/service/PricingService$1.class
 com/adlin/orin/modules/agent/dto/AgentResponse$AgentResponseBuilder.class
+com/adlin/orin/modules/model/service/OllamaIntegrationService.class
 com/adlin/orin/modules/agent/dto/AgentListResponse$AgentSummary$AgentSummaryBuilder.class
 com/adlin/orin/modules/monitor/controller/DataFlowController$TraceView.class
 com/adlin/orin/modules/knowledge/dto/UnifiedKnowledgeDTO.class
@@ -285,6 +290,7 @@ com/adlin/orin/modules/agent/controller/AgentAdminController.class
 com/adlin/orin/modules/skill/entity/SkillEntity.class
 com/adlin/orin/modules/knowledge/entity/AgentKnowledge.class
 com/adlin/orin/modules/system/repository/LogConfigRepository.class
+com/adlin/orin/gateway/adapter/impl/OllamaProviderAdapter$1.class
 com/adlin/orin/modules/monitor/entity/ModelPricing.class
 com/adlin/orin/modules/model/service/SiliconFlowIntegrationService.class
 com/adlin/orin/gateway/adapter/impl/OpenAIProviderAdapter.class
@@ -300,6 +306,7 @@ com/adlin/orin/modules/agent/service/AgentVersionService.class
 com/adlin/orin/modules/system/controller/LogConfigController.class
 com/adlin/orin/gateway/interceptor/RateLimitInterceptor.class
 com/adlin/orin/modules/agent/service/impl/AgentManageServiceImpl$2.class
+com/adlin/orin/gateway/adapter/impl/OllamaProviderAdapter.class
 com/adlin/orin/modules/agent/controller/AgentManageController.class
 com/adlin/orin/modules/workflow/engine/WorkflowEngine.class
 com/adlin/orin/modules/system/dto/UserDashboardResponse$StatCard.class
@@ -323,6 +330,7 @@ com/adlin/orin/modules/model/service/DeepSeekIntegrationService$3.class
 com/adlin/orin/modules/apikey/controller/ApiKeyController$ApiKeyResponse.class
 com/adlin/orin/modules/runtime/repository/AgentLogRepository.class
 com/adlin/orin/modules/workflow/engine/handler/StartNodeHandler.class
+com/adlin/orin/modules/model/service/ModelFetchService$3.class
 com/adlin/orin/modules/workflow/repository/WorkflowNodeRepository.class
 com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced$1.class
 com/adlin/orin/modules/knowledge/dto/AgentRunConfig$AgentRunConfigBuilder.class

@@ -98,7 +98,11 @@ public class RouterService {
             return selectProviderByType("openai", request);
         } else if (modelName.startsWith("dify-")) {
             return selectProviderByType("dify", request);
-        } else if (modelName.contains("local")) {
+        } else if (modelName.contains("local") || modelName.contains("llama") || modelName.contains("qwen")) {
+            // Priority for Ollama if it involves local models
+            Optional<ProviderAdapter> ollama = selectProviderByType("ollama", request);
+            if (ollama.isPresent())
+                return ollama;
             return selectProviderByType("local", request);
         }
 

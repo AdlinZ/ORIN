@@ -78,4 +78,18 @@ public class ModelConfigController {
             return false;
         }
     }
+
+    @Operation(summary = "测试Ollama连接")
+    @PostMapping("/test-ollama-connection")
+    public Boolean testOllamaConnection(
+            @RequestParam String endpoint,
+            @RequestParam(required = false) String apiKey,
+            @RequestParam(required = false) String model) {
+        try {
+            return modelConfigService.testOllamaConnection(endpoint, apiKey, model != null ? model : "llama3");
+        } catch (Exception e) {
+            log.error("测试Ollama连接时发生错误: ", e);
+            return false;
+        }
+    }
 }

@@ -161,6 +161,40 @@
                 </el-col>
               </el-row>
             </el-card>
+            
+            <!-- Ollama Local Model Configuration -->
+            <el-card shadow="never" class="premium-card local-card" style="margin-top: 24px;">
+              <template #header>
+                <div class="card-header">
+                  <div class="header-left">
+                    <el-icon><Monitor /></el-icon>
+                    <span>Ollama 本地模型配置</span>
+                  </div>
+                  <el-button type="primary" link @click="onTestOllamaConnection" :loading="ollamaTestLoading">
+                    测试连接
+                  </el-button>
+                </div>
+              </template>
+              
+              <el-row :gutter="20">
+                <el-col :span="24">
+                  <el-form-item label="Ollama API Endpoint" prop="ollamaEndpoint">
+                    <el-input v-model.trim="form.ollamaEndpoint" placeholder="http://localhost:11434">
+                      <template #prefix><el-icon><Link /></el-icon></template>
+                    </el-input>
+                    <p class="input-desc">本地 Ollama 服务的访问地址</p>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="24">
+                   <el-form-item label="默认本地模型" prop="ollamaModel">
+                    <el-input v-model.trim="form.ollamaModel" placeholder="llama3">
+                      <template #prefix><el-icon><Service /></el-icon></template>
+                    </el-input>
+                    <p class="input-desc">本地环境默认调度的模型名称</p>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </el-card>
 
           <!-- Multimodal Configuration Card -->
           <el-card shadow="never" class="premium-card multimodal-card" style="margin-top: 24px;">
@@ -339,7 +373,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
   getModelConfig, updateModelConfig, 
   testDifyConnection, testSiliconFlowConnection,
-  testZhipuConnection, testDeepSeekConnection 
+  testZhipuConnection, testDeepSeekConnection, testOllamaConnection
 } from '@/api/modelConfig';
 import request from '@/utils/request';
 
@@ -347,6 +381,7 @@ const formRef = ref(null);
 const loading = ref(false);
 const testLoading = ref(false);
 const sfTestLoading = ref(false);
+const ollamaTestLoading = ref(false);
 const difyTestLoading = ref(false);
 const lastTestSuccess = ref(false);
 const initialForm = ref({}); 
@@ -374,6 +409,9 @@ const form = reactive({
   vlmModel: '',
   embeddingModel: '',
   systemModel: '',
+  ollamaEndpoint: 'http://localhost:11434',
+  ollamaApiKey: '',
+  ollamaModel: 'llama3',
   autoAnalysisEnabled: true
 });
 
@@ -498,6 +536,28 @@ const onTestDifyConnection = async () => {
   } finally {
     difyTestLoading.value = false;
   }
+};
+
+const onTestOllamaConnection = async () => {
+    if (!form.ollamaEndpoint) {
+        return ElMessage.warning('请先输入 Ollama API 地址');
+    }
+    ollamaTestLoading.value = true;
+    try {
+        const response = await testOllamaConnection(form.ollamaEndpoint, form.ollamaApiKey, form.ollamaModel || 'llama3');
+        if (response) {
+            ElMessage.success('Ollama 连接测试成功！');
+            lastTestSuccess.value = true;
+        } else {
+            ElMessage.error('Ollama 连接测试失败，请确保本地已启动 Ollama 且模型已拉取');
+            lastTestSuccess.value = false;
+        }
+    } catch (e) {
+        ElMessage.error('Ollama 连接测试失败: ' + (e.response?.data?.message || e.message));
+        lastTestSuccess.value = false;
+    } finally {
+        ollamaTestLoading.value = false;
+    }
 };
 
 const fetchData = async () => {

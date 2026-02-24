@@ -54,7 +54,19 @@ public class MilvusVectorService implements VectorStoreProvider {
     private com.adlin.orin.modules.knowledge.component.EmbeddingService embeddingService;
 
     @PostConstruct
-    public void initCollection() {
+    public void init() {
+        // Run initialization in background to avoid blocking server startup if Milvus
+        // is down
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            log.info("Starting asynchronous Milvus collection initialization...");
+            initCollection();
+        }).exceptionally(ex -> {
+            log.error("Background Milvus initialization failed: {}", ex.getMessage());
+            return null;
+        });
+    }
+
+    private void initCollection() {
         MilvusServiceClient client = null;
         try {
             client = createClient();

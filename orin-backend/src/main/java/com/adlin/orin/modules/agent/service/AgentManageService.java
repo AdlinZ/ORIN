@@ -18,6 +18,13 @@ public interface AgentManageService {
     AgentMetadata onboardAgent(String endpointUrl, String apiKey, String datasetApiKey);
 
     /**
+     * 接入新智能体 (Onboarding - 增强版)
+     */
+    default AgentMetadata onboardAgent(com.adlin.orin.modules.agent.dto.AgentOnboardRequest request) {
+        return onboardAgent(request.getEndpointUrl(), request.getApiKey(), request.getDatasetApiKey());
+    }
+
+    /**
      * 更新智能体配置
      * 
      * @param agentId     智能体ID

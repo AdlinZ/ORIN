@@ -1,7 +1,23 @@
 <template>
   <div class="page-container">
     <div class="dashboard-layout">
-      <!-- Left Column: Config Center (Fixed Width) -->
+      <!-- Main Content: Chat Window -->
+      <div class="chat-main">
+        <div class="chat-wrapper">
+          <component 
+            :is="activeRunner" 
+            :agentId="agentId" 
+            :agentInfo="agentInfo"
+            :parameters="currentParameters"
+            :logs="logs"
+            @refresh-logs="fetchLogs"
+          />
+        </div>
+      </div>
+
+      
+      <!-- Right Column: Config Center (Fixed Width) -->
+
       <div class="config-sidebar">
         <el-card shadow="never" class="sidebar-card">
           <template #header>
@@ -9,8 +25,7 @@
               <div class="header-left">
                 <el-button link :icon="ArrowLeft" @click="$router.push(ROUTES.APPLICATIONS.AGENTS)" class="back-btn" />
                 <div class="agent-brand">
-                  <span class="agent-name-text">{{ agentInfo.agentName || editForm.name }}</span>
-                  <span class="view-tag">{{ getViewLabel(agentInfo.viewType || currentMode) }}</span>
+                  
                 </div>
               </div>
               <div class="header-actions">
@@ -19,234 +34,246 @@
             </div>
           </template>
           
-          <el-form :model="editForm" label-position="top" size="small" class="compact-form">
-            <div class="config-group">
-              <h4 class="group-title">基础定义</h4>
-              <el-form-item label="智能体名称">
-                <el-input v-model="editForm.name" />
-              </el-form-item>
-              <el-form-item label="核心模型架构">
-                <el-input v-model="editForm.model" />
-              </el-form-item>
-            </div>
-
-
-            <!-- 聊天模型参数 (仅对话模型显示) -->
-            <div class="config-group" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
-              <h4 class="group-title">推理参数</h4>
-              <div class="param-item">
-                <div class="param-label">
-                  <span>多样性 (Temperature)</span>
-                  <span class="param-value">{{ editForm.temperature }}</span>
-                </div>
-                <el-slider v-model="editForm.temperature" :min="0" :max="2" :step="0.1" />
+          <el-form :model="editForm" label-position="top" size="default" class="playground-form">
+            <!-- Group 1: Identity -->
+            <div class="config-section">
+              <div class="section-header">
+                <el-icon><Menu /></el-icon>
+                <span>基础设置</span>
               </div>
-              <div class="param-item">
-                <div class="param-label">
-                  <span>核采样 (Top P)</span>
-                  <span class="param-value">{{ editForm.topP }}</span>
-                </div>
-                <el-slider v-model="editForm.topP" :min="0" :max="1" :step="0.1" />
-              </div>
-
-              <div class="thinking-box">
-                <div class="thinking-header">
-                  <span>启用深度思考 (Thinking)</span>
-                  <el-switch v-model="editForm.enableThinking" size="small" />
-                </div>
-                <div v-if="editForm.enableThinking" class="thinking-budget">
-                  <div class="param-label">思考预算 (Tokens)</div>
-                  <el-input-number v-model="editForm.thinkingBudget" :min="0" :max="64000" :step="1024" controls-position="right" style="width: 100%" size="small" />
-                </div>
+              <div class="section-content">
+                <el-form-item label="名称">
+                  <el-input v-model="editForm.name" placeholder="设置智能体名称" />
+                </el-form-item>
+                <el-form-item label="模型">
+                  <el-input v-model="editForm.model" placeholder="核心模型架构" />
+                </el-form-item>
               </div>
             </div>
 
-            <!-- 图像生成参数 -->
-            <div class="config-group" v-if="isImageGenerationAgent">
-              <h4 class="group-title">图像生成参数</h4>
-              
-              <el-form-item label="图像尺寸 (Image Size)">
-                <el-select v-model="editForm.imageSize" size="small" style="width: 100%">
-                  <el-option label="正方形 1:1 (1328x1328)" value="1328x1328" />
-                  <el-option label="横屏 16:9 (1664x928)" value="1664x928" />
-                  <el-option label="竖屏 9:16 (928x1664)" value="928x1664" />
-                  <el-option label="标准 4:3 (1472x1140)" value="1472x1140" />
-                  <el-option label="标准 3:4 (1140x1472)" value="1140x1472" />
-                  <el-option label="经典 3:2 (1584x1056)" value="1584x1056" />
-                  <el-option label="经典 2:3 (1056x1584)" value="1584x1056" />
-                </el-select>
-              </el-form-item>
-
-              <div class="param-item">
-                <div class="param-label">
-                  <span>随机种子 (Seed)</span>
-                  <span class="param-value">{{ editForm.seed || '随机生成' }}</span>
-                </div>
-                <el-input v-model="editForm.seed" placeholder="留空则随机生成" size="small">
-                  <template #append>
-                    <el-button :icon="Refresh" @click="generateRandomSeed" size="small" />
-                  </template>
-                </el-input>
+            <!-- Group 2: Parameters (Conditional) -->
+            <div class="config-section" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
+              <div class="section-header">
+                <el-icon><Operation /></el-icon>
+                <span>推理参数</span>
               </div>
-
-              <div class="param-item">
-                <div class="param-label">
-                  <span>引导程度 (CFG Scale)</span>
-                  <span class="param-value">{{ editForm.guidanceScale || 7.5 }}</span>
+              <div class="section-content">
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="label-with-icon">
+                      <el-icon><Operation /></el-icon>
+                      <span class="label">Temperature</span>
+                    </div>
+                    <span class="value-badge">{{ editForm.temperature }}</span>
+                  </div>
+                  <el-slider v-model="editForm.temperature" :min="0" :max="2" :step="0.1" class="custom-slider" />
+                  <div class="param-desc">控制回复的随机性，值越高越具创造力。</div>
                 </div>
-                <el-slider v-model="editForm.guidanceScale" :min="1" :max="20" :step="0.5" />
-              </div>
 
-              <div class="param-item">
-                <div class="param-label">
-                  <span>推理步数 (Steps)</span>
-                  <span class="param-value">{{ editForm.inferenceSteps || 20 }}</span>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="label-with-icon">
+                      <el-icon><Operation /></el-icon>
+                      <span class="label">Top P</span>
+                    </div>
+                    <span class="value-badge">{{ editForm.topP }}</span>
+                  </div>
+                  <el-slider v-model="editForm.topP" :min="0" :max="1" :step="0.1" class="custom-slider" />
+                  <div class="param-desc">核采样阈值，限制模型只考虑概率前 P 的 Token。</div>
                 </div>
-                <el-slider v-model="editForm.inferenceSteps" :min="1" :max="50" :step="1" />
-              </div>
 
-              <el-form-item label="反向提示词 (Negative Prompt)">
+                <div class="thinking-toggle-card">
+                  <div class="toggle-row">
+                    <div class="toggle-info">
+                      <span class="toggle-title">深度思考</span>
+                      <span class="toggle-desc">启用推理链输出 (Thinking)</span>
+                    </div>
+                    <el-switch v-model="editForm.enableThinking" />
+                  </div>
+                  <el-collapse-transition>
+                    <div v-if="editForm.enableThinking" class="toggle-extra">
+                      <div class="param-label">思考预算 (Tokens)</div>
+                      <el-input-number v-model="editForm.thinkingBudget" :min="0" :max="64000" :step="1024" controls-position="right" class="full-width-input" />
+                    </div>
+                  </el-collapse-transition>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group 3: Prompts -->
+            <div class="config-section" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
+              <div class="section-header">
+                <el-icon><ChatDotRound /></el-icon>
+                <span>人设指令</span>
+              </div>
+              <div class="section-content">
+                <div class="prompt-header-row">
+                  <span class="sub-label">System Prompt</span>
+                  <el-select v-model="selectedPromptTemplate" placeholder="模板" size="small" class="template-select" @change="applyPromptTemplate">
+                    <el-option v-for="t in promptTemplates" :key="t.id" :label="t.name" :value="t.content" />
+                  </el-select>
+                </div>
                 <el-input 
-                  v-model="editForm.negativePrompt" 
+                  v-model="editForm.systemPrompt" 
                   type="textarea" 
-                  :rows="3" 
-                  placeholder="在此处描述不希望在画面中出现的内容..."
-                  size="small"
+                  :rows="8" 
+                  placeholder="定义智能体的身份、回复风格和约束条件..."
+                  class="prompt-textarea"
                 />
-              </el-form-item>
+              </div>
+            </div>
+
+            <!-- Image/Video/TTS specific sections could be simplified similarly if needed, 
+                 but keeping them in current cards for now as requested to focus on chat -->
+          
+            <div class="config-section" v-if="isImageGenerationAgent">
+              <div class="section-header">
+                <el-icon><Operation /></el-icon>
+                <span>图像生成参数</span>
+              </div>
+              <div class="section-content">
+                <div class="param-group">
+                  <el-form-item label="图像尺寸 (Image Size)" style="margin-bottom: 8px;">
+                    <el-select v-model="editForm.imageSize" size="small" style="width: 100%">
+                      <el-option label="正方形 1:1 (1328x1328)" value="1328x1328" />
+                      <el-option label="横屏 16:9 (1664x928)" value="1664x928" />
+                      <el-option label="竖屏 9:16 (928x1664)" value="928x1664" />
+                      <el-option label="标准 4:3 (1472x1140)" value="1472x1140" />
+                      <el-option label="标准 3:4 (1140x1472)" value="1140x1472" />
+                      <el-option label="经典 3:2 (1584x1056)" value="1584x1056" />
+                      <el-option label="经典 2:3 (1056x1584)" value="1584x1056" />
+                    </el-select>
+                  </el-form-item>
+
+                  <div class="param-header" style="margin-top: 8px;">
+                    <div class="label-with-icon">
+                      <span>随机种子 (Seed)</span>
+                    </div>
+                  </div>
+                  <el-input v-model="editForm.seed" placeholder="留空则随机生成" size="small">
+                    <template #append>
+                      <el-button :icon="Refresh" @click="generateRandomSeed" size="small" />
+                    </template>
+                  </el-input>
+
+                  <div class="param-header" style="margin-top: 16px;">
+                    <div class="label-with-icon">
+                      <span>引导程度 (CFG Scale)</span>
+                    </div>
+                    <span class="value-badge">{{ editForm.guidanceScale || 7.5 }}</span>
+                  </div>
+                  <el-slider v-model="editForm.guidanceScale" :min="1" :max="20" :step="0.5" class="custom-slider" />
+
+                  <div class="param-header" style="margin-top: 16px;">
+                    <div class="label-with-icon">
+                      <span>推理步数 (Steps)</span>
+                    </div>
+                    <span class="value-badge">{{ editForm.inferenceSteps || 20 }}</span>
+                  </div>
+                  <el-slider v-model="editForm.inferenceSteps" :min="1" :max="50" :step="1" class="custom-slider" />
+
+                  <el-form-item label="反向提示词 (Negative Prompt)" style="margin-top: 16px; margin-bottom: 0;">
+                    <el-input 
+                      v-model="editForm.negativePrompt" 
+                      type="textarea" 
+                      :rows="3" 
+                      placeholder="在此处描述不希望在画面中出现的内容..."
+                      size="small"
+                    />
+                  </el-form-item>
+                </div>
+              </div>
             </div>
 
             <!-- 视频生成参数 -->
-            <div class="config-group" v-if="isTTVAgent">
-              <h4 class="group-title">视频生成参数</h4>
-              
-              <el-form-item label="视频比例 (Aspect Ratio)" v-if="!editForm.model?.includes('I2V')">
-                <el-radio-group v-model="editForm.videoSize" size="small">
-                  <el-radio-button value="16:9" label="16:9" />
-                  <el-radio-button value="9:16" label="9:16" />
-                  <el-radio-button value="1:1" label="1:1" />
-                </el-radio-group>
-              </el-form-item>
-
-              <div class="param-item">
-                <div class="param-label">
-                  <span>随机种子 (Seed)</span>
-                  <span class="param-value">{{ editForm.seed || '随机' }}</span>
-                </div>
-                <el-input v-model="editForm.seed" placeholder="留空则随机" size="small">
-                  <template #append>
-                    <el-button :icon="Refresh" @click="generateRandomSeed" size="small" />
-                  </template>
-                </el-input>
+            <div class="config-section" v-if="isTTVAgent">
+              <div class="section-header">
+                <el-icon><Operation /></el-icon>
+                <span>视频生成参数</span>
               </div>
+              <div class="section-content">
+                <div class="param-group">
+                  <el-form-item label="视频比例 (Aspect Ratio)" v-if="!editForm.model?.includes('I2V')" style="margin-bottom: 8px;">
+                    <el-radio-group v-model="editForm.videoSize" size="small">
+                      <el-radio-button value="16:9" label="16:9" />
+                      <el-radio-button value="9:16" label="9:16" />
+                      <el-radio-button value="1:1" label="1:1" />
+                    </el-radio-group>
+                  </el-form-item>
 
-              <el-form-item label="反向提示词 (Negative Prompt)">
-                <el-input 
-                  v-model="editForm.negativePrompt" 
-                  type="textarea" 
-                  :rows="2" 
-                  placeholder="不希望出现的内容..."
-                  size="small"
-                />
-              </el-form-item>
+                  <div class="param-header" style="margin-top: 8px;">
+                    <div class="label-with-icon">
+                      <span>随机种子 (Seed)</span>
+                    </div>
+                  </div>
+                  <el-input v-model="editForm.seed" placeholder="留空则随机" size="small">
+                    <template #append>
+                      <el-button :icon="Refresh" @click="generateRandomSeed" size="small" />
+                    </template>
+                  </el-input>
+
+                  <el-form-item label="反向提示词 (Negative Prompt)" style="margin-top: 16px; margin-bottom: 0;">
+                    <el-input 
+                      v-model="editForm.negativePrompt" 
+                      type="textarea" 
+                      :rows="2" 
+                      placeholder="不希望出现的内容..."
+                      size="small"
+                    />
+                  </el-form-item>
+                </div>
+              </div>
             </div>
 
             <!-- TTS Parameters -->
-            <div class="config-group" v-if="isTTSAgent">
-              <div class="group-header">
-                <h4 class="group-title">语音合成配置</h4>
+            <div class="config-section" v-if="isTTSAgent">
+              <div class="section-header">
+                <el-icon><Microphone /></el-icon>
+                <span>语音合成配置</span>
               </div>
-              
+              <div class="section-content">
+                <div class="param-group">
+                  <el-form-item label="音色 (Voice)" style="margin-bottom: 8px;">
+                     <el-select v-model="editForm.voice" placeholder="请选择音色" size="small" style="width: 100%" filterable allow-create clearable>
+                        <el-option label="Alex" value="alex" />
+                        <el-option label="Anna" value="anna" />
+                        <el-option label="Bella" value="bella" /> 
+                        <el-option label="Benjamin" value="benjamin" />
+                        <el-option label="Charles" value="charles" />
+                        <el-option label="David" value="david" />
+                     </el-select>
+                     <div class="param-desc" style="margin-top: 4px;">具体可用音色取决于所选模型能力</div>
+                  </el-form-item>
 
-              <el-form-item label="音色 (Voice)">
-                 <el-select v-model="editForm.voice" placeholder="请选择音色" filterable allow-create clearable>
-                    <el-option label="Alex" value="alex" />
-                    <el-option label="Anna" value="anna" />
-                    <el-option label="Bella" value="bella" /> 
-                    <el-option label="Benjamin" value="benjamin" />
-                    <el-option label="Charles" value="charles" />
-                    <el-option label="David" value="david" />
-                 </el-select>
-                 <div class="help-text text-xs text-gray-400 mt-1">具体可用音色取决于所选模型能力</div>
-              </el-form-item>
+                  <div class="param-header" style="margin-top: 16px;">
+                    <div class="label-with-icon">
+                      <span>语速 (Speed)</span>
+                    </div>
+                    <span class="value-badge">{{ editForm.speed || 1.0 }}x</span>
+                  </div>
+                  <el-slider v-model="editForm.speed" :min="0.5" :max="2.0" :step="0.1" class="custom-slider" />
+                  
+                  <div class="param-header" style="margin-top: 16px;">
+                    <div class="label-with-icon">
+                      <span>音量增益 (Gain)</span>
+                    </div>
+                    <span class="value-badge">{{ editForm.gain || 0 }} dB</span>
+                  </div>
+                  <el-slider v-model="editForm.gain" :min="-10" :max="10" :step="1" class="custom-slider" />
 
-              <div class="param-item">
-                <div class="param-label">
-                  <span>语速 (Speed)</span>
-                  <span class="param-value">{{ editForm.speed || 1.0 }}x</span>
+                  <div class="param-desc" style="margin-top: 8px;" v-if="editForm.model && editForm.model.includes('MOSS')">
+                    提示: MOSS 对话标记如 [S1] 可指定发言人。此处音色字段为可选。
+                  </div>
                 </div>
-                <el-slider v-model="editForm.speed" :min="0.5" :max="2.0" :step="0.1" />
-              </div>
-              
-               <div class="param-item">
-                <div class="param-label">
-                  <span>音量增益 (Gain)</span>
-                  <span class="param-value">{{ editForm.gain || 0 }} dB</span>
-                </div>
-                <el-slider v-model="editForm.gain" :min="-10" :max="10" :step="1" />
-              </div>
-              <div class="help-text text-xs text-gray-400 mt-2" v-if="editForm.model && editForm.model.includes('MOSS')">
-                提示: MOSS 对话标记如 [S1] 可指定发言人。此处音色字段为可选。
               </div>
             </div>
 
-            <!-- System Prompt (仅聊天模型显示) -->
-            <div class="config-group" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
-              <div class="group-header">
-                <h4 class="group-title">系统提示词 (System Prompt)</h4>
-                <el-select v-model="selectedPromptTemplate" placeholder="模板" size="small" style="width: 70px;" @change="applyPromptTemplate">
-                  <el-option v-for="t in promptTemplates" :key="t.id" :label="t.name" :value="t.content" />
-                </el-select>
-              </div>
-              <el-input 
-                v-model="editForm.systemPrompt" 
-                type="textarea" 
-                :rows="8" 
-                placeholder="在此处输入对智能体的角色定义与回复指南..."
-              />
-            </div>
+            
           </el-form>
         </el-card>
       </div>
 
-      <!-- Right Column: Chat Window -->
-      <div class="chat-main">
-        <div class="chat-wrapper">
-          <component 
-            :is="activeRunner" 
-            :agentId="agentId" 
-            :agentInfo="agentInfo"
-            :parameters="currentParameters"
-          />
-        </div>
-
-        <div class="logs-drawer" :class="{ 'collapsed': !logsExpanded }">
-          <div class="logs-header" @click="logsExpanded = !logsExpanded">
-            <span class="title"><el-icon><Tickets /></el-icon> 运行时日志</span>
-            <div class="logs-actions">
-              <el-button link size="small" :icon="Refresh" @click.stop="fetchLogs" />
-              <el-icon class="expand-icon"><ArrowUp v-if="!logsExpanded"/><ArrowDown v-else/></el-icon>
-            </div>
-          </div>
-          <div class="log-stream" v-if="logsExpanded">
-            <template v-for="(log, index) in logs" :key="index">
-              <div class="log-entry" :class="log.type">
-                <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-                <span class="log-tag">[{{ log.type }}]</span>
-                <span class="log-msg"><span class="prefix req">REQ:</span> {{ log.content }}</span>
-              </div>
-              <div v-if="log.response" class="log-entry resp" :class="log.type">
-                <span class="log-time" style="visibility: hidden">{{ formatTime(log.timestamp) }}</span>
-                <span class="log-tag" style="visibility: hidden">[{{ log.type }}]</span>
-                <span class="log-msg"><span class="prefix res">RES:</span> {{ log.response }}</span>
-              </div>
-            </template>
-            <div v-if="logs.length === 0" class="empty-logs">暂无运行日志</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- History Sidebar (Right) for non-chat or toggle -->
+            <!-- History Sidebar (Right) for non-chat or toggle -->
       <div class="history-sidebar" v-if="showHistorySidebar">
          <div class="history-header">
            <span><el-icon><Clock /></el-icon> 执行历史</span>
@@ -394,7 +421,9 @@ const currentParameters = computed(() => {
   return {
     temperature: editForm.value.temperature,
     topP: editForm.value.topP,
-    systemPrompt: editForm.value.systemPrompt
+    systemPrompt: editForm.value.systemPrompt,
+    enableThinking: editForm.value.enableThinking,
+    thinkingBudget: editForm.value.thinkingBudget
   };
 });
 
@@ -700,43 +729,51 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   padding: 0;
-  height: calc(100vh - 88px); /* 100vh - 64px(nav) - 24px(layout padding) */
-  background: var(--neutral-gray-50);
+  height: calc(100vh - 64px); 
+  background: #fcfcfc;
+  overflow: hidden;
 }
 
 .dashboard-layout {
   height: 100%;
   display: flex;
-  gap: 0; 
-  padding: 0;
   width: 100%;
 }
 
-/* Sidebar Styling - More Compact */
+/* Playground Sidebar (Left) */
 .config-sidebar {
-  width: 280px;
+  width: 320px;
   height: 100%;
-  border-right: 1px solid #eee;
-  background: white;
+  border-right: 1px solid #f0f0f0;
+  background: #ffffff;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  order: -1;
 }
 
 .sidebar-card {
   height: 100%;
-  height: 100%;
-  border-radius: 0;
   border: none;
-  box-shadow: none;
+  border-radius: 0 !important; /* Force remove radius */
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-card :deep(.el-card) {
+  border-radius: 0 !important;
 }
 
 .sidebar-card :deep(.el-card__header) {
-  padding: 8px 12px;
+  padding: 16px;
+  background: #fff;
+  border-bottom: 1px solid #f5f5f5;
 }
 
 .sidebar-card :deep(.el-card__body) {
-  padding: 12px;
+  padding: 16px;
+  flex: 1;
   overflow-y: auto;
-  height: calc(100% - 50px);
 }
 
 .sidebar-header {
@@ -745,204 +782,259 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  overflow: hidden;
-}
-
 .agent-brand {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .agent-name-text {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--neutral-gray-900);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
 }
 
 .view-tag {
   font-size: 11px;
-  color: var(--neutral-gray-500);
-  font-weight: 500;
+  color: #8c8c8c;
 }
 
-.back-btn { font-size: 16px; margin-right: -4px; }
-
-.header-actions { display: flex; align-items: center; gap: 4px; }
-
-.compact-form :deep(.el-form-item) {
-  margin-bottom: 8px;
+/* Playground Form Enhancements */
+.playground-form {
+  padding: 8px 0;
 }
-.compact-form :deep(.el-form-item__label) {
-  margin-bottom: 0 !important;
+
+.config-section {
+  margin-bottom: 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Borderless Inputs with Light Fill */
+.playground-form :deep(.el-input__wrapper),
+.playground-form :deep(.el-textarea__inner) {
+  background-color: #f4f4f5 !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: background-color 0.2s;
+}
+
+.playground-form :deep(.el-input__wrapper:hover),
+.playground-form :deep(.el-textarea__inner:hover) {
+  background-color: #e9e9eb !important;
+}
+
+.playground-form :deep(.el-form-item__label) {
   font-size: 12px;
-  color: #666;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 4px !important;
 }
 
-.config-group { margin-bottom: 16px; }
+/* Parameter Group Styling */
+.param-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-.group-header {
+.param-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #606266;
+  font-weight: 600;
+}
+
+.value-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fb923c; /* Brand Orange */
+  background: #fff7ed;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #ffedd5;
+}
+
+.param-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+/* Custom Slider */
+.custom-slider :deep(.el-slider__runway) {
+  height: 6px;
+  background-color: #f4f4f5;
+}
+.custom-slider :deep(.el-slider__bar) {
+  height: 6px;
+  background-color: #0d9488;
+}
+.custom-slider :deep(.el-slider__button) {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #0d9488;
+}
+
+/* Thinking Toggle Card */
+.thinking-toggle-card {
+  background: #f9fafb;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.toggle-desc {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.toggle-extra {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.full-width-input {
+  width: 100%;
+}
+
+/* Prompt Section */
+.prompt-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
 }
 
-.group-title {
-  font-size: 11px;
-  color: var(--orin-primary);
-  margin: 0;
-  text-transform: uppercase;
-  font-weight: 800;
+.sub-label {
+  font-size: 12px;
+  color: #606266;
 }
 
-.param-item { margin-bottom: 8px; }
-
-.param-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  margin-bottom: 2px;
+.template-select {
+  width: 70px;
 }
 
-.param-value { color: var(--orin-primary); font-weight: 700; }
-
-.thinking-box {
-  background: #f8f9fa;
-  border-radius: 4px;
-  padding: 8px;
-  border: 1px solid #eee;
+.prompt-textarea :deep(.el-textarea__inner) {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
-.thinking-header { display: flex; justify-content: space-between; font-size: 11px; }
-
-.thinking-budget { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee; }
-
-/* Chat Main - Balanced Height */
+/* Main Content Area */
 .chat-main {
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 8px;
-  padding: 12px;
-  overflow: hidden;
+  background: #fff;
 }
 
 .chat-wrapper {
   flex: 1;
-  background: white;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  background: white;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #eaeaea;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  height: 100%;
+  position: relative;
 }
 
-.monitor-bar {
-  padding: 6px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  display: flex;
-  justify-content: space-between;
-  background: white;
-}
-
-.monitor-left, .monitor-right { display: flex; gap: 4px; }
-
-.status-tag { border-radius: 3px; scale: 0.9; transform-origin: left; }
-
-.monitor-tag {
-  border: none !important;
-  background: #f5f5f5 !important;
-  font-size: 11px;
-}
-
-.chat-history {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-  background: #fcfcfc;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-bubble {
-  max-width: 90%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-
-.chat-bubble.user { align-self: flex-end; background: var(--orin-primary); color: white; }
-.chat-bubble.assistant { align-self: flex-start; background: white; border: 1px solid #efefef; }
-
-.bot-info { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; font-weight: 700; font-size: 10px; color: var(--orin-primary); }
-
-.chat-input-area { padding: 12px; border-top: 1px solid #eee; }
-
-/* Logs - Minimalist */
+/* Fixed Bottom Area for Logs */
 .logs-drawer {
-  background: #111;
-  border-radius: 8px;
-  overflow: hidden;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid #f0f0f0;
+  transition: transform 0.3s ease;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
 }
 
-.logs-drawer.collapsed { height: 32px; }
+.logs-drawer.collapsed {
+  transform: translateX(100%);
+}
 
 .logs-header {
-  height: 32px;
-  padding: 0 12px;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
-  background: #1a1a1a;
-  color: #777;
-  font-size: 10px;
 }
 
 .log-stream {
-  height: 120px;
-  padding: 8px;
+  flex: 1;
+  padding: 12px;
   overflow-y: auto;
-  font-family: monospace;
+  font-family: 'Fira Code', monospace;
   font-size: 11px;
+  background: #fafafa;
 }
 
-.log-entry { margin-bottom: 4px; display: flex; gap: 8px; line-height: 1.4; }
-.log-entry.resp { margin-top: -2px; opacity: 0.85; }
-.log-entry.ERROR { color: #f44747; }
-.log-time { color: #aaa; margin-right: 8px; white-space: nowrap; }
-.log-tag { color: #5555ff; margin-right: 8px; min-width: 60px; }
-.log-msg { color: #eee; flex: 1; word-break: break-all; }
-.prefix { font-weight: bold; margin-right: 4px; font-size: 10px; }
-.prefix.req { color: #4fc1ff; }
-.prefix.res { color: #9cdcfe; }
+.log-entry { margin-bottom: 8px; line-height: 1.4; }
+.log-entry.INFO { color: #52c41a; }
+.log-entry.ERROR { color: #f5222d; }
+.log-tag { font-weight: 700; margin-right: 4px; }
+.prefix { font-weight: 700; margin-right: 4px; border-radius: 2px; padding: 0 2px; }
+.prefix.req { background: #e6f7ff; color: #1890ff; }
+.prefix.res { background: #f6ffed; color: #52c41a; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #d9d9d9; }
+
 
 /* History Sidebar */
 .history-sidebar {
   width: 260px;
   background: white;
   border-left: 1px solid #eee;
-  display: flex;
   flex-direction: column;
 }
 .history-header {

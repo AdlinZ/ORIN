@@ -1,51 +1,53 @@
 <template>
-  <div class="runner-container">
-    <!-- Top Result Area -->
-    <div class="result-section">
-      <div class="result-placeholder" v-if="!videoUrl && !isProcessing">
-        <el-icon :size="48"><VideoCamera /></el-icon>
-        <p>输入提示词并点击生成以开始</p>
-        <div class="hint-text">视频生成通常需要 1-3 分钟</div>
-      </div>
-      
-      <div class="processing-placeholder" v-if="isProcessing">
-        <div class="loading-wrapper">
-          <div class="wave-loader">
-            <span></span><span></span><span></span><span></span><span></span>
+  <div class="playground-stage">
+    <!-- Main Content: Canvas -->
+    <div class="canvas-container">
+      <div class="canvas-inner" :class="{ 'has-video': videoUrl && !isProcessing }">
+        <!-- Result Placeholder / History Watermark -->
+        <div v-if="!videoUrl && !isProcessing" class="empty-canvas">
+          <div class="orin-watermark">
+            <img src="/logo.png" alt="ORIN" class="watermark-logo" />
+            <div class="watermark-text">ORIN Motion</div>
           </div>
-          <el-icon class="is-loading" :size="32"><Loading /></el-icon>
+          <div class="empty-hint">输入场景描述或上传首帧参考图，开始导演之旅</div>
         </div>
-        <p>正在努力生成视频中...</p>
-        <div class="status-tips">{{ statusTip }}</div>
-      </div>
 
-      <div class="video-result" v-if="videoUrl && !isProcessing">
-        <video 
-          ref="videoPlayer"
-          :src="videoUrl" 
-          controls
-          autoplay
-          loop
-          class="generated-video"
-        ></video>
-        <div class="result-actions">
-          <el-button link type="primary" @click="downloadVideo">
-            <el-icon><Download /></el-icon> 下载视频
-          </el-button>
-          <el-button link type="primary" @click="shareVideo">
-            <el-icon><Share /></el-icon> 分享
-          </el-button>
+        <!-- Generation Progress -->
+        <div v-if="isProcessing" class="canvas-loading">
+          <div class="loading-animation">
+            <div class="pulse-container">
+              <div class="pulse-ring"></div>
+              <el-icon class="is-loading brand-icon"><VideoCamera /></el-icon>
+            </div>
+            <p class="loading-text">{{ statusTip }}</p>
+            <div class="wave-loader">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
         </div>
-      </div>
-      
-      <div v-if="error" class="error-wrapper">
-        <el-alert :title="error" type="error" :closable="false" show-icon />
+
+        <!-- Result Canvas -->
+        <div class="result-canvas" v-if="videoUrl && !isProcessing">
+          <video 
+            ref="videoPlayer"
+            :src="videoUrl" 
+            controls
+            autoplay
+            loop
+            class="main-generated-video"
+          ></video>
+          
+          <div class="canvas-actions">
+            <el-button type="default" size="small" @click="downloadVideo" :icon="Download">保存视频</el-button>
+            <el-button type="default" size="small" @click="shareVideo" :icon="Share">分享</el-button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Bottom Input Area -->
-    <div class="input-area">
-      <!-- Image Upload Area for I2V (Wan2.1-I2V, etc.) -->
+    <!-- Floating Input Area -->
+    <div class="input-framer">
+      <!-- Image Upload Area for I2V -->
       <div v-if="isI2V" class="image-upload-row">
         <div class="upload-box" :class="{ 'has-image': referenceImage }">
           <el-upload
@@ -64,74 +66,71 @@
             </div>
             <div v-else class="upload-placeholder">
               <el-icon class="uploader-icon"><Plus /></el-icon>
-              <span>待上传参考图</span>
+              <span>待上传视频首帧</span>
             </div>
           </el-upload>
-          
           <div v-if="referenceImage" class="remove-ref" @click.stop="removeReferenceImage">
             <el-icon><Close /></el-icon>
           </div>
         </div>
-        
         <div class="upload-info">
           <div class="upload-title">参考图 (Image Reference)</div>
           <div class="upload-desc">上传一张图片作为视频的第一帧或参考风格。Wan-I2V 模型必备。</div>
         </div>
       </div>
 
-      <div class="prompt-input-wrapper">
-        <div class="input-main">
-          <el-input
-            v-model="prompt"
-            placeholder="描述视频中发生的动作、场景和风格..."
-            type="textarea"
-            :rows="3"
-            resize="none"
-            class="prompt-textarea"
-          />
-          <el-button 
-            type="primary" 
-            class="generate-btn" 
-            :loading="isProcessing" 
-            @click="handleGenerate"
-            :disabled="!prompt || (isI2V && !referenceImage)"
-          >
-            <div class="btn-content">
-              <el-icon :size="24"><MagicStick /></el-icon>
-              <span>开始生成</span>
-            </div>
-          </el-button>
-        </div>
+      <!-- Prompt Suggestion Tags -->
+      <div class="prompt-tags" v-if="!prompt">
+        <span class="tag-title">常用创意:</span>
+        <el-tag 
+          v-for="s in filteredSuggestions" 
+          :key="s" 
+          class="clickable-tag"
+          @click="prompt = s"
+          effect="plain"
+          size="small"
+        >{{ s }}</el-tag>
       </div>
-      
-      <!-- Prompt Suggestions -->
-      <div class="footer-row">
-        <div class="suggestions">
-          <span class="label">常用提示:</span>
-          <div class="tag-list">
-            <el-tag 
-              v-for="s in filteredSuggestions" 
-              :key="s" 
-              size="small" 
-              effect="light" 
-              round
-              class="suggestion-tag"
-              @click="prompt = s"
+
+      <div class="input-card">
+        <el-input
+          v-model="prompt"
+          type="textarea"
+          :autosize="{ minRows: 2, maxRows: 6 }"
+          placeholder="描述视频发生的动作、场景和风格..."
+          class="chat-textarea"
+          resize="none"
+        />
+        <div class="input-footer">
+          <div class="footer-left">
+            <el-button link class="tool-btn"><el-icon><Operation /></el-icon></el-button>
+            <el-button link class="tool-btn"><el-icon><MagicStick /></el-icon></el-button>
+          </div>
+          <div class="footer-right">
+            <el-button 
+              type="primary" 
+              class="generate-btn"
+              @click="handleGenerate"
+              :loading="isProcessing"
+              :disabled="!prompt || (isI2V && !referenceImage)"
             >
-              {{ s }}
-            </el-tag>
+              <el-icon style="margin-right: 6px;"><VideoCamera /></el-icon>
+              开始生成视频
+            </el-button>
           </div>
         </div>
       </div>
     </div>
+
+    <div v-if="error" class="error-toast">{{ error }}</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import { 
   VideoCamera, Loading, Download, Share, MagicStick, 
-  Plus, Close, Refresh, Warning 
+  Plus, Close, Refresh, Operation
 } from '@element-plus/icons-vue';
 import { useAgentInteraction } from '../composables/useAgentInteraction';
 import { ElMessage } from 'element-plus';
@@ -146,6 +145,7 @@ const prompt = ref('');
 const referenceImage = ref('');
 const referenceFileId = ref('');
 const statusTip = ref('正在链接服务器...');
+const tipTimer = ref(null);
 
 const { isProcessing, result, dataType, error, interact } = useAgentInteraction(props.agentId);
 
@@ -156,440 +156,154 @@ const isI2V = computed(() => {
 
 const videoUrl = computed(() => {
     if (!result.value) return '';
-    
-    // SiliconFlow 状态接口成功后返回 body: { status: 'Succeed', results: [{ url: '...' }] }
-    // useAgentInteraction 会映射 body.results[0] 到 result.value
-    if (result.value.url) return result.value.url;
-    if (result.value.video_url) return result.value.video_url;
-    
-    return '';
+    return result.value.url || result.value.video_url || '';
 });
 
-const statusTips = [
-    '正在排队中...',
-    'AI 正在构思场景...',
-    '渲染光影效果中...',
-    '正在生成流畅动作...',
-    '正在进行最后压缩...'
-];
-let tipTimer = null;
-
-const startStatusTips = () => {
-    let i = 0;
-    statusTip.value = statusTips[0];
-    tipTimer = setInterval(() => {
-        i = (i + 1) % statusTips.length;
-        statusTip.value = statusTips[i];
-    }, 15000); // 视频生成比较慢，间隔长一点
-};
-
-const stopStatusTips = () => {
-    if (tipTimer) clearInterval(tipTimer);
-};
-
-const suggestions = [
-    '电影质感，赛博朋克风格的街道，霓虹灯闪烁，下着小雨。',
-    '一只可爱的小猫在草地上追逐蝴蝶，温暖的阳光。',
-    '宏伟的雪山延时摄影，云海快速流动，电影级光效。',
-    '一个宇航员在火星表面行走，红色的沙尘暴正在逼近。',
-    '二次元动漫风格，少女在樱花树下奔跑，花瓣飞舞。'
-];
-
-const i2vSuggestions = [
-    '让图片中的人物微笑并挥手示意。',
-    '图片中的背景云朵缓缓飘动，阳光洒下。',
-    '镜头缓慢向图片中心平滑推入。',
-    '让图片中的水面泛起涟漪，倒影波动。'
-];
-
-const filteredSuggestions = computed(() => {
-    return isI2V.value ? i2vSuggestions : suggestions;
-});
+const statusTipsList = ['正在排队中...', 'AI 正在构思场景...', '渲染月影光效...', '生成流畅动作...', '完成最后润色...'];
 
 const handleGenerate = async () => {
     if (!prompt.value) return;
     if (isI2V.value && !referenceImage.value) {
-        ElMessage.warning('请先上传参考图');
+        ElMessage.warning('请先上传基础参考图');
         return;
     }
     
-    startStatusTips();
+    let tipIdx = 0;
+    statusTip.value = statusTipsList[0];
+    tipTimer.value = setInterval(() => {
+        tipIdx = (tipIdx + 1) % statusTipsList.length;
+        statusTip.value = statusTipsList[tipIdx];
+    }, 8000);
     
     const payload = {
         prompt: prompt.value,
         model: props.parameters?.model || props.agentInfo?.modelName,
         seed: props.parameters?.seed ? parseInt(props.parameters.seed) : undefined,
-        negative_prompt: props.parameters?.negativePrompt,
     };
-    
-    // For I2V
-    if (isI2V.value) {
-        payload.reference_image = referenceImage.value; // SiliconFlow requires URL
-    }
+    if (isI2V.value) payload.reference_image = referenceImage.value;
     
     await interact(payload);
-    stopStatusTips();
+    clearInterval(tipTimer.value);
+};
+
+const suggestions = ['梦幻般的极光照亮寂静的针叶林', '清晨雨后的鹅卵石小道，雾气缭绕', '宇航员在荒芜的土卫六表面滑行'];
+const i2vSuggestions = ['让图中的溪流水面缓慢泛起涟漪', '给图中静态的人物加上微微的笑容', '背景中的落叶在风中零星飘动'];
+const filteredSuggestions = computed(() => isI2V.value ? i2vSuggestions : suggestions);
+
+const handleUploadSuccess = (res) => {
+    if (res.id || res.url) {
+        referenceFileId.value = res.id;
+        referenceImage.value = res.url.startsWith('http') ? res.url : `${window.location.origin}/api/v1/multimodal/files/${res.id}/download`;
+        ElMessage.success('首帧图片采样成功');
+    }
 };
 
 const beforeUpload = (file) => {
-  const isJPG = file.type === 'image/jpeg' || file.type === 'image/png';
-  const isLt5M = file.size / 1024 / 1024 < 5;
-
-  if (!isJPG) {
-    ElMessage.error('参考图只能是 JPG 或 PNG 格式!');
-  }
-  if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB!');
-  }
-  return isJPG && isLt5M;
+    const isImg = file.type === 'image/jpeg' || file.type === 'image/png';
+    if (!isImg) ElMessage.error('仅支持 JPG/PNG 格式图片');
+    return isImg;
 };
 
-const handleUploadSuccess = (response) => {
-  // Assume response is { id: '...', url: '...' } or matches our saved format
-  if (response.id || response.url) {
-    referenceFileId.value = response.id;
-    // We need the full URL for SiliconFlow API
-    // If it's a relative path, prepend API base or use the download URL
-    referenceImage.value = response.url.startsWith('http') 
-        ? response.url 
-        : `${window.location.origin}/api/v1/multimodal/files/${response.id}/download`;
-    ElMessage.success('图片上传成功');
-  }
-};
-
-const removeReferenceImage = () => {
-    referenceImage.value = '';
-    referenceFileId.value = '';
-};
-
-const downloadVideo = () => {
-    if (videoUrl.value) {
-        const a = document.createElement('a');
-        a.href = videoUrl.value;
-        a.download = `video-${Date.now()}.mp4`;
-        a.target = '_blank';
-        a.click();
-    }
-};
-
+const removeReferenceImage = () => { referenceImage.value = ''; referenceFileId.value = ''; };
+const downloadVideo = () => videoUrl.value && window.open(videoUrl.value, '_blank');
 const shareVideo = () => {
-    if (videoUrl.value) {
-        navigator.clipboard.writeText(videoUrl.value);
-        ElMessage.success('视频链接已复制到剪贴板');
-    }
+    if (videoUrl.value) { navigator.clipboard.writeText(videoUrl.value); ElMessage.success('视频资产已复制'); }
 };
 
-onUnmounted(() => {
-    stopStatusTips();
-});
-
+onUnmounted(() => tipTimer.value && clearInterval(tipTimer.value));
 </script>
 
 <style scoped>
-.runner-container {
-    padding: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: #fcfcfc;
+.playground-stage {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f9fafb;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Result Section */
-.result-section {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    position: relative;
-    background: #111; /* Dark background for video */
-    margin: 20px;
-    border-radius: 12px;
-    box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
-}
-
-.result-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    color: #666;
-    text-align: center;
-}
-
-.hint-text {
-    font-size: 12px;
-    opacity: 0.6;
-}
-
-.processing-placeholder {
-    color: #fff;
-    text-align: center;
-}
-
-.loading-wrapper {
-    margin-bottom: 24px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.status-tips {
-    margin-top: 12px;
-    font-size: 13px;
-    color: #409eff;
-    font-style: italic;
-}
-
-.video-result {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.generated-video {
-    max-width: 100%;
-    max-height: 100%;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.result-actions {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(10px);
-    padding: 6px 16px;
-    border-radius: 24px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-.result-actions :deep(.el-button) {
-    color: #fff;
-}
-
-/* Input Area */
-.input-area {
-    padding: 0 24px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.image-upload-row {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 12px;
-    background: #fff;
-    border: 1px solid #efefef;
-    border-radius: 12px;
-}
-
-.upload-box {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    flex-shrink: 0;
-}
-
-.reference-uploader :deep(.el-upload) {
-    width: 100px;
-    height: 100px;
-    border: 1px dashed #dcdfe6;
-    border-radius: 8px;
-    cursor: pointer;
-    overflow: hidden;
-    background: #f9f9f9;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.reference-uploader :deep(.el-upload:hover) {
-    border-color: #409eff;
-}
-
-.ref-preview {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.ref-img-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
-}
-
-.ref-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5);
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-size: 12px;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.ref-img-container:hover .ref-overlay {
-    opacity: 1;
-}
-
-.upload-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 11px;
-    color: #909399;
-}
-
-.remove-ref {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 20px;
-    height: 20px;
-    background: #f56c6c;
-    color: #fff;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    z-index: 10;
-}
-
-.upload-info {
-    flex: 1;
-}
-
-.upload-title {
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 4px;
-}
-
-.upload-desc {
-    font-size: 12px;
-    color: #909399;
-    line-height: 1.4;
-}
-
-/* Prompt Input */
-.input-main {
-    display: flex;
-    gap: 12px;
-}
-
-.prompt-textarea :deep(.el-textarea__inner) {
-    border-radius: 12px;
-    padding: 12px 16px;
-    background: #fff;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.03);
-    border: 1px solid #efefef;
-}
-
-.generate-btn {
-    width: 120px;
-    height: auto;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-weight: 700;
-}
-
-.btn-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Suggestions */
-.footer-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.suggestions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.suggestions .label {
-    font-size: 12px;
-    color: #909399;
-    white-space: nowrap;
-}
-
-.tag-list {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.suggestion-tag {
-    cursor: pointer;
-    transition: all 0.2s;
-    background: #fff;
-}
-
-.suggestion-tag:hover {
-    background: #ecf5ff;
-    border-color: #409eff;
-    transform: translateY(-1px);
-}
-
-.error-wrapper {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-}
-
-/* Loader Animation */
-.wave-loader {
+.canvas-container {
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 4px;
-  position: absolute;
-  width: 100px;
-  height: 100px;
+  padding: 40px 40px 240px 40px;
 }
 
-.wave-loader span {
-  width: 4px;
-  height: 20px;
-  background: #409eff;
-  animation: wave 1s infinite ease-in-out;
+.canvas-inner {
+  width: 100%;
+  max-width: 900px;
+  min-height: 500px;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.4s;
 }
+.canvas-inner.has-video { background: #000; border: none; }
 
+.empty-canvas { display: flex; flex-direction: column; align-items: center; }
+.orin-watermark { display: flex; flex-direction: column; align-items: center; opacity: 0.1; filter: grayscale(1); }
+.watermark-logo { width: 100px; margin-bottom: 12px; }
+.watermark-text { font-size: 28px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; color: #000; }
+.empty-hint { margin-top: 32px; color: #9ca3af; font-size: 15px; }
+
+.canvas-loading { display: flex; flex-direction: column; align-items: center; z-index: 10; }
+.pulse-container { position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+.pulse-ring { position: absolute; width: 100%; height: 100%; border: 4px solid #0d9488; border-radius: 50%; animation: pulse 2s infinite cubic-bezier(0.215, 0.61, 0.355, 1); }
+@keyframes pulse { 0% { transform: scale(0.33); opacity: 0; } 25% { opacity: 0.1; } 50% { transform: scale(1); opacity: 0; } 100% { opacity: 0; } }
+.brand-icon { font-size: 32px; color: #0d9488; }
+.loading-text { font-size: 14px; color: #64748b; font-weight: 600; margin-bottom: 16px; }
+
+.wave-loader { display: flex; gap: 4px; }
+.wave-loader span { width: 3px; height: 12px; background: #0d9488; animation: wave 1s infinite ease-in-out; }
 .wave-loader span:nth-child(2) { animation-delay: 0.1s; }
 .wave-loader span:nth-child(3) { animation-delay: 0.2s; }
-.wave-loader span:nth-child(4) { animation-delay: 0.3s; }
-.wave-loader span:nth-child(5) { animation-delay: 0.4s; }
+@keyframes wave { 0%, 40%, 100% { transform: scaleY(0.4); } 20% { transform: scaleY(1); } }
 
-@keyframes wave {
-  0%, 40%, 100% { transform: scaleY(0.4); }
-  20% { transform: scaleY(1); }
+.result-canvas { width: 100%; height: 100%; position: relative; }
+.main-generated-video { width: 100%; height: 100%; object-fit: contain; }
+.canvas-actions {
+  position: absolute; bottom: 20px; right: 20px;
+  display: flex; gap: 8px; background: rgba(255,255,255,0.2); backdrop-filter: blur(12px);
+  padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
 }
+.canvas-actions :deep(.el-button) { color: #fff; border: none; background: transparent; }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.input-framer { position: absolute; bottom: 24px; left: 0; right: 0; padding: 0 24px; z-index: 100; }
+.image-upload-row { 
+    max-width: 860px; margin: 0 auto 16px auto; 
+    display: flex; align-items: center; gap: 16px; 
+    padding: 12px; background: #fff; border: 1px solid #eef0f3; border-radius: 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
 }
+.upload-box { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+.reference-uploader :deep(.el-upload) { width: 64px; height: 64px; border: 2px dashed #e2e8f0; border-radius: 12px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+.ref-preview { width: 100%; height: 100%; object-fit: cover; }
+.upload-placeholder { font-size: 10px; color: #94a3b8; text-align: center; }
+.remove-ref { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; background: #ef4444; color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 10px; cursor: pointer; }
+.upload-info { flex: 1; }
+.upload-title { font-size: 13px; font-weight: 700; color: #1e293b; }
+.upload-desc { font-size: 11px; color: #64748b; }
+
+.prompt-tags { max-width: 860px; margin: 0 auto 12px auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tag-title { font-size: 12px; font-weight: 700; color: #9ca3af; margin-right: 4px; }
+.clickable-tag { cursor: pointer; border-radius: 12px; transition: all 0.2s; }
+.clickable-tag:hover { background: #0d9488; color: #fff; border-color: #0d9488; }
+
+.input-card { max-width: 860px; margin: 0 auto; background: #ffffff; border: 1px solid #d1d5db; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
+.chat-textarea :deep(.el-textarea__inner) { border: none; box-shadow: none; padding: 20px; font-size: 15px; }
+.input-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #f3f4f6; }
+.generate-btn { padding: 10px 24px; border-radius: 12px; font-weight: 700; background: #0d9488 !important; border: none !important; }
+
+.error-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #ef4444; color: #fff; padding: 8px 20px; border-radius: 20px; font-size: 13px; z-index: 2000; }
 </style>

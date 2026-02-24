@@ -54,3 +54,11 @@ export function testMinimaxConnection(endpoint, apiKey, model) {
         params: { endpoint, apiKey, model }
     })
 }
+
+export function testOllamaConnection(endpoint, apiKey, model) {
+    return request({
+        url: '/model-config/test-ollama-connection',
+        method: 'post',
+        params: { endpoint, apiKey, model }
+    })
+}

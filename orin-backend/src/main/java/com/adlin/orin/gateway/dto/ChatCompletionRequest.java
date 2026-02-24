@@ -99,6 +99,11 @@ public class ChatCompletionRequest {
         private String content;
 
         /**
+         * 思考内容（可选，针对推理模型如 DeepSeek-R1 / Ollama）
+         */
+        private String thinking;
+
+        /**
          * 消息名称（可选）
          */
         private String name;

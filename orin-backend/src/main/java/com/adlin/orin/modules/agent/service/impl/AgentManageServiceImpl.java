@@ -24,6 +24,7 @@ import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
+import com.adlin.orin.modules.model.service.OllamaIntegrationService;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -48,6 +49,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final DifyIntegrationService difyIntegrationService;
     private final SiliconFlowIntegrationService siliconFlowIntegrationService;
     private final MinimaxIntegrationService minimaxIntegrationService;
+    private final OllamaIntegrationService ollamaIntegrationService;
     private final AgentAccessProfileRepository accessProfileRepository;
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
@@ -72,10 +74,12 @@ public class AgentManageServiceImpl implements AgentManageService {
             MetaKnowledgeService metaKnowledgeService,
             com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
             MinimaxIntegrationService minimaxIntegrationService,
+            OllamaIntegrationService ollamaIntegrationService,
             List<MultiModalProvider> providers) {
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.minimaxIntegrationService = minimaxIntegrationService;
+        this.ollamaIntegrationService = ollamaIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
@@ -127,17 +131,22 @@ public class AgentManageServiceImpl implements AgentManageService {
 
     @Override
     @CacheEvict(value = "agent_list", allEntries = true)
-    public AgentMetadata onboardAgent(String endpointUrl, String apiKey, String datasetApiKey) {
-        log.info("Attempting to onboard agent from: {}", endpointUrl);
+    public AgentMetadata onboardAgent(com.adlin.orin.modules.agent.dto.AgentOnboardRequest request) {
+        String endpointUrl = request.getEndpointUrl();
+        String apiKey = request.getApiKey();
+        String datasetApiKey = request.getDatasetApiKey();
+        String model = request.getModel();
+        String providerType = request.getProviderType();
+
+        log.info("Attempting to onboard agent from: {} (Provider explicitly set to: {})", endpointUrl, providerType);
 
         // 1. Identify Provider
-        String provider = identifyProvider(endpointUrl);
+        String provider = identifyProvider(endpointUrl, providerType);
         log.info("Identified provider: {}", provider);
 
-        // 2. Validate Connection & Fetch Basic Info (External API Call via Integration
-        // Service)
-        String agentName;
-        String modelName;
+        // 2. Validate Connection & Fetch Basic Info
+        String agentName = request.getName();
+        String modelName = model;
 
         if ("DIFY".equals(provider)) {
             if (!difyIntegrationService.testConnection(endpointUrl, apiKey)) {
@@ -186,6 +195,15 @@ public class AgentManageServiceImpl implements AgentManageService {
             }
             agentName = "MiniMax Agent";
             modelName = "abab6.5g-chat";
+        } else if ("Ollama".equals(provider)) {
+            String targetModel = (modelName != null && !modelName.isEmpty()) ? modelName : "llama3";
+            if (!ollamaIntegrationService.testConnection(endpointUrl, apiKey, targetModel)) {
+                throw new RuntimeException("Failed to connect to Ollama agent (make sure Ollama is running)");
+            }
+            if (agentName == null || agentName.equals("新智能体")) {
+                agentName = "Ollama Local Agent (" + targetModel + ")";
+            }
+            modelName = targetModel;
         } else {
             throw new RuntimeException("Unsupported provider or unable to identify");
         }
@@ -253,16 +271,46 @@ public class AgentManageServiceImpl implements AgentManageService {
         return metadata;
     }
 
+    @Override
+    public AgentMetadata onboardAgent(String endpointUrl, String apiKey, String datasetApiKey) {
+        com.adlin.orin.modules.agent.dto.AgentOnboardRequest request = new com.adlin.orin.modules.agent.dto.AgentOnboardRequest();
+        request.setEndpointUrl(endpointUrl);
+        request.setApiKey(apiKey);
+        request.setDatasetApiKey(datasetApiKey);
+        return onboardAgent(request);
+    }
+
     private String identifyProvider(String url) {
-        if (url.contains("dify.ai") || url.contains("3000") || url.contains("8080")) {
-            return "DIFY";
-        } else if (url.contains("siliconflow")) {
-            return "SiliconFlow";
-        } else if (url.contains("deepseek")) {
-            return "DeepSeek";
-        } else if (url.contains("minimax")) {
-            return "MiniMax";
+        return identifyProvider(url, null);
+    }
+
+    private String identifyProvider(String url, String explicitProvider) {
+        if (explicitProvider != null) {
+            if (explicitProvider.equalsIgnoreCase("Ollama") || explicitProvider.equalsIgnoreCase("local")) {
+                return "Ollama";
+            }
+            if (explicitProvider.equalsIgnoreCase("Dify")) {
+                return "DIFY";
+            }
+            if (explicitProvider.equalsIgnoreCase("SiliconFlow")) {
+                return "SiliconFlow";
+            }
+            if (explicitProvider.equalsIgnoreCase("MiniMax")) {
+                return "MiniMax";
+            }
         }
+
+        if (url == null)
+            return "UNKNOWN";
+        String lowerUrl = url.toLowerCase();
+        if (lowerUrl.contains("ollama") || lowerUrl.contains("11434"))
+            return "Ollama";
+        if (lowerUrl.contains("siliconflow"))
+            return "SiliconFlow";
+        if (lowerUrl.contains("deepseek"))
+            return "DeepSeek";
+        if (lowerUrl.contains("minimax"))
+            return "MiniMax";
         return "DIFY"; // Default fallback
     }
 
@@ -785,6 +833,71 @@ public class AgentManageServiceImpl implements AgentManageService {
         }
     }
 
+    private java.util.Optional<Object> chatWithOllama(AgentAccessProfile profile, AgentMetadata metadata,
+            String message, String fileId, String overrideSystemPrompt, String conversationId,
+            Boolean enableThinking, Integer thinkingBudget) {
+
+        java.util.List<java.util.Map<String, Object>> messages = new java.util.ArrayList<>();
+
+        // 1. Dynamic System Prompt Assembly
+        String dynamicSystemPrompt;
+        if (overrideSystemPrompt != null && !overrideSystemPrompt.trim().isEmpty()) {
+            dynamicSystemPrompt = overrideSystemPrompt;
+        } else {
+            dynamicSystemPrompt = metaKnowledgeService.assembleSystemPrompt(metadata.getAgentId());
+            if (dynamicSystemPrompt.trim().isEmpty() && metadata.getSystemPrompt() != null) {
+                dynamicSystemPrompt = metadata.getSystemPrompt();
+            }
+        }
+
+        if (dynamicSystemPrompt != null && !dynamicSystemPrompt.isEmpty()) {
+            StringBuilder finalPrompt = new StringBuilder(dynamicSystemPrompt);
+            // If thinking is disabled, explicitly tell the model not to use reasoning tags
+            if (enableThinking != null && !enableThinking) {
+                finalPrompt.append(
+                        "\nImportant: Do not output your reasoning or thinking process. Go straight to the final answer. Do not use <thought> or <reasoning> tags.");
+            }
+            messages.add(java.util.Map.of("role", "system", "content", finalPrompt.toString()));
+        } else if (enableThinking != null && !enableThinking) {
+            messages.add(java.util.Map.of("role", "system", "content",
+                    "Do not output your reasoning or thinking process. Go straight to the final answer. Do not use <thought> or <reasoning> tags."));
+        }
+
+        // 2. Add History
+        try {
+            java.util.List<AuditLog> historyLogs = (conversationId != null && !conversationId.isEmpty())
+                    ? auditLogService.getRecentConversationLogs(conversationId, 10)
+                    : auditLogService.getRecentAgentLogs(metadata.getAgentId(), 10);
+
+            for (AuditLog logItem : historyLogs) {
+                if (logItem.getRequestParams() != null && !logItem.getRequestParams().isEmpty()) {
+                    messages.add(java.util.Map.of("role", "user", "content", logItem.getRequestParams()));
+                }
+                if (logItem.getResponseContent() != null && !logItem.getResponseContent().isEmpty()) {
+                    messages.add(java.util.Map.of("role", "assistant", "content", logItem.getResponseContent()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to retrieve chat history for Ollama context: {}", e.getMessage());
+        }
+
+        // 3. Add User Message
+        messages.add(java.util.Map.of("role", "user", "content", message));
+
+        double temperature = metadata.getTemperature() != null ? metadata.getTemperature() : 0.7;
+        double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.9;
+        int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 512;
+
+        return ollamaIntegrationService.sendMessageWithFullParams(
+                profile.getEndpointUrl(),
+                profile.getApiKey(),
+                metadata.getModelName(),
+                messages,
+                temperature,
+                topP,
+                maxTokens);
+    }
+
     @Override
     public java.util.Optional<Object> chat(String agentId, String message, String fileId) {
         return chat(agentId, message, fileId, null);
@@ -898,6 +1011,10 @@ public class AgentManageServiceImpl implements AgentManageService {
                     response = chatWithSiliconFlow(profile, metadata, message, fileId, overrideSystemPrompt,
                             conversationId, enableThinking, thinkingBudget);
                 }
+            } else if ("Ollama".equalsIgnoreCase(providerType)) {
+                log.info("Routing to Ollama interaction for agent {}", agentId);
+                response = chatWithOllama(profile, metadata, message, fileId, overrideSystemPrompt, conversationId,
+                        enableThinking, thinkingBudget);
             } else {
                 MultiModalProvider provider = providerMap.get(providerType != null ? providerType.toUpperCase() : "");
                 if (provider != null) {
@@ -946,6 +1063,57 @@ public class AgentManageServiceImpl implements AgentManageService {
                                 responseContent = "[视频生成任务已提交]";
                             } else if (dataMap.containsKey("text")) {
                                 responseContent = (String) dataMap.get("text");
+                            } else if (dataMap.containsKey("message")
+                                    && dataMap.get("message") instanceof java.util.Map) {
+                                // Handle Ollama native format (/api/chat)
+                                java.util.Map<?, ?> msgMap = (java.util.Map<?, ?>) dataMap.get("message");
+                                responseContent = (String) msgMap.get("content");
+
+                                // Extract thinking process from either message or root
+                                String thinking = null;
+                                if (msgMap.containsKey("thinking")) {
+                                    thinking = (String) msgMap.get("thinking");
+                                } else if (dataMap.containsKey("thinking")) {
+                                    thinking = (String) dataMap.get("thinking");
+                                }
+
+                                // Always create a structured response for the frontend
+                                java.util.Map<String, Object> enrichedResponse = new java.util.HashMap<>(
+                                        (java.util.Map<String, Object>) respMap);
+                                java.util.List<java.util.Map<String, Object>> choices = new java.util.ArrayList<>();
+                                java.util.Map<String, Object> choice = new java.util.HashMap<>();
+                                java.util.Map<String, Object> messageObj = new java.util.HashMap<>();
+                                messageObj.put("role", "assistant");
+                                messageObj.put("content", responseContent);
+                                if (thinking != null && (enableThinking == null || enableThinking)) {
+                                    messageObj.put("thinking", thinking);
+                                }
+                                choice.put("message", messageObj);
+                                choices.add(choice);
+                                enrichedResponse.put("choices", choices);
+                                response = java.util.Optional.of(enrichedResponse);
+                            } else if (dataMap.containsKey("response")) {
+                                // Handle Ollama /api/generate format
+                                responseContent = (String) dataMap.get("response");
+                                String thinking = null;
+                                if (dataMap.containsKey("thinking")) {
+                                    thinking = (String) dataMap.get("thinking");
+                                }
+
+                                java.util.Map<String, Object> enrichedResponse = new java.util.HashMap<>(
+                                        (java.util.Map<String, Object>) respMap);
+                                java.util.List<java.util.Map<String, Object>> choices = new java.util.ArrayList<>();
+                                java.util.Map<String, Object> choice = new java.util.HashMap<>();
+                                java.util.Map<String, Object> messageObj = new java.util.HashMap<>();
+                                messageObj.put("role", "assistant");
+                                messageObj.put("content", responseContent);
+                                if (thinking != null) {
+                                    messageObj.put("thinking", thinking);
+                                }
+                                choice.put("message", messageObj);
+                                choices.add(choice);
+                                enrichedResponse.put("choices", choices);
+                                response = java.util.Optional.of(enrichedResponse);
                             } else {
                                 responseContent = respMap.toString();
                             }

@@ -5,6 +5,7 @@ import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.model.service.ZhipuIntegrationService;
 import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
 import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
+import com.adlin.orin.modules.model.service.OllamaIntegrationService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
 import com.adlin.orin.modules.model.repository.ModelConfigRepository;
 import com.adlin.orin.modules.model.service.ModelConfigService;
@@ -24,6 +25,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     private final ZhipuIntegrationService zhipuIntegrationService;
     private final DeepSeekIntegrationService deepSeekIntegrationService;
     private final MinimaxIntegrationService minimaxIntegrationService;
+    private final OllamaIntegrationService ollamaIntegrationService;
 
     @Autowired
     public ModelConfigServiceImpl(ModelConfigRepository modelConfigRepository,
@@ -31,13 +33,15 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             SiliconFlowIntegrationService siliconFlowIntegrationService,
             ZhipuIntegrationService zhipuIntegrationService,
             DeepSeekIntegrationService deepSeekIntegrationService,
-            MinimaxIntegrationService minimaxIntegrationService) {
+            MinimaxIntegrationService minimaxIntegrationService,
+            OllamaIntegrationService ollamaIntegrationService) {
         this.modelConfigRepository = modelConfigRepository;
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.zhipuIntegrationService = zhipuIntegrationService;
         this.deepSeekIntegrationService = deepSeekIntegrationService;
         this.minimaxIntegrationService = minimaxIntegrationService;
+        this.ollamaIntegrationService = ollamaIntegrationService;
     }
 
     @Override
@@ -74,6 +78,8 @@ public class ModelConfigServiceImpl implements ModelConfigService {
         // Multimodal defaults
         defaultConfig.setVlmModel("Qwen/Qwen2-VL-72B-Instruct");
         defaultConfig.setEmbeddingModel("BAAI/bge-m3");
+        defaultConfig.setOllamaEndpoint("http://localhost:11434");
+        defaultConfig.setOllamaModel("llama3");
         defaultConfig.setAutoAnalysisEnabled(true);
 
         return modelConfigRepository.save(defaultConfig);
@@ -115,6 +121,13 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             existing.setVlmModel(config.getVlmModel());
             existing.setEmbeddingModel(config.getEmbeddingModel());
             existing.setAutoAnalysisEnabled(config.getAutoAnalysisEnabled());
+
+            // Update Ollama configuration
+            existing.setOllamaEndpoint(config.getOllamaEndpoint());
+            if (config.getOllamaApiKey() != null) {
+                existing.setOllamaApiKey(config.getOllamaApiKey());
+            }
+            existing.setOllamaModel(config.getOllamaModel());
 
             return modelConfigRepository.save(existing);
         } else {
@@ -169,6 +182,16 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             return minimaxIntegrationService.testConnection(endpoint, apiKey, model);
         } catch (Exception e) {
             log.error("Error testing MiniMax connection: ", e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean testOllamaConnection(String endpoint, String apiKey, String model) {
+        try {
+            return ollamaIntegrationService.testConnection(endpoint, apiKey, model);
+        } catch (Exception e) {
+            log.error("Error testing Ollama connection: ", e);
             return false;
         }
     }
