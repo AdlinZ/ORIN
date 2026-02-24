@@ -700,9 +700,40 @@ public class AgentManageServiceImpl implements AgentManageService {
                     params);
 
             if (res.isPresent()) {
+                Map<String, Object> dataObj = (Map<String, Object>) res.get();
+                if (dataObj.containsKey("images")) {
+                    try {
+                        java.util.List<Map<String, Object>> images = (java.util.List<Map<String, Object>>) dataObj
+                                .get("images");
+                        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                        for (Map<String, Object> img : images) {
+                            String url = (String) img.get("url");
+                            if (url != null && url.startsWith("http")) {
+                                try {
+                                    byte[] imgData = restTemplate.getForObject(url, byte[].class);
+                                    if (imgData != null) {
+                                        String filename = "genimg_" + UUID.randomUUID().toString() + ".png";
+                                        com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
+                                                .uploadFile(imgData, filename, "image/png",
+                                                        "agent:" + metadata.getAgentId());
+                                        img.put("url", "/api/v1/multimodal/files/" + savedFile.getId() + "/download");
+                                        if (img.containsKey("url")) {
+                                            img.put("original_url", url);
+                                        }
+                                    }
+                                } catch (Exception ex) {
+                                    log.error("Failed to download or persist image from SiliconFlow: " + url, ex);
+                                }
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Could not process images field", ex);
+                    }
+                }
+
                 Map<String, Object> result = new HashMap<>();
                 result.put("status", "SUCCESS");
-                result.put("data", res.get());
+                result.put("data", dataObj);
                 result.put("dataType", "IMAGE");
                 return java.util.Optional.of(result);
             }
@@ -1055,12 +1086,12 @@ public class AgentManageServiceImpl implements AgentManageService {
                                             : respMap;
 
                             if (dataMap.containsKey("images") || "IMAGE".equals(respMap.get("dataType"))) {
-                                responseContent = "[图像生成成功]";
+                                responseContent = new ObjectMapper().writeValueAsString(dataMap);
                             } else if (dataMap.containsKey("audio_url") || "AUDIO".equals(respMap.get("dataType"))) {
-                                responseContent = "[语音合成成功]";
+                                responseContent = new ObjectMapper().writeValueAsString(dataMap);
                             } else if (dataMap.containsKey("video_url") || dataMap.containsKey("requestId")
                                     || "VIDEO".equals(respMap.get("dataType"))) {
-                                responseContent = "[视频生成任务已提交]";
+                                responseContent = new ObjectMapper().writeValueAsString(dataMap);
                             } else if (dataMap.containsKey("text")) {
                                 responseContent = (String) dataMap.get("text");
                             } else if (dataMap.containsKey("message")
