@@ -26,6 +26,7 @@ com/adlin/orin/modules/monitor/entity/AgentStatus.class
 com/adlin/orin/modules/workflow/entity/WorkflowStepEntity$WorkflowStepEntityBuilder.class
 com/adlin/orin/modules/knowledge/component/SiliconFlowEmbeddingAdapter.class
 com/adlin/orin/modules/workflow/engine/handler/AgentNodeHandler.class
+com/adlin/orin/modules/zeroclaw/service/ZeroClawServiceImpl.class
 com/adlin/orin/modules/apikey/controller/ApiKeyController.class
 com/adlin/orin/gateway/service/RouterService$1.class
 com/adlin/orin/modules/monitor/entity/ModelPricing$BillingMode.class
@@ -38,6 +39,7 @@ com/adlin/orin/modules/monitor/repository/AgentMetricRepository.class
 com/adlin/orin/modules/knowledge/entity/AgentKnowledge$AgentKnowledgeBuilder.class
 com/adlin/orin/modules/knowledge/component/AgentContextAssembler.class
 com/adlin/orin/gateway/dto/ChatCompletionResponse$Delta$DeltaBuilder.class
+com/adlin/orin/modules/zeroclaw/repository/ZeroClawSelfHealingLogRepository.class
 com/adlin/orin/modules/model/service/OllamaIntegrationService$1.class
 com/adlin/orin/modules/system/dto/UserDashboardResponse$ActivityLog$ActivityLogBuilder.class
 com/adlin/orin/modules/workflow/mapper/WorkflowMapper.class
@@ -46,6 +48,7 @@ com/adlin/orin/modules/knowledge/repository/KnowledgeDocumentRepository.class
 com/adlin/orin/config/WebConfig.class
 com/adlin/orin/modules/alert/entity/AlertRule$AlertRuleBuilder.class
 com/adlin/orin/modules/apikey/entity/ApiEndpoint$ApiEndpointBuilder.class
+com/adlin/orin/modules/zeroclaw/entity/ZeroClawAnalysisReport$ZeroClawAnalysisReportBuilder.class
 com/adlin/orin/modules/model/service/ModelManageService.class
 com/adlin/orin/modules/apikey/controller/ApiEndpointController$ApiEndpointResponse.class
 com/adlin/orin/modules/apikey/repository/ApiKeyRepository.class
@@ -57,6 +60,7 @@ com/adlin/orin/modules/monitor/controller/DataFlowController.class
 com/adlin/orin/modules/skill/dto/SkillRequest.class
 com/adlin/orin/modules/workflow/service/WorkflowService.class
 com/adlin/orin/modules/agent/entity/AgentVersion.class
+com/adlin/orin/modules/zeroclaw/controller/ZeroClawController.class
 com/adlin/orin/modules/model/service/SiliconFlowIntegrationService$7.class
 com/adlin/orin/gateway/adapter/impl/DifyProviderAdapter.class
 com/adlin/orin/modules/agent/service/impl/AgentManageServiceImpl$1.class
@@ -110,6 +114,7 @@ com/adlin/orin/modules/agent/entity/AgentMetadata$AgentMetadataBuilder.class
 com/adlin/orin/modules/model/repository/ModelConfigRepository.class
 com/adlin/orin/modules/agent/entity/AgentAccessProfile.class
 com/adlin/orin/modules/skill/mapper/SkillMapperImpl.class
+com/adlin/orin/modules/zeroclaw/entity/ZeroClawSelfHealingLog$ZeroClawSelfHealingLogBuilder.class
 com/adlin/orin/modules/knowledge/repository/meta/AgentMemoryRepository.class
 com/adlin/orin/modules/workflow/dto/WorkflowAccessResponse$WorkflowAccessResponseBuilder.class
 com/adlin/orin/modules/model/ModelDataInitializer.class
@@ -167,6 +172,7 @@ com/adlin/orin/modules/conversation/entity/ConversationLog$ConversationLogBuilde
 com/adlin/orin/modules/multimodal/entity/MultimodalFile.class
 com/adlin/orin/modules/knowledge/controller/IntelligenceCenterController.class
 com/adlin/orin/modules/agent/service/ZhipuAgentManageService.class
+com/adlin/orin/modules/zeroclaw/entity/ZeroClawConfig$ZeroClawConfigBuilder.class
 com/adlin/orin/modules/knowledge/component/VectorStoreProvider.class
 com/adlin/orin/modules/knowledge/entity/meta/PromptTemplate$PromptTemplateBuilder.class
 com/adlin/orin/modules/model/service/ModelConfigService.class
@@ -222,6 +228,7 @@ com/adlin/orin/gateway/dto/ChatCompletionResponse$Choice$ChoiceBuilder.class
 com/adlin/orin/modules/workflow/dto/WorkflowExecutionEvent.class
 com/adlin/orin/modules/workflow/engine/handler/CodeNodeHandler.class
 com/adlin/orin/modules/agent/service/provider/MultiModalProvider$InteractionRequest.class
+com/adlin/orin/modules/zeroclaw/repository/ZeroClawAnalysisReportRepository.class
 com/adlin/orin/modules/workflow/engine/GraphExecutor.class
 com/adlin/orin/modules/workflow/repository/WorkflowInstanceRepository.class
 com/adlin/orin/modules/workflow/repository/WorkflowRepository.class
@@ -245,6 +252,7 @@ com/adlin/orin/modules/agent/service/DifyIntegrationService$7.class
 com/adlin/orin/modules/skill/dto/SkillResponse$SkillResponseBuilder.class
 com/adlin/orin/modules/audit/controller/AuditLogController.class
 com/adlin/orin/modules/system/entity/LogConfig$LogConfigBuilder.class
+com/adlin/orin/modules/zeroclaw/dto/ZeroClawSelfHealingRequest.class
 com/adlin/orin/config/CacheMetricsConfig.class
 com/adlin/orin/modules/system/entity/SysUserRole.class
 com/adlin/orin/modules/monitor/service/PricingService$1.class
@@ -274,6 +282,7 @@ com/adlin/orin/common/exception/ResourceNotFoundException.class
 com/adlin/orin/modules/workflow/entity/WorkflowStepEntity$StepType.class
 com/adlin/orin/modules/apikey/entity/ApiKey$ApiKeyBuilder.class
 com/adlin/orin/modules/agent/service/DifyIntegrationService$2.class
+com/adlin/orin/modules/zeroclaw/dto/ZeroClawAnalysisRequest.class
 com/adlin/orin/security/SecurityConfig.class
 com/adlin/orin/modules/agent/service/DifyIntegrationService$5.class
 com/adlin/orin/modules/trace/entity/WorkflowTraceEntity$WorkflowTraceEntityBuilder.class
@@ -331,6 +340,7 @@ com/adlin/orin/modules/apikey/controller/ApiKeyController$ApiKeyResponse.class
 com/adlin/orin/modules/runtime/repository/AgentLogRepository.class
 com/adlin/orin/modules/workflow/engine/handler/StartNodeHandler.class
 com/adlin/orin/modules/model/service/ModelFetchService$3.class
+com/adlin/orin/modules/zeroclaw/service/ZeroClawService.class
 com/adlin/orin/modules/workflow/repository/WorkflowNodeRepository.class
 com/adlin/orin/modules/skill/service/impl/SkillServiceImplEnhanced$1.class
 com/adlin/orin/modules/knowledge/dto/AgentRunConfig$AgentRunConfigBuilder.class
@@ -358,6 +368,7 @@ com/adlin/orin/modules/model/service/SiliconFlowIntegrationService$5.class
 com/adlin/orin/modules/workflow/dto/WorkflowRequest$WorkflowRequestBuilder.class
 com/adlin/orin/modules/agent/service/MinimaxAgentManageService.class
 com/adlin/orin/common/dto/Result$ResultBuilder.class
+com/adlin/orin/modules/zeroclaw/client/ZeroClawClient.class
 com/adlin/orin/modules/knowledge/entity/meta/AgentMemory.class
 com/adlin/orin/modules/workflow/service/WorkflowEventPublisher.class
 com/adlin/orin/modules/model/service/DeepSeekIntegrationService$4.class
@@ -382,6 +393,7 @@ com/adlin/orin/modules/knowledge/entity/KnowledgeTask.class
 com/adlin/orin/modules/system/repository/SysRoleRepository.class
 com/adlin/orin/modules/workflow/entity/WorkflowDefinition$WorkflowDefinitionBuilder.class
 com/adlin/orin/modules/skill/controller/McpController.class
+com/adlin/orin/modules/zeroclaw/entity/ZeroClawAnalysisReport.class
 com/adlin/orin/modules/apikey/controller/ApiEndpointController.class
 com/adlin/orin/modules/knowledge/service/impl/UnstructuredServiceImpl.class
 com/adlin/orin/modules/agent/service/impl/AgentManageServiceImpl$AgentExportDTO.class
@@ -409,8 +421,10 @@ com/adlin/orin/modules/audit/service/AuditLogService.class
 com/adlin/orin/modules/system/entity/LogConfig.class
 com/adlin/orin/modules/model/service/SiliconFlowIntegrationService$2.class
 com/adlin/orin/modules/alert/repository/AlertHistoryRepository.class
+com/adlin/orin/modules/zeroclaw/repository/ZeroClawConfigRepository.class
 com/adlin/orin/gateway/adapter/ProviderAdapter.class
 com/adlin/orin/modules/system/dto/UserDashboardResponse$UserDashboardResponseBuilder.class
+com/adlin/orin/modules/zeroclaw/entity/ZeroClawConfig.class
 com/adlin/orin/modules/knowledge/repository/KnowledgeTaskRepository.class
 com/adlin/orin/modules/knowledge/component/VectorStoreProvider$DocumentChunk$DocumentChunkBuilder.class
 com/adlin/orin/modules/knowledge/service/RetrievalService.class
@@ -420,6 +434,7 @@ com/adlin/orin/modules/skill/service/SkillService.class
 com/adlin/orin/modules/apikey/repository/ApiEndpointRepository.class
 com/adlin/orin/modules/knowledge/service/ProceduralService.class
 com/adlin/orin/modules/system/service/LogConfigService.class
+com/adlin/orin/modules/zeroclaw/entity/ZeroClawSelfHealingLog.class
 com/adlin/orin/modules/system/mapper/SystemMapper$RoleResponse.class
 com/adlin/orin/modules/workflow/dto/WorkflowAccessResponse.class
 com/adlin/orin/modules/workflow/repository/WorkflowStepRepository.class
@@ -432,7 +447,9 @@ com/adlin/orin/modules/workflow/controller/WorkflowController.class
 com/adlin/orin/modules/system/mapper/SystemMapper$UserResponse.class
 com/adlin/orin/modules/agent/dto/AgentCreateRequest.class
 com/adlin/orin/modules/system/mapper/SystemMapper$RoleResponse$RoleResponseBuilder.class
+com/adlin/orin/modules/zeroclaw/dto/ZeroClawConnectionRequest.class
 com/adlin/orin/gateway/service/RouterService.class
 com/adlin/orin/modules/apikey/repository/ExternalProviderKeyRepository.class
 com/adlin/orin/modules/skill/entity/SkillEntity$SkillEntityBuilder.class
+com/adlin/orin/modules/zeroclaw/task/ZeroClawScheduledTask.class
 com/adlin/orin/modules/monitor/controller/DataFlowController$TraceStage.class

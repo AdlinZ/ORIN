@@ -13,7 +13,111 @@
     </PageHeader>
 
     <el-tabs v-model="activeTab" class="config-tabs">
-      <!-- 基础监控配置 Tab -->
+      <!-- ZeroClaw 智能配置 Tab -->
+      <el-tab-pane label="ZeroClaw 智能维护" name="zeroclaw">
+        <el-row :gutter="24">
+          <el-col :lg="14">
+            <el-card class="premium-card margin-bottom-lg">
+              <template #header>
+                <div class="card-header">
+                  <el-icon><Cpu /></el-icon>
+                  <span>ZeroClaw 核心连接</span>
+                </div>
+              </template>
+              
+              <el-form :model="zeroclawForm" label-position="top" class="config-form">
+                <el-form-item label="启用 ZeroClaw 维护引擎">
+                  <div class="flex-between w-100">
+                    <div class="form-info">
+                      <div class="form-label-desc">开启后，智能体将能够通过 ZeroClaw 获取实时系统诊断信息。</div>
+                    </div>
+                    <el-switch v-model="zeroclawForm.enabled" />
+                  </div>
+                </el-form-item>
+
+                <el-divider border-style="dashed" />
+
+                <el-form-item label="服务访问地址 (Endpoint URL)" v-if="zeroclawForm.enabled">
+                  <el-input 
+                    v-model="zeroclawForm.endpointUrl" 
+                    placeholder="例如: http://localhost:8081"
+                    class="url-input"
+                  />
+                </el-form-item>
+
+                <el-form-item label="访问令牌 (Access Token)" v-if="zeroclawForm.enabled">
+                  <el-input 
+                    v-model="zeroclawForm.accessToken" 
+                    type="password" 
+                    show-password
+                    placeholder="如果服务端有鉴权请填写"
+                  />
+                </el-form-item>
+
+                <el-form-item label="功能模块开关" v-if="zeroclawForm.enabled">
+                  <div class="feature-switches">
+                    <el-checkbox v-model="zeroclawForm.enableAnalysis" label="智能诊断分析" border />
+                    <el-checkbox v-model="zeroclawForm.enableSelfHealing" label="自愈引擎 (Self-Healing)" border />
+                  </div>
+                </el-form-item>
+                
+                <el-form-item v-if="zeroclawForm.enabled">
+                   <el-button @click="testZeroClawConnection" :loading="zeroclawTesting" type="primary" plain size="small">
+                     测试连接与状态自检
+                   </el-button>
+                   <span v-if="zeroclawStatus" class="status-result" :class="zeroclawStatus.connected ? 'success' : 'error'">
+                     {{ zeroclawStatus.connected ? '连接成功 - 运行中' : '连接失败 - ' + zeroclawStatus.message }}
+                   </span>
+                </el-form-item>
+
+                <div class="actions-row">
+                    <el-button type="primary" @click="saveZeroClawConfig" :loading="zeroclawSaving">保存 ZeroClaw 配置</el-button>
+                </div>
+              </el-form>
+            </el-card>
+
+            <el-card class="premium-card" v-if="zeroclawStatus && zeroclawStatus.connected">
+              <template #header>
+                <div class="card-header">
+                  <el-icon><Operation /></el-icon>
+                  <span>节点运行详情</span>
+                </div>
+              </template>
+              <div class="strategy-list">
+                <div class="strategy-item" v-for="(val, key) in zeroclawStatus" :key="key" v-show="typeof val !== 'boolean' && key !== 'message' && key !== 'configName' && key !== 'connected'">
+                  <div class="item-title">{{ key }}</div>
+                  <div class="item-value">{{ val }}</div>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+
+          <el-col :lg="10">
+            <el-card class="premium-card guide-card">
+              <template #header>
+                <div class="card-header">
+                  <el-icon><Cpu /></el-icon>
+                  <span>ZeroClaw 是什么？</span>
+                </div>
+              </template>
+              <div class="guide-content">
+                <p style="font-size: 13px; color: #666; line-height: 1.6;">
+                  ZeroClaw 是 ORIN 专用的轻量化运维代理，能够深入操作系统底层采集传统 Prometheus 难以获取的细粒度指标（如：显存碎片、子进程耗时分析、磁盘 I/O 异常等）。
+                </p>
+                <el-divider />
+                <strong>核心场景：</strong>
+                <ul style="font-size: 13px; color: #666; padding-left: 20px;">
+                  <li><strong>性能诊断</strong>：当 AI 助手回答“慢”时，ZeroClaw 会瞬间给出硬件瓶颈报告。</li>
+                  <li><strong>主动自愈</strong>：检测到显存泄露时，自动触发模型重启或显卡缓存清理。</li>
+                  <li><strong>趋势预测</strong>：分析过去 24 小时波动，预测即将到来的资源枯竭风险。</li>
+                </ul>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
+
+      <!-- 硬件监控数据源 Tab -->
       <el-tab-pane label="硬件监控数据源" name="prometheus">
         <el-row :gutter="24">
           <el-col :lg="14">
@@ -226,9 +330,23 @@ import {
   QuestionFilled
 } from '@element-plus/icons-vue';
 
-const activeTab = ref('prometheus');
+const activeTab = ref('zeroclaw');
 const saving = ref(false);
 const testing = ref(false);
+
+const zeroclawSaving = ref(false);
+const zeroclawTesting = ref(false);
+const zeroclawStatus = ref(null);
+const zeroclawForm = reactive({
+  id: '',
+  configName: 'ORIN_Default_ZeroClaw',
+  endpointUrl: 'http://localhost:8081',
+  accessToken: '',
+  enabled: true,
+  enableAnalysis: true,
+  enableSelfHealing: true,
+  heartbeatInterval: 60
+});
 
 const config = reactive({
   prometheusUrl: '',
@@ -319,7 +437,63 @@ const saveEnvConfig = async () => {
     }
 };
 
+const loadZeroClawConfig = async () => {
+  try {
+    const res = await request.get('/zeroclaw/configs');
+    if (res && res.length > 0) {
+      const active = res.find(c => c.enabled) || res[0];
+      Object.assign(zeroclawForm, active);
+    }
+  } catch (error) {
+    console.error('Failed to load ZeroClaw config', error);
+  }
+};
+
+const saveZeroClawConfig = async () => {
+  zeroclawSaving.value = true;
+  try {
+    if (zeroclawForm.id) {
+      await request.put(`/zeroclaw/configs/${zeroclawForm.id}`, zeroclawForm);
+    } else {
+      const res = await request.post('/zeroclaw/configs', zeroclawForm);
+      zeroclawForm.id = res.id;
+    }
+    ElMessage.success('ZeroClaw 配置已更新');
+    testZeroClawConnection();
+  } catch (error) {
+    ElMessage.error('保存失败: ' + error.message);
+  } finally {
+    zeroclawSaving.value = false;
+  }
+};
+
+const testZeroClawConnection = async () => {
+  zeroclawTesting.value = true;
+  try {
+    const res = await request.post('/zeroclaw/configs/test-connection', {
+      endpointUrl: zeroclawForm.endpointUrl,
+      accessToken: zeroclawForm.accessToken
+    });
+    
+    if (res.connected) {
+      // If basic connection works, get full status
+      const statusRes = await request.get('/zeroclaw/status');
+      zeroclawStatus.value = statusRes;
+      ElMessage.success('ZeroClaw 连接成功并已准备就绪！');
+    } else {
+      zeroclawStatus.value = { connected: false, message: '无法触达服务端' };
+      ElMessage.warning('连接测试失败，请检查 Endpoint URL。');
+    }
+  } catch (e) {
+    zeroclawStatus.value = { connected: false, message: e.message };
+    ElMessage.error('连接失败: ' + e.message);
+  } finally {
+    zeroclawTesting.value = false;
+  }
+};
+
 onMounted(() => {
+    loadZeroClawConfig();
     loadConfig();
     loadEnvConfig();
 });
@@ -452,4 +626,27 @@ onMounted(() => {
   margin: 0;
   line-height: 1.4;
 }
+
+.feature-switches {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.status-result {
+    margin-left: 12px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.status-result.success { color: #10b981; }
+.status-result.error { color: #ef4444; }
+
+.actions-row {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px dotted #eee;
+}
+
+.text-success { color: #10b981; }
+.text-danger { color: #ef4444; }
 </style>

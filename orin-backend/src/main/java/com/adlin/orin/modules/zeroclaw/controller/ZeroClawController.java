@@ -8,6 +8,7 @@ import com.adlin.orin.modules.zeroclaw.entity.ZeroClawConfig;
 import com.adlin.orin.modules.zeroclaw.entity.ZeroClawSelfHealingLog;
 import com.adlin.orin.modules.zeroclaw.service.ZeroClawService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +23,9 @@ import java.util.Map;
  * 提供轻量化 Agent 集成的 REST API 接口
  */
 @RestController
-@RequestMapping("/api/zeroclaw")
+@RequestMapping("/api/v1/zeroclaw")
 @RequiredArgsConstructor
+@Slf4j
 public class ZeroClawController {
 
     private final ZeroClawService zeroClawService;
@@ -53,11 +55,29 @@ public class ZeroClawController {
 
     @PostMapping("/configs/test-connection")
     public ResponseEntity<Map<String, Object>> testConnection(@RequestBody ZeroClawConnectionRequest request) {
-        boolean connected = zeroClawService.testConnection(request.getEndpointUrl(), request.getAccessToken());
+        if (request == null || request.getEndpointUrl() == null) {
+            log.warn("Invalid test connection request: request or endpointUrl is null");
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("connected", false);
+            errorResult.put("message", "Endpoint URL is required");
+            return ResponseEntity.badRequest().body(errorResult);
+        }
+
+        log.info("Testing ZeroClaw connection to: {}", request.getEndpointUrl());
         Map<String, Object> result = new HashMap<>();
-        result.put("connected", connected);
-        result.put("message", connected ? "Connection successful" : "Connection failed");
-        return ResponseEntity.ok(result);
+        try {
+            boolean connected = zeroClawService.testConnection(request.getEndpointUrl(), request.getAccessToken());
+            result.put("connected", connected);
+            result.put("message", connected ? "Connection successful"
+                    : "Connection failed: Requested node did not respond correctly");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.warn("Error testing ZeroClaw connection: {}", e.getMessage());
+            result.put("connected", false);
+            result.put("message", "Connection failed: " + e.getMessage());
+            // Return 200 so the frontend can handle the error message gracefully
+            return ResponseEntity.ok(result);
+        }
     }
 
     // ==================== 状态监控 ====================

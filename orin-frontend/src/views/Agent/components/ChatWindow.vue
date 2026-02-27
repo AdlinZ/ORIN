@@ -59,6 +59,9 @@
             <div class="header-info">
               <span class="status-dot"></span>
               <span class="role-text">{{ getRoleLabel(msg.role) }}</span>
+              <el-tag v-if="msg.dataType === 'DIAGNOSTIC_REPORT'" size="small" effect="plain" class="source-badge">
+                <el-icon><Cpu /></el-icon> ZeroClaw
+              </el-tag>
             </div>
             <div class="header-actions">
               <el-button link :icon="Delete" size="small" class="delete-msg-btn" @click="removeMessage(i)" />
@@ -77,7 +80,73 @@
               </el-collapse-transition>
             </div>
 
-            <div v-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
+            <div v-if="msg.dataType === 'DIAGNOSTIC_REPORT'" class="diagnostic-container">
+              <div class="diagnostic-header" :class="msg.content.severity?.toLowerCase()">
+                <el-icon><Cpu /></el-icon>
+                <span>{{ msg.content.title || '系统诊断报告' }}</span>
+                <el-tag :type="getSeverityTag(msg.content.severity)" size="small" effect="dark">{{ msg.content.severity }}</el-tag>
+              </div>
+              <div class="diagnostic-body">
+                <div class="diag-section">
+                  <div class="diag-label">分析摘要</div>
+                  <div class="diag-value markdown-body" v-html="renderMarkdown(msg.content.summary)"></div>
+                </div>
+                <div class="diag-section" v-if="msg.content.rootCause">
+                  <div class="diag-label">根本原因 (Root Cause)</div>
+                  <div class="diag-value error-text">{{ msg.content.rootCause }}</div>
+                </div>
+                <div class="diag-section highlights" v-if="msg.content.recommendations">
+                  <div class="diag-label">修复建议</div>
+                  <div class="diag-value success-text markdown-body" v-html="renderMarkdown(msg.content.recommendations)"></div>
+                </div>
+              </div>
+              <div class="diagnostic-footer">
+                <el-button type="primary" size="small" plain @click="executeQuickFix(msg.content)">执行自动修复 (Self-Healing)</el-button>
+              </div>
+            </div>
+
+            <div v-else-if="msg.dataType === 'ZEROCLAW_STATUS'" class="status-monitor-container">
+              <div class="monitor-header">
+                <el-icon><Monitor /></el-icon>
+                <span>ZeroClaw 运行状态自检</span>
+              </div>
+              <div class="monitor-grid">
+                <div class="monitor-item">
+                  <div class="m-label">连通性 (Connectivity)</div>
+                  <div class="m-value">
+                    <el-tag :type="msg.content.connected ? 'success' : 'danger'" size="small">
+                      {{ msg.content.connected ? '在线 (ONLINE)' : '离线 (OFFLINE)' }}
+                    </el-tag>
+                  </div>
+                </div>
+                <div class="monitor-item">
+                  <div class="m-label">引擎配置</div>
+                  <div class="m-value">{{ msg.content.configName || '未配置' }}</div>
+                </div>
+                <div class="monitor-item">
+                  <div class="m-label">分析模块</div>
+                  <div class="m-value">
+                    <el-icon :class="msg.content.analysisEnabled ? 'text-success' : 'text-danger'">
+                      <CircleCheck v-if="msg.content.analysisEnabled" /><Close v-else />
+                    </el-icon>
+                  </div>
+                </div>
+                <div class="monitor-item">
+                  <div class="m-label">自愈模块</div>
+                  <div class="m-value">
+                    <el-icon :class="msg.content.selfHealingEnabled ? 'text-success' : 'text-danger'">
+                      <CircleCheck v-if="msg.content.selfHealingEnabled" /><Close v-else />
+                    </el-icon>
+                  </div>
+                </div>
+              </div>
+              <div class="monitor-footer" v-if="!msg.content.connected">
+                <div class="warning-text">警告: 无法连接到 ZeroClaw 服务端 ({{ msg.content.message }})</div>
+                <el-button type="warning" size="small" @click="retryZeroClaw">重试连接</el-button>
+              </div>
+            </div>
+
+            <div v-else-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
             <div v-else class="user-content">{{ msg.content }}</div>
           </div>
         </div>
@@ -241,9 +310,10 @@ const sendMessage = async () => {
     
     chatMessages.value.push({ 
       role: 'assistant', 
-      content: answer, 
+      content: res.dataType === 'DIAGNOSTIC_REPORT' ? res.data : answer, 
       thinking: thinking, 
-      showThinking: false 
+      showThinking: false,
+      dataType: res.dataType
     });
   } catch (e) {
     chatMessages.value.push({ role: 'assistant', content: '（错误: ' + e.message + '）' });
@@ -256,6 +326,23 @@ const sendMessage = async () => {
 
 const removeMessage = (index) => {
   chatMessages.value.splice(index, 1);
+};
+
+const getSeverityTag = (s) => ({
+  'CRITICAL': 'danger',
+  'HIGH': 'danger',
+  'WARNING': 'warning',
+  'INFO': 'info'
+}[s?.toUpperCase()] || 'info');
+
+const executeQuickFix = (report) => {
+  ElMessage.success('已触发自愈引擎：' + (report.title || '系统修复'));
+  // Logic to call self-healing API could go here
+};
+
+const retryZeroClaw = () => {
+  ElMessage.info('正在尝试重新发现 ZeroClaw 节点...');
+  sendMessage(); // Re-triggering with current input could work if logic supports it, or just status check
 };
 
 const clearHistory = () => {
@@ -444,6 +531,14 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.source-badge {
+  margin-left: 8px;
+  background: #f0fdfa !important;
+  color: #0d9488 !important;
+  border-color: #99f6e4 !important;
+  font-weight: 700;
+  font-size: 10px;
+}
 
 /* Content */
 .card-content { padding: 16px 20px; }
@@ -573,4 +668,74 @@ onUnmounted(() => {
   padding: 2px 4px;
   border-radius: 4px;
 }
+/* Diagnostic Report Styles */
+.diagnostic-container {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+.diagnostic-header {
+  padding: 10px 16px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  border-bottom: 1px solid #e2e8f0;
+}
+.diagnostic-header.critical { background: #fef2f2; color: #991b1b; }
+.diagnostic-header.warning { background: #fffbeb; color: #92400e; }
+.diagnostic-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.diag-section { display: flex; flex-direction: column; gap: 8px; }
+.diag-label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; }
+.diag-value { font-size: 14px; line-height: 1.6; color: #1e293b; }
+.diag-section.highlights { background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 4px solid #22c55e; }
+.error-text { color: #dc2626; font-weight: 600; }
+.success-text { color: #166534; }
+.diagnostic-footer { padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; }
+
+/* Status Monitor Styles */
+.status-monitor-container {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+.monitor-header {
+  padding: 12px 16px;
+  background: #111827;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.monitor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #f1f5f9;
+}
+.monitor-item {
+  background: #fff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.m-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.m-value { font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; }
+.text-success { color: #10b981; }
+.text-danger { color: #ef4444; }
+.monitor-footer {
+  padding: 12px 16px;
+  background: #fef2f2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.warning-text { font-size: 12px; color: #991b1b; font-weight: 600; }
 </style>

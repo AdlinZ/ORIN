@@ -58,6 +58,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final MultimodalFileService multimodalFileService;
     private final MetaKnowledgeService metaKnowledgeService;
     private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
+    private final com.adlin.orin.modules.zeroclaw.service.ZeroClawService zeroClawService;
     private final Map<String, MultiModalProvider> providerMap = new HashMap<>();
 
     // Explicit constructor injection to ensure all dependencies are handled
@@ -75,6 +76,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
             MinimaxIntegrationService minimaxIntegrationService,
             OllamaIntegrationService ollamaIntegrationService,
+            com.adlin.orin.modules.zeroclaw.service.ZeroClawService zeroClawService,
             List<MultiModalProvider> providers) {
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
@@ -88,6 +90,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.multimodalFileService = multimodalFileService;
         this.metaKnowledgeService = metaKnowledgeService;
         this.modelMetadataRepository = modelMetadataRepository;
+        this.zeroClawService = zeroClawService;
 
         for (MultiModalProvider p : providers) {
             this.providerMap.put(p.getProviderName().toUpperCase(), p);
@@ -970,6 +973,64 @@ public class AgentManageServiceImpl implements AgentManageService {
         log.info("Chatting with agent: {} (conversationId: {}, fileId: {}, hasOverride: {}, thinking: {})",
                 agentId, conversationId, fileId, overrideSystemPrompt != null, enableThinking);
 
+        // --- ZeroClaw Priority Strategy ---
+        // If the query is related to system maintenance, performance or diagnostics,
+        // use ZeroClaw first.
+        if (isZeroClawRelated(message)) {
+            log.info("Detected ZeroClaw related query: '{}', prioritizing ZeroClaw", message);
+
+            // Special handling for status check
+            if (message.toLowerCase().contains("status") || message.toLowerCase().contains("状态")
+                    || message.toLowerCase().contains("check")) {
+                Map<String, Object> status = zeroClawService.getZeroClawStatus();
+                if (status != null) {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("status", "SUCCESS");
+                    result.put("data", status);
+                    result.put("dataType", "ZEROCLAW_STATUS");
+                    result.put("viewType", "DIAGNOSTIC");
+                    result.put("provider", "ZeroClaw");
+                    result.put("model", "ZeroClaw-Monitor v1.0");
+                    return java.util.Optional.of(result);
+                }
+            }
+
+            try {
+                com.adlin.orin.modules.zeroclaw.entity.ZeroClawConfig config = zeroClawService.getActiveConfig();
+                if (config != null && Boolean.TRUE.equals(config.getEnabled())
+                        && Boolean.TRUE.equals(config.getEnableAnalysis())) {
+                    com.adlin.orin.modules.zeroclaw.dto.ZeroClawAnalysisRequest request = new com.adlin.orin.modules.zeroclaw.dto.ZeroClawAnalysisRequest();
+                    request.setAgentId(agentId);
+                    request.setAnalysisType(inferAnalysisType(message));
+                    request.setContext(message);
+                    request.setStartTime(System.currentTimeMillis() - (3600 * 1000)); // Last hour
+                    request.setEndTime(System.currentTimeMillis());
+
+                    com.adlin.orin.modules.zeroclaw.entity.ZeroClawAnalysisReport report = zeroClawService
+                            .performAnalysis(request);
+                    if (report != null) {
+                        log.info("ZeroClaw successfully handled the query, returning diagnostic report.");
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("status", "SUCCESS");
+                        result.put("data", report);
+                        result.put("dataType", "DIAGNOSTIC_REPORT");
+                        result.put("viewType", "DIAGNOSTIC"); // New view type for ZeroClaw
+                        result.put("provider", "ZeroClaw");
+                        result.put("model", "ZeroClaw-Analyst v1.0");
+                        result.put("conversation_id", conversationId);
+
+                        // We also record this in the audit log for consistency
+                        recordZeroClawAudit(agentId, conversationId, message, report);
+
+                        return java.util.Optional.of(result);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("ZeroClaw priority execution failed, falling back to current model: {}", e.getMessage());
+            }
+        }
+        // --- End ZeroClaw Priority Strategy ---
+
         AgentAccessProfile profile = accessProfileRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
 
@@ -1651,5 +1712,47 @@ public class AgentManageServiceImpl implements AgentManageService {
         private AgentMetadata metadata;
         private AgentAccessProfile profile;
         private AgentHealthStatus status;
+    }
+
+    private boolean isZeroClawRelated(String message) {
+        if (message == null || message.isEmpty())
+            return false;
+        String msg = message.toLowerCase();
+        return msg.contains("diagnosis") || msg.contains("health") || msg.contains("performance") ||
+                msg.contains("cpu") || msg.contains("memory") || msg.contains("disk") ||
+                msg.contains("slow") || msg.contains("latency") || msg.contains("metrics") ||
+                msg.contains("诊断") || msg.contains("指标") || msg.contains("性能") ||
+                msg.contains("异常") || msg.contains("分析") || msg.contains("健康") ||
+                msg.contains("卡顿") || msg.contains("延迟") || msg.contains("故障") ||
+                msg.contains("清理") || msg.contains("自愈") || msg.contains("修复");
+    }
+
+    private String inferAnalysisType(String message) {
+        String msg = message.toLowerCase();
+        if (msg.contains("forecast") || msg.contains("trend") || msg.contains("趋势") || msg.contains("预测")) {
+            return "TREND_FORECAST";
+        }
+        if (msg.contains("resource") || msg.contains("leak") || msg.contains("memory") || msg.contains("内存")) {
+            return "RESOURCE_LEAK";
+        }
+        return "PERFORMANCE"; // Default
+    }
+
+    private void recordZeroClawAudit(String agentId, String conversationId, String query,
+            com.adlin.orin.modules.zeroclaw.entity.ZeroClawAnalysisReport report) {
+        try {
+            long duration = 1000; // Estimated
+            auditLogService.logApiCall(
+                    "admin", "SYSTEM", agentId, "ZEROCLAW", "http://localhost:8080/api/v1/zeroclaw/analyze",
+                    "POST", "ZeroClaw-Analyst", "127.0.0.1", "ORIN-Backend", query,
+                    report.getSummary(), 200, duration, 0, 0, 0.0, true, null, null, conversationId);
+
+            conversationLogService.log(com.adlin.orin.modules.conversation.entity.ConversationLog.builder()
+                    .userId("admin").agentId(agentId).conversationId(conversationId)
+                    .model("ZeroClaw-Analyst").query(query).response(report.getSummary())
+                    .success(true).responseTime(duration).build());
+        } catch (Exception e) {
+            log.error("Failed to log ZeroClaw audit", e);
+        }
     }
 }

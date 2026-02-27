@@ -52,10 +52,10 @@ CREATE TABLE IF NOT EXISTS zeroclaw_self_healing_logs (
 );
 
 -- 创建索引
-CREATE INDEX IF NOT EXISTS idx_zeroclaw_configs_enabled ON zeroclaw_configs(enabled);
-CREATE INDEX IF NOT EXISTS idx_zeroclaw_reports_agent_id ON zeroclaw_analysis_reports(agent_id);
-CREATE INDEX IF NOT EXISTS idx_zeroclaw_reports_type ON zeroclaw_analysis_reports(report_type);
-CREATE INDEX IF NOT EXISTS idx_zeroclaw_reports_created ON zeroclaw_analysis_reports(created_at);
-CREATE INDEX IF NOT EXISTS idx_zeroclaw_logs_action_type ON zeroclaw_self_healing_logs(action_type);
-CREATE INDEX IF NOT EXISTS idx_zeroclaw_logs_status ON zeroclaw_self_healing_logs(status);
-CREATE INDEX IF NOT EXISTS idx_zeroclaw_logs_created ON zeroclaw_self_healing_logs(created_at);
+CREATE INDEX idx_zeroclaw_configs_enabled ON zeroclaw_configs(enabled);
+CREATE INDEX idx_zeroclaw_reports_agent_id ON zeroclaw_analysis_reports(agent_id);
+CREATE INDEX idx_zeroclaw_reports_type ON zeroclaw_analysis_reports(report_type);
+CREATE INDEX idx_zeroclaw_reports_created ON zeroclaw_analysis_reports(created_at);
+CREATE INDEX idx_zeroclaw_logs_action_type ON zeroclaw_self_healing_logs(action_type);
+CREATE INDEX idx_zeroclaw_logs_status ON zeroclaw_self_healing_logs(status);
+CREATE INDEX idx_zeroclaw_logs_created ON zeroclaw_self_healing_logs(created_at);

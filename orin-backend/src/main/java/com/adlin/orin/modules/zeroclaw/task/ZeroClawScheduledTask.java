@@ -76,7 +76,7 @@ public class ZeroClawScheduledTask {
                 ZeroClawAnalysisRequest request = new ZeroClawAnalysisRequest();
                 request.setAnalysisType("ANOMALY_DIAGNOSIS");
                 request.setAgentId(agent.getAgentId());
-                request.setContext("Agent status: " + agent.getStatus() + ", Latency: " + agent.getLatencyMs() + "ms");
+                request.setContext("Agent status: " + agent.getStatus());
 
                 ZeroClawAnalysisReport report = zeroClawService.performAnalysis(request);
                 if (report != null) {

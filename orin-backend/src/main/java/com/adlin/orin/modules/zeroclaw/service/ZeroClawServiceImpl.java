@@ -107,8 +107,7 @@ public class ZeroClawServiceImpl implements ZeroClawService {
                 config.getEndpointUrl(),
                 config.getAccessToken(),
                 request.getAnalysisType(),
-                metricsData
-        );
+                metricsData);
 
         if (result == null) {
             log.error("ZeroClaw analysis returned null");
@@ -189,8 +188,7 @@ public class ZeroClawServiceImpl implements ZeroClawService {
                 config.getEndpointUrl(),
                 config.getAccessToken(),
                 request.getActionType(),
-                params
-        );
+                params);
 
         // 更新操作结果
         if (result != null && Boolean.TRUE.equals(result.get("success"))) {
@@ -215,7 +213,8 @@ public class ZeroClawServiceImpl implements ZeroClawService {
 
         log.setCompletedAt(LocalDateTime.now());
         ZeroClawSelfHealingLog saved = selfHealingLogRepository.save(log);
-        log.info("ZeroClaw self-healing action completed: {} - {}", saved.getActionType(), saved.getStatus());
+        ZeroClawServiceImpl.log.info("ZeroClaw self-healing action completed: {} - {}", saved.getActionType(),
+                saved.getStatus());
         return saved;
     }
 
@@ -243,7 +242,8 @@ public class ZeroClawServiceImpl implements ZeroClawService {
         status.put("selfHealingEnabled", config.getEnableSelfHealing());
 
         if (connected) {
-            Map<String, Object> remoteStatus = zeroClawClient.getStatus(config.getEndpointUrl(), config.getAccessToken());
+            Map<String, Object> remoteStatus = zeroClawClient.getStatus(config.getEndpointUrl(),
+                    config.getAccessToken());
             if (remoteStatus != null) {
                 status.putAll(remoteStatus);
             }
@@ -314,8 +314,7 @@ public class ZeroClawServiceImpl implements ZeroClawService {
                 "total", runtime.totalMemory(),
                 "free", runtime.freeMemory(),
                 "max", runtime.maxMemory(),
-                "used", runtime.totalMemory() - runtime.freeMemory()
-        ));
+                "used", runtime.totalMemory() - runtime.freeMemory()));
         snapshot.put("processors", runtime.availableProcessors());
 
         return snapshot;
