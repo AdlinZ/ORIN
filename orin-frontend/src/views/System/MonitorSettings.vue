@@ -80,15 +80,73 @@
               <template #header>
                 <div class="card-header">
                   <el-icon><Operation /></el-icon>
-                  <span>节点运行详情</span>
+                  <span>ZeroClaw AI 提供商配置</span>
                 </div>
               </template>
-              <div class="strategy-list">
-                <div class="strategy-item" v-for="(val, key) in zeroclawStatus" :key="key" v-show="typeof val !== 'boolean' && key !== 'message' && key !== 'configName' && key !== 'connected'">
-                  <div class="item-title">{{ key }}</div>
-                  <div class="item-value">{{ val }}</div>
+
+              <el-form label-position="top" class="config-form">
+                <el-form-item label="选择 AI 提供商">
+                  <div class="ai-provider-select">
+                    <el-radio-group v-model="selectedAiProvider" @change="handleAiProviderChange">
+                      <el-radio-button label="deepseek">
+                        <span class="provider-name">DeepSeek</span>
+                      </el-radio-button>
+                      <el-radio-button label="siliconflow">
+                        <span class="provider-name">SiliconFlow</span>
+                      </el-radio-button>
+                      <el-radio-button label="ollama">
+                        <span class="provider-name">Ollama</span>
+                      </el-radio-button>
+                      <el-radio-button label="custom">
+                        <span class="provider-name">自定义</span>
+                      </el-radio-button>
+                    </el-radio-group>
+                  </div>
+                  <p class="form-tip" v-if="selectedAiProvider !== 'custom'">
+                    选择已配置的 AI 提供商，将自动使用 ORIN 模型配置中的 API Key
+                  </p>
+                </el-form-item>
+
+                <!-- 自定义配置 -->
+                <template v-if="selectedAiProvider === 'custom'">
+                  <el-form-item label="API Base URL">
+                    <el-input v-model="customAiConfig.baseUrl" placeholder="https://api.deepseek.com" />
+                  </el-form-item>
+                  <el-form-item label="API Key">
+                    <el-input v-model="customAiConfig.apiKey" type="password" show-password placeholder="输入 API Key" />
+                  </el-form-item>
+                  <el-form-item label="模型名称">
+                    <el-input v-model="customAiConfig.model" placeholder="deepseek-chat" />
+                  </el-form-item>
+                </template>
+
+                <el-form-item>
+                  <el-button @click="applyAiConfig" :loading="applyingAiConfig" type="success">
+                    应用 AI 配置
+                  </el-button>
+                  <span v-if="aiConfigStatus" class="status-result" :class="aiConfigStatus.success ? 'success' : 'error'">
+                    {{ aiConfigStatus.message }}
+                  </span>
+                </el-form-item>
+
+                <!-- 当前 AI 状态 -->
+                <div class="ai-status-card" v-if="zeroclawStatus.ai_provider">
+                  <div class="ai-status-item">
+                    <span class="label">当前提供商:</span>
+                    <span class="value">{{ zeroclawStatus.ai_provider }}</span>
+                  </div>
+                  <div class="ai-status-item">
+                    <span class="label">当前模型:</span>
+                    <span class="value">{{ zeroclawStatus.ai_model }}</span>
+                  </div>
+                  <div class="ai-status-item">
+                    <span class="label">AI 状态:</span>
+                    <span class="value" :class="{ active: zeroclawStatus.ai_enabled }">
+                      {{ zeroclawStatus.ai_enabled ? '已启用' : '未启用' }}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </el-form>
             </el-card>
           </el-col>
 
@@ -337,6 +395,18 @@ const testing = ref(false);
 const zeroclawSaving = ref(false);
 const zeroclawTesting = ref(false);
 const zeroclawStatus = ref(null);
+
+// AI 配置相关
+const selectedAiProvider = ref('deepseek');
+const applyingAiConfig = ref(false);
+const aiConfigStatus = ref(null);
+const customAiConfig = reactive({
+  provider: 'deepseek',
+  baseUrl: 'https://api.deepseek.com',
+  apiKey: '',
+  model: 'deepseek-chat'
+});
+
 const zeroclawForm = reactive({
   id: '',
   configName: 'ORIN_Default_ZeroClaw',
@@ -492,6 +562,73 @@ const testZeroClawConnection = async () => {
   }
 };
 
+// 处理 AI 提供商变化
+const handleAiProviderChange = (provider) => {
+  if (provider === 'deepseek') {
+    customAiConfig.baseUrl = 'https://api.deepseek.com';
+    customAiConfig.model = 'deepseek-chat';
+  } else if (provider === 'siliconflow') {
+    customAiConfig.baseUrl = 'https://api.siliconflow.cn/v1';
+    customAiConfig.model = 'Qwen/Qwen2-7B-Instruct';
+  } else if (provider === 'ollama') {
+    customAiConfig.baseUrl = 'http://localhost:11434/v1';
+    customAiConfig.model = 'llama3';
+  }
+};
+
+// 应用 AI 配置
+const applyAiConfig = async () => {
+  applyingAiConfig.value = true;
+  aiConfigStatus.value = null;
+
+  try {
+    let endpoint = zeroclawForm.endpointUrl || 'http://localhost:8081';
+
+    if (selectedAiProvider.value === 'custom') {
+      // 使用自定义配置
+      const res = await fetch(`${endpoint}/config/ai`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'openai',
+          apiKey: customAiConfig.apiKey,
+          baseUrl: customAiConfig.baseUrl,
+          model: customAiConfig.model
+        })
+      });
+      const data = await res.json();
+      aiConfigStatus.value = data;
+      if (data.success) {
+        ElMessage.success('AI 配置已应用');
+      } else {
+        ElMessage.warning(data.message || '配置应用失败');
+      }
+    } else {
+      // 使用 ORIN 已配置的模型
+      const res = await fetch(`${endpoint}/config/use-orin-model`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: selectedAiProvider.value })
+      });
+      const data = await res.json();
+      aiConfigStatus.value = data;
+      if (data.success) {
+        ElMessage.success(`已配置使用 ${selectedAiProvider.value} AI`);
+      } else {
+        ElMessage.warning(data.message || '配置应用失败');
+      }
+    }
+
+    // 刷新状态
+    await testZeroClawConnection();
+  } catch (e) {
+    aiConfigStatus.value = { success: false, message: e.message };
+    ElMessage.error('配置应用失败: ' + e.message);
+  } finally {
+    applyingAiConfig.value = false;
+  }
+};
+
 onMounted(() => {
     loadZeroClawConfig();
     loadConfig();
@@ -640,6 +777,47 @@ onMounted(() => {
 }
 .status-result.success { color: #10b981; }
 .status-result.error { color: #ef4444; }
+
+.ai-provider-select {
+  margin: 12px 0;
+}
+
+.provider-name {
+  font-weight: 600;
+}
+
+.ai-status-card {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--neutral-gray-50);
+  border-radius: 8px;
+  border: 1px solid var(--neutral-gray-200);
+}
+
+.ai-status-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--neutral-gray-100);
+}
+
+.ai-status-item:last-child {
+  border-bottom: none;
+}
+
+.ai-status-item .label {
+  color: var(--neutral-gray-600);
+  font-size: 13px;
+}
+
+.ai-status-item .value {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ai-status-item .value.active {
+  color: #10b981;
+}
 
 .actions-row {
     margin-top: 24px;

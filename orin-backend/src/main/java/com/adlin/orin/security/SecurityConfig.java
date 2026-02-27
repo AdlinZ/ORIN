@@ -49,7 +49,9 @@ public class SecurityConfig {
                                 "/v1/providers",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/**")
+                                "/actuator/**",
+                                // ZeroClaw 公开端点
+                                "/api/v1/zeroclaw/**")
                         .permitAll()
                         // 统一API网关端点（需要API密钥）
                         // 当前暂时 permitAll，实际由 WebConfig 中的拦截器进行 API 密钥校验
