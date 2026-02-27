@@ -168,9 +168,9 @@ cd orin-ai-engine
 ./venv/bin/python3 main.py
 ```
 
-### 一键启动
+### 一键启动 (本地管理)
 
-项目根目录下提供了 `manage.sh` 脚本用于一键管理：
+项目根目录下提供了 `manage.sh` 脚本用于本地开发时的管理：
 
 ```bash
 # 启动前后端
@@ -179,11 +179,20 @@ cd orin-ai-engine
 # 停止服务
 ./manage.sh stop
 
-# 重启系统
-./manage.sh restart
-
 # 查看状态
 ./manage.sh status
+```
+
+### 一键部署 (Ubuntu 生产环境)
+
+如果您是在一台**空白的 Ubuntu 服务器**上进行部署，可以使用 `deploy_ubuntu.sh` 脚本。它会自动安装 JDK、Node.js、MySQL、Redis、Docker、Nginx 等所有依赖并配置 Systemd 服务。
+
+```bash
+# 赋予执行权限
+chmod +x deploy_ubuntu.sh
+
+# 以 root 权限运行
+sudo ./deploy_ubuntu.sh
 ```
 
 ### 手动启动

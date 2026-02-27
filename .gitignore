@@ -116,3 +116,7 @@ pip-delete-this-directory.txt
 .pytest_cache/
 *.log
 ai_engine.log
+# ============================================
+# Docker Volumes
+# ============================================
+volumes/
