@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库 (低内存优化)
+  mysql:
+    image: mysql:8.0-debian
+    container_name: orin-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-OrinRoot123!}
+      MYSQL_DATABASE: orindb
+      MYSQL_USER: orin_user
+      MYSQL_PASSWORD: ${DB_PASSWORD:-OrinDb456!}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./volumes/mysql/data:/var/lib/mysql
+      - ./volumes/mysql/conf.d:/etc/mysql/conf.d
+      - ./scripts/mysql-low-memory.cnf:/etc/mysql/conf.d/low-memory.cnf:ro
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --performance-schema=OFF
+      --innodb-buffer-pool-size=128M
+      --innodb-log-buffer-size=8M
+      --query-cache-size=16M
+      --max-connections=50
+      --key-buffer-size=8M
+      --thread-cache-size=4
+      --table-open-cache=64
+      --tmp-table-size=16M
+      --max-heap-table-size=16M
+      --sort-buffer-size=512K
+      --read-buffer-size=256K
+      --read-rnd-buffer-size=512K
+      --join-buffer-size=128K
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-OrinRoot123!}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存 (低内存)
+  redis:
+    image: redis:7-alpine
+    container_name: orin-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./volumes/redis/data:/data
+      - ./scripts/redis-low-memory.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ORIN 后端 (Spring Boot)
+  backend:
+    build:
+      context: ./orin-backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: orin-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: orindb
+      DB_USERNAME: orin_user
+      DB_PASSWORD: ${DB_PASSWORD:-OrinDb456!}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      MILVUS_HOST: ${MILVUS_HOST:-mock}
+      MILVUS_PORT: ${MILVUS_PORT:-19530}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+      JAVA_OPTS: "-Xmx384m -Xms128m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./volumes/backend/uploads:/app/uploads
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+
+  # ORIN AI Engine (Python)
+  ai-engine:
+    build:
+      context: ./orin-ai-engine
+      dockerfile: ../docker/Dockerfile.ai-engine
+    container_name: orin-ai-engine
+    environment:
+      PORT: 8000
+      WORKERS: 1
+      TIMEOUT: 300
+      MAX_REQUESTS: 1000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: orin-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./orin-frontend/dist:/usr/share/nginx/html:ro
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/orin.conf:/etc/nginx/conf.d/orin.conf:ro
+      - ./volumes/nginx/ssl:/etc/nginx/ssl:ro
+      - ./volumes/nginx/logs:/var/log/nginx
+    depends_on:
+      - backend
+      - ai-engine
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 50M
+
+networks:
+  default:
+    name: orin-network

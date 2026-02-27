@@ -1,0 +1,51 @@
+[mysqld]
+# 低内存优化配置 (适用于 <2GB 内存服务器)
+
+# InnoDB 缓冲池 - 最重要，设置为物理内存的 10-15%
+innodb_buffer_pool_size = 128M
+innodb_log_buffer_size = 8M
+innodb_log_file_size = 32M
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method = O_DIRECT
+
+# 连接数
+max_connections = 50
+max_connect_errors = 100
+
+# 查询缓存
+query_cache_size = 16M
+query_cache_limit = 2M
+
+# 表缓存
+table_open_cache = 64
+table_definition_cache = 128
+
+# 线程缓存
+thread_cache_size = 4
+thread_stack = 192K
+
+# 临时表
+tmp_table_size = 16M
+max_heap_table_size = 16M
+
+# 排序/连接缓冲区
+sort_buffer_size = 512K
+read_buffer_size = 256K
+read_rnd_buffer_size = 512K
+join_buffer_size = 128K
+
+# 禁用性能模式节省内存
+performance_schema = OFF
+
+# 二进制日志（生产环境建议开启，演示可关闭）
+skip-log-bin
+
+# 字符集
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+[mysql]
+default-character-set = utf8mb4
+
+[client]
+default-character-set = utf8mb4
