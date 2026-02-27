@@ -380,14 +380,14 @@ const getStatusTagType = (status) => {
 
 .stat-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--neutral-gray-500);
   margin-bottom: 8px;
 }
 
 .stat-value {
   font-size: 32px;
   font-weight: 600;
-  color: #303133;
+  color: var(--neutral-gray-900);
 }
 
 .chart-card {
@@ -431,7 +431,7 @@ const getStatusTagType = (status) => {
 }
 
 .json-viewer {
-  background: #f5f7fa;
+  background: var(--neutral-gray-50);
   padding: 15px;
   border-radius: 4px;
   overflow-x: auto;

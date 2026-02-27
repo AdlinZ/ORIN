@@ -907,8 +907,8 @@ const copyHelperScript = () => {
   padding: 2px 6px;
   border-radius: 4px;
   text-transform: uppercase;
-  background: #f0f2f5;
-  color: #606266;
+  background: var(--neutral-gray-100);
+  color: var(--neutral-gray-600);
 }
 .provider-tag.openai { background: #10a37f; color: #fff; }
 .provider-tag.anthropic { background: #d97757; color: #fff; }
@@ -917,7 +917,7 @@ const copyHelperScript = () => {
 .provider-tag.siliconflow { background: #6b46c1; color: #fff; }
 .provider-tag.deepseek { background: #2f54eb; color: #fff; }
 
-.name { font-weight: 600; color: var(--neutral-black); }
+.name { font-weight: 600; color: var(--neutral-gray-900); }
 
 .api-fetch-section {
   padding: 15px;
@@ -960,10 +960,10 @@ const copyHelperScript = () => {
   margin: 5px 0 10px;
 }
 .code-block {
-  background: #f5f7fa;
+  background: var(--neutral-gray-50);
   padding: 10px;
   border-radius: 4px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--neutral-gray-200);
   margin: 10px 0;
   white-space: pre-wrap;
   word-break: break-all;

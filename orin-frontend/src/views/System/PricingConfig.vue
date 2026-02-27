@@ -243,15 +243,15 @@ onMounted(() => {
 
 /* Dark Mode Adaptation */
 html.dark .markup-tool {
-  background: var(--neutral-gray-800);
-  color: var(--neutral-gray-300);
+  background: var(--neutral-gray-100);
+  color: var(--neutral-gray-400);
 }
 
 html.dark .grid-header {
-  color: var(--neutral-gray-300);
+  color: var(--neutral-gray-400);
 }
 
 html.dark .grid-label {
-  color: var(--neutral-gray-400);
+  color: var(--neutral-gray-500);
 }
 </style>

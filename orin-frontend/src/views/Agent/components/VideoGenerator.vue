@@ -6,7 +6,7 @@
         <!-- Result Placeholder / History Watermark -->
         <div v-if="!videoUrl && !isProcessing" class="empty-canvas">
           <div class="orin-watermark">
-            <img src="/logo.png" alt="ORIN" class="watermark-logo" />
+            <img src="/logo.svg" alt="ORIN" class="watermark-logo" />
             <div class="watermark-text">ORIN Motion</div>
           </div>
           <div class="empty-hint">输入场景描述或上传首帧参考图，开始导演之旅</div>

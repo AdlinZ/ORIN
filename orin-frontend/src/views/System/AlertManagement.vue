@@ -435,7 +435,7 @@ onMounted(() => {
 
 .premium-card {
   border-radius: var(--radius-xl);
-  border: 1px solid var(--neutral-gray-100);
+  border: 1px solid var(--neutral-gray-200);
 }
 
 .card-header {

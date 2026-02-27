@@ -6,7 +6,7 @@
         <!-- Result Placeholder / History Watermark -->
         <div v-if="!result && !isProcessing" class="empty-canvas">
           <div class="orin-watermark">
-            <img src="/logo.png" alt="ORIN" class="watermark-logo" />
+            <img src="/logo.svg" alt="ORIN" class="watermark-logo" />
             <div class="watermark-text">ORIN Studio</div>
           </div>
           <div class="empty-hint">在下方输入视觉灵感，开始创作</div>

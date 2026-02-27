@@ -465,7 +465,7 @@ onMounted(() => {
 .kb-grid-item.create-card {
   cursor: pointer;
   border: 1px dashed var(--neutral-gray-300);
-  background: rgba(255,255,255,0.02);
+  background: var(--neutral-gray-50);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -475,8 +475,8 @@ onMounted(() => {
 }
 
 .kb-grid-item.create-card:hover {
-  border-color: var(--orin-amber);
-  background: var(--neutral-gray-50);
+  border-color: var(--orin-primary);
+  background: var(--neutral-gray-100);
 }
 
 .create-content {
@@ -503,7 +503,7 @@ onMounted(() => {
   border: 1px solid var(--neutral-gray-200);
   border-radius: 10px;
   transition: all 0.2s ease;
-  background: var(--surface-color, #fff); 
+  background: var(--neutral-white); 
 }
 
 .kb-card:hover {
@@ -633,7 +633,7 @@ onMounted(() => {
   width: 1000px; /* Wider for table */
   max-width: 90vw;
   height: 100%;
-  background: white;
+  background: var(--neutral-white);
   box-shadow: -10px 0 50px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
@@ -646,7 +646,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
+  background: var(--neutral-white);
 }
 
 .header-breadcrumb {
@@ -671,7 +671,7 @@ onMounted(() => {
   flex: 1;
   padding: 24px 32px;
   overflow-y: auto;
-  background: #FCFCFD; /* Dify style bg */
+  background: var(--neutral-gray-50); /* Dify style bg */
 }
 
 /* Detail Intro */
@@ -727,7 +727,7 @@ onMounted(() => {
 }
 
 .dify-table :deep(th) {
-   background: #F9FAFB !important;
+   background: var(--neutral-gray-50) !important;
    color: var(--neutral-gray-500);
    font-weight: 500;
 }

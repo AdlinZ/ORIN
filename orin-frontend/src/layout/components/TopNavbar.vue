@@ -2,8 +2,7 @@
   <div class="top-navbar">
     <!-- Logo 区域 -->
     <div class="navbar-logo" @click="goHome">
-      <img src="/logo.png" alt="ORIN Logo" />
-      <span class="logo-text">ORIN</span>
+      <BrandingLogo :height="44" />
     </div>
 
     <!-- 中间菜单区域 -->
@@ -146,8 +145,7 @@
   >
     <template #header>
       <div class="mobile-drawer-header">
-        <img src="/logo.png" alt="ORIN Logo" class="drawer-logo" />
-        <span class="drawer-title">ORIN</span>
+        <BrandingLogo :height="32" class="drawer-logo" />
       </div>
     </template>
     
@@ -285,6 +283,7 @@ import {
   Document, Picture, Histogram, Search, View, Grid,
   Notebook, Link, Coin, Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock
 } from '@element-plus/icons-vue'
+import BrandingLogo from '@/components/BrandingLogo.vue'
 import { v4 as uuidv4 } from 'uuid'
 import { marked } from 'marked'
 import { chatAgent, getAgentList } from '@/api/agent'
@@ -648,6 +647,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   cursor: pointer;
+  padding-left: 12px;
 }
 
 .navbar-logo:hover {
@@ -655,8 +655,9 @@ onMounted(() => {
 }
 
 .navbar-logo img {
-  width: 32px;
-  height: 32px;
+  height: 44px;
+  width: auto;
+  display: block;
 }
 
 .logo-text {

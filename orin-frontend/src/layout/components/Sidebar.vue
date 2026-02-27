@@ -3,9 +3,9 @@
     <!-- Logo Section -->
     <div class="logo-container">
       <div class="logo-box">
-        <img src="/logo.png" alt="Logo" class="logo" />
+        <BrandingLogo :height="appStore.isCollapse ? 28 : 32" class="logo" />
       </div>
-      <span class="title" v-show="!appStore.isCollapse">ORIN <span class="highlight">Monitor</span></span>
+      <span class="title" v-show="!appStore.isCollapse"><span class="highlight">Monitor</span></span>
     </div>
 
     <!-- Menu Section (scrollable) -->
@@ -98,6 +98,7 @@
 import { computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import BrandingLogo from '@/components/BrandingLogo.vue'
 import { useUserStore } from '@/stores/user'
 import Cookies from 'js-cookie'
 import { ElMessage } from 'element-plus'
@@ -258,17 +259,27 @@ router.afterEach(() => {
 }
 
 .logo-box {
-  width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  transition: all 0.3s;
+}
+
+.sidebar-container.collapsed .logo-box {
+  width: 32px;
   justify-content: center;
 }
 
 .logo {
-  width: 28px;
-  height: 28px;
+  height: 32px;
+  width: auto;
   filter: drop-shadow(0 0 8px var(--primary-glow));
+  transition: all 0.3s;
+}
+
+.sidebar-container.collapsed .logo {
+  height: 18px;
 }
 
 .title {

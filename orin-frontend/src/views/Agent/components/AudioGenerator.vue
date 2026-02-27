@@ -6,7 +6,7 @@
         <!-- Result Placeholder / History Watermark -->
         <div v-if="!audioUrl && !isProcessing" class="empty-canvas">
           <div class="orin-watermark">
-            <img src="/logo.png" alt="ORIN" class="watermark-logo" />
+            <img src="/logo.svg" alt="ORIN" class="watermark-logo" />
             <div class="watermark-text">ORIN Studio</div>
           </div>
           <div class="empty-hint">输入文本描述，体验专属声音质感</div>

@@ -459,7 +459,7 @@ onUnmounted(() => {
 
 .premium-card {
   border-radius: var(--radius-xl) !important;
-  border: 1px solid var(--neutral-gray-100) !important;
+  border: 1px solid var(--neutral-gray-200) !important;
 }
 
 .expand-content {

@@ -3,8 +3,8 @@
     <div class="login-box animate-scale">
       <div class="login-left">
         <div class="app-info">
-          <img src="/logo.png" alt="Logo" class="login-logo" />
-          <h1>ORIN Platform</h1>
+          <BrandingLogo :height="80" class="login-logo" />
+          <h1>Platform</h1>
           <p>智能体管理与全链路监控系统</p>
           <div class="feature-list">
             <div class="feature-item"><el-icon><CircleCheckFilled /></el-icon> 实时性能反馈</div>
@@ -101,6 +101,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { User, Lock, CircleCheckFilled, Share, Link, ArrowRight, Check } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import BrandingLogo from '@/components/BrandingLogo.vue';
 import { useUserStore } from '@/stores/user';
 import { ROUTES } from '@/router/routes';
 import { login } from '../api/auth';
@@ -243,7 +244,7 @@ const handleLogin = async () => {
   align-items: center;
 }
 
-.login-logo { width: 64px; height: 64px; margin-bottom: 24px; }
+.login-logo { height: 80px; width: auto; margin-bottom: 32px; }
 .login-left h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
 .login-left p { color: rgba(255,255,255,0.6); margin-bottom: 40px; }
 

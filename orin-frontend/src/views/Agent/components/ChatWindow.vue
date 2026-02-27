@@ -45,7 +45,7 @@
         <el-empty :image-size="200" description=" ">
           <template #image>
             <div class="orin-watermark">
-              <img src="/logo.png" alt="ORIN" class="watermark-logo" />
+              <img src="/logo.svg" alt="ORIN" class="watermark-logo" />
               <div class="watermark-text">ORIN Playground</div>
             </div>
           </template>

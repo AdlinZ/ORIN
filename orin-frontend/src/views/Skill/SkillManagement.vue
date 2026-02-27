@@ -564,12 +564,12 @@ const getStatusLabel = (status) => {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--neutral-gray-900);
 }
 
 .header-title .subtitle {
   font-size: 14px;
-  color: #666;
+  color: var(--neutral-gray-500);
   margin-top: 4px;
   display: block;
 }
@@ -585,7 +585,7 @@ const getStatusLabel = (status) => {
 
 .tip-info {
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   margin-top: -10px;
   margin-bottom: 20px;
   padding-left: 120px;
@@ -602,15 +602,15 @@ const getStatusLabel = (status) => {
 
 .result-container {
   margin-top: 20px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--neutral-gray-200);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .result-header {
   padding: 10px 16px;
-  background: #f8f9fb;
-  border-bottom: 1px solid #ebeef5;
+  background: var(--neutral-gray-50);
+  border-bottom: 1px solid var(--neutral-gray-200);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -630,7 +630,7 @@ const getStatusLabel = (status) => {
 
 .markdown-preview {
   padding: 30px;
-  background: #fff;
+  background: var(--neutral-white);
   border-radius: 8px;
   max-height: 70vh;
   overflow-y: auto;

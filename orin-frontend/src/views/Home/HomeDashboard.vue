@@ -357,15 +357,15 @@ onMounted(() => {
 .command-center-root {
   height: calc(100vh - 84px);
   padding: 16px;
-  background-color: #f6f8fa;
-  color: #1a1c21;
+  background-color: var(--neutral-gray-50);
+  color: var(--neutral-gray-900);
   display: flex;
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
   font-family: 'Outfit', 'Inter', system-ui, sans-serif;
 }
-.theme-dark { background-color: #0b0e14; color: #f9fafb; }
+.theme-dark { background-color: var(--neutral-gray-50); color: var(--neutral-gray-900); }
 
 /* HEADER */
 .cc-header-glass {
@@ -580,4 +580,16 @@ onMounted(() => {
 @keyframes sFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
 @media (max-width: 1550px) { .cc-layout-grid { grid-template-columns: 240px 1fr 280px; } }
+/* Unify semantic cloud colors in dark mode */
+html.dark .s-tag-v4 {
+  background: var(--neutral-gray-100);
+}
+
+html.dark .rk-item {
+  background: var(--neutral-gray-50);
+}
+
+html.dark .rk-item:hover {
+  background: var(--neutral-gray-100);
+}
 </style>

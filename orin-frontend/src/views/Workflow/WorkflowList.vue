@@ -357,9 +357,9 @@ const formatTime = (time) => {
   background: var(--neutral-gray-50);
 }
 
-.icon.success { color: var(--success); background: var(--success-bg); }
-.icon.primary { color: var(--primary-color); background: var(--primary-light-1); }
-.icon.warning { color: var(--warning); background: var(--warning-bg); }
+.icon.success { color: var(--success-color); background: var(--success-50); }
+.icon.primary { color: var(--primary-color); background: var(--primary-50); }
+.icon.warning { color: var(--warning-color); background: var(--warning-50); }
 
 .list-card {
   border-radius: 12px;

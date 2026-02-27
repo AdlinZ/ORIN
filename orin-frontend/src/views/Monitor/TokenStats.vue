@@ -474,31 +474,31 @@ html.dark .chart-card,
 html.dark .distribution-card,
 html.dark .table-card,
 html.dark .stat-card {
-  background-color: var(--neutral-gray-900);
-  border-color: var(--neutral-gray-800) !important;
+  background-color: var(--neutral-white);
+  border-color: var(--neutral-gray-200) !important;
 }
 
 html.dark .card-title {
-  color: var(--neutral-white);
+  color: var(--neutral-gray-900);
 }
 
 html.dark .stat-label {
-  color: var(--neutral-gray-400);
+  color: var(--neutral-gray-500);
 }
 
 html.dark .stat-value {
-  color: var(--neutral-white);
+  color: var(--neutral-gray-900);
 }
 
 html.dark .stat-sub {
-  border-top-color: var(--neutral-gray-800);
+  border-top-color: var(--neutral-gray-100);
 }
 
 html.dark .tokens-value {
-  color: var(--neutral-gray-400);
+  color: var(--neutral-gray-600);
 }
 
 html.dark .cost-currency {
-  color: var(--neutral-gray-500);
+  color: var(--neutral-gray-400);
 }
 </style>

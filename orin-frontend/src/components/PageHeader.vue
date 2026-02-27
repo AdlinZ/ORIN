@@ -73,8 +73,8 @@ defineProps({
 }
 
 html.dark .page-header-container {
-  background: rgba(17, 24, 39, 0.6);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: var(--neutral-gray-50);
+  border-color: var(--orin-border);
   box-shadow: 
     0 10px 30px -10px rgba(0, 0, 0, 0.5),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);

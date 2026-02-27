@@ -338,7 +338,7 @@ onMounted(() => {
 
 .premium-card {
   border-radius: var(--radius-xl) !important;
-  border: 1px solid var(--neutral-gray-100) !important;
+  border: 1px solid var(--neutral-gray-200) !important;
 }
 
 .card-header {
@@ -391,7 +391,7 @@ onMounted(() => {
   padding: 12px;
   background: var(--neutral-gray-50);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--neutral-gray-100);
+  border: 1px solid var(--neutral-gray-200);
 }
 
 .item-title {
@@ -406,7 +406,7 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 700;
   color: var(--primary-color);
-  background: white;
+  background: var(--neutral-white);
   padding: 2px 8px;
   border-radius: 4px;
   margin-bottom: 8px;

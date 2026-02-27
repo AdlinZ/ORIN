@@ -8,9 +8,9 @@
     <!-- Header Bar -->
     <header class="wall-header">
       <div class="header-left">
-        <img src="/logo.png" class="header-logo" />
+        <BrandingLogo :height="48" class="header-logo" />
         <div class="header-title">
-          <h1>ORIN 智能平台监控中心</h1>
+          <h1>智能平台监控中心</h1>
           <span class="subtitle">AI Platform Monitoring Center</span>
         </div>
       </div>
@@ -173,6 +173,7 @@ import AnimatedNumber from '@/components/AnimatedNumber.vue';
 import { Monitor, Tickets, Cpu, Connection, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
 import { getGlobalSummary, getAgentList } from '@/api/monitor';
 import request from '@/utils/request';
+import BrandingLogo from '@/components/BrandingLogo.vue';
 
 const router = useRouter();
 const loading = ref(false);
@@ -405,9 +406,8 @@ onUnmounted(() => {
 }
 
 .header-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  height: 48px;
+  width: auto;
 }
 
 .header-title h1 {
