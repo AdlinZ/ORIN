@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/api-endpoints")
 @Tag(name = "API Endpoint Management", description = "API端点管理")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class ApiEndpointController {
 

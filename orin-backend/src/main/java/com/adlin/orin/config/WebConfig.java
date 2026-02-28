@@ -3,13 +3,17 @@ package com.adlin.orin.config;
 import com.adlin.orin.security.ApiKeyAuthInterceptor;
 import com.adlin.orin.security.ApiRateLimitInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * Web MVC配置
@@ -21,6 +25,36 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final ApiKeyAuthInterceptor apiKeyAuthInterceptor;
     private final ApiRateLimitInterceptor apiRateLimitInterceptor;
+
+    @Value("${orin.security.cors.allowed-origins:}")
+    private String allowedOrigins;
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        // Parse allowed origins from comma-separated string
+        String[] origins = allowedOrigins.isBlank()
+            ? new String[]{}
+            : allowedOrigins.split(",");
+
+        // Remove wildcards - CORS with * is not allowed for credentials
+        for (String origin : origins) {
+            if (origin.trim().equals("*")) {
+                throw new IllegalStateException(
+                    "CORS wildcard '*' is not allowed. Please specify explicit origins in orin.security.cors.allowed-origins");
+            }
+        }
+
+        registry.addMapping("/**")
+                .allowedOrigins(origins)
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
+
+        if (origins.length == 0) {
+            // No CORS configured - log warning
+        }
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {

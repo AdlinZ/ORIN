@@ -17,7 +17,6 @@ import java.util.List;
 @RequestMapping("/api/v1/monitor/dataflow")
 @RequiredArgsConstructor
 @Tag(name = "Phase 4: Data Flow Management", description = "数据流与链路追踪")
-@CrossOrigin(origins = "*")
 public class DataFlowController {
 
     private final AuditLogRepository auditLogRepository;

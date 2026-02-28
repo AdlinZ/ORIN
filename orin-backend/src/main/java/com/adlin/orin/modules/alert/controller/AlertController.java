@@ -17,7 +17,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/alerts")
 @RequiredArgsConstructor
 @Tag(name = "Alert Management", description = "告警管理")
-@CrossOrigin(origins = "*")
 public class AlertController {
 
     private final AlertService alertService;

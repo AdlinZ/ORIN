@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,11 +23,30 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret:orin-secret-key-change-this-in-production-environment}")
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}") // 默认24小时
     private Long expiration;
+
+    // Minimum secret length for security
+    private static final int MIN_SECRET_LENGTH = 32;
+
+    @PostConstruct
+    public void validateSecret() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT secret must be configured via jwt.secret property");
+        }
+        if (secret.length() < MIN_SECRET_LENGTH) {
+            throw new IllegalStateException(
+                String.format("JWT secret must be at least %d characters long for security", MIN_SECRET_LENGTH));
+        }
+        // Warn about weak secrets
+        if (secret.contains("change-this") || secret.contains("secret") || secret.length() < 64) {
+            log.warn("JWT secret is too weak. Consider using a stronger secret for production");
+        }
+        log.info("JWT service initialized with secret meeting minimum length requirements");
+    }
 
     /**
      * 生成JWT Token

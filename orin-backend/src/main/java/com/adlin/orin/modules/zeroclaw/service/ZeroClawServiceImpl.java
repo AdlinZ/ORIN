@@ -11,6 +11,8 @@ import com.adlin.orin.modules.zeroclaw.entity.ZeroClawSelfHealingLog;
 import com.adlin.orin.modules.zeroclaw.repository.ZeroClawAnalysisReportRepository;
 import com.adlin.orin.modules.zeroclaw.repository.ZeroClawConfigRepository;
 import com.adlin.orin.modules.zeroclaw.repository.ZeroClawSelfHealingLogRepository;
+import com.adlin.orin.security.EncryptionUtil;
+import com.adlin.orin.security.SsrfProtectionUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -37,10 +39,19 @@ public class ZeroClawServiceImpl implements ZeroClawService {
     private final ZeroClawClient zeroClawClient;
     private final AgentMetricRepository agentMetricRepository;
     private final ObjectMapper objectMapper;
+    private final EncryptionUtil encryptionUtil;
 
     @Override
     @Transactional
     public ZeroClawConfig createConfig(ZeroClawConfig config) {
+        // SSRF Protection: Validate endpoint URL before saving
+        if (config.getEndpointUrl() != null && !config.getEndpointUrl().isBlank()) {
+            SsrfProtectionUtil.validateUrl(config.getEndpointUrl());
+        }
+        // Encrypt access token before saving
+        if (config.getAccessToken() != null && !config.getAccessToken().isBlank()) {
+            config.setAccessToken(encryptionUtil.encrypt(config.getAccessToken()));
+        }
         ZeroClawConfig saved = configRepository.save(config);
         log.info("Created ZeroClaw config: {}", saved.getConfigName());
         return saved;
@@ -53,8 +64,16 @@ public class ZeroClawServiceImpl implements ZeroClawService {
                 .orElseThrow(() -> new RuntimeException("ZeroClaw config not found: " + id));
 
         existing.setConfigName(config.getConfigName());
+
+        // SSRF Protection: Validate endpoint URL before updating
+        if (config.getEndpointUrl() != null && !config.getEndpointUrl().isBlank()) {
+            SsrfProtectionUtil.validateUrl(config.getEndpointUrl());
+        }
         existing.setEndpointUrl(config.getEndpointUrl());
-        existing.setAccessToken(config.getAccessToken());
+        // Encrypt access token before saving
+        if (config.getAccessToken() != null && !config.getAccessToken().isBlank()) {
+            existing.setAccessToken(encryptionUtil.encrypt(config.getAccessToken()));
+        }
         existing.setEnabled(config.getEnabled());
         existing.setEnableAnalysis(config.getEnableAnalysis());
         existing.setEnableSelfHealing(config.getEnableSelfHealing());
@@ -85,6 +104,10 @@ public class ZeroClawServiceImpl implements ZeroClawService {
 
     @Override
     public boolean testConnection(String endpointUrl, String accessToken) {
+        // SSRF Protection: Validate endpoint URL before testing connection
+        if (endpointUrl != null && !endpointUrl.isBlank()) {
+            SsrfProtectionUtil.validateUrl(endpointUrl);
+        }
         return zeroClawClient.testConnection(endpointUrl, accessToken);
     }
 
@@ -105,7 +128,7 @@ public class ZeroClawServiceImpl implements ZeroClawService {
         // 调用 ZeroClaw 进行分析
         Map<String, Object> result = zeroClawClient.requestAnalysis(
                 config.getEndpointUrl(),
-                config.getAccessToken(),
+                decryptAccessToken(config.getAccessToken()),
                 request.getAnalysisType(),
                 metricsData);
 
@@ -186,7 +209,7 @@ public class ZeroClawServiceImpl implements ZeroClawService {
 
         Map<String, Object> result = zeroClawClient.requestSelfHealing(
                 config.getEndpointUrl(),
-                config.getAccessToken(),
+                decryptAccessToken(config.getAccessToken()),
                 request.getActionType(),
                 params);
 
@@ -233,7 +256,7 @@ public class ZeroClawServiceImpl implements ZeroClawService {
             return status;
         }
 
-        boolean connected = zeroClawClient.testConnection(config.getEndpointUrl(), config.getAccessToken());
+        boolean connected = zeroClawClient.testConnection(config.getEndpointUrl(), decryptAccessToken(config.getAccessToken()));
         Map<String, Object> status = new HashMap<>();
         status.put("connected", connected);
         status.put("configName", config.getConfigName());
@@ -243,7 +266,7 @@ public class ZeroClawServiceImpl implements ZeroClawService {
 
         if (connected) {
             Map<String, Object> remoteStatus = zeroClawClient.getStatus(config.getEndpointUrl(),
-                    config.getAccessToken());
+                    decryptAccessToken(config.getAccessToken()));
             if (remoteStatus != null) {
                 status.putAll(remoteStatus);
             }
@@ -300,6 +323,16 @@ public class ZeroClawServiceImpl implements ZeroClawService {
         data.put("context", request.getContext());
 
         return data;
+    }
+
+    /**
+     * 解密 access token
+     */
+    private String decryptAccessToken(String encryptedToken) {
+        if (encryptedToken == null || encryptedToken.isBlank()) {
+            return null;
+        }
+        return encryptionUtil.decrypt(encryptedToken);
     }
 
     /**

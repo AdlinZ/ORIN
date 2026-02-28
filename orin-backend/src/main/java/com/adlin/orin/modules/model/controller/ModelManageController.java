@@ -14,7 +14,6 @@ import java.util.List;
 @RequestMapping("/api/v1/models")
 @RequiredArgsConstructor
 @Tag(name = "Model Management", description = "LLM 模型资源管理")
-@CrossOrigin(origins = "*")
 public class ModelManageController {
 
     private final ModelManageService modelManageService;

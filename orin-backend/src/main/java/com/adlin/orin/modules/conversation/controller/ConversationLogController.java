@@ -15,7 +15,6 @@ import java.util.List;
 @RequestMapping("/api/v1/conversation-logs")
 @RequiredArgsConstructor
 @Tag(name = "Conversation Logs", description = "智能体对话日志接口")
-@CrossOrigin(origins = "*")
 public class ConversationLogController {
 
     private final ConversationLogService service;

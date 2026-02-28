@@ -4,7 +4,7 @@
     <nav class="landing-nav animate-fade">
       <div class="nav-content">
         <div class="logo-area">
-          <img src="/vite.svg" alt="Logo" class="mini-logo" />
+          <img src="/logo.svg" alt="Logo" class="mini-logo" />
           <span class="logo-text">ORIN Platform</span>
         </div>
         <div class="nav-links">

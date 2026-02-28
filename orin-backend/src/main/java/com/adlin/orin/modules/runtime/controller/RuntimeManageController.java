@@ -14,7 +14,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/runtime")
 @RequiredArgsConstructor
 @Tag(name = "Phase 2: Runtime Awareness", description = "智能体运行期管理")
-@CrossOrigin(origins = "*")
 public class RuntimeManageController {
 
     private final RuntimeManageService runtimeManageService;

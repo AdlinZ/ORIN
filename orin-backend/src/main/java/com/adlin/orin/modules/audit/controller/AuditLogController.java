@@ -17,7 +17,6 @@ import org.springframework.lang.NonNull;
 @RequestMapping("/api/v1/audit/logs")
 @RequiredArgsConstructor
 @Tag(name = "Phase 5: Audit Logs", description = "审计日志查询接口")
-@CrossOrigin(origins = "*")
 public class AuditLogController {
 
     private final AuditLogService auditLogService;

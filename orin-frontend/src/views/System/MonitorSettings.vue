@@ -1,9 +1,9 @@
 <template>
   <div class="page-container">
-    <PageHeader 
-      title="监控系统配置" 
-      description="配置系统硬件监控、Prometheus 数据源以及告警阈值"
-      icon="Monitor"
+    <PageHeader
+      title="系统环境配置"
+      description="配置系统硬件监控、环境变量、ZeroClaw 智能维护以及告警阈值"
+      icon="Tools"
     >
       <template #actions>
         <el-button type="primary" :loading="saving" :icon="Check" @click="saveConfig">

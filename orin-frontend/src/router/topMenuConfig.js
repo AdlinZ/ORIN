@@ -134,9 +134,9 @@ export const TOP_MENU_CONFIG = [
                 icon: 'Coin'
             },
             {
-                title: '监控设置',
-                path: ROUTES.CONTROL.MONITOR_CONFIG,
-                icon: 'Monitor'
+                title: '系统环境配置',
+                path: ROUTES.CONTROL.SYSTEM_ENV,
+                icon: 'Tools'
             }
         ]
     }

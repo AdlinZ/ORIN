@@ -17,7 +17,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/monitor")
 @RequiredArgsConstructor
 @Tag(name = "Phase 3: Resource & Health Monitoring", description = "智能体监控相关接口")
-@CrossOrigin(origins = "*") // Allow cross-origin for Frontend development
 public class MonitorController {
 
     private final MonitorService monitorService;

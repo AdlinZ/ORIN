@@ -5,6 +5,6 @@ UPDATE sys_user
 SET password = '$2a$10$SInbX6pqbyB40ZDCLYJgl..PihHe2h3KXgZFcfoZ7X7sQmai3vm2.' 
 WHERE username = 'admin' AND password = 'admin123';
 
-UPDATE sys_user 
-SET password = '$2a$10$8.7XNl.M5sC8H9l.5X/O.O.5X/O.O.5X/O.O.5X/O.O.5X/O.O.5X/O.' 
+UPDATE sys_user
+SET password = '$2a$10$N9qo8uLOickgx2ZMRZoMye4qDy7iRKKFhp8hN.VnXqDvSZvHrW7C'
 WHERE username = 'user' AND password = 'user123';

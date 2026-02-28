@@ -14,7 +14,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/users")
 @Tag(name = "User Management", description = "用户管理接口")
-@CrossOrigin(origins = "*")
 public class UserController {
 
     @Autowired

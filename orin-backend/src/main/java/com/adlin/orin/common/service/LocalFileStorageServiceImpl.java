@@ -1,12 +1,14 @@
 package com.adlin.orin.common.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -14,6 +16,17 @@ import java.util.UUID;
 public class LocalFileStorageServiceImpl implements FileStorageService {
 
     private final Path fileStorageLocation;
+
+    // Allowed file extensions for upload (configure via application.properties)
+    @Value("${file.upload.allowed-extensions:.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.md,.json,.xml,.csv,.xls,.xlsx,.ppt,.pptx}")
+    private Set<String> allowedExtensions;
+
+    // Blocked file extensions (dangerous file types)
+    private static final Set<String> BLOCKED_EXTENSIONS = Set.of(
+            ".exe", ".bat", ".cmd", ".sh", ".bash", ".ps1", ".vbs", ".js", ".jar",
+            ".class", ".jsp", ".asp", ".php", ".phtml", ".htaccess", ".htpasswd",
+            ".sql", ".db", ".sqlite", ".mdb", ".env", ".config", ".ini"
+    );
 
     public LocalFileStorageServiceImpl() {
         this.fileStorageLocation = Paths.get("storage/uploads").toAbsolutePath().normalize();
@@ -27,21 +40,37 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Override
     public String storeFile(MultipartFile file, String subDir) throws IOException {
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-        String extension = "";
 
-        int i = originalFileName.lastIndexOf('.');
-        if (i > 0) {
-            extension = originalFileName.substring(i); // includes dot
+        // Validate filename
+        if (originalFileName == null || originalFileName.isBlank()) {
+            throw new IllegalArgumentException("Filename cannot be empty");
         }
 
+        // Check for path traversal
+        if (originalFileName.contains("..") || originalFileName.contains("/") || originalFileName.contains("\\")) {
+            throw new IllegalArgumentException("Filename contains invalid path sequence");
+        }
+
+        String extension = "";
+        int i = originalFileName.lastIndexOf('.');
+        if (i > 0) {
+            extension = originalFileName.substring(i).toLowerCase(); // includes dot, normalize to lowercase
+        }
+
+        // Check if extension is blocked
+        if (BLOCKED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("File type " + extension + " is not allowed for security reasons");
+        }
+
+        // Check if extension is in allowed list (if configured)
+        if (allowedExtensions != null && !allowedExtensions.isEmpty() && !allowedExtensions.contains(extension)) {
+            throw new IllegalArgumentException("File type " + extension + " is not in the allowed list");
+        }
+
+        // Generate safe filename with UUID
         String fileName = UUID.randomUUID().toString() + extension;
 
         try {
-            // Check if the file's name contains invalid characters
-            if (fileName.contains("..")) {
-                throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
-            }
-
             Path targetDir = this.fileStorageLocation.resolve(subDir);
             Files.createDirectories(targetDir);
 

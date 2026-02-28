@@ -22,7 +22,6 @@ import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 @RequiredArgsConstructor
 @lombok.extern.slf4j.Slf4j
 @Tag(name = "Phase 4: Asset Management", description = "知识资产管理")
-@CrossOrigin(origins = "*")
 public class KnowledgeManageController {
 
     private final KnowledgeManageService knowledgeManageService;

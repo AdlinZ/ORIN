@@ -29,7 +29,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1")
 @Tag(name = "Unified API Gateway", description = "OpenAI兼容的统一API接口")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class ApiGatewayController {
 

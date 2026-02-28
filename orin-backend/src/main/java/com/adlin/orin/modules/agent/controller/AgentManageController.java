@@ -17,7 +17,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/agents")
 @Tag(name = "Phase 1: Agent Onboarding", description = "智能体接入与管理")
-@CrossOrigin(origins = "*")
 public class AgentManageController {
 
     private final AgentManageService agentManageService;

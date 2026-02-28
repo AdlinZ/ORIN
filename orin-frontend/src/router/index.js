@@ -315,12 +315,12 @@ const routes = [
                         meta: { title: '定价策略', icon: 'Coin', roles: ['ROLE_ADMIN'] }
                     },
 
-                    // 监控设置
+                    // 系统环境配置
                     {
-                        path: 'monitor-config',
-                        name: 'ControlMonitorConfig',
+                        path: 'system-env',
+                        name: 'ControlSystemEnv',
                         component: () => import('@/views/System/MonitorSettings.vue'),
-                        meta: { title: '监控设置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
                     }
                 ]
             }

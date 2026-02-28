@@ -15,7 +15,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/files")
 @RequiredArgsConstructor
 @Tag(name = "SiliconFlow File Proxy", description = "硅基流动文件上传代理")
-@CrossOrigin(origins = "*")
 public class SiliconFlowProxyController {
 
     private final SiliconFlowIntegrationService siliconFlowIntegrationService;

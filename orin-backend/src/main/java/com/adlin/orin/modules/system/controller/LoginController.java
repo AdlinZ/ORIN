@@ -15,7 +15,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Authentication", description = "身份验证与鉴权")
-@CrossOrigin(origins = "*")
 public class LoginController {
 
     @Autowired

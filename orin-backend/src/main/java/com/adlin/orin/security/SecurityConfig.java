@@ -49,15 +49,13 @@ public class SecurityConfig {
                                 "/v1/providers",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/**",
-                                // ZeroClaw 公开端点
-                                "/api/v1/zeroclaw/**")
+                                "/actuator/**")
                         .permitAll()
                         // 统一API网关端点（需要API密钥）
                         // 当前暂时 permitAll，实际由 WebConfig 中的拦截器进行 API 密钥校验
                         .requestMatchers("/v1/**").permitAll()
                         // 管理端点（需要JWT认证）
-                        // 管理端点（需要JWT认证）
+                        // ZeroClaw 端点需要认证（已移除公开访问）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

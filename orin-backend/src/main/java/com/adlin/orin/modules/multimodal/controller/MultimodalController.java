@@ -24,7 +24,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/multimodal")
 @RequiredArgsConstructor
 @Tag(name = "Multimodal File Management", description = "多模态文件管理")
-@CrossOrigin(origins = "*")
 public class MultimodalController {
 
     private final MultimodalFileService fileService;

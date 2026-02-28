@@ -15,7 +15,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/system/log-config")
 @RequiredArgsConstructor
 @Tag(name = "Phase 5: Log Configuration", description = "日志配置管理")
-@CrossOrigin(origins = "*")
 public class LogConfigController {
 
     private final LogConfigService logConfigService;

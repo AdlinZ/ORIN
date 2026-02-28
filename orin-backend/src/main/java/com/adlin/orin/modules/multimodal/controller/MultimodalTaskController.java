@@ -16,7 +16,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/multimodal/tasks")
 @RequiredArgsConstructor
 @Tag(name = "Multimodal Task Management", description = "多模态任务后台执行与历史管理")
-@CrossOrigin(origins = "*")
 public class MultimodalTaskController {
 
     private final MultimodalTaskRepository taskRepository;

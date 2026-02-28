@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/api-keys")
 @Tag(name = "API Key Management", description = "API密钥管理")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class ApiKeyController {
 

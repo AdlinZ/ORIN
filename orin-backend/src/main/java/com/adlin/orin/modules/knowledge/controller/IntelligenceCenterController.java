@@ -16,7 +16,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/intelligence")
 @RequiredArgsConstructor
 @Tag(name = "Phase 5: Intelligence Center", description = "智力资产中心 (Memory, Skills, Prompts)")
-@CrossOrigin(origins = "*")
 public class IntelligenceCenterController {
 
     private final MetaKnowledgeService metaKnowledgeService;

@@ -51,7 +51,7 @@ export const ROUTES = {
         AUDIT_LOGS: '/dashboard/control/audit-logs',
         API_MANAGEMENT: '/dashboard/control/api-management',
         PRICING: '/dashboard/control/pricing',
-        MONITOR_CONFIG: '/dashboard/control/monitor-config',
+        SYSTEM_ENV: '/dashboard/control/system-env',
     },
 
     // 其他
@@ -93,7 +93,7 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/system/api-management': ROUTES.CONTROL.API_MANAGEMENT,
     '/dashboard/system/api-keys': ROUTES.CONTROL.API_MANAGEMENT,
     '/dashboard/system/pricing': ROUTES.CONTROL.PRICING,
-    '/dashboard/system/monitor-config': ROUTES.CONTROL.MONITOR_CONFIG,
+    '/dashboard/system/monitor-config': ROUTES.CONTROL.SYSTEM_ENV,
 }
 
 // ==================== 侧边栏菜单配置 ====================
@@ -229,8 +229,8 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'Coin',
             },
             {
-                title: '监控设置',
-                path: ROUTES.CONTROL.MONITOR_CONFIG,
+                title: '系统环境配置',
+                path: ROUTES.CONTROL.SYSTEM_ENV,
                 icon: 'Tools',
             },
         ],
