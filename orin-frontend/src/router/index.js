@@ -99,6 +99,18 @@ const routes = [
                         component: () => import('@/views/ModelConfig/ModelSystemConfig.vue'),
                         meta: { title: '模型配置', hidden: true }
                     },
+                    {
+                        path: 'models/add',
+                        name: 'ModelAdd',
+                        component: () => import('@/views/ModelConfig/AddModel.vue'),
+                        meta: { title: '添加模型', hidden: true }
+                    },
+                    {
+                        path: 'models/edit/:id',
+                        name: 'ModelEdit',
+                        component: () => import('@/views/ModelConfig/AddModel.vue'),
+                        meta: { title: '编辑模型', hidden: true }
+                    },
 
                     // 技能绑定
                     {
@@ -305,14 +317,6 @@ const routes = [
                         name: 'ApiKeyManagement',
                         component: () => import('@/views/System/ApiKeyManagement.vue'),
                         meta: { title: 'API 密钥管理', icon: 'Key', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 定价策略
-                    {
-                        path: 'pricing',
-                        name: 'ControlPricing',
-                        component: () => import('@/views/System/PricingConfig.vue'),
-                        meta: { title: '定价策略', icon: 'Coin', roles: ['ROLE_ADMIN'] }
                     },
 
                     // 系统环境配置

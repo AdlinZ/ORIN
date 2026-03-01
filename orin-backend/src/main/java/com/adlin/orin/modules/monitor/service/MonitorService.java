@@ -84,6 +84,26 @@ public interface MonitorService {
     List<Map<String, Object>> getCostDistribution(Long startDate, Long endDate);
 
     /**
+     * 获取Token按星期分布
+     */
+    List<Map<String, Object>> getTokenByDayOfWeek();
+
+    /**
+     * 获取Token按小时分布
+     */
+    List<Map<String, Object>> getTokenByHour();
+
+    /**
+     * 获取Token类型分布 (input/output/cache)
+     */
+    Map<String, Object> getTokenByType();
+
+    /**
+     * 获取会话列表
+     */
+    List<Map<String, Object>> getSessions(int limit);
+
+    /**
      * 获取延迟统计数据
      */
     Map<String, Object> getLatencyStats();

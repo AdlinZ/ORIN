@@ -100,3 +100,31 @@ export const deletePricingConfig = (id) => {
 export const getServerHardware = () => {
     return request.get('/monitor/server-hardware');
 };
+
+// Token Stats Dashboard APIs
+export const getTokenByDayOfWeek = (config = {}) => {
+    return request.get('/monitor/tokens/by-day-of-week', config);
+};
+
+export const getTokenByHour = (config = {}) => {
+    return request.get('/monitor/tokens/by-hour', config);
+};
+
+export const getTokenByType = (config = {}) => {
+    return request.get('/monitor/tokens/by-type', config);
+};
+
+export const getSessions = (limit = 20, config = {}) => {
+    return request.get('/monitor/sessions', {
+        params: { limit },
+        ...config
+    });
+};
+
+// Daily token trend
+export const getDailyTokenTrend = (period = 'daily', config = {}) => {
+    return request.get('/monitor/tokens/trend', {
+        params: { period },
+        ...config
+    });
+};

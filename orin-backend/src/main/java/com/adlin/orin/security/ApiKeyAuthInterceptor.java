@@ -37,6 +37,16 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 检查是否是JWT token (以eyJ开头) - 让JWT filter处理
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            // 如果是JWT token (以eyJ开头)，跳过API Key验证，让JWT filter处理
+            if (token.startsWith("eyJ")) {
+                return true;
+            }
+        }
+
         // 从请求头获取API密钥
         String apiKey = extractApiKey(request);
 

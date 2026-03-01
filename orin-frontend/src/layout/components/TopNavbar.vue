@@ -192,11 +192,6 @@
                           <el-icon><MagicStick /></el-icon>
                           <span>AI 助手</span>
                       </div>
-                      <div class="core-tab-btn" :class="{ active: currentDialogTab === 'zeroclaw' }" @click="currentDialogTab = 'zeroclaw'">
-                          <el-icon><Operation /></el-icon>
-                          <span>ZeroClaw</span>
-                          <div class="zc-status-dot" :class="{ connected: zeroClawStatus?.connected }"></div>
-                      </div>
                   </div>
               </div>
               <div class="header-right">
@@ -272,115 +267,6 @@
                   </div>
               </div>
           </template>
-
-          <!-- ZeroClaw Tab -->
-          <template v-else-if="currentDialogTab === 'zeroclaw'">
-              <div class="zeroclaw-container">
-                  <!-- Tab Navigation -->
-                  <div class="zc-tabs">
-                      <div class="zc-tab" :class="{ active: zeroClawTab === 'status' }" @click="zeroClawTab = 'status'">
-                          <el-icon><Operation /></el-icon>
-                          <span>状态监控</span>
-                      </div>
-                      <div class="zc-tab" :class="{ active: zeroClawTab === 'analysis' }" @click="zeroClawTab = 'analysis'">
-                          <el-icon><TrendChartsIcon /></el-icon>
-                          <span>智能分析</span>
-                      </div>
-                      <div class="zc-tab" :class="{ active: zeroClawTab === 'healing' }" @click="zeroClawTab = 'healing'">
-                          <el-icon><Tools /></el-icon>
-                          <span>主动维护</span>
-                      </div>
-                  </div>
-
-                  <!-- Status Tab -->
-                  <div v-if="zeroClawTab === 'status'" class="zc-content">
-                      <div class="zc-status-card">
-                          <div class="zc-status-header">
-                              <div class="zc-status-indicator" :class="{ connected: zeroClawStatus?.connected }">
-                                  <div class="zc-dot"></div>
-                                  <span>{{ zeroClawStatus?.connected ? '已连接' : '未连接' }}</span>
-                              </div>
-                              <el-button size="small" :icon="Refresh" @click="fetchZeroClawStatus" :loading="zeroClawLoading">刷新</el-button>
-                          </div>
-                          <div class="zc-status-info" v-if="zeroClawStatus">
-                              <div class="info-item" v-if="zeroClawStatus.configName">
-                                  <span class="label">配置名称:</span>
-                                  <span class="value">{{ zeroClawStatus.configName }}</span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">智能分析:</span>
-                                  <span class="value" :class="{ active: zeroClawStatus.analysisEnabled }">
-                                      {{ zeroClawStatus.analysisEnabled ? '已启用' : '已禁用' }}
-                                  </span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">主动维护:</span>
-                                  <span class="value" :class="{ active: zeroClawStatus.selfHealingEnabled }">
-                                      {{ zeroClawStatus.selfHealingEnabled ? '已启用' : '已禁用' }}
-                                  </span>
-                              </div>
-                          </div>
-                          <div class="zc-status-message" v-else>
-                              <p v-if="!zeroClawLoading">暂无ZeroClaw配置，请先在系统设置中添加ZeroClaw连接配置。</p>
-                              <p v-else>正在加载状态...</p>
-                          </div>
-                      </div>
-                  </div>
-
-                  <!-- Analysis Tab -->
-                  <div v-if="zeroClawTab === 'analysis'" class="zc-content">
-                      <div class="zc-actions-row">
-                          <el-button type="primary" :icon="TrendChartsIcon" @click="runZeroClawAnalysis('PERFORMANCE')" :loading="zeroClawLoading" :disabled="!zeroClawStatus?.connected">
-                              性能分析
-                          </el-button>
-                          <el-button type="primary" :icon="TrendChartsIcon" @click="runZeroClawAnalysis('ANOMALY')" :loading="zeroClawLoading" :disabled="!zeroClawStatus?.connected">
-                              异常检测
-                          </el-button>
-                          <el-button type="primary" :icon="TrendChartsIcon" @click="runZeroClawAnalysis('TREND_FORECAST')" :loading="zeroClawLoading" :disabled="!zeroClawStatus?.connected">
-                              趋势预测
-                          </el-button>
-                      </div>
-                      <div class="zc-reports-list">
-                          <div class="zc-reports-title">最近分析报告</div>
-                          <div v-if="zeroClawReports.length === 0" class="zc-empty">暂无分析报告</div>
-                          <div v-for="report in zeroClawReports" :key="report.id" class="zc-report-card">
-                              <div class="report-header">
-                                  <span class="report-title">{{ report.title }}</span>
-                                  <el-tag size="small" :type="getSeverityType(report.severity)">{{ report.severity }}</el-tag>
-                              </div>
-                              <div class="report-summary">{{ report.summary }}</div>
-                              <div class="report-time">
-                                  <el-icon><Clock /></el-icon>
-                                  <span>{{ formatDate(report.createdAt) }}</span>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-
-                  <!-- Healing Tab -->
-                  <div v-if="zeroClawTab === 'healing'" class="zc-content">
-                      <div class="zc-actions-row">
-                          <el-button type="warning" :icon="Tools" @click="runZeroClawSelfHealing('MEMORY_OPTIMIZATION')" :loading="healingLoading" :disabled="!zeroClawStatus?.connected">
-                              内存优化
-                          </el-button>
-                          <el-button type="warning" :icon="Tools" @click="runZeroClawSelfHealing('LOG_CLEANUP')" :loading="healingLoading" :disabled="!zeroClawStatus?.connected">
-                              日志清理
-                          </el-button>
-                          <el-button type="warning" :icon="Tools" @click="runZeroClawSelfHealing('CACHE_CLEAR')" :loading="healingLoading" :disabled="!zeroClawStatus?.connected">
-                              缓存清理
-                          </el-button>
-                          <el-button type="danger" :icon="Tools" @click="runZeroClawSelfHealing('EMERGENCY_RECOVERY')" :loading="healingLoading" :disabled="!zeroClawStatus?.connected">
-                              紧急恢复
-                          </el-button>
-                      </div>
-                      <div class="zc-healing-info">
-                          <el-alert type="info" :closable="false" show-icon>
-                              主动维护功能可在无需人工干预的情况下自动修复系统问题。请确保ZeroClaw已正确配置。
-                          </el-alert>
-                      </div>
-                  </div>
-              </div>
-          </template>
       </div>
   </el-dialog>
 </template>
@@ -410,7 +296,6 @@ import { chatAgent, getAgentList } from '@/api/agent'
 import { getServerHardware, getTokenHistory } from '@/api/monitor'
 import { getModelConfig } from '@/api/modelConfig'
 import { getKnowledgeList } from '@/api/knowledge'
-import { getZeroClawStatus, performZeroClawAnalysis, executeZeroClawSelfHealing, getZeroClawReports } from '@/api/zeroclaw'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Cookies from 'js-cookie'
 
@@ -533,14 +418,6 @@ const systemMessages = ref([
 const currentKernelAgent = ref(null)
 const currentConversationId = ref(null)
 
-// ZeroClaw Logic
-const zeroClawTab = ref('status') // 'status' | 'analysis' | 'healing'
-const zeroClawStatus = ref(null)
-const zeroClawLoading = ref(false)
-const zeroClawReports = ref([])
-const recentHealingActions = ref([])
-const healingLoading = ref(false)
-
 // Dialog Tab
 const currentDialogTab = ref('ai')
 
@@ -548,19 +425,8 @@ const currentDialogTab = ref('ai')
 const handleSystemDialogOpen = () => {
   if (currentDialogTab.value === 'ai') {
     initSystemAI()
-  } else {
-    fetchZeroClawStatus()
-    fetchZeroClawReports()
   }
 }
-
-// Watch tab change
-watch(currentDialogTab, (newTab) => {
-  if (newTab === 'zeroclaw') {
-    fetchZeroClawStatus()
-    fetchZeroClawReports()
-  }
-})
 
 const renderMarkdown = (text) => {
   try {
@@ -728,104 +594,8 @@ const quickCommand = (cmd) => {
   sendSystemMessage()
 }
 
-// ZeroClaw Helpers
-const getSeverityType = (severity) => {
-  const map = {
-    'CRITICAL': 'danger',
-    'HIGH': 'danger',
-    'MEDIUM': 'warning',
-    'LOW': 'info',
-    'INFO': 'info'
-  }
-  return map[severity] || 'info'
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return 'N/A'
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN')
-}
-
 const showSystemAI = () => {
   showSystemEval.value = true
-}
-
-// ZeroClaw Methods
-const fetchZeroClawStatus = async () => {
-  zeroClawLoading.value = true
-  try {
-    const res = await getZeroClawStatus()
-    zeroClawStatus.value = res
-  } catch (e) {
-    zeroClawStatus.value = { connected: false, message: 'Failed to fetch status' }
-  } finally {
-    zeroClawLoading.value = false
-  }
-}
-
-const fetchZeroClawReports = async () => {
-  try {
-    const res = await getZeroClawReports({ page: 0, size: 5 })
-    zeroClawReports.value = res.content || res.data?.content || []
-  } catch (e) {
-    zeroClawReports.value = []
-  }
-}
-
-const runZeroClawAnalysis = async (type = 'PERFORMANCE') => {
-  if (!zeroClawStatus.value?.connected) {
-    ElMessage.warning('ZeroClaw 未连接，无法执行分析')
-    return
-  }
-
-  zeroClawLoading.value = true
-  try {
-    const res = await performZeroClawAnalysis({
-      analysisType: type,
-      context: `Quick ${type} analysis requested from AI Assistant`
-    })
-    if (res) {
-      ElMessage.success('分析完成，请查看报告')
-      await fetchZeroClawReports()
-    }
-  } catch (e) {
-    ElMessage.error('分析失败: ' + e.message)
-  } finally {
-    zeroClawLoading.value = false
-  }
-}
-
-const runZeroClawSelfHealing = async (actionType = 'MEMORY_OPTIMIZATION') => {
-  if (!zeroClawStatus.value?.connected) {
-    ElMessage.warning('ZeroClaw 未连接，无法执行维护')
-    return
-  }
-
-  try {
-    await ElMessageBox.confirm(
-      `确定要执行 "${actionType}" 维护操作吗？此操作可能影响系统运行。`,
-      '确认执行',
-      { confirmButtonText: '执行', cancelButtonText: '取消', type: 'warning' }
-    )
-
-    healingLoading.value = true
-    const res = await executeZeroClawSelfHealing({
-      actionType,
-      targetResource: 'SYSTEM',
-      reason: 'Manual trigger from AI Assistant',
-      forceExecute: true
-    })
-
-    if (res) {
-      ElMessage.success(`维护操作 ${res.status === 'SUCCESS' ? '成功' : '失败'}`)
-    }
-  } catch (e) {
-    if (e !== 'cancel') {
-      ElMessage.error('维护失败: ' + e.message)
-    }
-  } finally {
-    healingLoading.value = false
-  }
 }
 
 const handleUnreadCountUpdate = (count) => {
@@ -1601,7 +1371,6 @@ html.dark .system-ai-btn:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ZeroClaw Styles */
 .header-tabs {
   display: flex;
   gap: 8px;
@@ -1630,191 +1399,5 @@ html.dark .system-ai-btn:hover {
 .core-tab-btn.active {
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
-}
-
-.zc-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--el-color-danger);
-}
-
-.zc-status-dot.connected {
-  background: #00ff9d;
-  box-shadow: 0 0 5px #00ff9d;
-}
-
-.zeroclaw-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-}
-
-.zc-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--el-border-color-light);
-  padding-bottom: 12px;
-}
-
-.zc-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: var(--el-text-color-secondary);
-}
-
-.zc-tab:hover {
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-primary);
-}
-
-.zc-tab.active {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  font-weight: 600;
-}
-
-.zc-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.zc-status-card {
-  background: var(--el-fill-color-lighter);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.zc-status-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.zc-status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: var(--el-color-danger);
-}
-
-.zc-status-indicator.connected {
-  color: #00ff9d;
-}
-
-.zc-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.zc-status-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.info-item {
-  display: flex;
-  gap: 12px;
-  font-size: 14px;
-}
-
-.info-item .label {
-  color: var(--el-text-color-secondary);
-  min-width: 80px;
-}
-
-.info-item .value {
-  color: var(--el-text-color-primary);
-}
-
-.info-item .value.active {
-  color: var(--el-color-success);
-}
-
-.zc-status-message {
-  color: var(--el-text-color-secondary);
-  font-size: 14px;
-}
-
-.zc-actions-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-
-.zc-reports-list {
-  margin-top: 16px;
-}
-
-.zc-reports-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--el-text-color-primary);
-}
-
-.zc-empty {
-  text-align: center;
-  color: var(--el-text-color-secondary);
-  padding: 40px;
-}
-
-.zc-report-card {
-  background: var(--el-fill-color-lighter);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.report-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.report-title {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.report-summary {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 8px;
-  line-height: 1.5;
-}
-
-.report-time {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.zc-healing-info {
-  margin-top: 16px;
-}
-
-/* Deep mode for ZeroClaw */
-html.dark .zc-status-indicator.connected {
-  color: #00ff9d;
 }
 </style>

@@ -91,4 +91,18 @@ public class ModelConfigController {
             return false;
         }
     }
+
+    @Operation(summary = "测试Kimi连接")
+    @PostMapping("/test-kimi-connection")
+    public Boolean testKimiConnection(
+            @RequestParam String endpoint,
+            @RequestParam String apiKey,
+            @RequestParam(required = false) String model) {
+        try {
+            return modelConfigService.testKimiConnection(endpoint, apiKey, model != null ? model : "moonshot-v1-8k-chat");
+        } catch (Exception e) {
+            log.error("测试Kimi连接时发生错误: ", e);
+            return false;
+        }
+    }
 }

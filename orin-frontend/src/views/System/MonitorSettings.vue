@@ -2,7 +2,7 @@
   <div class="page-container">
     <PageHeader
       title="系统环境配置"
-      description="配置系统硬件监控、环境变量、ZeroClaw 智能维护以及告警阈值"
+      description="配置系统硬件监控、环境变量以及告警阈值"
       icon="Tools"
     >
       <template #actions>
@@ -13,8 +13,12 @@
     </PageHeader>
 
     <el-tabs v-model="activeTab" class="config-tabs">
-      <!-- ZeroClaw 智能配置 Tab -->
+      <!-- ZeroClaw 智能配置 Tab (已禁用) -->
+      <!--
       <el-tab-pane label="ZeroClaw 智能维护" name="zeroclaw">
+        ... (ZeroClaw content removed)
+      </el-tab-pane>
+      -->
         <el-row :gutter="24">
           <el-col :lg="14">
             <el-card class="premium-card margin-bottom-lg">
@@ -403,14 +407,13 @@
 import { ref, onMounted, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/utils/request';
-import { configureZeroClawAi } from '@/api/zeroclaw';
 import PageHeader from '@/components/PageHeader.vue';
 import { 
   Monitor, Check, Connection, InfoFilled, 
   QuestionFilled
 } from '@element-plus/icons-vue';
 
-const activeTab = ref('zeroclaw');
+const activeTab = ref('prometheus');
 const saving = ref(false);
 const testing = ref(false);
 

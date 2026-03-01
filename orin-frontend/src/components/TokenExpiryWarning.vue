@@ -19,7 +19,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useUserStore } from '@/stores/user';
 import { useRouter } from 'vue-router';
 
@@ -38,7 +38,7 @@ function checkTokenStatus() {
   }
 
   const tokenInfo = userStore.getTokenInfo();
-  
+
   if (!tokenInfo.valid) {
     // Token 已过期
     showWarning.value = false; // 不显示警告，直接跳转
@@ -51,6 +51,15 @@ function checkTokenStatus() {
     showWarning.value = false;
   }
 }
+
+// 监听登录状态变化，重新登录后立即隐藏警告
+watch(() => userStore.isLoggedIn, (newVal) => {
+  if (newVal) {
+    // 重新登录后，立即检查并隐藏警告
+    showWarning.value = false;
+    checkTokenStatus();
+  }
+}, { immediate: true });
 
 // 重新登录
 function handleRelogin() {

@@ -4,5 +4,6 @@ public enum KnowledgeType {
     UNSTRUCTURED,
     STRUCTURED,
     PROCEDURAL,
-    META_MEMORY
+    META_MEMORY,
+    RAGFLOW
 }

@@ -59,9 +59,6 @@
             <div class="header-info">
               <span class="status-dot"></span>
               <span class="role-text">{{ getRoleLabel(msg.role) }}</span>
-              <el-tag v-if="msg.dataType === 'DIAGNOSTIC_REPORT'" size="small" effect="plain" class="source-badge">
-                <el-icon><Cpu /></el-icon> ZeroClaw
-              </el-tag>
             </div>
             <div class="header-actions">
               <el-button link :icon="Delete" size="small" class="delete-msg-btn" @click="removeMessage(i)" />
@@ -102,47 +99,6 @@
               </div>
               <div class="diagnostic-footer">
                 <el-button type="primary" size="small" plain @click="executeQuickFix(msg.content)">执行自动修复 (Self-Healing)</el-button>
-              </div>
-            </div>
-
-            <div v-else-if="msg.dataType === 'ZEROCLAW_STATUS'" class="status-monitor-container">
-              <div class="monitor-header">
-                <el-icon><Monitor /></el-icon>
-                <span>ZeroClaw 运行状态自检</span>
-              </div>
-              <div class="monitor-grid">
-                <div class="monitor-item">
-                  <div class="m-label">连通性 (Connectivity)</div>
-                  <div class="m-value">
-                    <el-tag :type="msg.content.connected ? 'success' : 'danger'" size="small">
-                      {{ msg.content.connected ? '在线 (ONLINE)' : '离线 (OFFLINE)' }}
-                    </el-tag>
-                  </div>
-                </div>
-                <div class="monitor-item">
-                  <div class="m-label">引擎配置</div>
-                  <div class="m-value">{{ msg.content.configName || '未配置' }}</div>
-                </div>
-                <div class="monitor-item">
-                  <div class="m-label">分析模块</div>
-                  <div class="m-value">
-                    <el-icon :class="msg.content.analysisEnabled ? 'text-success' : 'text-danger'">
-                      <CircleCheck v-if="msg.content.analysisEnabled" /><Close v-else />
-                    </el-icon>
-                  </div>
-                </div>
-                <div class="monitor-item">
-                  <div class="m-label">自愈模块</div>
-                  <div class="m-value">
-                    <el-icon :class="msg.content.selfHealingEnabled ? 'text-success' : 'text-danger'">
-                      <CircleCheck v-if="msg.content.selfHealingEnabled" /><Close v-else />
-                    </el-icon>
-                  </div>
-                </div>
-              </div>
-              <div class="monitor-footer" v-if="!msg.content.connected">
-                <div class="warning-text">警告: 无法连接到 ZeroClaw 服务端 ({{ msg.content.message }})</div>
-                <el-button type="warning" size="small" @click="retryZeroClaw">重试连接</el-button>
               </div>
             </div>
 
@@ -338,11 +294,6 @@ const getSeverityTag = (s) => ({
 const executeQuickFix = (report) => {
   ElMessage.success('已触发自愈引擎：' + (report.title || '系统修复'));
   // Logic to call self-healing API could go here
-};
-
-const retryZeroClaw = () => {
-  ElMessage.info('正在尝试重新发现 ZeroClaw 节点...');
-  sendMessage(); // Re-triggering with current input could work if logic supports it, or just status check
 };
 
 const clearHistory = () => {

@@ -18,4 +18,6 @@ public interface ModelConfigService {
     boolean testMinimaxConnection(String endpoint, String apiKey, String model);
 
     boolean testOllamaConnection(String endpoint, String apiKey, String model);
+
+    boolean testKimiConnection(String endpoint, String apiKey, String model);
 }

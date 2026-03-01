@@ -9,9 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/orin-backend"
 FRONTEND_DIR="$SCRIPT_DIR/orin-frontend"
 AI_ENGINE_DIR="$SCRIPT_DIR/orin-ai-engine"
-ZEROCLAW_DIR="$SCRIPT_DIR/scripts"
 PID_FILE="$SCRIPT_DIR/.orin.pids"
-ZEROCLAW_PID_FILE="$SCRIPT_DIR/.zeroclaw.pids"
 
 # 颜色定义
 GREEN='\033[0;32m'
@@ -28,21 +26,21 @@ DB_PASS="${ORIN_DB_PASS:-password}"
 
 function check_mysql() {
     echo -e "${BLUE}检查 MySQL 连接...${NC}"
-    
+
     # 检查 MySQL 是否运行
     if ! command -v mysql &> /dev/null; then
         echo -e "${RED}错误: MySQL 未安装${NC}"
         echo -e "${YELLOW}请先安装 MySQL: brew install mysql${NC}"
         return 1
     fi
-    
+
     # 检查 MySQL 服务是否运行
     if ! pgrep -x mysqld > /dev/null; then
         echo -e "${YELLOW}MySQL 服务未运行，正在启动...${NC}"
         brew services start mysql
         sleep 3
     fi
-    
+
     # 检查数据库是否存在
     if mysql -u"$DB_USER" -p"$DB_PASS" -e "USE $DB_NAME" 2>/dev/null; then
         echo -e "${GREEN}✓ MySQL 连接成功，数据库 '$DB_NAME' 已就绪${NC}"
@@ -87,77 +85,9 @@ function db_status() {
     fi
 }
 
-# ZeroClaw 服务函数
-function start_zeroclaw() {
-    echo -e "${YELLOW}正在启动 ZeroClaw AI 服务...${NC}"
-
-    cd $ZEROCLAW_DIR
-
-    # 检查依赖
-    if [ ! -f "zeroclaw-server.js" ]; then
-        echo -e "${RED}错误: zeroclaw-server.js 不存在${NC}"
-        return 1
-    fi
-
-    # 从环境变量读取 AI 配置
-    if [ -n "$DEEPSEEK_API_KEY" ]; then
-        echo -e "${BLUE}使用 DeepSeek AI${NC}"
-    elif [ -n "$OPENAI_API_KEY" ]; then
-        echo -e "${BLUE}使用 OpenAI AI${NC}"
-    elif [ -n "$ANTHROPIC_API_KEY" ]; then
-        echo -e "${BLUE}使用 Anthropic AI${NC}"
-    else
-        echo -e "${YELLOW}警告: 未配置 AI API Key，将使用模拟响应${NC}"
-        echo -e "${YELLOW}请设置环境变量: DEEPSEEK_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY${NC}"
-    fi
-
-    # 启动服务
-    DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY \
-    OPENAI_API_KEY=$OPENAI_API_KEY \
-    ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-    AI_PROVIDER=$AI_PROVIDER \
-    AI_MODEL=$AI_MODEL \
-    nohup node zeroclaw-server.js < /dev/null > zeroclaw.log 2>&1 &
-
-    ZPID=$!
-    echo $ZPID > $ZEROCLAW_PID_FILE
-    echo -e "${GREEN}ZeroClaw AI 服务已启动 (Port: 8081)${NC}"
-    echo -e "ZeroClaw 日志: $ZEROCLAW_DIR/zeroclaw.log"
-}
-
-function stop_zeroclaw() {
-    echo -e "${YELLOW}正在停止 ZeroClaw AI 服务...${NC}"
-
-    if [ -f $ZEROCLAW_PID_FILE ]; then
-        ZPID=$(cat $ZEROCLAW_PID_FILE)
-        if ps -p $ZPID > /dev/null 2>&1; then
-            kill -9 $ZPID > /dev/null 2>&1
-            echo -e "${GREEN}ZeroClaw 服务已停止${NC}"
-        fi
-        rm $ZEROCLAW_PID_FILE
-    fi
-
-    # 清理端口占用
-    lsof -ti:8081 | xargs kill -9 > /dev/null 2>&1
-}
-
-function status_zeroclaw() {
-    echo -e "${BLUE}=== ZeroClaw AI 服务状态 ===${NC}"
-
-    if lsof -i:8081 > /dev/null 2>&1; then
-        echo -e "ZeroClaw AI 服务: ${GREEN}运行中${NC}"
-
-        # 获取服务信息
-        curl -s http://localhost:8081/status 2>/dev/null | head -5 || echo "(无法获取详细信息)"
-    else
-        echo -e "ZeroClaw AI 服务: ${RED}已停止${NC}"
-    fi
-}
-
-
 function start() {
     echo -e "${YELLOW}正在启动 ORIN 系统...${NC}"
-    
+
     # 0. 检查 MySQL 数据库
     check_mysql
     if [ $? -ne 0 ]; then
@@ -195,22 +125,15 @@ function start() {
     FPID=$!
     echo $FPID >> $PID_FILE
 
-    # 4. 启动 ZeroClaw AI 服务
-    start_zeroclaw
-
     echo -e "${GREEN}启动成功！${NC}"
     echo -e "后端日志: $BACKEND_DIR/backend.log"
     echo -e "前端日志: $FRONTEND_DIR/frontend.log"
     echo -e "AI引擎日志: $AI_ENGINE_DIR/ai_engine.log"
-    echo -e "ZeroClaw日志: $ZEROCLAW_DIR/zeroclaw.log"
     echo -e "访问地址: ${GREEN}http://localhost:5173${NC}"
 }
 
 function stop() {
     echo -e "${YELLOW}正在停止 ORIN 系统...${NC}"
-
-    # 停止 ZeroClaw 服务
-    stop_zeroclaw
 
     # 按照 PID 文件停止
     if [ -f $PID_FILE ]; then
@@ -255,9 +178,6 @@ function status() {
         echo -e "前端服务 (Vue):    ${RED}已停止${NC}"
     fi
 
-    # ZeroClaw 服务状态
-    status_zeroclaw
-
     echo ""
     db_status
 }
@@ -280,36 +200,8 @@ case "$1" in
     db)
         db_status
         ;;
-    zeroclaw)
-        case "$2" in
-            start)
-                start_zeroclaw
-                ;;
-            stop)
-                stop_zeroclaw
-                ;;
-            restart)
-                stop_zeroclaw
-                sleep 1
-                start_zeroclaw
-                ;;
-            status)
-                status_zeroclaw
-                ;;
-            *)
-                echo "用法: $0 zeroclaw {start|stop|restart|status}"
-                echo ""
-                echo "ZeroClaw 命令说明:"
-                echo "  start   - 启动 ZeroClaw AI 服务"
-                echo "  stop    - 停止 ZeroClaw AI 服务"
-                echo "  restart - 重启 ZeroClaw AI 服务"
-                echo "  status  - 查看 ZeroClaw 服务状态"
-                exit 1
-                ;;
-        esac
-        ;;
     *)
-        echo "用法: $0 {start|stop|restart|status|db|zeroclaw}"
+        echo "用法: $0 {start|stop|restart|status|db}"
         echo ""
         echo "命令说明:"
         echo "  start   - 启动 ORIN 系统（包含数据库检查）"
@@ -317,6 +209,5 @@ case "$1" in
         echo "  restart - 重启 ORIN 系统"
         echo "  status  - 查看服务和数据库状态"
         echo "  db      - 查看数据库状态"
-        echo "  zeroclaw - ZeroClaw AI 服务管理"
         exit 1
 esac

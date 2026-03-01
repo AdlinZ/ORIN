@@ -97,6 +97,31 @@ public class MonitorController {
         return monitorService.getTokenDistribution(startDate, endDate);
     }
 
+    @Operation(summary = "获取Token按星期分布")
+    @GetMapping("/tokens/by-day-of-week")
+    public List<Map<String, Object>> getTokenByDayOfWeek() {
+        return monitorService.getTokenByDayOfWeek();
+    }
+
+    @Operation(summary = "获取Token按小时分布")
+    @GetMapping("/tokens/by-hour")
+    public List<Map<String, Object>> getTokenByHour() {
+        return monitorService.getTokenByHour();
+    }
+
+    @Operation(summary = "获取Token类型分布")
+    @GetMapping("/tokens/by-type")
+    public Map<String, Object> getTokenByType() {
+        return monitorService.getTokenByType();
+    }
+
+    @Operation(summary = "获取会话列表")
+    @GetMapping("/sessions")
+    public List<Map<String, Object>> getSessions(
+            @RequestParam(defaultValue = "20") int limit) {
+        return monitorService.getSessions(limit);
+    }
+
     @Operation(summary = "获取成本分布")
     @GetMapping("/costs/distribution")
     public List<Map<String, Object>> getCostDistribution(

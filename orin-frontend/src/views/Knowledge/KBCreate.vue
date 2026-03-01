@@ -45,32 +45,136 @@
        <div v-if="currentStep === 1" class="step-content step-1">
           <h2 class="section-title">选择数据源</h2>
           <div class="source-cards">
-             <div class="source-card selected">
+             <div class="source-card" :class="{ selected: selectedSource === 'file' }" @click="selectedSource = 'file'">
                 <el-icon class="source-icon blue"><Document /></el-icon>
                 <div class="source-info">
                    <h3>导入已有文本</h3>
                    <p>从本地导入 PDF、TXT、DOCX 等文本文件</p>
                 </div>
-                <div class="check-mark"><el-icon><Check /></el-icon></div>
+                <div class="check-mark" v-if="selectedSource === 'file'"><el-icon><Check /></el-icon></div>
              </div>
-             <!-- Other cards disabled -->
-             <div class="source-card disabled">
+             <div class="source-card" :class="{ selected: selectedSource === 'web' }" @click="selectedSource = 'web'">
                 <el-icon class="source-icon green"><Link /></el-icon>
                 <div class="source-info">
                    <h3>同步自 Web 站点</h3>
                    <p>抓取网页内容作为知识库源</p>
                 </div>
+                <div class="check-mark" v-if="selectedSource === 'web'"><el-icon><Check /></el-icon></div>
              </div>
-             <div class="source-card disabled">
+             <div class="source-card" :class="{ selected: selectedSource === 'notion' }" @click="selectedSource = 'notion'">
                 <el-icon class="source-icon purple"><Notebook /></el-icon>
                 <div class="source-info">
                    <h3>同步自 Notion</h3>
                    <p>连接 Notion 数据源</p>
                 </div>
+                <div class="check-mark" v-if="selectedSource === 'notion'"><el-icon><Check /></el-icon></div>
+             </div>
+             <div class="source-card" :class="{ selected: selectedSource === 'database' }" @click="selectedSource = 'database'">
+                <el-icon class="source-icon orange"><Connection /></el-icon>
+                <div class="source-info">
+                   <h3>连接数据库</h3>
+                   <p>连接 MySQL、PostgreSQL 等数据库</p>
+                </div>
+                <div class="check-mark" v-if="selectedSource === 'database'"><el-icon><Check /></el-icon></div>
              </div>
           </div>
 
-          <!-- Upload Zone -->
+          <!-- Upload Zone (only for file source) -->
+          <div v-if="selectedSource === 'file'"
+             class="upload-zone"
+             :class="{ dragging: isDragging }"
+             @dragover.prevent="handleDragOver"
+             @dragleave.prevent="handleDragLeave"
+             @drop.prevent="handleDrop"
+             @click="triggerUpload"
+          >
+             <input type="file" ref="fileInput" style="display: none" multiple accept=".pdf,.txt,.doc,.docx,.md" @change="handleFileChange" />
+             <div class="upload-area">
+                <el-icon class="upload-icon"><UploadFilled /></el-icon>
+                <div class="upload-text">
+                   <span class="link">点击上传</span> 或将文件拖拽至此
+                </div>
+                <div class="upload-hint">支持 PDF, TXT, DOC, DOCX, MD 等格式，每个文件不超过 15MB</div>
+             </div>
+          </div>
+
+          <!-- Web Source Config -->
+          <div v-if="selectedSource === 'web'" class="source-config">
+             <h3 class="config-title">Web 站点配置</h3>
+             <div class="config-form">
+                <div class="form-item">
+                   <label>URL 列表 (每行一个)</label>
+                   <el-input
+                      v-model="webConfig.urlsText"
+                      type="textarea"
+                      :rows="5"
+                      placeholder="https://example.com/page1&#10;https://example.com/page2"
+                   />
+                </div>
+                <div class="form-item">
+                   <label>爬取深度</label>
+                   <el-input-number v-model="webConfig.maxDepth" :min="1" :max="5" />
+                </div>
+                <div class="form-actions">
+                   <el-button type="primary" @click="testWebUrl" :loading="testingWeb">测试连接</el-button>
+                </div>
+             </div>
+          </div>
+
+          <!-- Notion Source Config -->
+          <div v-if="selectedSource === 'notion'" class="source-config">
+             <h3 class="config-title">Notion 配置</h3>
+             <div class="config-form">
+                <div class="form-item">
+                   <label>Integration Token</label>
+                   <el-input v-model="notionConfig.integrationToken" placeholder="secret_xxx" show-password />
+                   <div class="form-tip">在 Notion 中创建 Integration 后获取</div>
+                </div>
+                <div class="form-item">
+                   <label>数据库 ID</label>
+                   <el-input v-model="notionConfig.databaseId" placeholder="32位字符的数据库ID" />
+                </div>
+                <div class="form-actions">
+                   <el-button @click="testNotionConnection" :loading="testingNotion">测试连接</el-button>
+                   <el-button type="primary" @click="loadNotionDatabases" :loading="loadingNotionDatabases" :disabled="!notionConfig.integrationToken">
+                      获取数据库列表
+                   </el-button>
+                </div>
+                <div v-if="notionDatabases.length > 0" class="form-item">
+                   <label>选择数据库</label>
+                   <el-select v-model="notionConfig.databaseId" placeholder="选择 Notion 数据库">
+                      <el-option v-for="db in notionDatabases" :key="db.id" :label="db.title" :value="db.id" />
+                   </el-select>
+                </div>
+             </div>
+          </div>
+
+          <!-- Database Source Config -->
+          <div v-if="selectedSource === 'database'" class="source-config">
+             <h3 class="config-title">数据库连接</h3>
+             <div class="config-form">
+                <div class="form-item">
+                   <label>JDBC 连接 URL</label>
+                   <el-input v-model="dbConfig.connectionUrl" placeholder="jdbc:mysql://localhost:3306/mydb" />
+                   <div class="form-tip">例如: jdbc:mysql://localhost:3306/mydb 或 jdbc:postgresql://localhost:5432/mydb</div>
+                </div>
+                <div class="form-row">
+                   <div class="form-item">
+                      <label>用户名</label>
+                      <el-input v-model="dbConfig.username" placeholder="root" />
+                   </div>
+                   <div class="form-item">
+                      <label>密码</label>
+                      <el-input v-model="dbConfig.password" type="password" placeholder="密码" show-password />
+                   </div>
+                </div>
+                <div class="form-actions">
+                   <el-button @click="testDatabaseConnection" :loading="testingDb">测试连接</el-button>
+                </div>
+             </div>
+          </div>
+
+          <!-- File List Preview (only for file source) -->
           <div 
              class="upload-zone" 
              :class="{ dragging: isDragging }"
@@ -359,7 +463,7 @@
           <div class="footer-left"></div>
           <div class="footer-right">
              <el-button v-if="currentStep > 1" @click="currentStep--">上一步</el-button>
-             <el-button v-if="currentStep < 3" type="primary" @click="handleNext" :disabled="currentStep === 1 && fileList.length === 0">下一步</el-button>
+             <el-button v-if="currentStep < 3" type="primary" @click="handleNext" :disabled="currentStep === 1 && !canProceed">下一步</el-button>
           </div>
        </div>
     </div>
@@ -393,6 +497,33 @@ const showPreview = ref(false);
 const previewLoading = ref(false);
 const previewChunks = ref([]);
 
+// Source selection
+const selectedSource = ref('file');
+
+// Web source config
+const webConfig = reactive({
+   urlsText: '',
+   maxDepth: 2
+});
+const testingWeb = ref(false);
+
+// Notion source config
+const notionConfig = reactive({
+   integrationToken: '',
+   databaseId: ''
+});
+const testingNotion = ref(false);
+const loadingNotionDatabases = ref(false);
+const notionDatabases = ref([]);
+
+// Database source config
+const dbConfig = reactive({
+   connectionUrl: '',
+   username: '',
+   password: ''
+});
+const testingDb = ref(false);
+
 const form = reactive({
    segmentMode: 'general', 
    separator: '\\n\\n',
@@ -420,6 +551,19 @@ const rerankOptions = computed(() => {
       label: m.name,
       value: m.modelId
    }));
+});
+
+const canProceed = computed(() => {
+   if (selectedSource.value === 'file') {
+      return fileList.value.length > 0;
+   } else if (selectedSource.value === 'web') {
+      return !!webConfig.urlsText && webConfig.urlsText.trim().length > 0;
+   } else if (selectedSource.value === 'notion') {
+      return !!notionConfig.integrationToken && !!notionConfig.databaseId;
+   } else if (selectedSource.value === 'database') {
+      return !!dbConfig.connectionUrl && !!dbConfig.username;
+   }
+   return false;
 });
 
 onMounted(async () => {
@@ -467,8 +611,97 @@ const addFiles = (files) => {
 };
 const removeFile = (i) => { fileList.value.splice(i, 1); };
 
-const handleNext = () => {
-   if(currentStep.value === 1 && fileList.value.length === 0) return ElMessage.warning('请先上传文件');
+// Web source methods
+const testWebUrl = async () => {
+   if (!webConfig.urlsText) return ElMessage.warning('请输入 URL');
+   testingWeb.value = true;
+   try {
+      const urls = webConfig.urlsText.split('\n').filter(u => u.trim());
+      const firstUrl = urls[0];
+      const res = await request.get('/knowledge/sync/web/test', { params: { url: firstUrl } });
+      if (res.success) {
+         ElMessage.success('连接成功: ' + res.title);
+      } else {
+         ElMessage.error(res.message || '连接失败');
+      }
+   } catch (e) {
+      ElMessage.error('测试失败: ' + e.message);
+   } finally {
+      testingWeb.value = false;
+   }
+};
+
+// Notion source methods
+const testNotionConnection = async () => {
+   if (!notionConfig.integrationToken) return ElMessage.warning('请输入 Integration Token');
+   testingNotion.value = true;
+   try {
+      const res = await request.post('/knowledge/sync/notion/test', {
+         integrationToken: notionConfig.integrationToken
+      });
+      if (res.success) {
+         ElMessage.success('连接成功');
+      } else {
+         ElMessage.error(res.message || '连接失败');
+      }
+   } catch (e) {
+      ElMessage.error('测试失败: ' + e.message);
+   } finally {
+      testingNotion.value = false;
+   }
+};
+
+const loadNotionDatabases = async () => {
+   if (!notionConfig.integrationToken) return ElMessage.warning('请输入 Integration Token');
+   loadingNotionDatabases.value = true;
+   try {
+      const res = await request.post('/knowledge/sync/notion/databases', {
+         integrationToken: notionConfig.integrationToken
+      });
+      notionDatabases.value = res || [];
+      ElMessage.success('获取到 ' + res.length + ' 个数据库');
+   } catch (e) {
+      ElMessage.error('获取数据库失败: ' + e.message);
+   } finally {
+      loadingNotionDatabases.value = false;
+   }
+};
+
+// Database source methods
+const testDatabaseConnection = async () => {
+   if (!dbConfig.connectionUrl) return ElMessage.warning('请输入连接 URL');
+   testingDb.value = true;
+   try {
+      const res = await request.post('/knowledge/sync/database/test', dbConfig);
+      if (res.success) {
+         ElMessage.success('连接成功: ' + res.databaseProductName);
+      } else {
+         ElMessage.error(res.message || '连接失败');
+      }
+   } catch (e) {
+      ElMessage.error('测试失败: ' + e.message);
+   } finally {
+      testingDb.value = false;
+   }
+};
+
+const handleNext = async () => {
+   // Validate step 1 based on selected source
+   if (currentStep.value === 1) {
+      if (selectedSource.value === 'file' && fileList.value.length === 0) {
+         return ElMessage.warning('请先上传文件');
+      }
+      if (selectedSource.value === 'web' && !webConfig.urlsText) {
+         return ElMessage.warning('请输入 Web URL');
+      }
+      if (selectedSource.value === 'notion' && (!notionConfig.integrationToken || !notionConfig.databaseId)) {
+         return ElMessage.warning('请填写 Notion 配置');
+      }
+      if (selectedSource.value === 'database' && (!dbConfig.connectionUrl || !dbConfig.username)) {
+         return ElMessage.warning('请填写数据库连接信息');
+      }
+   }
+
    if(currentStep.value === 2) {
       startProcessing();
    }
@@ -620,7 +853,7 @@ const saveKB = async () => {
     try {
         // Prepare creating status for UI
         isFinished.value = false;
-        
+
         const payload = {
             name: kbName.value || '未命名知识库',
             description: form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index',
@@ -628,25 +861,31 @@ const saveKB = async () => {
             status: 'ENABLED'
         };
 
+        // Handle source type specific types
+        if (selectedSource.value === 'database') {
+            payload.type = 'STRUCTURED';
+        }
+
         // 1. Create Knowledge Base via API
         const kb = await request.post('/knowledge', payload);
         const newKbId = kb.id;
 
-        // 2. Upload files if any
-        if (fileList.value.length > 0) {
+        // 2. Handle different source types
+        if (selectedSource.value === 'file' && fileList.value.length > 0) {
+            // Upload files
             for (let i = 0; i < fileList.value.length; i++) {
                 const f = fileList.value[i];
                 const formData = new FormData();
                 formData.append('file', f.rawFile);
-                
+
                 try {
                     const doc = await request.post(`/knowledge/${newKbId}/documents/upload`, formData, {
                         headers: { 'Content-Type': 'multipart/form-data' }
                     });
-                    
+
                     // Trigger vectorization right away
                     await request.post(`/knowledge/documents/${doc.id}/vectorize`);
-                    
+
                     creatingFiles.value[i].progress = 100;
                 } catch (uploadErr) {
                     console.error(`Failed to upload ${f.name}:`, uploadErr);
@@ -656,6 +895,77 @@ const saveKB = async () => {
                         type: 'error'
                     });
                 }
+            }
+        } else if (selectedSource.value === 'web') {
+            // Sync from Web URLs
+            const urls = webConfig.urlsText.split('\n').filter(u => u.trim());
+            creatingFiles.value = urls.map(u => ({ name: u, progress: 0 }));
+
+            try {
+                const res = await request.post(`/knowledge/${newKbId}/sync/web`, {
+                    urls: urls,
+                    maxDepth: webConfig.maxDepth
+                });
+
+                if (res.success) {
+                    creatingFiles.value.forEach(f => f.progress = 100);
+                    ElMessage.success(`成功同步 ${res.documentCount} 个网页`);
+                } else {
+                    ElMessage.error(res.error || 'Web 同步失败');
+                }
+            } catch (syncErr) {
+                console.error('Failed to sync from web:', syncErr);
+                ElNotification({
+                    title: '同步失败',
+                    message: 'Web 同步失败，请稍后手动重试。',
+                    type: 'error'
+                });
+            }
+        } else if (selectedSource.value === 'notion') {
+            // Sync from Notion
+            creatingFiles.value = [{ name: 'Notion Database', progress: 0 }];
+
+            try {
+                const res = await request.post(`/knowledge/${newKbId}/sync/notion`, {
+                    integrationToken: notionConfig.integrationToken,
+                    databaseId: notionConfig.databaseId
+                });
+
+                if (res.success) {
+                    creatingFiles.value[0].progress = 100;
+                    ElMessage.success(`成功同步 ${res.documentCount} 个 Notion 页面`);
+                } else {
+                    ElMessage.error(res.error || 'Notion 同步失败');
+                }
+            } catch (syncErr) {
+                console.error('Failed to sync from Notion:', syncErr);
+                ElNotification({
+                    title: '同步失败',
+                    message: 'Notion 同步失败，请稍后手动重试。',
+                    type: 'error'
+                });
+            }
+        } else if (selectedSource.value === 'database') {
+            // Connect to database
+            creatingFiles.value = [{ name: 'Database Connection', progress: 0 }];
+
+            try {
+                const res = await request.post(`/knowledge/${newKbId}/sync/database/connect`, dbConfig);
+
+                if (res.success) {
+                    creatingFiles.value[0].progress = 100;
+                    ElMessage.success('数据库连接成功');
+                    // Optionally sync tables here
+                } else {
+                    ElMessage.error(res.error || '数据库连接失败');
+                }
+            } catch (syncErr) {
+                console.error('Failed to connect database:', syncErr);
+                ElNotification({
+                    title: '连接失败',
+                    message: '数据库连接失败，请检查配置。',
+                    type: 'error'
+                });
             }
         }
 
@@ -711,6 +1021,7 @@ const handleGoToDocument = () => {
 .source-icon.blue { color: #2563EB; }
 .source-icon.green { color: #10B981; }
 .source-icon.purple { color: #9333EA; }
+.source-icon.orange { color: #F59E0B; }
 .source-info h3 { font-size: 16px; font-weight: 600; margin: 0 0 8px 0; }
 .source-info p { font-size: 13px; color: #6B7280; margin: 0; line-height: 1.4; }
 .check-mark { position: absolute; top: 12px; right: 12px; color: #2563EB; }
@@ -724,6 +1035,53 @@ const handleGoToDocument = () => {
 .file-icon { color: #9CA3AF; font-size: 18px; }
 .remove-btn:hover { color: #DC2626; background: #FEE2E2; }
 .empty-kb-link { text-align: center; }
+
+/* Source Config Styles */
+.source-config {
+   max-width: 600px;
+   margin: 0 auto 32px auto;
+   padding: 24px;
+   background: #F9FAFB;
+   border: 1px solid #E5E7EB;
+   border-radius: 12px;
+}
+.config-title {
+   font-size: 16px;
+   font-weight: 600;
+   margin: 0 0 16px 0;
+   color: #111827;
+}
+.config-form {
+   display: flex;
+   flex-direction: column;
+   gap: 16px;
+}
+.form-item {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+}
+.form-item label {
+   font-size: 14px;
+   font-weight: 500;
+   color: #374151;
+}
+.form-row {
+   display: flex;
+   gap: 16px;
+}
+.form-row .form-item {
+   flex: 1;
+}
+.form-tip {
+   font-size: 12px;
+   color: #6B7280;
+}
+.form-actions {
+   display: flex;
+   gap: 12px;
+   margin-top: 8px;
+}
 
 /* Step 2 Styles */
 .step-2-layout { display: flex; gap: 32px; height: calc(100vh - 250px); overflow: hidden; }

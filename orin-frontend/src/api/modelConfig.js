@@ -62,3 +62,11 @@ export function testOllamaConnection(endpoint, apiKey, model) {
         params: { endpoint, apiKey, model }
     })
 }
+
+export function testKimiConnection(endpoint, apiKey, model) {
+    return request({
+        url: '/model-config/test-kimi-connection',
+        method: 'post',
+        params: { endpoint, apiKey, model }
+    })
+}

@@ -2,6 +2,7 @@ package com.adlin.orin.modules.model.service.impl;
 
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
+import com.adlin.orin.modules.model.service.KimiIntegrationService;
 import com.adlin.orin.modules.model.service.ZhipuIntegrationService;
 import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
 import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
@@ -26,6 +27,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     private final DeepSeekIntegrationService deepSeekIntegrationService;
     private final MinimaxIntegrationService minimaxIntegrationService;
     private final OllamaIntegrationService ollamaIntegrationService;
+    private final KimiIntegrationService kimiIntegrationService;
 
     @Autowired
     public ModelConfigServiceImpl(ModelConfigRepository modelConfigRepository,
@@ -34,7 +36,8 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             ZhipuIntegrationService zhipuIntegrationService,
             DeepSeekIntegrationService deepSeekIntegrationService,
             MinimaxIntegrationService minimaxIntegrationService,
-            OllamaIntegrationService ollamaIntegrationService) {
+            OllamaIntegrationService ollamaIntegrationService,
+            KimiIntegrationService kimiIntegrationService) {
         this.modelConfigRepository = modelConfigRepository;
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
@@ -42,6 +45,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
         this.deepSeekIntegrationService = deepSeekIntegrationService;
         this.minimaxIntegrationService = minimaxIntegrationService;
         this.ollamaIntegrationService = ollamaIntegrationService;
+        this.kimiIntegrationService = kimiIntegrationService;
     }
 
     @Override
@@ -192,6 +196,16 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             return ollamaIntegrationService.testConnection(endpoint, apiKey, model);
         } catch (Exception e) {
             log.error("Error testing Ollama connection: ", e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean testKimiConnection(String endpoint, String apiKey, String model) {
+        try {
+            return kimiIntegrationService.testConnection(endpoint, apiKey);
+        } catch (Exception e) {
+            log.error("Error testing Kimi connection: ", e);
             return false;
         }
     }

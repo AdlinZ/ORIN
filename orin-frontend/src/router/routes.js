@@ -14,6 +14,8 @@ export const ROUTES = {
         AGENTS: '/dashboard/applications/agents',
         CONVERSATIONS: '/dashboard/applications/conversations',
         MODELS: '/dashboard/applications/models',
+        MODEL_ADD: '/dashboard/applications/models/add',
+        MODEL_EDIT: '/dashboard/applications/models/edit',
         SKILLS: '/dashboard/applications/skills',
         WORKFLOWS: '/dashboard/applications/workflows',
         WORKFLOW_CREATE: '/dashboard/applications/workflows/create',
@@ -50,7 +52,6 @@ export const ROUTES = {
         USERS: '/dashboard/control/users',
         AUDIT_LOGS: '/dashboard/control/audit-logs',
         API_MANAGEMENT: '/dashboard/control/api-management',
-        PRICING: '/dashboard/control/pricing',
         SYSTEM_ENV: '/dashboard/control/system-env',
     },
 
@@ -92,7 +93,6 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/system/audit-logs': ROUTES.CONTROL.AUDIT_LOGS,
     '/dashboard/system/api-management': ROUTES.CONTROL.API_MANAGEMENT,
     '/dashboard/system/api-keys': ROUTES.CONTROL.API_MANAGEMENT,
-    '/dashboard/system/pricing': ROUTES.CONTROL.PRICING,
     '/dashboard/system/monitor-config': ROUTES.CONTROL.SYSTEM_ENV,
 }
 
@@ -224,11 +224,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'Link',
             },
             {
-                title: '定价策略',
-                path: ROUTES.CONTROL.PRICING,
-                icon: 'Coin',
-            },
-            {
                 title: '系统环境配置',
                 path: ROUTES.CONTROL.SYSTEM_ENV,
                 icon: 'Tools',
@@ -252,7 +247,7 @@ export function generateBreadcrumbs(path) {
             breadcrumbs.push({ title: menu.title, path: menu.path })
 
             // 查找二级菜单
-            const child = menu.children?.find(c => path.startsWith(c.path))
+            const child = menu.children?.find(c => path === c.path || path.startsWith(c.path + '/'))
             if (child) {
                 breadcrumbs.push({ title: child.title, path: child.path })
             }

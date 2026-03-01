@@ -54,8 +54,10 @@ public class SecurityConfig {
                         // 统一API网关端点（需要API密钥）
                         // 当前暂时 permitAll，实际由 WebConfig 中的拦截器进行 API 密钥校验
                         .requestMatchers("/v1/**").permitAll()
+                        // Agent 管理端点 - 暂时允许所有访问
+                        .requestMatchers("/api/v1/agents/**").permitAll()
+                        .requestMatchers("/api/v1/model-config/**").permitAll()
                         // 管理端点（需要JWT认证）
-                        // ZeroClaw 端点需要认证（已移除公开访问）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

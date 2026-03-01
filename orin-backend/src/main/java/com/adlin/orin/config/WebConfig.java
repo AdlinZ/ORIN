@@ -60,14 +60,26 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         // 添加API密钥验证拦截器(优先级最高)
         registry.addInterceptor(apiKeyAuthInterceptor)
-                .addPathPatterns("/v1/**")
-                .excludePathPatterns("/v1/health", "/v1/providers")
+                .addPathPatterns("/v1/**", "/api/v1/**")
+                .excludePathPatterns(
+                        "/v1/health",
+                        "/v1/providers",
+                        "/api/v1/auth/**",
+                        "/api/v1/agents/**",
+                        "/api/v1/model-config/**",
+                        "/api/v1/multimodal/files/**")
                 .order(1);
 
         // 添加速率限制拦截器(在API密钥验证之后)
         registry.addInterceptor(apiRateLimitInterceptor)
-                .addPathPatterns("/v1/**")
-                .excludePathPatterns("/v1/health", "/v1/providers")
+                .addPathPatterns("/v1/**", "/api/v1/**")
+                .excludePathPatterns(
+                        "/v1/health",
+                        "/v1/providers",
+                        "/api/v1/auth/**",
+                        "/api/v1/agents/**",
+                        "/api/v1/model-config/**",
+                        "/api/v1/multimodal/files/**")
                 .order(2);
     }
 

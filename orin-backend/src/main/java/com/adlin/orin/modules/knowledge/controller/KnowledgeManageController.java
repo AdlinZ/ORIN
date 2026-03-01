@@ -31,6 +31,113 @@ public class KnowledgeManageController {
     private final com.adlin.orin.modules.knowledge.service.StructuredService structuredService;
     private final com.adlin.orin.modules.knowledge.service.ProceduralService proceduralService;
     private final com.adlin.orin.modules.agent.service.AgentManageService agentManageService;
+    private final com.adlin.orin.modules.knowledge.service.ExternalSyncService externalSyncService;
+
+    // ==================== 外部同步 API ====================
+
+    @Operation(summary = "测试 Notion 连接")
+    @PostMapping("/sync/notion/test")
+    public Map<String, Object> testNotionConnection(@RequestBody Map<String, String> config) {
+        return externalSyncService.testNotionConnection(config);
+    }
+
+    @Operation(summary = "列出 Notion 数据库")
+    @PostMapping("/sync/notion/databases")
+    public List<Map<String, String>> listNotionDatabases(@RequestBody Map<String, String> config) {
+        return externalSyncService.listNotionDatabases(config);
+    }
+
+    @Operation(summary = "从 Notion 同步数据")
+    @PostMapping("/{kbId}/sync/notion")
+    public Map<String, Object> syncFromNotion(
+            @PathVariable String kbId,
+            @RequestBody Map<String, String> config) {
+        return externalSyncService.syncFromNotion(kbId, config);
+    }
+
+    @Operation(summary = "测试 Web URL")
+    @GetMapping("/sync/web/test")
+    public Map<String, Object> testWebUrl(@RequestParam String url) {
+        return externalSyncService.testWebUrl(url);
+    }
+
+    @Operation(summary = "从 Web 站点同步数据")
+    @PostMapping("/{kbId}/sync/web")
+    public Map<String, Object> syncFromWeb(
+            @PathVariable String kbId,
+            @RequestBody Map<String, Object> config) {
+        return externalSyncService.syncFromWeb(kbId, config);
+    }
+
+    @Operation(summary = "测试数据库连接")
+    @PostMapping("/sync/database/test")
+    public Map<String, Object> testDatabaseConnection(@RequestBody Map<String, String> config) {
+        return externalSyncService.testDatabaseConnection(config);
+    }
+
+    // ==================== RAGFlow 同步 API ====================
+
+    @Operation(summary = "测试 RAGFlow 连接")
+    @PostMapping("/sync/ragflow/test")
+    public Map<String, Object> testRAGFlowConnection(@RequestBody Map<String, String> config) {
+        return externalSyncService.testRAGFlowConnection(config);
+    }
+
+    @Operation(summary = "列出 RAGFlow 知识库")
+    @PostMapping("/sync/ragflow/list")
+    public List<Map<String, Object>> listRAGFlowKnowledgeBases(@RequestBody Map<String, String> config) {
+        return externalSyncService.listRAGFlowKnowledgeBases(config);
+    }
+
+    @Operation(summary = "从 RAGFlow 同步知识库")
+    @PostMapping("/{kbId}/sync/ragflow")
+    public Map<String, Object> syncFromRAGFlow(
+            @PathVariable String kbId,
+            @RequestBody Map<String, String> config) {
+        return externalSyncService.syncFromRAGFlow(kbId, config);
+    }
+
+    @Operation(summary = "从 RAGFlow 检索")
+    @PostMapping("/retrieve/ragflow")
+    public List<Map<String, Object>> retrievalFromRAGFlow(
+            @RequestBody Map<String, String> config,
+            @RequestParam String ragflowKbId,
+            @RequestParam(defaultValue = "5") int topK) {
+        String query = config.get("query");
+        return externalSyncService.retrievalFromRAGFlow(config, ragflowKbId, query, topK);
+    }
+
+    @Operation(summary = "上传文档到 RAGFlow")
+    @PostMapping("/{kbId}/documents/ragflow/upload")
+    public Map<String, Object> uploadToRAGFlow(
+            @PathVariable String kbId,
+            @RequestParam String fileName,
+            @RequestBody byte[] fileContent,
+            @RequestParam Map<String, String> config) {
+        return externalSyncService.uploadToRAGFlow(kbId, config, fileName, fileContent);
+    }
+
+    @Operation(summary = "连接外部数据库")
+    @PostMapping("/{kbId}/sync/database/connect")
+    public Map<String, Object> connectDatabase(
+            @PathVariable String kbId,
+            @RequestBody Map<String, String> config) {
+        return externalSyncService.connectDatabase(kbId, config);
+    }
+
+    @Operation(summary = "获取数据库 Schema")
+    @GetMapping("/{kbId}/sync/database/schema")
+    public List<Map<String, Object>> getDatabaseSchema(@PathVariable String kbId) {
+        return externalSyncService.getDatabaseSchema(kbId);
+    }
+
+    @Operation(summary = "同步数据库表")
+    @PostMapping("/{kbId}/sync/database/table/{tableName}")
+    public Map<String, Object> syncDatabaseTable(
+            @PathVariable String kbId,
+            @PathVariable String tableName) {
+        return externalSyncService.syncDatabaseTable(kbId, tableName);
+    }
 
     @Operation(summary = "获取所有知识库列表")
     @GetMapping("/list")

@@ -58,7 +58,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final MultimodalFileService multimodalFileService;
     private final MetaKnowledgeService metaKnowledgeService;
     private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
-    private final com.adlin.orin.modules.zeroclaw.service.ZeroClawService zeroClawService;
+    private final com.adlin.orin.modules.model.service.ModelConfigService modelConfigService;
     private final Map<String, MultiModalProvider> providerMap = new HashMap<>();
 
     // Explicit constructor injection to ensure all dependencies are handled
@@ -76,7 +76,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
             MinimaxIntegrationService minimaxIntegrationService,
             OllamaIntegrationService ollamaIntegrationService,
-            com.adlin.orin.modules.zeroclaw.service.ZeroClawService zeroClawService,
+            com.adlin.orin.modules.model.service.ModelConfigService modelConfigService,
             List<MultiModalProvider> providers) {
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
@@ -90,7 +90,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.multimodalFileService = multimodalFileService;
         this.metaKnowledgeService = metaKnowledgeService;
         this.modelMetadataRepository = modelMetadataRepository;
-        this.zeroClawService = zeroClawService;
+        this.modelConfigService = modelConfigService;
 
         for (MultiModalProvider p : providers) {
             this.providerMap.put(p.getProviderName().toUpperCase(), p);
@@ -933,6 +933,13 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
+    public java.util.Optional<Object> chat(String agentId, String message,
+            org.springframework.web.multipart.MultipartFile file) {
+        // Convert MultipartFile to fileId (for now, treat as null)
+        return chat(agentId, message, (String) null);
+    }
+
+    @Override
     public java.util.Optional<Object> chat(String agentId, String message, String fileId) {
         return chat(agentId, message, fileId, null);
     }
@@ -973,786 +980,75 @@ public class AgentManageServiceImpl implements AgentManageService {
         log.info("Chatting with agent: {} (conversationId: {}, fileId: {}, hasOverride: {}, thinking: {})",
                 agentId, conversationId, fileId, overrideSystemPrompt != null, enableThinking);
 
-        // --- ZeroClaw Priority Strategy ---
-        // If the query is related to system maintenance, performance or diagnostics,
-        // use ZeroClaw first.
-        if (isZeroClawRelated(message)) {
-            log.info("Detected ZeroClaw related query: '{}', prioritizing ZeroClaw", message);
-
-            // Special handling for status check
-            if (message.toLowerCase().contains("status") || message.toLowerCase().contains("状态")
-                    || message.toLowerCase().contains("check")) {
-                Map<String, Object> status = zeroClawService.getZeroClawStatus();
-                if (status != null) {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("status", "SUCCESS");
-                    result.put("data", status);
-                    result.put("dataType", "ZEROCLAW_STATUS");
-                    result.put("viewType", "DIAGNOSTIC");
-                    result.put("provider", "ZeroClaw");
-                    result.put("model", "ZeroClaw-Monitor v1.0");
-                    return java.util.Optional.of(result);
-                }
-            }
-
-            try {
-                com.adlin.orin.modules.zeroclaw.entity.ZeroClawConfig config = zeroClawService.getActiveConfig();
-                if (config != null && Boolean.TRUE.equals(config.getEnabled())
-                        && Boolean.TRUE.equals(config.getEnableAnalysis())) {
-                    com.adlin.orin.modules.zeroclaw.dto.ZeroClawAnalysisRequest request = new com.adlin.orin.modules.zeroclaw.dto.ZeroClawAnalysisRequest();
-                    request.setAgentId(agentId);
-                    request.setAnalysisType(inferAnalysisType(message));
-                    request.setContext(message);
-                    request.setStartTime(System.currentTimeMillis() - (3600 * 1000)); // Last hour
-                    request.setEndTime(System.currentTimeMillis());
-
-                    com.adlin.orin.modules.zeroclaw.entity.ZeroClawAnalysisReport report = zeroClawService
-                            .performAnalysis(request);
-                    if (report != null) {
-                        log.info("ZeroClaw successfully handled the query, returning diagnostic report.");
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("status", "SUCCESS");
-                        result.put("data", report);
-                        result.put("dataType", "DIAGNOSTIC_REPORT");
-                        result.put("viewType", "DIAGNOSTIC"); // New view type for ZeroClaw
-                        result.put("provider", "ZeroClaw");
-                        result.put("model", "ZeroClaw-Analyst v1.0");
-                        result.put("conversation_id", conversationId);
-
-                        // We also record this in the audit log for consistency
-                        recordZeroClawAudit(agentId, conversationId, message, report);
-
-                        return java.util.Optional.of(result);
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("ZeroClaw priority execution failed, falling back to current model: {}", e.getMessage());
-            }
-        }
-        // --- End ZeroClaw Priority Strategy ---
-
-        AgentAccessProfile profile = accessProfileRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
-
-        AgentMetadata metadata = metadataRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
-
-        long startTime = System.currentTimeMillis();
-        boolean success = false;
-        String errorMessage = null;
-        String responseContent = "";
-        int statusCode = 200;
-        int promptTokens = 0;
-        int completionTokens = 0;
-        double cost = 0.0;
-
+        // --- SiliconFlow Chat Provider ---
+        log.info("Attempting chat with SiliconFlow provider");
         try {
-            // 根据 providerType 和 viewType 路由到不同的处理逻辑
-            String providerType = metadata.getProviderType();
-            String viewType = metadata.getViewType();
-            java.util.Optional<Object> response;
+            // Get SiliconFlow config from ModelConfig
+            com.adlin.orin.modules.model.entity.ModelConfig modelConfig = modelConfigService.getConfig();
+            if (modelConfig != null && modelConfig.getSiliconFlowApiKey() != null
+                    && !modelConfig.getSiliconFlowApiKey().isEmpty()) {
 
-            if ("DIFY".equalsIgnoreCase(providerType)) {
-                log.info("Routing to Dify interaction for agent {} (viewType: {})", agentId, viewType);
-                MultiModalProvider provider = providerMap.get("DIFY");
-                if (provider != null) {
-                    Map<String, Object> context = new HashMap<>();
-                    context.put("conversationId", conversationId);
-                    MultiModalProvider.InteractionRequest req = new MultiModalProvider.InteractionRequest(
-                            fileId != null ? "IMAGE" : "TEXT",
-                            message,
-                            null,
-                            context);
-                    MultiModalProvider.InteractionResult result = provider.process(metadata, req);
-                    Map<String, Object> responseMap = new HashMap<>();
-                    responseMap.put("status", result.getStatus());
-                    responseMap.put("data", result.getData());
-                    responseMap.put("dataType", result.getDataType());
-                    responseMap.put("viewType", metadata.getViewType());
+                String sfEndpoint = modelConfig.getSiliconFlowEndpoint();
+                String sfApiKey = modelConfig.getSiliconFlowApiKey();
+                String sfModel = modelConfig.getSiliconFlowModel();
 
-                    if (result.getData() instanceof java.util.Map) {
-                        java.util.Map<?, ?> dataMap = (java.util.Map<?, ?>) result.getData();
-                        if (dataMap.containsKey("conversation_id")) {
-                            responseMap.put("conversation_id", dataMap.get("conversation_id"));
-                        } else {
-                            responseMap.put("conversation_id", conversationId);
-                        }
-                    } else {
-                        responseMap.put("conversation_id", conversationId);
+                // Build messages
+                java.util.List<Map<String, Object>> sfMessages = new java.util.ArrayList<>();
+                if (overrideSystemPrompt != null && !overrideSystemPrompt.isEmpty()) {
+                    sfMessages.add(java.util.Map.of("role", "system", "content", overrideSystemPrompt));
+                }
+                sfMessages.add(java.util.Map.of("role", "user", "content", message));
+
+                java.util.Optional<Object> sfResponse = siliconFlowIntegrationService.sendMessageWithFullParams(
+                        sfEndpoint + "/chat/completions", sfApiKey, sfModel, sfMessages, 0.7, 0.9, 2000, enableThinking, thinkingBudget);
+
+                if (sfResponse.isPresent()) {
+                    log.info("SiliconFlow chat successful");
+
+                    // 获取响应文本用于记录日志
+                    String responseText = "";
+                    if (sfResponse.get() instanceof Map) {
+                        responseText = ((Map<?, ?>) sfResponse.get()).get("content") != null
+                                ? ((Map<?, ?>) sfResponse.get()).get("content").toString()
+                                : sfResponse.get().toString();
                     }
-                    response = java.util.Optional.of(responseMap);
-                } else {
-                    response = difyIntegrationService.sendMessage(profile.getEndpointUrl(), profile.getApiKey(),
-                            conversationId, message);
-                    if (response.isPresent() && response.get() instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> castedResponse = (Map<String, Object>) response.get();
-                        castedResponse.put("conversation_id", conversationId);
-                    }
-                }
-            } else if ("SiliconFlow".equalsIgnoreCase(providerType) || "SiliconCloud".equalsIgnoreCase(providerType)) {
-                if ("TEXT_TO_IMAGE".equals(viewType) || "IMAGE_TO_IMAGE".equals(viewType) || "TTI".equals(viewType)) {
-                    response = generateImageWithSiliconFlow(profile, metadata, message);
-                } else if ("SPEECH_TO_TEXT".equals(viewType) || "STT".equals(viewType)) {
-                    response = transcribeAudioWithSiliconFlow(profile, metadata, fileId);
-                } else if ("TEXT_TO_SPEECH".equals(viewType) || "TTS".equals(viewType)) {
-                    response = generateAudioWithSiliconFlow(profile, metadata, message);
-                } else if ("TEXT_TO_VIDEO".equals(viewType) || "TTV".equals(viewType) || "VIDEO".equals(viewType)) {
-                    response = generateVideoWithSiliconFlow(profile, metadata, message);
-                } else {
-                    response = chatWithSiliconFlow(profile, metadata, message, fileId, overrideSystemPrompt,
-                            conversationId, enableThinking, thinkingBudget);
-                }
-            } else if ("Ollama".equalsIgnoreCase(providerType)) {
-                log.info("Routing to Ollama interaction for agent {}", agentId);
-                response = chatWithOllama(profile, metadata, message, fileId, overrideSystemPrompt, conversationId,
-                        enableThinking, thinkingBudget);
-            } else {
-                MultiModalProvider provider = providerMap.get(providerType != null ? providerType.toUpperCase() : "");
-                if (provider != null) {
-                    Map<String, Object> context = new HashMap<>();
-                    context.put("conversationId", conversationId);
-                    MultiModalProvider.InteractionRequest req = new MultiModalProvider.InteractionRequest(
-                            "TEXT", message, null, context);
-                    MultiModalProvider.InteractionResult result = provider.process(metadata, req);
-                    Map<String, Object> resp = new java.util.HashMap<>();
-                    resp.put("data", result.getData());
-                    resp.put("status", result.getStatus());
-                    resp.put("conversation_id", conversationId);
-                    response = java.util.Optional.of(resp);
-                } else {
-                    response = chatWithSiliconFlow(profile, metadata, message, fileId, overrideSystemPrompt,
-                            conversationId, enableThinking, thinkingBudget);
-                }
-            }
 
-            if (response.isPresent()) {
-                success = true;
-                // Parse response to extract content and usage
-                if (response.get() instanceof java.util.Map) {
-                    java.util.Map<?, ?> respMap = (java.util.Map<?, ?>) response.get();
+                    // 记录审计日志
                     try {
-                        if (respMap.containsKey("choices")) {
-                            java.util.List<?> choices = (java.util.List<?>) respMap.get("choices");
-                            if (!choices.isEmpty()) {
-                                java.util.Map<?, ?> choice = (java.util.Map<?, ?>) choices.get(0);
-                                java.util.Map<?, ?> msg = (java.util.Map<?, ?>) choice.get("message");
-                                responseContent = (String) msg.get("content");
-                            }
-                        } else {
-                            // Check for wrapped data format first
-                            java.util.Map<?, ?> dataMap = respMap.containsKey("data")
-                                    && respMap.get("data") instanceof java.util.Map
-                                            ? (java.util.Map<?, ?>) respMap.get("data")
-                                            : respMap;
-
-                            if (dataMap.containsKey("images") || "IMAGE".equals(respMap.get("dataType"))) {
-                                responseContent = new ObjectMapper().writeValueAsString(dataMap);
-                            } else if (dataMap.containsKey("audio_url") || "AUDIO".equals(respMap.get("dataType"))) {
-                                responseContent = new ObjectMapper().writeValueAsString(dataMap);
-                            } else if (dataMap.containsKey("video_url") || dataMap.containsKey("requestId")
-                                    || "VIDEO".equals(respMap.get("dataType"))) {
-                                responseContent = new ObjectMapper().writeValueAsString(dataMap);
-                            } else if (dataMap.containsKey("text")) {
-                                responseContent = (String) dataMap.get("text");
-                            } else if (dataMap.containsKey("message")
-                                    && dataMap.get("message") instanceof java.util.Map) {
-                                // Handle Ollama native format (/api/chat)
-                                java.util.Map<?, ?> msgMap = (java.util.Map<?, ?>) dataMap.get("message");
-                                responseContent = (String) msgMap.get("content");
-
-                                // Extract thinking process from either message or root
-                                String thinking = null;
-                                if (msgMap.containsKey("thinking")) {
-                                    thinking = (String) msgMap.get("thinking");
-                                } else if (dataMap.containsKey("thinking")) {
-                                    thinking = (String) dataMap.get("thinking");
-                                }
-
-                                // Always create a structured response for the frontend
-                                java.util.Map<String, Object> enrichedResponse = new java.util.HashMap<>(
-                                        (java.util.Map<String, Object>) respMap);
-                                java.util.List<java.util.Map<String, Object>> choices = new java.util.ArrayList<>();
-                                java.util.Map<String, Object> choice = new java.util.HashMap<>();
-                                java.util.Map<String, Object> messageObj = new java.util.HashMap<>();
-                                messageObj.put("role", "assistant");
-                                messageObj.put("content", responseContent);
-                                if (thinking != null && (enableThinking == null || enableThinking)) {
-                                    messageObj.put("thinking", thinking);
-                                }
-                                choice.put("message", messageObj);
-                                choices.add(choice);
-                                enrichedResponse.put("choices", choices);
-                                response = java.util.Optional.of(enrichedResponse);
-                            } else if (dataMap.containsKey("response")) {
-                                // Handle Ollama /api/generate format
-                                responseContent = (String) dataMap.get("response");
-                                String thinking = null;
-                                if (dataMap.containsKey("thinking")) {
-                                    thinking = (String) dataMap.get("thinking");
-                                }
-
-                                java.util.Map<String, Object> enrichedResponse = new java.util.HashMap<>(
-                                        (java.util.Map<String, Object>) respMap);
-                                java.util.List<java.util.Map<String, Object>> choices = new java.util.ArrayList<>();
-                                java.util.Map<String, Object> choice = new java.util.HashMap<>();
-                                java.util.Map<String, Object> messageObj = new java.util.HashMap<>();
-                                messageObj.put("role", "assistant");
-                                messageObj.put("content", responseContent);
-                                if (thinking != null) {
-                                    messageObj.put("thinking", thinking);
-                                }
-                                choice.put("message", messageObj);
-                                choices.add(choice);
-                                enrichedResponse.put("choices", choices);
-                                response = java.util.Optional.of(enrichedResponse);
-                            } else {
-                                responseContent = respMap.toString();
-                            }
-                        }
-
-                        if (respMap.containsKey("usage")) {
-                            java.util.Map<?, ?> usage = (java.util.Map<?, ?>) respMap.get("usage");
-                            Object promptTokensObj = usage.get("prompt_tokens");
-                            Object completionTokensObj = usage.get("completion_tokens");
-                            promptTokens = (promptTokensObj instanceof Integer) ? (Integer) promptTokensObj : 0;
-                            completionTokens = (completionTokensObj instanceof Integer) ? (Integer) completionTokensObj
-                                    : 0;
-                            cost = (promptTokens + completionTokens) * 0.000002;
-                        }
-                    } catch (Exception e) {
-                        responseContent = response.get().toString();
-                    }
-                } else {
-                    responseContent = response.get().toString();
-                }
-                return response;
-            } else {
-                errorMessage = "No response from agent provider";
-                statusCode = 502;
-                return java.util.Optional.empty();
-            }
-        } catch (Exception e) {
-            errorMessage = e.getMessage();
-            statusCode = 500;
-            log.error("Chat error", e);
-            throw e;
-        } finally {
-            // Audit Log
-            try {
-                long duration = System.currentTimeMillis() - startTime;
-                String provider = metadata.getProviderType();
-
-                // Include system prompt override in logged message for visibility
-                String loggedMessage = message;
-                if (overrideSystemPrompt != null && !overrideSystemPrompt.trim().isEmpty()) {
-                    loggedMessage = "[System Prompt Override: " + overrideSystemPrompt + "] " + message;
-                }
-
-                auditLogService.logApiCall(
-                        "admin",
-                        profile.getApiKey(),
-                        agentId,
-                        provider,
-                        profile.getEndpointUrl(),
-                        "POST",
-                        metadata.getModelName(),
-                        "127.0.0.1",
-                        "ORIN-Backend",
-                        loggedMessage,
-                        responseContent,
-                        statusCode,
-                        duration,
-                        promptTokens,
-                        completionTokens,
-                        cost,
-                        success,
-                        errorMessage,
-                        null,
-                        conversationId);
-
-                // Independent Conversation Log
-                conversationLogService.log(com.adlin.orin.modules.conversation.entity.ConversationLog.builder()
-                        .userId("admin")
-                        .agentId(agentId)
-                        .conversationId(conversationId)
-                        .model(metadata.getModelName())
-                        .query(message)
-                        .response(responseContent)
-                        .promptTokens(promptTokens)
-                        .completionTokens(completionTokens)
-                        .totalTokens(promptTokens + completionTokens)
-                        .responseTime(duration)
-                        .success(success)
-                        .errorMessage(errorMessage)
-                        .build());
-            } catch (Exception e) {
-                log.error("Failed to save audit log in finally block", e);
-            }
-        }
-    }
-
-    @Override
-    public java.util.Optional<Object> chat(String agentId, String message,
-            org.springframework.web.multipart.MultipartFile file) {
-        // Generate a new conversation ID for this chat session
-        String conversationId = UUID.randomUUID().toString();
-        log.info("Interacting with agent: {} (conversationId: {})", agentId, conversationId);
-
-        AgentMetadata metadata = metadataRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
-
-        MultiModalProvider provider = providerMap
-                .get(metadata.getProviderType() != null ? metadata.getProviderType().toUpperCase() : "DIFY");
-
-        // Fallback for non-managed providers (e.g. SiliconFlow legacy logic inside this
-        // service)
-        // If provider is not in map, maybe stick to old logic?
-        // Current Architecture goal: unify. But SiliconFlow logic is complex inside
-        // here.
-        // Let's wrap Dify first. If provider is detected as DIFY, use DifyProvider.
-
-        if (provider != null && "DIFY".equalsIgnoreCase(metadata.getProviderType())) {
-            Map<String, Object> context = new HashMap<>();
-            context.put("conversationId", conversationId);
-
-            InteractionRequest req = new InteractionRequest(
-                    file != null ? "IMAGE" : "TEXT",
-                    message,
-                    file,
-                    context);
-
-            long startTime = System.currentTimeMillis();
-            boolean success = false;
-            String errorMessage = null;
-            InteractionResult result = null;
-
-            try {
-                result = provider.process(metadata, req);
-                success = "SUCCESS".equals(result.getStatus()) || "PROCESSING".equals(result.getStatus());
-                if ("FAILED".equals(result.getStatus()))
-                    errorMessage = result.getErrorMessage();
-
-                // Wrap result for standardized frontend consumption
-                Map<String, Object> responseMap = new HashMap<>();
-                responseMap.put("status", result.getStatus());
-                responseMap.put("data", result.getData());
-                responseMap.put("dataType", result.getDataType());
-                responseMap.put("jobId", result.getJobId());
-                responseMap.put("viewType", metadata.getViewType());
-
-                return java.util.Optional.of(responseMap);
-            } catch (Exception e) {
-                errorMessage = e.getMessage();
-                throw e;
-            } finally {
-                // Simplified Audit Log for now
-                try {
-                    long duration = System.currentTimeMillis() - startTime;
-                    AgentAccessProfile profile = accessProfileRepository.findById(agentId).orElse(null);
-                    if (profile != null) {
                         auditLogService.logApiCall(
-                                "admin",
-                                profile.getApiKey(),
-                                agentId,
-                                metadata.getProviderType(),
-                                profile.getEndpointUrl(),
-                                "Interact",
-                                metadata.getModelName(),
-                                "127.0.0.1",
-                                "ORIN-Backend",
-                                message,
-                                result != null ? String.valueOf(result.getData()) : null,
-                                success ? 200 : 500,
-                                duration,
-                                0, 0, 0.0,
-                                success, errorMessage, null, conversationId);
-                    }
-                } catch (Exception e) {
-                    /* ignore */}
-            }
-        }
+                                "admin", null, agentId, "SILICONFLOW", "/api/v1/siliconflow/chat",
+                                "POST", sfModel, "127.0.0.1", "ORIN-Backend", message, responseText, 200, 0L,
+                                0, 0, 0.0, true, null, null, conversationId);
 
-        // Legacy/Direct SiliconFlow Logic below...
-        // For now, if not DIFY, we fall back to existing big block logic or create
-        // SiliconFlowProvider later.
-        // Keeping existing logic for safety if provider is not DIFY.
-        if (!"DIFY".equalsIgnoreCase(metadata.getProviderType())) {
-            // ... existing chat logic ...
-            // We return existing logic implementation here by delegating to old method or
-            // keeping code.
-            // But replace_file_content overwrites. So I must preserve or re-implement.
-            // Given the task, I should probably rely on existing logic for non-Dify.
-            // Re-inserting the old logic for non-Dify:
-            return chatLegacy(agentId, message, file, conversationId);
-        }
-        return java.util.Optional.empty();
-    }
-
-    // Helper for legacy SiliconFlow chat
-    private java.util.Optional<Object> chatLegacy(String agentId, String message,
-            org.springframework.web.multipart.MultipartFile file, String conversationId) {
-        AgentAccessProfile profile = accessProfileRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
-        AgentMetadata metadata = metadataRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
-
-        // Handle file upload if present
-        String fileNote = "";
-        String fileUrl = null;
-        if (file != null && !file.isEmpty()) {
-            try {
-                com.adlin.orin.modules.multimodal.entity.MultimodalFile uploadedFile = multimodalFileService.uploadFile(
-                        file, "admin");
-                fileUrl = uploadedFile.getStoragePath();
-                fileNote = "[File Uploaded: " + file.getOriginalFilename() + "] ";
-            } catch (Exception e) {
-                return java.util.Optional.of("Error: Failed to upload file - " + e.getMessage());
-            }
-        }
-
-        // ... (Call chatWithSiliconFlow) ...
-        // Simplification: just call the existing private method
-        return chatWithSiliconFlow(profile, metadata, fileNote + message, fileUrl, null, conversationId, null, null);
-    }
-
-    @Override
-    @Transactional
-    public void refreshAllAgentsMetadata() {
-        log.info("Refreshing metadata for all agents...");
-        List<AgentMetadata> agents = metadataRepository.findAll();
-        for (AgentMetadata meta : agents) {
-            String agentId = meta.getAgentId();
-            if ("DIFY".equalsIgnoreCase(meta.getProviderType())) {
-                accessProfileRepository.findById(agentId).ifPresent(profile -> {
-                    try {
-                        // 1. Sync Params
-                        difyIntegrationService.fetchAppParameters(profile.getEndpointUrl(), profile.getApiKey())
-                                .ifPresent(params -> {
-                                    try {
-                                        String paramsJson = new ObjectMapper().writeValueAsString(params);
-                                        meta.setParameters(paramsJson);
-                                        // Could try to infer mode here?
-                                        // e.g. if params has "user_input_form" with type "workflow"? (No such thing)
-                                    } catch (Exception e) {
-                                        log.warn("Failed to update params for agent {}", meta.getName());
-                                    }
-                                });
-
-                        // 2. Sync Meta (Name, Desc)
-                        difyIntegrationService.fetchAppMeta(profile.getEndpointUrl(), profile.getApiKey())
-                                .ifPresent(appMeta -> {
-                                    if (appMeta.containsKey("tool_name"))
-                                        meta.setName((String) appMeta.get("tool_name"));
-                                    if (appMeta.containsKey("tool_description")) {
-                                        String desc = (String) appMeta.get("tool_description");
-                                        meta.setDescription(desc);
-                                        // Infer View Type from Description Tags
-                                        if (desc != null) {
-                                            if (desc.contains("[ORIN:STT]"))
-                                                meta.setViewType("STT");
-                                            else if (desc.contains("[ORIN:TTI]"))
-                                                meta.setViewType("TTI");
-                                        }
-                                    }
-                                    if (appMeta.containsKey("tool_icon"))
-                                        meta.setIcon((String) appMeta.get("tool_icon"));
-                                });
-
-                        meta.setSyncTime(LocalDateTime.now());
-                        metadataRepository.save(meta);
+                        // 记录对话日志
+                        conversationLogService.log(com.adlin.orin.modules.conversation.entity.ConversationLog.builder()
+                                .userId("admin").agentId(agentId).conversationId(conversationId)
+                                .model(sfModel).query(message).response(responseText)
+                                .success(true).responseTime(0L).build());
                     } catch (Exception e) {
-                        log.warn("Failed to sync agent {}: {}", meta.getName(), e.getMessage());
+                        log.warn("Failed to log audit: {}", e.getMessage());
                     }
-                });
-            }
-        }
-        log.info("Finished refreshing agent metadata");
-    }
 
-    @Override
-    public byte[] batchExportAgents(List<String> agentIds) {
-        log.info("Batch exporting agents: {}", agentIds);
-        List<AgentExportDTO> exportList = new java.util.ArrayList<>();
-        List<AgentMetadata> metadataList;
-
-        if (agentIds == null || agentIds.isEmpty()) {
-            metadataList = metadataRepository.findAll();
-        } else {
-            metadataList = metadataRepository.findAllById(agentIds);
-        }
-
-        for (AgentMetadata meta : metadataList) {
-            AgentAccessProfile profile = accessProfileRepository.findById(meta.getAgentId()).orElse(null);
-            AgentHealthStatus status = healthStatusRepository.findById(meta.getAgentId()).orElse(null);
-            exportList.add(new AgentExportDTO(meta, profile, status));
-        }
-
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            return mapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportList);
-        } catch (IOException e) {
-            log.error("Failed to export agents", e);
-            throw new RuntimeException("Export failed", e);
-        }
-    }
-
-    @Override
-    @Transactional
-    public void batchImportAgents(MultipartFile file) {
-        log.info("Batch importing agents from file: {}", file.getOriginalFilename());
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            List<AgentExportDTO> importList = mapper.readValue(file.getInputStream(),
-                    new TypeReference<List<AgentExportDTO>>() {
-                    });
-
-            for (AgentExportDTO dto : importList) {
-                if (dto.getMetadata() == null)
-                    continue;
-
-                String agentId = dto.getMetadata().getAgentId();
-                if (agentId == null) {
-                    agentId = UUID.randomUUID().toString();
-                    dto.getMetadata().setAgentId(agentId);
-                }
-
-                // Metadata
-                AgentMetadata meta = dto.getMetadata();
-                meta.setSyncTime(LocalDateTime.now());
-                metadataRepository.save(meta);
-
-                // Profile
-                if (dto.getProfile() != null) {
-                    AgentAccessProfile profile = dto.getProfile();
-                    profile.setAgentId(agentId); // Ensure consistency
-                    profile.setUpdatedAt(LocalDateTime.now());
-                    accessProfileRepository.save(profile);
-                }
-
-                // Health Status (Optional, maybe reset status)
-                if (dto.getStatus() != null) {
-                    AgentHealthStatus status = dto.getStatus();
-                    status.setAgentId(agentId);
-                    healthStatusRepository.save(status);
-                }
-            }
-            log.info("Successfully imported {} agents", importList.size());
-        } catch (IOException e) {
-            log.error("Failed to import agents", e);
-            throw new RuntimeException("Import failed", e);
-        }
-    }
-
-    /**
-     * Generate Video with SiliconFlow
-     */
-    private java.util.Optional<Object> generateVideoWithSiliconFlow(AgentAccessProfile profile,
-            AgentMetadata metadata, String message) {
-        try {
-            String prompt = message;
-            Map<String, Object> params = new HashMap<>();
-
-            try {
-                if (message != null && message.trim().startsWith("{")) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    Map<String, Object> payload = mapper.readValue(message, new TypeReference<Map<String, Object>>() {
-                    });
-                    if (payload.containsKey("prompt"))
-                        prompt = (String) payload.get("prompt");
-                    params.putAll(payload);
-                }
-            } catch (Exception e) {
-                log.debug("Message is not JSON, using as raw input for video");
-            }
-
-            log.info("Submitting video generation task for model: {}", metadata.getModelName());
-
-            java.util.Optional<Object> sfRes = siliconFlowIntegrationService.generateVideo(
-                    profile.getEndpointUrl(), profile.getApiKey(), metadata.getModelName(), prompt, params);
-
-            if (sfRes.isPresent()) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> body = (Map<String, Object>) sfRes.get();
-                log.info("SiliconFlow Video Submission Response: {}", body);
-
-                // Defensive ID extraction
-                String requestId = null;
-                if (body.containsKey("requestId"))
-                    requestId = String.valueOf(body.get("requestId"));
-                else if (body.containsKey("request_id"))
-                    requestId = String.valueOf(body.get("request_id"));
-                else if (body.containsKey("data") && body.get("data") instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> data = (Map<String, Object>) body.get("data");
-                    if (data.containsKey("requestId"))
-                        requestId = String.valueOf(data.get("requestId"));
-                    else if (data.containsKey("request_id"))
-                        requestId = String.valueOf(data.get("request_id"));
-                    else if (data.containsKey("id"))
-                        requestId = String.valueOf(data.get("id"));
-                } else if (body.containsKey("id"))
-                    requestId = String.valueOf(body.get("id"));
-
-                if (requestId != null && !requestId.trim().isEmpty()) {
-                    requestId = requestId.trim();
-                    log.info("Extracted SiliconFlow task ID: {}", requestId);
                     Map<String, Object> result = new HashMap<>();
-                    result.put("status", "PROCESSING");
-                    result.put("jobId", requestId);
-                    result.put("dataType", "VIDEO");
+                    result.put("status", "SUCCESS");
+                    result.put("data", sfResponse.get());
+                    result.put("dataType", "TEXT");
+                    result.put("viewType", "CHAT");
+                    result.put("provider", "SiliconFlow");
+                    result.put("model", sfModel);
+                    result.put("conversation_id", conversationId);
                     return java.util.Optional.of(result);
                 }
-                return sfRes;
             }
-            return java.util.Optional.empty();
         } catch (Exception e) {
-            log.error("Failed to submit video generation", e);
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("status", "FAILED");
-            errorResult.put("errorMessage", e.getMessage());
-            return java.util.Optional.of(errorResult);
+            log.error("SiliconFlow chat failed: {}", e.getMessage());
         }
-    }
+        // --- End SiliconFlow ---
 
-    @Override
-    public Object getJobStatus(String agentId, String jobId) {
-        AgentAccessProfile profile = getAgentAccessProfile(agentId);
-        AgentMetadata metadata = getAgentMetadata(agentId);
-
-        String provider = metadata.getProviderType() != null ? metadata.getProviderType().trim().toUpperCase() : "";
-        String viewType = metadata.getViewType() != null ? metadata.getViewType().trim().toUpperCase() : "";
-
-        log.info("Checking job status for agent: {}, jobId: {}, provider: {}, viewType: {}",
-                agentId, jobId, provider, viewType);
-
-        if (jobId == null || "null".equals(jobId) || jobId.isEmpty()) {
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("status", "FAILED");
-            errorResult.put("errorMessage", "Invalid Job ID (null). Submission might have failed.");
-            return errorResult;
-        }
-
-        // 识别视频生成任务：Provider 是 SiliconFlow，或者 ViewType 包含 VIDEO / TTV / WAN
-        if ("SILICONFLOW".equals(provider) ||
-                "SILICONCLOUD".equals(provider) ||
-                viewType.contains("VIDEO") ||
-                viewType.contains("TTV") ||
-                (metadata.getModelName() != null && metadata.getModelName().contains("Wan"))) {
-
-            var sfRes = siliconFlowIntegrationService.getVideoJobStatus(profile.getEndpointUrl(), profile.getApiKey(),
-                    jobId);
-            if (sfRes.isPresent()) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> body = (Map<String, Object>) sfRes.get();
-                Map<String, Object> result = new HashMap<>();
-
-                // SiliconFlow 状态响应格式通常包含 status 字段: 'Succeed', 'InQueue', 'InProgress',
-                // 'Failed'
-                String sfStatus = (String) body.get("status");
-
-                if ("Succeed".equalsIgnoreCase(sfStatus)) {
-                    result.put("status", "SUCCESS");
-                    result.put("dataType", "VIDEO");
-
-                    // 提取视频结果 (SiliconFlow 结构: results.videos[0].url)
-                    @SuppressWarnings("unchecked")
-                    java.util.Map<String, Object> resultsContent = (java.util.Map<String, Object>) body.get("results");
-                    if (resultsContent != null) {
-                        @SuppressWarnings("unchecked")
-                        java.util.List<java.util.Map<String, Object>> videos = (java.util.List<java.util.Map<String, Object>>) resultsContent
-                                .get("videos");
-                        if (videos != null && !videos.isEmpty()) {
-                            java.util.Map<String, Object> videoResult = videos.get(0);
-                            result.put("data", videoResult); // 包含 url, seed 等
-                        }
-                    }
-                } else if ("Failed".equalsIgnoreCase(sfStatus) || "FAILED".equalsIgnoreCase(sfStatus)) {
-                    result.put("status", "FAILED");
-                    result.put("errorMessage",
-                            body.get("reason") != null ? body.get("reason") : "SiliconFlow job failed");
-                } else if ("TaskNotFound".equalsIgnoreCase(sfStatus)) {
-                    // 特殊处理：任务尚未在 SiliconFlow 系统中同步，继续轮询
-                    result.put("status", "PROCESSING");
-                    result.put("message", "任务同步中...");
-                } else if ("InQueue".equalsIgnoreCase(sfStatus) || "Queuing".equalsIgnoreCase(sfStatus)) {
-                    result.put("status", "PROCESSING");
-                    result.put("message", "任务排队中...");
-                } else if ("InProgress".equalsIgnoreCase(sfStatus) || "Processing".equalsIgnoreCase(sfStatus)) {
-                    result.put("status", "PROCESSING");
-                    result.put("message", "视频生成中...");
-                } else {
-                    result.put("status", "PROCESSING");
-                }
-                log.info("Returning status for job {}: {}", jobId, result.get("status"));
-                return result;
-            } else {
-                // 如果尝试请求状态但失败了并返回空（通常不应发生，因为已在 Service 中拦截了异常）
-                log.warn("SiliconFlow status check returned empty for job: {}", jobId);
-                Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("status", "FAILED");
-                errorResult.put("errorMessage", "Unexpected empty response from status check.");
-                return errorResult;
-            }
-        }
-
-        Map<String, Object> fallback = new HashMap<>();
-        fallback.put("status", "FAILED");
-        fallback.put("errorMessage",
-                String.format("Job status tracking not supported for provider [%s] and type [%s]", provider, viewType));
-        return fallback;
-    }
-
-    @lombok.Data
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    private static class AgentExportDTO {
-        private AgentMetadata metadata;
-        private AgentAccessProfile profile;
-        private AgentHealthStatus status;
-    }
-
-    private boolean isZeroClawRelated(String message) {
-        if (message == null || message.isEmpty())
-            return false;
-        String msg = message.toLowerCase();
-        return msg.contains("diagnosis") || msg.contains("health") || msg.contains("performance") ||
-                msg.contains("cpu") || msg.contains("memory") || msg.contains("disk") ||
-                msg.contains("slow") || msg.contains("latency") || msg.contains("metrics") ||
-                msg.contains("诊断") || msg.contains("指标") || msg.contains("性能") ||
-                msg.contains("异常") || msg.contains("分析") || msg.contains("健康") ||
-                msg.contains("卡顿") || msg.contains("延迟") || msg.contains("故障") ||
-                msg.contains("清理") || msg.contains("自愈") || msg.contains("修复");
-    }
-
-    private String inferAnalysisType(String message) {
-        String msg = message.toLowerCase();
-        if (msg.contains("forecast") || msg.contains("trend") || msg.contains("趋势") || msg.contains("预测")) {
-            return "TREND_FORECAST";
-        }
-        if (msg.contains("resource") || msg.contains("leak") || msg.contains("memory") || msg.contains("内存")) {
-            return "RESOURCE_LEAK";
-        }
-        return "PERFORMANCE"; // Default
-    }
-
-    private void recordZeroClawAudit(String agentId, String conversationId, String query,
-            com.adlin.orin.modules.zeroclaw.entity.ZeroClawAnalysisReport report) {
-        try {
-            long duration = 1000; // Estimated
-            auditLogService.logApiCall(
-                    "admin", "SYSTEM", agentId, "ZEROCLAW", "http://localhost:8080/api/v1/zeroclaw/analyze",
-                    "POST", "ZeroClaw-Analyst", "127.0.0.1", "ORIN-Backend", query,
-                    report.getSummary(), 200, duration, 0, 0, 0.0, true, null, null, conversationId);
-
-            conversationLogService.log(com.adlin.orin.modules.conversation.entity.ConversationLog.builder()
-                    .userId("admin").agentId(agentId).conversationId(conversationId)
-                    .model("ZeroClaw-Analyst").query(query).response(report.getSummary())
-                    .success(true).responseTime(duration).build());
-        } catch (Exception e) {
-            log.error("Failed to log ZeroClaw audit", e);
-        }
+        // If SiliconFlow failed, return error
+        Map<String, Object> errorResult = new HashMap<>();
+        errorResult.put("status", "ERROR");
+        errorResult.put("error", "SiliconFlow is unavailable. Please check your configuration.");
+        return java.util.Optional.of(errorResult);
     }
 }

@@ -5,6 +5,7 @@ import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.agent.service.SiliconFlowAgentManageService;
+import com.adlin.orin.modules.agent.service.KimiAgentManageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,7 @@ public class AgentManageController {
     private final com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService;
     private final com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService;
     private final com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService;
+    private final KimiAgentManageService kimiAgentManageService;
     private final com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService;
 
     @Autowired
@@ -32,12 +34,14 @@ public class AgentManageController {
             com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
             com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService,
             com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService,
+            KimiAgentManageService kimiAgentManageService,
             com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService) {
         this.agentManageService = agentManageService;
         this.siliconFlowAgentManageService = siliconFlowAgentManageService;
         this.zhipuAgentManageService = zhipuAgentManageService;
         this.deepSeekAgentManageService = deepSeekAgentManageService;
         this.minimaxAgentManageService = minimaxAgentManageService;
+        this.kimiAgentManageService = kimiAgentManageService;
         this.agentVersionService = agentVersionService;
     }
 
@@ -87,6 +91,16 @@ public class AgentManageController {
             @RequestParam String model,
             @RequestParam(required = false) String name) {
         return minimaxAgentManageService.onboardAgent(endpointUrl, apiKey, model, name);
+    }
+
+    @Operation(summary = "接入Kimi智能体")
+    @PostMapping("/onboard-kimi")
+    public AgentMetadata onboardKimiAgent(
+            @RequestParam String endpointUrl,
+            @RequestParam String apiKey,
+            @RequestParam String model,
+            @RequestParam(required = false) String name) {
+        return kimiAgentManageService.onboardAgent(endpointUrl, apiKey, model, name);
     }
 
     @Operation(summary = "更新智能体配置")
