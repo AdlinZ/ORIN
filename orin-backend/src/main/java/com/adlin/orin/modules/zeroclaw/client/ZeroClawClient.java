@@ -1,11 +1,13 @@
 package com.adlin.orin.modules.zeroclaw.client;
 
+import com.adlin.orin.modules.zeroclaw.dto.ZeroClawAiConfigRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -140,6 +142,98 @@ public class ZeroClawClient {
             return null;
         } catch (Exception e) {
             log.warn("Failed to get ZeroClaw status: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 发送聊天消息
+     */
+    public Map<String, Object> chat(String endpointUrl, String accessToken, List<Map<String, String>> messages, String systemPrompt) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            if (accessToken != null && !accessToken.isEmpty()) {
+                headers.setBearerAuth(accessToken);
+            }
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("messages", messages);
+            if (systemPrompt != null) {
+                requestBody.put("systemPrompt", systemPrompt);
+            }
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    endpointUrl + "/api/chat",
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("ZeroClaw chat request failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 配置 AI 设置
+     */
+    public Map<String, Object> configureAi(String endpointUrl, String accessToken, ZeroClawAiConfigRequest request) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            if (accessToken != null && !accessToken.isEmpty()) {
+                headers.setBearerAuth(accessToken);
+            }
+
+            HttpEntity<ZeroClawAiConfigRequest> entity = new HttpEntity<>(request, headers);
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    endpointUrl + "/config/ai",
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("ZeroClaw AI config request failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 获取 AI 配置
+     */
+    public Map<String, Object> getAiConfig(String endpointUrl, String accessToken) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            if (accessToken != null && !accessToken.isEmpty()) {
+                headers.setBearerAuth(accessToken);
+            }
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    endpointUrl + "/config/ai",
+                    HttpMethod.GET,
+                    entity,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("ZeroClaw get AI config failed: {}", e.getMessage());
             return null;
         }
     }

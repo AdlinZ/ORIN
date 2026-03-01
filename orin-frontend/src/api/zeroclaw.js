@@ -57,3 +57,12 @@ export const getZeroClawSelfHealingLogs = (params = {}, config = {}) => {
         ...config
     });
 };
+
+// ZeroClaw AI 配置 (通过后端代理)
+export const configureZeroClawAi = (data, config = {}) => {
+    return request.post('/zeroclaw/config/ai', data, config);
+};
+
+export const getZeroClawAiConfig = (config = {}) => {
+    return request.get('/zeroclaw/config/ai', config);
+};

@@ -60,7 +60,28 @@
                     <el-checkbox v-model="zeroclawForm.enableSelfHealing" label="自愈引擎 (Self-Healing)" border />
                   </div>
                 </el-form-item>
-                
+
+                <!-- AI 配置 -->
+                <el-divider border-style="dashed" v-if="zeroclawForm.enabled" />
+                <el-form-item label="绑定的智能体 (Agent)" v-if="zeroclawForm.enabled">
+                  <el-select v-model="zeroclawForm.agentId" placeholder="选择已配置的智能体" style="width: 100%" filterable clearable>
+                    <el-option
+                      v-for="agent in agentList"
+                      :key="agent.agentId"
+                      :label="agent.name"
+                      :value="agent.agentId"
+                    >
+                      <div style="display: flex; justify-content: space-between;">
+                        <span>{{ agent.name }}</span>
+                        <span style="color: #999; font-size: 12px;">{{ agent.providerType }} / {{ agent.modelName }}</span>
+                      </div>
+                    </el-option>
+                  </el-select>
+                  <div class="form-tip" style="margin-top: 8px;">
+                    选择已配置的智能体，ZeroClaw 将使用该智能体的 AI 配置
+                  </div>
+                </el-form-item>
+
                 <el-form-item v-if="zeroclawForm.enabled">
                    <el-button @click="testZeroClawConnection" :loading="zeroclawTesting" type="primary" plain size="small">
                      测试连接与状态自检
@@ -382,6 +403,7 @@
 import { ref, onMounted, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/utils/request';
+import { configureZeroClawAi } from '@/api/zeroclaw';
 import PageHeader from '@/components/PageHeader.vue';
 import { 
   Monitor, Check, Connection, InfoFilled, 
@@ -415,8 +437,13 @@ const zeroclawForm = reactive({
   enabled: true,
   enableAnalysis: true,
   enableSelfHealing: true,
-  heartbeatInterval: 60
+  heartbeatInterval: 60,
+  // 绑定的 Agent ID
+  agentId: ''
 });
+
+// Agent 列表
+const agentList = ref([]);
 
 const config = reactive({
   prometheusUrl: '',
@@ -519,6 +546,18 @@ const loadZeroClawConfig = async () => {
   }
 };
 
+// 加载 Agent 列表
+const loadAgents = async () => {
+  try {
+    const res = await request.get('/agents');
+    if (res) {
+      agentList.value = res;
+    }
+  } catch (error) {
+    console.error('Failed to load agents', error);
+  }
+};
+
 const saveZeroClawConfig = async () => {
   zeroclawSaving.value = true;
   try {
@@ -582,41 +621,31 @@ const applyAiConfig = async () => {
   aiConfigStatus.value = null;
 
   try {
-    let endpoint = zeroclawForm.endpointUrl || 'http://localhost:8081';
+    let requestData = {};
 
     if (selectedAiProvider.value === 'custom') {
-      // 使用自定义配置
-      const res = await fetch(`${endpoint}/config/ai`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: 'openai',
-          apiKey: customAiConfig.apiKey,
-          baseUrl: customAiConfig.baseUrl,
-          model: customAiConfig.model
-        })
-      });
-      const data = await res.json();
-      aiConfigStatus.value = data;
-      if (data.success) {
-        ElMessage.success('AI 配置已应用');
-      } else {
-        ElMessage.warning(data.message || '配置应用失败');
-      }
+      // 使用自定义配置 - 直接传递 API Key
+      requestData = {
+        provider: 'openai',
+        apiKey: customAiConfig.apiKey,
+        baseUrl: customAiConfig.baseUrl,
+        model: customAiConfig.model
+      };
     } else {
       // 使用 ORIN 已配置的模型
-      const res = await fetch(`${endpoint}/config/use-orin-model`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: selectedAiProvider.value })
-      });
-      const data = await res.json();
-      aiConfigStatus.value = data;
-      if (data.success) {
-        ElMessage.success(`已配置使用 ${selectedAiProvider.value} AI`);
-      } else {
-        ElMessage.warning(data.message || '配置应用失败');
-      }
+      requestData = {
+        provider: selectedAiProvider.value
+      };
+    }
+
+    // 通过后端 API 代理配置 ZeroClaw AI
+    const res = await configureZeroClawAi(requestData);
+    aiConfigStatus.value = res;
+
+    if (res.success) {
+      ElMessage.success(`已配置使用 ${selectedAiProvider.value === 'custom' ? '自定义' : selectedAiProvider.value} AI`);
+    } else {
+      ElMessage.warning(res.message || '配置应用失败');
     }
 
     // 刷新状态
@@ -631,6 +660,7 @@ const applyAiConfig = async () => {
 
 onMounted(() => {
     loadZeroClawConfig();
+    loadAgents();
     loadConfig();
     loadEnvConfig();
 });

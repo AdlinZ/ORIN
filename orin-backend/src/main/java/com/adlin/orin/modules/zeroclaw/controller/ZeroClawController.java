@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.zeroclaw.controller;
 
 import com.adlin.orin.modules.zeroclaw.dto.ZeroClawAnalysisRequest;
+import com.adlin.orin.modules.zeroclaw.dto.ZeroClawAiConfigRequest;
 import com.adlin.orin.modules.zeroclaw.dto.ZeroClawConnectionRequest;
 import com.adlin.orin.modules.zeroclaw.dto.ZeroClawSelfHealingRequest;
 import com.adlin.orin.modules.zeroclaw.entity.ZeroClawAnalysisReport;
@@ -135,5 +136,17 @@ public class ZeroClawController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(zeroClawService.getSelfHealingLogs(PageRequest.of(page, size)));
+    }
+
+    // ==================== AI 配置代理 ====================
+
+    @PostMapping("/config/ai")
+    public ResponseEntity<Map<String, Object>> configureAi(@RequestBody ZeroClawAiConfigRequest request) {
+        return zeroClawService.configureAi(request);
+    }
+
+    @GetMapping("/config/ai")
+    public ResponseEntity<Map<String, Object>> getAiConfig() {
+        return zeroClawService.getAiConfig();
     }
 }

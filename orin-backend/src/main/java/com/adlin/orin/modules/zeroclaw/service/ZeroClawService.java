@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.zeroclaw.service;
 
+import com.adlin.orin.modules.zeroclaw.dto.ZeroClawAiConfigRequest;
 import com.adlin.orin.modules.zeroclaw.dto.ZeroClawAnalysisRequest;
 import com.adlin.orin.modules.zeroclaw.dto.ZeroClawSelfHealingRequest;
 import com.adlin.orin.modules.zeroclaw.entity.ZeroClawAnalysisReport;
@@ -80,4 +81,19 @@ public interface ZeroClawService {
      * 自动生成 24h 趋势分析报告
      */
     ZeroClawAnalysisReport generateDailyTrendReport();
+
+    /**
+     * 发送聊天消息
+     */
+    Map<String, Object> chat(String agentId, List<Map<String, String>> messages, String systemPrompt);
+
+    /**
+     * 配置 ZeroClaw AI 设置
+     */
+    Map<String, Object> configureAi(ZeroClawAiConfigRequest request);
+
+    /**
+     * 获取 ZeroClaw AI 配置状态
+     */
+    Map<String, Object> getAiConfig();
 }
