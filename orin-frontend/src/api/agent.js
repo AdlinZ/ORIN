@@ -37,9 +37,9 @@ export const chatAgent = (agentId, message, fileId, overrideSystemPrompt, conver
     if (thinkingBudget !== undefined) {
         data.thinking_budget = thinkingBudget;
     }
-    // Extended timeout for thinking models (e.g., DeepSeek-R1)
+    // Extended timeout for thinking models and video generation (e.g., DeepSeek-R1, T2V)
     return request.post(`/agents/${agentId}/chat`, data, {
-        timeout: 120000 // 120 seconds for thinking models
+        timeout: 600000 // 10 minutes for video generation
     });
 };
 

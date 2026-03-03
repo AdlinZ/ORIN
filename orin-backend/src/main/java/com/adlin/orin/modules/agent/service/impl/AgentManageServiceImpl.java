@@ -1031,9 +1031,24 @@ public class AgentManageServiceImpl implements AgentManageService {
 
             @SuppressWarnings("unchecked")
             Map<String, Object> submitData = (Map<String, Object>) submitResult.get();
-            String requestId = (String) submitData.get("request_id");
+            // SiliconFlow API 返回的是 requestId（驼峰），也可能是 request_id
+            log.info("Video submit response: {}", submitData);
+            String requestId = null;
 
-            if (requestId == null) {
+            // Try different key variations
+            Object requestIdObj = submitData.get("request_id");
+            if (requestIdObj == null) {
+                requestIdObj = submitData.get("requestId");
+            }
+            if (requestIdObj == null) {
+                requestIdObj = submitData.get("id");
+            }
+
+            if (requestIdObj != null) {
+                requestId = requestIdObj.toString();
+            }
+
+            if (requestId == null || requestId.isEmpty()) {
                 log.error("No request_id in video submit response: {}", submitData);
                 return java.util.Optional.empty();
             }
@@ -1042,12 +1057,12 @@ public class AgentManageServiceImpl implements AgentManageService {
 
             // 2. 轮询任务状态，直到完成
             int maxRetries = 180; // 最多等待180次 (约15分钟)
-            int retryInterval = 5000; // 5秒间隔
+            int retryInterval = 30000; // 30秒间隔
             String videoUrl = null;
 
             // 初始等待，让任务有时间启动
             try {
-                Thread.sleep(5000);
+                Thread.sleep(10000); // 初始等待10秒
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
@@ -1070,18 +1085,36 @@ public class AgentManageServiceImpl implements AgentManageService {
                     Map<String, Object> statusData = (Map<String, Object>) statusResult.get();
                     String status = (String) statusData.get("status");
 
-                    log.info("Video job status: {}, progress: {}", status, statusData.get("progress"));
+                    log.info("Video job status: {}, response: {}", status, statusData);
 
-                    if ("SUCCEEDED".equals(status) || "SUCCESS".equals(status)) {
-                        // 获取视频URL
-                        Object videoObj = statusData.get("video");
-                        if (videoObj instanceof Map) {
+                    if ("SUCCEEDED".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status) || "Succeed".equalsIgnoreCase(status)) {
+                        // 获取视频URL - SiliconFlow 格式: results.videos[0].url
+                        Object resultsObj = statusData.get("results");
+                        if (resultsObj instanceof Map) {
                             @SuppressWarnings("unchecked")
-                            Map<String, Object> videoMap = (Map<String, Object>) videoObj;
-                            videoUrl = (String) videoMap.get("url");
-                        } else if (videoObj instanceof String) {
-                            videoUrl = (String) videoObj;
+                            Map<String, Object> resultsMap = (Map<String, Object>) resultsObj;
+                            Object videosObj = resultsMap.get("videos");
+                            if (videosObj instanceof java.util.List && !((java.util.List<?>) videosObj).isEmpty()) {
+                                Object firstVideo = ((java.util.List<?>) videosObj).get(0);
+                                if (firstVideo instanceof Map) {
+                                    @SuppressWarnings("unchecked")
+                                    Map<String, Object> videoMap = (Map<String, Object>) firstVideo;
+                                    videoUrl = (String) videoMap.get("url");
+                                }
+                            }
                         }
+                        // 兼容旧格式 video.url
+                        if (videoUrl == null) {
+                            Object videoObj = statusData.get("video");
+                            if (videoObj instanceof Map) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> videoMap = (Map<String, Object>) videoObj;
+                                videoUrl = (String) videoMap.get("url");
+                            } else if (videoObj instanceof String) {
+                                videoUrl = (String) videoObj;
+                            }
+                        }
+                        log.info("Video generated successfully, url: {}", videoUrl);
                         break;
                     } else if ("FAILED".equals(status) || "FAILED".equalsIgnoreCase(status)) {
                         String errorMsg = (String) statusData.get("message");
@@ -1350,7 +1383,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                     response = transcribeAudioWithSiliconFlow(profile, metadata, fileId);
                 } else if ("TEXT_TO_SPEECH".equals(viewType) || "TTS".equals(viewType)) {
                     response = generateAudioWithSiliconFlow(profile, metadata, message);
-                } else if ("TEXT_TO_VIDEO".equals(viewType) || "VIDEO".equals(viewType)) {
+                } else if ("TEXT_TO_VIDEO".equals(viewType) || "VIDEO".equals(viewType) || "TTV".equals(viewType)) {
                     response = generateVideoWithSiliconFlow(profile, metadata, message);
                 } else {
                     // Other types fall back to chat
