@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/agents")
@@ -117,8 +118,12 @@ public class AgentManageController {
             @PathVariable String agentId,
             @RequestPart("message") String message,
             @RequestPart(value = "file", required = false) MultipartFile file) {
-        return agentManageService.chat(agentId, message, file)
-                .orElseThrow(() -> new RuntimeException("Chat failed"));
+        return agentManageService.chat(agentId, message, file).orElseGet(() -> {
+            Map<String, Object> errorResult = new java.util.HashMap<>();
+            errorResult.put("status", "ERROR");
+            errorResult.put("error", "Chat failed");
+            return errorResult;
+        });
     }
 
     @Operation(summary = "与智能体对话 (JSON)")
@@ -129,7 +134,12 @@ public class AgentManageController {
         return agentManageService
                 .chat(agentId, request.getMessage(), request.getFileId(), request.getOverrideSystemPrompt(),
                         request.getConversationId(), request.getEnableThinking(), request.getThinkingBudget())
-                .orElseThrow(() -> new RuntimeException("Chat failed"));
+                .orElseGet(() -> {
+                    Map<String, Object> errorResult = new java.util.HashMap<>();
+                    errorResult.put("status", "ERROR");
+                    errorResult.put("error", "Chat failed");
+                    return errorResult;
+                });
     }
 
     @lombok.Data

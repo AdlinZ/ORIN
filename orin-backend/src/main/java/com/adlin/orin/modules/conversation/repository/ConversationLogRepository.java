@@ -15,13 +15,20 @@ public interface ConversationLogRepository extends JpaRepository<ConversationLog
 
     List<ConversationLog> findByConversationIdOrderByCreatedAtAsc(String conversationId);
 
-    @Query(value = "SELECT * FROM conversation_logs " +
-            "WHERE id IN (" +
-            "  SELECT latest_id FROM (" +
-            "    SELECT MAX(id) as latest_id FROM conversation_logs " +
-            "    GROUP BY conversation_id" +
-            "  ) sub" +
+    @Query(value = "SELECT cl.id, cl.conversation_id, cl.agent_id, cl.user_id, " +
+            "cl.model, cl.query, cl.response, " +
+            "cl.prompt_tokens, cl.completion_tokens, cl.total_tokens, " +
+            "cl.total_tokens, " +
+            "cl.response_time, cl.success, cl.error_message, cl.created_at " +
+            "FROM conversation_logs cl " +
+            "WHERE cl.created_at = (" +
+            "  SELECT MAX(created_at) FROM conversation_logs WHERE conversation_id = cl.conversation_id" +
             ") " +
-            "ORDER BY created_at DESC", countQuery = "SELECT COUNT(DISTINCT conversation_id) FROM conversation_logs", nativeQuery = true)
-    Page<ConversationLog> findGroupedByConversation(Pageable pageable);
+            "ORDER BY cl.created_at DESC",
+            countQuery = "SELECT COUNT(DISTINCT conversation_id) FROM conversation_logs",
+            nativeQuery = true)
+    Page<Object[]> findGroupedByConversationRaw(Pageable pageable);
+
+    @Query("SELECT c.conversationId, COALESCE(SUM(c.totalTokens), 0) FROM ConversationLog c WHERE c.conversationId IN :conversationIds GROUP BY c.conversationId")
+    List<Object[]> findCumulativeTokensByConversationIds(List<String> conversationIds);
 }

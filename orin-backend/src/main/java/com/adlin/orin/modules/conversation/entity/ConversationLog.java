@@ -56,6 +56,18 @@ public class ConversationLog {
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
 
+    /**
+     * 生成文件的ID (用于音频、图片、视频等)
+     */
+    @Column(name = "file_id", length = 100)
+    private String fileId;
+
+    /**
+     * 文件下载URL
+     */
+    @Column(name = "download_url", length = 500)
+    private String downloadUrl;
+
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

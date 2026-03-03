@@ -566,17 +566,24 @@ public class MonitorServiceImpl implements MonitorService {
                 Map<String, Object> stats = new HashMap<>();
                 LocalDateTime now = LocalDateTime.now();
 
-                // Today Avg
+                // Today stats
                 LocalDateTime startOfDay = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
-                Double daily = auditLogRepository.avgResponseTimeAfter(startOfDay);
-                stats.put("daily", daily != null ? Math.round(daily) : 0L);
+                Double dailyAvg = auditLogRepository.avgResponseTimeAfter(startOfDay);
+                Double dailyP50 = auditLogRepository.percentileResponseTime50After(startOfDay);
+                Double dailyP95 = auditLogRepository.percentileResponseTime95After(startOfDay);
+                Double dailyP99 = auditLogRepository.percentileResponseTime99After(startOfDay);
 
-                // Week Avg
+                stats.put("avg", dailyAvg != null ? Math.round(dailyAvg) : 0);
+                stats.put("p50", dailyP50 != null ? Math.round(dailyP50) : 0);
+                stats.put("p95", dailyP95 != null ? Math.round(dailyP95) : 0);
+                stats.put("p99", dailyP99 != null ? Math.round(dailyP99) : 0);
+
+                // Week Avg (for backward compatibility)
                 LocalDateTime startOfWeek = startOfDay.minusDays(now.getDayOfWeek().getValue() - 1);
                 Double weekly = auditLogRepository.avgResponseTimeAfter(startOfWeek);
                 stats.put("weekly", weekly != null ? Math.round(weekly) : 0L);
 
-                // Month Avg
+                // Month Avg (for backward compatibility)
                 LocalDateTime startOfMonth = startOfDay.withDayOfMonth(1);
                 Double monthly = auditLogRepository.avgResponseTimeAfter(startOfMonth);
                 stats.put("monthly", monthly != null ? Math.round(monthly) : 0L);

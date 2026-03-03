@@ -4,6 +4,7 @@ import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.model.service.KimiIntegrationService;
 import com.adlin.orin.modules.model.repository.ModelMetadataRepository;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,18 +33,21 @@ public class KimiAgentManageService implements AgentManageService {
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
     private final ModelMetadataRepository modelMetadataRepository;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public KimiAgentManageService(KimiIntegrationService kimiIntegrationService,
             AgentAccessProfileRepository accessProfileRepository,
             AgentMetadataRepository metadataRepository,
             AgentHealthStatusRepository healthStatusRepository,
-            ModelMetadataRepository modelMetadataRepository) {
+            ModelMetadataRepository modelMetadataRepository,
+            AuditLogService auditLogService) {
         this.kimiIntegrationService = kimiIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
         this.modelMetadataRepository = modelMetadataRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -240,6 +245,14 @@ public class KimiAgentManageService implements AgentManageService {
         double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.7;
         int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 500;
 
+        // Kimi K2.5 and some other models only support temperature=1 and top_p=0.95
+        String modelName = metadata.getModelName();
+        if (modelName != null && (modelName.toLowerCase().contains("k2.5") || modelName.toLowerCase().contains("kimi-k2"))) {
+            temperature = 1.0;
+            topP = 0.95;
+            log.info("Kimi model {} requires temperature=1, top_p=0.95, overriding", modelName);
+        }
+
         List<Map<String, Object>> messages = new java.util.ArrayList<>();
         if (metadata.getSystemPrompt() != null && !metadata.getSystemPrompt().isEmpty()) {
             Map<String, Object> systemMsg = new java.util.HashMap<>();
@@ -252,7 +265,17 @@ public class KimiAgentManageService implements AgentManageService {
         userMsg.put("content", message);
         messages.add(userMsg);
 
-        return kimiIntegrationService.sendMessageWithFullParams(
+        String externalEndpoint = profile.getEndpointUrl() + "/chat/completions";
+        String requestParamsJson;
+        try {
+            requestParamsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(messages);
+        } catch (Exception e) {
+            requestParamsJson = message;
+        }
+
+        // Call API first
+        long startTime = System.currentTimeMillis();
+        Optional<Object> result = kimiIntegrationService.sendMessageWithFullParams(
                 profile.getEndpointUrl(),
                 profile.getApiKey(),
                 metadata.getModelName(),
@@ -260,6 +283,23 @@ public class KimiAgentManageService implements AgentManageService {
                 temperature,
                 topP,
                 maxTokens);
+        long duration = System.currentTimeMillis() - startTime;
+
+        // Record audit log after API call, with actual result status
+        try {
+            String responseText = result.isPresent() ? result.get().toString() : null;
+            int statusCode = result.isPresent() ? 200 : 500;
+            Map<String, Integer> usage = extractUsageFromResponse(result.orElse(null));
+            auditLogService.logApiCall(
+                    "SYSTEM", null, agentId, "Kimi", externalEndpoint, "POST",
+                    metadata.getModelName(), null, "ORIN", requestParamsJson,
+                    responseText, Integer.valueOf(statusCode), duration,
+                    usage.get("prompt"), usage.get("completion"), Double.valueOf(0.0), result.isPresent(), null);
+        } catch (Exception e) {
+            log.warn("Failed to log audit for Kimi: {}", e.getMessage());
+        }
+
+        return result;
     }
 
     @Override
@@ -279,6 +319,60 @@ public class KimiAgentManageService implements AgentManageService {
     public AgentMetadata getAgentMetadata(String agentId) {
         return metadataRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
+    }
+
+    /**
+     * 从响应对象中提取 token 使用量
+     */
+    private Map<String, Integer> extractUsageFromResponse(Object response) {
+        Map<String, Integer> usage = new HashMap<>();
+        usage.put("prompt", 0);
+        usage.put("completion", 0);
+        usage.put("total", 0);
+
+        if (response == null) {
+            return usage;
+        }
+
+        try {
+            if (response instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> respMap = (Map<String, Object>) response;
+
+                if (respMap.containsKey("usage")) {
+                    Object usageObj = respMap.get("usage");
+                    if (usageObj instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> usageMap = (Map<String, Object>) usageObj;
+                        if (usageMap.containsKey("prompt_tokens")) {
+                            usage.put("prompt", toInt(usageMap.get("prompt_tokens")));
+                        }
+                        if (usageMap.containsKey("completion_tokens")) {
+                            usage.put("completion", toInt(usageMap.get("completion_tokens")));
+                        }
+                        if (usageMap.containsKey("total_tokens")) {
+                            usage.put("total", toInt(usageMap.get("total_tokens")));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract usage from response: {}", e.getMessage());
+        }
+
+        return usage;
+    }
+
+    private int toInt(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     @Override

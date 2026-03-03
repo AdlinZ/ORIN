@@ -124,16 +124,6 @@ export const TOP_MENU_CONFIG = [
                 icon: 'Notebook'
             },
             {
-                title: 'API 管理',
-                path: ROUTES.CONTROL.API_MANAGEMENT,
-                icon: 'Link'
-            },
-            {
-                title: '定价策略',
-                path: ROUTES.CONTROL.PRICING,
-                icon: 'Coin'
-            },
-            {
                 title: '系统环境配置',
                 path: ROUTES.CONTROL.SYSTEM_ENV,
                 icon: 'Tools'

@@ -87,15 +87,15 @@ defineProps({
   display: block;
 }
 
-/* Default color for R and N - adapts to dark mode via var */
+/* Default color for R and N - use orin-primary */
 .text-part {
-  fill: var(--text-primary, #333);
+  fill: var(--orin-primary);
   transition: fill 0.3s ease;
 }
 
-/* Primary color for O and I */
+/* Primary color for O and I - use orin-primary */
 .primary-part {
-  fill: var(--orin-primary, #0d9488);
+  fill: var(--orin-primary);
   transition: fill 0.3s ease;
 }
 

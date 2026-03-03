@@ -58,13 +58,29 @@ public class AuditLogService {
             String userAgent, String requestParams, String responseContent, Integer statusCode,
             Long responseTime, Integer promptTokens, Integer completionTokens,
             Double estimatedCost, Boolean success, String errorMessage, String workflowId, String conversationId) {
+        logApiCall(userId, apiKeyId, providerId, providerType, endpoint, method, model, ipAddress,
+                userAgent, requestParams, responseContent, statusCode, responseTime, promptTokens, completionTokens,
+                estimatedCost, success, errorMessage, workflowId, conversationId, null, null);
+    }
+
+    @Async
+    public void logApiCall(String userId, String apiKeyId, String providerId, String providerType,
+            String endpoint, String method, String model, String ipAddress,
+            String userAgent, String requestParams, String responseContent, Integer statusCode,
+            Long responseTime, Integer promptTokens, Integer completionTokens,
+            Double estimatedCost, Boolean success, String errorMessage, String workflowId, String conversationId,
+            String fileId, String downloadUrl) {
 
         // Check config
-        if (!logConfigService.isAuditEnabled()) {
+        boolean auditEnabled = logConfigService.isAuditEnabled();
+        String logLevel = logConfigService.getLogLevel();
+        log.info("Audit log check: enabled={}, logLevel={}, providerType={}, success={}",
+                auditEnabled, logLevel, providerType, success);
+
+        if (!auditEnabled) {
+            log.info("Audit log skipped: audit not enabled");
             return;
         }
-
-        String logLevel = logConfigService.getLogLevel();
 
         // Dynamic Log Level for Workflow
         // If workflowId is present and in debug list, force log
@@ -74,10 +90,13 @@ public class AuditLogService {
         }
 
         if (!forceLog) {
+            log.info("Audit log check: logLevel={}, success={}", logLevel, success);
             if ("NONE".equalsIgnoreCase(logLevel)) {
+                log.info("Audit log skipped: logLevel is NONE");
                 return;
             }
             if ("ERROR_ONLY".equalsIgnoreCase(logLevel) && Boolean.TRUE.equals(success)) {
+                log.info("Audit log skipped: logLevel is ERROR_ONLY and success is true");
                 return;
             }
         }
@@ -109,6 +128,8 @@ public class AuditLogService {
                     .errorMessage(errorMessage)
                     .workflowId(workflowId)
                     .conversationId(conversationId)
+                    .fileId(fileId)
+                    .downloadUrl(downloadUrl)
                     .createdAt(LocalDateTime.now())
                     .build();
 

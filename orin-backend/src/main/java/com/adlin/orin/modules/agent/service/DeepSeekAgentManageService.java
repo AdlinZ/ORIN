@@ -4,6 +4,7 @@ import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
@@ -15,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,6 +35,7 @@ public class DeepSeekAgentManageService implements AgentManageService {
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
     private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public DeepSeekAgentManageService(
@@ -39,12 +43,14 @@ public class DeepSeekAgentManageService implements AgentManageService {
             AgentAccessProfileRepository accessProfileRepository,
             AgentMetadataRepository metadataRepository,
             AgentHealthStatusRepository healthStatusRepository,
-            com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository) {
+            com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
+            AuditLogService auditLogService) {
         this.deepSeekIntegrationService = deepSeekIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
         this.modelMetadataRepository = modelMetadataRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -221,7 +227,17 @@ public class DeepSeekAgentManageService implements AgentManageService {
         }
         messages.add(java.util.Map.of("role", "user", "content", message));
 
-        return deepSeekIntegrationService.sendMessageWithFullParams(
+        String externalEndpoint = profile.getEndpointUrl() + "/chat/completions";
+        String requestParamsJson;
+        try {
+            requestParamsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(messages);
+        } catch (Exception e) {
+            requestParamsJson = message;
+        }
+
+        // Call API first
+        long startTime = System.currentTimeMillis();
+        Optional<Object> result = deepSeekIntegrationService.sendMessageWithFullParams(
                 profile.getEndpointUrl() + "/chat/completions",
                 profile.getApiKey(),
                 metadata.getModelName(),
@@ -229,6 +245,23 @@ public class DeepSeekAgentManageService implements AgentManageService {
                 temperature,
                 topP,
                 maxTokens);
+        long duration = System.currentTimeMillis() - startTime;
+
+        // Record audit log after API call
+        try {
+            String responseText = result.isPresent() ? result.get().toString() : null;
+            int statusCode = result.isPresent() ? 200 : 500;
+            Map<String, Integer> usage = extractUsageFromResponse(result.orElse(null));
+            auditLogService.logApiCall(
+                    "SYSTEM", null, agentId, "DeepSeek", externalEndpoint, "POST",
+                    metadata.getModelName(), null, "ORIN", requestParamsJson,
+                    responseText, Integer.valueOf(statusCode), duration,
+                    usage.get("prompt"), usage.get("completion"), Double.valueOf(0.0), result.isPresent(), null);
+        } catch (Exception e) {
+            log.warn("Failed to log audit for DeepSeek: {}", e.getMessage());
+        }
+
+        return result;
     }
 
     @Override
@@ -257,6 +290,60 @@ public class DeepSeekAgentManageService implements AgentManageService {
     public AgentMetadata getAgentMetadata(String agentId) {
         return metadataRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
+    }
+
+    /**
+     * 从响应对象中提取 token 使用量
+     */
+    private Map<String, Integer> extractUsageFromResponse(Object response) {
+        Map<String, Integer> usage = new HashMap<>();
+        usage.put("prompt", 0);
+        usage.put("completion", 0);
+        usage.put("total", 0);
+
+        if (response == null) {
+            return usage;
+        }
+
+        try {
+            if (response instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> respMap = (Map<String, Object>) response;
+
+                if (respMap.containsKey("usage")) {
+                    Object usageObj = respMap.get("usage");
+                    if (usageObj instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> usageMap = (Map<String, Object>) usageObj;
+                        if (usageMap.containsKey("prompt_tokens")) {
+                            usage.put("prompt", toInt(usageMap.get("prompt_tokens")));
+                        }
+                        if (usageMap.containsKey("completion_tokens")) {
+                            usage.put("completion", toInt(usageMap.get("completion_tokens")));
+                        }
+                        if (usageMap.containsKey("total_tokens")) {
+                            usage.put("total", toInt(usageMap.get("total_tokens")));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract usage from response: {}", e.getMessage());
+        }
+
+        return usage;
+    }
+
+    private int toInt(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     @Override

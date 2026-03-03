@@ -305,13 +305,7 @@ const routes = [
                         meta: { title: '审计日志', icon: 'List', roles: ['ROLE_ADMIN'] }
                     },
 
-                    // API 管理
-                    {
-                        path: 'api-management',
-                        name: 'ControlApiManagement',
-                        component: () => import('@/views/System/ApiManagement.vue'),
-                        meta: { title: 'API 管理', icon: 'Link', roles: ['ROLE_ADMIN'] }
-                    },
+                    // API 密钥管理
                     {
                         path: 'api-keys',
                         name: 'ApiKeyManagement',

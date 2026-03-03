@@ -67,7 +67,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/v1/auth/**",
                         "/api/v1/agents/**",
                         "/api/v1/model-config/**",
-                        "/api/v1/multimodal/files/**")
+                        "/api/v1/multimodal/files/**",
+                        "/api/v1/conversation-logs/**")
                 .order(1);
 
         // 添加速率限制拦截器(在API密钥验证之后)
@@ -79,7 +80,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/v1/auth/**",
                         "/api/v1/agents/**",
                         "/api/v1/model-config/**",
-                        "/api/v1/multimodal/files/**")
+                        "/api/v1/multimodal/files/**",
+                        "/api/v1/conversation-logs/**")
                 .order(2);
     }
 

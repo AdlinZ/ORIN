@@ -57,6 +57,7 @@ public class SecurityConfig {
                         // Agent 管理端点 - 暂时允许所有访问
                         .requestMatchers("/api/v1/agents/**").permitAll()
                         .requestMatchers("/api/v1/model-config/**").permitAll()
+                        .requestMatchers("/api/v1/conversation-logs/**").permitAll()
                         // 管理端点（需要JWT认证）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())

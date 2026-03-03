@@ -119,6 +119,30 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
         Long maxResponseTimeAll();
 
         /**
+         * 获取指定时间之后的响应时间分位数 (排除系统日志)
+         */
+        @Query(value = "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY response_time) FROM audit_logs WHERE created_at >= ?1 AND provider_id != 'ORIN_CORE'", nativeQuery = true)
+        Double percentileResponseTime50After(LocalDateTime after);
+
+        @Query(value = "SELECT PERCENTILE_CONT(0.95) WITHIN GROUP(ORDER BY response_time) FROM audit_logs WHERE created_at >= ?1 AND provider_id != 'ORIN_CORE'", nativeQuery = true)
+        Double percentileResponseTime95After(LocalDateTime after);
+
+        @Query(value = "SELECT PERCENTILE_CONT(0.99) WITHIN GROUP(ORDER BY response_time) FROM audit_logs WHERE created_at >= ?1 AND provider_id != 'ORIN_CORE'", nativeQuery = true)
+        Double percentileResponseTime99After(LocalDateTime after);
+
+        /**
+         * 获取所有时间的响应时间分位数 (排除系统日志)
+         */
+        @Query(value = "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY response_time) FROM audit_logs WHERE provider_id != 'ORIN_CORE'", nativeQuery = true)
+        Double percentileResponseTime50All();
+
+        @Query(value = "SELECT PERCENTILE_CONT(0.95) WITHIN GROUP(ORDER BY response_time) FROM audit_logs WHERE provider_id != 'ORIN_CORE'", nativeQuery = true)
+        Double percentileResponseTime95All();
+
+        @Query(value = "SELECT PERCENTILE_CONT(0.99) WITHIN GROUP(ORDER BY response_time) FROM audit_logs WHERE provider_id != 'ORIN_CORE'", nativeQuery = true)
+        Double percentileResponseTime99All();
+
+        /**
          * Find recent logs by provider ID (for chat history context)
          */
         Page<AuditLog> findByProviderIdOrderByCreatedAtDesc(String providerId, Pageable pageable);

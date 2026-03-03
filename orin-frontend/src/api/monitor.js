@@ -66,8 +66,8 @@ export const getTokenTrend = (period = 'daily', config = {}) => {
 };
 
 // Latency 统计相关 API
-export const getLatencyStats = (config = {}) => {
-    return request.get('/monitor/latency/stats', config);
+export const getLatencyStats = () => {
+    return request.get('/monitor/latency/stats');
 };
 
 export const getLatencyHistory = (params = {}, config = {}) => {

@@ -30,6 +30,12 @@
                     <el-descriptions-item label="User Agent">{{ row.userAgent }}</el-descriptions-item>
                     <el-descriptions-item label="响应状态">{{ row.statusCode }}</el-descriptions-item>
                     <el-descriptions-item label="预估成本">${{ row.estimatedCost }}</el-descriptions-item>
+                    <el-descriptions-item label="Tokens">
+                      <span v-if="row.totalTokens && row.totalTokens > 0">
+                        Prompt: {{ row.promptTokens || 0 }} | Completion: {{ row.completionTokens || 0 }} | Total: {{ row.totalTokens }}
+                      </span>
+                      <span v-else>-</span>
+                    </el-descriptions-item>
                     <el-descriptions-item label="错误信息" :span="2">
                       <span :class="row.success ? '' : 'text-danger'">{{ row.errorMessage || '无异常' }}</span>
                     </el-descriptions-item>
@@ -64,6 +70,17 @@
                 <el-tag v-bind="getLatencyTagConfig(row.responseTime)" size="small">
                   {{ row.responseTime }}ms
                 </el-tag>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="Tokens" width="140" align="center">
+              <template #default="{ row }">
+                <span v-if="row.totalTokens && row.totalTokens > 0" class="token-info">
+                  <span class="token-prompt">{{ row.promptTokens || 0 }}</span>
+                  <span class="token-sep">→</span>
+                  <span class="token-total">{{ row.totalTokens }}</span>
+                </span>
+                <span v-else class="text-secondary">-</span>
               </template>
             </el-table-column>
 
@@ -457,15 +474,16 @@ const handleExport = async () => {
       return stringField;
     };
 
-    const headers = ['时间', '类型', '接口', '方法', '模型', '耗时(ms)', '状态', 'IP', '错误信息'];
-    
+    const headers = ['时间', '类型', '接口', '方法', '模型', '耗时(ms)', 'Tokens', '状态', 'IP', '错误信息'];
+
     const rows = allLogs.map(l => [
-      `\t${formatDateTime(l.createdAt)}`, 
+      `\t${formatDateTime(l.createdAt)}`,
       l.providerType,
       l.endpoint,
       l.method,
       l.model || '-',
       l.responseTime,
+      l.totalTokens ? `${l.promptTokens || 0}→${l.totalTokens}` : '-',
       l.success ? '成功' : '失败',
       l.ipAddress,
       l.errorMessage || ''
@@ -676,4 +694,8 @@ onUnmounted(() => {
 .cleanup-popover .el-form-item { margin-bottom: 12px; }
 .unit-hint { margin-left: 8px; font-size: 12px; color: var(--neutral-gray-600); }
 .cleanup-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--neutral-gray-100); }
+.token-info { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+.token-prompt { color: var(--primary-color); font-weight: 500; }
+.token-sep { color: var(--neutral-gray-400); }
+.token-total { color: var(--success-color); font-weight: 600; }
 </style>

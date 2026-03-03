@@ -51,7 +51,6 @@ export const ROUTES = {
         ROOT: '/dashboard/control',
         USERS: '/dashboard/control/users',
         AUDIT_LOGS: '/dashboard/control/audit-logs',
-        API_MANAGEMENT: '/dashboard/control/api-management',
         SYSTEM_ENV: '/dashboard/control/system-env',
     },
 
@@ -91,8 +90,7 @@ export const LEGACY_ROUTE_REDIRECTS = {
     // 控制模块
     '/dashboard/system/log-config': ROUTES.CONTROL.AUDIT_LOGS,
     '/dashboard/system/audit-logs': ROUTES.CONTROL.AUDIT_LOGS,
-    '/dashboard/system/api-management': ROUTES.CONTROL.API_MANAGEMENT,
-    '/dashboard/system/api-keys': ROUTES.CONTROL.API_MANAGEMENT,
+    '/dashboard/system/api-keys': ROUTES.CONTROL.AUDIT_LOGS,
     '/dashboard/system/monitor-config': ROUTES.CONTROL.SYSTEM_ENV,
 }
 
@@ -217,11 +215,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '审计与日志',
                 path: ROUTES.CONTROL.AUDIT_LOGS,
                 icon: 'List',
-            },
-            {
-                title: 'API 管理',
-                path: ROUTES.CONTROL.API_MANAGEMENT,
-                icon: 'Link',
             },
             {
                 title: '系统环境配置',

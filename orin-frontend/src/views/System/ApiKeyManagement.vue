@@ -521,6 +521,7 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   padding: 0;
+  max-width: 1800px;
 }
 
 .premium-card {

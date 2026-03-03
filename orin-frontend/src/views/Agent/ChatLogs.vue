@@ -86,7 +86,15 @@
                 <el-icon v-else><Cpu /></el-icon>
              </div>
              <div class="content">
-                <div class="msg-text">{{ msg.text }}</div>
+                <div class="msg-text" v-if="msg.text && msg.text.includes('file_id=')">
+                  <div v-for="(part, idx) in formatFileLinks(msg.text)" :key="idx">
+                    <span v-if="part.isLink" class="file-link" @click="downloadFile(part.url)">
+                      <el-icon><Download /></el-icon> 点击下载{{ part.fileType }}
+                    </span>
+                    <span v-else>{{ part.text }}</span>
+                  </div>
+                </div>
+                <div class="msg-text" v-else>{{ msg.text }}</div>
                 <div class="msg-meta">{{ msg.time }}</div>
              </div>
           </div>
@@ -136,7 +144,7 @@ const loadChatLogs = async () => {
       agentName: '', // Will be resolved by computed
       modelName: log.model,
       lastQuery: log.query,
-      tokens: log.totalTokens,
+      tokens: log.cumulativeTokens,
       responseTime: log.responseTime,
       time: log.createdAt,
       timestamp: new Date(String(log.createdAt).replace(' ', 'T')).getTime(),
@@ -240,6 +248,46 @@ const handleExport = () => {
   ElMessage.success('报告导出成功');
 };
 
+// 解析文件链接
+const formatFileLinks = (text) => {
+  if (!text || !text.includes('file_id=')) {
+    return [{ text, isLink: false }];
+  }
+  const result = [];
+  // 判断文件类型
+  let fileType = '音频';
+  if (text.includes('[图片文件]')) {
+    fileType = '图片';
+  } else if (text.includes('[视频文件]')) {
+    fileType = '视频';
+  }
+  // 精确匹配 file_id= 后面跟着的 UUID 格式
+  const regex = /file_id=([a-f0-9-]{36})/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    // 添加匹配之前的文本
+    if (match.index > lastIndex) {
+      result.push({ text: text.substring(lastIndex, match.index), isLink: false });
+    }
+    // 添加文件链接
+    const fileId = match[1];
+    const downloadUrl = `/api/v1/multimodal/files/${fileId}/download`;
+    result.push({ url: downloadUrl, isLink: true, fileType });
+    lastIndex = regex.lastIndex;
+  }
+  // 添加剩余文本
+  if (lastIndex < text.length) {
+    result.push({ text: text.substring(lastIndex), isLink: false });
+  }
+  return result;
+};
+
+// 下载文件
+const downloadFile = (url) => {
+  window.open(url, '_blank');
+};
+
 const viewDetail = async (row) => {
   selectedRow.value = row;
   loading.value = true;
@@ -322,6 +370,17 @@ onUnmounted(() => {
 
 .msg-text { font-size: 14px; line-height: 1.6; }
 .msg-meta { font-size: 11px; margin-top: 6px; opacity: 0.6; }
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+.file-link:hover {
+  text-decoration: underline;
+}
 
 .session-id {
   background: var(--neutral-gray-50);

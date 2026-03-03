@@ -3,15 +3,12 @@
     <div class="header-section">
       <div class="page-title">
         <el-icon class="title-icon"><Cpu /></el-icon>
-        <span>令牌统计</span>
-        <span class="subtitle">运行时令牌消耗仪表盘</span>
+        <span>实时指标</span>
+        <span class="subtitle">运行时令牌与延迟监控仪表盘</span>
       </div>
       <div class="header-actions">
-        <div class="status-badge" style="background: var(--orin-primary-soft); color: var(--orin-primary);">
-          <span class="dot"></span> 运行版本 2026.2.22-2
-        </div>
-        <div class="status-badge" style="background: var(--orin-primary-soft); color: var(--orin-primary);">
-          <span class="dot"></span> 健康状况 正常
+        <div class="status-badge" :style="healthStatusStyle">
+          <span class="dot"></span> {{ healthStatus }}
         </div>
         <el-date-picker
           v-model="dateRange"
@@ -24,10 +21,52 @@
           @change="handleDateRangeChange"
         />
         <div class="action-icons">
+          <el-tooltip content="自动刷新" placement="top">
+            <el-switch
+              v-model="autoRefresh"
+              active-text=""
+              inactive-text=""
+              size="small"
+              style="margin-right: 8px;"
+              @change="handleAutoRefreshChange"
+            />
+          </el-tooltip>
           <el-icon><Monitor /></el-icon>
           <el-icon><RefreshRight @click="handleGlobalRefresh" /></el-icon>
         </div>
       </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="quick-stats-grid">
+      <el-card shadow="never" class="stat-card">
+        <div class="stat-icon tokens-icon"><el-icon><Coin /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">今日 Token</div>
+          <div class="stat-value">{{ formatNumber(totalTokens) }}</div>
+        </div>
+      </el-card>
+      <el-card shadow="never" class="stat-card">
+        <div class="stat-icon latency-icon"><el-icon><Timer /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">平均延迟</div>
+          <div class="stat-value">{{ latencyStats.avg }}ms</div>
+        </div>
+      </el-card>
+      <el-card shadow="never" class="stat-card">
+        <div class="stat-icon cost-icon"><el-icon><Money /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">预估成本</div>
+          <div class="stat-value">${{ costStats.total }}</div>
+        </div>
+      </el-card>
+      <el-card shadow="never" class="stat-card">
+        <div class="stat-icon sessions-icon"><el-icon><ChatDotRound /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">会话数</div>
+          <div class="stat-value">{{ sessionStats.count }}</div>
+        </div>
+      </el-card>
     </div>
 
     <!-- Top Section: Activity by Time -->
@@ -145,7 +184,7 @@
         <el-card shadow="never" class="sessions-card">
           <div class="card-header-flex">
             <h3 class="card-title">会话列表</h3>
-            <span class="sessions-count">显示 8 条</span>
+            <span class="sessions-count">共 {{ filteredSessions.length }} 条</span>
           </div>
           <div class="sessions-toolbar">
             <div class="toolbar-stats">
@@ -178,13 +217,14 @@
           </div>
 
           <div class="sessions-list">
-            <div
-              v-for="(session, idx) in filteredSessions"
-              :key="idx"
-              class="session-item"
-              :class="{ selected: selectedSession === session }"
-              @click="selectedSession = session"
-            >
+            <el-scrollbar max-height="400px">
+              <div
+                v-for="(session, idx) in paginatedSessions"
+                :key="idx"
+                class="session-item"
+                :class="{ selected: selectedSession === session }"
+                @click="selectedSession = session"
+              >
               <div class="session-info">
                 <div class="session-title">{{ session.name }}</div>
                 <div class="session-meta">
@@ -207,6 +247,17 @@
               </div>
             </div>
             <el-empty v-if="filteredSessions.length === 0" description="暂无会话数据" :image-size="60" />
+            </el-scrollbar>
+            <div class="pagination-wrapper" v-if="filteredSessions.length > pageSize">
+              <el-pagination
+                v-model:current-page="currentPage"
+                :page-size="pageSize"
+                :total="filteredSessions.length"
+                layout="prev, pager, next"
+                small
+                background
+              />
+            </div>
           </div>
         </el-card>
       </div>
@@ -216,10 +267,30 @@
 
 <script setup>
 import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue';
-import { Cpu, Monitor, RefreshRight, Download } from '@element-plus/icons-vue';
+import { Cpu, Monitor, RefreshRight, Download, Coin, Timer, Money, ChatDotRound } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
-import { getTokenByDayOfWeek, getTokenByHour, getTokenByType, getSessions, getTokenStats, getDailyTokenTrend } from '@/api/monitor';
+import { getTokenByDayOfWeek, getTokenByHour, getTokenByType, getSessions, getTokenStats, getDailyTokenTrend, getLatencyStats, getCostDistribution, getAgentList } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
+
+// Auto refresh
+const autoRefresh = ref(false);
+let autoRefreshTimer = null;
+
+// Health status
+const healthStatus = ref('正常');
+const healthStatusStyle = computed(() => ({
+  background: healthStatus.value === '正常' ? 'var(--orin-primary-soft)' : '#fee2e2',
+  color: healthStatus.value === '正常' ? 'var(--orin-primary)' : '#ef4444'
+}));
+
+// Quick stats
+const latencyStats = ref({ avg: 0, p50: 0, p95: 0, p99: 0 });
+const costStats = ref({ total: 0, breakdown: [] });
+
+// Agent filter
+const agentList = ref([]);
+const selectedAgent = ref('');
+const sessionStats = ref({ count: 0, avgTokens: 0, errorCount: 0 });
 
 // Date range
 const dateRange = ref([]);
@@ -238,10 +309,6 @@ const chartType = ref('total');
 const sessionFilter = ref('all');
 const selectedSession = ref(null);
 const recentlyViewed = ref(new Set());
-const sessionStats = ref({
-  avgTokens: 0,
-  errorCount: 0
-});
 
 // Filtered and sorted sessions
 const filteredSessions = computed(() => {
@@ -308,6 +375,16 @@ const tokenTypesPercent = computed(() => {
 
 const sessionSort = ref('recent');
 
+// Pagination
+const currentPage = ref(1);
+const pageSize = 10;
+
+const paginatedSessions = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  const end = start + pageSize;
+  return filteredSessions.value.slice(start, end);
+});
+
 const sessionData = ref([]);
 
 const loading = ref(false);
@@ -321,13 +398,16 @@ const fetchAllData = async () => {
     const params = { ...dateRangeParams.value };
 
     // Fetch all data in parallel
-    const [dayData, hourData, typeData, sessionsData, statsData, trendData] = await Promise.all([
+    const [dayData, hourData, typeData, sessionsData, statsData, trendData, latencyData, costData, agentsData] = await Promise.all([
       getTokenByDayOfWeek({ params }),
       getTokenByHour({ params }),
       getTokenByType({ params }),
       getSessions(20, { params }),
       getTokenStats({ params }),
-      getDailyTokenTrend('daily', { params })
+      getDailyTokenTrend('daily', { params }),
+      getLatencyStats(),
+      getCostDistribution({ params }),
+      getAgentList({ params })
     ]);
 
     // Update day of week data
@@ -353,16 +433,55 @@ const fetchAllData = async () => {
     // Update sessions
     if (sessionsData) {
       sessionData.value = sessionsData;
+      currentPage.value = 1; // Reset to first page
 
       // Calculate session stats
       if (sessionsData.length > 0) {
-        const totalTokens = sessionsData.reduce((sum, s) => sum + (s.tokens || 0), 0);
+        const totalSessionTokens = sessionsData.reduce((sum, s) => sum + (s.tokens || 0), 0);
         const totalErrors = sessionsData.reduce((sum, s) => sum + (s.errors || 0), 0);
         sessionStats.value = {
-          avgTokens: Math.round(totalTokens / sessionsData.length),
+          count: sessionsData.length,
+          avgTokens: Math.round(totalSessionTokens / sessionsData.length),
           errorCount: totalErrors
         };
+      } else {
+        sessionStats.value = { count: 0, avgTokens: 0, errorCount: 0 };
       }
+    }
+
+    // Update latency stats
+    if (latencyData) {
+      latencyStats.value = {
+        avg: latencyData.avg || latencyData.daily || 0,
+        p50: latencyData.p50 || 0,
+        p95: latencyData.p95 || 0,
+        p99: latencyData.p99 || 0
+      };
+      // Update health status based on latency
+      const avgLatency = latencyStats.value.avg;
+      if (avgLatency > 5000) {
+        healthStatus.value = '延迟过高';
+      } else if (avgLatency > 2000) {
+        healthStatus.value = '轻微延迟';
+      } else {
+        healthStatus.value = '正常';
+      }
+    }
+
+    // Update cost stats
+    if (costData && costData.length > 0) {
+      const total = costData.reduce((sum, item) => sum + (item.value || 0), 0);
+      costStats.value = {
+        total: total.toFixed(2),
+        breakdown: costData
+      };
+    } else {
+      costStats.value = { total: '0.00', breakdown: [] };
+    }
+
+    // Update agent list
+    if (agentsData) {
+      agentList.value = agentsData;
     }
 
     // Update total tokens
@@ -469,6 +588,18 @@ const handleGlobalRefresh = () => {
   fetchAllData();
 };
 
+// Handle auto refresh toggle
+const handleAutoRefreshChange = (val) => {
+  if (val) {
+    autoRefreshTimer = setInterval(() => {
+      fetchAllData();
+    }, 30000); // Refresh every 30 seconds
+  } else if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+};
+
 // Handle date range change
 const handleDateRangeChange = () => {
   fetchAllData();
@@ -551,6 +682,10 @@ const handleResize = () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   dailyChartInstance?.dispose();
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
 });
 </script>
 
@@ -560,6 +695,73 @@ onUnmounted(() => {
   background-color: #f8fafc;
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Quick Stats Grid */
+.quick-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.stat-card :deep(.el-card__body) {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.tokens-icon {
+  background: linear-gradient(135deg, #00BFA5 0%, #00897B 100%);
+  color: white;
+}
+
+.latency-icon {
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+  color: white;
+}
+
+.cost-icon {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: white;
+}
+
+.sessions-icon {
+  background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);
+  color: white;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 /* Header */
@@ -920,5 +1122,12 @@ onUnmounted(() => {
   color: #1e293b;
   min-width: 60px;
   text-align: right;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 8px;
+  border-top: 1px solid #f1f5f9;
 }
 </style>

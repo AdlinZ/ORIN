@@ -26,6 +26,8 @@ import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
 import com.adlin.orin.modules.model.service.OllamaIntegrationService;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
+import com.adlin.orin.modules.conversation.entity.ConversationLog;
+import com.adlin.orin.modules.conversation.service.ConversationLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -61,6 +63,13 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final com.adlin.orin.modules.model.service.ModelConfigService modelConfigService;
     private final Map<String, MultiModalProvider> providerMap = new HashMap<>();
 
+    // Provider-specific AgentManageService instances
+    private final com.adlin.orin.modules.agent.service.SiliconFlowAgentManageService siliconFlowAgentManageService;
+    private final com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService;
+    private final com.adlin.orin.modules.agent.service.KimiAgentManageService kimiAgentManageService;
+    private final com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService;
+    private final com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService;
+
     // Explicit constructor injection to ensure all dependencies are handled
     // correctly
     public AgentManageServiceImpl(
@@ -77,7 +86,12 @@ public class AgentManageServiceImpl implements AgentManageService {
             MinimaxIntegrationService minimaxIntegrationService,
             OllamaIntegrationService ollamaIntegrationService,
             com.adlin.orin.modules.model.service.ModelConfigService modelConfigService,
-            List<MultiModalProvider> providers) {
+            List<MultiModalProvider> providers,
+            com.adlin.orin.modules.agent.service.SiliconFlowAgentManageService siliconFlowAgentManageService,
+            com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
+            com.adlin.orin.modules.agent.service.KimiAgentManageService kimiAgentManageService,
+            com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService,
+            com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService) {
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.minimaxIntegrationService = minimaxIntegrationService;
@@ -91,6 +105,11 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.metaKnowledgeService = metaKnowledgeService;
         this.modelMetadataRepository = modelMetadataRepository;
         this.modelConfigService = modelConfigService;
+        this.siliconFlowAgentManageService = siliconFlowAgentManageService;
+        this.zhipuAgentManageService = zhipuAgentManageService;
+        this.kimiAgentManageService = kimiAgentManageService;
+        this.deepSeekAgentManageService = deepSeekAgentManageService;
+        this.minimaxAgentManageService = minimaxAgentManageService;
 
         for (MultiModalProvider p : providers) {
             this.providerMap.put(p.getProviderName().toUpperCase(), p);
@@ -704,6 +723,12 @@ public class AgentManageServiceImpl implements AgentManageService {
 
             if (res.isPresent()) {
                 Map<String, Object> dataObj = (Map<String, Object>) res.get();
+
+                // 用于存储最终返回的数据
+                Map<String, Object> data = new HashMap<>();
+                String savedFileId = null;
+
+                // 尝试处理 images 数组格式（旧格式）
                 if (dataObj.containsKey("images")) {
                     try {
                         java.util.List<Map<String, Object>> images = (java.util.List<Map<String, Object>>) dataObj
@@ -719,13 +744,22 @@ public class AgentManageServiceImpl implements AgentManageService {
                                         com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
                                                 .uploadFile(imgData, filename, "image/png",
                                                         "agent:" + metadata.getAgentId());
-                                        img.put("url", "/api/v1/multimodal/files/" + savedFile.getId() + "/download");
+                                        String downloadUrl = "/api/v1/multimodal/files/" + savedFile.getId() + "/download";
+                                        img.put("url", downloadUrl);
+                                        img.put("image_url", downloadUrl);
+                                        img.put("file_id", savedFile.getId());
                                         if (img.containsKey("url")) {
                                             img.put("original_url", url);
                                         }
+                                        savedFileId = savedFile.getId();
+                                        data.put("image_url", downloadUrl);
+                                        data.put("file_id", savedFileId);
                                     }
                                 } catch (Exception ex) {
+                                    // 下载失败时，保存原始 URL 以便前端直接显示
                                     log.error("Failed to download or persist image from SiliconFlow: " + url, ex);
+                                    data.put("image_url", url);
+                                    data.put("original_url", url);
                                 }
                             }
                         }
@@ -734,9 +768,82 @@ public class AgentManageServiceImpl implements AgentManageService {
                     }
                 }
 
+                // 如果没有从 images 数组中获取到 file_id，尝试处理新格式（data.image_url）
+                if (savedFileId == null && dataObj.containsKey("data")) {
+                    try {
+                        Object dataObjInner = dataObj.get("data");
+                        if (dataObjInner instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> dataMap = (Map<String, Object>) dataObjInner;
+                            String imageUrl = (String) dataMap.get("image_url");
+                            if (imageUrl != null && imageUrl.startsWith("http")) {
+                                try {
+                                    org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                                    byte[] imgData = restTemplate.getForObject(imageUrl, byte[].class);
+                                    if (imgData != null) {
+                                        String filename = "genimg_" + UUID.randomUUID().toString() + ".png";
+                                        com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
+                                                .uploadFile(imgData, filename, "image/png",
+                                                        "agent:" + metadata.getAgentId());
+                                        savedFileId = savedFile.getId();
+                                        data.put("file_id", savedFileId);
+                                        data.put("image_url", "/api/v1/multimodal/files/" + savedFileId + "/download");
+                                        data.put("original_url", imageUrl);
+                                        log.info("Downloaded and saved image from image_url: {}", imageUrl);
+                                    }
+                                } catch (Exception ex) {
+                                    // 下载失败时，保存原始 URL 以便前端直接显示
+                                    log.error("Failed to download image from image_url: {}", imageUrl, ex);
+                                    data.put("image_url", imageUrl);
+                                    data.put("original_url", imageUrl);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to process data.image_url format", e);
+                    }
+                }
+
+                // 如果成功保存了图片，构建响应
+                if (savedFileId != null) {
+                    if (!data.containsKey("file_id")) {
+                        data.put("file_id", savedFileId);
+                    }
+                    if (!data.containsKey("image_url")) {
+                        data.put("image_url", "/api/v1/multimodal/files/" + savedFileId + "/download");
+                    }
+                } else {
+                    // 如果没有保存成功，也要把原始 URL 返回
+                    try {
+                        // 尝试从 images 数组获取原始 URL
+                        if (dataObj.containsKey("images")) {
+                            java.util.List<Map<String, Object>> images = (java.util.List<Map<String, Object>>) dataObj.get("images");
+                            if (images != null && !images.isEmpty()) {
+                                Object url = images.get(0).get("url");
+                                if (url != null) {
+                                    data.put("image_url", url);
+                                }
+                            }
+                        }
+                        // 尝试从 data.image_url 获取
+                        if (!data.containsKey("image_url") && dataObj.containsKey("data")) {
+                            Object dataObjInner = dataObj.get("data");
+                            if (dataObjInner instanceof Map) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> dataMap = (Map<String, Object>) dataObjInner;
+                                if (dataMap.containsKey("image_url")) {
+                                    data.put("image_url", dataMap.get("image_url"));
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to extract image URL", e);
+                    }
+                }
+
                 Map<String, Object> result = new HashMap<>();
                 result.put("status", "SUCCESS");
-                result.put("data", dataObj);
+                result.put("data", data);
                 result.put("dataType", "IMAGE");
                 return java.util.Optional.of(result);
             }
@@ -867,6 +974,185 @@ public class AgentManageServiceImpl implements AgentManageService {
         }
     }
 
+    /**
+     * Generate video with SiliconFlow
+     */
+    private java.util.Optional<Object> generateVideoWithSiliconFlow(AgentAccessProfile profile,
+            AgentMetadata metadata, String message) {
+        try {
+            // 解析消息，提取参数
+            java.util.Map<String, Object> params = new java.util.HashMap<>();
+            String prompt = message;
+
+            // 尝试解析JSON消息
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> messageMap = mapper.readValue(message, java.util.Map.class);
+
+                if (messageMap.containsKey("prompt")) {
+                    prompt = (String) messageMap.get("prompt");
+                } else if (messageMap.containsKey("query")) {
+                    prompt = (String) messageMap.get("query");
+                }
+
+                // 提取其他参数
+                if (messageMap.containsKey("videoSize") || messageMap.containsKey("video_size")) {
+                    params.put("videoSize", messageMap.get("videoSize") != null ?
+                            messageMap.get("videoSize") : messageMap.get("video_size"));
+                }
+                if (messageMap.containsKey("negative_prompt")) {
+                    params.put("negative_prompt", messageMap.get("negative_prompt"));
+                }
+                if (messageMap.containsKey("seed")) {
+                    params.put("seed", messageMap.get("seed"));
+                }
+                // 支持参考图片（I2V）
+                if (messageMap.containsKey("reference_image") || messageMap.containsKey("image")) {
+                    params.put("reference_image", messageMap.get("reference_image") != null ?
+                            messageMap.get("reference_image") : messageMap.get("image"));
+                }
+            } catch (Exception e) {
+                log.debug("Message is not JSON, using as plain prompt");
+            }
+
+            // 1. 提交视频生成任务
+            java.util.Optional<Object> submitResult = siliconFlowIntegrationService.generateVideo(
+                    profile.getEndpointUrl(),
+                    profile.getApiKey(),
+                    metadata.getModelName(),
+                    prompt,
+                    params);
+
+            if (!submitResult.isPresent()) {
+                log.error("Video generation submit failed");
+                return java.util.Optional.empty();
+            }
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> submitData = (Map<String, Object>) submitResult.get();
+            String requestId = (String) submitData.get("request_id");
+
+            if (requestId == null) {
+                log.error("No request_id in video submit response: {}", submitData);
+                return java.util.Optional.empty();
+            }
+
+            log.info("Video generation task submitted: {}", requestId);
+
+            // 2. 轮询任务状态，直到完成
+            int maxRetries = 180; // 最多等待180次 (约15分钟)
+            int retryInterval = 5000; // 5秒间隔
+            String videoUrl = null;
+
+            // 初始等待，让任务有时间启动
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+
+            for (int i = 0; i < maxRetries; i++) {
+                try {
+                    Thread.sleep(retryInterval);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+
+                java.util.Optional<Object> statusResult = siliconFlowIntegrationService.getVideoJobStatus(
+                        profile.getEndpointUrl(),
+                        profile.getApiKey(),
+                        requestId);
+
+                if (statusResult.isPresent()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> statusData = (Map<String, Object>) statusResult.get();
+                    String status = (String) statusData.get("status");
+
+                    log.info("Video job status: {}, progress: {}", status, statusData.get("progress"));
+
+                    if ("SUCCEEDED".equals(status) || "SUCCESS".equals(status)) {
+                        // 获取视频URL
+                        Object videoObj = statusData.get("video");
+                        if (videoObj instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> videoMap = (Map<String, Object>) videoObj;
+                            videoUrl = (String) videoMap.get("url");
+                        } else if (videoObj instanceof String) {
+                            videoUrl = (String) videoObj;
+                        }
+                        break;
+                    } else if ("FAILED".equals(status) || "FAILED".equalsIgnoreCase(status)) {
+                        String errorMsg = (String) statusData.get("message");
+                        log.error("Video generation failed: {}", errorMsg);
+                        Map<String, Object> errorResult = new java.util.HashMap<>();
+                        errorResult.put("status", "FAILED");
+                        errorResult.put("errorMessage", errorMsg != null ? errorMsg : "Video generation failed");
+                        return java.util.Optional.of(errorResult);
+                    }
+                    // PENDING, PROCESSING, RUNNING 等继续等待
+                }
+            }
+
+            if (videoUrl == null) {
+                log.error("Video generation timeout, no video URL obtained");
+                Map<String, Object> errorResult = new java.util.HashMap<>();
+                errorResult.put("status", "FAILED");
+                errorResult.put("errorMessage", "Video generation timeout");
+                return java.util.Optional.of(errorResult);
+            }
+
+            // 3. 下载视频并保存到本地
+            try {
+                org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                byte[] videoData = restTemplate.getForObject(videoUrl, byte[].class);
+
+                if (videoData != null) {
+                    String filename = "genvideo_" + UUID.randomUUID().toString() + ".mp4";
+                    com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
+                            .uploadFile(videoData, filename, "video/mp4", "agent:" + metadata.getAgentId());
+
+                    // 返回响应，包含 file_id
+                    Map<String, Object> data = new java.util.HashMap<>();
+                    data.put("video_url", "/api/v1/multimodal/files/" + savedFile.getId() + "/download");
+                    data.put("file_id", savedFile.getId());
+                    data.put("text", prompt);
+                    // 保留原始URL供参考
+                    data.put("original_url", videoUrl);
+
+                    Map<String, Object> result = new java.util.HashMap<>();
+                    result.put("status", "SUCCESS");
+                    result.put("data", data);
+                    result.put("dataType", "VIDEO");
+
+                    return java.util.Optional.of(result);
+                }
+            } catch (Exception ex) {
+                log.error("Failed to download or save video: {}", ex.getMessage(), ex);
+                // 如果下载失败，返回原始URL
+                Map<String, Object> data = new java.util.HashMap<>();
+                data.put("video_url", videoUrl);
+                data.put("text", prompt);
+
+                Map<String, Object> result = new java.util.HashMap<>();
+                result.put("status", "SUCCESS");
+                result.put("data", data);
+                result.put("dataType", "VIDEO");
+
+                return java.util.Optional.of(result);
+            }
+
+            return java.util.Optional.empty();
+        } catch (Exception e) {
+            log.error("Failed to generate video", e);
+            Map<String, Object> errorResult = new java.util.HashMap<>();
+            errorResult.put("status", "FAILED");
+            errorResult.put("errorMessage", e.getMessage());
+            return java.util.Optional.of(errorResult);
+        }
+    }
+
     private java.util.Optional<Object> chatWithOllama(AgentAccessProfile profile, AgentMetadata metadata,
             String message, String fileId, String overrideSystemPrompt, String conversationId,
             Boolean enableThinking, Integer thinkingBudget) {
@@ -980,10 +1266,263 @@ public class AgentManageServiceImpl implements AgentManageService {
         log.info("Chatting with agent: {} (conversationId: {}, fileId: {}, hasOverride: {}, thinking: {})",
                 agentId, conversationId, fileId, overrideSystemPrompt != null, enableThinking);
 
-        // --- SiliconFlow Chat Provider ---
-        log.info("Attempting chat with SiliconFlow provider");
+        // 1. Get agent profile and metadata
+        AgentAccessProfile profile = accessProfileRepository.findById(agentId)
+                .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
+
+        AgentMetadata metadata = metadataRepository.findById(agentId)
+                .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
+
+        // 2. Dynamic System Prompt Assembly (Includes Memory and Skills)
+        String dynamicSystemPrompt;
+        if (overrideSystemPrompt != null && !overrideSystemPrompt.trim().isEmpty()) {
+            // Using Override Prompt for Sandbox testing
+            dynamicSystemPrompt = overrideSystemPrompt;
+        } else {
+            // Normal flow: Assemble from DB (PromptTemplate, Memory, Skills)
+            dynamicSystemPrompt = metaKnowledgeService.assembleSystemPrompt(agentId);
+
+            // Fallback to static if dynamic is empty
+            if (dynamicSystemPrompt.trim().isEmpty()) {
+                if (metadata.getSystemPrompt() != null && !metadata.getSystemPrompt().isEmpty()) {
+                    dynamicSystemPrompt = metadata.getSystemPrompt();
+                }
+            }
+        }
+
+        // 3. Route based on providerType - wrapped in try-catch to ensure logging
+        String providerType = metadata.getProviderType();
+        String viewType = metadata.getViewType();
+        log.info("Agent {} providerType: {}, viewType: {}", agentId, providerType, viewType);
+
+        // Record start time for response time calculation
+        long startTime = System.currentTimeMillis();
+
+        java.util.Optional<Object> response;
+        String errorMessage = null;
+        String actualEndpoint = "/chat/completions"; // default endpoint
+
         try {
-            // Get SiliconFlow config from ModelConfig
+            if ("DIFY".equalsIgnoreCase(providerType)) {
+                log.info("Routing to Dify interaction for agent {} (viewType: {})", agentId, viewType);
+                actualEndpoint = profile.getEndpointUrl() + "/v1/chat-messages";
+                MultiModalProvider provider = providerMap.get("DIFY");
+                if (provider != null) {
+                    Map<String, Object> context = new HashMap<>();
+                    context.put("conversationId", conversationId);
+                    InteractionRequest req = new InteractionRequest(
+                            fileId != null ? "IMAGE" : "TEXT",
+                            message,
+                            null,
+                            context);
+                    InteractionResult result = provider.process(metadata, req);
+                    Map<String, Object> responseMap = new HashMap<>();
+                    responseMap.put("status", result.getStatus());
+                    responseMap.put("data", result.getData());
+                    responseMap.put("dataType", result.getDataType());
+                    responseMap.put("viewType", metadata.getViewType());
+
+                    if (result.getData() instanceof Map) {
+                        Map<?, ?> dataMap = (Map<?, ?>) result.getData();
+                        if (dataMap.containsKey("conversation_id")) {
+                            responseMap.put("conversation_id", dataMap.get("conversation_id"));
+                        } else {
+                            responseMap.put("conversation_id", conversationId);
+                        }
+                    } else {
+                        responseMap.put("conversation_id", conversationId);
+                    }
+                    response = java.util.Optional.of(responseMap);
+                } else {
+                    response = difyIntegrationService.sendMessage(profile.getEndpointUrl(), profile.getApiKey(),
+                            conversationId, message);
+                    if (response.isPresent() && response.get() instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> castedResponse = (Map<String, Object>) response.get();
+                        castedResponse.put("conversation_id", conversationId);
+                    }
+                }
+            } else if ("SiliconFlow".equalsIgnoreCase(providerType) || "SiliconCloud".equalsIgnoreCase(providerType)) {
+                actualEndpoint = profile.getEndpointUrl() + "/chat/completions";
+                if ("TEXT_TO_IMAGE".equals(viewType) || "IMAGE_TO_IMAGE".equals(viewType) || "TTI".equals(viewType)) {
+                    response = generateImageWithSiliconFlow(profile, metadata, message);
+                } else if ("SPEECH_TO_TEXT".equals(viewType) || "STT".equals(viewType)) {
+                    response = transcribeAudioWithSiliconFlow(profile, metadata, fileId);
+                } else if ("TEXT_TO_SPEECH".equals(viewType) || "TTS".equals(viewType)) {
+                    response = generateAudioWithSiliconFlow(profile, metadata, message);
+                } else if ("TEXT_TO_VIDEO".equals(viewType) || "VIDEO".equals(viewType)) {
+                    response = generateVideoWithSiliconFlow(profile, metadata, message);
+                } else {
+                    // Other types fall back to chat
+                    // Route to dedicated SiliconFlowAgentManageService
+                    response = siliconFlowAgentManageService.chat(agentId, message, fileId);
+                }
+            } else if ("Ollama".equalsIgnoreCase(providerType)) {
+                log.info("Routing to Ollama interaction for agent {}", agentId);
+                actualEndpoint = profile.getEndpointUrl() + "/api/chat";
+                response = chatWithOllama(profile, metadata, message, fileId, dynamicSystemPrompt, conversationId,
+                        enableThinking, thinkingBudget);
+            } else if ("KIMI".equalsIgnoreCase(providerType) || "Moonshot".equalsIgnoreCase(providerType)) {
+                log.info("Routing to Kimi (Moonshot) service for agent {}", agentId);
+                actualEndpoint = profile.getEndpointUrl() + "/v1/chat/completions";
+                response = kimiAgentManageService.chat(agentId, message, fileId);
+            } else if ("Zhipu".equalsIgnoreCase(providerType) || "GLM".equalsIgnoreCase(providerType)) {
+                log.info("Routing to Zhipu (GLM) service for agent {}", agentId);
+                actualEndpoint = profile.getEndpointUrl() + "/api/paas/v4/chat/completions";
+                response = zhipuAgentManageService.chat(agentId, message, fileId);
+            } else if ("DeepSeek".equalsIgnoreCase(providerType)) {
+                log.info("Routing to DeepSeek service for agent {}", agentId);
+                actualEndpoint = profile.getEndpointUrl() + "/v1/chat/completions";
+                response = deepSeekAgentManageService.chat(agentId, message, fileId);
+            } else if ("Minimax".equalsIgnoreCase(providerType)) {
+                log.info("Routing to Minimax service for agent {}", agentId);
+                actualEndpoint = profile.getEndpointUrl() + "/v1/text/chatcompletion_v2";
+                response = minimaxAgentManageService.chat(agentId, message, fileId);
+            } else {
+                // Default: try MultiModalProvider first, then fallback to SiliconFlow
+                MultiModalProvider provider = providerMap.get(providerType != null ? providerType.toUpperCase() : "");
+                if (provider != null) {
+                    Map<String, Object> context = new HashMap<>();
+                    context.put("conversationId", conversationId);
+                    InteractionRequest req = new InteractionRequest(
+                            "TEXT", message, null, context);
+                    InteractionResult result = provider.process(metadata, req);
+                    Map<String, Object> resp = new HashMap<>();
+                    resp.put("data", result.getData());
+                    resp.put("status", result.getStatus());
+                    resp.put("conversation_id", conversationId);
+                    response = java.util.Optional.of(resp);
+                } else {
+                    // Fallback to SiliconFlow global config
+                    log.warn("Unknown provider type: {}, falling back to SiliconFlow global config", providerType);
+                    response = chatWithSiliconFlowFallback(message, dynamicSystemPrompt, enableThinking, thinkingBudget, conversationId);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error during agent chat processing: {}", e.getMessage(), e);
+            errorMessage = e.getMessage();
+            response = java.util.Optional.empty();
+        }
+
+        // 4. Process and return response - always log regardless of success/failure
+        try {
+            // Calculate response time
+            long responseTime = System.currentTimeMillis() - startTime;
+
+            if (response != null && response.isPresent()) {
+                Object respObj = response.get();
+                log.info("SiliconFlow response received, type: {}, keys: {}",
+                    respObj.getClass().getSimpleName(),
+                    respObj instanceof Map ? ((Map<?, ?>) respObj).keySet() : "N/A");
+
+                // 将原始响应转换为 JSON 字符串保存到审计日志
+                String responseContentJson;
+                try {
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    responseContentJson = mapper.writeValueAsString(respObj);
+                } catch (Exception e) {
+                    responseContentJson = respObj.toString();
+                }
+
+                String responseText = extractResponseText(respObj);
+                log.info("Extracted response text length: {}, preview: {}",
+                    responseText != null ? responseText.length() : 0,
+                    responseText != null ? responseText.substring(0, Math.min(100, responseText.length())) : "null");
+
+                // Extract usage info from response
+                java.util.Map<String, Integer> usage = extractUsageFromResponse(respObj);
+
+                // Extract file info (fileId, downloadUrl) for audio/image/video
+                java.util.Map<String, String> fileInfo = extractFileInfo(respObj);
+                String generatedFileId = fileInfo.get("fileId");
+                String generatedDownloadUrl = fileInfo.get("downloadUrl");
+
+                ConversationLog conversationLog = ConversationLog.builder()
+                        .conversationId(conversationId)
+                        .agentId(agentId)
+                        .userId(null)
+                        .model(metadata.getModelName())
+                        .query(message)
+                        .response(responseText)
+                        .success(true)
+                        .responseTime(responseTime)
+                        .promptTokens(usage.get("prompt"))
+                        .completionTokens(usage.get("completion"))
+                        .totalTokens(usage.get("total"))
+                        .fileId(generatedFileId != null && !generatedFileId.isEmpty() ? generatedFileId : null)
+                        .downloadUrl(generatedDownloadUrl != null && !generatedDownloadUrl.isEmpty() ? generatedDownloadUrl : null)
+                        .build();
+                conversationLogService.log(conversationLog);
+                log.debug("Conversation log saved for agent: {}, conversation: {}", agentId, conversationId);
+
+                // Record audit log for API call - 保存原始响应 JSON
+                try {
+                    int statusCode = 200;
+                    String endpoint = actualEndpoint;
+                    log.info("Saving audit log for agent: {}, providerType: {}, conversationId: {}", agentId, providerType, conversationId);
+                    auditLogService.logApiCall(
+                            "SYSTEM", null, agentId, providerType, endpoint, "POST",
+                            metadata.getModelName(), null, "ORIN",
+                            message, responseContentJson, statusCode, responseTime,
+                            usage.get("prompt"), usage.get("completion"), 0.0, true, null, null, conversationId,
+                            generatedFileId != null && !generatedFileId.isEmpty() ? generatedFileId : null,
+                            generatedDownloadUrl != null && !generatedDownloadUrl.isEmpty() ? generatedDownloadUrl : null);
+                } catch (Exception e) {
+                    log.warn("Failed to save audit log: {}", e.getMessage());
+                }
+            } else {
+                // Failed or no response
+                ConversationLog conversationLog = ConversationLog.builder()
+                        .conversationId(conversationId)
+                        .agentId(agentId)
+                        .userId(null)
+                        .model(metadata.getModelName())
+                        .query(message)
+                        .response(null)
+                        .success(false)
+                        .responseTime(responseTime)
+                        .errorMessage(errorMessage != null ? errorMessage : "Failed to get response from provider: " + providerType)
+                        .build();
+                conversationLogService.log(conversationLog);
+                log.warn("Failed to get response from provider: {}, errorMessage: {}", providerType, errorMessage);
+
+                // Record audit log for failed API call
+                try {
+                    int statusCode = 500;
+                    String endpoint = actualEndpoint;
+                    auditLogService.logApiCall(
+                            "SYSTEM", null, agentId, providerType, endpoint, "POST",
+                            metadata.getModelName(), null, "ORIN",
+                            message, null, statusCode, responseTime,
+                            0, 0, 0.0, false, errorMessage, null, conversationId, null, null);
+                } catch (Exception e) {
+                    log.warn("Failed to save audit log for error: {}", e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to save conversation log: {}", e.getMessage());
+        }
+
+        // 5. Return response or error
+        if (response != null && response.isPresent()) {
+            return enrichResponse(response.get(), metadata, conversationId);
+        }
+
+        // 6. If no response, return error
+        Map<String, Object> errorResult = new HashMap<>();
+        errorResult.put("status", "ERROR");
+        errorResult.put("error", errorMessage != null ? errorMessage : "Failed to get response from provider: " + providerType);
+
+        return java.util.Optional.of(errorResult);
+    }
+
+    /**
+     * Fallback to SiliconFlow global config when agent has no specific provider
+     */
+    private java.util.Optional<Object> chatWithSiliconFlowFallback(String message, String dynamicSystemPrompt,
+            Boolean enableThinking, Integer thinkingBudget, String conversationId) {
+        log.info("Attempting chat with SiliconFlow global config");
+        try {
             com.adlin.orin.modules.model.entity.ModelConfig modelConfig = modelConfigService.getConfig();
             if (modelConfig != null && modelConfig.getSiliconFlowApiKey() != null
                     && !modelConfig.getSiliconFlowApiKey().isEmpty()) {
@@ -992,63 +1531,365 @@ public class AgentManageServiceImpl implements AgentManageService {
                 String sfApiKey = modelConfig.getSiliconFlowApiKey();
                 String sfModel = modelConfig.getSiliconFlowModel();
 
-                // Build messages
                 java.util.List<Map<String, Object>> sfMessages = new java.util.ArrayList<>();
-                if (overrideSystemPrompt != null && !overrideSystemPrompt.isEmpty()) {
-                    sfMessages.add(java.util.Map.of("role", "system", "content", overrideSystemPrompt));
+                if (dynamicSystemPrompt != null && !dynamicSystemPrompt.isEmpty()) {
+                    sfMessages.add(java.util.Map.of("role", "system", "content", dynamicSystemPrompt));
                 }
                 sfMessages.add(java.util.Map.of("role", "user", "content", message));
 
-                java.util.Optional<Object> sfResponse = siliconFlowIntegrationService.sendMessageWithFullParams(
+                return siliconFlowIntegrationService.sendMessageWithFullParams(
                         sfEndpoint + "/chat/completions", sfApiKey, sfModel, sfMessages, 0.7, 0.9, 2000, enableThinking, thinkingBudget);
+            }
+        } catch (Exception e) {
+            log.error("SiliconFlow fallback failed: {}", e.getMessage());
+        }
+        return java.util.Optional.empty();
+    }
 
-                if (sfResponse.isPresent()) {
-                    log.info("SiliconFlow chat successful");
+    /**
+     * Enrich response with standard fields
+     */
+    private java.util.Optional<Object> enrichResponse(Object response, AgentMetadata metadata, String conversationId) {
+        if (response instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> respMap = (Map<String, Object>) response;
+            respMap.put("conversation_id", conversationId);
+            if (!respMap.containsKey("viewType")) {
+                respMap.put("viewType", metadata.getViewType());
+            }
+            if (!respMap.containsKey("provider")) {
+                respMap.put("provider", metadata.getProviderType());
+            }
+            if (!respMap.containsKey("model")) {
+                respMap.put("model", metadata.getModelName());
+            }
+            if (!respMap.containsKey("status")) {
+                respMap.put("status", "SUCCESS");
+            }
+            return java.util.Optional.of(respMap);
+        }
+        return java.util.Optional.of(response);
+    }
 
-                    // 获取响应文本用于记录日志
-                    String responseText = "";
-                    if (sfResponse.get() instanceof Map) {
-                        responseText = ((Map<?, ?>) sfResponse.get()).get("content") != null
-                                ? ((Map<?, ?>) sfResponse.get()).get("content").toString()
-                                : sfResponse.get().toString();
+    /**
+     * 从响应对象中提取文本内容
+     */
+    private String extractResponseText(Object response) {
+        if (response == null) {
+            return null;
+        }
+        try {
+            if (response instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> respMap = (Map<String, Object>) response;
+
+                // 1. 尝试 OpenAI 格式: choices[0].message.content
+                if (respMap.containsKey("choices")) {
+                    Object choices = respMap.get("choices");
+                    if (choices instanceof java.util.List && !((java.util.List<?>) choices).isEmpty()) {
+                        Object firstChoice = ((java.util.List<?>) choices).get(0);
+                        if (firstChoice instanceof Map) {
+                            Map<?, ?> choiceMap = (Map<?, ?>) firstChoice;
+                            if (choiceMap.containsKey("message")) {
+                                Object msg = choiceMap.get("message");
+                                if (msg instanceof Map) {
+                                    Map<?, ?> msgMap = (Map<?, ?>) msg;
+                                    // 先尝试 content
+                                    Object content = msgMap.get("content");
+                                    if (content != null) {
+                                        // 如果是字符串，直接返回
+                                        if (content instanceof String) {
+                                            return (String) content;
+                                        }
+                                        // 如果是列表 (多模态内容)，尝试提取文本
+                                        if (content instanceof java.util.List) {
+                                            return extractTextFromContentList((java.util.List<?>) content);
+                                        }
+                                        // 其他类型转为字符串
+                                        return String.valueOf(content);
+                                    }
+                                    // 兼容深度思考模型 (如 Kimi-K2.5): reasoning_content
+                                    Object reasoningContent = msgMap.get("reasoning_content");
+                                    if (reasoningContent != null) {
+                                        return String.valueOf(reasoningContent);
+                                    }
+                                }
+                            }
+                            // 兼容 delta 格式 (流式响应)
+                            if (choiceMap.containsKey("delta")) {
+                                Object delta = choiceMap.get("delta");
+                                if (delta instanceof Map) {
+                                    Map<?, ?> deltaMap = (Map<?, ?>) delta;
+                                    Object content = deltaMap.get("content");
+                                    if (content != null) {
+                                        if (content instanceof String) {
+                                            return (String) content;
+                                        }
+                                        if (content instanceof java.util.List) {
+                                            return extractTextFromContentList((java.util.List<?>) content);
+                                        }
+                                        return String.valueOf(content);
+                                    }
+                                    // 兼容深度思考模型的 delta
+                                    Object reasoningContent = deltaMap.get("reasoning_content");
+                                    if (reasoningContent != null) {
+                                        return String.valueOf(reasoningContent);
+                                    }
+                                }
+                            }
+                        }
                     }
+                }
 
-                    // 记录审计日志
-                    try {
-                        auditLogService.logApiCall(
-                                "admin", null, agentId, "SILICONFLOW", "/api/v1/siliconflow/chat",
-                                "POST", sfModel, "127.0.0.1", "ORIN-Backend", message, responseText, 200, 0L,
-                                0, 0, 0.0, true, null, null, conversationId);
-
-                        // 记录对话日志
-                        conversationLogService.log(com.adlin.orin.modules.conversation.entity.ConversationLog.builder()
-                                .userId("admin").agentId(agentId).conversationId(conversationId)
-                                .model(sfModel).query(message).response(responseText)
-                                .success(true).responseTime(0L).build());
-                    } catch (Exception e) {
-                        log.warn("Failed to log audit: {}", e.getMessage());
+                // 2. 检查 dataType 处理特殊类型（AUDIO, IMAGE 等）
+                if (respMap.containsKey("dataType")) {
+                    String dataType = String.valueOf(respMap.get("dataType"));
+                    Object data = respMap.get("data");
+                    if (data instanceof Map) {
+                        Map<String, Object> dataMap = (Map<String, Object>) data;
+                        if ("AUDIO".equals(dataType) && dataMap.containsKey("audio_url")) {
+                            // 只保存 file_id，让前端自己构建 URL
+                            Object fileIdObj = dataMap.get("file_id");
+                            if (fileIdObj != null) {
+                                return "[音频文件] file_id=" + fileIdObj.toString();
+                            }
+                        } else if ("IMAGE".equals(dataType) && dataMap.containsKey("image_url")) {
+                            Object fileIdObj = dataMap.get("file_id");
+                            if (fileIdObj != null) {
+                                return "[图片文件] file_id=" + fileIdObj.toString();
+                            }
+                        } else if ("VIDEO".equals(dataType) && dataMap.containsKey("video_url")) {
+                            Object fileIdObj = dataMap.get("file_id");
+                            if (fileIdObj != null) {
+                                return "[视频文件] file_id=" + fileIdObj.toString();
+                            }
+                        }
+                        // 如果有 text 字段，也返回
+                        if (dataMap.containsKey("text")) {
+                            return String.valueOf(dataMap.get("text"));
+                        }
                     }
+                }
 
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("status", "SUCCESS");
-                    result.put("data", sfResponse.get());
-                    result.put("dataType", "TEXT");
-                    result.put("viewType", "CHAT");
-                    result.put("provider", "SiliconFlow");
-                    result.put("model", sfModel);
-                    result.put("conversation_id", conversationId);
-                    return java.util.Optional.of(result);
+                // 3. 尝试提取 data 字段
+                if (respMap.containsKey("data")) {
+                    Object data = respMap.get("data");
+                    if (data instanceof String) {
+                        return (String) data;
+                    } else if (data instanceof Map) {
+                        // 递归提取 data 中的文本
+                        return extractTextFromMap((Map<String, Object>) data);
+                    }
+                }
+
+                // 4. 尝试直接字段
+                if (respMap.containsKey("content")) {
+                    return String.valueOf(respMap.get("content"));
+                }
+                if (respMap.containsKey("text")) {
+                    return String.valueOf(respMap.get("text"));
+                }
+
+                // 4. 尝试 message 字段
+                if (respMap.containsKey("message")) {
+                    Object msg = respMap.get("message");
+                    if (msg instanceof Map) {
+                        Object content = ((Map<?, ?>) msg).get("content");
+                        if (content != null) {
+                            return String.valueOf(content);
+                        }
+                    }
+                }
+
+                // 5. 如果都不匹配，返回提示而非整个JSON
+                return "[复杂响应对象，请查看审计日志]";
+            }
+            if (response instanceof String) {
+                return (String) response;
+            }
+            return "[复杂响应对象，请查看审计日志]";
+        } catch (Exception e) {
+            log.warn("Failed to extract response text: {}", e.getMessage());
+            return String.valueOf(response);
+        }
+    }
+
+    /**
+     * 从响应对象中提取文件信息 (fileId 和 downloadUrl)
+     * 用于音频、图片、视频等文件类型
+     */
+    private java.util.Map<String, String> extractFileInfo(Object response) {
+        java.util.Map<String, String> fileInfo = new java.util.HashMap<>();
+        fileInfo.put("fileId", "");
+        fileInfo.put("downloadUrl", "");
+
+        if (response == null) {
+            return fileInfo;
+        }
+
+        try {
+            if (response instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> respMap = (Map<String, Object>) response;
+
+                // 检查 dataType 处理特殊类型（AUDIO, IMAGE, VIDEO）
+                if (respMap.containsKey("dataType")) {
+                    String dataType = String.valueOf(respMap.get("dataType"));
+                    Object data = respMap.get("data");
+                    if (data instanceof Map) {
+                        Map<String, Object> dataMap = (Map<String, Object>) data;
+
+                        if ("AUDIO".equals(dataType) && dataMap.containsKey("audio_url")) {
+                            Object fileIdObj = dataMap.get("file_id");
+                            if (fileIdObj != null) {
+                                String fId = String.valueOf(fileIdObj);
+                                String dUrl = "/api/multimodal/files/" + fId + "/download";
+                                fileInfo.put("fileId", fId);
+                                fileInfo.put("downloadUrl", dUrl);
+                            }
+                        } else if ("IMAGE".equals(dataType) && dataMap.containsKey("image_url")) {
+                            Object fileIdObj = dataMap.get("file_id");
+                            if (fileIdObj != null) {
+                                String fId = String.valueOf(fileIdObj);
+                                String dUrl = "/api/multimodal/files/" + fId + "/download";
+                                fileInfo.put("fileId", fId);
+                                fileInfo.put("downloadUrl", dUrl);
+                            }
+                        } else if ("VIDEO".equals(dataType) && dataMap.containsKey("video_url")) {
+                            Object fileIdObj = dataMap.get("file_id");
+                            if (fileIdObj != null) {
+                                String fId = String.valueOf(fileIdObj);
+                                String dUrl = "/api/multimodal/files/" + fId + "/download";
+                                fileInfo.put("fileId", fId);
+                                fileInfo.put("downloadUrl", dUrl);
+                            }
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
-            log.error("SiliconFlow chat failed: {}", e.getMessage());
+            log.warn("Failed to extract file info: {}", e.getMessage());
         }
-        // --- End SiliconFlow ---
 
-        // If SiliconFlow failed, return error
-        Map<String, Object> errorResult = new HashMap<>();
-        errorResult.put("status", "ERROR");
-        errorResult.put("error", "SiliconFlow is unavailable. Please check your configuration.");
-        return java.util.Optional.of(errorResult);
+        return fileInfo;
+    }
+
+    /**
+     * 从多模态内容列表中提取文本
+     */
+    private String extractTextFromContentList(java.util.List<?> contentList) {
+        if (contentList == null || contentList.isEmpty()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Object item : contentList) {
+            if (item instanceof Map) {
+                Map<?, ?> itemMap = (Map<?, ?>) item;
+                // 文本类型
+                if ("text".equals(itemMap.get("type"))) {
+                    Object text = itemMap.get("text");
+                    if (text != null) {
+                        sb.append(text.toString());
+                    }
+                }
+                // 图片类型等忽略
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : null;
+    }
+
+    /**
+     * 从 Map 中递归提取文本内容
+     */
+    private String extractTextFromMap(Map<String, Object> map) {
+        // 优先查找文本字段
+        if (map.containsKey("text")) {
+            return String.valueOf(map.get("text"));
+        }
+        if (map.containsKey("content")) {
+            return String.valueOf(map.get("content"));
+        }
+        if (map.containsKey("message")) {
+            Object msg = map.get("message");
+            if (msg instanceof Map) {
+                Object content = ((Map<?, ?>) msg).get("content");
+                if (content != null) {
+                    return String.valueOf(content);
+                }
+            }
+        }
+        // 如果没有找到文本字段，返回提示
+        return "[复杂响应对象，请查看审计日志]";
+    }
+
+    /**
+     * 从响应对象中提取 token 使用量
+     * @return Map 包含 prompt, completion, total 三个值
+     */
+    private java.util.Map<String, Integer> extractUsageFromResponse(Object response) {
+        java.util.Map<String, Integer> usage = new java.util.HashMap<>();
+        usage.put("prompt", 0);
+        usage.put("completion", 0);
+        usage.put("total", 0);
+
+        if (response == null) {
+            return usage;
+        }
+
+        try {
+            if (response instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> respMap = (Map<String, Object>) response;
+
+                // 1. 直接查找 usage 字段
+                if (respMap.containsKey("usage")) {
+                    Object usageObj = respMap.get("usage");
+                    if (usageObj instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> usageMap = (Map<String, Object>) usageObj;
+                        if (usageMap.containsKey("prompt_tokens")) {
+                            usage.put("prompt", toInt(usageMap.get("prompt_tokens")));
+                        }
+                        if (usageMap.containsKey("completion_tokens")) {
+                            usage.put("completion", toInt(usageMap.get("completion_tokens")));
+                        }
+                        if (usageMap.containsKey("total_tokens")) {
+                            usage.put("total", toInt(usageMap.get("total_tokens")));
+                        }
+                    }
+                }
+
+                // 2. SiliconFlow 可能使用不同的字段名
+                if (usage.get("total") == 0 && respMap.containsKey("usage")) {
+                    Object usageObj = respMap.get("usage");
+                    if (usageObj instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> usageMap = (Map<String, Object>) usageObj;
+                        // 尝试其他可能的字段名
+                        if (usageMap.containsKey("tokens")) {
+                            usage.put("total", toInt(usageMap.get("tokens")));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract usage from response: {}", e.getMessage());
+        }
+
+        return usage;
+    }
+
+    /**
+     * 安全地将 Object 转换为 Integer
+     */
+    private int toInt(Object obj) {
+        if (obj == null) return 0;
+        if (obj instanceof Integer) return (Integer) obj;
+        if (obj instanceof Number) return ((Number) obj).intValue();
+        try {
+            return Integer.parseInt(String.valueOf(obj));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

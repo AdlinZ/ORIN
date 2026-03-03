@@ -1,6 +1,12 @@
 # ZeroClaw 轻量化 Agent 集成模块
 
-## 概述
+> ⚠️ **已弃用**: ZeroClaw 模块已从 ORIN 系统中移除。请使用 RAGFlow 进行知识库集成，或使用 Kimi 进行大模型对话。
+
+---
+
+## 概述 (历史版本)
+
+> 以下内容仅为历史参考，ZeroClaw 模块已不再维护。
 
 ZeroClaw 是 ORIN 系统的轻量化 Agent 集成模块，支持以下核心功能：
 

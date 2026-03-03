@@ -175,6 +175,18 @@ public class AuditLog {
     private String errorMessage;
 
     /**
+     * 生成文件的ID (用于音频、图片、视频等)
+     */
+    @Column(name = "file_id", length = 100)
+    private String fileId;
+
+    /**
+     * 文件下载URL
+     */
+    @Column(name = "download_url", length = 500)
+    private String downloadUrl;
+
+    /**
      * 创建时间
      */
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

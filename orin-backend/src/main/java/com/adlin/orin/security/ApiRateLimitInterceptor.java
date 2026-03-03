@@ -1,36 +1,33 @@
 package com.adlin.orin.security;
 
-import com.adlin.orin.modules.apikey.entity.ApiEndpoint;
-import com.adlin.orin.modules.apikey.service.ApiEndpointService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * API速率限制拦截器
  * 基于滑动窗口算法实现API调用速率限制
+ * 使用API Key本身进行速率限制
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ApiRateLimitInterceptor implements HandlerInterceptor {
 
-    private final ApiEndpointService apiEndpointService;
-
     // 存储每个API Key的请求计数器
-    // Key格式: "apiKeyId:endpoint:timeWindow"
+    // Key格式: "apiKeyId:timeWindow"
     private final Map<String, AtomicInteger> requestCounters = new ConcurrentHashMap<>();
 
     // 存储时间窗口的起始时间
     private final Map<String, Long> windowStartTimes = new ConcurrentHashMap<>();
+
+    // 默认速率限制
+    private static final int DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
@@ -39,26 +36,6 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
         // 允许OPTIONS请求通过
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
-        }
-
-        String path = request.getRequestURI();
-        String method = request.getMethod();
-
-        // 获取API端点配置
-        Optional<ApiEndpoint> endpointOpt = apiEndpointService.getEndpointByPathAndMethod(path, method);
-
-        if (endpointOpt.isEmpty()) {
-            // 如果端点未配置,允许通过(由其他拦截器处理)
-            return true;
-        }
-
-        ApiEndpoint endpoint = endpointOpt.get();
-
-        // 检查端点是否启用
-        if (!endpoint.getEnabled()) {
-            log.warn("API endpoint is disabled: {} {}", method, path);
-            sendForbiddenResponse(response, "API endpoint is disabled");
-            return false;
         }
 
         // 从请求属性获取API Key ID(由ApiKeyAuthInterceptor设置)
@@ -71,8 +48,8 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
         String apiKeyId = ((com.adlin.orin.modules.apikey.entity.ApiKey) apiKeyObj).getId();
 
         // 检查速率限制(每分钟)
-        if (!checkRateLimit(apiKeyId, path, endpoint.getRateLimitPerMinute(), 60)) {
-            log.warn("Rate limit exceeded for API key: {}, endpoint: {} {}", apiKeyId, method, path);
+        if (!checkRateLimit(apiKeyId, DEFAULT_RATE_LIMIT_PER_MINUTE, 60)) {
+            log.warn("Rate limit exceeded for API key: {}", apiKeyId);
             sendRateLimitResponse(response, "Rate limit exceeded");
             return false;
         }
@@ -82,15 +59,14 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
 
     /**
      * 检查速率限制
-     * 
+     *
      * @param apiKeyId      API密钥ID
-     * @param endpoint      端点路径
      * @param limit         限制次数
      * @param windowSeconds 时间窗口(秒)
      * @return 是否允许通过
      */
-    private boolean checkRateLimit(String apiKeyId, String endpoint, int limit, int windowSeconds) {
-        String key = apiKeyId + ":" + endpoint + ":" + windowSeconds;
+    private boolean checkRateLimit(String apiKeyId, int limit, int windowSeconds) {
+        String key = apiKeyId + ":" + windowSeconds;
         long currentTime = System.currentTimeMillis();
         long windowMs = windowSeconds * 1000L;
 
@@ -115,21 +91,6 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
         }
 
         return true;
-    }
-
-    /**
-     * 发送禁止访问响应
-     */
-    private void sendForbiddenResponse(HttpServletResponse response, String message) throws Exception {
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-
-        String jsonResponse = String.format(
-                "{\"error\":{\"message\":\"%s\",\"type\":\"forbidden\",\"code\":\"endpoint_disabled\"}}",
-                message);
-
-        response.getWriter().write(jsonResponse);
     }
 
     /**

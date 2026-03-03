@@ -117,9 +117,15 @@ const { isProcessing, result, dataType, error, interact } = useAgentInteraction(
 
 const imageUrl = computed(() => {
     if (!result.value) return '';
+    // result.value 已经是 data 对象 (由 useAgentInteraction 设置 res.data)
+    if (result.value.image_url) {
+        return result.value.image_url;
+    }
+    // 兼容 images 数组格式
     if (result.value.images && Array.isArray(result.value.images) && result.value.images.length > 0) {
         return result.value.images[0].url;
     }
+    // 直接 URL 字符串
     if (typeof result.value === 'string') return result.value;
     return result.value.url || '';
 });
