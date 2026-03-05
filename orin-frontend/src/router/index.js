@@ -201,6 +201,14 @@ const routes = [
                         name: 'RuntimeAlerts',
                         component: () => import('@/views/System/AlertManagement.vue'),
                         meta: { title: '异常告警', icon: 'Bell', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 服务器监控
+                    {
+                        path: 'server',
+                        name: 'RuntimeServer',
+                        component: () => import('@/views/Monitor/ServerMonitor.vue'),
+                        meta: { title: '服务器监控', icon: 'Monitor' }
                     }
                 ]
             },
@@ -311,6 +319,14 @@ const routes = [
                         name: 'ApiKeyManagement',
                         component: () => import('@/views/System/ApiKeyManagement.vue'),
                         meta: { title: 'API 密钥管理', icon: 'Key', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 文件管理
+                    {
+                        path: 'file-management',
+                        name: 'FileManagement',
+                        component: () => import('@/views/System/FileManagement.vue'),
+                        meta: { title: '文件管理', icon: 'Folder', roles: ['ROLE_ADMIN'] }
                     },
 
                     // 系统环境配置

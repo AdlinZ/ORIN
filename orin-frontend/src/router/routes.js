@@ -32,6 +32,7 @@ export const ROUTES = {
         METRICS: '/dashboard/runtime/metrics',
         TRACES: '/dashboard/runtime/traces',
         ALERTS: '/dashboard/runtime/alerts',
+        SERVER: '/dashboard/runtime/server',
     },
 
     // 资源模块
@@ -52,6 +53,7 @@ export const ROUTES = {
         USERS: '/dashboard/control/users',
         AUDIT_LOGS: '/dashboard/control/audit-logs',
         SYSTEM_ENV: '/dashboard/control/system-env',
+        FILE_MANAGEMENT: '/dashboard/control/file-management',
     },
 
     // 其他
@@ -157,6 +159,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: ROUTES.RUNTIME.ALERTS,
                 icon: 'Bell',
             },
+            {
+                title: '服务器监控',
+                path: ROUTES.RUNTIME.SERVER,
+                icon: 'Monitor',
+            },
         ],
     },
     {
@@ -215,6 +222,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '审计与日志',
                 path: ROUTES.CONTROL.AUDIT_LOGS,
                 icon: 'List',
+            },
+            {
+                title: '文件管理',
+                path: ROUTES.CONTROL.FILE_MANAGEMENT,
+                icon: 'Folder',
             },
             {
                 title: '系统环境配置',

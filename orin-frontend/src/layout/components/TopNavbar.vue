@@ -309,7 +309,7 @@ const iconMap = {
   List, ChatDotRound, Cpu, MagicStick, Connection,
   DataLine, TrendCharts, Share, Warning,
   Document, Picture, Histogram, Search, View, Grid,
-  User, Notebook, Link, Coin, Operation, TrendChartsIcon, Tools, Clock
+  User, Notebook, Link, Coin, Operation, TrendChartsIcon, Tools, Clock, Odometer
 }
 
 // State
@@ -361,12 +361,28 @@ const goHome = () => {
 const handleRefresh = () => {
   // 触发页面刷新事件
   window.dispatchEvent(new Event('page-refresh'))
-  
+
   ElMessage({
     message: '正在刷新页面数据...',
     type: 'info',
     duration: 1500
   })
+
+  // 监听页面刷新完成事件
+  const handleRefreshDone = () => {
+    ElMessage({
+      message: '页面数据已刷新',
+      type: 'success',
+      duration: 1500
+    })
+    window.removeEventListener('page-refresh-done', handleRefreshDone)
+  }
+  window.addEventListener('page-refresh-done', handleRefreshDone)
+
+  // 5秒后自动移除监听，防止意外触发
+  setTimeout(() => {
+    window.removeEventListener('page-refresh-done', handleRefreshDone)
+  }, 5000)
 }
 
 const toggleTheme = () => {

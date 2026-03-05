@@ -101,6 +101,23 @@ export const getServerHardware = () => {
     return request.get('/monitor/server-hardware');
 };
 
+// Server Hardware History APIs
+export const getServerHardwareHistory = (params = {}) => {
+    return request.get('/monitor/server-hardware/history', { params });
+};
+
+export const getServerHardwareTrend = (period = '1h') => {
+    return request.get('/monitor/server-hardware/trend', { params: { period } });
+};
+
+export const getServerHardwareStats = () => {
+    return request.get('/monitor/server-hardware/stats');
+};
+
+export const collectServerHardware = () => {
+    return request.post('/monitor/server-hardware/collect');
+};
+
 // Token Stats Dashboard APIs
 export const getTokenByDayOfWeek = (config = {}) => {
     return request.get('/monitor/tokens/by-day-of-week', config);

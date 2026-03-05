@@ -298,28 +298,28 @@
               </el-table-column>
               <el-table-column label="设置级别" width="180">
                 <template #default="{ row }">
-                  <el-select 
-                    v-model="row.newLevel" 
-                    size="small" 
+                  <el-select
+                    v-model="row.newLevel"
+                    size="small"
                     placeholder="选择级别"
                     @change="handleLevelChange(row)"
                   >
                     <el-option label="继承默认" value="NULL" />
-                    <el-option 
-                      v-for="level in supportedLevels" 
-                      :key="level" 
-                      :label="level" 
-                      :value="level" 
+                    <el-option
+                      v-for="level in supportedLevels"
+                      :key="level"
+                      :label="level"
+                      :value="level"
                     />
                   </el-select>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="100">
                 <template #default="{ row }">
-                  <el-button 
-                    size="small" 
-                    text 
-                    type="danger" 
+                  <el-button
+                    size="small"
+                    text
+                    type="danger"
                     @click="resetLogger(row)"
                   >
                     重置
@@ -352,10 +352,10 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, reactive } from 'vue';
-import { 
-  Setting, Check, Document, Coin, Calendar, 
+import {
+  Check, Document, Coin, Calendar,
   Filter, Timer, Connection, Delete, Refresh,
-  DataLine, RefreshLeft, InfoFilled, Download, List 
+  DataLine, RefreshLeft, InfoFilled, Download
 } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ResizableTable from '@/components/ResizableTable.vue';
@@ -393,6 +393,16 @@ const stats = ref({
 const loggers = ref([]);
 const supportedLevels = ref(['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'OFF']);
 
+// 根据当前标签页刷新对应数据
+const handlePageRefresh = () => {
+  if (activeTab.value === 'logs') {
+    fetchLogs();
+  } else if (activeTab.value === 'logConfig') {
+    loadConfig();
+    loadLoggers();
+  }
+};
+
 const CONFIG_KEYS = {
     AUDIT_ENABLED: 'log.audit.enabled',
     LOG_LEVEL: 'log.level',
@@ -407,8 +417,19 @@ const formatSimpleDate = (val) => {
 
 const formatDateTime = (val) => {
   if (!val) return '-';
-  const d = new Date(val);
-  return d.toLocaleString();
+  // 处理时间戳或日期字符串
+  let d;
+  if (typeof val === 'number' || /^\d+$/.test(String(val))) {
+    // 时间戳（毫秒）
+    d = new Date(parseInt(val));
+  } else if (typeof val === 'string') {
+    // 处理 ISO 格式日期字符串 (如 2026-03-05T10:30:00)
+    d = new Date(val.replace('T', ' '));
+  } else {
+    d = new Date(val);
+  }
+  if (isNaN(d.getTime())) return val; // 如果解析失败，返回原始值
+  return d.toLocaleString('zh-CN');
 };
 
 const getLatencyTagConfig = (ms) => {
@@ -438,6 +459,7 @@ const fetchLogs = async () => {
     ElMessage.error('获取系统日志失败');
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -636,11 +658,11 @@ onMounted(() => {
   fetchLogs();
   loadConfig();
   loadLoggers();
-  window.addEventListener('page-refresh', fetchLogs);
+  window.addEventListener('page-refresh', handlePageRefresh);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('page-refresh', fetchLogs);
+  window.removeEventListener('page-refresh', handlePageRefresh);
 });
 </script>
 

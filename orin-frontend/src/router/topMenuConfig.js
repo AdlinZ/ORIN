@@ -67,6 +67,11 @@ export const TOP_MENU_CONFIG = [
                 title: '异常告警',
                 path: ROUTES.RUNTIME.ALERTS,
                 icon: 'Warning'
+            },
+            {
+                title: '服务器监控',
+                path: ROUTES.RUNTIME.SERVER,
+                icon: 'Odometer'
             }
         ]
     },
@@ -122,6 +127,11 @@ export const TOP_MENU_CONFIG = [
                 title: '审计与日志',
                 path: ROUTES.CONTROL.AUDIT_LOGS,
                 icon: 'Notebook'
+            },
+            {
+                title: '文件管理',
+                path: ROUTES.CONTROL.FILE_MANAGEMENT,
+                icon: 'Folder'
             },
             {
                 title: '系统环境配置',

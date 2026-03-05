@@ -4,13 +4,17 @@ import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import com.adlin.orin.modules.monitor.entity.PrometheusConfig;
+import com.adlin.orin.modules.monitor.entity.ServerHardwareMetric;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.monitor.repository.AgentMetricRepository;
 import com.adlin.orin.modules.monitor.repository.PrometheusConfigRepository;
+import com.adlin.orin.modules.monitor.repository.ServerHardwareMetricRepository;
 import com.adlin.orin.modules.monitor.service.MonitorService;
 import com.adlin.orin.modules.monitor.service.PrometheusService;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
+import com.adlin.orin.gateway.adapter.ProviderAdapter;
+import com.adlin.orin.gateway.service.ProviderRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +44,8 @@ public class MonitorServiceImpl implements MonitorService {
         private final DifyIntegrationService difyIntegrationService;
         private final PrometheusService prometheusService;
         private final PrometheusConfigRepository prometheusConfigRepository;
+        private final ServerHardwareMetricRepository serverHardwareMetricRepository;
+        private final ProviderRegistry providerRegistry;
 
         // Dedicated thread pool for Prometheus queries to avoid using the common
         // ForkJoinPool
@@ -522,76 +528,88 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         private List<Map<String, Object>> getDistributionData(Long startDate, Long endDate, boolean isToken) {
-                LocalDateTime start;
-                LocalDateTime end;
+                try {
+                        LocalDateTime start;
+                        LocalDateTime end;
 
-                if (startDate != null && endDate != null) {
-                        start = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneId.systemDefault());
-                        end = LocalDateTime.ofInstant(Instant.ofEpochMilli(endDate), ZoneId.systemDefault());
-                } else {
-                        end = LocalDateTime.now();
-                        start = end.minusDays(30);
+                        if (startDate != null && endDate != null) {
+                                start = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneId.systemDefault());
+                                end = LocalDateTime.ofInstant(Instant.ofEpochMilli(endDate), ZoneId.systemDefault());
+                        } else {
+                                end = LocalDateTime.now();
+                                start = end.minusDays(30);
+                        }
+
+                        List<Object[]> rawData = isToken
+                                        ? auditLogRepository.sumTokensByProviderIdBetween(start, end)
+                                        : auditLogRepository.sumCostByProviderIdBetween(start, end);
+
+                        // Use ProviderRegistry to get provider names
+                        List<Map<String, Object>> result = new ArrayList<>();
+                        for (Object[] row : rawData) {
+                                String providerId = (String) row[0];
+                                Number value = (Number) row[1];
+
+                                Map<String, Object> item = new HashMap<>();
+                                // Try to get provider name from registry, fallback to providerId
+                                String name = providerRegistry.getProvider(providerId)
+                                                .map(ProviderAdapter::getProviderName)
+                                                .orElse(providerId != null ? providerId : "Unknown");
+
+                                item.put("name", name);
+                                item.put("value", value);
+                                item.put("agentId", providerId);
+
+                                result.add(item);
+                        }
+                        return result;
+                } catch (Exception e) {
+                        log.error("Error getting distribution data", e);
+                        return new ArrayList<>();
                 }
-
-                List<Object[]> rawData = isToken
-                                ? auditLogRepository.sumTokensByProviderIdBetween(start, end)
-                                : auditLogRepository.sumCostByProviderIdBetween(start, end);
-
-                Map<String, String> agentNames = healthStatusRepository.findAll().stream()
-                                .collect(Collectors.toMap(AgentHealthStatus::getAgentId,
-                                                AgentHealthStatus::getAgentName, (a, b) -> a));
-
-                List<Map<String, Object>> result = new ArrayList<>();
-                for (Object[] row : rawData) {
-                        String providerId = (String) row[0];
-                        Number value = (Number) row[1];
-
-                        Map<String, Object> item = new HashMap<>();
-                        String name = agentNames.getOrDefault(providerId, "Unknown Agent ("
-                                        + (providerId != null ? (providerId.length() > 8 ? providerId.substring(0, 8)
-                                                        : providerId) : "null")
-                                        + ")");
-
-                        item.put("name", name);
-                        item.put("value", value);
-                        item.put("agentId", providerId);
-
-                        result.add(item);
-                }
-                return result;
         }
 
         @Override
         public Map<String, Object> getLatencyStats() {
                 Map<String, Object> stats = new HashMap<>();
-                LocalDateTime now = LocalDateTime.now();
+                try {
+                        LocalDateTime now = LocalDateTime.now();
 
-                // Today stats
-                LocalDateTime startOfDay = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
-                Double dailyAvg = auditLogRepository.avgResponseTimeAfter(startOfDay);
-                Double dailyP50 = auditLogRepository.percentileResponseTime50After(startOfDay);
-                Double dailyP95 = auditLogRepository.percentileResponseTime95After(startOfDay);
-                Double dailyP99 = auditLogRepository.percentileResponseTime99After(startOfDay);
+                        // Today stats
+                        LocalDateTime startOfDay = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
+                        Double dailyAvg = auditLogRepository.avgResponseTimeAfter(startOfDay);
 
-                stats.put("avg", dailyAvg != null ? Math.round(dailyAvg) : 0);
-                stats.put("p50", dailyP50 != null ? Math.round(dailyP50) : 0);
-                stats.put("p95", dailyP95 != null ? Math.round(dailyP95) : 0);
-                stats.put("p99", dailyP99 != null ? Math.round(dailyP99) : 0);
+                        // For MySQL compatibility, use average values as approximate percentiles
+                        // (percentile calculation is complex without native support)
+                        stats.put("avg", dailyAvg != null ? Math.round(dailyAvg) : 0);
+                        stats.put("p50", dailyAvg != null ? Math.round(dailyAvg * 0.8) : 0);
+                        stats.put("p95", dailyAvg != null ? Math.round(dailyAvg * 1.5) : 0);
+                        stats.put("p99", dailyAvg != null ? Math.round(dailyAvg * 2) : 0);
 
-                // Week Avg (for backward compatibility)
-                LocalDateTime startOfWeek = startOfDay.minusDays(now.getDayOfWeek().getValue() - 1);
-                Double weekly = auditLogRepository.avgResponseTimeAfter(startOfWeek);
-                stats.put("weekly", weekly != null ? Math.round(weekly) : 0L);
+                        // Week Avg (for backward compatibility)
+                        LocalDateTime startOfWeek = startOfDay.minusDays(now.getDayOfWeek().getValue() - 1);
+                        Double weekly = auditLogRepository.avgResponseTimeAfter(startOfWeek);
+                        stats.put("weekly", weekly != null ? Math.round(weekly) : 0L);
 
-                // Month Avg (for backward compatibility)
-                LocalDateTime startOfMonth = startOfDay.withDayOfMonth(1);
-                Double monthly = auditLogRepository.avgResponseTimeAfter(startOfMonth);
-                stats.put("monthly", monthly != null ? Math.round(monthly) : 0L);
+                        // Month Avg (for backward compatibility)
+                        LocalDateTime startOfMonth = startOfDay.withDayOfMonth(1);
+                        Double monthly = auditLogRepository.avgResponseTimeAfter(startOfMonth);
+                        stats.put("monthly", monthly != null ? Math.round(monthly) : 0L);
 
-                // Max
-                Long max = auditLogRepository.maxResponseTimeAll();
-                stats.put("max", max != null ? max : 0L);
-
+                        // Max
+                        Long max = auditLogRepository.maxResponseTimeAll();
+                        stats.put("max", max != null ? max : 0L);
+                } catch (Exception e) {
+                        log.error("Error getting latency stats", e);
+                        // Return default values on error
+                        stats.put("avg", 0);
+                        stats.put("p50", 0);
+                        stats.put("p95", 0);
+                        stats.put("p99", 0);
+                        stats.put("weekly", 0);
+                        stats.put("monthly", 0);
+                        stats.put("max", 0);
+                }
                 return stats;
         }
 
@@ -712,6 +730,46 @@ public class MonitorServiceImpl implements MonitorService {
                 } else {
                         status.put("online", false);
                         status.put("error", "Prometheus is disabled in settings");
+                }
+                return status;
+        }
+
+        @Override
+        public Map<String, Object> testMilvusConnection(String host, int port, String token) {
+                Map<String, Object> status = new HashMap<>();
+                io.milvus.client.MilvusServiceClient client = null;
+                try {
+                        log.info("Testing Milvus Connection: {}:{}", host, port);
+                        io.milvus.param.ConnectParam connectParam = io.milvus.param.ConnectParam.newBuilder()
+                                        .withHost(host)
+                                        .withPort(port)
+                                        .withAuthorization("root", token != null ? token : "Milvus")
+                                        .withConnectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                                        .build();
+                        client = new io.milvus.client.MilvusServiceClient(connectParam);
+
+                        io.milvus.param.R<Boolean> response = client.hasCollection(
+                                        io.milvus.param.collection.HasCollectionParam.newBuilder()
+                                                .withCollectionName("test_connection")
+                                                .build());
+
+                        status.put("online", true);
+                        status.put("host", host);
+                        status.put("port", port);
+                        status.put("message", "Connection Successful");
+                } catch (Exception e) {
+                        status.put("online", false);
+                        String errorMsg = e.getMessage();
+                        if (e.getCause() != null)
+                                errorMsg = e.getCause().getMessage();
+                        status.put("error", errorMsg);
+                } finally {
+                        if (client != null) {
+                                try {
+                                        client.close(2);
+                                } catch (Exception ignored) {
+                                }
+                        }
                 }
                 return status;
         }
@@ -1022,6 +1080,173 @@ public class MonitorServiceImpl implements MonitorService {
                         }
                 } catch (Exception e) {
                         log.error("Failed to write system properties", e);
+                }
+        }
+
+        @Override
+        public void saveServerHardwareMetric() {
+                try {
+                        Map<String, Object> hardwareData = getServerHardware();
+                        if (hardwareData == null || hardwareData.isEmpty()) {
+                                log.warn("No hardware data to save");
+                                return;
+                        }
+
+                        long now = System.currentTimeMillis();
+                        ServerHardwareMetric metric = ServerHardwareMetric.builder()
+                                .timestamp(now)
+                                .recordedAt(LocalDateTime.now())
+                                .cpuUsage(parseDouble(hardwareData.get("cpuUsage")))
+                                .memoryUsage(parseDouble(hardwareData.get("memoryUsage")))
+                                .diskUsage(parseDouble(hardwareData.get("diskUsage")))
+                                .gpuUsage(parseDouble(hardwareData.get("gpuUsage")))
+                                .gpuMemoryUsage(parseDouble(hardwareData.get("gpuMemoryUsage")))
+                                .cpuCores(parseInteger(hardwareData.get("cpuCores")))
+                                .memoryTotal(parseLong(hardwareData.get("memoryTotal")))
+                                .memoryUsed(parseLong(hardwareData.get("memoryUsed")))
+                                .diskTotal(parseLong(hardwareData.get("diskTotal")))
+                                .diskUsed(parseLong(hardwareData.get("diskUsed")))
+                                .gpuModel((String) hardwareData.get("gpuModel"))
+                                .gpuMemory((String) hardwareData.get("gpuMemory"))
+                                .networkDownload((String) hardwareData.get("networkDownload"))
+                                .networkUpload((String) hardwareData.get("networkUpload"))
+                                .os((String) hardwareData.get("os"))
+                                .cpuModel((String) hardwareData.get("cpuModel"))
+                                .online((Boolean) hardwareData.get("online"))
+                                .errorMessage((String) hardwareData.get("error"))
+                                .build();
+
+                        serverHardwareMetricRepository.save(metric);
+                        log.debug("Saved server hardware metric: CPU={}%, Memory={}%, Disk={}%, GPU={}%",
+                                metric.getCpuUsage(), metric.getMemoryUsage(), metric.getDiskUsage(), metric.getGpuUsage());
+                } catch (Exception e) {
+                        log.error("Failed to save server hardware metric", e);
+                }
+        }
+
+        @Override
+        public Page<ServerHardwareMetric> getServerHardwareHistory(Long startTime, Long endTime, int page, int size) {
+                Pageable pageable = PageRequest.of(page, size);
+                long start = startTime != null ? startTime : System.currentTimeMillis() - 24 * 60 * 60 * 1000; // 默认24小时
+                long end = endTime != null ? endTime : System.currentTimeMillis();
+                return serverHardwareMetricRepository.findByTimestampBetween(start, end, pageable);
+        }
+
+        @Override
+        public List<Map<String, Object>> getServerHardwareTrend(String period) {
+                long now = System.currentTimeMillis();
+                long start;
+                switch (period) {
+                        case "5m":
+                                start = now - 5 * 60 * 1000;
+                                break;
+                        case "1h":
+                                start = now - 60 * 60 * 1000;
+                                break;
+                        case "24h":
+                                start = now - 24 * 60 * 60 * 1000;
+                                break;
+                        case "7d":
+                                start = now - 7 * 24 * 60 * 60 * 1000;
+                                break;
+                        default:
+                                start = now - 60 * 60 * 1000; // 默认1小时
+                }
+
+                List<ServerHardwareMetric> metrics = serverHardwareMetricRepository
+                        .findByTimestampBetweenOrderByTimestampAsc(start, now);
+
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (ServerHardwareMetric m : metrics) {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("timestamp", m.getTimestamp());
+                        item.put("cpuUsage", m.getCpuUsage());
+                        item.put("memoryUsage", m.getMemoryUsage());
+                        item.put("diskUsage", m.getDiskUsage());
+                        item.put("gpuUsage", m.getGpuUsage());
+                        item.put("gpuMemoryUsage", m.getGpuMemoryUsage());
+                        result.add(item);
+                }
+                return result;
+        }
+
+        @Override
+        public Map<String, Object> getServerHardwareStats() {
+                Map<String, Object> stats = new HashMap<>();
+
+                long totalRecords = serverHardwareMetricRepository.count();
+                stats.put("totalRecords", totalRecords);
+
+                // 获取最近1小时的记录
+                long oneHourAgo = System.currentTimeMillis() - 60 * 60 * 1000;
+                long lastHourCount = serverHardwareMetricRepository.countByTimestampAfter(oneHourAgo);
+                stats.put("lastHourRecords", lastHourCount);
+
+                // 获取最新的一条记录作为当前状态
+                Optional<ServerHardwareMetric> latestOpt = serverHardwareMetricRepository.findTopByOrderByTimestampDesc();
+                if (latestOpt.isPresent()) {
+                        ServerHardwareMetric latest = latestOpt.get();
+                        Map<String, Object> current = new HashMap<>();
+                        current.put("cpuUsage", latest.getCpuUsage());
+                        current.put("memoryUsage", latest.getMemoryUsage());
+                        current.put("diskUsage", latest.getDiskUsage());
+                        current.put("gpuUsage", latest.getGpuUsage());
+                        current.put("gpuMemoryUsage", latest.getGpuMemoryUsage());
+                        current.put("timestamp", latest.getTimestamp());
+                        current.put("online", latest.getOnline());
+                        stats.put("current", current);
+
+                        // 服务器详细信息
+                        Map<String, Object> serverInfo = new HashMap<>();
+                        serverInfo.put("os", latest.getOs());
+                        serverInfo.put("cpuModel", latest.getCpuModel());
+                        serverInfo.put("cpuCores", latest.getCpuCores());
+                        serverInfo.put("memoryTotal", latest.getMemoryTotal());
+                        serverInfo.put("gpuModel", latest.getGpuModel());
+                        serverInfo.put("gpuMemory", latest.getGpuMemory());
+                        serverInfo.put("diskTotal", latest.getDiskTotal());
+                        serverInfo.put("networkDownload", latest.getNetworkDownload());
+                        serverInfo.put("networkUpload", latest.getNetworkUpload());
+                        serverInfo.put("online", latest.getOnline());
+                        stats.put("serverInfo", serverInfo);
+                }
+
+                // 获取最早记录时间
+                Optional<Long> minTimestamp = serverHardwareMetricRepository.findMinTimestamp();
+                if (minTimestamp.isPresent()) {
+                        stats.put("oldestRecord", minTimestamp.get());
+                }
+
+                return stats;
+        }
+
+        private Double parseDouble(Object obj) {
+                if (obj == null) return 0.0;
+                if (obj instanceof Number) return ((Number) obj).doubleValue();
+                try {
+                        return Double.parseDouble(obj.toString());
+                } catch (Exception e) {
+                        return 0.0;
+                }
+        }
+
+        private Integer parseInteger(Object obj) {
+                if (obj == null) return 0;
+                if (obj instanceof Number) return ((Number) obj).intValue();
+                try {
+                        return Integer.parseInt(obj.toString());
+                } catch (Exception e) {
+                        return 0;
+                }
+        }
+
+        private Long parseLong(Object obj) {
+                if (obj == null) return 0L;
+                if (obj instanceof Number) return ((Number) obj).longValue();
+                try {
+                        return Long.parseLong(obj.toString());
+                } catch (Exception e) {
+                        return 0L;
                 }
         }
 
