@@ -444,6 +444,8 @@ public class SiliconFlowIntegrationService {
             requestBody.put("batch_size", params.getOrDefault("batch_size", 1));
             requestBody.put("num_inference_steps", params.getOrDefault("num_inference_steps", 20));
             requestBody.put("guidance_scale", params.getOrDefault("guidance_scale", 7.5));
+            // 请求返回 base64 而不是 OSS URL，这样可以保存到本地
+            requestBody.put("response_format", "base64");
 
             if (params.containsKey("negative_prompt")) {
                 requestBody.put("negative_prompt", params.get("negative_prompt"));

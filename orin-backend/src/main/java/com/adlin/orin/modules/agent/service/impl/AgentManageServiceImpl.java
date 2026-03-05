@@ -733,13 +733,18 @@ public class AgentManageServiceImpl implements AgentManageService {
                     try {
                         java.util.List<Map<String, Object>> images = (java.util.List<Map<String, Object>>) dataObj
                                 .get("images");
+                        log.info("Processing images array, count: {}", images != null ? images.size() : 0);
                         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
                         for (Map<String, Object> img : images) {
-                            String url = (String) img.get("url");
-                            if (url != null && url.startsWith("http")) {
+                            log.info("Image object keys: {}", img.keySet());
+
+                            // 优先检查 base64 格式
+                            String b64Json = (String) img.get("b64_json");
+                            if (b64Json != null && !b64Json.isEmpty()) {
                                 try {
-                                    byte[] imgData = restTemplate.getForObject(url, byte[].class);
-                                    if (imgData != null) {
+                                    log.info("Processing base64 image data");
+                                    byte[] imgData = java.util.Base64.getDecoder().decode(b64Json);
+                                    if (imgData != null && imgData.length > 0) {
                                         String filename = "genimg_" + UUID.randomUUID().toString() + ".png";
                                         com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
                                                 .uploadFile(imgData, filename, "image/png",
@@ -748,16 +753,66 @@ public class AgentManageServiceImpl implements AgentManageService {
                                         img.put("url", downloadUrl);
                                         img.put("image_url", downloadUrl);
                                         img.put("file_id", savedFile.getId());
-                                        if (img.containsKey("url")) {
-                                            img.put("original_url", url);
-                                        }
                                         savedFileId = savedFile.getId();
                                         data.put("image_url", downloadUrl);
                                         data.put("file_id", savedFileId);
+                                        log.info("Successfully saved base64 image, size: {} bytes", imgData.length);
+                                    }
+                                } catch (Exception ex) {
+                                    log.error("Failed to process base64 image: {}", ex.getMessage());
+                                }
+                                continue;
+                            }
+
+                            // 如果没有 base64，尝试 URL 格式
+                            String url = (String) img.get("url");
+                            // 也尝试从 image_url 字段获取
+                            if (url == null) {
+                                url = (String) img.get("image_url");
+                            }
+                            log.info("Extracted image URL from images array: {}", url);
+                            if (url != null && url.startsWith("http")) {
+                                try {
+                                    // 解码 URL
+                                    String decodedUrl = java.net.URLDecoder.decode(url, "UTF-8");
+                                    // 设置 HTTP 头
+                                    org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                                    headers.set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36");
+                                    org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
+                                    org.springframework.http.ResponseEntity<byte[]> response = restTemplate.exchange(
+                                            decodedUrl,
+                                            org.springframework.http.HttpMethod.GET,
+                                            entity,
+                                            byte[].class);
+                                    int statusCode = response.getStatusCode().value();
+                                    log.info("Download response status from images array: {}", statusCode);
+                                    if (statusCode == 200) {
+                                        byte[] imgData = response.getBody();
+                                        if (imgData != null && imgData.length > 0) {
+                                            String filename = "genimg_" + UUID.randomUUID().toString() + ".png";
+                                            com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
+                                                    .uploadFile(imgData, filename, "image/png",
+                                                            "agent:" + metadata.getAgentId());
+                                            String downloadUrl = "/api/v1/multimodal/files/" + savedFile.getId() + "/download";
+                                            img.put("url", downloadUrl);
+                                            img.put("image_url", downloadUrl);
+                                            img.put("file_id", savedFile.getId());
+                                            if (img.containsKey("url")) {
+                                                img.put("original_url", url);
+                                            }
+                                            savedFileId = savedFile.getId();
+                                            data.put("image_url", downloadUrl);
+                                            data.put("file_id", savedFileId);
+                                            log.info("Successfully downloaded and saved image from images array, size: {} bytes", imgData.length);
+                                        }
+                                    } else {
+                                        log.warn("Failed to download image, HTTP status: {}, URL may be expired", statusCode);
+                                        data.put("image_url", url);
+                                        data.put("original_url", url);
                                     }
                                 } catch (Exception ex) {
                                     // 下载失败时，保存原始 URL 以便前端直接显示
-                                    log.error("Failed to download or persist image from SiliconFlow: " + url, ex);
+                                    log.error("Failed to download image from images array: {}", url, ex);
                                     data.put("image_url", url);
                                     data.put("original_url", url);
                                 }
@@ -769,18 +824,105 @@ public class AgentManageServiceImpl implements AgentManageService {
                 }
 
                 // 如果没有从 images 数组中获取到 file_id，尝试处理新格式（data.image_url）
-                if (savedFileId == null && dataObj.containsKey("data")) {
+                // API 返回格式: { data: { image_url: "..." }, dataType: "IMAGE", status: "SUCCESS" }
+                if (savedFileId == null) {
+                    log.info("Processing image from data.image_url format, dataObj keys: {}", dataObj.keySet());
                     try {
-                        Object dataObjInner = dataObj.get("data");
-                        if (dataObjInner instanceof Map) {
+                        // 先检查 data 字段
+                        Object dataField = dataObj.get("data");
+                        log.info("data field value: {}, type: {}", dataField, dataField != null ? dataField.getClass().getName() : "null");
+                        String imageUrl = null;
+                        if (dataField instanceof java.util.List) {
+                            // data 是 ArrayList 格式: [{url: "..."}]
+                            java.util.List<?> dataList = (java.util.List<?>) dataField;
+                            if (!dataList.isEmpty()) {
+                                Object firstItem = dataList.get(0);
+                                if (firstItem instanceof Map) {
+                                    @SuppressWarnings("unchecked")
+                                    Map<String, Object> dataMap = (Map<String, Object>) firstItem;
+                                    // 优先检查 base64
+                                    String b64Json = (String) dataMap.get("b64_json");
+                                    if (b64Json != null && !b64Json.isEmpty()) {
+                                        try {
+                                            log.info("Processing base64 image from data list");
+                                            byte[] imgData = java.util.Base64.getDecoder().decode(b64Json);
+                                            if (imgData != null && imgData.length > 0) {
+                                                String filename = "genimg_" + UUID.randomUUID().toString() + ".png";
+                                                com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
+                                                        .uploadFile(imgData, filename, "image/png",
+                                                                "agent:" + metadata.getAgentId());
+                                                savedFileId = savedFile.getId();
+                                                data.put("file_id", savedFileId);
+                                                data.put("image_url", "/api/v1/multimodal/files/" + savedFileId + "/download");
+                                                log.info("Successfully saved base64 image from data list, size: {} bytes", imgData.length);
+                                            }
+                                        } catch (Exception ex) {
+                                            log.error("Failed to process base64 image from data list: {}", ex.getMessage());
+                                        }
+                                    } else {
+                                        imageUrl = (String) dataMap.get("url");
+                                        // 也尝试 image_url
+                                        if (imageUrl == null) {
+                                            imageUrl = (String) dataMap.get("image_url");
+                                        }
+                                        log.info("Found image_url in data list: {}", imageUrl);
+                                    }
+                                }
+                            }
+                        } else if (dataField instanceof Map) {
+                            // data 是 Map 格式: {image_url: "..."} 或 {b64_json: "..."}
                             @SuppressWarnings("unchecked")
-                            Map<String, Object> dataMap = (Map<String, Object>) dataObjInner;
-                            String imageUrl = (String) dataMap.get("image_url");
-                            if (imageUrl != null && imageUrl.startsWith("http")) {
+                            Map<String, Object> dataMap = (Map<String, Object>) dataField;
+                            // 优先检查 base64
+                            String b64Json = (String) dataMap.get("b64_json");
+                            if (b64Json != null && !b64Json.isEmpty()) {
                                 try {
-                                    org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-                                    byte[] imgData = restTemplate.getForObject(imageUrl, byte[].class);
-                                    if (imgData != null) {
+                                    log.info("Processing base64 image from data field");
+                                    byte[] imgData = java.util.Base64.getDecoder().decode(b64Json);
+                                    if (imgData != null && imgData.length > 0) {
+                                        String filename = "genimg_" + UUID.randomUUID().toString() + ".png";
+                                        com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
+                                                .uploadFile(imgData, filename, "image/png",
+                                                        "agent:" + metadata.getAgentId());
+                                        savedFileId = savedFile.getId();
+                                        data.put("file_id", savedFileId);
+                                        data.put("image_url", "/api/v1/multimodal/files/" + savedFileId + "/download");
+                                        log.info("Successfully saved base64 image from data field, size: {} bytes", imgData.length);
+                                    }
+                                } catch (Exception ex) {
+                                    log.error("Failed to process base64 image from data field: {}", ex.getMessage());
+                                }
+                            } else {
+                                imageUrl = (String) dataMap.get("image_url");
+                                log.info("Found image_url in data field: {}", imageUrl);
+                            }
+                        }
+                        // 如果 data 字段没有，再尝试直接从 dataObj 获取
+                        if (imageUrl == null) {
+                            imageUrl = (String) dataObj.get("image_url");
+                        }
+                        log.info("Extracted image_url: {}", imageUrl);
+                        if (imageUrl != null && imageUrl.startsWith("http")) {
+                            try {
+                                // 解码 URL（处理 %2F -> / 等编码问题）
+                                String decodedUrl = java.net.URLDecoder.decode(imageUrl, "UTF-8");
+                                log.info("Attempting to download image from: {}", decodedUrl);
+
+                                org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                                // 设置 HTTP 头
+                                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                                headers.set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36");
+                                org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
+                                org.springframework.http.ResponseEntity<byte[]> response = restTemplate.exchange(
+                                        decodedUrl,
+                                        org.springframework.http.HttpMethod.GET,
+                                        entity,
+                                        byte[].class);
+                                int statusCode = response.getStatusCode().value();
+                                log.info("Download response status: {}", statusCode);
+                                if (statusCode == 200) {
+                                    byte[] imgData = response.getBody();
+                                    if (imgData != null && imgData.length > 0) {
                                         String filename = "genimg_" + UUID.randomUUID().toString() + ".png";
                                         com.adlin.orin.modules.multimodal.entity.MultimodalFile savedFile = multimodalFileService
                                                 .uploadFile(imgData, filename, "image/png",
@@ -789,18 +931,24 @@ public class AgentManageServiceImpl implements AgentManageService {
                                         data.put("file_id", savedFileId);
                                         data.put("image_url", "/api/v1/multimodal/files/" + savedFileId + "/download");
                                         data.put("original_url", imageUrl);
-                                        log.info("Downloaded and saved image from image_url: {}", imageUrl);
+                                        log.info("Downloaded and saved image from image_url: {}, size: {} bytes", imageUrl, imgData.length);
                                     }
-                                } catch (Exception ex) {
-                                    // 下载失败时，保存原始 URL 以便前端直接显示
-                                    log.error("Failed to download image from image_url: {}", imageUrl, ex);
+                                } else {
+                                    log.warn("Failed to download image, HTTP status: {}, URL may be expired", statusCode);
                                     data.put("image_url", imageUrl);
                                     data.put("original_url", imageUrl);
                                 }
+                            } catch (Exception ex) {
+                                // 下载失败时，保存原始 URL 以便前端直接显示
+                                log.error("Failed to download image from image_url: {}", imageUrl, ex);
+                                data.put("image_url", imageUrl);
+                                data.put("original_url", imageUrl);
                             }
+                        } else {
+                            log.warn("No valid image_url found in response");
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to process data.image_url format", e);
+                        log.warn("Failed to process image_url format: {}", e.getMessage());
                     }
                 }
 
@@ -1685,16 +1833,34 @@ public class AgentManageServiceImpl implements AgentManageService {
                             Object fileIdObj = dataMap.get("file_id");
                             if (fileIdObj != null) {
                                 return "[音频文件] file_id=" + fileIdObj.toString();
+                            } else {
+                                // 下载失败时，返回原始URL
+                                String audioUrl = (String) dataMap.get("audio_url");
+                                if (audioUrl != null) {
+                                    return "[音频文件] " + audioUrl;
+                                }
                             }
                         } else if ("IMAGE".equals(dataType) && dataMap.containsKey("image_url")) {
                             Object fileIdObj = dataMap.get("file_id");
                             if (fileIdObj != null) {
                                 return "[图片文件] file_id=" + fileIdObj.toString();
+                            } else {
+                                // 下载失败时，返回原始URL
+                                String imageUrl = (String) dataMap.get("image_url");
+                                if (imageUrl != null) {
+                                    return "[图片文件] " + imageUrl;
+                                }
                             }
                         } else if ("VIDEO".equals(dataType) && dataMap.containsKey("video_url")) {
                             Object fileIdObj = dataMap.get("file_id");
                             if (fileIdObj != null) {
                                 return "[视频文件] file_id=" + fileIdObj.toString();
+                            } else {
+                                // 下载失败时，返回原始URL
+                                String videoUrl = (String) dataMap.get("video_url");
+                                if (videoUrl != null) {
+                                    return "[视频文件] " + videoUrl;
+                                }
                             }
                         }
                         // 如果有 text 字段，也返回
@@ -1776,25 +1942,43 @@ public class AgentManageServiceImpl implements AgentManageService {
                             Object fileIdObj = dataMap.get("file_id");
                             if (fileIdObj != null) {
                                 String fId = String.valueOf(fileIdObj);
-                                String dUrl = "/api/multimodal/files/" + fId + "/download";
+                                String dUrl = "/api/v1/multimodal/files/" + fId + "/download";
                                 fileInfo.put("fileId", fId);
                                 fileInfo.put("downloadUrl", dUrl);
+                            } else {
+                                // 下载失败时，保存原始URL
+                                String audioUrl = (String) dataMap.get("audio_url");
+                                if (audioUrl != null) {
+                                    fileInfo.put("downloadUrl", audioUrl);
+                                }
                             }
                         } else if ("IMAGE".equals(dataType) && dataMap.containsKey("image_url")) {
                             Object fileIdObj = dataMap.get("file_id");
                             if (fileIdObj != null) {
                                 String fId = String.valueOf(fileIdObj);
-                                String dUrl = "/api/multimodal/files/" + fId + "/download";
+                                String dUrl = "/api/v1/multimodal/files/" + fId + "/download";
                                 fileInfo.put("fileId", fId);
                                 fileInfo.put("downloadUrl", dUrl);
+                            } else {
+                                // 下载失败时，保存原始URL
+                                String imageUrl = (String) dataMap.get("image_url");
+                                if (imageUrl != null) {
+                                    fileInfo.put("downloadUrl", imageUrl);
+                                }
                             }
                         } else if ("VIDEO".equals(dataType) && dataMap.containsKey("video_url")) {
                             Object fileIdObj = dataMap.get("file_id");
                             if (fileIdObj != null) {
                                 String fId = String.valueOf(fileIdObj);
-                                String dUrl = "/api/multimodal/files/" + fId + "/download";
+                                String dUrl = "/api/v1/multimodal/files/" + fId + "/download";
                                 fileInfo.put("fileId", fId);
                                 fileInfo.put("downloadUrl", dUrl);
+                            } else {
+                                // 下载失败时，保存原始URL
+                                String videoUrl = (String) dataMap.get("video_url");
+                                if (videoUrl != null) {
+                                    fileInfo.put("downloadUrl", videoUrl);
+                                }
                             }
                         }
                     }

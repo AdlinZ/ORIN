@@ -147,7 +147,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
 import { Plus, Search, VideoPlay, DataLine, Timer, Connection, Upload } from '@element-plus/icons-vue';
@@ -170,11 +170,17 @@ const fetchData = async () => {
     ElMessage.error('加载工作流列表失败');
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
 onMounted(() => {
   fetchData();
+  window.addEventListener('page-refresh', fetchData);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', fetchData);
 });
 
 const handleCreate = () => {

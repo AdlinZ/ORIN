@@ -102,6 +102,30 @@
               </div>
             </div>
 
+            <!-- IMAGE 类型：显示生成的图像 -->
+            <div v-else-if="msg.dataType === 'IMAGE'" class="image-message-container">
+              <div class="generated-image-wrapper">
+                <el-image
+                  :src="msg.content.image_url || msg.content.url"
+                  fit="contain"
+                  :preview-src-list="[msg.content.image_url || msg.content.url]"
+                  class="generated-image"
+                >
+                  <template #error>
+                    <div class="image-load-failed">
+                      <el-icon :size="32"><Warning /></el-icon>
+                      <span>图像加载失败</span>
+                    </div>
+                  </template>
+                </el-image>
+              </div>
+              <div class="image-actions" v-if="msg.content.image_url || msg.content.url">
+                <el-button type="primary" size="small" @click="downloadImage(msg.content.image_url || msg.content.url)">
+                  <el-icon style="margin-right: 4px;"><Download /></el-icon>保存图像
+                </el-button>
+              </div>
+            </div>
+
             <div v-else-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
             <div v-else class="user-content">{{ msg.content }}</div>
           </div>
@@ -164,10 +188,10 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
-import { 
-  Position, Delete, MoreFilled, ArrowRight, 
+import {
+  Position, Delete, MoreFilled, ArrowRight,
   Operation, Search, Paperclip, Setting,
-  Tickets, Refresh, Cpu
+  Tickets, Refresh, Cpu, Warning, Download
 } from '@element-plus/icons-vue';
 import { chatAgent } from '@/api/agent';
 import { getAgentMetrics } from '@/api/monitor';
@@ -263,11 +287,21 @@ const sendMessage = async () => {
     const resMsg = data.choices?.[0]?.message || {};
     const answer = resMsg.content || data.answer || (typeof data === 'string' ? data : JSON.stringify(data));
     const thinking = resMsg.thinking || data.thinking;
-    
-    chatMessages.value.push({ 
-      role: 'assistant', 
-      content: res.dataType === 'DIAGNOSTIC_REPORT' ? res.data : answer, 
-      thinking: thinking, 
+
+    // 对于 IMAGE 类型，直接使用 res.data 保存完整图像数据对象
+    let msgContent;
+    if (res.dataType === 'DIAGNOSTIC_REPORT') {
+        msgContent = res.data;
+    } else if (res.dataType === 'IMAGE') {
+        msgContent = res.data; // 包含 image_url 等字段的对象
+    } else {
+        msgContent = answer;
+    }
+
+    chatMessages.value.push({
+      role: 'assistant',
+      content: msgContent,
+      thinking: thinking,
       showThinking: false,
       dataType: res.dataType
     });
@@ -290,6 +324,12 @@ const getSeverityTag = (s) => ({
   'WARNING': 'warning',
   'INFO': 'info'
 }[s?.toUpperCase()] || 'info');
+
+const downloadImage = (url) => {
+  if (url) {
+    window.open(url, '_blank');
+  }
+};
 
 const executeQuickFix = (report) => {
   ElMessage.success('已触发自愈引擎：' + (report.title || '系统修复'));
@@ -645,6 +685,40 @@ onUnmounted(() => {
 .error-text { color: #dc2626; font-weight: 600; }
 .success-text { color: #166534; }
 .diagnostic-footer { padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; }
+
+/* IMAGE Message Styles */
+.image-message-container {
+  padding: 0;
+}
+.generated-image-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 200px;
+  max-height: 400px;
+}
+.generated-image {
+  max-width: 100%;
+  max-height: 400px;
+}
+.image-load-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #9ca3af;
+  gap: 8px;
+}
+.image-actions {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  gap: 8px;
+}
 
 /* Status Monitor Styles */
 .status-monitor-container {

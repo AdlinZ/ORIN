@@ -197,7 +197,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Lock, Unlock, Refresh } from '@element-plus/icons-vue'
 
@@ -309,6 +309,7 @@ const loadUsers = async () => {
     console.error(error)
   } finally {
     loading.value = false
+    window.dispatchEvent(new Event('page-refresh-done'))
   }
 }
 
@@ -441,6 +442,11 @@ const tableRowClassName = ({ rowIndex }) => {
 
 onMounted(() => {
   loadUsers()
+  window.addEventListener('page-refresh', loadUsers)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', loadUsers)
 })
 </script>
 

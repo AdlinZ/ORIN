@@ -1,5 +1,13 @@
 <template>
   <div class="command-center-root" :class="{ 'theme-dark': isDark }">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-spinner">
+        <div class="spinner-ring"></div>
+        <span class="loading-text">正在加载监控数据...</span>
+      </div>
+    </div>
+
     <!-- TOP BAR: Readable & High-End -->
     <header class="cc-header-glass">
       <div class="h-brand">
@@ -108,13 +116,20 @@
                   <div class="pill-group">
                     <button :class="{ active: chartType === 'tokens' }" @click="chartType = 'tokens'">TOKEN</button>
                     <button :class="{ active: chartType === 'latency' }" @click="chartType = 'latency'">LATENCY</button>
+                    <button :class="{ active: chartType === 'hardware' }" @click="chartType = 'hardware'">HARDWARE</button>
                   </div>
                   <div class="pill-divider"></div>
-                  <div class="pill-group">
-                    <span 
-                      v-for="r in ranges" 
-                      :key="r" 
-                      class="r-pill-v2" 
+                  <div class="pill-group" v-if="chartType === 'hardware'">
+                    <button :class="{ active: hardwareMetric === 'cpuUsage' }" @click="hardwareMetric = 'cpuUsage'">CPU</button>
+                    <button :class="{ active: hardwareMetric === 'memoryUsage' }" @click="hardwareMetric = 'memoryUsage'">MEM</button>
+                    <button :class="{ active: hardwareMetric === 'diskUsage' }" @click="hardwareMetric = 'diskUsage'">DISK</button>
+                    <button :class="{ active: hardwareMetric === 'gpuUsage' }" @click="hardwareMetric = 'gpuUsage'">GPU</button>
+                  </div>
+                  <div class="pill-group" v-else>
+                    <span
+                      v-for="r in ranges"
+                      :key="r"
+                      class="r-pill-v2"
                       :class="{ active: r === currentRange }"
                       @click="handleRangeChange(r)"
                     >
@@ -129,12 +144,12 @@
               </div>
             </div>
             <div class="p-chart-wrap">
-                <LineChart 
-                :data="trendData" 
-                :title="chartType === 'tokens' ? 'Token Usage Stream' : 'Response Latency Trend'"
-                :yAxisName="chartType === 'tokens' ? 'Tokens' : 'ms'"
-                height="100%" 
-                :color="isDark ? '#26FFDF' : '#00BFA5'" 
+                <LineChart
+                :data="trendData"
+                :title="chartType === 'tokens' ? 'Token Usage Stream' : chartType === 'latency' ? 'Response Latency Trend' : getHardwareTitle()"
+                :yAxisName="chartType === 'tokens' ? 'Tokens' : chartType === 'latency' ? 'ms' : '%'"
+                height="100%"
+                :color="isDark ? '#26FFDF' : '#00BFA5'"
               />
             </div>
           </div>
@@ -232,21 +247,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useDark } from '@vueuse/core'
 import { Timer, Collection, Connection } from '@element-plus/icons-vue'
-import { 
-  getGlobalSummary, 
-  getAgentList, 
-  getServerHardware, 
-  getTokenHistory, 
-  getTokenTrend, 
+import {
+  getGlobalSummary,
+  getAgentList,
+  getServerHardware,
+  getTokenHistory,
+  getTokenTrend,
   getLatencyTrend,
-  getTokenDistribution
+  getTokenDistribution,
+  getServerHardwareTrend
 } from '@/api/monitor'
 import LineChart from '@/components/LineChart.vue'
 
 const isDark = useDark()
+const loading = ref(true)
 
 const currentTime = ref('')
 const currentDate = ref('')
@@ -256,6 +273,7 @@ const currentRange = ref('1H')
 const ranges = ['5M', '1H', '24H', '7D']
 
 const chartType = ref('tokens')
+const hardwareMetric = ref('cpuUsage') // 硬件指标: cpuUsage, memoryUsage, diskUsage, gpuUsage
 const trendData = ref([])
 
 const summary = ref({})
@@ -290,6 +308,16 @@ const topAgents = computed(() => distribution.value.slice(0, 3))
 
 const getBarColor = (v) => v > 80 ? '#ef4444' : v > 60 ? '#f59e0b' : '#3b82f6'
 
+const getHardwareTitle = () => {
+  const titles = {
+    cpuUsage: 'CPU Usage Trend',
+    memoryUsage: 'Memory Usage Trend',
+    diskUsage: 'Disk Usage Trend',
+    gpuUsage: 'GPU Usage Trend'
+  }
+  return titles[hardwareMetric.value] || 'Hardware Usage Trend'
+}
+
 const updateTime = () => {
   const now = new Date()
   currentTime.value = now.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -304,12 +332,26 @@ const handleRangeChange = (r) => {
 const fetchTrend = async () => {
   try {
     const period = currentRange.value.toLowerCase()
-    const res = chartType.value === 'tokens' ? await getTokenTrend(period) : await getLatencyTrend(period)
-    // res now has numeric timestamp and keys like 'tokens' or 'latency'
-    trendData.value = res.map(i => ({ 
-      timestamp: i.timestamp, 
-      value: chartType.value === 'tokens' ? (i.tokens || 0) : (i.latency || 0)
-    }))
+    let res = []
+    if (chartType.value === 'tokens') {
+      res = await getTokenTrend(period)
+      trendData.value = res.map(i => ({
+        timestamp: i.timestamp,
+        value: i.tokens || 0
+      }))
+    } else if (chartType.value === 'latency') {
+      res = await getLatencyTrend(period)
+      trendData.value = res.map(i => ({
+        timestamp: i.timestamp,
+        value: i.latency || 0
+      }))
+    } else if (chartType.value === 'hardware') {
+      res = await getServerHardwareTrend(period)
+      trendData.value = res.map(i => ({
+        timestamp: i.timestamp,
+        value: i[hardwareMetric.value] || 0
+      }))
+    }
   } catch (e) { console.error(e) }
 }
 
@@ -343,13 +385,21 @@ const fetchData = async () => {
     if (d.status === 'fulfilled') distribution.value = d.value.sort((a,b) => b.value - a.value)
     await fetchTrend()
   } catch (e) { console.error(e) }
+  finally {
+    loading.value = false
+    window.dispatchEvent(new Event('page-refresh-done'))
+  }
 }
 
-watch([chartType, currentRange], fetchTrend)
+watch([chartType, currentRange, hardwareMetric], fetchTrend)
 onMounted(() => {
   updateTime(); fetchData();
   setInterval(updateTime, 1000);
   setInterval(fetchData, 10000);
+  window.addEventListener('page-refresh', fetchData);
+})
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', fetchData);
 })
 </script>
 
@@ -364,6 +414,62 @@ onMounted(() => {
   gap: 16px;
   overflow: hidden;
   font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  position: relative;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  border-radius: 14px;
+}
+
+.theme-dark .loading-overlay {
+  background: rgba(19, 23, 31, 0.95);
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.spinner-ring {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--orin-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.theme-dark .spinner-ring {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: var(--orin-primary);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--neutral-gray-600);
+}
+
+.theme-dark .loading-text {
+  color: var(--neutral-gray-300);
 }
 .theme-dark { background-color: var(--neutral-gray-50); color: var(--neutral-gray-900); }
 

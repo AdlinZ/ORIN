@@ -328,6 +328,7 @@ const fetchApiKeys = async () => {
     ElMessage.error('获取密钥列表失败');
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -507,14 +508,16 @@ const toggleKeyVisibility = (id) => {
 
 onMounted(() => {
   fetchApiKeys();
-  
+
   // 监听全局刷新事件
   window.addEventListener('global-refresh', fetchApiKeys);
+  window.addEventListener('page-refresh', fetchApiKeys);
 });
 
 onUnmounted(() => {
   // 清理全局刷新事件监听器
   window.removeEventListener('global-refresh', fetchApiKeys);
+  window.removeEventListener('page-refresh', fetchApiKeys);
 });
 </script>
 

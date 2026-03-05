@@ -139,9 +139,22 @@ public class PrometheusService {
      * 获取磁盘使用率
      */
     public Double getDiskUsage(String baseUrl) {
-        // Try Linux node_exporter
-        String linuxQuery = "(1 - node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}) * 100";
+        // Try Linux node_exporter - 使用根分区，排除虚拟文件系统
+        // 先尝试 mountpoint="/"
+        String linuxQuery = "(1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|devtmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|devtmpfs|overlay\"}) * 100";
         Double value = queryValue(baseUrl, linuxQuery);
+
+        if (Double.isNaN(value)) {
+            // 尝试不限制挂载点，获取第一个非虚拟文件系统的使用率
+            String linuxQuery2 = "(1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|devtmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|devtmpfs|overlay|squashfs\"}) * 100";
+            value = queryValue(baseUrl, linuxQuery2);
+        }
+
+        if (Double.isNaN(value)) {
+            // 尝试使用 node_disk_* 指标 (基于磁盘设备)
+            String linuxQuery3 = "(1 - node_filesystem_free_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}) * 100";
+            value = queryValue(baseUrl, linuxQuery3);
+        }
 
         if (Double.isNaN(value)) {
             // Fallback to Windows windows_exporter
@@ -291,17 +304,24 @@ public class PrometheusService {
      * 获取总磁盘容量 (Bytes)
      */
     public Double getTotalDiskSpace(String baseUrl) {
-        // Linux: sum(node_filesystem_size_bytes{mountpoint="/"})
-        String linuxQuery = "sum(node_filesystem_size_bytes{mountpoint=\"/\"})"; // Only root partition for simplicity
-                                                                                 // or sum all
-        // Actually better to show total of all relevant partitions or just root. Let's
-        // stick to root for now or sum non-tmpfs.
-        // Let's use the same logic as usage: just root.
-        String linuxRoot = "max(node_filesystem_size_bytes{mountpoint=\"/\"})";
-
+        // Linux: 尝试根分区，排除虚拟文件系统
+        String linuxRoot = "max(node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|devtmpfs|overlay\"})";
         Double val = queryValue(baseUrl, linuxRoot);
+
         if (Double.isNaN(val)) {
-            // Windows: windows_logical_disk_size_bytes{volume="C:"}
+            // 尝试不限制挂载点，获取第一个非虚拟文件系统的总容量
+            String linuxQuery2 = "max(node_filesystem_size_bytes{fstype!~\"tmpfs|devtmpfs|overlay|squashfs\"})";
+            val = queryValue(baseUrl, linuxQuery2);
+        }
+
+        if (Double.isNaN(val)) {
+            // 尝试原始 mountpoint="/"
+            String linuxQuery3 = "max(node_filesystem_size_bytes{mountpoint=\"/\"})";
+            val = queryValue(baseUrl, linuxQuery3);
+        }
+
+        if (Double.isNaN(val)) {
+            // Fallback to Windows
             String winQuery = "windows_logical_disk_size_bytes{volume=\"C:\"}";
             val = queryValue(baseUrl, winQuery);
         }

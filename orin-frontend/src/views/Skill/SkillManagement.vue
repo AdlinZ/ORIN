@@ -276,7 +276,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Download, VideoPlay, Loading } from '@element-plus/icons-vue'
 import { 
@@ -341,6 +341,11 @@ const outputSchemaStr = ref('{}')
 
 onMounted(() => {
   loadSkills()
+  window.addEventListener('page-refresh', loadSkills)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', loadSkills)
 })
 
 const loadSkills = async () => {
@@ -357,6 +362,7 @@ const loadSkills = async () => {
     console.error('Failed to load skills:', error)
   } finally {
     loading.value = false
+    window.dispatchEvent(new Event('page-refresh-done'))
   }
 }
 

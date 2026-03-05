@@ -176,6 +176,15 @@ public class MonitorController {
         return monitorService.testPrometheusConnection();
     }
 
+    @Operation(summary = "测试Milvus连接")
+    @GetMapping("/milvus/test")
+    public Map<String, Object> testMilvusConnection(
+            @RequestParam(defaultValue = "localhost") String host,
+            @RequestParam(defaultValue = "19530") int port,
+            @RequestParam(defaultValue = "") String token) {
+        return monitorService.testMilvusConnection(host, port, token);
+    }
+
     @Operation(summary = "获取系统环境变量配置")
     @GetMapping("/system/properties")
     public Map<String, String> getSystemProperties() {
@@ -186,5 +195,33 @@ public class MonitorController {
     @PostMapping("/system/properties")
     public void updateSystemProperties(@RequestBody Map<String, String> properties) {
         monitorService.updateSystemProperties(properties);
+    }
+
+    @Operation(summary = "手动触发硬件监控数据采集")
+    @PostMapping("/server-hardware/collect")
+    public void collectServerHardware() {
+        monitorService.saveServerHardwareMetric();
+    }
+
+    @Operation(summary = "获取硬件监控历史数据")
+    @GetMapping("/server-hardware/history")
+    public Page<com.adlin.orin.modules.monitor.entity.ServerHardwareMetric> getServerHardwareHistory(
+            @RequestParam(required = false) Long startTime,
+            @RequestParam(required = false) Long endTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return monitorService.getServerHardwareHistory(startTime, endTime, page, size);
+    }
+
+    @Operation(summary = "获取硬件监控趋势数据")
+    @GetMapping("/server-hardware/trend")
+    public List<Map<String, Object>> getServerHardwareTrend(@RequestParam(defaultValue = "1h") String period) {
+        return monitorService.getServerHardwareTrend(period);
+    }
+
+    @Operation(summary = "获取硬件监控统计信息")
+    @GetMapping("/server-hardware/stats")
+    public Map<String, Object> getServerHardwareStats() {
+        return monitorService.getServerHardwareStats();
     }
 }

@@ -536,7 +536,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Plus, Edit, Delete, Search, Box, Money, Link, Key, View, Hide } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -628,6 +628,7 @@ const fetchData = async () => {
     console.error(e);
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -1036,6 +1037,11 @@ const formatTime = (ts) => {
 
 onMounted(() => {
   fetchData();
+  window.addEventListener('page-refresh', fetchData);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', fetchData);
 });
 
 

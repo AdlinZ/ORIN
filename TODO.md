@@ -24,11 +24,15 @@
 - [ ] **知识库分片策略**：完善 UNSTRUCTURED 类型的 PDF/Word 自动分段逻辑。
 - [ ] **多模态支持**：对接 VLM 模型实现图片知识库的检索。
 
-## 🤖 极致轻量化 Agent 集成 (ZeroClaw)
-- [x] **轻量化助手接入**：已完成 `ZeroClawConfig` 配置管理、`ZeroClawClient` HTTP 客户端、`ZeroClawController` REST API 接口。
-- [x] **智能监控分析**：已实现异常检测自动诊断、24h 趋势报告定时生成（每天凌晨 2 点）、根因分析报告存储。
-- [x] **主动维护 (Self-healing)**：已实现定时维护任务（日志清理、缓存清理）、操作记录追踪、执行前后状态快照。
-- [ ] **全渠道告警通知**：集成 ZeroClaw 的 Telegram/Discord 消息网关，实现离线状态下的“人话”版运维指令交互。
+## 🤖 RAGFlow 知识库集成
+- [x] **RAGFlow 集成**：已实现 `RAGFlowConfig` 配置管理、`RAGFlowIntegrationService` 服务接口，支持知识库同步、文档上传、向量化检索。
+- [x] **多知识库适配**：统一 Dify 和 RAGFlow 的知识库接口，支持无缝切换。
+- [x] **文档管理增强**：支持 RAGFlow 文档上传、分块策略配置、检索测试。
+
+## 🧠 Kimi 大模型集成
+- [x] **Kimi API 集成**：已实现 `KimiIntegrationService` 服务、`KimiAgentManageService` 智能体管理，支持 Kimi API 调用。
+- [x] **多模型统一管理**：在模型配置中支持 Kimi (moonshot) 提供商，支持 OpenAI 兼容接口。
+- [x] **视觉理解能力**：通过 `VisualAnalysisService` 支持图片理解和分析。
 
 ---
-*上次更新时间: 2026-02-03*
+*上次更新时间: 2026-03-02*

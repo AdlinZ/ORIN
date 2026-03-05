@@ -157,6 +157,7 @@ const loadChatLogs = async () => {
     ElMessage.error('获取日志流水线失败');
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -251,7 +252,33 @@ const handleExport = () => {
 // 解析文件链接
 const formatFileLinks = (text) => {
   if (!text || !text.includes('file_id=')) {
-    return [{ text, isLink: false }];
+    // 检查是否包含外部URL（如 [图片文件] http://example.com/image.png）
+    if (!text || (!text.includes('[图片文件]') && !text.includes('[视频文件]') && !text.includes('[音频文件]'))) {
+      return [{ text, isLink: false }];
+    }
+    // 处理外部URL的情况
+    const result = [];
+    let fileType = '音频';
+    if (text.includes('[图片文件]')) {
+      fileType = '图片';
+    } else if (text.includes('[视频文件]')) {
+      fileType = '视频';
+    }
+    // 匹配 [文件类型] URL 格式（匹配到行尾或遇到换行）
+    const urlRegex = /\[(?:图片|视频|音频)文件\]\s*(.+?)(?=\n|$)/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = urlRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        result.push({ text: text.substring(lastIndex, match.index), isLink: false });
+      }
+      result.push({ url: match[1], isLink: true, fileType });
+      lastIndex = urlRegex.lastIndex;
+    }
+    if (lastIndex < text.length) {
+      result.push({ text: text.substring(lastIndex), isLink: false });
+    }
+    return result.length > 0 ? result : [{ text, isLink: false }];
   }
   const result = [];
   // 判断文件类型
@@ -313,14 +340,16 @@ watch([filterAgent, searchQuery], () => {
 onMounted(async () => {
   await loadAgents();
   loadChatLogs();
-  
+
   // 监听全局刷新事件
   window.addEventListener('global-refresh', loadChatLogs);
+  window.addEventListener('page-refresh', loadChatLogs);
 });
 
 onUnmounted(() => {
   // 清理全局刷新事件监听器
   window.removeEventListener('global-refresh', loadChatLogs);
+  window.removeEventListener('page-refresh', loadChatLogs);
 });
 </script>
 

@@ -4,6 +4,7 @@ import com.adlin.orin.modules.audit.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -16,13 +17,25 @@ public class SystemAuditListener {
 
     private final AuditLogService auditLogService;
 
+    private long startupStartTime;
+
+    @EventListener(ApplicationStartedEvent.class)
+    public void onApplicationStarted() {
+        // 记录启动开始时间
+        startupStartTime = System.currentTimeMillis();
+        log.info("Application started, recording bootstrap start time: {}ms", startupStartTime);
+    }
+
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         try {
             String hostName = InetAddress.getLocalHost().getHostName();
             String hostAddress = InetAddress.getLocalHost().getHostAddress();
 
-            log.info("System started successfully. Logging startup event to audit log.");
+            // 计算启动耗时
+            long bootstrapDuration = System.currentTimeMillis() - startupStartTime;
+
+            log.info("System started successfully in {}ms. Logging startup event to audit log.", bootstrapDuration);
 
             auditLogService.logApiCall(
                     "SYSTEM",
@@ -37,7 +50,7 @@ public class SystemAuditListener {
                     "System Startup",
                     "Application Ready",
                     200,
-                    0L,
+                    bootstrapDuration,
                     0,
                     0,
                     0.0,

@@ -15,7 +15,8 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 │   │   │   │   ├── workflow/     # 工作流编排模块 (可视化编辑器)
 │   │   │   │   ├── skill/        # 智能体技能插件
 │   │   │   │   ├── alert/        # 告警通知模块 (邮件、钉钉、企微)
-│   │   │   │   ├── model/        # 模型管理模块
+│   │   │   │   ├── ragflow/      # RAGFlow 知识库集成模块
+│   │   │   │   ├── model/        # 模型管理模块 (含 Kimi 集成)
 │   │   │   │   ├── monitor/      # 监控模块
 │   │   │   │   ├── multimodal/   # 多模态处理模块
 │   │   │   │   ├── trace/        # 链路追踪模块
@@ -62,7 +63,7 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 
 ### 核心功能
 - **全链路监控**：实时追踪 CPU、内存利用率及令牌消耗，集成 Micrometer 链路追踪与 Trace ID 溯源，秒级洞察系统性能瓶颈
-- **知识库自动同步**：深度集成 Dify 知识库，支持 Milvus 向量引擎同步，实现文档版本管理与云端动态资产更新
+- **知识库自动同步**：深度集成 Dify、RAGFlow 知识库，支持 Milvus 向量引擎同步，实现文档版本管理与云端动态资产更新
 - **可视化工作流**：支持编排复杂的 AI 工作流，提供强大的节点处理器：
     - **逻辑控制**：代码执行 (Python)、条件分支、意图识别、变量聚合。
     - **数据处理**：模板转换 (Jinja2)、参数提取 (JSON)、知识检索 (RAG)、文档解析。
@@ -70,7 +71,7 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 - **预览与调试**：支持工作流实时预览运行，可视化展示执行轨迹 (Node Trace)、变量快照及 DSL 定义。
 - **插件化技能系统**：一键为智能体挂载计算、搜索、执行等扩展技能，快速响应业务需求
 - **智能告警中心**：支持多指标阈值监控，自动触发邮件、钉钉、企业微信异步通知，支持动态告警规则配置
-- **多模型平台适配**：统一适配 Dify、OpenAI、SiliconFlow (硅基流动) 等主流模型提供商，支持 OpenAI 兼容接口转发
+- **多模型平台适配**：统一适配 Dify、OpenAI、SiliconFlow (硅基流动)、Kimi (月之暗面) 等主流模型提供商，支持 OpenAI 兼容接口转发
 - **分布式生命周期**：从接入到注销，一站式控制不同环境下的智能体运行状态
 - **交互日志审计**：全面保留会话流水与逻辑树，支持全站事件溯源与敏感信息脱敏管理
 - **模型安全管理**：密钥托管、多租户权限隔离及 API Key 配额控制，确保资产安全
@@ -302,6 +303,8 @@ java -jar target/orin-backend-1.0.0-SNAPSHOT.jar
   - [DTO转换指南](docs/dev/DTO_MAPPING_GUIDE.md)
   - [异常处理指南](docs/dev/EXCEPTION_HANDLING_GUIDE.md)
   - [Flyway迁移指南](docs/dev/FLYWAY_MIGRATION_GUIDE.md)
+  - [RAGFlow集成指南](docs/dev/RAGFLOW_INTEGRATION.md)
+  - [Kimi集成指南](docs/dev/KIMI_INTEGRATION.md)
 
 
 ## 开发规范

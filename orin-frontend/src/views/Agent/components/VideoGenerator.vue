@@ -127,13 +127,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue';
-import { 
-  VideoCamera, Loading, Download, Share, MagicStick, 
+import { ref, computed, onUnmounted, watch } from 'vue';
+import {
+  VideoCamera, Loading, Download, Share, MagicStick,
   Plus, Close, Refresh, Operation
 } from '@element-plus/icons-vue';
 import { useAgentInteraction } from '../composables/useAgentInteraction';
 import { ElMessage } from 'element-plus';
+import request from '@/utils/request';
 
 const props = defineProps({
   agentId: { type: String, required: true },
@@ -148,6 +149,60 @@ const statusTip = ref('正在链接服务器...');
 const tipTimer = ref(null);
 
 const { isProcessing, result, dataType, error, interact } = useAgentInteraction(props.agentId);
+
+// 视频自动保存状态
+const isSavingVideo = ref(false);
+const savedFileId = ref('');
+
+// 监听视频生成结果，自动保存到本地服务器
+watch(result, async (newResult) => {
+    console.log('Video result changed:', newResult, 'isProcessing:', isProcessing.value);
+    if (newResult && !isProcessing.value && !savedFileId.value) {
+        const videoUrl = newResult.url || newResult.video_url || newResult.video_url || '';
+        console.log('Video URL:', videoUrl);
+        if (videoUrl && videoUrl.startsWith('http') && !videoUrl.includes('/api/v1/multimodal/files/')) {
+            // 只有外部 OSS URL 才需要下载保存
+            await autoSaveVideo(videoUrl);
+        }
+    }
+});
+
+// 自动保存视频到后端
+const autoSaveVideo = async (videoUrl) => {
+    if (isSavingVideo.value) return;
+    isSavingVideo.value = true;
+    try {
+        ElMessage.info('正在保存视频到本地服务器...');
+        // 使用 fetch 下载视频
+        const response = await fetch(videoUrl);
+        const blob = await response.blob();
+
+        const formData = new FormData();
+        formData.append('file', blob, `genvideo_${Date.now()}.mp4`);
+        formData.append('fileType', 'VIDEO');
+        formData.append('uploadedBy', 'system');
+
+        // 使用 request 上传（带认证）- 后端接口是 /upload
+        const uploadRes = await request.post('/multimodal/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+        if (uploadRes.id) {
+            savedFileId.value = uploadRes.id;
+            // 更新 result 使用本地 URL
+            result.value.url = `/api/v1/multimodal/files/${uploadRes.id}/download`;
+            result.value.video_url = `/api/v1/multimodal/files/${uploadRes.id}/download`;
+            result.value.file_id = uploadRes.id;
+            ElMessage.success('视频已保存到本地服务器');
+        }
+    } catch (error) {
+        console.error('Failed to save video:', error);
+    } finally {
+        isSavingVideo.value = false;
+    }
+};
 
 const isI2V = computed(() => {
     const model = props.parameters?.model || props.agentInfo?.modelName || '';

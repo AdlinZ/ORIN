@@ -501,8 +501,19 @@ const fetchAllData = async () => {
     });
   } catch (error) {
     console.error('Failed to fetch metrics data:', error);
+    // 显示详细错误信息
+    let errorMsg = '获取指标数据失败';
+    if (error.response) {
+      errorMsg = `服务器错误: ${error.response.status} - ${error.response.data?.message || error.response.statusText}`;
+    } else if (error.request) {
+      errorMsg = '网络错误: 无法连接到服务器';
+    } else if (error.message) {
+      errorMsg = error.message;
+    }
+    ElMessage.error(errorMsg);
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -673,6 +684,7 @@ onMounted(() => {
     initCharts();
   });
   window.addEventListener('resize', handleResize);
+  window.addEventListener('page-refresh', fetchAllData);
 });
 
 const handleResize = () => {
@@ -681,6 +693,7 @@ const handleResize = () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  window.removeEventListener('page-refresh', fetchAllData);
   dailyChartInstance?.dispose();
   if (autoRefreshTimer) {
     clearInterval(autoRefreshTimer);

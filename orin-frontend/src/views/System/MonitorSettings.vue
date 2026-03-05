@@ -108,22 +108,69 @@
                 <div class="guide-step">
                   <span class="step-num">1</span>
                   <div class="step-text">
-                    <strong>安装 Exporter</strong>
-                    <p>在目标服务器安装 Node Exporter (Linux) 或 Windows Exporter。</p>
+                    <strong>安装 Node Exporter (Ubuntu)</strong>
+                    <pre class="install-cmd"># 下载 Node Exporter (以 v1.7.0 为例)
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+
+# 解压
+tar xzf node_exporter-1.7.0.linux-amd64.tar.gz
+
+# 移动二进制文件
+sudo cp node_exporter-1.7.0.linux-amd64/node_exporter /usr/local/bin/
+
+# 创建专用用户
+sudo useradd -rs /bin/false node_exporter</pre>
                   </div>
                 </div>
                 <div class="guide-step">
                   <span class="step-num">2</span>
                   <div class="step-text">
-                    <strong>配置 Prometheus</strong>
-                    <p>修改 prometheus.yml，添加抓取任务并重启服务。</p>
+                    <strong>配置 systemd 服务</strong>
+                    <pre class="install-cmd">sudo nano /etc/systemd/system/node_exporter.service
+
+# 写入以下内容:
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+Type=simple
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# 启动服务
+sudo systemctl daemon-reload
+sudo systemctl enable node_exporter
+sudo systemctl start node_exporter
+
+# 验证 (默认端口 9100)
+curl http://localhost:9100/metrics | head</pre>
                   </div>
                 </div>
                 <div class="guide-step">
                   <span class="step-num">3</span>
                   <div class="step-text">
+                    <strong>配置 Prometheus 抓取</strong>
+                    <pre class="install-cmd">sudo nano /etc/prometheus/prometheus.yml
+
+# 在 scrape_configs 下添加:
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+
+# 重启 Prometheus
+sudo systemctl restart prometheus</pre>
+                  </div>
+                </div>
+                <div class="guide-step">
+                  <span class="step-num">4</span>
+                  <div class="step-text">
                     <strong>填入 API 地址</strong>
-                    <p>将 Prometheus 的访问 URL (默认 9090 端口) 填入左侧表单并保存。</p>
+                    <p>将 Prometheus 地址 (默认 http://localhost:9090) 填入左侧表单并保存。</p>
                   </div>
                 </div>
               </div>
@@ -179,6 +226,11 @@
                 <el-form-item label="Milvus Root Token">
                   <el-input v-model="envConfig['milvus.token']" type="password" show-password />
                 </el-form-item>
+                <el-form-item>
+                  <el-button @click="testMilvusConnection" :loading="testingMilvus" type="success" plain size="small">
+                    测试 Milvus 连接
+                  </el-button>
+                </el-form-item>
 
                 <el-divider content-position="left">⚡ Redis 分布式高速缓存</el-divider>
                 <el-form-item label="Redis Host">
@@ -229,6 +281,7 @@ import {
 const activeTab = ref('prometheus');
 const saving = ref(false);
 const testing = ref(false);
+const testingMilvus = ref(false);
 
 const config = reactive({
   prometheusUrl: '',
@@ -290,6 +343,31 @@ const saveConfig = async () => {
     ElMessage.error('测试失败: ' + e.message);
   } finally {
     testing.value = false;
+  }
+};
+
+const testMilvusConnection = async () => {
+  testingMilvus.value = true;
+  try {
+    const host = envConfig.value['milvus.host'] || 'localhost';
+    const port = parseInt(envConfig.value['milvus.port']) || 19530;
+    const token = envConfig.value['milvus.token'] || '';
+
+    const res = await request.get('/monitor/milvus/test', {
+      params: { host, port, token }
+    });
+    console.log('Milvus Test Response:', res);
+
+    if (res.online) {
+      ElMessage.success('Milvus 连接成功！');
+    } else {
+      ElMessage.warning('Milvus 连接失败: ' + (res.error || '未知错误'));
+    }
+  } catch (e) {
+    console.error('Milvus Test Error:', e);
+    ElMessage.error('测试失败: ' + e.message);
+  } finally {
+    testingMilvus.value = false;
   }
 };
 
@@ -451,6 +529,19 @@ onMounted(() => {
   color: var(--neutral-gray-500);
   margin: 0;
   line-height: 1.4;
+}
+
+.install-cmd {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 8px 0 0 0;
 }
 
 .feature-switches {

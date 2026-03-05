@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
 import { 
@@ -140,12 +140,13 @@ const selectedRows = ref([]);
 const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await getMonitorAgentList(); 
+    const res = await getMonitorAgentList();
     rawAgentList.value = res || [];
   } catch (error) {
     ElMessage.error('无法同步智能体实时状态');
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -271,6 +272,11 @@ const formatViewType = (row) => {
 
 onMounted(() => {
   fetchData();
+  window.addEventListener('page-refresh', fetchData);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', fetchData);
 });
 </script>
 

@@ -271,7 +271,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
 import { 
@@ -316,6 +316,7 @@ const fetchData = async () => {
     ElMessage.error('加载知识库列表失败');
   } finally {
     loading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -446,6 +447,11 @@ const handleDelete = (kb) => {
 
 onMounted(() => {
   fetchData();
+  window.addEventListener('page-refresh', fetchData);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', fetchData);
 });
 </script>
 

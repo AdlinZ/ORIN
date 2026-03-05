@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
+import { ref, onMounted, watch, onBeforeUnmount, nextTick, computed } from 'vue';
 import * as echarts from 'echarts';
 import { useDark } from '@vueuse/core';
 
@@ -14,10 +14,17 @@ const isDark = useDark();
 const props = defineProps({
   title: String,
   color: { type: String, default: 'var(--orin-primary)' },
-  data: { type: Array, default: () => [] }, 
+  data: { type: Array, default: () => [] },
   height: { type: String, default: '300px' },
   yAxisName: String,
-  yAxisMax: Number
+  yAxisMax: Number,
+  // 支持多系列数据
+  series: { type: Array, default: () => [] }
+});
+
+// 检查是否为多系列数据模式
+const isMultiSeries = computed(() => {
+  return props.series && props.series.length > 0;
 });
 
 const chartRef = ref(null);

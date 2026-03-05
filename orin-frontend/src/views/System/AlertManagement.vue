@@ -202,7 +202,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import dayjs from 'dayjs'
@@ -425,6 +425,17 @@ watch(activeTab, (newTab) => {
 onMounted(() => {
   loadRules()
   loadStats()
+  window.addEventListener('page-refresh', handleRefresh)
+})
+
+const handleRefresh = () => {
+  loadRules()
+  loadStats()
+  window.dispatchEvent(new Event('page-refresh-done'))
+}
+
+onUnmounted(() => {
+  window.removeEventListener('page-refresh', handleRefresh)
 })
 </script>
 
