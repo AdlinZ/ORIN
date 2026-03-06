@@ -38,7 +38,7 @@
       <!-- LEFT: Telemetry -->
       <aside class="col-telemetry">
         <!-- Assets -->
-        <div class="premium-card">
+        <div class="premium-card clickable" @click="goToPage(ROUTES.APPLICATIONS.AGENTS)">
           <div class="card-glow"></div>
           <h3 class="card-head">资产中枢 / ASSET_HUB<span class="head-line"></span></h3>
           <div class="asset-bubbles">
@@ -54,7 +54,7 @@
         </div>
 
         <!-- Resources -->
-        <div class="premium-card">
+        <div class="premium-card clickable" @click="goToPage(ROUTES.RUNTIME.METRICS)">
           <div class="card-glow"></div>
           <h3 class="card-head">资源矩阵 / RESOURCE<span class="head-line"></span></h3>
           <div class="matrix-grid">
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Load -->
-        <div class="premium-card flex-grow shadow-soft">
+        <div class="premium-card flex-grow shadow-soft clickable" @click="goToPage(ROUTES.RUNTIME.SERVER)">
           <div class="card-glow"></div>
           <h3 class="card-head">物理负载 / LOAD<span class="head-line"></span></h3>
           <div class="load-bars">
@@ -192,7 +192,7 @@
       <!-- RIGHT: Tactical Board -->
       <aside class="col-battle">
         <!-- Top KPIs -->
-        <div class="premium-card">
+        <div class="premium-card clickable" @click="goToPage(ROUTES.RUNTIME.OVERVIEW)">
           <div class="card-glow"></div>
           <div class="mini-kpi-grid">
              <div class="mk-box">
@@ -207,7 +207,7 @@
         </div>
 
         <!-- Rank List -->
-        <div class="premium-card flex-grow battle-card">
+        <div class="premium-card flex-grow battle-card clickable" @click="goToPage(ROUTES.RUNTIME.METRICS)">
           <div class="card-glow"></div>
           <div class="battle-header">
             <h3 class="b-title">资源分布 (按Agent)</h3>
@@ -248,6 +248,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useDark } from '@vueuse/core'
 import { Timer, Collection, Connection } from '@element-plus/icons-vue'
 import {
@@ -260,7 +261,10 @@ import {
   getTokenDistribution,
   getServerHardwareTrend
 } from '@/api/monitor'
+import { ROUTES } from '@/router/routes'
 import LineChart from '@/components/LineChart.vue'
+
+const router = useRouter()
 
 const isDark = useDark()
 const loading = ref(true)
@@ -327,6 +331,10 @@ const updateTime = () => {
 const handleRangeChange = (r) => {
   currentRange.value = r
   fetchTrend()
+}
+
+const goToPage = (path) => {
+  router.push(path)
 }
 
 const fetchTrend = async () => {
@@ -527,6 +535,17 @@ onUnmounted(() => {
   flex-direction: column;
   border: 1px solid rgba(0,0,0,0.05);
   box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+
+.premium-card.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.premium-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  border-color: var(--orin-primary);
 }
 .theme-dark .premium-card { background: rgba(19, 23, 31, 0.6); border-color: rgba(255,255,255,0.06); box-shadow: none; }
 
