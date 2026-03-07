@@ -145,3 +145,9 @@ export const getDailyTokenTrend = (period = 'daily', config = {}) => {
         ...config
     });
 };
+
+// 健康状态概览 API
+export const getAgentHealthOverview = (config = {}) => {
+    return request.get('/monitor/agents/health-overview', config);
+};
+};
