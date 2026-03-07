@@ -100,3 +100,8 @@ export const deletePricingConfig = (id) => {
 export const getServerHardware = () => {
     return request.get('/monitor/server-hardware');
 };
+
+// 健康状态概览 API
+export const getAgentHealthOverview = (config = {}) => {
+    return request.get('/monitor/agents/health-overview', config);
+};
