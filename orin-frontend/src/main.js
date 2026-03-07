@@ -2,6 +2,8 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia' // Import Pinia
 import './assets/css/main.css' // Import Global CSS
 import './assets/styles/theme.css' // Import Amber Energy Theme
+import './assets/styles/global.css' // Import ORIN Global Styles
+import './assets/styles/animations.css' // Import Animations
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css' // Dark mode support
