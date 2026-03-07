@@ -40,71 +40,94 @@ public class RetrievalService {
 
     public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
             String embeddingModel) {
-        // 1. 向量检索
-        List<VectorStoreProvider.SearchResult> vectorResults = vectorService.search(kbId, query, topK * 2,
-                embeddingModel);
-
-        // 2. 关键词检索
-        List<KnowledgeDocumentChunk> keywordChunks;
-        if ("all".equalsIgnoreCase(kbId)) {
-            keywordChunks = chunkRepository.searchAllByKeyword(query);
-        } else {
-            keywordChunks = chunkRepository.searchByKeyword(kbId, query);
+        // 参数校验
+        if (query == null || query.trim().isEmpty()) {
+            log.warn("Empty query for hybrid search");
+            return Collections.emptyList();
         }
-        // Limit keyword results manually if too many
-        if (keywordChunks.size() > topK * 2) {
-            keywordChunks = keywordChunks.subList(0, topK * 2);
+        if (kbId == null || kbId.trim().isEmpty()) {
+            log.warn("Empty kbId for hybrid search");
+            return Collections.emptyList();
+        }
+        if (topK <= 0) {
+            topK = 5; // 默认值
         }
 
-        // 3. 结果融合 (Weighted Scoring / RRF)
-        // 这里使用简单的加权评分融合
-        Map<String, Double> scoreMap = new HashMap<>(); // Chunk Content -> Score
-        Map<String, VectorStoreProvider.SearchResult> contentMap = new HashMap<>();
+        try {
+            // 1. 向量检索
+            List<VectorStoreProvider.SearchResult> vectorResults = vectorService.search(kbId, query, topK * 2,
+                    embeddingModel);
 
-        // 处理向量结果
-        for (VectorStoreProvider.SearchResult res : vectorResults) {
-            scoreMap.put(res.getContent(), res.getScore() * WEIGHT_VECTOR);
-            res.setMatchType("VECTOR");
-            contentMap.put(res.getContent(), res);
-        }
-
-        // 处理关键词结果
-        for (KnowledgeDocumentChunk chunk : keywordChunks) {
-            if (chunk.getContent() == null)
-                continue;
-
-            double baseScore = 1.0; // Keyword match implies full relevance for that term
-            double finalScore = baseScore * WEIGHT_KEYWORD;
-
-            if (scoreMap.containsKey(chunk.getContent())) {
-                scoreMap.put(chunk.getContent(), scoreMap.get(chunk.getContent()) + finalScore);
-                contentMap.get(chunk.getContent()).setMatchType("HYBRID"); // Found by both
+            // 2. 关键词检索
+            List<KnowledgeDocumentChunk> keywordChunks;
+            if ("all".equalsIgnoreCase(kbId)) {
+                keywordChunks = chunkRepository.searchAllByKeyword(query);
             } else {
-                scoreMap.put(chunk.getContent(), finalScore);
-
-                Map<String, Object> meta = new HashMap<>();
-                meta.put("doc_id", chunk.getDocumentId());
-                meta.put("chunk_id", chunk.getId());
-
-                contentMap.put(chunk.getContent(), VectorStoreProvider.SearchResult.builder()
-                        .content(chunk.getContent())
-                        .score(finalScore) // Initial low score for keyword only, but will rank
-                        .matchType("KEYWORD")
-                        .metadata(meta)
-                        .build());
+                keywordChunks = chunkRepository.searchByKeyword(kbId, query);
             }
-        }
+            // Limit keyword results manually if too many
+            if (keywordChunks != null && keywordChunks.size() > topK * 2) {
+                keywordChunks = keywordChunks.subList(0, topK * 2);
+            }
 
-        // 排序并截取 TopK
-        return scoreMap.entrySet().stream()
-                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                .limit(topK)
-                .map(entry -> {
-                    VectorStoreProvider.SearchResult res = contentMap.get(entry.getKey());
-                    res.setScore(entry.getValue());
-                    return res;
-                })
-                .collect(Collectors.toList());
+            // 3. 结果融合 (Weighted Scoring / RRF)
+            // 这里使用简单的加权评分融合
+            Map<String, Double> scoreMap = new HashMap<>(); // Chunk Content -> Score
+            Map<String, VectorStoreProvider.SearchResult> contentMap = new HashMap<>();
+
+            // 处理向量结果
+            if (vectorResults != null) {
+                for (VectorStoreProvider.SearchResult res : vectorResults) {
+                    if (res.getContent() == null) continue;
+                    scoreMap.put(res.getContent(), res.getScore() * WEIGHT_VECTOR);
+                    res.setMatchType("VECTOR");
+                    contentMap.put(res.getContent(), res);
+                }
+            }
+
+            // 处理关键词结果
+            if (keywordChunks != null) {
+                for (KnowledgeDocumentChunk chunk : keywordChunks) {
+                    if (chunk.getContent() == null)
+                        continue;
+
+                    double baseScore = 1.0; // Keyword match implies full relevance for that term
+                    double finalScore = baseScore * WEIGHT_KEYWORD;
+
+                    if (scoreMap.containsKey(chunk.getContent())) {
+                        scoreMap.put(chunk.getContent(), scoreMap.get(chunk.getContent()) + finalScore);
+                        contentMap.get(chunk.getContent()).setMatchType("HYBRID"); // Found by both
+                    } else {
+                        scoreMap.put(chunk.getContent(), finalScore);
+
+                        Map<String, Object> meta = new HashMap<>();
+                        meta.put("doc_id", chunk.getDocumentId());
+                        meta.put("chunk_id", chunk.getId());
+
+                        contentMap.put(chunk.getContent(), VectorStoreProvider.SearchResult.builder()
+                                .content(chunk.getContent())
+                                .score(finalScore) // Initial low score for keyword only, but will rank
+                                .matchType("KEYWORD")
+                                .metadata(meta)
+                                .build());
+                    }
+                }
+            }
+
+            // 排序并截取 TopK
+            return scoreMap.entrySet().stream()
+                    .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                    .limit(topK)
+                    .map(entry -> {
+                        VectorStoreProvider.SearchResult res = contentMap.get(entry.getKey());
+                        res.setScore(entry.getValue());
+                        return res;
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Hybrid search failed for kbId={}, query={}: {}", kbId, query, e.getMessage(), e);
+            return Collections.emptyList();
+        }
     }
 
     private final com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService;

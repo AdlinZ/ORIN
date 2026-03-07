@@ -32,10 +32,65 @@
 
 html.dark {
     --orin-primary: #26FFDF;
+    --orin-primary-glow: rgba(38, 255, 223, 0.3);
+    --orin-primary-soft: rgba(38, 255, 223, 0.1);
     --app-bg: #041010;
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
+    --border-subtle: #1e293b;
     --el-border-color: #1e293b;
+    --el-border-color-light: #334155;
+    --panel-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    
+    /* Dark mode slider */
+    --el-slider-runway-bg-color: #1e293b;
+    --el-slider-stop-bg-color: #334155;
+}
+
+/* Dark mode element overrides */
+html.dark .el-card {
+    background-color: #0a0f0f !important;
+    border-color: #1e293b !important;
+}
+
+html.dark .el-input__wrapper,
+html.dark .el-textarea__inner {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+html.dark .el-input__inner,
+html.dark .el-textarea__inner {
+    color: #f1f5f9 !important;
+}
+
+html.dark .el-button--default {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+html.dark .el-button--default:hover {
+    background-color: #334155;
+}
+
+html.dark .el-table {
+    background-color: #0a0f0f;
+    color: #f1f5f9;
+}
+
+html.dark .el-table tr {
+    background-color: #0a0f0f;
+}
+
+html.dark .el-table th.el-table__cell,
+html.dark .el-table td.el-table__cell {
+    background-color: #0f1414;
+    border-bottom-color: #1e293b;
+}
+
+html.dark .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+    background-color: #0c1010;
 }
 
 /* --- Global Overrides --- */
