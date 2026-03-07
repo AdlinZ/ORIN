@@ -428,21 +428,34 @@ const onSubmit = async () => {
   }
 };
 
-const handleDelete = (kb) => {
-  selectedKB.value = kb; // Ensure selectedKB is set if deleting from list
-  ElMessageBox.confirm(`确认删除知识资产 [${kb.name}] 吗？`, '警告', {
-    type: 'warning',
-    confirmButtonClass: 'el-button--danger'
-  }).then(async () => {
-    try {
-        await request.delete(`/knowledge/${kb.id}`);
-        ElMessage.success('已移除知识资产');
-        closeInspector();
-        fetchData();
-    } catch (err) {
-        ElMessage.error('删除失败: ' + err.message);
+const handleDelete = async (kb) => {
+  selectedKB.value = kb;
+  try {
+    await ElMessageBox.confirm(`确认删除知识资产 [${kb.name}] 吗？`, '警告', {
+      type: 'warning',
+      confirmButtonClass: 'el-button--danger'
+    });
+
+    // 删除前显示 loading
+    const loading = ElMessage({
+      message: '删除中...',
+      type: 'info',
+      duration: 0
+    });
+
+    const res = await request.delete(`/knowledge/${kb.id}`);
+    loading.close();
+
+    console.log('Delete response:', res);
+    ElMessage.success('已移除知识资产');
+    closeInspector();
+    fetchData();
+  } catch (err) {
+    console.error('Delete failed:', err);
+    if (err !== 'cancel') {
+      ElMessage.error('删除失败');
     }
-  });
+  }
 };
 
 onMounted(() => {

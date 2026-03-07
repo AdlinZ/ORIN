@@ -123,18 +123,32 @@
             <el-form-item label="文档名称">
               <el-input v-model="form.name" />
             </el-form-item>
+
+            <!-- Parent-Child 分块信息 -->
+            <el-form-item label="分块模式">
+              <el-tag type="success">{{ chunkStats.chunkingMode || 'PARENT_CHILD' }}</el-tag>
+            </el-form-item>
+            <el-form-item label="分块统计">
+              <div class="chunk-stats-display">
+                <el-statistic title="父分块 (Parent)" :value="chunkStats.parentCount" />
+                <el-statistic title="子分块 (Child)" :value="chunkStats.childCount" />
+              </div>
+            </el-form-item>
+
+            <!-- 隐藏旧的配置项，因为现在使用固定的 Parent-Child 分块 -->
             <el-form-item label="分段模式">
-              <el-select v-model="form.mode" style="width: 100%;">
+              <el-select v-model="form.mode" style="width: 100%;" disabled>
                 <el-option label="自动" value="auto" />
                 <el-option label="手动" value="manual" />
                 <el-option label="智能" value="smart" />
               </el-select>
+              <div class="form-tip">当前使用 Parent-Child 分块策略，配置已固定</div>
             </el-form-item>
-            <el-form-item label="分段长度">
+            <el-form-item label="分段长度" style="display: none;">
               <el-slider v-model="form.chunkSize" :min="100" :max="2000" :step="100" />
               <span class="slider-value">{{ form.chunkSize }} 字符</span>
             </el-form-item>
-            <el-form-item label="分段重叠">
+            <el-form-item label="分段重叠" style="display: none;">
               <el-slider v-model="form.chunkOverlap" :min="0" :max="500" :step="10" />
               <span class="slider-value">{{ form.chunkOverlap }} 字符</span>
             </el-form-item>
@@ -207,13 +221,14 @@ const searchKeyword = ref('');
 const loading = ref(false);
 const vectorizing = ref(false);
 const editingSegment = reactive({ id: '', content: '' });
+const chunkStats = ref({ parentCount: 0, childCount: 0, chunkingMode: 'PARENT_CHILD' });
 
-const form = reactive({ 
-  name: '', 
+const form = reactive({
+  name: '',
   mode: 'auto',
   chunkSize: 500,
   chunkOverlap: 50,
-  enabled: true 
+  enabled: true
 });
 
 const history = ref([]);
@@ -289,7 +304,9 @@ const loadSegments = async () => {
                 content: chunk.content || chunk.text || '',
                 wordCount: (chunk.content || chunk.text || '').length,
                 hitCount: chunk.score ? Math.round(chunk.score * 100) : 0,
-                status: 'indexed'
+                status: 'indexed',
+                chunkType: chunk.chunkType || 'child',
+                parentId: chunk.parentId || ''
             }));
         } else {
             segments.value = [];
@@ -299,6 +316,17 @@ const loadSegments = async () => {
         segments.value = [];
     } finally {
         loading.value = false;
+    }
+};
+
+const loadChunkStats = async () => {
+    try {
+        const res = await request.get(`/knowledge/documents/${docId.value}/chunks/stats`);
+        if (res) {
+            chunkStats.value = res;
+        }
+    } catch (error) {
+        console.warn('Failed to load chunk stats:', error);
     }
 };
 
@@ -404,6 +432,7 @@ const goBackToKB = () => {
 
 onMounted(() => {
   loadDocumentData();
+  loadChunkStats();
 });
 </script>
 
@@ -607,6 +636,17 @@ onMounted(() => {
   margin-left: 12px;
   font-size: 13px;
   color: var(--neutral-gray-500);
+}
+
+.chunk-stats-display {
+  display: flex;
+  gap: 32px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: var(--neutral-gray-500);
+  margin-top: 4px;
 }
 
 .history-timeline {

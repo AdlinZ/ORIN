@@ -1,45 +1,33 @@
 <template>
   <div class="kb-create-page">
-    <!-- Header -->
+    <!-- Header with Steps -->
     <div class="create-header">
       <div class="header-left" @click="$router.back()">
          <el-icon class="back-icon"><ArrowLeft /></el-icon>
          <div class="title-block">
             <span class="main-title">创建知识库</span>
-            <span class="sub-title">Create Knowledge Base</span>
          </div>
       </div>
-      <div class="header-right"></div>
+      <div class="header-steps">
+         <div class="step-item" :class="{ active: currentStep === 1, done: currentStep > 1 }">
+            <div class="step-num">1</div>
+            <span class="step-title">选择数据源</span>
+         </div>
+         <div class="step-line"></div>
+         <div class="step-item" :class="{ active: currentStep === 2, done: currentStep > 2 }">
+            <div class="step-num">2</div>
+            <span class="step-title">文本分段</span>
+         </div>
+         <div class="step-line"></div>
+         <div class="step-item" :class="{ active: currentStep === 3 }">
+            <div class="step-num">3</div>
+            <span class="step-title">完成</span>
+         </div>
+      </div>
     </div>
 
     <!-- Main Content -->
     <div class="create-container" :class="{ 'wide-container': currentStep === 2, 'finish-container': currentStep === 3 }">
-       <!-- Steps (Hidden in Step 3) -->
-       <div class="steps-wrapper" v-if="currentStep < 3">
-          <div class="step-item" :class="{ active: currentStep === 1, done: currentStep > 1 }">
-             <div class="step-num">1</div>
-             <div class="step-title">选择数据源</div>
-          </div>
-          <div class="step-line"></div>
-          <div class="step-item" :class="{ active: currentStep === 2, done: currentStep > 2 }">
-             <div class="step-num">2</div>
-             <div class="step-title">文本分段与清洗</div>
-          </div>
-          <div class="step-line"></div>
-          <div class="step-item" :class="{ active: currentStep === 3 }">
-             <div class="step-num">3</div>
-             <div class="step-title">处理并完成</div>
-          </div>
-       </div>
-
-       <!-- Step 3 Header only-->
-       <div class="steps-wrapper simple" v-else>
-           <div class="step-item done">1 选择数据源</div>
-           <div class="sep">/</div>
-           <div class="step-item done">2 文本分段与清洗</div>
-           <div class="sep">/</div>
-           <div class="step-item active">3 处理并完成</div>
-       </div>
 
        <!-- Step 1: Data Source Selection -->
        <div v-if="currentStep === 1" class="step-content step-1">
@@ -174,25 +162,6 @@
              </div>
           </div>
 
-          <!-- File List Preview (only for file source) -->
-          <div 
-             class="upload-zone" 
-             :class="{ dragging: isDragging }"
-             @dragover.prevent="handleDragOver"
-             @dragleave.prevent="handleDragLeave"
-             @drop.prevent="handleDrop"
-             @click="triggerUpload"
-          >
-             <input type="file" ref="fileInput" style="display: none" multiple accept=".pdf,.txt,.doc,.docx,.md" @change="handleFileChange" />
-             <div class="upload-area">
-                <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                <div class="upload-text">
-                   <span class="link">点击上传</span> 或将文件拖拽至此
-                </div>
-                <div class="upload-hint">支持 PDF, TXT, DOC, DOCX, MD 等格式，每个文件不超过 15MB</div>
-             </div>
-          </div>
-
           <!-- File List Preview -->
           <TransitionGroup name="list" tag="div" v-if="fileList.length > 0" class="file-preview-list">
              <div v-for="(file, index) in fileList" :key="file.name + index" class="file-item">
@@ -234,32 +203,20 @@
                        <div class="check-circle" v-if="form.segmentMode === 'parent_child'"><el-icon><Check /></el-icon></div>
                    </div>
                 </div>
-                <!-- General Params -->
-                <div v-if="form.segmentMode === 'general'" class="general-params">
-                   <div class="params-row">
-                      <div class="param-item">
-                         <label>分段标识符 <el-tooltip content="例如 \n\n"><el-icon class="info-icon"><QuestionFilled /></el-icon></el-tooltip></label>
-                         <el-input v-model="form.separator" placeholder="\n\n" size="default" />
-                      </div>
-                       <div class="param-item">
-                         <label>分段最大长度</label>
-                         <el-input-number v-model="form.maxTokens" :min="100" :max="4000" size="default" controls-position="right" class="full-width-input" />
-                      </div>
-                       <div class="param-item">
-                         <label>分段重叠长度</label>
-                         <el-input-number v-model="form.overlap" :min="0" :max="500" size="default" controls-position="right" class="full-width-input" />
-                      </div>
-                   </div>
-                   <div class="cleaning-rules">
-                      <label>文本预处理规则</label>
-                      <div class="rules-box">
-                         <el-checkbox v-model="form.cleanSpaces">替换掉连续的空格、换行符和制表符</el-checkbox>
-                         <el-checkbox v-model="form.cleanUrls">删除所有 URL 和电子邮件地址</el-checkbox>
-                      </div>
+                <!-- Parent-Child Params -->
+                <div v-if="form.segmentMode === 'parent_child'" class="parent-child-params">
+                   <div class="params-info">
+                      <el-alert title="使用 Parent-Child 分块策略" type="info" :closable="false">
+                        <template #default>
+                          <div>• 父分块 (Parent): ~1000 字符，表示完整语义段落</div>
+                          <div>• 子分块 (Child): ~200 字符，用于精确向量检索</div>
+                          <div>• 检索时返回父分块内容作为 LLM 上下文</div>
+                        </template>
+                      </el-alert>
                    </div>
                    <div class="preview-actions">
                       <el-button class="start-preview-btn" :loading="previewLoading" @click="handlePreview">
-                         <el-icon style="margin-right: 4px;"><View /></el-icon> 预览块
+                         <el-icon style="margin-right: 4px;"><View /></el-icon> 预览分块
                       </el-button>
                       <el-button link type="info" @click="handleResetParams">重置</el-button>
                    </div>
@@ -346,16 +303,34 @@
                  <div class="header-content" v-if="fileList.length > 0">
                     <el-icon class="doc-icon"><Document /></el-icon>
                     <span class="doc-name text-ellipsis">{{ fileList[0].name }}</span>
-                    <el-tag v-if="showPreview" size="small" type="info">{{ previewChunks.length }} 预估块</el-tag>
+                    <el-tag v-if="showPreview" size="small" type="info">
+                    {{ previewChunks.length > maxPreviewChunks ? `${maxPreviewChunks}/${previewChunks.length}` : previewChunks.length }} 预估块
+                 </el-tag>
                     <el-tag v-else size="small" type="info">0 预估块</el-tag>
                  </div>
                  <div v-else>预览</div>
              </div>
              <div class="preview-body" v-loading="previewLoading">
                 <div v-if="showPreview" class="chunk-list">
-                    <div v-for="chunk in previewChunks" :key="chunk.id" class="chunk-item">
-                       <div class="chunk-meta">#Chunk-{{chunk.id}} · {{ chunk.length }} characters</div>
-                       <div class="chunk-content">{{ chunk.content }}</div>
+                    <div v-for="chunk in displayChunks" :key="chunk.id" class="chunk-item">
+                       <div class="chunk-meta">
+                         <el-tag v-if="chunk.chunkType === 'child'" size="small" type="success">Child</el-tag>
+                         <el-tag v-else size="small">Chunk</el-tag>
+                         #{{chunk.id}} · {{ chunk.length }} characters
+                         <span v-if="chunk.parentIndex">(Parent {{ chunk.parentIndex }})</span>
+                         <el-button
+                           v-if="chunk.length > 150"
+                           link
+                           size="small"
+                           style="margin-left: auto; color: #2563EB;"
+                           @click="toggleChunk(chunk.id)"
+                         >
+                           {{ collapsedChunks.has(chunk.id) ? '展开' : '收起' }}
+                         </el-button>
+                       </div>
+                       <div class="chunk-content" :class="{ collapsed: collapsedChunks.has(chunk.id) }">
+                         {{ collapsedChunks.has(chunk.id) && chunk.length > 150 ? chunk.content.slice(0, 150) + '...' : chunk.content }}
+                       </div>
                     </div>
                  </div>
                  <div v-else class="empty-preview">
@@ -366,74 +341,123 @@
           </div>
        </div>
 
-       <!-- Step 3: Finish & Processing (Dify Style) -->
+       <!-- Step 3: Finish & Processing -->
        <div v-if="currentStep === 3" class="step-content step-3-layout">
           <div class="step-3-main">
+             <!-- Success Header -->
              <div class="success-header">
-                <div class="emoji-icon">🎉</div>
+                <div class="success-icon-wrap">
+                   <el-icon class="success-icon"><Check /></el-icon>
+                </div>
                 <div class="header-text">
                    <h3>知识库已创建</h3>
                    <p>我们自动为该知识库起了一个名称，您也可以随时修改</p>
                 </div>
              </div>
 
-             <!-- KB Name Card -->
-             <div class="kb-name-card">
-                 <div class="kb-icon">
-                    <el-icon><Notebook /></el-icon>
-                 </div>
-                 <el-input v-model="kbName" class="name-input" placeholder="Knowledge Base Name" />
-             </div>
-
-             <!-- Embedding Status -->
-             <div class="process-section">
-                <div class="section-title">
-                   <el-icon class="spin-icon" v-if="!isFinished"><Loading /></el-icon>
-                   <el-icon class="success-icon" v-else><Check /></el-icon>
-                   {{ isFinished ? '嵌入已完成' : '嵌入处理中...' }}
-                </div>
-                
-                <div class="file-process-list">
-                   <div v-for="file in creatingFiles" :key="file.name" class="process-item">
-                      <div class="file-row">
-                         <div class="file-name">
-                            <el-icon><Document /></el-icon> {{ file.name }}
-                         </div>
-                         <div class="process-status">{{ file.progress }}%</div>
+             <!-- Main Cards Grid -->
+             <div class="cards-grid">
+                <!-- KB Name & Description -->
+                <div class="info-card kb-info-card">
+                   <div class="card-header">
+                      <el-icon><Notebook /></el-icon>
+                      <span>基本信息</span>
+                   </div>
+                   <div class="card-body">
+                      <div class="form-item">
+                         <label>知识库名称</label>
+                         <el-input v-model="kbName" placeholder="输入知识库名称" />
                       </div>
-                      <el-progress :percentage="file.progress" :show-text="false" :stroke-width="6" :status="file.progress === 100 ? 'success' : ''"/>
+                      <div class="form-item">
+                         <div class="label-row">
+                            <label>知识库描述</label>
+                            <el-button
+                              type="primary"
+                              size="small"
+                              link
+                              :loading="generatingDesc"
+                              @click="generateDescription"
+                              :disabled="fileList.length === 0 && selectedSource !== 'file'"
+                            >
+                               <el-icon><MagicStick /></el-icon>
+                               AI生成
+                            </el-button>
+                         </div>
+                         <el-input
+                           v-model="kbDescription"
+                           type="textarea"
+                           :rows="2"
+                           placeholder="输入知识库描述（可选）"
+                         />
+                      </div>
                    </div>
                 </div>
-             </div>
 
-             <!-- Config Summary -->
-             <div class="summary-section">
-                <div class="summary-row">
-                   <span class="label">分段模式</span>
-                   <span class="value">{{ form.segmentMode === 'general' ? '通用' : '父子分段' }}</span>
+                <!-- Processing Status -->
+                <div class="info-card process-card">
+                   <div class="card-header">
+                      <el-icon><Loading v-if="!isFinished" /><Check v-else /></el-icon>
+                      <span>{{ isFinished ? '嵌入已完成' : '嵌入处理中...' }}</span>
+                      <el-tag :type="isFinished ? 'success' : 'warning'" size="small">
+                         {{ isFinished ? '完成' : '处理中' }}
+                      </el-tag>
+                   </div>
+                   <div class="card-body">
+                      <div class="file-process-list">
+                         <div v-for="file in creatingFiles" :key="file.name" class="process-item">
+                            <div class="file-row">
+                               <div class="file-name">
+                                  <el-icon><Document /></el-icon> {{ file.name }}
+                               </div>
+                               <div class="process-status">{{ file.progress }}%</div>
+                            </div>
+                            <el-progress :percentage="file.progress" :show-text="false" :stroke-width="6" :status="file.progress === 100 ? 'success' : ''"/>
+                         </div>
+                         <div v-if="creatingFiles.length === 0" class="empty-process">
+                            <el-icon><Check /></el-icon>
+                            <span>暂无处理中的文件</span>
+                         </div>
+                      </div>
+                   </div>
                 </div>
-                <div class="summary-row">
-                   <span class="label">最大分段长度</span>
-                   <span class="value">{{ form.maxTokens }}</span>
-                </div>
-                <div class="summary-row">
-                   <span class="label">文本预处理规则</span>
-                   <span class="value">
-                      {{ form.cleanSpaces ? '替换掉连续的空格、换行符' : '' }}
-                      {{ form.cleanSpaces && form.cleanUrls ? '、' : '' }}
-                      {{ form.cleanUrls ? '删除所有 URL' : '' }}
-                   </span>
-                </div>
-                <div class="summary-row">
-                   <span class="label">索引方式</span>
-                   <span class="value">
-                      <el-icon style="vertical-align: middle; margin-right: 4px; color: #f59e0b;"><Aim /></el-icon>
-                      {{ form.indexType === 'high_quality' ? '高质量' : '经济' }}
-                   </span>
-                </div>
-                <div class="summary-row" v-if="form.embeddingModel">
-                   <span class="label">Embedding 模型</span>
-                   <span class="value">{{ embeddingOptions.find(o => o.value === form.embeddingModel)?.label || form.embeddingModel }}</span>
+
+                <!-- Config Summary -->
+                <div class="info-card config-card">
+                   <div class="card-header">
+                      <el-icon><Setting /></el-icon>
+                      <span>配置信息</span>
+                   </div>
+                   <div class="card-body">
+                      <div class="config-grid">
+                         <div class="config-item">
+                            <span class="config-label">分段模式</span>
+                            <span class="config-value">{{ form.segmentMode === 'general' ? '通用' : '父子分段' }}</span>
+                         </div>
+                         <div class="config-item">
+                            <span class="config-label">最大分段长度</span>
+                            <span class="config-value">{{ form.maxTokens }}</span>
+                         </div>
+                         <div class="config-item">
+                            <span class="config-label">索引方式</span>
+                            <span class="config-value">
+                               <el-icon style="color: #f59e0b;"><Aim /></el-icon>
+                               {{ form.indexType === 'high_quality' ? '高质量' : '经济' }}
+                            </span>
+                         </div>
+                         <div class="config-item" v-if="form.embeddingModel">
+                            <span class="config-label">Embedding 模型</span>
+                            <span class="config-value">{{ embeddingOptions.find(o => o.value === form.embeddingModel)?.label || form.embeddingModel }}</span>
+                         </div>
+                         <div class="config-item full-width">
+                            <span class="config-label">文本预处理</span>
+                            <span class="config-value preprocess-tags">
+                               <el-tag v-if="form.cleanSpaces" size="small" type="info">去空格</el-tag>
+                               <el-tag v-if="form.cleanUrls" size="small" type="info">删URL</el-tag>
+                               <span v-if="!form.cleanSpaces && !form.cleanUrls" class="no-preprocess">无</span>
+                            </span>
+                         </div>
+                      </div>
+                   </div>
                 </div>
              </div>
 
@@ -446,26 +470,13 @@
                 </el-button>
              </div>
           </div>
-
-          <!-- Right Sidebar: What's next -->
-          <div class="step-3-sidebar">
-             <div class="next-card">
-                <div class="card-icon"><el-icon><Reading /></el-icon></div>
-                <h4>接下来做什么</h4>
-                <p>当文档完成索引后，您可以管理和编辑文档、运行检索测试以及修改知识库设置。知识库即可集成到应用程序内作为上下文使用。</p>
-                <el-button link type="primary">了解更多</el-button>
-             </div>
-          </div>
        </div>
+    </div>
 
-       <!-- Footer Actions (Hidden in Step 3) -->
-       <div class="create-footer" v-if="currentStep < 3">
-          <div class="footer-left"></div>
-          <div class="footer-right">
-             <el-button v-if="currentStep > 1" @click="currentStep--">上一步</el-button>
-             <el-button v-if="currentStep < 3" type="primary" @click="handleNext" :disabled="currentStep === 1 && !canProceed">下一步</el-button>
-          </div>
-       </div>
+    <!-- Footer with Navigation Buttons -->
+    <div class="create-footer">
+      <el-button v-if="currentStep > 1 && currentStep < 3" @click="currentStep--">上一步</el-button>
+      <el-button v-if="currentStep < 3" type="primary" @click="handleNext" :disabled="currentStep === 1 && !canProceed">下一步</el-button>
     </div>
   </div>
 </template>
@@ -474,10 +485,10 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
-import { 
+import {
   ArrowLeft, Document, Check, UploadFilled, FolderAdd, Link, Notebook,
   Close, Setting, CopyDocument, QuestionFilled, Cpu, Operation, View, Search,
-  Loading, Connection, Right, Reading, Aim
+  Loading, Connection, Right, Aim, MagicStick
 } from '@element-plus/icons-vue';
 import { ElMessage, ElNotification } from 'element-plus';
 import request from '@/utils/request';
@@ -486,8 +497,21 @@ import { getModelList } from '@/api/model';
 const router = useRouter();
 const currentStep = ref(1);
 const kbName = ref('');
+const kbDescription = ref('');
+const descModel = ref('');
+const generatingDesc = ref(false);
 const creating = ref(false);
 const allModels = ref([]);
+const createdKbId = ref(null); // Track created KB to avoid duplicate creation
+const uploadedFiles = ref(new Set()); // Track uploaded files to avoid duplicate upload
+
+// Chat models for description generation
+const chatModels = computed(() => {
+   return allModels.value.filter(m => m.type === 'CHAT' || m.type === 'LLM' || m.type === undefined).map(m => ({
+      name: m.name,
+      modelId: m.modelId || m.name
+   }));
+});
 
 // Step 3 specific state
 const creatingFiles = ref([]);
@@ -496,6 +520,13 @@ const isFinished = ref(false);
 const showPreview = ref(false);
 const previewLoading = ref(false);
 const previewChunks = ref([]);
+const collapsedChunks = ref(new Set()); // Track collapsed chunk IDs
+const maxPreviewChunks = 10; // Limit preview to first 10 chunks
+
+// Computed property to limit displayed chunks
+const displayChunks = computed(() => {
+  return previewChunks.value.slice(0, maxPreviewChunks);
+});
 
 // Source selection
 const selectedSource = ref('file');
@@ -525,7 +556,7 @@ const dbConfig = reactive({
 const testingDb = ref(false);
 
 const form = reactive({
-   segmentMode: 'general', 
+   segmentMode: 'parent_child', 
    separator: '\\n\\n',
    maxTokens: 500,
    overlap: 50,
@@ -540,17 +571,32 @@ const form = reactive({
 });
 
 const embeddingOptions = computed(() => {
-   return allModels.value.filter(m => m.type === 'EMBEDDING').map(m => ({
+   const options = allModels.value.filter(m => m.type === 'EMBEDDING').map(m => ({
       label: m.name,
       value: m.modelId
    }));
+   // Fallback to default if no models loaded
+   if (options.length === 0) {
+      return [
+         { label: 'BGE-M3 (Default)', value: 'BAAI/bge-m3' },
+         { label: 'Text-Embedding-3-Small', value: 'text-embedding-3-small' }
+      ];
+   }
+   return options;
 });
 
 const rerankOptions = computed(() => {
-   return allModels.value.filter(m => m.type === 'RERANKER').map(m => ({
+   const options = allModels.value.filter(m => m.type === 'RERANKER').map(m => ({
       label: m.name,
       value: m.modelId
    }));
+   // Fallback to default if no models loaded
+   if (options.length === 0) {
+      return [
+         { label: 'BGE-Reranker-v2-Mini', value: 'BAAI/bge-reranker-v2-mini' }
+      ];
+   }
+   return options;
 });
 
 const canProceed = computed(() => {
@@ -568,8 +614,13 @@ const canProceed = computed(() => {
 
 onMounted(async () => {
    try {
+      console.log('Loading models...');
       const res = await getModelList();
+      console.log('Models response:', res);
       allModels.value = res || [];
+      console.log('All models:', allModels.value);
+      console.log('Embedding options:', embeddingOptions.value);
+
       if (!form.embeddingModel && embeddingOptions.value.length > 0) {
          const preferred = embeddingOptions.value.find(o => o.value.includes('text-embedding-3-large'));
          form.embeddingModel = preferred ? preferred.value : embeddingOptions.value[0].value;
@@ -578,7 +629,7 @@ onMounted(async () => {
           const preferred = rerankOptions.value.find(o => o.value.includes('rerank'));
           form.rerankModel = preferred ? preferred.value : rerankOptions.value[0].value;
       }
-   } catch (e) { console.warn(e); }
+   } catch (e) { console.error('Failed to load models:', e); }
 });
 
 const fileInput = ref(null);
@@ -610,6 +661,67 @@ const addFiles = (files) => {
    }
 };
 const removeFile = (i) => { fileList.value.splice(i, 1); };
+
+// AI Generate Description
+const generateDescription = async () => {
+   if (fileList.value.length === 0 && selectedSource.value !== 'file') {
+      ElMessage.warning('请先上传文档后再生成描述');
+      return;
+   }
+   generatingDesc.value = true;
+   try {
+      let newKbId = createdKbId.value;
+
+      // 如果还没有创建知识库，则先创建
+      if (!newKbId) {
+         const payload = {
+            name: kbName.value || '未命名知识库',
+            description: '临时描述',
+            type: 'UNSTRUCTURED',
+            status: 'ENABLED'
+         };
+         const kb = await request.post('/knowledge', payload);
+         newKbId = kb.id;
+         createdKbId.value = newKbId;
+
+         // 上传文档
+         if (fileList.value.length > 0 && selectedSource.value === 'file') {
+            for (const f of fileList.value) {
+               const formData = new FormData();
+               formData.append('file', f.rawFile || f.raw);
+               await request.post(`/knowledge/${newKbId}/documents/upload`, formData);
+               // 标记已上传
+               uploadedFiles.value.add(f.name);
+            }
+         }
+      }
+
+      // 调用AI生成描述
+      const res = await request.post(`/knowledge/${newKbId}/generate-description`, {
+         model: descModel.value
+      });
+
+      console.log('Generate description response:', res);
+
+      if (res.description) {
+         kbDescription.value = res.description;
+         // 更新知识库描述
+         const updateRes = await request.put(`/knowledge/${newKbId}`, {
+            name: kbName.value || '未命名知识库',
+            description: res.description
+         });
+         console.log('Update KB response:', updateRes);
+         ElMessage.success('描述生成成功');
+      } else {
+         ElMessage.warning('AI未返回描述内容');
+      }
+   } catch (e) {
+      console.error('生成描述失败:', e);
+      ElMessage.error('生成描述失败: ' + (e.message || '未知错误'));
+   } finally {
+      generatingDesc.value = false;
+   }
+};
 
 // Web source methods
 const testWebUrl = async () => {
@@ -802,10 +914,35 @@ const handlePreview = async () => {
          }
       }
 
-      if (form.cleanSpaces) text = text.replace(/[ \t]+/g, ' '); 
+      if (form.cleanSpaces) text = text.replace(/[ \t]+/g, ' ');
       if (form.cleanUrls) text = text.replace(/https?:\/\/[^\s]+/g, '');
-      const chunks = chunkText(text, form.maxTokens, form.overlap, form.separator);
-      previewChunks.value = chunks.map((c, i) => ({ id: i + 1, content: c, length: c.length }));
+
+      let chunks = [];
+      if (form.segmentMode === 'parent_child') {
+        // Simulate Parent-Child chunking preview
+        // First split into parent chunks (~1000 chars)
+        const parentChunks = chunkText(text, 1000, 0, '\\n\\n');
+        chunks = [];
+        parentChunks.forEach((parent, idx) => {
+          // Each parent can have multiple children (~200 chars)
+          const childChunks = chunkText(parent, 200, 0, '\\n');
+          childChunks.forEach((child, cIdx) => {
+            chunks.push({
+              id: `p${idx + 1}-c${cIdx + 1}`,
+              content: child,
+              length: child.length,
+              chunkType: 'child',
+              parentIndex: idx + 1
+            });
+          });
+        });
+      } else {
+        chunks = chunkText(text, form.maxTokens, form.overlap, form.separator);
+        chunks = chunks.map((c, i) => ({ id: i + 1, content: c, length: c.length, chunkType: 'chunk' }));
+      }
+      previewChunks.value = chunks;
+      // Default collapse chunks longer than 150 characters
+      collapsedChunks.value = new Set(chunks.filter(c => c.length > 150).map(c => c.id));
       showPreview.value = true;
    } catch (e) {
       console.error('Preview error:', e);
@@ -815,12 +952,24 @@ const handlePreview = async () => {
    }
 };
 
+// Toggle chunk expand/collapse
+const toggleChunk = (chunkId) => {
+  if (collapsedChunks.value.has(chunkId)) {
+    collapsedChunks.value.delete(chunkId);
+  } else {
+    collapsedChunks.value.add(chunkId);
+  }
+  // Trigger reactivity
+  collapsedChunks.value = new Set(collapsedChunks.value);
+};
+
 const handleResetParams = () => {
    form.separator = '\\n\\n';
    form.maxTokens = 500;
    form.overlap = 50;
    showPreview.value = false;
    previewChunks.value = [];
+   collapsedChunks.value = new Set();
 };
 
 // --- Step 3 Simulation ---
@@ -856,7 +1005,7 @@ const saveKB = async () => {
 
         const payload = {
             name: kbName.value || '未命名知识库',
-            description: form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index',
+            description: kbDescription.value || (form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index'),
             type: 'UNSTRUCTURED',
             status: 'ENABLED'
         };
@@ -866,15 +1015,26 @@ const saveKB = async () => {
             payload.type = 'STRUCTURED';
         }
 
-        // 1. Create Knowledge Base via API
-        const kb = await request.post('/knowledge', payload);
-        const newKbId = kb.id;
+        // 1. Create Knowledge Base via API (avoid duplicate if already created)
+        let newKbId = createdKbId.value;
+        if (!newKbId) {
+            const kb = await request.post('/knowledge', payload);
+            newKbId = kb.id;
+            createdKbId.value = newKbId;
+        }
 
         // 2. Handle different source types
         if (selectedSource.value === 'file' && fileList.value.length > 0) {
-            // Upload files
+            // Upload files (skip already uploaded)
             for (let i = 0; i < fileList.value.length; i++) {
                 const f = fileList.value[i];
+
+                // Skip if already uploaded (e.g., during generateDescription)
+                if (uploadedFiles.value.has(f.name)) {
+                    creatingFiles.value[i].progress = 100;
+                    continue;
+                }
+
                 const formData = new FormData();
                 formData.append('file', f.rawFile);
 
@@ -985,22 +1145,29 @@ const handleGoToDocument = () => {
 
 <style scoped>
 .kb-create-page { height: 100vh; display: flex; flex-direction: column; background: #fff; }
-.create-header { height: 64px; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; }
+.create-header { height: 56px; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; gap: 24px; }
+.header-steps { display: flex; align-items: center; flex: 1; justify-content: center; }
+.header-steps .step-item { display: flex; align-items: center; gap: 6px; opacity: 0.5; }
+.header-steps .step-item.active, .header-steps .step-item.done { opacity: 1; }
+.header-steps .step-num { width: 20px; height: 20px; border-radius: 50%; background: #E5E7EB; color: #6B7280; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.header-steps .step-item.active .step-num { background: #2563EB; color: #fff; }
+.header-steps .step-item.done .step-num { background: #10B981; color: #fff; }
+.header-steps .step-title { font-size: 12px; font-weight: 500; color: #374151; }
+.header-steps .step-line { width: 32px; height: 1px; background: #E5E7EB; margin: 0 8px; }
 .header-left { display: flex; align-items: center; gap: 16px; cursor: pointer; }
 .back-icon { font-size: 20px; color: #6B7280; padding: 8px; border-radius: 8px; border: 1px solid #E5E7EB; }
-.title-block { display: flex; align-items: baseline; gap: 12px; }
+.title-block { display: flex; align-items: center; }
 .main-title { font-size: 18px; font-weight: 600; color: #111827; }
 .sub-title { font-size: 12px; color: #9CA3AF; font-weight: 500; }
 
-.create-container { flex: 1; max-width: 1000px; width: 100%; margin: 0 auto; padding: 40px 24px; display: flex; flex-direction: column; transition: max-width 0.3s; }
-.create-container.wide-container { max-width: 1400px; }
-.create-container.finish-container { max-width: 1200px; }
+.create-container { flex: 1; max-width: 1000px; width: 100%; margin: 0 auto; padding: 24px; padding-bottom: 80px; display: flex; flex-direction: column; transition: max-width 0.3s; overflow: hidden; }
+.create-container.wide-container { max-width: 1200px; }
+.create-container.finish-container { max-width: 1000px; }
+
+.create-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: #fff; border-top: 1px solid #E5E7EB; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 24px; z-index: 100; }
 
 /* Steps */
-.steps-wrapper { display: flex; align-items: center; justify-content: center; margin-bottom: 48px; }
-.steps-wrapper.simple { gap: 12px; font-size: 14px; color: #9CA3AF; margin-bottom: 32px; justify-content: flex-start; }
-.steps-wrapper.simple .step-item.active { color: #111827; font-weight: 600; }
-.steps-wrapper.simple .step-item.done { color: #6B7280; }
+.steps-wrapper { display: none; }
 
 .step-item { display: flex; align-items: center; gap: 8px; opacity: 0.5; }
 .step-item.active, .step-item.done { opacity: 1; }
@@ -1009,12 +1176,12 @@ const handleGoToDocument = () => {
 .step-item.done .step-num { background: #10B981; color: #fff; }
 .step-title { font-size: 14px; font-weight: 500; color: #374151; }
 .step-line { width: 60px; height: 1px; background: #E5E7EB; margin: 0 16px; }
-.step-content { flex: 1; }
-.section-title { font-size: 24px; font-weight: 600; color: #111827; margin-bottom: 32px; text-align: center; }
+.step-content { flex: 1; overflow-y: auto; padding-right: 8px; }
+.section-title { font-size: 20px; font-weight: 600; color: #111827; margin-bottom: 20px; text-align: center; }
 
 /* Step 1 Styles */
-.source-cards { display: flex; gap: 20px; margin-bottom: 32px; justify-content: center; }
-.source-card { width: 240px; padding: 24px; border: 1px solid #E5E7EB; border-radius: 12px; cursor: pointer; position: relative; transition: all 0.2s; }
+.source-cards { display: flex; gap: 16px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
+.source-card { width: 200px; padding: 16px; border: 1px solid #E5E7EB; border-radius: 12px; cursor: pointer; position: relative; transition: all 0.2s; flex-shrink: 0; }
 .source-card.selected { border-color: #2563EB; background: #EFF6FF; }
 .source-card.disabled { opacity: 0.5; cursor: not-allowed; background: #F9FAFB; }
 .source-icon { font-size: 32px; margin-bottom: 16px; }
@@ -1025,7 +1192,7 @@ const handleGoToDocument = () => {
 .source-info h3 { font-size: 16px; font-weight: 600; margin: 0 0 8px 0; }
 .source-info p { font-size: 13px; color: #6B7280; margin: 0; line-height: 1.4; }
 .check-mark { position: absolute; top: 12px; right: 12px; color: #2563EB; }
-.upload-zone { border: 2px dashed #E5E7EB; border-radius: 12px; padding: 48px; text-align: center; transition: all 0.2s; margin-bottom: 24px; cursor: pointer; }
+.upload-zone { border: 2px dashed #E5E7EB; border-radius: 12px; padding: 24px; text-align: center; transition: all 0.2s; margin-bottom: 16px; cursor: pointer; }
 .upload-zone:hover { border-color: #2563EB; background: #F9FAFB; }
 .upload-icon { font-size: 48px; color: #D1D5DB; margin-bottom: 16px; }
 .upload-text .link { color: #2563EB; font-weight: 500; }
@@ -1084,9 +1251,9 @@ const handleGoToDocument = () => {
 }
 
 /* Step 2 Styles */
-.step-2-layout { display: flex; gap: 32px; height: calc(100vh - 250px); overflow: hidden; }
+.step-2-layout { display: flex; gap: 24px; height: calc(100vh - 190px); overflow: hidden; }
 .step-2-config { flex: 1; overflow-y: auto; padding-right: 12px; }
-.step-2-preview { width: 500px; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+.step-2-preview { width: 420px; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
 .config-section { margin-bottom: 32px; }
 .section-label { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px; }
 .segment-mode-cards { display: flex; gap: 16px; margin-bottom: 20px; }
@@ -1126,43 +1293,99 @@ const handleGoToDocument = () => {
 .chunk-list { display: flex; flex-direction: column; gap: 16px; }
 .chunk-item { background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; font-size: 13px; }
 .chunk-meta { color: #9CA3AF; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-.chunk-content { color: #374151; line-height: 1.6; }
+.chunk-content { color: #374151; line-height: 1.6; word-break: break-word; }
+.chunk-content.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .empty-preview { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9CA3AF; gap: 16px; }
-.create-footer { margin-top: auto; padding-top: 24px; border-top: 1px solid #E5E7EB; display: flex; justify-content: space-between; }
 
-/* Step 3 Styles */
-.step-3-layout { display: flex; gap: 40px; }
-.step-3-main { flex: 1; }
-.step-3-sidebar { width: 300px; }
-.success-header { display: flex; gap: 16px; margin-bottom: 32px; }
-.emoji-icon { font-size: 48px; }
-.header-text h3 { margin: 0 0 8px 0; font-size: 24px; font-weight: 600; color: #111827; }
+/* Step 3 Styles - Single Column Layout */
+.step-3-layout { max-width: 900px; margin: 0 auto; overflow-y: auto; }
+.step-3-main { width: 100%; }
+
+/* Success Header */
+.success-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.success-icon-wrap {
+   width: 56px;
+   height: 56px;
+   background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+   border-radius: 16px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
+}
+.success-icon-wrap .success-icon { font-size: 28px; color: #fff; }
+.header-text h3 { margin: 0 0 4px 0; font-size: 22px; font-weight: 600; color: #111827; }
 .header-text p { margin: 0; color: #6B7280; font-size: 14px; }
-.kb-name-card { background: #F9FAFB; padding: 16px; border-radius: 12px; display: flex; align-items: center; gap: 16px; margin-bottom: 32px; border: 1px solid #E5E7EB; }
-.kb-icon { width: 40px; height: 40px; background: #FCD34D; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #92400E; }
-.name-input { font-size: 16px; font-weight: 500; }
-.name-input :deep(.el-input__wrapper) { box-shadow: none; background: transparent; padding: 0; }
-.name-input :deep(.el-input__inner) { font-size: 16px; color: #111827; }
-.process-section { margin-bottom: 32px; }
-.process-section .section-title { font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-.spin-icon { animation: spin 1s linear infinite; color: #F59E0B; }
-.success-icon { color: #10B981; font-size: 20px; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-.file-process-list { border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; }
-.process-item { padding: 16px; background: #fff; border-bottom: 1px solid #E5E7EB; }
-.process-item:last-child { border-bottom: none; }
-.file-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
-.file-name { display: flex; align-items: center; gap: 8px; color: #374151; }
-.process-status { color: #6B7280; }
-.summary-section { margin-bottom: 32px; }
-.summary-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #E5E7EB; font-size: 14px; }
-.summary-row .label { color: #6B7280; }
-.summary-row .value { color: #111827; font-weight: 500; }
-.step-3-actions { display: flex; gap: 16px; }
+
+/* Cards Grid */
+.cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+.info-card {
+   background: #fff;
+   border: 1px solid #E5E7EB;
+   border-radius: 12px;
+   overflow: hidden;
+}
+.info-card .card-header {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   padding: 14px 16px;
+   background: #F9FAFB;
+   border-bottom: 1px solid #E5E7EB;
+   font-weight: 500;
+   font-size: 14px;
+   color: #374151;
+}
+.info-card .card-header .el-icon { font-size: 16px; color: #6B7280; }
+.info-card .card-header .el-tag { margin-left: auto; }
+.info-card .card-body { padding: 16px; }
+
+/* KB Info Card - Full Width */
+.kb-info-card { grid-column: 1 / -1; }
+.form-item { margin-bottom: 16px; }
+.form-item:last-child { margin-bottom: 0; }
+.form-item label { display: block; font-size: 13px; color: #6B7280; margin-bottom: 8px; font-weight: 500; }
+.label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.label-row label { margin-bottom: 0; }
+
+/* Process Card */
+.file-process-list { }
+.process-item { padding: 12px; background: #F9FAFB; border-radius: 8px; margin-bottom: 8px; }
+.process-item:last-child { margin-bottom: 0; }
+.file-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 500; }
+.file-name { display: flex; align-items: center; gap: 6px; color: #374151; }
+.file-name .el-icon { color: #6B7280; }
+.process-status { color: #6B7280; font-weight: 400; }
+.empty-process {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   gap: 8px;
+   padding: 24px;
+   color: #9CA3AF;
+   font-size: 14px;
+}
+.empty-process .el-icon { font-size: 20px; }
+
+/* Config Card */
+.config-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.config-item { display: flex; flex-direction: column; gap: 4px; }
+.config-item.full-width { grid-column: 1 / -1; }
+.config-label { font-size: 12px; color: #9CA3AF; }
+.config-value { font-size: 14px; color: #374151; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+.preprocess-tags { display: flex; gap: 4px; }
+.no-preprocess { color: #9CA3AF; font-weight: 400; }
+
+/* Actions */
+.step-3-actions { display: flex; gap: 12px; padding-top: 8px; border-top: 1px solid #E5E7EB; padding-top: 20px; }
 .step-3-actions .api-btn { flex: 1; }
 .step-3-actions .go-btn { flex: 2; }
-.next-card { background: #EFF6FF; border-radius: 12px; padding: 24px; text-align: center; }
-.next-card .card-icon { width: 48px; height: 48px; background: #fff; border-radius: 50%; color: #2563EB; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px auto; }
-.next-card h4 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-.next-card p { font-size: 13px; color: #4B5563; line-height: 1.5; margin-bottom: 16px; text-align: left; }
+
+/* Responsive */
+@media (max-width: 768px) {
+   .cards-grid { grid-template-columns: 1fr; }
+   .config-grid { grid-template-columns: 1fr; }
+   .step-3-actions { flex-direction: column; }
+   .step-3-actions .api-btn, .step-3-actions .go-btn { flex: none; }
+}
 </style>

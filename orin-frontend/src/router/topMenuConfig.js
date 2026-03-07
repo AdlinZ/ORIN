@@ -137,6 +137,11 @@ export const TOP_MENU_CONFIG = [
                 title: '系统环境配置',
                 path: ROUTES.CONTROL.SYSTEM_ENV,
                 icon: 'Tools'
+            },
+            {
+                title: '知识库配置',
+                path: ROUTES.CONTROL.KNOWLEDGE_CONFIG,
+                icon: 'Collection'
             }
         ]
     }

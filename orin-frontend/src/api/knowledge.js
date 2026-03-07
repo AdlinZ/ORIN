@@ -17,7 +17,7 @@ export const addKnowledge = (data) => {
 };
 
 export const deleteKnowledge = (id) => {
-    return Promise.resolve({ code: 0, msg: '删除成功' });
+    return request.delete(`/knowledge/${id}`);
 };
 // --- Intelligence Center API ---
 

@@ -75,6 +75,9 @@ public class ModelConfig {
     @Column(name = "auto_analysis_enabled")
     private Boolean autoAnalysisEnabled;
 
+    @Column(name = "desc_generation_model")
+    private String descGenerationModel;
+
     @Column(name = "create_time")
     private LocalDateTime createTime;
 
@@ -255,6 +258,14 @@ public class ModelConfig {
 
     public void setAutoAnalysisEnabled(Boolean autoAnalysisEnabled) {
         this.autoAnalysisEnabled = autoAnalysisEnabled;
+    }
+
+    public String getDescGenerationModel() {
+        return descGenerationModel;
+    }
+
+    public void setDescGenerationModel(String descGenerationModel) {
+        this.descGenerationModel = descGenerationModel;
     }
 
     public LocalDateTime getCreateTime() {

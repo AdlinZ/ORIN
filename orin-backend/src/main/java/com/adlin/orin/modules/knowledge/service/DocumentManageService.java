@@ -101,6 +101,9 @@ public class DocumentManageService {
         document = documentRepository.save(document);
         log.info("Uploaded document: {} to knowledge base: {}", originalFilename, knowledgeBaseId);
 
+        // 自动触发向量化
+        triggerVectorization(document.getId());
+
         return document;
     }
 
@@ -109,6 +112,13 @@ public class DocumentManageService {
      */
     public List<KnowledgeDocument> getDocuments(String knowledgeBaseId) {
         return documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(knowledgeBaseId);
+    }
+
+    /**
+     * 获取所有文档
+     */
+    public List<KnowledgeDocument> getAllDocuments() {
+        return documentRepository.findAll();
     }
 
     /**
@@ -181,8 +191,6 @@ public class DocumentManageService {
 
         final String documentIdFinal = documentId;
         final String kbId = document.getKnowledgeBaseId();
-        final Integer chunkSizeCfg = document.getChunkSize();
-        final Integer overlapCfg = document.getChunkOverlap();
 
         log.info("Starting asynchronous vectorization for document: {}", documentId);
         new Thread(() -> {
@@ -203,45 +211,80 @@ public class DocumentManageService {
                     return;
                 }
 
-                // 1. Split text
-                int chunkSize = chunkSizeCfg != null ? chunkSizeCfg : 500;
-                int overlap = overlapCfg != null ? overlapCfg : 50;
-                List<String> chunksText = com.adlin.orin.modules.knowledge.util.SimpleTextSplitter.split(content,
-                        chunkSize, overlap);
+                // Get document title for metadata
+                String docTitle = currentDocForSplit != null ? currentDocForSplit.getFileName() : "Document";
 
-                List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks = new java.util.ArrayList<>();
-                for (int i = 0; i < chunksText.size(); i++) {
-                    chunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
-                            .id(UUID.randomUUID().toString())
+                // 1. Hierarchical Split: Parent-Child chunking
+                com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.HierarchicalChunks hierarchicalChunks =
+                        com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.splitHierarchical(
+                                content, documentIdFinal, docTitle);
+
+                // Build entities for both parent and child chunks
+                List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> allChunks = new java.util.ArrayList<>();
+
+                // Add parent chunks
+                for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ParentChunk parent :
+                        hierarchicalChunks.getParents()) {
+                    allChunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
+                            .id(parent.getId())
                             .documentId(documentIdFinal)
-                            .chunkIndex(i)
-                            .content(chunksText.get(i))
-                            .charCount(chunksText.get(i).length())
+                            .chunkIndex(parent.getPosition())
+                            .content(parent.getContent())
+                            .charCount(parent.getContent().length())
+                            .chunkType("parent")
+                            .parentId(null)
+                            .childrenIds(parent.getChildrenIds() != null ?
+                                    java.util.Arrays.toString(parent.getChildrenIds().toArray()) : "[]")
+                            .title(parent.getTitle())
+                            .source(docTitle)
+                            .position(parent.getPosition())
+                            .build());
+                }
+
+                // Add child chunks
+                for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ChildChunk child :
+                        hierarchicalChunks.getChildren()) {
+                    allChunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
+                            .id(child.getId())
+                            .documentId(documentIdFinal)
+                            .chunkIndex(child.getPosition())
+                            .content(child.getContent())
+                            .charCount(child.getContent().length())
+                            .chunkType("child")
+                            .parentId(child.getParentId())
+                            .title(child.getSource())
+                            .source(docTitle)
+                            .position(child.getPosition())
                             .build());
                 }
 
                 // 2. DB Operations in transaction (Delete old, Save new)
                 transactionTemplate.executeWithoutResult(status -> {
                     chunkRepository.deleteByDocumentId(documentIdFinal);
-                    chunkRepository.saveAll(chunks);
+                    chunkRepository.saveAll(allChunks);
                 });
 
                 // 3. Vector Store Operation (Milvus) - Outside DB transaction
+                // Only child chunks will be embedded (parent chunks get zero vectors as placeholder)
                 vectorService.deleteDocuments(kbId, java.util.Collections.singletonList(documentIdFinal));
-                vectorService.addChunks(kbId, chunks);
+                vectorService.addChunks(kbId, allChunks);
 
                 // 4. Update status and count in transaction
+                final int childChunkCount = hierarchicalChunks.getChildren().size();
+                final int totalCharCount = content != null ? content.length() : 0;
                 transactionTemplate.executeWithoutResult(status -> {
                     documentRepository.updateVectorStatus(documentIdFinal, "SUCCESS");
                     KnowledgeDocument finalDoc = documentRepository.findById(documentIdFinal).orElse(null);
                     if (finalDoc != null) {
-                        finalDoc.setChunkCount(chunks.size());
+                        finalDoc.setChunkCount(childChunkCount); // Report child chunk count as actual vectors
+                        finalDoc.setCharCount(totalCharCount); // Update with actual content length
                         finalDoc.setVectorIndexId("milvus_partition_" + kbId);
                         documentRepository.save(finalDoc);
                     }
                 });
 
-                log.info("Vectorization completed for document: {}, chunks: {}", documentIdFinal, chunks.size());
+                log.info("Vectorization completed for document: {}, parent chunks: {}, child chunks: {}",
+                        documentIdFinal, hierarchicalChunks.getParents().size(), childChunkCount);
 
             } catch (Throwable e) {
                 log.error("Vectorization CRITICAL FAILURE for document: " + documentIdFinal, e);
@@ -372,6 +415,24 @@ public class DocumentManageService {
     }
 
     /**
+     * 批量触发所有待处理文档的向量化
+     */
+    public int triggerPendingVectorization() {
+        List<KnowledgeDocument> pendingDocs = getPendingDocuments();
+        int count = 0;
+        for (KnowledgeDocument doc : pendingDocs) {
+            try {
+                triggerVectorization(doc.getId());
+                count++;
+            } catch (Exception e) {
+                log.error("Failed to trigger vectorization for document: {}", doc.getId(), e);
+            }
+        }
+        log.info("Triggered vectorization for {} pending documents", count);
+        return count;
+    }
+
+    /**
      * 获取知识库统计信息
      */
     public DocumentStats getKnowledgeBaseStats(String knowledgeBaseId) {
@@ -435,6 +496,26 @@ public class DocumentManageService {
                 }
             }
 
+            // 支持老版本 DOC 格式 (Word 97-2003)
+            if (fileType.equals("doc")) {
+                try (java.io.InputStream is = file.getInputStream();
+                        org.apache.poi.hwpf.HWPFDocument doc = new org.apache.poi.hwpf.HWPFDocument(is)) {
+                    org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(doc);
+                    String[] paragraphs = extractor.getParagraphText();
+                    StringBuilder text = new StringBuilder();
+                    for (String para : paragraphs) {
+                        text.append(para).append("\n");
+                        if (text.length() > 500)
+                            break;
+                    }
+                    extractor.close();
+                    return text.length() > 500 ? text.substring(0, 500) : text.toString();
+                } catch (Exception e) {
+                    log.warn("Failed to extract DOC content: {}", e.getMessage());
+                    return "[DOC Extraction Failed]";
+                }
+            }
+
             return null;
         } catch (IOException e) {
             log.warn("Failed to extract content preview", e);
@@ -442,7 +523,7 @@ public class DocumentManageService {
         }
     }
 
-    private String readFileContent(KnowledgeDocument doc) throws IOException {
+    public String readFileContent(KnowledgeDocument doc) throws IOException {
         String fileType = doc.getFileType();
         Path path = Paths.get(doc.getStoragePath());
         if (!Files.exists(path))
@@ -464,6 +545,21 @@ public class DocumentManageService {
                     text.append(p.getText()).append("\n");
                 }
                 return text.toString();
+            }
+        } else if (fileType.equalsIgnoreCase("doc")) {
+            try (java.io.InputStream is = Files.newInputStream(path);
+                    org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(is)) {
+                org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(document);
+                String[] paragraphs = extractor.getParagraphText();
+                StringBuilder text = new StringBuilder();
+                for (String para : paragraphs) {
+                    text.append(para).append("\n");
+                }
+                extractor.close();
+                return text.toString();
+            } catch (Exception e) {
+                log.warn("Failed to read DOC content: {}", e.getMessage());
+                return doc.getContentPreview();
             }
         }
         return doc.getContentPreview(); // Fallback
@@ -506,6 +602,21 @@ public class DocumentManageService {
             } catch (Exception e) {
                 log.warn("Failed to parse DOCX: {}", e.getMessage());
                 return "Failed to parse DOCX content.";
+            }
+        } else if (extension.equals("doc")) {
+            try (java.io.InputStream is = file.getInputStream();
+                    org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(is)) {
+                org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(document);
+                String[] paragraphs = extractor.getParagraphText();
+                StringBuilder text = new StringBuilder();
+                for (String para : paragraphs) {
+                    text.append(para).append("\n");
+                }
+                extractor.close();
+                return text.toString();
+            } catch (Exception e) {
+                log.warn("Failed to parse DOC: {}", e.getMessage());
+                return "Failed to parse DOC content.";
             }
         }
         return "";

@@ -172,6 +172,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- Apache POI for Old DOC (Word 97-2003) Processing -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-scratchpad</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
         <!-- DevTools for auto-restart -->
         <!-- <dependency>
             <groupId>org.springframework.boot</groupId>

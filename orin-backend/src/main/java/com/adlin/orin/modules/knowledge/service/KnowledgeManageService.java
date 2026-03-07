@@ -3,18 +3,23 @@ package com.adlin.orin.modules.knowledge.service;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO;
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
+import com.adlin.orin.modules.model.service.ModelConfigService;
+import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
+import com.adlin.orin.modules.model.entity.ModelConfig;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -33,6 +38,8 @@ public class KnowledgeManageService {
         private final ProceduralService proceduralService;
         private final MetaKnowledgeService metaKnowledgeService;
         private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository chunkRepository;
+        private final ModelConfigService modelConfigService;
+        private final SiliconFlowIntegrationService siliconFlowIntegrationService;
 
         public List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> getAllKnowledgeBases() {
                 List<KnowledgeBase> bases = knowledgeBaseRepository.findAll();
@@ -145,6 +152,32 @@ public class KnowledgeManageService {
                 return chunkRepository.findByDocumentIdOrderByChunkIndex(docId);
         }
 
+        /**
+         * 获取文档的分块统计信息 (Parent-Child)
+         */
+        public Map<String, Object> getChunkStats(String docId) {
+                List<KnowledgeDocumentChunk> chunks = chunkRepository.findByDocumentIdOrderByChunkIndex(docId);
+
+                int totalChunks = chunks.size();
+                int parentCount = 0;
+                int childCount = 0;
+
+                for (KnowledgeDocumentChunk chunk : chunks) {
+                        if ("parent".equals(chunk.getChunkType())) {
+                                parentCount++;
+                        } else {
+                                childCount++;
+                        }
+                }
+
+                Map<String, Object> stats = new HashMap<>();
+                stats.put("totalChunks", totalChunks);
+                stats.put("parentCount", parentCount);
+                stats.put("childCount", childCount);
+                stats.put("chunkingMode", "PARENT_CHILD");
+                return stats;
+        }
+
         public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.SearchResult> testRetrieval(
                         String kbId, String query, Integer topK) {
                 // Logic to determine collection name from kbId
@@ -231,12 +264,19 @@ public class KnowledgeManageService {
                         }
                 }
 
-                // 3. Delete from vector store
+                // 3. Delete from vector store (async to avoid blocking)
                 try {
-                        vectorStoreProvider.deleteKnowledgeBase(id);
+                        // Run vector store deletion in background to avoid blocking
+                        new Thread(() -> {
+                                try {
+                                        vectorStoreProvider.deleteKnowledgeBase(id);
+                                        log.info("Async deleted vector store for KB: {}", id);
+                                } catch (Exception e) {
+                                        log.warn("Failed to async delete vector store for KB {}: {}", id, e.getMessage());
+                                }
+                        }).start();
                 } catch (Throwable e) {
-                        log.warn("Failed to delete knowledge base from vector store, but continuing with DB deletion: {}",
-                                        e.getMessage());
+                        log.warn("Failed to schedule async vector store deletion: {}", e.getMessage());
                 }
 
                 // 4. Delete the KB itself
@@ -296,5 +336,134 @@ public class KnowledgeManageService {
                                 .status(kb.getStatus())
                                 .stats(stats)
                                 .build();
+        }
+
+        /**
+         * 使用AI生成知识库描述
+         */
+        public String generateDescription(String knowledgeBaseId, String modelName) {
+                try {
+                        // 获取知识库文档
+                        List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocument> docs =
+                                documentService.getDocuments(knowledgeBaseId);
+
+                        if (docs == null || docs.isEmpty()) {
+                                throw new RuntimeException("知识库中没有文档，无法生成描述");
+                        }
+
+                        // 读取前几个文档的内容摘要（限制长度以避免超出token限制）
+                        StringBuilder contentBuilder = new StringBuilder();
+                        int maxDocs = Math.min(docs.size(), 3);
+                        int maxChars = 8000;
+
+                        for (int i = 0; i < maxDocs && contentBuilder.length() < maxChars; i++) {
+                                com.adlin.orin.modules.knowledge.entity.KnowledgeDocument doc = docs.get(i);
+                                String content = documentService.readFileContent(doc);
+                                if (content != null && !content.isEmpty()) {
+                                        // 取前2000字符作为摘要
+                                        String summary = content.length() > 2000 ?
+                                                content.substring(0, 2000) : content;
+                                        contentBuilder.append("文档").append(i + 1)
+                                                .append(" (").append(doc.getFileName()).append("):\n")
+                                                .append(summary).append("\n\n");
+                                }
+                        }
+
+                        if (contentBuilder.length() == 0) {
+                                throw new RuntimeException("无法读取文档内容");
+                        }
+
+                        String documentContent = contentBuilder.toString();
+
+                        // 调用LLM生成描述
+                        return callLLMForDescription(modelName, documentContent);
+
+                } catch (Exception e) {
+                        log.error("生成知识库描述失败: {}", e.getMessage(), e);
+                        throw new RuntimeException("生成描述失败: " + e.getMessage());
+                }
+        }
+
+        /**
+         * 调用LLM生成描述
+         */
+        private String callLLMForDescription(String modelName, String documentContent) {
+                try {
+                        ModelConfig config = modelConfigService.getConfig();
+                        String endpoint = config.getSiliconFlowEndpoint();
+                        String apiKey = config.getSiliconFlowApiKey();
+                        String model = modelName != null && !modelName.isEmpty() ?
+                                modelName : config.getSystemModel();
+
+                        if (endpoint == null || endpoint.isEmpty()) {
+                                endpoint = "https://api.siliconflow.cn/v1";
+                        }
+                        if (apiKey == null || apiKey.isEmpty()) {
+                                throw new RuntimeException("未配置 SiliconFlow API Key");
+                        }
+                        if (model == null || model.isEmpty()) {
+                                model = "Qwen/Qwen2-7B-Instruct";
+                        }
+
+                        // 构建prompt
+                        String systemPrompt = "你是一个专业的知识库描述生成助手。请根据用户提供的文档内容，生成一个简洁、准确的知识库描述（100字以内），描述这个知识库的主题、内容和用途。直接输出描述内容，不要有额外说明。";
+
+                        String userPrompt = "请为以下文档内容生成知识库描述：\n\n" + documentContent;
+
+                        // 调用API
+                        Map<String, Object> requestBody = new HashMap<>();
+                        requestBody.put("model", model);
+                        requestBody.put("messages", Arrays.asList(
+                                Map.of("role", "system", "content", systemPrompt),
+                                Map.of("role", "user", "content", userPrompt)));
+                        requestBody.put("temperature", 0.7);
+                        requestBody.put("max_tokens", 200);
+
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setBearerAuth(apiKey.trim());
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+
+                        String url = endpoint.trim();
+                        if (!url.endsWith("/")) {
+                                url += "/";
+                        }
+                        url += "chat/completions";
+
+                        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+                        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                                url,
+                                HttpMethod.POST,
+                                entity,
+                                new ParameterizedTypeReference<Map<String, Object>>() {
+                                });
+
+                        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                                throw new RuntimeException("LLM API调用失败");
+                        }
+
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
+                        if (choices == null || choices.isEmpty()) {
+                                throw new RuntimeException("LLM未返回有效响应");
+                        }
+
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+                        if (message == null) {
+                                throw new RuntimeException("LLM响应格式错误");
+                        }
+
+                        String content = (String) message.get("content");
+                        if (content == null || content.isEmpty()) {
+                                throw new RuntimeException("LLM返回内容为空");
+                        }
+
+                        return content.trim();
+
+                } catch (Exception e) {
+                        log.error("调用LLM失败: {}", e.getMessage(), e);
+                        throw new RuntimeException("调用LLM失败: " + e.getMessage());
+                }
         }
 }

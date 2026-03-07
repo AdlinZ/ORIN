@@ -33,6 +33,9 @@ public class KnowledgeBase {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "description_model")
+    private String descriptionModel;
+
     @Column(name = "doc_count")
     private Integer docCount;
 

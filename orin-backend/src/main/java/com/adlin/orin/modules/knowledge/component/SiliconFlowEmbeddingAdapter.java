@@ -2,6 +2,8 @@ package com.adlin.orin.modules.knowledge.component;
 
 import com.adlin.orin.modules.apikey.entity.ExternalProviderKey;
 import com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository;
+import com.adlin.orin.modules.model.entity.ModelConfig;
+import com.adlin.orin.modules.model.service.ModelConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -20,6 +22,7 @@ import java.util.Map;
  * SiliconFlow Embedding 服务
  * API Key 优先从数据库 external_provider_keys 读取 (provider='SiliconFlow')，
  * 若数据库无配置则 fallback 到 application.properties 中的 ${SILICONFLOW_API_KEY}。
+ * Embedding 模型优先从 ModelConfigService 读取，若无则使用配置文件默认值。
  */
 @Slf4j
 @Service
@@ -27,6 +30,7 @@ import java.util.Map;
 public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
 
     private final ExternalProviderKeyRepository providerKeyRepository;
+    private final ModelConfigService modelConfigService;
 
     @Value("${siliconflow.api.key:sk-placeholder}")
     private String configApiKey;
@@ -34,43 +38,70 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
     @Value("${siliconflow.api.base-url:https://api.siliconflow.cn/v1}")
     private String baseUrl;
 
-    @Value("${siliconflow.embedding.model:BAAI/bge-m3}")
-    private String modelName;
-
-    // 运行时使用的实际 Key
+    // 运行时使用的实际配置
     private String effectiveApiKey;
+    private String modelName;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @PostConstruct
     public void init() {
-        // 优先从数据库读取 SiliconFlow Provider Key
+        // 1. 从 ModelConfigService 获取 Embedding 模型配置
         try {
-            List<ExternalProviderKey> keys = providerKeyRepository.findByProvider("SiliconFlow");
-            if (!keys.isEmpty()) {
-                ExternalProviderKey key = keys.stream()
-                        .filter(ExternalProviderKey::getEnabled)
-                        .findFirst()
-                        .orElse(keys.get(0));
-                effectiveApiKey = key.getApiKey();
-                if (key.getBaseUrl() != null && !key.getBaseUrl().isEmpty()) {
-                    baseUrl = key.getBaseUrl();
+            ModelConfig modelConfig = modelConfigService.getConfig();
+            if (modelConfig != null && modelConfig.getEmbeddingModel() != null
+                    && !modelConfig.getEmbeddingModel().isEmpty()) {
+                modelName = modelConfig.getEmbeddingModel();
+                log.info("SiliconFlowEmbeddingAdapter: loaded embedding model from ModelConfig: {}", modelName);
+
+                // 同时获取 API Key 和 Base URL
+                if (modelConfig.getSiliconFlowApiKey() != null && !modelConfig.getSiliconFlowApiKey().isEmpty()) {
+                    effectiveApiKey = modelConfig.getSiliconFlowApiKey();
+                    log.info("SiliconFlowEmbeddingAdapter: loaded API key from ModelConfig");
                 }
-                log.info("SiliconFlowEmbeddingAdapter: loaded API key from DB (provider=SiliconFlow), baseUrl={}",
-                        baseUrl);
+                if (modelConfig.getSiliconFlowEndpoint() != null && !modelConfig.getSiliconFlowEndpoint().isEmpty()) {
+                    baseUrl = modelConfig.getSiliconFlowEndpoint();
+                    log.info("SiliconFlowEmbeddingAdapter: loaded endpoint from ModelConfig: {}", baseUrl);
+                }
+            } else {
+                modelName = "BAAI/bge-m3";
             }
         } catch (Exception e) {
-            log.warn("SiliconFlowEmbeddingAdapter: could not load key from DB: {}", e.getMessage());
+            log.warn("SiliconFlowEmbeddingAdapter: could not load from ModelConfig: {}", e.getMessage());
+            modelName = "BAAI/bge-m3";
         }
 
-        // Fallback 到配置文件
+        // 2. 如果 ModelConfig 没有 API Key，从数据库 external_provider_keys 读取
+        if (effectiveApiKey == null || effectiveApiKey.isEmpty()) {
+            try {
+                List<ExternalProviderKey> keys = providerKeyRepository.findByProvider("SiliconFlow");
+                if (!keys.isEmpty()) {
+                    ExternalProviderKey key = keys.stream()
+                            .filter(ExternalProviderKey::getEnabled)
+                            .findFirst()
+                            .orElse(keys.get(0));
+                    effectiveApiKey = key.getApiKey();
+                    if (key.getBaseUrl() != null && !key.getBaseUrl().isEmpty()) {
+                        baseUrl = key.getBaseUrl();
+                    }
+                    log.info("SiliconFlowEmbeddingAdapter: loaded API key from DB (provider=SiliconFlow), baseUrl={}",
+                            baseUrl);
+                }
+            } catch (Exception e) {
+                log.warn("SiliconFlowEmbeddingAdapter: could not load key from DB: {}", e.getMessage());
+            }
+        }
+
+        // 3. Fallback 到配置文件
         if (effectiveApiKey == null || effectiveApiKey.isEmpty() || "sk-placeholder".equals(effectiveApiKey)) {
             effectiveApiKey = configApiKey;
             log.warn(
                     "SiliconFlowEmbeddingAdapter: no DB key found, using application.properties key. effectiveKey starts with: {}",
                     effectiveApiKey.substring(0, Math.min(10, effectiveApiKey.length())));
         }
+
+        log.info("SiliconFlowEmbeddingAdapter initialized: model={}, baseUrl={}", modelName, baseUrl);
     }
 
     @Override
@@ -113,5 +144,9 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
     @Override
     public String getProviderName() {
         return "siliconflow";
+    }
+
+    public String getModelName() {
+        return modelName;
     }
 }

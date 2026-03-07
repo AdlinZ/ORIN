@@ -13,8 +13,15 @@ public interface EmbeddingService {
 
     /**
      * Get the name of the embedding provider.
-     * 
+     *
      * @return provider name (e.g. "siliconflow")
      */
     String getProviderName();
+
+    /**
+     * Get the name of the embedding model.
+     *
+     * @return model name (e.g. "BAAI/bge-m3")
+     */
+    String getModelName();
 }

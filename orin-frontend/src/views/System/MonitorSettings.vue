@@ -215,22 +215,6 @@ sudo systemctl restart prometheus</pre>
                 <el-form-item label="MySQL Password">
                   <el-input v-model="envConfig['spring.datasource.password']" type="password" show-password />
                 </el-form-item>
-                
-                <el-divider content-position="left">🧠 Milvus 向量搜索引擎 (AI大脑)</el-divider>
-                <el-form-item label="Milvus Host">
-                  <el-input v-model="envConfig['milvus.host']" />
-                </el-form-item>
-                <el-form-item label="Milvus Port">
-                  <el-input v-model="envConfig['milvus.port']" />
-                </el-form-item>
-                <el-form-item label="Milvus Root Token">
-                  <el-input v-model="envConfig['milvus.token']" type="password" show-password />
-                </el-form-item>
-                <el-form-item>
-                  <el-button @click="testMilvusConnection" :loading="testingMilvus" type="success" plain size="small">
-                    测试 Milvus 连接
-                  </el-button>
-                </el-form-item>
 
                 <el-divider content-position="left">⚡ Redis 分布式高速缓存</el-divider>
                 <el-form-item label="Redis Host">
@@ -281,8 +265,6 @@ import {
 const activeTab = ref('prometheus');
 const saving = ref(false);
 const testing = ref(false);
-const testingMilvus = ref(false);
-
 const config = reactive({
   prometheusUrl: '',
   enabled: false,
@@ -343,31 +325,6 @@ const saveConfig = async () => {
     ElMessage.error('测试失败: ' + e.message);
   } finally {
     testing.value = false;
-  }
-};
-
-const testMilvusConnection = async () => {
-  testingMilvus.value = true;
-  try {
-    const host = envConfig.value['milvus.host'] || 'localhost';
-    const port = parseInt(envConfig.value['milvus.port']) || 19530;
-    const token = envConfig.value['milvus.token'] || '';
-
-    const res = await request.get('/monitor/milvus/test', {
-      params: { host, port, token }
-    });
-    console.log('Milvus Test Response:', res);
-
-    if (res.online) {
-      ElMessage.success('Milvus 连接成功！');
-    } else {
-      ElMessage.warning('Milvus 连接失败: ' + (res.error || '未知错误'));
-    }
-  } catch (e) {
-    console.error('Milvus Test Error:', e);
-    ElMessage.error('测试失败: ' + e.message);
-  } finally {
-    testingMilvus.value = false;
   }
 };
 

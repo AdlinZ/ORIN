@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/agents/**").permitAll()
                         .requestMatchers("/api/v1/model-config/**").permitAll()
                         .requestMatchers("/api/v1/conversation-logs/**").permitAll()
+                        .requestMatchers("/api/v1/knowledge/diagnose/**").permitAll()
                         // 管理端点（需要JWT认证）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())

@@ -17,6 +17,19 @@ public interface KnowledgeDocumentChunkRepository extends JpaRepository<Knowledg
     List<KnowledgeDocumentChunk> findByDocumentIdOrderByChunkIndex(String documentId);
 
     /**
+     * 根据 ID 列表查询分片
+     */
+    List<KnowledgeDocumentChunk> findByIdIn(List<String> ids);
+
+    /**
+     * 根据文档 ID 和父分片 ID 列表查询 (用于 Parent-Child 检索)
+     */
+    @Query("SELECT c FROM KnowledgeDocumentChunk c WHERE c.documentId = :docId AND c.parentId IN :parentIds")
+    List<KnowledgeDocumentChunk> findByDocumentIdAndParentIdIn(
+            @Param("docId") String documentId,
+            @Param("parentIds") List<String> parentIds);
+
+    /**
      * 关键词检索 (简化版)
      * 实际生产中应使用 Full Text Search (如 PostgreSQL tsvector 或 MySQL FULLTEXT)
      * 为兼容性暂用 LIKE
@@ -35,4 +48,9 @@ public interface KnowledgeDocumentChunkRepository extends JpaRepository<Knowledg
      * 删除文档的所有分片
      */
     void deleteByDocumentId(String documentId);
+
+    /**
+     * 根据文档 ID 查询指定类型的 chunks
+     */
+    List<KnowledgeDocumentChunk> findByDocumentIdAndChunkType(String documentId, String chunkType);
 }

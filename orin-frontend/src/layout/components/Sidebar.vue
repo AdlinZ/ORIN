@@ -132,7 +132,6 @@ const roleNameMap = {
 // 可见菜单（根据权限过滤）
 const visibleMenus = computed(() => {
   return SIDEBAR_MENU_CONFIG.filter(menu => {
-    // 如果菜单需要管理员权限，检查用户是否是管理员
     if (menu.requiresAdmin) {
       return isAdmin.value
     }

@@ -335,6 +335,14 @@ const routes = [
                         name: 'ControlSystemEnv',
                         component: () => import('@/views/System/MonitorSettings.vue'),
                         meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 知识库配置
+                    {
+                        path: 'knowledge-config',
+                        name: 'ControlKnowledgeConfig',
+                        component: () => import('@/views/System/KnowledgeConfig.vue'),
+                        meta: { title: '知识库配置', icon: 'Collection', roles: ['ROLE_ADMIN'] }
                     }
                 ]
             }

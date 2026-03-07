@@ -54,6 +54,7 @@ export const ROUTES = {
         AUDIT_LOGS: '/dashboard/control/audit-logs',
         SYSTEM_ENV: '/dashboard/control/system-env',
         FILE_MANAGEMENT: '/dashboard/control/file-management',
+        KNOWLEDGE_CONFIG: '/dashboard/control/knowledge-config',
     },
 
     // 其他
@@ -232,6 +233,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '系统环境配置',
                 path: ROUTES.CONTROL.SYSTEM_ENV,
                 icon: 'Tools',
+            },
+            {
+                title: '知识库配置',
+                path: ROUTES.CONTROL.KNOWLEDGE_CONFIG,
+                icon: 'Collection',
             },
         ],
     },

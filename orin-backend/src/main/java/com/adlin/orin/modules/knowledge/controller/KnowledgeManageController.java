@@ -4,6 +4,7 @@ import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.service.DocumentManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
+import com.adlin.orin.modules.knowledge.service.MilvusVectorService;
 import com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,10 +13,12 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
+import com.adlin.orin.modules.knowledge.component.EmbeddingService;
 
 @RestController
 @RequestMapping("/api/v1/knowledge")
@@ -32,6 +35,26 @@ public class KnowledgeManageController {
     private final com.adlin.orin.modules.knowledge.service.ProceduralService proceduralService;
     private final com.adlin.orin.modules.agent.service.AgentManageService agentManageService;
     private final com.adlin.orin.modules.knowledge.service.ExternalSyncService externalSyncService;
+    private final MilvusVectorService milvusVectorService;
+    private final EmbeddingService embeddingService;
+
+    // ==================== Milvus Collection 管理 API ====================
+
+    @Operation(summary = "获取 Collection 信息")
+    @GetMapping("/collection/info")
+    public Map<String, Object> getCollectionInfo() {
+        return milvusVectorService.getCollectionInfo();
+    }
+
+    @Operation(summary = "重建 Collection")
+    @PostMapping("/collection/recreate")
+    public Map<String, Object> recreateCollection() {
+        milvusVectorService.recreateCollection();
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("message", "Collection 已重建");
+        return result;
+    }
 
     // ==================== 外部同步 API ====================
 
@@ -203,6 +226,16 @@ public class KnowledgeManageController {
         return Map.of("status", "success", "message", "Knowledge Base deleted successfully");
     }
 
+    @Operation(summary = "AI生成知识库描述")
+    @PostMapping("/{kbId}/generate-description")
+    public Map<String, String> generateDescription(
+            @PathVariable String kbId,
+            @RequestBody Map<String, String> payload) {
+        String modelName = payload.get("model");
+        String description = knowledgeManageService.generateDescription(kbId, modelName);
+        return Map.of("description", description);
+    }
+
     // ==================== 文档管理 API ====================
 
     @Operation(summary = "上传文档到知识库")
@@ -305,6 +338,12 @@ public class KnowledgeManageController {
         KnowledgeDocument doc = documentManageService.getDocument(docId);
         String collectionName = "kb_" + doc.getKnowledgeBaseId();
         return knowledgeManageService.getDocumentChunks(collectionName, docId);
+    }
+
+    @Operation(summary = "获取文档的分块统计信息 (Parent-Child)")
+    @GetMapping("/documents/{docId}/chunks/stats")
+    public Map<String, Object> getChunkStats(@PathVariable String docId) {
+        return knowledgeManageService.getChunkStats(docId);
     }
 
     @Operation(summary = "检索效果测试 (支持多模态与模型测试)")
@@ -418,5 +457,72 @@ public class KnowledgeManageController {
             log.error("Failed to parse text from file", e);
             return Map.of("text", "Error: " + e.getMessage());
         }
+    }
+
+    @Operation(summary = "诊断 Milvus 向量库状态")
+    @GetMapping("/diagnose/milvus")
+    public Map<String, Object> diagnoseMilvus() {
+        Map<String, Object> result = new HashMap<>();
+
+        // 先返回配置信息（不连接 Milvus）
+        result.put("config", Map.of(
+            "host", "192.168.1.107",
+            "port", 19530,
+            "collection", "orin_knowledge_base"
+        ));
+
+        // 添加 Embedding 服务诊断
+        try {
+            Map<String, Object> embeddingInfo = new HashMap<>();
+            embeddingInfo.put("provider", embeddingService.getProviderName());
+            embeddingInfo.put("model", embeddingService.getModelName());
+            // 测试 embedding
+            List<Float> testEmbedding = embeddingService.embed("测试文本");
+            embeddingInfo.put("status", "ok");
+            embeddingInfo.put("dimension", testEmbedding.size());
+            result.put("embedding", embeddingInfo);
+        } catch (Exception e) {
+            log.error("Embedding diagnosis failed", e);
+            result.put("embedding", Map.of(
+                "status", "error",
+                "error", e.getMessage()
+            ));
+        }
+
+        try {
+            // 获取所有文档
+            List<KnowledgeDocument> allDocs = documentManageService.getAllDocuments();
+
+            // 获取待向量化的文档
+            List<KnowledgeDocument> pendingDocs = documentManageService.getPendingDocuments();
+            result.put("pendingDocuments", pendingDocs.size());
+
+            long successCount = allDocs.stream().filter(d -> "SUCCESS".equals(d.getVectorStatus())).count();
+            long failedCount = allDocs.stream().filter(d -> "FAILED".equals(d.getVectorStatus())).count();
+
+            result.put("documents", Map.of(
+                "total", allDocs.size(),
+                "success", successCount,
+                "failed", failedCount,
+                "pending", pendingDocs.size()
+            ));
+
+            result.put("status", "ok");
+        } catch (Exception e) {
+            log.error("Diagnosis failed", e);
+            result.put("status", "error");
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    @Operation(summary = "一键向量化所有待处理文档")
+    @PostMapping("/documents/vectorize-all")
+    public Map<String, Object> vectorizeAllPending() {
+        int count = documentManageService.triggerPendingVectorization();
+        return Map.of(
+            "message", "已触发 " + count + " 个文档的向量化",
+            "count", count
+        );
     }
 }

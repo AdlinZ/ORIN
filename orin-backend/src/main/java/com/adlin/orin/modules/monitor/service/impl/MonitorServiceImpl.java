@@ -1182,10 +1182,24 @@ public class MonitorServiceImpl implements MonitorService {
                 long lastHourCount = serverHardwareMetricRepository.countByTimestampAfter(oneHourAgo);
                 stats.put("lastHourRecords", lastHourCount);
 
+                // 离线判定阈值：5分钟没有新数据则判定为离线
+                final long OFFLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5分钟
+                long now = System.currentTimeMillis();
+
                 // 获取最新的一条记录作为当前状态
                 Optional<ServerHardwareMetric> latestOpt = serverHardwareMetricRepository.findTopByOrderByTimestampDesc();
+                boolean isOnline = false;
+                long latestTimestamp = 0;
+
                 if (latestOpt.isPresent()) {
                         ServerHardwareMetric latest = latestOpt.get();
+                        latestTimestamp = latest.getTimestamp();
+
+                        // 判断是否在线：基于记录的 online 字段 AND 数据是否过期
+                        boolean hasData = latest.getOnline() != null && latest.getOnline();
+                        boolean dataNotExpired = (now - latestTimestamp) < OFFLINE_THRESHOLD_MS;
+                        isOnline = hasData && dataNotExpired;
+
                         Map<String, Object> current = new HashMap<>();
                         current.put("cpuUsage", latest.getCpuUsage());
                         current.put("memoryUsage", latest.getMemoryUsage());
@@ -1193,7 +1207,7 @@ public class MonitorServiceImpl implements MonitorService {
                         current.put("gpuUsage", latest.getGpuUsage());
                         current.put("gpuMemoryUsage", latest.getGpuMemoryUsage());
                         current.put("timestamp", latest.getTimestamp());
-                        current.put("online", latest.getOnline());
+                        current.put("online", isOnline);
                         stats.put("current", current);
 
                         // 服务器详细信息
@@ -1207,8 +1221,28 @@ public class MonitorServiceImpl implements MonitorService {
                         serverInfo.put("diskTotal", latest.getDiskTotal());
                         serverInfo.put("networkDownload", latest.getNetworkDownload());
                         serverInfo.put("networkUpload", latest.getNetworkUpload());
-                        serverInfo.put("online", latest.getOnline());
+                        serverInfo.put("online", isOnline);
                         stats.put("serverInfo", serverInfo);
+                } else {
+                        // 没有记录，明确设置离线状态
+                        isOnline = false;
+                        stats.put("current", Map.of("online", false, "cpuUsage", 0.0, "memoryUsage", 0.0, "diskUsage", 0.0, "gpuUsage", 0.0));
+                        stats.put("serverInfo", Map.of("online", false));
+                }
+
+                // 如果超过阈值时间没有数据，强制设为离线
+                if (latestTimestamp > 0 && (now - latestTimestamp) >= OFFLINE_THRESHOLD_MS) {
+                        isOnline = false;
+                        if (stats.containsKey("current")) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> current = (Map<String, Object>) stats.get("current");
+                                current.put("online", false);
+                        }
+                        if (stats.containsKey("serverInfo")) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> serverInfo = (Map<String, Object>) stats.get("serverInfo");
+                                serverInfo.put("online", false);
+                        }
                 }
 
                 // 获取最早记录时间

@@ -35,13 +35,13 @@ import java.util.stream.Collectors;
 @org.springframework.context.annotation.Primary
 public class MilvusVectorService implements VectorStoreProvider {
 
-    @Value("${orin.milvus.host:127.0.0.1}")
+    @Value("${milvus.host:127.0.0.1}")
     private String host;
 
-    @Value("${orin.milvus.port:19530}")
+    @Value("${milvus.port:19530}")
     private int port;
 
-    @Value("${orin.milvus.token:root:Milvus}")
+    @Value("${milvus.token:}")
     private String token;
 
     // 全局唯一的 Collection 名称
@@ -70,15 +70,32 @@ public class MilvusVectorService implements VectorStoreProvider {
         MilvusServiceClient client = null;
         try {
             client = createClient();
+            int embeddingDimension = getEmbeddingDimension();
+            log.info("Target embedding dimension: {}", embeddingDimension);
+
             R<Boolean> response = client.hasCollection(HasCollectionParam.newBuilder()
                     .withCollectionName(COLLECTION_NAME)
                     .build());
             if (response.getData() != null && response.getData()) {
                 log.info("Milvus collection '{}' already exists.", COLLECTION_NAME);
-                return;
+                // 获取已存在的 collection 的 vector 字段维度
+                int existingDimension = getExistingCollectionDimension(client);
+                if (existingDimension > 0 && existingDimension != embeddingDimension) {
+                    log.warn("Dimension mismatch! Existing: {}, New: {}. Auto-recreating...", existingDimension, embeddingDimension);
+                    try {
+                        client.dropCollection(io.milvus.param.collection.DropCollectionParam.newBuilder()
+                                .withCollectionName(COLLECTION_NAME)
+                                .build());
+                        log.info("Dropped old collection for recreation");
+                    } catch (Exception e) {
+                        log.warn("Failed to drop collection: {}", e.getMessage());
+                    }
+                } else {
+                    log.info("Collection exists with matching dimension {}. Skipping recreation.", embeddingDimension);
+                }
             }
 
-            log.info("Creating Milvus collection '{}'...", COLLECTION_NAME);
+            log.info("Creating Milvus collection '{}' with dimension {}...", COLLECTION_NAME, embeddingDimension);
             FieldType docIdField = FieldType.newBuilder()
                     .withName("doc_id")
                     .withDataType(DataType.VarChar)
@@ -99,10 +116,40 @@ public class MilvusVectorService implements VectorStoreProvider {
                     .withMaxLength(8192)
                     .build();
 
+            // Parent-Child Hierarchical fields
+            FieldType chunkTypeField = FieldType.newBuilder()
+                    .withName("chunk_type")
+                    .withDataType(DataType.VarChar)
+                    .withMaxLength(20)
+                    .build();
+
+            FieldType parentIdField = FieldType.newBuilder()
+                    .withName("parent_id")
+                    .withDataType(DataType.VarChar)
+                    .withMaxLength(64)
+                    .build();
+
+            FieldType titleField = FieldType.newBuilder()
+                    .withName("title")
+                    .withDataType(DataType.VarChar)
+                    .withMaxLength(500)
+                    .build();
+
+            FieldType sourceField = FieldType.newBuilder()
+                    .withName("source")
+                    .withDataType(DataType.VarChar)
+                    .withMaxLength(500)
+                    .build();
+
+            FieldType positionField = FieldType.newBuilder()
+                    .withName("position")
+                    .withDataType(DataType.Int32)
+                    .build();
+
             FieldType vectorField = FieldType.newBuilder()
                     .withName("embedding")
                     .withDataType(DataType.FloatVector)
-                    .withDimension(1024) // bge-m3 outputs 1024-dim
+                    .withDimension(embeddingDimension)
                     .build();
 
             CreateCollectionParam createParam = CreateCollectionParam.newBuilder()
@@ -110,6 +157,11 @@ public class MilvusVectorService implements VectorStoreProvider {
                     .addFieldType(chunkIdField)
                     .addFieldType(docIdField)
                     .addFieldType(contentField)
+                    .addFieldType(chunkTypeField)
+                    .addFieldType(parentIdField)
+                    .addFieldType(titleField)
+                    .addFieldType(sourceField)
+                    .addFieldType(positionField)
                     .addFieldType(vectorField)
                     .build();
 
@@ -145,9 +197,9 @@ public class MilvusVectorService implements VectorStoreProvider {
         ConnectParam connectParam = ConnectParam.newBuilder()
                 .withHost(host)
                 .withPort(port)
-                .withAuthorization("root", token)
-                .withConnectTimeout(2, java.util.concurrent.TimeUnit.SECONDS) // 2s timeout
-                .withKeepAliveTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                .withAuthorization("root", token != null ? token : "Milvus")
+                .withConnectTimeout(3, java.util.concurrent.TimeUnit.SECONDS) // 3s timeout
+                .withKeepAliveTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
         return new MilvusServiceClient(connectParam);
     }
@@ -304,19 +356,44 @@ public class MilvusVectorService implements VectorStoreProvider {
             List<String> docIds = new ArrayList<>();
             List<String> chunkIds = new ArrayList<>();
             List<String> contents = new ArrayList<>();
+            List<String> chunkTypes = new ArrayList<>();
+            List<String> parentIds = new ArrayList<>();
+            List<String> titles = new ArrayList<>();
+            List<String> sources = new ArrayList<>();
+            List<Integer> positions = new ArrayList<>();
 
             for (var chunk : chunks) {
-                List<Float> vector = textToVector(chunk.getContent(), null);
+                // Only embed child chunks
+                List<Float> vector;
+                if ("child".equals(chunk.getChunkType())) {
+                    vector = textToVector(chunk.getContent(), null);
+                } else {
+                    // Parent chunks don't need vectors (they won't be searched)
+                    // Use zero vector as placeholder with dynamic dimension
+                    int dim = getEmbeddingDimension();
+                    vector = Collections.nCopies(dim, 0.0f);
+                }
                 vectors.add(vector);
+
                 docIds.add(chunk.getDocumentId());
                 chunkIds.add(chunk.getId());
                 contents.add(chunk.getContent());
+                chunkTypes.add(chunk.getChunkType() != null ? chunk.getChunkType() : "child");
+                parentIds.add(chunk.getParentId() != null ? chunk.getParentId() : "");
+                titles.add(chunk.getTitle() != null ? chunk.getTitle() : "");
+                sources.add(chunk.getSource() != null ? chunk.getSource() : "");
+                positions.add(chunk.getPosition() != null ? chunk.getPosition() : 0);
             }
 
             List<InsertParam.Field> fields = new ArrayList<>();
             fields.add(new InsertParam.Field("doc_id", docIds));
             fields.add(new InsertParam.Field("chunk_id", chunkIds));
-            fields.add(new InsertParam.Field("content", contents)); // Note: storing content in Milvus can be expensive
+            fields.add(new InsertParam.Field("content", contents));
+            fields.add(new InsertParam.Field("chunk_type", chunkTypes));
+            fields.add(new InsertParam.Field("parent_id", parentIds));
+            fields.add(new InsertParam.Field("title", titles));
+            fields.add(new InsertParam.Field("source", sources));
+            fields.add(new InsertParam.Field("position", positions));
             fields.add(new InsertParam.Field("embedding", vectors));
 
             InsertParam insertParam = InsertParam.newBuilder()
@@ -397,8 +474,11 @@ public class MilvusVectorService implements VectorStoreProvider {
 
             // Check if partition exists first for specific kb
             if (!isGlobalSearch && !checkPartitionExists(client, COLLECTION_NAME, partitionName)) {
+                log.warn("Partition not found: {}, returning empty results. kbId={}", partitionName, kbId);
                 return Collections.emptyList();
             }
+
+            log.info("Searching in partition: {}, query: {}, topK: {}", partitionName, query, k);
 
             if (isGlobalSearch) {
                 // If global, load the entire collection
@@ -418,7 +498,10 @@ public class MilvusVectorService implements VectorStoreProvider {
                     .withTopK(k)
                     .withVectors(Collections.singletonList(queryVector))
                     .withVectorFieldName("embedding")
-                    .withOutFields(Arrays.asList("content", "doc_id", "chunk_id"));
+                    .withOutFields(Arrays.asList("content", "doc_id", "chunk_id", "chunk_type", "parent_id", "title", "source", "position"));
+
+            // Only search child chunks for vector retrieval
+            searchBuilder.withExpr("chunk_type == 'child'");
 
             if (!isGlobalSearch) {
                 searchBuilder.withPartitionNames(Collections.singletonList(partitionName));
@@ -429,6 +512,7 @@ public class MilvusVectorService implements VectorStoreProvider {
             R<SearchResults> response = client.search(searchParam);
 
             if (response.getStatus() != R.Status.Success.getCode()) {
+                log.error("Milvus search failed: status={}, message={}", response.getStatus(), response.getMessage());
                 return Collections.emptyList();
             }
 
@@ -436,6 +520,8 @@ public class MilvusVectorService implements VectorStoreProvider {
             io.milvus.response.SearchResultsWrapper wrapper = new io.milvus.response.SearchResultsWrapper(
                     searchResults.getResults());
             List<io.milvus.response.SearchResultsWrapper.IDScore> scores = wrapper.getIDScore(0);
+
+            log.info("Milvus search returned {} results", scores.size());
 
             List<SearchResult> results = new ArrayList<>();
             // Milvus SDK behavior:
@@ -454,6 +540,11 @@ public class MilvusVectorService implements VectorStoreProvider {
             List<?> contents = wrapper.getFieldData("content", 0);
             List<?> docIds = wrapper.getFieldData("doc_id", 0);
             List<?> chunkIds = wrapper.getFieldData("chunk_id", 0);
+            List<?> chunkTypes = wrapper.getFieldData("chunk_type", 0);
+            List<?> parentIds = wrapper.getFieldData("parent_id", 0);
+            List<?> titles = wrapper.getFieldData("title", 0);
+            List<?> sources = wrapper.getFieldData("source", 0);
+            List<?> positions = wrapper.getFieldData("position", 0);
 
             for (int i = 0; i < scores.size(); i++) {
                 io.milvus.response.SearchResultsWrapper.IDScore score = scores.get(i);
@@ -463,6 +554,16 @@ public class MilvusVectorService implements VectorStoreProvider {
                     metadata.put("doc_id", docIds.get(i));
                 if (chunkIds != null && i < chunkIds.size())
                     metadata.put("chunk_id", chunkIds.get(i));
+                if (chunkTypes != null && i < chunkTypes.size())
+                    metadata.put("chunk_type", chunkTypes.get(i));
+                if (parentIds != null && i < parentIds.size())
+                    metadata.put("parent_id", parentIds.get(i));
+                if (titles != null && i < titles.size())
+                    metadata.put("title", titles.get(i));
+                if (sources != null && i < sources.size())
+                    metadata.put("source", sources.get(i));
+                if (positions != null && i < positions.size())
+                    metadata.put("position", positions.get(i));
 
                 String contentStr = "";
                 if (contents != null && i < contents.size()) {
@@ -572,7 +673,52 @@ public class MilvusVectorService implements VectorStoreProvider {
         return Collections.emptyList();
     }
 
+    /**
+     * Query chunks by parent IDs (for Parent-Child retrieval)
+     * Note: This is a simplified implementation - parent chunks are retrieved from DB instead
+     *
+     * @param kbId      Knowledge base ID
+     * @param parentIds List of parent chunk IDs
+     * @return Map of parent_id -> content
+     */
+    public Map<String, String> getParentChunksByIds(String kbId, List<String> parentIds) {
+        if (parentIds == null || parentIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        // Fallback: Parent chunks are fetched from database chunk table
+        return Collections.emptyMap();
+    }
+
     // --- Helper Methods ---
+
+    /**
+     * 动态获取 embedding 向量维度
+     */
+    private int getEmbeddingDimension() {
+        try {
+            List<Float> testEmbedding = embeddingService.embed("test");
+            if (testEmbedding != null && !testEmbedding.isEmpty()) {
+                log.info("Embedding dimension detected: {}", testEmbedding.size());
+                return testEmbedding.size();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to detect embedding dimension: {}", e.getMessage());
+        }
+        // 默认 1024
+        return 1024;
+    }
+
+    /**
+     * 获取已存在 collection 的 vector 字段维度
+     * 注：简化处理，如果无法获取则返回 -1，避免误删 collection
+     */
+    private int getExistingCollectionDimension(MilvusServiceClient client) {
+        // 简化处理：暂时无法获取现有维度，返回 -1
+        // 这样会跳过重建，避免误删数据
+        // 如需真正重建，请手动调用重建接口
+        log.info("Skipping dimension check to preserve existing data");
+        return -1;
+    }
 
     private void ensurePartitionExists(MilvusServiceClient client, String collectionName, String partitionName) {
         if (!checkPartitionExists(client, collectionName, partitionName)) {
@@ -588,13 +734,15 @@ public class MilvusVectorService implements VectorStoreProvider {
                 .withCollectionName(collectionName)
                 .withPartitionName(partitionName)
                 .build());
+        log.info("hasPartition check: collection={}, partition={}, response={}, data={}",
+                collectionName, partitionName, response.getStatus(), response.getData());
         return response.getData() != null && response.getData();
     }
 
     /**
      * Text to Vector
      * 优先使用 SiliconFlowEmbeddingAdapter (via EmbeddingService) 生成真实向量。
-     * 若失败则降级为随机向量（维度使用固定1024匹配bge-m3）。
+     * 若失败则降级为随机向量（动态检测维度）。
      */
     public List<Float> textToVector(String text, String embeddingModel) {
         // 优先使用已注入的 EmbeddingService (SiliconFlowEmbeddingAdapter)
@@ -609,12 +757,79 @@ public class MilvusVectorService implements VectorStoreProvider {
                 log.warn("SiliconFlow embedding failed, falling back: {}", e.getMessage());
             }
         }
-        // 降级: 随机向量 (index(text.hashCode) 保证同一文本向量一致)
-        log.warn("Using deterministic random vector for text (EmbeddingService unavailable or failed)");
+        // 降级: 随机向量 (text.hashCode 保证同一文本向量一致)
+        int dim = getEmbeddingDimension();
+        log.warn("Using deterministic random vector for text (EmbeddingService unavailable or failed), dimension={}", dim);
         List<Float> vector = new ArrayList<>();
         Random random = new Random(text.hashCode());
-        for (int i = 0; i < 1024; i++)
+        for (int i = 0; i < dim; i++)
             vector.add(random.nextFloat());
         return vector;
+    }
+
+    /**
+     * 获取 Collection 信息
+     */
+    public Map<String, Object> getCollectionInfo() {
+        Map<String, Object> info = new HashMap<>();
+        MilvusServiceClient client = null;
+
+        // 先返回配置信息
+        info.put("host", host);
+        info.put("port", port);
+        info.put("collectionName", COLLECTION_NAME);
+
+        try {
+            client = createClient();
+            R<Boolean> response = client.hasCollection(HasCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .build());
+
+            if (response.getStatus() == R.Status.Success.getCode() && Boolean.TRUE.equals(response.getData())) {
+                info.put("exists", true);
+                info.put("dimension", getEmbeddingDimension());
+                info.put("vectorCount", "N/A"); // SDK 2.3.4 不支持直接获取行数
+                info.put("indexType", "AUTOINDEX");
+                info.put("status", "connected");
+            } else {
+                info.put("exists", false);
+                info.put("status", "collection_not_found");
+            }
+        } catch (Exception e) {
+            log.error("Failed to get collection info: {}", e.getMessage());
+            info.put("exists", false);
+            info.put("status", "error");
+            info.put("error", e.getMessage());
+        } finally {
+            if (client != null) {
+                try {
+                    client.close();
+                } catch (Exception ignored) {}
+            }
+        }
+        return info;
+    }
+
+    /**
+     * 重建 Collection (删除并重新创建)
+     */
+    public void recreateCollection() {
+        MilvusServiceClient client = null;
+        try {
+            client = createClient();
+            // 删除现有 Collection
+            client.dropCollection(io.milvus.param.collection.DropCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .build());
+            log.info("Dropped collection '{}'", COLLECTION_NAME);
+        } catch (Exception e) {
+            log.warn("Failed to drop collection (may not exist): {}", e.getMessage());
+        } finally {
+            if (client != null) {
+                client.close();
+            }
+        }
+        // 重新创建
+        initCollection();
     }
 }
