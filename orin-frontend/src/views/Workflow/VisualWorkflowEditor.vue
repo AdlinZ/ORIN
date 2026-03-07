@@ -1163,7 +1163,12 @@ const fetchModelsList = async () => {
 const loadWorkflow = async (id) => {
   try {
     const workflow = await getWorkflow(id);
-    workflowName.value = workflow.workflowName;
+    if (!workflow) {
+      ElMessage.warning('工作流不存在');
+      return;
+    }
+    
+    workflowName.value = workflow.workflowName || '未命名工作流';
     
     let rawNodes = [];
     let rawEdges = [];
@@ -1177,7 +1182,7 @@ const loadWorkflow = async (id) => {
         rawEdges = workflow.workflowDefinition.edges || [];
     }
 
-    if (rawNodes.length > 0) {
+    if (rawNodes && rawNodes.length > 0) {
         const nodes = rawNodes.map(n => {
             const data = n.data || {};
             
@@ -1206,16 +1211,27 @@ const loadWorkflow = async (id) => {
         
         elements.value = [
           ...nodes,
-          ...rawEdges
+          ...(rawEdges || [])
         ];
+    } else {
+      // Empty workflow - add default start/end nodes
+      elements.value = [
+        { id: 'start_1', type: 'start', position: { x: 100, y: 300 }, data: { id: 'start_1' } },
+        { id: 'end_1', type: 'end', position: { x: 1000, y: 300 }, data: { id: 'end_1' } }
+      ];
     }
     
     // 加载成功后更新保存时间
     const now = new Date();
-    lastSavedTime.value = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    lastSavedTime.value = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
   } catch (e) { 
       console.error('加载工作流失败:', e);
-      ElMessage.error('加载失败'); 
+      ElMessage.error('加载失败: ' + (e.message || '未知错误'));
+      // Set default empty workflow on error
+      elements.value = [
+        { id: 'start_1', type: 'start', position: { x: 100, y: 300 }, data: { id: 'start_1' } },
+        { id: 'end_1', type: 'end', position: { x: 1000, y: 300 }, data: { id: 'end_1' } }
+      ];
   }
 };
 
@@ -1308,7 +1324,6 @@ const onConnect = (params) => {
 // (Implemented above as getDifyWorkflowData)
 
 const handleSave = async (isAuto = false) => {
-  console.log('🔵 handleSave 被调用, isAuto:', isAuto);
   if (!isAuto) saving.value = true;
   try {
     // Default name if empty
@@ -1317,7 +1332,6 @@ const handleSave = async (isAuto = false) => {
     }
 
     const workflowData = getDifyWorkflowData();
-    console.log('📦 工作流数据:', { id: route.params.id, name: workflowName.value, nodes: elements.value.filter(el => !el.source).length });
     
     // Assuming createWorkflow can update if ID exists, or we use update endpoint
     const res = await createWorkflow({
@@ -1327,24 +1341,20 @@ const handleSave = async (isAuto = false) => {
         workflowDefinition: workflowData 
     });
     
-    console.log('✅ 保存成功, 响应:', res);
-    
     // Update last saved time
     const now = new Date();
-    lastSavedTime.value = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-    console.log('⏰ 更新保存时间为:', lastSavedTime.value);
+    lastSavedTime.value = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
     
     if (res && res.id && !route.params.id) {
         // New workflow created, navigate to it
-        router.push(`${ROUTES.APPLICATIONS.WORKFLOW_VISUAL}/${res.id}`); // Fix redirect path
-        // If it was manual save, show success
+        router.push(`${ROUTES.APPLICATIONS.WORKFLOW_VISUAL}/${res.id}`);
         if (!isAuto) ElMessage.success('保存成功');
     } else {
         if (!isAuto) ElMessage.success('保存成功');
     }
   } catch (e) {
-    console.error('❌ 保存失败:', e);
-    if (!isAuto) ElMessage.error('保存失败');
+    console.error('保存失败:', e);
+    if (!isAuto) ElMessage.error('保存失败: ' + (e.response?.data?.message || e.message || '未知错误'));
   } finally {
     if (!isAuto) saving.value = false;
   }
