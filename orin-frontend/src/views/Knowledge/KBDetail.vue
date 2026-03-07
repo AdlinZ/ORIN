@@ -152,6 +152,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
 import { ROUTES } from '@/router/routes';
+import { deleteKnowledge } from '@/api/knowledge';
 
 const route = useRoute();
 const router = useRouter();
@@ -181,6 +182,13 @@ const getIconClass = (type) => {
   return 'icon-default';
 };
 
+const getChunkModeName = (method) => {
+  if (method === 'auto') return '自动';
+  if (method === 'manual') return '手动';
+  if (method === 'smart') return '智能';
+  return '自动';
+};
+
 const loadKBData = async () => {
   try {
     // Load all KBs to find the current one (fallback if detail API not specific)
@@ -204,9 +212,10 @@ const loadKBData = async () => {
             documents.value = docs.map(doc => ({
                 id: doc.id,
                 name: doc.fileName,
-                mode: doc.vectorStatus === 'INDEXED' ? '自动' : '手动',
+                mode: getChunkModeName(doc.chunkMethod),
                 wordCount: doc.charCount || 0,
-                hitCount: 0,
+                chunkSize: doc.chunkSize || 500,
+                hitCount: doc.hitCount || 0,
                 uploadTime: formatDate(doc.uploadTime),
                 enabled: true,
                 status: doc.vectorStatus
@@ -245,17 +254,20 @@ const onSubmit = () => {
   }, 500);
 };
 
-const handleDelete = () => {
-  ElMessageBox.confirm(`确认删除知识库 [${kbData.value.name}] 吗？`, '警告', {
-    type: 'warning',
-    confirmButtonClass: 'el-button--danger'
-  }).then(() => {
-    const allKBs = JSON.parse(localStorage.getItem('orin_mock_kbs') || '[]');
-    const filtered = allKBs.filter(k => k.id !== kbId.value);
-    localStorage.setItem('orin_mock_kbs', JSON.stringify(filtered));
+const handleDelete = async () => {
+  try {
+    await ElMessageBox.confirm(`确认删除知识库 [${kbData.value.name}] 吗？`, '警告', {
+      type: 'warning',
+      confirmButtonClass: 'el-button--danger'
+    });
+    await deleteKnowledge(kbId.value);
     ElMessage.success('已删除');
     router.push(ROUTES.RESOURCES.KNOWLEDGE);
-  });
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('删除失败');
+    }
+  }
 };
 
 const handleVectorize = async (row) => {
