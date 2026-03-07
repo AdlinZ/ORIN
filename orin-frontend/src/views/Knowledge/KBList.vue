@@ -74,6 +74,13 @@
         </div>
 
       </div>
+
+      <!-- Empty State -->
+      <div v-if="!loading && allKBs.length === 0" class="empty-state-container">
+        <el-empty description="暂无知识库">
+          <el-button type="primary" @click="handleAdd">创建第一个知识库</el-button>
+        </el-empty>
+      </div>
     </div>
 
     <!-- Inspector / Drawer (Detailed View) -->
@@ -313,7 +320,7 @@ const fetchData = async () => {
      }
   } catch (e) {
     console.error('Failed to load KB list:', e);
-    ElMessage.error('加载知识库列表失败');
+    ElMessage.error('加载知识库列表失败，请检查服务连接');
   } finally {
     loading.value = false;
     window.dispatchEvent(new Event('page-refresh-done'));
