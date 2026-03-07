@@ -1,51 +1,33 @@
 package com.adlin.orin.common.exception;
 
 import lombok.Getter;
+import org.springframework.http.HttpStatus;
 
 /**
- * 业务异常基类
- * 所有业务相关的异常都应该继承此类
+ * 业务异常
+ * 用于封装业务逻辑错误
  */
 @Getter
 public class BusinessException extends RuntimeException {
 
-    /**
-     * 错误代码
-     */
-    private final ErrorCode errorCode;
+    private final int code;
+    private final HttpStatus status;
 
-    /**
-     * 额外的错误详情（可选）
-     */
-    private final Object details;
-
-    public BusinessException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
-        this.details = null;
+    public BusinessException(String message) {
+        this(400, message, HttpStatus.BAD_REQUEST);
     }
 
-    public BusinessException(ErrorCode errorCode, String customMessage) {
-        super(customMessage);
-        this.errorCode = errorCode;
-        this.details = null;
+    public BusinessException(int code, String message) {
+        this(code, message, HttpStatus.BAD_REQUEST);
     }
 
-    public BusinessException(ErrorCode errorCode, String customMessage, Object details) {
-        super(customMessage);
-        this.errorCode = errorCode;
-        this.details = details;
+    public BusinessException(int code, String message, HttpStatus status) {
+        super(message);
+        this.code = code;
+        this.status = status;
     }
 
-    public BusinessException(ErrorCode errorCode, Throwable cause) {
-        super(errorCode.getMessage(), cause);
-        this.errorCode = errorCode;
-        this.details = null;
-    }
-
-    public BusinessException(ErrorCode errorCode, String customMessage, Throwable cause) {
-        super(customMessage, cause);
-        this.errorCode = errorCode;
-        this.details = null;
+    public BusinessException(String message, HttpStatus status) {
+        this(status.value(), message, status);
     }
 }

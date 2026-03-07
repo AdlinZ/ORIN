@@ -1,264 +1,101 @@
 package com.adlin.orin.common.exception;
 
-import com.adlin.orin.common.dto.Result;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 全局异常处理器
- * 统一处理所有异常并返回标准化的 Result 格式
+ * 统一处理所有异常，返回规范的 API 响应
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @Value("${spring.profiles.active:dev}")
-    private String activeProfile;
-
     /**
      * 处理业务异常
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<Result<Object>> handleBusinessException(
-            BusinessException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.warn("[TraceId: {}] Business exception: code={}, message={}",
-                traceId, ex.getErrorCode().getCode(), ex.getMessage());
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ex.getErrorCode().getCode())
-                .message(ex.getMessage())
-                .detail(isDevMode() ? ex.getErrorCode().getMessage() : null)
-                .path(request.getRequestURI())
-                .metadata(ex.getDetails())
-                .traceId(traceId)
-                .build();
-
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
+        log.warn("业务异常: {}", e.getMessage());
         return ResponseEntity
-                .status(determineHttpStatus(ex.getErrorCode()))
-                .body(response);
+                .status(e.getStatus())
+                .body(ApiResponse.error(e.getCode(), e.getMessage()));
     }
 
     /**
-     * 处理资源未找到异常
-     */
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Result<Object>> handleResourceNotFoundException(
-            ResourceNotFoundException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.warn("[TraceId: {}] Resource not found: {}", traceId, ex.getMessage());
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ex.getErrorCode().getCode())
-                .message(ex.getMessage())
-                .path(request.getRequestURI())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    /**
-     * 处理验证异常
-     */
-    @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<Result<Object>> handleValidationException(
-            ValidationException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.warn("[TraceId: {}] Validation exception: {}", traceId, ex.getMessage());
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ex.getErrorCode().getCode())
-                .message(ex.getMessage())
-                .path(request.getRequestURI())
-                .metadata(ex.getDetails())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    /**
-     * 处理认证异常
-     */
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<Result<Object>> handleAuthenticationException(
-            AuthenticationException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.warn("[TraceId: {}] Authentication failed: {}", traceId, ex.getMessage());
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ex.getErrorCode().getCode())
-                .message(ex.getMessage())
-                .path(request.getRequestURI())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-    }
-
-    /**
-     * 处理授权异常
-     */
-    @ExceptionHandler(AuthorizationException.class)
-    public ResponseEntity<Result<Object>> handleAuthorizationException(
-            AuthorizationException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.warn("[TraceId: {}] Authorization failed: {}", traceId, ex.getMessage());
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ex.getErrorCode().getCode())
-                .message(ex.getMessage())
-                .path(request.getRequestURI())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
-    }
-
-    /**
-     * 处理参数映射异常 (@Valid 触发)
+     * 处理参数校验异常
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        Map<String, String> fieldErrors = new HashMap<>();
-
-        ex.getBindingResult().getAllErrors().forEach(error -> {
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(MethodArgumentNotValidException e) {
+        Map<String, String> errors = new HashMap<>();
+        e.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            fieldErrors.put(fieldName, errorMessage);
+            errors.put(fieldName, errorMessage);
         });
-
-        log.warn("[TraceId: {}] Method argument validation failed: {}", traceId, fieldErrors);
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ErrorCode.VALIDATION_ERROR.getCode())
-                .message("数据验证失败")
-                .path(request.getRequestURI())
-                .metadata(fieldErrors)
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        
+        log.warn("参数校验失败: {}", errors);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(400, "参数校验失败", errors));
     }
 
     /**
-     * 处理约束违反异常
+     * 处理绑定异常
      */
-    @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<Result<Object>> handleConstraintViolation(
-            ConstraintViolationException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        Map<String, String> violations = new HashMap<>();
-
-        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
-            String propertyPath = violation.getPropertyPath().toString();
-            String message = violation.getMessage();
-            violations.put(propertyPath, message);
-        }
-
-        log.warn("[TraceId: {}] Constraint violation: {}", traceId, violations);
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ErrorCode.VALIDATION_ERROR.getCode())
-                .message("约束验证失败")
-                .path(request.getRequestURI())
-                .metadata(violations)
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleBindException(BindException e) {
+        Map<String, String> errors = new HashMap<>();
+        e.getFieldErrors().forEach(error -> {
+            errors.put(error.getField(), error.getDefaultMessage());
+        });
+        
+        log.warn("参数绑定失败: {}", errors);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(400, "参数绑定失败", errors));
     }
 
     /**
-     * 处理参数类型不匹配异常
+     * 处理文件上传大小超限异常
      */
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Result<Object>> handleTypeMismatch(
-            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        String message = String.format("参数 '%s' 的值 '%s' 类型不正确",
-                ex.getName(), ex.getValue());
-
-        log.warn("[TraceId: {}] Type mismatch: {}", traceId, message);
-
-        Result<Object> response = Result.<Object>builder()
-                .code(ErrorCode.INVALID_PARAMETER.getCode())
-                .message(message)
-                .path(request.getRequestURI())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("文件上传大小超限: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.error(413, "文件大小超出限制"));
     }
 
     /**
-     * 处理通用异常
+     * 处理空指针异常
+     */
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNullPointerException(NullPointerException e) {
+        log.error("空指针异常", e);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(500, "服务器内部错误"));
+    }
+
+    /**
+     * 处理其他异常
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Result<Object>> handleException(
-            Exception ex, HttpServletRequest request) {
-
-        String traceId = UUID.randomUUID().toString();
-        log.error("[TraceId: {}] Internal server error: ", traceId, ex);
-
-        ErrorCode errorCode = ErrorCode.SYSTEM_ERROR;
-        Result<Object> response = Result.<Object>builder()
-                .code(errorCode.getCode())
-                .message(errorCode.getMessage())
-                .detail(isDevMode() ? ex.getMessage() : "请联系管理员并提供 TraceId: " + traceId)
-                .path(request.getRequestURI())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-
-    /**
-     * 根据 ErrorCode 确定 HTTP 状态码
-     */
-    private HttpStatus determineHttpStatus(ErrorCode errorCode) {
-        String code = errorCode.getCode();
-        if (code.startsWith("2"))
-            return HttpStatus.NOT_FOUND;
-        if (code.startsWith("7")) {
-            if (code.equals("70004"))
-                return HttpStatus.FORBIDDEN;
-            return HttpStatus.UNAUTHORIZED;
-        }
-        if (code.startsWith("9"))
-            return HttpStatus.BAD_REQUEST;
-        return HttpStatus.INTERNAL_SERVER_ERROR;
-    }
-
-    /**
-     * 判断是否为开发模式
-     */
-    private boolean isDevMode() {
-        return "dev".equalsIgnoreCase(activeProfile);
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+        log.error("系统异常", e);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(500, "系统繁忙，请稍后重试"));
     }
 }
