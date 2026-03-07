@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.monitor.service;
 
 import com.adlin.orin.modules.audit.entity.AuditLog;
+import com.adlin.orin.modules.monitor.dto.AgentHealthOverview;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import org.springframework.data.domain.Page;
@@ -14,6 +15,11 @@ public interface MonitorService {
      * 获取全局监控概览数据
      */
     Map<String, Object> getGlobalSummary();
+
+    /**
+     * 获取智能体健康状态概览
+     */
+    AgentHealthOverview getAgentHealthOverview();
 
     /**
      * 获取指定 Agent 的实时健康状态

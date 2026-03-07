@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
+import { useLoadingStore } from '@/stores/loading';
 import Cookies from 'js-cookie';
 
 // Create Axios Instance
@@ -67,6 +68,12 @@ async function refreshToken() {
 // Request Interceptor
 service.interceptors.request.use(
     (config) => {
+        // Start global loading (skip for specific endpoints)
+        const loadingStore = useLoadingStore();
+        if (!config.skipLoading) {
+            loadingStore.startLoading();
+        }
+        
         // In real app, we get token from Store/Cookie
         const userStore = useUserStore();
         const token = userStore.token;
@@ -95,11 +102,19 @@ service.interceptors.request.use(
 // Response Interceptor
 service.interceptors.response.use(
     (response) => {
+        // Stop global loading
+        const loadingStore = useLoadingStore();
+        loadingStore.stopLoading();
+        
         // If backend returns custom code, handle it here
         // For now, we assume 200 is success
         return response.data;
     },
     async (error) => {
+        // Stop global loading on error
+        const loadingStore = useLoadingStore();
+        loadingStore.stopLoading();
+        
         console.error('Request Error:', error);
         const config = error.config;
         if (error.response && error.response.status === 401) {

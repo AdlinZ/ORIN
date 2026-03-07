@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.monitor.service.impl;
 
+import com.adlin.orin.modules.monitor.dto.AgentHealthOverview;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
@@ -148,6 +149,56 @@ public class MonitorServiceImpl implements MonitorService {
                 summary.put("system_uptime", java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime());
 
                 return summary;
+        }
+
+        @Override
+        public com.adlin.orin.modules.monitor.dto.AgentHealthOverview getAgentHealthOverview() {
+                List<AgentHealthStatus> allAgents = healthStatusRepository.findAll();
+
+                // 统计各状态的Agent数量
+                long healthyCount = allAgents.stream()
+                                .filter(a -> a.getStatus() == AgentStatus.RUNNING && a.getHealthScore() >= 80)
+                                .count();
+                long unhealthyCount = allAgents.stream()
+                                .filter(a -> a.getStatus() == AgentStatus.HIGH_LOAD || 
+                                            (a.getStatus() == AgentStatus.RUNNING && a.getHealthScore() < 80))
+                                .count();
+                long offlineCount = allAgents.stream()
+                                .filter(a -> a.getStatus() == AgentStatus.STOPPED)
+                                .count();
+
+                int total = allAgents.size();
+                double healthRate = total > 0 ? (double) healthyCount / total * 100 : 0;
+
+                // 按状态分组
+                Map<String, List<com.adlin.orin.modules.monitor.dto.AgentHealthOverview.AgentHealthItem>> agentsByStatus = 
+                        allAgents.stream()
+                                .collect(Collectors.groupingBy(
+                                        a -> a.getStatus().name(),
+                                        Collectors.mapping(
+                                                a -> com.adlin.orin.modules.monitor.dto.AgentHealthOverview.AgentHealthItem
+                                                        .builder()
+                                                        .agentId(a.getAgentId())
+                                                        .agentName(a.getAgentName())
+                                                        .status(a.getStatus().name())
+                                                        .lastHeartbeat(a.getLastHeartbeat() != null ? 
+                                                                a.getLastHeartbeat().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() : null)
+                                                        .cpuUsage(a.getCpuUsage())
+                                                        .memoryUsage(a.getMemoryUsage())
+                                                        .errorCount(a.getErrorCount())
+                                                        .build(),
+                                                Collectors.toList()
+                                        )
+                                ));
+
+                return com.adlin.orin.modules.monitor.dto.AgentHealthOverview.builder()
+                        .totalAgents(total)
+                        .healthyAgents((int) healthyCount)
+                        .unhealthyAgents((int) unhealthyCount)
+                        .offlineAgents((int) offlineCount)
+                        .healthRate(Math.round(healthRate * 100.0) / 100.0)
+                        .agentsByStatus(agentsByStatus)
+                        .build();
         }
 
         @Override

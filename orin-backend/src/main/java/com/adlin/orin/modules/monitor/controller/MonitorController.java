@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.monitor.controller;
 
 import com.adlin.orin.modules.audit.entity.AuditLog;
+import com.adlin.orin.modules.monitor.dto.AgentHealthOverview;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import com.adlin.orin.modules.monitor.service.MonitorService;
@@ -26,6 +27,12 @@ public class MonitorController {
     @GetMapping("/dashboard/summary")
     public Map<String, Object> getGlobalSummary() {
         return monitorService.getGlobalSummary();
+    }
+
+    @Operation(summary = "获取智能体健康状态概览")
+    @GetMapping("/agents/health-overview")
+    public AgentHealthOverview getAgentHealthOverview() {
+        return monitorService.getAgentHealthOverview();
     }
 
     @Operation(summary = "获取所有受监控的智能体列表")
