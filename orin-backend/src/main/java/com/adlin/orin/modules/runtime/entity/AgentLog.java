@@ -22,7 +22,11 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "agent_logs")
+@Table(name = "agent_logs", indexes = {
+    @Index(name = "idx_agent_id", columnList = "agentId"),
+    @Index(name = "idx_type", columnList = "type"),
+    @Index(name = "idx_timestamp", columnList = "timestamp")
+})
 public class AgentLog {
 
     @Id
