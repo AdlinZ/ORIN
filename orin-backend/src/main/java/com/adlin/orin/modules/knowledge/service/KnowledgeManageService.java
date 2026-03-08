@@ -33,11 +33,13 @@ public class KnowledgeManageService {
         private final KnowledgeBaseRepository knowledgeBaseRepository;
         private final RestTemplate restTemplate;
         private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorStoreProvider;
+        private final MilvusVectorService milvusVectorService;
         private final DocumentManageService documentService;
         private final StructuredService structuredService;
         private final ProceduralService proceduralService;
         private final MetaKnowledgeService metaKnowledgeService;
         private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository chunkRepository;
+        private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository documentRepository;
         private final ModelConfigService modelConfigService;
         private final SiliconFlowIntegrationService siliconFlowIntegrationService;
 
@@ -265,14 +267,24 @@ public class KnowledgeManageService {
                 }
 
                 // 3. Delete from vector store (async to avoid blocking)
+                // 同时清理 Milvus 分区和 VectorStoreProvider
+                final String kbId = id;
                 try {
                         // Run vector store deletion in background to avoid blocking
                         new Thread(() -> {
                                 try {
-                                        vectorStoreProvider.deleteKnowledgeBase(id);
-                                        log.info("Async deleted vector store for KB: {}", id);
+                                        // 删除 Milvus 分区 (当前实际使用的向量库)
+                                        milvusVectorService.deleteKnowledgeBase(kbId);
+                                        log.info("Async deleted Milvus partition for KB: {}", kbId);
                                 } catch (Exception e) {
-                                        log.warn("Failed to async delete vector store for KB {}: {}", id, e.getMessage());
+                                        log.warn("Failed to async delete Milvus partition for KB {}: {}", kbId, e.getMessage());
+                                }
+                                try {
+                                        // 删除 VectorStoreProvider (备用向量库)
+                                        vectorStoreProvider.deleteKnowledgeBase(kbId);
+                                        log.info("Async deleted vector store provider for KB: {}", kbId);
+                                } catch (Exception e) {
+                                        log.warn("Failed to async delete vector store provider for KB {}: {}", kbId, e.getMessage());
                                 }
                         }).start();
                 } catch (Throwable e) {
@@ -465,5 +477,64 @@ public class KnowledgeManageService {
                         log.error("调用LLM失败: {}", e.getMessage(), e);
                         throw new RuntimeException("调用LLM失败: " + e.getMessage());
                 }
+        }
+
+        /**
+         * 获取知识库的向量详情
+         */
+        public Map<String, Object> getKnowledgeBaseVectors(String kbId, int page, int size) {
+                Map<String, Object> result = new HashMap<>();
+
+                // 获取知识库信息
+                Optional<KnowledgeBase> kbOpt = knowledgeBaseRepository.findById(kbId);
+                if (kbOpt.isEmpty()) {
+                        result.put("error", "知识库不存在");
+                        return result;
+                }
+                KnowledgeBase kb = kbOpt.get();
+                result.put("knowledgeBase", Map.of("id", kb.getId(), "name", kb.getName()));
+
+                // 查询该知识库的分片
+                List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocument> docs =
+                        documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(kbId);
+
+                List<Map<String, Object>> chunks = new ArrayList<>();
+                int totalChunks = 0;
+
+                for (com.adlin.orin.modules.knowledge.entity.KnowledgeDocument doc : docs) {
+                        List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> docChunks =
+                                chunkRepository.findByDocumentIdOrderByChunkIndex(doc.getId());
+
+                        for (com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk chunk : docChunks) {
+                                if (chunk.getChunkType() == null || "child".equals(chunk.getChunkType())) {
+                                        totalChunks++;
+                                        Map<String, Object> chunkInfo = new HashMap<>();
+                                        chunkInfo.put("id", chunk.getId());
+                                        chunkInfo.put("docId", chunk.getDocumentId());
+                                        chunkInfo.put("fileName", doc.getFileName());
+                                        chunkInfo.put("chunkIndex", chunk.getChunkIndex());
+                                        chunkInfo.put("content", chunk.getContent());
+                                        chunkInfo.put("charCount", chunk.getCharCount());
+                                        chunkInfo.put("vectorId", chunk.getVectorId());
+                                        chunkInfo.put("title", chunk.getTitle());
+                                        chunks.add(chunkInfo);
+                                }
+                        }
+                }
+
+                // 分页
+                int start = page * size;
+                int end = Math.min(start + size, chunks.size());
+                List<Map<String, Object>> pagedChunks = chunks.subList(
+                        Math.min(start, chunks.size()),
+                        Math.min(end, chunks.size()));
+
+                result.put("totalChunks", totalChunks);
+                result.put("totalDocs", docs.size());
+                result.put("chunks", pagedChunks);
+                result.put("page", page);
+                result.put("size", size);
+
+                return result;
         }
 }

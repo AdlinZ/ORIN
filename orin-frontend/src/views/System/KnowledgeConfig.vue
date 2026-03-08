@@ -12,7 +12,7 @@
       </template>
     </PageHeader>
 
-    <el-tabs v-model="activeTab" class="config-tabs">
+    <el-tabs v-model="activeTab" class="config-tabs" @tab-click="handleTabClick">
       <!-- Milvus 向量引擎 Tab -->
       <el-tab-pane label="Milvus 向量引擎" name="milvus">
         <el-row :gutter="24">
@@ -136,6 +136,75 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
         </el-row>
       </el-tab-pane>
 
+      <!-- Milvus 数据详情 Tab -->
+      <el-tab-pane label="向量数据详情" name="milvus-detail">
+        <el-card class="premium-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>Milvus 向量数据详情</span>
+              <el-button @click="loadCollectionDetail" :loading="loadingDetail" size="small" type="primary" plain style="margin-left: auto">
+                刷新数据
+              </el-button>
+            </div>
+          </template>
+
+          <div v-if="collectionDetail.exists" class="detail-info">
+            <el-descriptions :column="2" border>
+              <el-descriptions-item label="Collection 名称">
+                {{ collectionDetail.collectionName }}
+              </el-descriptions-item>
+              <el-descriptions-item label="向量维度">
+                {{ collectionDetail.dimension }}
+              </el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="collectionDetail.status === 'connected' ? 'success' : 'warning'">
+                  {{ collectionDetail.status }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="向量总数">
+                {{ collectionDetail.totalVectors || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="文档总数">
+                {{ collectionDetail.totalDocs || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="分区数量">
+                {{ collectionDetail.partitionCount || 0 }}
+              </el-descriptions-item>
+            </el-descriptions>
+
+            <!-- 知识库列表 -->
+            <div v-if="collectionDetail.knowledgeBases && collectionDetail.knowledgeBases.length > 0" style="margin-top: 20px">
+              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">知识库详情</h4>
+              <el-table :data="collectionDetail.knowledgeBases" size="small" border stripe>
+                <el-table-column prop="name" label="知识库名称">
+                  <template #default="{ row }">
+                    <el-button type="primary" link @click="viewKnowledgeBaseVectors(row)">
+                      {{ row.name }}
+                    </el-button>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="docCount" label="文档数" width="100" />
+                <el-table-column prop="vectorCount" label="向量数" width="100" />
+              </el-table>
+            </div>
+
+            <!-- 分区列表 -->
+            <div v-if="collectionDetail.partitions && collectionDetail.partitions.length > 0" style="margin-top: 20px">
+              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">分区信息</h4>
+              <el-table :data="collectionDetail.partitions" size="small" border stripe>
+                <el-table-column prop="name" label="分区名称" />
+                <el-table-column prop="vectorCount" label="向量数" width="100" />
+              </el-table>
+            </div>
+
+            <el-alert v-if="collectionDetail.note" :title="collectionDetail.note" type="info" style="margin-top: 16px" show-icon />
+          </div>
+
+          <el-empty v-else description="Collection 不存在或未连接" :image-size="80" />
+        </el-card>
+      </el-tab-pane>
+
       <!-- 模型配置 Tab (Embedding + Rerank + AI描述生成) -->
       <el-tab-pane label="模型配置" name="embedding">
         <el-row :gutter="24">
@@ -150,6 +219,47 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
               </template>
 
               <el-form :model="config" label-position="top" class="config-form">
+                <el-form-item label="向量嵌入服务提供商">
+                  <el-select
+                    v-model="config.embeddingProvider"
+                    style="width: 100%"
+                    placeholder="选择嵌入服务提供商"
+                    @change="onProviderChange"
+                  >
+                    <el-option
+                      v-for="provider in embeddingProviders"
+                      :key="provider.value"
+                      :label="provider.label"
+                      :value="provider.value"
+                    />
+                  </el-select>
+                  <p class="form-tip">选择用于文档向量化的嵌入服务提供商</p>
+                </el-form-item>
+
+                <el-form-item label="API 密钥">
+                  <el-select
+                    v-model="config.embeddingApiKeyId"
+                    style="width: 100%"
+                    placeholder="选择已配置的 API 密钥"
+                    clearable
+                    @focus="loadApiKeys"
+                  >
+                    <el-option
+                      v-for="key in apiKeys"
+                      :key="key.id"
+                      :label="`${key.provider} - ${key.name || key.id}`"
+                      :value="key.id"
+                    >
+                      <span style="float: left">{{ key.provider }}</span>
+                      <span style="float: right; color: #8492a6; font-size: 12px">{{ key.enabled ? '已启用' : '已禁用' }}</span>
+                    </el-option>
+                  </el-select>
+                  <p class="form-tip">
+                    选择已在"API密钥管理"中配置的密钥
+                    <el-button type="primary" link @click="router.push('/system/api-keys')">去配置</el-button>
+                  </p>
+                </el-form-item>
+
                 <el-form-item label="Embedding 模型">
                   <el-select
                     v-model="config.embeddingModel"
@@ -351,6 +461,48 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
         </el-row>
       </el-tab-pane>
     </el-tabs>
+
+    <!-- 向量详情弹窗 -->
+    <el-dialog
+      v-model="vectorDialogVisible"
+      :title="`向量详情 - ${vectorDialogData.knowledgeBase?.name || ''}`"
+      width="900px"
+      destroy-on-close
+    >
+      <div v-loading="vectorDialogData.loading">
+        <el-alert
+          :title="`共 ${vectorDialogData.totalChunks} 个向量，${vectorDialogData.totalDocs} 个文档`"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 16px"
+        />
+
+        <el-table :data="vectorDialogData.chunks" size="small" border max-height="500">
+          <el-table-column prop="fileName" label="文件名" width="180" show-overflow-tooltip />
+          <el-table-column prop="chunkIndex" label="索引" width="60" />
+          <el-table-column prop="title" label="标题" width="150" show-overflow-tooltip />
+          <el-table-column prop="content" label="内容" min-width="250" show-overflow-tooltip />
+          <el-table-column prop="charCount" label="字符数" width="80" />
+          <el-table-column prop="vectorId" label="Vector ID" width="100" show-overflow-tooltip />
+        </el-table>
+
+        <div style="margin-top: 16px; text-align: center">
+          <el-button
+            v-if="vectorDialogData.chunks.length < vectorDialogData.totalChunks"
+            type="primary"
+            link
+            @click="loadMoreVectors"
+            :loading="vectorDialogData.loading"
+          >
+            加载更多
+          </el-button>
+          <span v-else-if="vectorDialogData.chunks.length > 0" style="color: #999">
+            已加载全部
+          </span>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -387,12 +539,21 @@ const chatModels = ref([]);
 const rerankModels = ref([]);
 const chatModelsForConfig = ref([]);
 const testingDescModel = ref(false);
+const apiKeys = ref([]);
+
+// Embedding Provider 列表
+const embeddingProviders = [
+  { value: 'SiliconFlow', label: 'SiliconFlow', endpoint: 'https://api.siliconflow.cn/v1' },
+  { value: 'Ollama', label: 'Ollama (本地)', endpoint: '' }
+];
 
 const config = reactive({
   milvusHost: 'localhost',
   milvusPort: 19530,
   milvusToken: '',
-  embeddingModel: 'BAAI/bge-m3',
+  embeddingProvider: 'SiliconFlow',
+  embeddingModel: 'Qwen/Qwen3-Embedding-8B',
+  embeddingApiKeyId: '',
   siliconflowApiKey: '',
   siliconflowBaseUrl: 'https://api.siliconflow.cn/v1',
   defaultCollection: 'orin_knowledge_base',
@@ -407,15 +568,43 @@ const config = reactive({
 
 const milvusStatus = ref({ online: false });
 const collectionInfo = ref({ exists: false });
+const collectionDetail = ref({ exists: false, partitions: [] });
+const loadingDetail = ref(false);
+
+// 向量详情弹窗
+const vectorDialogVisible = ref(false);
+const vectorDialogData = ref({
+  knowledgeBase: null,
+  chunks: [],
+  totalChunks: 0,
+  totalDocs: 0,
+  page: 0,
+  size: 20,
+  loading: false
+});
 const knowledgeStats = ref({
   totalKBs: 0,
   totalDocs: 0,
   totalVectors: 0
 });
 
+// 加载 API Keys
+const loadApiKeys = async () => {
+  try {
+    const res = await request.get('/api-keys/external');
+    apiKeys.value = res || [];
+  } catch (e) {
+    console.error('加载 API Keys 失败:', e);
+    apiKeys.value = [];
+  }
+};
+
 // 加载配置
 const loadConfig = async () => {
   try {
+    // 先加载 API Keys
+    await loadApiKeys();
+
     // 加载 Milvus 配置
     const res = await request.get('/monitor/system/properties');
     if (res) {
@@ -431,7 +620,9 @@ const loadConfig = async () => {
     try {
       const modelConfig = await request.get('/model-config');
       if (modelConfig) {
-        config.embeddingModel = modelConfig.embeddingModel || 'BAAI/bge-m3';
+        config.embeddingProvider = modelConfig.embeddingProvider || 'SiliconFlow';
+        config.embeddingModel = modelConfig.embeddingModel || 'Qwen/Qwen3-Embedding-8B';
+        config.embeddingApiKeyId = modelConfig.embeddingApiKeyId || '';
         config.siliconflowApiKey = modelConfig.siliconFlowApiKey || '';
         config.siliconflowBaseUrl = modelConfig.siliconFlowEndpoint || 'https://api.siliconflow.cn/v1';
         config.descGenerationModel = modelConfig.descGenerationModel || '';
@@ -461,7 +652,9 @@ const saveConfig = async () => {
 
     // 保存 Embedding 模型配置和 AI 描述生成模型到模型系统配置
     await request.put('/model-config', {
+      embeddingProvider: config.embeddingProvider,
       embeddingModel: config.embeddingModel,
+      embeddingApiKeyId: config.embeddingApiKeyId || null,
       descGenerationModel: config.descGenerationModel,
       siliconFlowEndpoint: config.siliconflowBaseUrl,
       siliconFlowApiKey: config.siliconflowApiKey
@@ -533,6 +726,75 @@ const loadCollectionInfo = async () => {
   }
 };
 
+// 加载 Collection 详情
+const loadCollectionDetail = async () => {
+  loadingDetail.value = true;
+  try {
+    const res = await request.get('/knowledge/collection/detail');
+    if (res) {
+      collectionDetail.value = res;
+    }
+  } catch (e) {
+    console.error('加载 Collection 详情失败:', e);
+    collectionDetail.value = { exists: false };
+  } finally {
+    loadingDetail.value = false;
+  }
+};
+
+// Tab 切换处理
+const handleTabClick = (tab) => {
+  if (tab.props.name === 'milvus-detail') {
+    loadCollectionDetail();
+  }
+};
+
+// 查看知识库向量详情
+const viewKnowledgeBaseVectors = async (kb) => {
+  vectorDialogData.value = {
+    knowledgeBase: kb,
+    chunks: [],
+    totalChunks: 0,
+    totalDocs: 0,
+    page: 0,
+    size: 20,
+    loading: true
+  };
+  vectorDialogVisible.value = true;
+
+  try {
+    const res = await request.get(`/knowledge/kb/${kb.id}/vectors`, {
+      params: { page: 0, size: 20 }
+    });
+    vectorDialogData.value.chunks = res.chunks || [];
+    vectorDialogData.value.totalChunks = res.totalChunks || 0;
+    vectorDialogData.value.totalDocs = res.totalDocs || 0;
+  } catch (e) {
+    ElMessage.error('加载向量详情失败: ' + e.message);
+  } finally {
+    vectorDialogData.value.loading = false;
+  }
+};
+
+// 加载更多向量
+const loadMoreVectors = async () => {
+  if (vectorDialogData.value.loading) return;
+  vectorDialogData.value.loading = true;
+
+  try {
+    const nextPage = vectorDialogData.value.page + 1;
+    const res = await request.get(`/knowledge/kb/${vectorDialogData.value.knowledgeBase.id}/vectors`, {
+      params: { page: nextPage, size: vectorDialogData.value.size }
+    });
+    vectorDialogData.value.chunks = [...vectorDialogData.value.chunks, ...(res.chunks || [])];
+    vectorDialogData.value.page = nextPage;
+  } catch (e) {
+    ElMessage.error('加载更多失败: ' + e.message);
+  } finally {
+    vectorDialogData.value.loading = false;
+  }
+};
+
 // 重建 Collection
 const recreateCollection = async () => {
   try {
@@ -559,9 +821,20 @@ const recreateCollection = async () => {
   }
 };
 
+// Provider 切换时更新配置
+const onProviderChange = (provider) => {
+  const providerConfig = embeddingProviders.find(p => p.value === provider);
+  if (providerConfig) {
+    config.siliconflowBaseUrl = providerConfig.endpoint || '';
+  }
+  // 清空模型选择
+  config.embeddingModel = '';
+};
+
 // 加载 Embedding 模型列表 - 从系统模型管理中获取
 const loadEmbeddingModels = async () => {
-  if (embeddingModels.value.length > 0) return;
+  // 如果已加载过且是当前 provider 的模型，不重复加载
+  // 这里简化处理，每次都重新加载
 
   loadingModels.value = true;
   try {

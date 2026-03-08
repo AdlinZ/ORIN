@@ -6,6 +6,7 @@ import com.adlin.orin.modules.knowledge.service.DocumentManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
 import com.adlin.orin.modules.knowledge.service.MilvusVectorService;
 import com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO;
+import com.adlin.orin.modules.audit.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class KnowledgeManageController {
     private final com.adlin.orin.modules.knowledge.service.ExternalSyncService externalSyncService;
     private final MilvusVectorService milvusVectorService;
     private final EmbeddingService embeddingService;
+    private final AuditLogService auditLogService;
 
     // ==================== Milvus Collection 管理 API ====================
 
@@ -44,6 +46,21 @@ public class KnowledgeManageController {
     @GetMapping("/collection/info")
     public Map<String, Object> getCollectionInfo() {
         return milvusVectorService.getCollectionInfo();
+    }
+
+    @Operation(summary = "获取 Milvus 详细数据")
+    @GetMapping("/collection/detail")
+    public Map<String, Object> getCollectionDetail() {
+        return milvusVectorService.getCollectionDetail();
+    }
+
+    @Operation(summary = "获取知识库的向量详情")
+    @GetMapping("/kb/{kbId}/vectors")
+    public Map<String, Object> getKnowledgeBaseVectors(
+            @PathVariable String kbId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return knowledgeManageService.getKnowledgeBaseVectors(kbId, page, size);
     }
 
     @Operation(summary = "重建 Collection")
@@ -210,19 +227,39 @@ public class KnowledgeManageController {
     @Operation(summary = "创建本地/外部知识库")
     @PostMapping
     public KnowledgeBase createKnowledgeBase(@RequestBody com.adlin.orin.modules.knowledge.entity.KnowledgeBase kb) {
-        return knowledgeManageService.createKnowledgeBase(kb);
+        KnowledgeBase result = knowledgeManageService.createKnowledgeBase(kb);
+        // 审计日志
+        auditLogService.logApiCall(
+            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            "/knowledge", "POST", kb.getName(), null, null,
+            "{\"name\":\"" + kb.getName() + "\"}", null, 200, null,
+            null, null, null, true, null, null, null);
+        return result;
     }
 
     @Operation(summary = "更新知识库基础信息")
     @PutMapping("/{kbId}")
     public KnowledgeBase updateKnowledgeBase(@PathVariable String kbId, @RequestBody KnowledgeBase kb) {
-        return knowledgeManageService.updateKnowledgeBase(kbId, kb);
+        KnowledgeBase result = knowledgeManageService.updateKnowledgeBase(kbId, kb);
+        // 审计日志
+        auditLogService.logApiCall(
+            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            "/knowledge/" + kbId, "PUT", kb.getName(), null, null,
+            null, null, 200, null,
+            null, null, null, true, null, null, null);
+        return result;
     }
 
     @Operation(summary = "删除知识库")
     @DeleteMapping("/{kbId}")
     public Map<String, String> deleteKnowledgeBase(@PathVariable String kbId) {
         knowledgeManageService.deleteKnowledgeBase(kbId);
+        // 审计日志
+        auditLogService.logApiCall(
+            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            "/knowledge/" + kbId, "DELETE", kbId, null, null,
+            null, null, 200, null,
+            null, null, null, true, null, null, null);
         return Map.of("status", "success", "message", "Knowledge Base deleted successfully");
     }
 
@@ -245,7 +282,14 @@ public class KnowledgeManageController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String uploadedBy) {
         try {
-            return documentManageService.uploadDocument(kbId, file, uploadedBy);
+            KnowledgeDocument result = documentManageService.uploadDocument(kbId, file, uploadedBy);
+            // 审计日志
+            auditLogService.logApiCall(
+                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                "/knowledge/" + kbId + "/documents/upload", "POST", file.getOriginalFilename(), null, null,
+                "{\"kbId\":\"" + kbId + "\",\"filename\":\"" + file.getOriginalFilename() + "\"}", null, 200, null,
+                null, null, null, true, null, null, null);
+            return result;
         } catch (Exception e) {
             throw new RuntimeException("Failed to upload document: " + e.getMessage(), e);
         }
@@ -267,13 +311,26 @@ public class KnowledgeManageController {
     @DeleteMapping("/documents/{docId}")
     public Map<String, String> deleteDocument(@PathVariable String docId) {
         documentManageService.deleteDocument(docId);
+        // 审计日志
+        auditLogService.logApiCall(
+            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            "/knowledge/documents/" + docId, "DELETE", docId, null, null,
+            null, null, 200, null,
+            null, null, null, true, null, null, null);
         return Map.of("status", "deleted", "documentId", docId);
     }
 
     @Operation(summary = "触发文档向量化")
     @PostMapping("/documents/{docId}/vectorize")
     public KnowledgeDocument triggerVectorization(@PathVariable String docId) {
-        return documentManageService.triggerVectorization(docId);
+        KnowledgeDocument result = documentManageService.triggerVectorization(docId);
+        // 审计日志
+        auditLogService.logApiCall(
+            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            "/knowledge/documents/" + docId + "/vectorize", "POST", docId, null, null,
+            null, null, 200, null,
+            null, null, null, true, null, null, null);
+        return result;
     }
 
     @Operation(summary = "更新向量化状态")
@@ -357,11 +414,22 @@ public class KnowledgeManageController {
         String imageUrl = (String) payload.get("imageUrl");
         String vlmModel = (String) payload.get("vlmModel");
 
+        Object result;
         if (imageUrl != null && !imageUrl.isEmpty()) {
-            return retrievalService.multimodalSearch(kbId, imageUrl, vlmModel, embeddingModel, topK);
+            result = retrievalService.multimodalSearch(kbId, imageUrl, vlmModel, embeddingModel, topK);
+        } else {
+            result = retrievalService.hybridSearch(kbId, query, topK, embeddingModel);
         }
 
-        return retrievalService.hybridSearch(kbId, query, topK, embeddingModel);
+        // 审计日志 - RAG 检索
+        auditLogService.logApiCall(
+            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            "/knowledge/retrieve/test", "POST", kbId != null ? kbId : "all", null, null,
+            "{\"query\":\"" + (query != null ? query.substring(0, Math.min(50, query.length())) : "") + "\",\"topK\":" + topK + "}",
+            null, 200, null,
+            null, null, null, true, null, null, null);
+
+        return result;
     }
 
     @Operation(summary = "获取元知识 (Prompt模板)")
@@ -472,14 +540,16 @@ public class KnowledgeManageController {
         ));
 
         // 添加 Embedding 服务诊断
+        int embeddingDimension = 0;
         try {
             Map<String, Object> embeddingInfo = new HashMap<>();
             embeddingInfo.put("provider", embeddingService.getProviderName());
             embeddingInfo.put("model", embeddingService.getModelName());
             // 测试 embedding
             List<Float> testEmbedding = embeddingService.embed("测试文本");
+            embeddingDimension = testEmbedding.size();
             embeddingInfo.put("status", "ok");
-            embeddingInfo.put("dimension", testEmbedding.size());
+            embeddingInfo.put("dimension", embeddingDimension);
             result.put("embedding", embeddingInfo);
         } catch (Exception e) {
             log.error("Embedding diagnosis failed", e);
@@ -487,6 +557,27 @@ public class KnowledgeManageController {
                 "status", "error",
                 "error", e.getMessage()
             ));
+        }
+
+        // 获取 Collection 维度并检查是否匹配
+        try {
+            Map<String, Object> collectionInfo = milvusVectorService.getCollectionInfo();
+            result.put("collection", collectionInfo);
+
+            // 检查维度是否匹配
+            if (collectionInfo.get("exists") == Boolean.TRUE && collectionInfo.get("dimension") != null) {
+                int collectionDimension = (int) collectionInfo.get("dimension");
+                if (embeddingDimension > 0 && collectionDimension != embeddingDimension) {
+                    String warning = String.format(
+                        "维度不匹配! Embedding 模型维度: %d, Collection 维度: %d. 这会导致语义搜索返回空结果. 请重建 Collection 或更换 Embedding 模型.",
+                        embeddingDimension, collectionDimension);
+                    result.put("warning", warning);
+                    result.put("dimensionMismatch", true);
+                    log.error(warning);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get collection info for diagnosis: {}", e.getMessage());
         }
 
         try {

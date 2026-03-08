@@ -57,8 +57,13 @@
             <el-form-item label="Rerank 模型" style="margin-top:12px">
               <el-select v-model="config.rerankModel" style="width:100%">
                 <el-option label="不使用 Rerank" value="none" />
-                <el-option label="BGE-Reranker-v2" value="bge-v2" />
-                <el-option label="Cohere-Rerank-v3" value="cohere-v3" />
+                <el-option
+                  v-for="m in rerankModels"
+                  :key="m.modelId"
+                  :label="m.name"
+                  :value="m.modelId"
+                />
+                <el-option v-if="rerankModels.length === 0" label="暂无可用 Rerank 模型" value="none" disabled />
               </el-select>
             </el-form-item>
 
@@ -81,6 +86,7 @@
             v-model="query"
             placeholder="输入查询语句，开始 Hybrid Search 链路诊断..."
             class="search-input"
+            style="width: 100%"
             size="large"
             clearable
             @keyup.enter="handleSearch"
@@ -211,7 +217,18 @@
           </div>
 
           <!-- Empty States -->
-          <el-empty v-else-if="hasSearched" description="未召回任何内容，尝试放宽 Threshold 或修改 Query" />
+          <el-empty v-else-if="hasSearched" description="未召回任何内容，尝试放宽 Threshold 或修改 Query">
+            <template #image>
+              <el-icon :size="64" color="#C8C9CC"><Search /></el-icon>
+            </template>
+            <div v-if="debugInfo" class="debug-info">
+              <p>后端返回了 {{ debugInfo.totalResults }} 条结果</p>
+              <p>向量检索: {{ debugInfo.vectorCount }} 条 | 关键词检索: {{ debugInfo.keywordCount }} 条</p>
+              <p v-if="debugInfo.vectorCount === 0" class="debug-warning">⚠️ 语义检索失败：可能是Embedding服务未配置或API Key无效</p>
+              <p>最高分: {{ debugInfo.maxScore }} | 最低分: {{ debugInfo.minScore }}</p>
+              <p class="debug-hint">提示：降低 Similarity Threshold 可查看更多结果</p>
+            </div>
+          </el-empty>
           <div v-else class="welcome-state">
             <el-icon :size="64" color="#C8C9CC"><Aim /></el-icon>
             <h3>RAG 链路诊断中心</h3>
@@ -267,12 +284,14 @@ const executionTime = ref(0);
 const results = ref([]);
 const knowledgeBases = ref([]);
 const embeddingModels = ref([]);
+const rerankModels = ref([]);
 const drawerVisible = ref(false);
 const selectedResult = ref(null);
+const debugInfo = ref(null);
 
 const config = reactive({
   topK: 8,
-  threshold: 0.5,
+  threshold: 0.3,
   alpha: 0.7,
   rerankModel: 'none',
   embeddingModel: '',
@@ -291,6 +310,9 @@ onMounted(async () => {
       request.get('/knowledge/list'),
     ]);
     embeddingModels.value = (modelsRes || []).filter(m => m.type?.toUpperCase() === 'EMBEDDING');
+    rerankModels.value = (modelsRes || []).filter(m =>
+      m.type?.toUpperCase() === 'RERANK' || m.type?.toUpperCase() === 'RERANKER'
+    );
     const kbs = (kbRes || []).filter(kb => kb.status === 'ENABLED');
     knowledgeBases.value = [
       { id: 'all', name: '全局检索 (All KBs)' },
@@ -312,6 +334,7 @@ const handleSearch = async () => {
 
   loading.value = true;
   hasSearched.value = true;
+  debugInfo.value = null;
   const t0 = Date.now();
 
   try {
@@ -325,17 +348,39 @@ const handleSearch = async () => {
     executionTime.value = Date.now() - t0;
     const items = Array.isArray(response) ? response : (response?.data || response?.results || []);
 
-    results.value = items
-      .map(r => ({
-        score: r.score ?? 0,
-        content: r.content ?? '',
-        sourceDoc: r.metadata?.source || r.metadata?.doc_id || '未知文档',
-        chunkIndex: r.metadata?.chunk_id || '-',
-        matchType: r.matchType || (r.score > 0.4 ? 'VECTOR' : 'KEYWORD'),
-      }))
-      .filter(r => r.score >= config.threshold);
+    // 先不过滤，记录总数
+    const allResults = items.map(r => ({
+      score: r.score ?? 0,
+      content: r.content ?? '',
+      sourceDoc: r.metadata?.source || r.metadata?.doc_id || '未知文档',
+      chunkIndex: r.metadata?.chunk_id || '-',
+      matchType: r.matchType || (r.score > 0.4 ? 'VECTOR' : 'KEYWORD'),
+    }));
+
+    // 根据阈值过滤
+    results.value = allResults.filter(r => r.score >= config.threshold);
+
+    // 设置调试信息
+    const vectorCount = allResults.filter(r => r.matchType === 'VECTOR').length;
+    const keywordCount = allResults.filter(r => r.matchType === 'KEYWORD').length;
+
+    if (allResults.length > 0 && results.value.length === 0) {
+      debugInfo.value = {
+        totalResults: allResults.length,
+        filteredCount: allResults.length,
+        maxScore: Math.max(...allResults.map(r => r.score)).toFixed(3),
+        minScore: Math.min(...allResults.map(r => r.score)).toFixed(3),
+        vectorCount,
+        keywordCount,
+        hint: vectorCount === 0 ? '语义向量检索返回0条，可能是Embedding服务未配置或API Key无效' : '降低Threshold值查看更多结果'
+      };
+    } else if (vectorCount === 0 && keywordCount > 0) {
+      // 只有关键词结果，没有向量结果
+      ElMessage.warning('语义检索返回0条，仅有关键词匹配结果。请检查Embedding服务配置是否正确。');
+    }
   } catch (e) {
     ElMessage.error('检索请求失败，请检查后端连接');
+    console.error('Retrieval error:', e);
   } finally {
     loading.value = false;
   }
@@ -449,6 +494,39 @@ const matchTagType = (type) => {
   padding: 20px 32px;
   background: var(--glass-bg);
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.search-input {
+  --el-input-bg-color: var(--bg-secondary);
+  --el-input-border-color: var(--border-subtle);
+  --el-input-hover-border-color: var(--orin-primary);
+  --el-input-focus-border-color: var(--orin-primary);
+  font-size: 15px;
+  width: 100%;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 12px 0 0 12px;
+  box-shadow: 0 0 0 1px var(--border-subtle) inset;
+}
+
+.search-input :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--orin-primary) inset;
+}
+
+.search-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--orin-primary) inset;
+}
+
+.search-input :deep(.el-input__inner) {
+  height: 44px;
+}
+
+.search-hero :deep(.el-button--primary) {
+  border-radius: 0 12px 12px 0;
+  padding: 0 24px;
+  height: 44px;
+  font-weight: 500;
 }
 
 .results-container {
@@ -628,6 +706,32 @@ const matchTagType = (type) => {
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
+}
+
+.debug-info {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.debug-info p {
+  margin: 4px 0;
+}
+
+.debug-hint {
+  color: var(--orin-primary);
+  font-weight: 500;
+  margin-top: 8px !important;
+}
+
+.debug-warning {
+  color: #e6a23c;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: rgba(230, 162, 60, 0.1);
+  border-radius: 6px;
+  margin-top: 8px;
 }
 
 /* ── Trace Drawer ── */

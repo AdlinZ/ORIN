@@ -243,15 +243,44 @@ public class RetrievalService {
     }
 
     /**
-     * Keyword search helper
+     * Keyword search helper - split query into words and search each
      */
     private List<KnowledgeDocumentChunk> keywordSearch(String kbId, String query, int topK) {
-        List<KnowledgeDocumentChunk> keywordChunks;
-        if ("all".equalsIgnoreCase(kbId)) {
-            keywordChunks = chunkRepository.searchAllByKeyword(query);
-        } else {
-            keywordChunks = chunkRepository.searchByKeyword(kbId, query);
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>();
         }
+
+        // Split query into words (keep words with length >= 2)
+        String[] words = query.split("[\\s,，.。!?;；]+");
+        Set<String> searchWords = new java.util.HashSet<>();
+        for (String word : words) {
+            if (word.length() >= 2) {
+                searchWords.add(word.trim());
+            }
+        }
+
+        log.info("Keyword search words: {}", searchWords);
+
+        if (searchWords.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Search for each word and collect results
+        Map<String, KnowledgeDocumentChunk> chunkMap = new LinkedHashMap<>();
+        for (String word : searchWords) {
+            List<KnowledgeDocumentChunk> chunks;
+            if ("all".equalsIgnoreCase(kbId)) {
+                chunks = chunkRepository.searchAllByKeyword(word);
+            } else {
+                chunks = chunkRepository.searchByKeyword(kbId, word);
+            }
+            for (KnowledgeDocumentChunk chunk : chunks) {
+                // Deduplicate by chunk ID, keep first occurrence
+                chunkMap.putIfAbsent(chunk.getId(), chunk);
+            }
+        }
+
+        List<KnowledgeDocumentChunk> keywordChunks = new ArrayList<>(chunkMap.values());
         if (keywordChunks.size() > topK * 2) {
             keywordChunks = keywordChunks.subList(0, topK * 2);
         }

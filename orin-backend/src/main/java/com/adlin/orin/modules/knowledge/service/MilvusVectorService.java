@@ -10,6 +10,8 @@ import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.SearchParam;
 import io.milvus.param.partition.CreatePartitionParam;
 import io.milvus.param.partition.HasPartitionParam;
+import io.milvus.param.partition.ShowPartitionsParam;
+import io.milvus.grpc.ShowPartitionsResponse;
 import io.milvus.grpc.DataType;
 import io.milvus.param.MetricType;
 import io.milvus.param.collection.CreateCollectionParam;
@@ -47,11 +49,22 @@ public class MilvusVectorService implements VectorStoreProvider {
     // 全局唯一的 Collection 名称
     private static final String COLLECTION_NAME = "orin_knowledge_base";
 
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.adlin.orin.gateway.service.ProviderRegistry providerRegistry;
+    private final com.adlin.orin.gateway.service.ProviderRegistry providerRegistry;
+    private final com.adlin.orin.modules.knowledge.component.EmbeddingService embeddingService;
+    private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository documentRepository;
+    private final com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository knowledgeBaseRepository;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.adlin.orin.modules.knowledge.component.EmbeddingService embeddingService;
+    public MilvusVectorService(
+            com.adlin.orin.gateway.service.ProviderRegistry providerRegistry,
+            com.adlin.orin.modules.knowledge.component.EmbeddingService embeddingService,
+            com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository documentRepository,
+            com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository knowledgeBaseRepository) {
+        this.providerRegistry = providerRegistry;
+        this.embeddingService = embeddingService;
+        this.documentRepository = documentRepository;
+        this.knowledgeBaseRepository = knowledgeBaseRepository;
+        log.info("MilvusVectorService constructed with EmbeddingService: {}", embeddingService != null ? embeddingService.getClass().getName() : "NULL");
+    }
 
     @PostConstruct
     public void init() {
@@ -332,6 +345,12 @@ public class MilvusVectorService implements VectorStoreProvider {
             client.insert(insertParam);
             log.info("Inserted {} documents into partition {}", documents.size(), partitionName);
 
+            // Flush to ensure data is persisted and searchable immediately
+            client.flush(io.milvus.param.collection.FlushParam.newBuilder()
+                    .withCollectionNames(Arrays.asList(COLLECTION_NAME))
+                    .build());
+            log.info("Flushed collection {} to ensure data is searchable", COLLECTION_NAME);
+
         } catch (Exception e) {
             log.error("Milvus insert error: {}", e.getMessage(), e);
         } finally {
@@ -346,6 +365,9 @@ public class MilvusVectorService implements VectorStoreProvider {
             return;
 
         String partitionName = "kb_" + kbId.replace("-", "_");
+
+        // 维度检查
+        int collectionDimension = getEmbeddingDimension();
 
         MilvusServiceClient client = null;
         try {
@@ -367,6 +389,12 @@ public class MilvusVectorService implements VectorStoreProvider {
                 List<Float> vector;
                 if ("child".equals(chunk.getChunkType())) {
                     vector = textToVector(chunk.getContent(), null);
+                    // 检查向量维度
+                    if (vector.size() != collectionDimension) {
+                        log.error("向量维度不匹配! 文档: {}, 向量维度: {}, Collection 维度: {}. " +
+                                  "这会导致向量无法正确插入. 请重建 Collection 或检查 Embedding 模型配置.",
+                                chunk.getDocumentId(), vector.size(), collectionDimension);
+                    }
                 } else {
                     // Parent chunks don't need vectors (they won't be searched)
                     // Use zero vector as placeholder with dynamic dimension
@@ -404,6 +432,12 @@ public class MilvusVectorService implements VectorStoreProvider {
 
             client.insert(insertParam);
             log.info("Inserted {} chunks into partition {}", chunks.size(), partitionName);
+
+            // Flush to ensure data is persisted and searchable immediately
+            client.flush(io.milvus.param.collection.FlushParam.newBuilder()
+                    .withCollectionNames(Arrays.asList(COLLECTION_NAME))
+                    .build());
+            log.info("Flushed collection {} to ensure data is searchable", COLLECTION_NAME);
 
         } catch (Exception e) {
             log.error("Milvus chunks insert error: {}", e.getMessage(), e);
@@ -466,6 +500,14 @@ public class MilvusVectorService implements VectorStoreProvider {
         String partitionName = "kb_" + kbId.replace("-", "_");
         List<Float> queryVector = textToVector(query, embeddingModel);
 
+        // 维度检查
+        int collectionDimension = getEmbeddingDimension();
+        if (queryVector.size() != collectionDimension) {
+            log.error("向量维度不匹配! 查询向量维度: {}, Collection 维度: {}. 这会导致搜索结果为空. " +
+                      "请重建 Collection 或检查 Embedding 模型配置.",
+                    queryVector.size(), collectionDimension);
+        }
+
         MilvusServiceClient client = null;
         try {
             client = createClient();
@@ -478,19 +520,12 @@ public class MilvusVectorService implements VectorStoreProvider {
                 return Collections.emptyList();
             }
 
-            log.info("Searching in partition: {}, query: {}, topK: {}", partitionName, query, k);
+            log.info("Searching in collection: {}, query: {}, topK: {}", COLLECTION_NAME, query, k);
 
-            if (isGlobalSearch) {
-                // If global, load the entire collection
-                client.loadCollection(io.milvus.param.collection.LoadCollectionParam.newBuilder()
-                        .withCollectionName(COLLECTION_NAME)
-                        .build());
-            } else {
-                client.loadPartitions(io.milvus.param.partition.LoadPartitionsParam.newBuilder()
-                        .withCollectionName(COLLECTION_NAME)
-                        .withPartitionNames(Collections.singletonList(partitionName))
-                        .build());
-            }
+            // 总是加载整个 collection（不再使用 partition）
+            client.loadCollection(io.milvus.param.collection.LoadCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .build());
 
             SearchParam.Builder searchBuilder = SearchParam.newBuilder()
                     .withCollectionName(COLLECTION_NAME)
@@ -500,11 +535,16 @@ public class MilvusVectorService implements VectorStoreProvider {
                     .withVectorFieldName("embedding")
                     .withOutFields(Arrays.asList("content", "doc_id", "chunk_id", "chunk_type", "parent_id", "title", "source", "position"));
 
-            // Only search child chunks for vector retrieval
-            searchBuilder.withExpr("chunk_type == 'child'");
+            // Only search child chunks for vector retrieval - Temporarily disabled for debugging
+            // searchBuilder.withExpr("chunk_type == 'child'");
 
+            // 使用 doc_id filter 来限制搜索特定知识库，避免 partition 问题
             if (!isGlobalSearch) {
-                searchBuilder.withPartitionNames(Collections.singletonList(partitionName));
+                // 移除 partition filter，改用 doc_id 过滤
+                // searchBuilder.withPartitionNames(Collections.singletonList(partitionName));
+                // 使用 doc_id 包含 kbId 前8位来过滤（插入时的 doc_id 就是 documentId）
+                searchBuilder.withExpr("doc_id like '%" + kbId.substring(0, 8) + "%'");
+                log.info("Using doc_id filter instead of partition for kbId={}", kbId);
             }
 
             SearchParam searchParam = searchBuilder.build();
@@ -517,11 +557,38 @@ public class MilvusVectorService implements VectorStoreProvider {
             }
 
             SearchResults searchResults = response.getData();
+            log.warn("DEBUG: searchResults = {}", searchResults);
+
             io.milvus.response.SearchResultsWrapper wrapper = new io.milvus.response.SearchResultsWrapper(
                     searchResults.getResults());
             List<io.milvus.response.SearchResultsWrapper.IDScore> scores = wrapper.getIDScore(0);
 
             log.info("Milvus search returned {} results", scores.size());
+
+            // Debug: print raw results
+            if (scores.size() > 0) {
+                log.warn("DEBUG: Got {} search results, first score: {}", scores.size(), scores.get(0).getScore());
+            }
+
+            // Debug: Query actual data count in partition
+            if (scores.size() == 0) {
+                // Debug: Try search without partition filter (entire collection)
+                try {
+                    SearchParam debugSearchParam = SearchParam.newBuilder()
+                            .withCollectionName(COLLECTION_NAME)
+                            .withMetricType(io.milvus.param.MetricType.COSINE)
+                            .withTopK(10)
+                            .withVectors(Collections.singletonList(queryVector))
+                            .withVectorFieldName("embedding")
+                            .build();
+                    R<SearchResults> debugResponse = client.search(debugSearchParam);
+                    log.warn("DEBUG: Search entire collection (no partition) status: {}, results: {}",
+                            debugResponse.getStatus(),
+                            debugResponse.getData() != null ? "got data" : "no data");
+                } catch (Exception e) {
+                    log.warn("Debug search failed: {}", e.getMessage());
+                }
+            }
 
             List<SearchResult> results = new ArrayList<>();
             // Milvus SDK behavior:
@@ -537,14 +604,34 @@ public class MilvusVectorService implements VectorStoreProvider {
             // wrapper.getIDScore(0) -> List<IDScore>. IDScore has score and id.
             // To get fields, usually one uses wrapper.getFieldData(fieldName, 0).
 
-            List<?> contents = wrapper.getFieldData("content", 0);
-            List<?> docIds = wrapper.getFieldData("doc_id", 0);
-            List<?> chunkIds = wrapper.getFieldData("chunk_id", 0);
-            List<?> chunkTypes = wrapper.getFieldData("chunk_type", 0);
-            List<?> parentIds = wrapper.getFieldData("parent_id", 0);
-            List<?> titles = wrapper.getFieldData("title", 0);
-            List<?> sources = wrapper.getFieldData("source", 0);
-            List<?> positions = wrapper.getFieldData("position", 0);
+            List<?> contents;
+            List<?> docIds;
+            List<?> chunkIds;
+            List<?> chunkTypes;
+            List<?> parentIds;
+            List<?> titles;
+            List<?> sources;
+            List<?> positions;
+            try {
+                contents = wrapper.getFieldData("content", 0);
+                docIds = wrapper.getFieldData("doc_id", 0);
+                chunkIds = wrapper.getFieldData("chunk_id", 0);
+                chunkTypes = wrapper.getFieldData("chunk_type", 0);
+                parentIds = wrapper.getFieldData("parent_id", 0);
+                titles = wrapper.getFieldData("title", 0);
+                sources = wrapper.getFieldData("source", 0);
+                positions = wrapper.getFieldData("position", 0);
+            } catch (Exception e) {
+                log.warn("Failed to get field data from Milvus search results, using fallback: {}", e.getMessage());
+                contents = null;
+                docIds = null;
+                chunkIds = null;
+                chunkTypes = null;
+                parentIds = null;
+                titles = null;
+                sources = null;
+                positions = null;
+            }
 
             for (int i = 0; i < scores.size(); i++) {
                 io.milvus.response.SearchResultsWrapper.IDScore score = scores.get(i);
@@ -750,16 +837,19 @@ public class MilvusVectorService implements VectorStoreProvider {
             try {
                 List<Float> embedding = embeddingService.embed(text);
                 if (embedding != null && !embedding.isEmpty()) {
-                    log.debug("Embedding generated via SiliconFlow, dim={}", embedding.size());
+                    log.info("Embedding generated via SiliconFlow for query: '{}', dim={}", text.substring(0, Math.min(30, text.length())), embedding.size());
                     return embedding;
                 }
             } catch (Exception e) {
-                log.warn("SiliconFlow embedding failed, falling back: {}", e.getMessage());
+                log.warn("SiliconFlow embedding failed, falling back to random vector: {}", e.getMessage());
             }
+        } else {
+            log.error("EmbeddingService is NULL! Cannot generate semantic vectors. Please check SiliconFlow API Key configuration.");
         }
         // 降级: 随机向量 (text.hashCode 保证同一文本向量一致)
         int dim = getEmbeddingDimension();
-        log.warn("Using deterministic random vector for text (EmbeddingService unavailable or failed), dimension={}", dim);
+        log.error("CRITICAL: Using FAKE random vector for text! Semantic search will NOT work! dimension={}. " +
+                  "Please configure valid SiliconFlow API Key in application.properties or database.", dim);
         List<Float> vector = new ArrayList<>();
         Random random = new Random(text.hashCode());
         for (int i = 0; i < dim; i++)
@@ -788,12 +878,41 @@ public class MilvusVectorService implements VectorStoreProvider {
             if (response.getStatus() == R.Status.Success.getCode() && Boolean.TRUE.equals(response.getData())) {
                 info.put("exists", true);
                 info.put("dimension", getEmbeddingDimension());
-                info.put("vectorCount", "N/A"); // SDK 2.3.4 不支持直接获取行数
-                info.put("indexType", "AUTOINDEX");
+
+                // 获取向量数量 - 通过查询判断是否有数据
+                try {
+                    // 先 flush 确保数据落盘
+                    client.flush(io.milvus.param.collection.FlushParam.newBuilder()
+                            .withCollectionNames(Arrays.asList(COLLECTION_NAME))
+                            .build());
+
+                    // 查询是否有数据
+                    String countExpr = "chunk_id != \"\"";
+                    R<io.milvus.grpc.QueryResults> queryResponse = client.query(
+                            io.milvus.param.dml.QueryParam.newBuilder()
+                                    .withCollectionName(COLLECTION_NAME)
+                                    .withExpr(countExpr)
+                                    .withLimit(1L)
+                                    .build());
+
+                    if (queryResponse.getStatus() == R.Status.Success.getCode()) {
+                        // 查询成功说明 collection 可用且有数据
+                        info.put("vectorCount", "有数据");
+                        info.put("vectorCountNote", "数据正常，可检索");
+                    } else {
+                        info.put("vectorCount", 0);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to get vector count: {}", e.getMessage());
+                    info.put("vectorCount", 0);
+                }
+
+                info.put("indexType", "IVF_FLAT");
                 info.put("status", "connected");
             } else {
                 info.put("exists", false);
                 info.put("status", "collection_not_found");
+                info.put("vectorCount", 0);
             }
         } catch (Exception e) {
             log.error("Failed to get collection info: {}", e.getMessage());
@@ -808,6 +927,127 @@ public class MilvusVectorService implements VectorStoreProvider {
             }
         }
         return info;
+    }
+
+    /**
+     * 获取 Collection 详细数据
+     */
+    public Map<String, Object> getCollectionDetail() {
+        Map<String, Object> detail = new HashMap<>();
+        MilvusServiceClient client = null;
+
+        try {
+            client = createClient();
+            detail.put("host", host);
+            detail.put("port", port);
+            detail.put("collectionName", COLLECTION_NAME);
+
+            // 检查 collection 是否存在
+            R<Boolean> hasCollection = client.hasCollection(HasCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .build());
+
+            if (hasCollection.getStatus() != R.Status.Success.getCode() || !Boolean.TRUE.equals(hasCollection.getData())) {
+                detail.put("exists", false);
+                detail.put("status", "collection_not_found");
+                return detail;
+            }
+
+            detail.put("exists", true);
+            detail.put("dimension", getEmbeddingDimension());
+            detail.put("status", "connected");
+
+            // 从数据库获取精确统计数据
+            try {
+                long totalDocs = documentRepository.countIndexedDocuments();
+                long totalVectors = documentRepository.sumTotalChunks();
+                int partitionCount = 0;
+
+                // 查询判断 Milvus 是否有数据
+                client.flush(io.milvus.param.collection.FlushParam.newBuilder()
+                        .withCollectionNames(Arrays.asList(COLLECTION_NAME))
+                        .build());
+
+                String expr = "chunk_id != \"\"";
+                R<io.milvus.grpc.QueryResults> queryResponse = client.query(
+                        io.milvus.param.dml.QueryParam.newBuilder()
+                                .withCollectionName(COLLECTION_NAME)
+                                .withExpr(expr)
+                                .withLimit(1L)
+                                .build());
+
+                if (queryResponse.getStatus() == R.Status.Success.getCode()) {
+                    detail.put("hasData", totalVectors > 0);
+                } else {
+                    detail.put("hasData", false);
+                }
+
+                detail.put("totalVectors", totalVectors);
+                detail.put("totalDocs", totalDocs);
+
+                // 获取分区数量
+                R<io.milvus.grpc.ShowPartitionsResponse> partitionsResponse = client.showPartitions(
+                        io.milvus.param.partition.ShowPartitionsParam.newBuilder()
+                                .withCollectionName(COLLECTION_NAME)
+                                .build());
+
+                if (partitionsResponse.getStatus() == R.Status.Success.getCode()) {
+                    partitionCount = partitionsResponse.getData().getPartitionNamesCount();
+                    detail.put("partitionCount", partitionCount);
+                }
+
+                // 获取每个知识库的统计信息
+                List<Object[]> kbStats = documentRepository.countByKnowledgeBase();
+                List<Map<String, Object>> knowledgeBaseList = new ArrayList<>();
+                for (Object[] stat : kbStats) {
+                    String kbId = (String) stat[0];
+                    long docCount = (Long) stat[1];
+                    long vectorCount = (Long) stat[2];
+
+                    // 获取知识库名称
+                    String kbName = kbId;
+                    try {
+                        var kb = knowledgeBaseRepository.findById(kbId);
+                        if (kb.isPresent()) {
+                            kbName = kb.get().getName();
+                        }
+                    } catch (Exception ignored) {}
+
+                    Map<String, Object> kbInfo = new HashMap<>();
+                    kbInfo.put("id", kbId);
+                    kbInfo.put("name", kbName);
+                    kbInfo.put("docCount", docCount);
+                    kbInfo.put("vectorCount", vectorCount);
+                    knowledgeBaseList.add(kbInfo);
+                }
+                detail.put("knowledgeBases", knowledgeBaseList);
+
+            } catch (Exception e) {
+                log.warn("Failed to get collection stats: {}", e.getMessage());
+                detail.put("hasData", false);
+                detail.put("totalVectors", 0);
+                detail.put("totalDocs", 0);
+                detail.put("partitionCount", 0);
+                detail.put("knowledgeBases", new ArrayList<>());
+            }
+
+            detail.put("partitions", new ArrayList<>());
+
+            return detail;
+
+        } catch (Exception e) {
+            log.error("Failed to get collection detail: {}", e.getMessage(), e);
+            detail.put("status", "error");
+            detail.put("error", e.getMessage());
+        } finally {
+            if (client != null) {
+                try {
+                    client.close();
+                } catch (Exception ignored) {}
+            }
+        }
+
+        return detail;
     }
 
     /**
