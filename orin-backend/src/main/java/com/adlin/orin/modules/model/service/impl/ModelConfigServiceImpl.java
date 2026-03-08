@@ -57,7 +57,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             if (config.getVlmModel() == null)
                 config.setVlmModel("Qwen/Qwen2-VL-72B-Instruct");
             if (config.getEmbeddingModel() == null)
-                config.setEmbeddingModel("BAAI/bge-m3");
+                config.setEmbeddingModel("Qwen/Qwen3-Embedding-8B");
             if (config.getAutoAnalysisEnabled() == null)
                 config.setAutoAnalysisEnabled(true);
             return config;
@@ -124,6 +124,8 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             // Update Multimodal configuration
             existing.setVlmModel(config.getVlmModel());
             existing.setEmbeddingModel(config.getEmbeddingModel());
+            existing.setEmbeddingProvider(config.getEmbeddingProvider());
+            existing.setEmbeddingApiKeyId(config.getEmbeddingApiKeyId());
             existing.setAutoAnalysisEnabled(config.getAutoAnalysisEnabled());
 
             // Update Ollama configuration

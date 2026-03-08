@@ -60,6 +60,12 @@ public class ModelConfig {
     @Column(name = "embedding_model")
     private String embeddingModel;
 
+    @Column(name = "embedding_provider")
+    private String embeddingProvider;
+
+    @Column(name = "embedding_api_key_id")
+    private Long embeddingApiKeyId;
+
     @Column(name = "system_model")
     private String systemModel;
 
@@ -218,6 +224,22 @@ public class ModelConfig {
 
     public void setEmbeddingModel(String embeddingModel) {
         this.embeddingModel = embeddingModel;
+    }
+
+    public String getEmbeddingProvider() {
+        return embeddingProvider;
+    }
+
+    public void setEmbeddingProvider(String embeddingProvider) {
+        this.embeddingProvider = embeddingProvider;
+    }
+
+    public Long getEmbeddingApiKeyId() {
+        return embeddingApiKeyId;
+    }
+
+    public void setEmbeddingApiKeyId(Long embeddingApiKeyId) {
+        this.embeddingApiKeyId = embeddingApiKeyId;
     }
 
     public String getSystemModel() {

@@ -55,12 +55,53 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
                 modelName = modelConfig.getEmbeddingModel();
                 log.info("SiliconFlowEmbeddingAdapter: loaded embedding model from ModelConfig: {}", modelName);
 
-                // 同时获取 API Key 和 Base URL
-                if (modelConfig.getSiliconFlowApiKey() != null && !modelConfig.getSiliconFlowApiKey().isEmpty()) {
-                    effectiveApiKey = modelConfig.getSiliconFlowApiKey();
-                    log.info("SiliconFlowEmbeddingAdapter: loaded API key from ModelConfig");
+                // 优先使用 embeddingApiKeyId 查找 API Key
+                if (modelConfig.getEmbeddingApiKeyId() != null) {
+                    try {
+                        var optKey = providerKeyRepository.findById(modelConfig.getEmbeddingApiKeyId());
+                        if (optKey.isPresent()) {
+                            ExternalProviderKey key = optKey.get();
+                            if (key.getEnabled() != null && key.getEnabled()) {
+                                effectiveApiKey = key.getApiKey();
+                                if (key.getBaseUrl() != null && !key.getBaseUrl().isEmpty()) {
+                                    baseUrl = key.getBaseUrl();
+                                }
+                                log.info("SiliconFlowEmbeddingAdapter: loaded API key from external_provider_keys by ID: {}", key.getProvider());
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("SiliconFlowEmbeddingAdapter: could not load key by ID: {}", e.getMessage());
+                    }
                 }
-                if (modelConfig.getSiliconFlowEndpoint() != null && !modelConfig.getSiliconFlowEndpoint().isEmpty()) {
+
+                // 如果没有通过 ID 找到，回退到从 provider 名称查找
+                if ((effectiveApiKey == null || effectiveApiKey.isEmpty()) && modelConfig.getEmbeddingProvider() != null) {
+                    try {
+                        List<ExternalProviderKey> keys = providerKeyRepository.findByProvider(modelConfig.getEmbeddingProvider());
+                        if (!keys.isEmpty()) {
+                            ExternalProviderKey key = keys.stream()
+                                    .filter(ExternalProviderKey::getEnabled)
+                                    .findFirst()
+                                    .orElse(keys.get(0));
+                            effectiveApiKey = key.getApiKey();
+                            if (key.getBaseUrl() != null && !key.getBaseUrl().isEmpty()) {
+                                baseUrl = key.getBaseUrl();
+                            }
+                            log.info("SiliconFlowEmbeddingAdapter: loaded API key from DB (provider={})", modelConfig.getEmbeddingProvider());
+                        }
+                    } catch (Exception e) {
+                        log.warn("SiliconFlowEmbeddingAdapter: could not load key from DB: {}", e.getMessage());
+                    }
+                }
+
+                // 兼容旧配置：从 ModelConfig 直接读取
+                if ((effectiveApiKey == null || effectiveApiKey.isEmpty()) && modelConfig.getSiliconFlowApiKey() != null
+                        && !modelConfig.getSiliconFlowApiKey().isEmpty()) {
+                    effectiveApiKey = modelConfig.getSiliconFlowApiKey();
+                    log.info("SiliconFlowEmbeddingAdapter: loaded API key from ModelConfig (legacy)");
+                }
+                if ((baseUrl == null || baseUrl.isEmpty() || baseUrl.equals("https://api.siliconflow.cn/v1"))
+                        && modelConfig.getSiliconFlowEndpoint() != null && !modelConfig.getSiliconFlowEndpoint().isEmpty()) {
                     baseUrl = modelConfig.getSiliconFlowEndpoint();
                     log.info("SiliconFlowEmbeddingAdapter: loaded endpoint from ModelConfig: {}", baseUrl);
                 }
@@ -106,6 +147,13 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
 
     @Override
     public List<Float> embed(String text) {
+        // 检查 API Key 是否有效
+        if (effectiveApiKey == null || effectiveApiKey.isEmpty() || effectiveApiKey.equals("sk-placeholder")) {
+            log.error("SiliconFlow API Key is invalid or not configured! Cannot generate embeddings. " +
+                      "Please configure a valid API Key in application.properties or ModelConfig.");
+            throw new RuntimeException("SiliconFlow API Key is not configured. Please set a valid API Key.");
+        }
+
         String url = baseUrl + "/embeddings";
 
         HttpHeaders headers = new HttpHeaders();
@@ -130,14 +178,15 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
                         embedding.add((float) node.asDouble());
                     }
                 }
+                log.info("Successfully generated embedding via SiliconFlow, dimension={}", embedding.size());
                 return embedding;
             } else {
-                log.error("SiliconFlow Embedding Failed: {}", response.getStatusCode());
+                log.error("SiliconFlow Embedding Failed: {}, response: {}", response.getStatusCode(), response.getBody());
                 throw new RuntimeException("Embedding API failed with status: " + response.getStatusCode());
             }
         } catch (Exception e) {
-            log.error("Error calling SiliconFlow Embedding API", e);
-            throw new RuntimeException("Embedding failed", e);
+            log.error("Error calling SiliconFlow Embedding API: {}", e.getMessage());
+            throw new RuntimeException("Embedding failed: " + e.getMessage(), e);
         }
     }
 

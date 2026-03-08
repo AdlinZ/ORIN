@@ -21,6 +21,9 @@ public class SysUser {
     private String nickname;
     private String email;
     private String avatar;
+    private String bio;
+    private String address;
+    private String phone;
     private String status; // ENABLED, DISABLED
 
     @Column(name = "create_time")
@@ -63,6 +66,30 @@ public class SysUser {
 
     public void setNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public String getEmail() {

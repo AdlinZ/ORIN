@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -101,8 +103,17 @@ public class DocumentManageService {
         document = documentRepository.save(document);
         log.info("Uploaded document: {} to knowledge base: {}", originalFilename, knowledgeBaseId);
 
-        // 自动触发向量化
-        triggerVectorization(document.getId());
+        // 自动触发向量化 - 使用 TransactionSynchronization 确保事务提交后再执行
+        final String docId = document.getId();
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    log.info("Transaction committed, triggering vectorization for document: {}", docId);
+                    triggerVectorization(docId);
+                }
+            }
+        );
 
         return document;
     }
@@ -198,13 +209,19 @@ public class DocumentManageService {
                     transactionManager);
             try {
                 // 读取文件内容
+                log.info("Vectorization: Reading file content for document: {}", documentIdFinal);
                 String content = null;
                 KnowledgeDocument currentDocForSplit = documentRepository.findById(documentIdFinal).orElse(null);
                 if (currentDocForSplit != null) {
+                    log.info("Vectorization: Document found, storage path: {}", currentDocForSplit.getStoragePath());
                     content = readFileContent(currentDocForSplit);
+                    log.info("Vectorization: Content read, length: {}", content != null ? content.length() : 0);
+                } else {
+                    log.error("Vectorization: Document NOT FOUND in database: {}", documentIdFinal);
                 }
 
                 if (content == null || content.isEmpty()) {
+                    log.error("Vectorization: FAILED - content is null or empty for document: {}", documentIdFinal);
                     transactionTemplate.executeWithoutResult(status -> {
                         documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
                     });
@@ -213,11 +230,15 @@ public class DocumentManageService {
 
                 // Get document title for metadata
                 String docTitle = currentDocForSplit != null ? currentDocForSplit.getFileName() : "Document";
+                log.info("Vectorization: Starting hierarchical split for document: {}, content length: {}", documentIdFinal, content.length());
 
                 // 1. Hierarchical Split: Parent-Child chunking
                 com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.HierarchicalChunks hierarchicalChunks =
                         com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.splitHierarchical(
                                 content, documentIdFinal, docTitle);
+
+                log.info("Vectorization: Hierarchical split done, parent chunks: {}, child chunks: {}",
+                        hierarchicalChunks.getParents().size(), hierarchicalChunks.getChildren().size());
 
                 // Build entities for both parent and child chunks
                 List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> allChunks = new java.util.ArrayList<>();
@@ -266,8 +287,11 @@ public class DocumentManageService {
 
                 // 3. Vector Store Operation (Milvus) - Outside DB transaction
                 // Only child chunks will be embedded (parent chunks get zero vectors as placeholder)
+                log.info("Vectorization: Deleting old vectors from Milvus for document: {}", documentIdFinal);
                 vectorService.deleteDocuments(kbId, java.util.Collections.singletonList(documentIdFinal));
+                log.info("Vectorization: Adding chunks to Milvus, kbId: {}, chunk count: {}", kbId, allChunks.size());
                 vectorService.addChunks(kbId, allChunks);
+                log.info("Vectorization: Chunks added to Milvus successfully!");
 
                 // 4. Update status and count in transaction
                 final int childChunkCount = hierarchicalChunks.getChildren().size();
