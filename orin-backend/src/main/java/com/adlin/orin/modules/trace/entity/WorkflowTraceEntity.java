@@ -16,7 +16,12 @@ import java.util.Map;
  * 工作流追踪实体
  */
 @Entity
-@Table(name = "workflow_traces")
+@Table(name = "workflow_traces", indexes = {
+    @Index(name = "idx_trace_id", columnList = "trace_id"),
+    @Index(name = "idx_instance_id", columnList = "instance_id"),
+    @Index(name = "idx_status", columnList = "status"),
+    @Index(name = "idx_started_at", columnList = "started_at")
+})
 @Data
 @Builder
 @NoArgsConstructor

@@ -2,9 +2,11 @@ package com.adlin.orin.modules.system;
 
 import com.adlin.orin.modules.system.entity.SysUser;
 import com.adlin.orin.modules.system.repository.SysUserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class DataInitializer implements CommandLineRunner {
 
@@ -24,7 +26,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setEmail("admin@orin.com");
             admin.setStatus("ENABLED");
             userRepository.save(admin);
-            System.out.println("Default admin user created.");
+            log.info("Default admin user created.");
         }
     }
 }

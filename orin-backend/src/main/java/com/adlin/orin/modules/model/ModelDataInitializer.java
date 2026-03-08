@@ -2,9 +2,11 @@ package com.adlin.orin.modules.model;
 
 import com.adlin.orin.modules.model.entity.ModelMetadata;
 import com.adlin.orin.modules.model.repository.ModelMetadataRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class ModelDataInitializer implements CommandLineRunner {
 
@@ -23,7 +25,7 @@ public class ModelDataInitializer implements CommandLineRunner {
             modelRepository.save(createModel("Llama 3 70B", "llama3-70b", "Ollama", "LLM", "本地部署的最佳开源模型"));
             modelRepository.save(createModel("Text-Embedding-3-Small", "text-embedding-3-small", "OpenAI", "EMBEDDING",
                     "高效的向量提取模型"));
-            System.out.println("Default model metadata initialized.");
+            log.info("Default model metadata initialized.");
         }
     }
 

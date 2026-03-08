@@ -1,12 +1,14 @@
 package com.adlin.orin.modules.knowledge.component;
 
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Component
 @org.springframework.context.annotation.Profile("mock") // 仅在 mock profile 下激活
 public class MockVectorStoreProvider implements VectorStoreProvider {
@@ -14,28 +16,28 @@ public class MockVectorStoreProvider implements VectorStoreProvider {
     @Override
     public void addDocuments(String collectionName, List<KnowledgeDocument> documents) {
         // Mock implementation: do nothing or log
-        System.out.println("Mock adding documents to collection: " + collectionName);
+        log.debug("Mock adding documents to collection: {}", collectionName);
     }
 
     @Override
     public void addChunks(String kbId, List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> chunks) {
-        System.out.println("Mock adding " + chunks.size() + " chunks to KB: " + kbId);
+        log.debug("Mock adding {} chunks to KB: {}", chunks.size(), kbId);
     }
 
     @Override
     public void deleteDocuments(String collectionName, List<String> docIds) {
-        System.out.println("Mock deleting documents from collection: " + collectionName);
+        log.debug("Mock deleting documents from collection: {}", collectionName);
     }
 
     @Override
     public void deleteKnowledgeBase(String kbId) {
-        System.out.println("Mock deleting entire knowledge base: " + kbId);
+        log.debug("Mock deleting entire knowledge base: {}", kbId);
     }
 
     @Override
     public List<SearchResult> search(String collectionName, String query, int k) {
         // Return dummy results
-        System.out.println("Mock searching collection: " + collectionName + " for query: " + query);
+        log.debug("Mock searching collection: {} for query: {}", collectionName, query);
         List<SearchResult> results = new ArrayList<>();
 
         // Return dynamic results based on query for better demo experience
@@ -65,7 +67,7 @@ public class MockVectorStoreProvider implements VectorStoreProvider {
 
     @Override
     public List<DocumentChunk> getDocumentChunks(String collectionName, String docId) {
-        System.out.println("Mock getting chunks for doc: " + docId);
+        log.debug("Mock getting chunks for doc: {}", docId);
         List<DocumentChunk> chunks = new ArrayList<>();
         chunks.add(DocumentChunk.builder()
                 .id("chunk-1")
