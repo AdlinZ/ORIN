@@ -150,4 +150,3 @@ export const getDailyTokenTrend = (period = 'daily', config = {}) => {
 export const getAgentHealthOverview = (config = {}) => {
     return request.get('/monitor/agents/health-overview', config);
 };
-};
