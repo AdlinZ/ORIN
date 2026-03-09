@@ -29,7 +29,7 @@
                     <el-descriptions-item label="请求 IP">{{ row.ipAddress }}</el-descriptions-item>
                     <el-descriptions-item label="User Agent">{{ row.userAgent }}</el-descriptions-item>
                     <el-descriptions-item label="响应状态">{{ row.statusCode }}</el-descriptions-item>
-                    <el-descriptions-item label="预估成本">${{ row.estimatedCost }}</el-descriptions-item>
+                    <el-descriptions-item label="预估成本">¥{{ row.estimatedCost }}</el-descriptions-item>
                     <el-descriptions-item label="Tokens">
                       <span v-if="row.totalTokens && row.totalTokens > 0">
                         Prompt: {{ row.promptTokens || 0 }} | Completion: {{ row.completionTokens || 0 }} | Total: {{ row.totalTokens }}

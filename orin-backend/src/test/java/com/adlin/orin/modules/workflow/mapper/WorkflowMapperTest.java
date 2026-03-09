@@ -65,7 +65,7 @@ class WorkflowMapperTest {
         WorkflowRequest request = WorkflowRequest.builder()
                 .workflowName("New Workflow")
                 .description("New Description")
-                .workflowType(WorkflowEntity.WorkflowType.PARALLEL)
+                .workflowType("PARALLEL")
                 .workflowDefinition(definition)
                 .timeoutSeconds(600)
                 .build();

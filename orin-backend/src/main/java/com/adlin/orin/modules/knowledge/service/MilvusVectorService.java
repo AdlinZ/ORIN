@@ -490,6 +490,68 @@ public class MilvusVectorService implements VectorStoreProvider {
         }
     }
 
+    /**
+     * 检查知识库在 Milvus 中是否存在向量数据
+     */
+    @Override
+    public Map<String, Object> getVectorStats(String kbId) {
+        Map<String, Object> result = new HashMap<>();
+        String partitionName = "kb_" + kbId.replace("-", "_");
+
+        MilvusServiceClient client = null;
+        try {
+            client = createClient();
+
+            // 检查分区是否存在且有数据
+            boolean partitionExists = checkPartitionExists(client, COLLECTION_NAME, partitionName);
+            result.put("exists", partitionExists);
+
+            if (partitionExists) {
+                // 尝试执行一次搜索来验证是否有实际数据
+                try {
+                    List<Float> dummyVector = new ArrayList<>();
+                    int dim = getEmbeddingDimension();
+                    for (int i = 0; i < dim; i++) {
+                        dummyVector.add(0f);
+                    }
+
+                    SearchParam searchParam = SearchParam.newBuilder()
+                            .withCollectionName(COLLECTION_NAME)
+                            .withPartitionNames(Collections.singletonList(partitionName))
+                            .withVectors(Collections.singletonList(dummyVector))
+                            .withTopK(1)
+                            .withVectorFieldName("vector")
+                            .withParams("{\"radius\": 1.0, \"range_filter\": 1.0}")
+                            .build();
+
+                    R<SearchResults> searchResponse = client.search(searchParam);
+                    if (searchResponse.getStatus() == R.Status.Success.getCode()) {
+                        SearchResults results = searchResponse.getData();
+                        result.put("vectorCount", results.getResults().getIds().getIntId().getDataCount());
+                    } else {
+                        result.put("vectorCount", 0L);
+                    }
+                } catch (Exception e) {
+                    log.debug("Failed to query vector count: {}", e.getMessage());
+                    result.put("vectorCount", 0L);
+                }
+            } else {
+                result.put("vectorCount", 0L);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get vector stats for KB {}: {}", kbId, e.getMessage());
+            result.put("exists", false);
+            result.put("vectorCount", -1L);
+            result.put("error", e.getMessage());
+        } finally {
+            if (client != null) {
+                client.close();
+            }
+        }
+
+        return result;
+    }
+
     @Override
     public List<SearchResult> search(String kbId, String query, int k) {
         return search(kbId, query, k, null);

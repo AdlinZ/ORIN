@@ -110,19 +110,7 @@
         </div>
       </el-tab-pane>
 
-      <!-- Retrieval Settings Tab -->
-      <el-tab-pane label="检索设置" name="retrieval">
-        <el-form label-position="top" style="max-width: 400px; margin-top: 20px;">
-          <el-form-item label="Top K">
-            <el-slider v-model="retrievalParams.topK" :max="20" />
-          </el-form-item>
-          <el-form-item label="语义权重">
-            <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" />
-          </el-form-item>
-        </el-form>
-      </el-tab-pane>
-      
-      <!-- Settings Tab -->
+      <!-- Settings Tab (merged retrieval settings) -->
       <el-tab-pane label="设置" name="settings">
         <div class="settings-panel" style="padding: 20px 0; max-width: 500px;">
           <el-form label-position="top">
@@ -131,6 +119,13 @@
             </el-form-item>
             <el-form-item label="描述">
               <el-input v-model="form.remark" type="textarea" :rows="3" />
+            </el-form-item>
+            <el-divider content-position="left">检索设置</el-divider>
+            <el-form-item label="Top K">
+              <el-slider v-model="retrievalParams.topK" :max="20" show-input />
+            </el-form-item>
+            <el-form-item label="语义权重">
+              <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" show-input />
             </el-form-item>
             <el-button type="primary" :loading="submitting" @click="onSubmit">保存更改</el-button>
             <el-divider />

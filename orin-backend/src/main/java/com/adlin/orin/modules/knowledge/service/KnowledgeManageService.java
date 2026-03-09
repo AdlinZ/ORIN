@@ -340,12 +340,24 @@ public class KnowledgeManageService {
                                 break;
                 }
 
+                // 获取 Milvus 向量状态 (仅对 UNSTRUCTURED 类型)
+                Map<String, Object> vectorStats = null;
+                if (kb.getType() == com.adlin.orin.modules.knowledge.entity.KnowledgeType.UNSTRUCTURED) {
+                        try {
+                                vectorStats = milvusVectorService.getVectorStats(kb.getId());
+                        } catch (Exception e) {
+                                log.warn("Failed to get vector stats for KB {}: {}", kb.getId(), e.getMessage());
+                                vectorStats = Map.of("exists", false, "error", e.getMessage());
+                        }
+                }
+
                 return com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO.builder()
                                 .id(kb.getId())
                                 .name(kb.getName())
                                 .description(kb.getDescription())
                                 .type(kb.getType())
                                 .status(kb.getStatus())
+                                .vectorStats(vectorStats)
                                 .stats(stats)
                                 .build();
         }

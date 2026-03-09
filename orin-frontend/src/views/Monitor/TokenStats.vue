@@ -57,7 +57,7 @@
         <div class="stat-icon cost-icon"><el-icon><Money /></el-icon></div>
         <div class="stat-content">
           <div class="stat-label">预估成本</div>
-          <div class="stat-value">${{ costStats.total }}</div>
+          <div class="stat-value">¥{{ costStats.total }}</div>
         </div>
       </el-card>
       <el-card shadow="never" class="stat-card">

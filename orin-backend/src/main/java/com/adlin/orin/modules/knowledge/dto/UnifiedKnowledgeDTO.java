@@ -15,6 +15,12 @@ public class UnifiedKnowledgeDTO {
     private String status;
 
     /**
+     * Vector sync status from Milvus
+     * Contains: exists (boolean), vectorCount (long)
+     */
+    private Map<String, Object> vectorStats;
+
+    /**
      * Dynamic statistics based on type:
      * UNSTRUCTURED -> chunkCount, documentCount
      * STRUCTURED -> tableCount, fieldCount

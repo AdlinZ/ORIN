@@ -32,37 +32,36 @@
           <span class="status-dot"></span>
           自动保存 {{ lastSavedTime }}
         </div>
-        <el-divider direction="vertical" />
-        <div class="action-group">
-          <el-button text @click="handlePreview">
-            <el-icon><VideoPlay /></el-icon>
-            预览
-          </el-button>
-          <el-button type="success" plain @click="showAIDialog = true">
-            <el-icon><MagicStick /></el-icon>
-            AI 生成
-          </el-button>
-          <el-button type="primary" @click="handleSave()" :loading="saving">
-            保存
-          </el-button>
+        
+        <div class="dify-button-group-wrapper">
+          <!-- Divider -->
+          <div class="dify-divider"></div>
+
+          <!-- Main Actions (Preview, etc) -->
+          <div class="dify-action-bar">
+            <!-- Preview Button -->
+            <div class="dify-bar-item preview-btn" @click="handlePreview">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"><path d="M8 18.3915V5.60846L18.2264 12L8 18.3915ZM6 3.80421V20.1957C6 20.9812 6.86395 21.46 7.53 21.0437L20.6432 12.848C21.2699 12.4563 21.2699 11.5436 20.6432 11.152L7.53 2.95621C6.86395 2.53993 6 3.01878 6 3.80421Z"></path></svg>
+              <span>预览</span>
+            </div>
+            
+
+          </div>
+
+
+
+          <!-- Feature & Publish -->
+          <button class="dify-features-btn" @click="showAIDialog = true">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="mr-1"><path d="M2.5 7C2.5 9.48528 4.51472 11.5 7 11.5C9.48528 11.5 11.5 9.48528 11.5 7C11.5 4.51472 9.48528 2.5 7 2.5C4.51472 2.5 2.5 4.51472 2.5 7ZM2.5 17C2.5 19.4853 4.51472 21.5 7 21.5C9.48528 21.5 11.5 19.4853 11.5 17C11.5 14.5147 9.48528 12.5 7 12.5C4.51472 12.5 2.5 14.5147 2.5 17ZM12.5 17C12.5 19.4853 14.5147 21.5 17 21.5C19.4853 21.5 21.5 19.4853 21.5 17C21.5 14.5147 19.4853 12.5 17 12.5C14.5147 12.5 12.5 14.5147 12.5 17ZM9.5 7C9.5 8.38071 8.38071 9.5 7 9.5C5.61929 9.5 4.5 8.38071 4.5 7C4.5 5.61929 5.61929 4.5 7 4.5C8.38071 4.5 9.5 5.61929 9.5 7ZM9.5 17C9.5 18.3807 8.38071 19.5 7 19.5C5.61929 19.5 4.5 18.3807 4.5 17C4.5 15.6193 5.61929 14.5 7 14.5C8.38071 14.5 9.5 15.6193 9.5 17ZM19.5 17C19.5 18.3807 18.3807 19.5 17 19.5C15.6193 19.5 14.5 18.3807 14.5 17C14.5 15.6193 15.6193 14.5 17 14.5C18.3807 14.5 19.5 15.6193 19.5 17ZM16 11V8H13V6H16V3H18V6H21V8H18V11H16Z"></path></svg>
+            功能
+          </button>
           
-          <el-dropdown trigger="click">
-            <el-button text>
-              <el-icon><MoreFilled /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="onExportWorkflow">
-                  <el-icon><DocumentCopy /></el-icon>
-                  导出工作流
-                </el-dropdown-item>
-                <el-dropdown-item divided style="color: #f56c6c" @click="onDeleteWorkflow">
-                  <el-icon><Delete /></el-icon>
-                  删除工作流
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <button class="dify-publish-btn" @click="handleSave()" :disabled="saving">
+            发布
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="ml-1"><path d="M11.9999 13.1714L16.9497 8.22168L18.3639 9.63589L11.9999 15.9999L5.63599 9.63589L7.0502 8.22168L11.9999 13.1714Z"></path></svg>
+          </button>
+
+
         </div>
       </div>
     </div>
@@ -186,6 +185,13 @@
         >
           <!-- Custom Background (Dotted) -->
           <Background :pattern-color="isDark ? '#334155' : '#f0f0f0'" :gap="20" />
+          
+          <!-- Real MiniMap (Dynamic) -->
+          <MiniMap 
+            v-if="showMiniMap" 
+            :node-color="n => getNodeColor(n.type)" 
+            :mask-color="isDark ? 'rgba(15, 23, 42, 0.7)' : 'rgba(248, 250, 252, 0.7)'"
+          />
           
           <!-- Custom Node Templates (Dify Accent Style) -->
           <template #node-start="{ data }">
@@ -532,9 +538,9 @@
                   <el-select v-model="selectedNode.data.agentId" style="width: 100%" @change="onAgentChange">
                     <el-option
                       v-for="agent in agentList"
-                      :key="agent.id"
+                      :key="agent.agentId"
                       :label="agent.name"
-                      :value="agent.id"
+                      :value="agent.agentId"
                     />
                   </el-select>
                 </el-form-item>
@@ -610,132 +616,122 @@
         <el-icon><MapLocation /></el-icon>
     </div>
     
-    <!-- Mini Map Panel -->
-    <transition name="fade">
-      <div class="mini-map-panel" v-if="showMiniMap && activeTab === 'orchestrate'">
-        <div class="mini-map-header">
-          <span>画布导航</span>
-          <el-icon class="close-btn" @click="showMiniMap = false"><Close /></el-icon>
-        </div>
-        <div class="mini-map-content">
-          <div class="mini-map-info">
-            <div class="info-item">
-              <span class="label">节点数:</span>
-              <span class="value">{{ elements.filter(el => !el.source).length }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">连线数:</span>
-              <span class="value">{{ elements.filter(el => el.source).length }}</span>
-            </div>
+
+
+    <!-- Preview/Run Drawer (Chat UI) -->
+    <el-drawer
+      v-model="showPreviewDialog"
+      title="预览"
+      size="500px"
+      append-to-body
+      class="preview-drawer"
+      :with-header="true"
+    >
+      <div class="chat-preview-container">
+        <!-- Main Chat/Result Area -->
+        <div class="chat-messages-area">
+          <div v-if="executionLoading" class="loading-state">
+            <el-icon class="is-loading"><Loading /></el-icon> 正在思考中...
           </div>
-          <el-button size="small" @click="onFitView" style="width: 100%; margin-top: 8px;">
-            <el-icon><FullScreen /></el-icon>
-            适应画布
-          </el-button>
+          
+          <div v-else-if="executionResult" class="result-display">
+            <!-- 最终结果 (Final Output) -->
+            <div v-if="finalOutputs && (typeof finalOutputs === 'string' || Object.keys(finalOutputs).length > 0)" class="final-output-section">
+              <div class="message-bubble bot" style="white-space: pre-wrap;">
+                {{ finalOutputText || '执行完成 (无主要文本输出)' }}
+              </div>
+              <el-collapse class="parsed-raw-collapse" style="margin-bottom: 20px;">
+                 <el-collapse-item title="原始输出 (Raw Data)" name="raw_outputs">
+                    <JsonViewer :data="finalOutputs" :expand-all="true" :dark="isDark" />
+                 </el-collapse-item>
+              </el-collapse>
+            </div>
+
+            <el-collapse v-if="executionResult" class="trace-collapse">
+               <el-collapse-item title="运行详情 (Trace)" name="trace">
+                 <!-- Trace Timeline -->
+                 <div class="trace-list" v-if="executionResult.trace">
+                    <div v-for="item in executionResult.trace" :key="item.node_id" class="trace-item" :class="item.status">
+                      <div class="trace-item-header">
+                         <div class="node-info">
+                            <span class="node-id-badge">{{ item.node_id }}</span>
+                            <span class="node-type-label">{{ getNodeLabelById(item.node_id) }}</span>
+                         </div>
+                         <div class="node-status-badge">
+                            <el-icon v-if="item.status === 'completed'"><CircleCheck /></el-icon>
+                            <el-icon v-else-if="item.status === 'failed'"><CircleClose /></el-icon>
+                            <el-icon v-else-if="item.status === 'skipped'"><Remove /></el-icon>
+                            {{ formatStatus(item.status) }}
+                         </div>
+                      </div>
+                      
+                      <div class="trace-item-content" v-if="item.outputs || item.error">
+                         <div v-if="getNodeTypeById(item.node_id) === 'code'" class="code-execution-section">
+                            <div class="sub-section-title">执行代码</div>
+                            <pre class="code-preview">{{ getCodePayload(item.node_id) }}</pre>
+                         </div>
+                         <div v-if="item.outputs" class="outputs-section">
+                            <div class="sub-section-title">节点输出</div>
+                            <JsonViewer :data="item.outputs" :dark="isDark" />
+                         </div>
+                         <div v-if="item.error" class="error-msg">{{ item.error }}</div>
+                      </div>
+                      
+                      <div class="trace-item-footer">
+                         <span class="duration">{{ (item.duration || 0).toFixed(3) }}s</span>
+                         <span class="usage" v-if="item.outputs?.tokens_used">
+                            {{ item.outputs.tokens_used }} tokens
+                         </span>
+                      </div>
+                    </div>
+                 </div>
+                 <div class="raw-response-section" style="margin-top: 10px;">
+                   <JsonViewer :data="lastExecutionDsl" title="Workflow DSL" :dark="isDark" />
+                 </div>
+               </el-collapse-item>
+            </el-collapse>
+          </div>
+
+          <div v-else class="empty-chat-state">
+            <el-icon size="48" color="#dcdfe6"><ChatDotSquare /></el-icon>
+            <p>在下面的查询框中输入内容开始调试工作流</p>
+          </div>
+        </div>
+
+        <!-- Chat Input Area (查询框) -->
+        <div class="chat-input-area">
+          <!-- Extra Inputs if there are other variables besides query -->
+          <div class="extra-inputs" v-if="previewInputs.length > 1">
+             <el-form label-position="left" inline size="small">
+                <el-form-item v-for="input in previewInputs.filter(i => i.name !== 'query')" :key="input.name" :label="input.label || input.name">
+                   <el-input v-model="input.value" :placeholder="`输入 ${input.name}`" />
+                </el-form-item>
+             </el-form>
+          </div>
+          
+          <div class="query-box-wrapper">
+             <el-input 
+                v-model="(previewInputs.find(i => i.name === 'query') || {value: ''}).value" 
+                type="textarea"
+                :rows="2"
+                resize="none"
+                placeholder="查询框 (Type your query here...)" 
+                class="query-input"
+                @keydown.enter.prevent="runWorkflow"
+                :disabled="executionLoading"
+             />
+             <el-button 
+                type="primary" 
+                :icon="Promotion" 
+                class="send-btn" 
+                circle 
+                :loading="executionLoading" 
+                @click="runWorkflow"
+             ></el-button>
+          </div>
         </div>
       </div>
-    </transition>
-
-    <!-- Preview/Run Dialog -->
-    <el-dialog v-model="showPreviewDialog" title="运行预览" width="600px" append-to-body>
-      <el-tabs v-model="activePreviewTab">
-        <el-tab-pane label="输入" name="input">
-          <el-form label-position="top">
-             <div v-if="previewInputs.length === 0" class="no-inputs-hint">此工作流没有定义 Start 节点输入变量</div>
-             <el-form-item v-for="input in previewInputs" :key="input.name" :label="input.label || input.name">
-                <el-input v-model="input.value" :placeholder="`请输入 ${input.name}`" />
-             </el-form-item>
-          </el-form>
-        </el-tab-pane>
-        <el-tab-pane label="运行结果" name="result">
-           <div v-if="executionLoading" class="loading-state">
-              <el-icon class="is-loading"><Loading /></el-icon> 运行中...
-           </div>
-            <div v-else-if="executionResult" class="result-display">
-               <!-- 最终结果 (Final Output) -->
-               <div v-if="executionResult.outputs && Object.keys(executionResult.outputs).length > 0" class="final-output-section">
-                  <div class="section-title">最终输出 (Final Output)</div>
-                  <JsonViewer :data="executionResult.outputs" :expand-all="true" :dark="isDark" />
-               </div>
-
-               <!-- Status Header -->
-               <div class="result-header">
-                  <div v-if="executionResult.error" class="result-status error">
-                    <el-icon><CircleClose /></el-icon> 运行失败
-                  </div>
-                  <div v-else-if="executionResult.status === 'succeeded' || (executionResult.status === 'partial' && !executionResult.error)" class="result-status success">
-                    <el-icon><CircleCheck /></el-icon> 运行成功
-                  </div>
-                  <div v-else class="result-status info">
-                    <el-icon><InfoFilled /></el-icon> 运行完成 ({{ executionResult.status }})
-                  </div>
-                  
-                  <div class="result-meta" v-if="executionResult.trace">
-                     共执行 {{ executionResult.trace.length }} 个节点
-                  </div>
-               </div>
-
-               <!-- Trace Timeline -->
-               <div class="trace-list" v-if="executionResult.trace">
-                  <div v-for="item in executionResult.trace" :key="item.node_id" class="trace-item" :class="item.status">
-                    <div class="trace-item-header">
-                       <div class="node-info">
-                          <span class="node-id-badge">{{ item.node_id }}</span>
-                          <span class="node-type-label">{{ getNodeLabelById(item.node_id) }}</span>
-                       </div>
-                       <div class="node-status-badge">
-                          <el-icon v-if="item.status === 'completed'"><CircleCheck /></el-icon>
-                          <el-icon v-else-if="item.status === 'failed'"><CircleClose /></el-icon>
-                          <el-icon v-else-if="item.status === 'skipped'"><Remove /></el-icon>
-                          {{ formatStatus(item.status) }}
-                       </div>
-                    </div>
-                    
-                    <div class="trace-item-content" v-if="item.outputs || item.error">
-                       <!-- Special handling for Code Node -->
-                       <div v-if="getNodeTypeById(item.node_id) === 'code'" class="code-execution-section">
-                          <div class="sub-section-title">执行代码</div>
-                          <pre class="code-preview">{{ getCodePayload(item.node_id) }}</pre>
-                       </div>
-
-                       <div v-if="item.outputs" class="outputs-section">
-                          <div class="sub-section-title">节点输出</div>
-                          <JsonViewer :data="item.outputs" :dark="isDark" />
-                       </div>
-                       <div v-if="item.error" class="error-msg">
-                          {{ item.error }}
-                       </div>
-                    </div>
-                    
-                    <div class="trace-item-footer">
-                       <span class="duration">{{ (item.duration || 0).toFixed(3) }}s</span>
-                       <span class="usage" v-if="item.outputs?.tokens_used">
-                          {{ item.outputs.tokens_used }} tokens
-                       </span>
-                    </div>
-                  </div>
-               </div>
-               
-               <el-collapse v-if="executionResult">
-                  <el-collapse-item title="执行上下文 (Context)" name="context" v-if="executionResult.context">
-                    <JsonViewer :data="executionResult.context" title="Global Context" :dark="isDark" />
-                  </el-collapse-item>
-                  <el-collapse-item title="DSL 定义 (Translated Definition)" name="dsl">
-                    <JsonViewer :data="lastExecutionDsl" title="Workflow DSL" :dark="isDark" />
-                  </el-collapse-item>
-                  <el-collapse-item title="原始 JSON 响应" name="raw">
-                    <JsonViewer :data="executionResult" title="Raw Response" :dark="isDark" />
-                  </el-collapse-item>
-               </el-collapse>
-            </div>
-           <div v-else class="empty-result">点击运行开始调试</div>
-        </el-tab-pane>
-      </el-tabs>
-      <template #footer>
-        <el-button @click="showPreviewDialog = false">关闭</el-button>
-        <el-button type="primary" :loading="executionLoading" @click="runWorkflow">运行</el-button>
-      </template>
-    </el-dialog>
+    </el-drawer>
 
     <!-- AI Generation Dialog -->
     <el-dialog v-model="showAIDialog" title="AI 辅助生成工作流" width="500px">
@@ -766,15 +762,17 @@ import { useRouter, useRoute } from 'vue-router';
 import { ROUTES } from '@/router/routes';
 import { VueFlow, Handle, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
+import { MiniMap } from '@vue-flow/minimap';
 import { Controls } from '@vue-flow/controls';
 import '@vue-flow/core/dist/style.css';
+import '@vue-flow/minimap/dist/style.css';
 import { 
   VideoPlay, User, Tools, Share, CircleCheck, Search, Grid, Collection, 
   CaretBottom, Connection, TrendCharts, Edit, Operation, VideoPause,
   RefreshRight, MoreFilled, Loading, Plus, Close, Pointer, FullScreen, Aim,
   Right, MapLocation, Delete, Clock, Cpu, ChatDotSquare, Monitor, DocumentCopy,
   Files, EditPen, Link, Document, Scissor, Postcard, Sunny, Refresh,
-  CirclePlusFilled, DocumentAdd, MagicStick
+  CirclePlusFilled, DocumentAdd, MagicStick, Promotion, Remove, CircleClose, InfoFilled
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getAgentList } from '@/api/agent';
@@ -817,6 +815,33 @@ const previewInputs = ref([]);
 const executionResult = ref(null);
 const lastExecutionDsl = ref(null);
 const executionLoading = ref(false);
+
+const finalOutputs = computed(() => {
+    if (!executionResult.value) return null;
+    return executionResult.value.outputs || (executionResult.value.data && executionResult.value.data.outputs) || executionResult.value;
+});
+
+const finalOutputText = computed(() => {
+    if (!finalOutputs.value) return '';
+    if (typeof finalOutputs.value === 'string') return finalOutputs.value;
+    
+    // Direct matches
+    if (finalOutputs.value.text) return finalOutputs.value.text;
+    if (finalOutputs.value.output) return finalOutputs.value.output;
+    if (finalOutputs.value.result) return finalOutputs.value.result;
+    
+    // If it's an object with node IDs as keys, try to find the text in the values (usually the LLM or Answer node)
+    const values = Object.values(finalOutputs.value);
+    for (const val of values.reverse()) { // Reverse to prefer later nodes
+        if (typeof val === 'object' && val !== null) {
+            if (val.text) return val.text;
+            if (val.output) return val.output;
+            if (val.result) return val.result;
+        }
+    }
+    
+    return JSON.stringify(finalOutputs.value, null, 2);
+});
 
 // AI Generation state
 const showAIDialog = ref(false);
@@ -992,7 +1017,9 @@ const getDifyWorkflowData = () => {
         sourceHandle: e.sourceHandle,
         target: e.target,
         targetHandle: e.targetHandle,
-        type: e.type || 'custom',
+        type: e.type || 'smoothstep',
+        animated: e.animated !== undefined ? e.animated : true,
+        style: e.style || { stroke: '#94a3b8', strokeWidth: 2 },
         data: {
             sourceType: e.sourceHandle,
             targetType: e.targetHandle,
@@ -1209,9 +1236,16 @@ const loadWorkflow = async (id) => {
             };
         });
         
+        const mappedEdges = (rawEdges || []).map(e => ({
+            ...e,
+            type: e.type || 'smoothstep',
+            animated: e.animated !== undefined ? e.animated : true,
+            style: e.style || { stroke: '#94a3b8', strokeWidth: 2 }
+        }));
+        
         elements.value = [
           ...nodes,
-          ...(rawEdges || [])
+          ...mappedEdges
         ];
     } else {
       // Empty workflow - add default start/end nodes
@@ -1314,7 +1348,9 @@ const onConnect = (params) => {
         target: params.target,
         sourceHandle: params.sourceHandle,
         targetHandle: params.targetHandle,
-        type: 'custom', // or default
+        type: 'smoothstep',
+        animated: true,
+        style: { stroke: '#94a3b8', strokeWidth: 2 },
         data: { sourceType: params.sourceHandle, targetType: params.targetHandle }
     };
     elements.value.push(newEdge);
@@ -1411,7 +1447,7 @@ const getNodeColor = (type) => {
 };
 
 const onAgentChange = (val) => {
-    const agent = agentList.value.find(a => a.id === val);
+    const agent = agentList.value.find(a => a.agentId === val);
     if (agent && selectedNode.value) {
         selectedNode.value.data.agentName = agent.name;
     }
@@ -1656,15 +1692,15 @@ const runWorkflow = async () => {
 
 /* --- Dify Sub Header --- */
 .dify-sub-header {
-  height: 52px;
-  min-height: 52px;
-  background: #fcfcfd;
-  border-bottom: 1px solid #e5e7eb;
+  height: 56px;
+  min-height: 56px;
+  background: #f7f8fa; /* Matching .visual-workflow-editor background */
+  border-bottom: none; /* Seamless blend */
   padding: 0 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  z-index: 90;
+  z-index: 100;
 }
 
 .sub-left, .sub-right {
@@ -1674,7 +1710,7 @@ const runWorkflow = async () => {
 }
 
 .sub-right {
-  gap: 12px;
+  gap: 8px;
 }
 
 .breadcrumb {
@@ -1724,35 +1760,185 @@ const runWorkflow = async () => {
   white-space: nowrap;
 }
 
-.status-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; }
+.status-dot { width: 6px; height: 6px; background: #12b76a; border-radius: 50%; }
 
-.action-group { 
-  display: flex; 
-  align-items: center; 
-  gap: 8px; 
-  height: 100%;
-}
-
-.action-group .el-button { 
-  vertical-align: middle;
-  display: inline-flex;
+/* --- Dify Button Groups --- */
+.dify-button-group-wrapper {
+  display: flex;
   align-items: center;
-  height: 32px !important;
-  font-size: 14px;
+  gap: 8px;
 }
 
-.action-group .el-button--text {
-  color: #64748b !important;
-  font-weight: 500 !important;
+.dify-divider {
+  width: 1px;
+  height: 14px;
+  background: #f2f4f7;
+  margin: 0 4px;
 }
 
-.action-group .el-button--text:hover {
-  color: #155eef !important;
-  background: transparent !important;
+.dify-action-bar {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  border: 0.5px solid #d0d5dd;
+  background: #ffffff; /* Keep buttons white for contrast against gray header */
+  border-radius: 8px;
+  padding: 0 2px;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
 }
 
-.action-group .el-button--primary {
-  padding: 0 20px !important;
+.dify-bar-item {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #344054;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.dify-bar-item:hover {
+  background: #f9fafb;
+}
+
+.dify-bar-item svg {
+  margin-right: 4px;
+  width: 16px;
+  height: 16px;
+}
+
+.dify-bar-divider {
+  width: 1px;
+  height: 14px;
+  background: #f2f4f7;
+  margin: 0 2px;
+}
+
+.dify-bar-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  color: #667085;
+  transition: all 0.2s;
+}
+
+.dify-bar-icon-btn:hover {
+  background: #f9fafb;
+  color: #344054;
+}
+
+.dify-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  height: 18px;
+  min-width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f79009;
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dify-toolset {
+  display: flex;
+  background: #ffffff;
+  border: 0.5px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 0 2px;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.dify-tool-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #667085;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0;
+  transition: all 0.2s;
+}
+
+.dify-tool-btn:hover {
+  background: #f9fafb;
+  color: #344054;
+}
+
+.dify-features-btn {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  background: #ffffff;
+  border: 0.5px solid #d0d5dd;
+  border-radius: 8px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.dify-features-btn:hover {
+  background: #f9fafb;
+}
+
+.dify-publish-btn {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px 0 14px;
+  background: #155eef;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.dify-publish-btn:hover {
+  background: #1546cb;
+}
+
+.dify-publish-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dify-history-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 0.5px solid #d0d5dd;
+  border-radius: 8px;
+  color: #667085;
+  cursor: pointer;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.dify-history-btn:hover {
+  background: #f9fafb;
 }
 
 /* --- Editor Layout --- */
@@ -1766,7 +1952,8 @@ const runWorkflow = async () => {
 .tool-rail {
   position: absolute;
   left: 16px;
-  top: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 48px;
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -1900,54 +2087,75 @@ const runWorkflow = async () => {
 
 /* --- Dify style Nodes --- */
 .dify-node {
-  background: #fff;
+  background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  width: 240px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-  transition: border-color 0.2s;
+  border-radius: 12px;
+  width: 250px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: auto;
 }
 
-.dify-node.selected { border-color: #155eef; border-width: 2px; }
-
-.node-header {
-  padding: 8px 12px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid #f3f4f6;
-  position: relative;
+.dify-node:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
 }
 
-/* Colors for headers */
-.start .node-header { background: #ecfdf5; border-bottom-color: #d1fae5; }
-.end .node-header { background: #fef2f2; border-bottom-color: #fee2e2; }
-.llm .node-header { background: #f0fdf4; border-bottom-color: #dcfce7; }
-.agent .node-header { background: #f5f3ff; border-bottom-color: #ede9fe; }
-.logic .node-header { background: #f8fafc; border-bottom-color: #f1f5f9; }
+.dify-node.selected { 
+  border-color: #155eef; 
+  box-shadow: 0 0 0 4px rgba(21, 94, 239, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+}
 
-.header-icon { font-size: 16px; }
-.start .header-icon { color: #10b981; }
-.end .header-icon { color: #ef4444; }
-.llm .header-icon { color: #0ebf9a; }
+.node-header {
+  padding: 12px 14px 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: none;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  background: transparent !important;
+}
 
-.node-header .title { font-size: 13px; font-weight: 700; flex: 1; }
+/* Colors for icon wrappers (in Dify, the icon has the background color, not the header) */
+.header-icon { 
+  font-size: 16px; 
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: white !important; /* Icons inside are white */
+}
+
+/* Icon specific background colors matching Dify */
+.start .header-icon { background: #3b82f6; } /* Blue */
+.end .header-icon { background: #ef4444; }   /* Red */
+.llm .header-icon { background: #8b5cf6; }   /* Purple/Indigo */
+.agent .header-icon { background: #6366f1; } /* Indigo */
+.logic .header-icon { background: #0ea5e9; } /* Cyan */
+.knowledge .header-icon { background: #10b981; } /* Emerald */
+.assigner .header-icon { background: #ec4899; } /* Pink */
+.answer .header-icon { background: #f97316; } /* Orange */
+.code .header-icon { background: #d946ef; } /* Fuchsia */
+
+.node-header .title { font-size: 14px; font-weight: 700; flex: 1; color: #1e293b; }
 .more-icon { color: #94a3b8; cursor: pointer; }
 
-.node-body { padding: 12px; }
-.body-text { font-size: 12px; color: #64748b; line-height: 1.5; }
+.node-body { padding: 4px 14px 16px 14px; }
+.body-text { font-size: 12px; color: #64748b; line-height: 1.5; background: #f8fafc; padding: 8px 10px; border-radius: 6px; }
 
 .model-badge {
-    display: inline-block;
-    background: #eff6ff;
-    color: #155eef;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 700;
-    margin-bottom: 6px;
+    display: inline-flex;
+    align-items: center;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    border: 1px solid #e2e8f0;
 }
 
 /* New Node Styles */
@@ -2007,13 +2215,26 @@ const runWorkflow = async () => {
 
 /* Handle Overrides */
 .vue-flow__handle {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   background: #fff;
   border: 2px solid #cbd5e1;
+  transition: all 0.2s;
+  border-radius: 50%;
 }
 
-.vue-flow__handle:hover { border-color: #155eef; background: #eff6ff; }
+.vue-flow__handle:hover { 
+  border-color: #3b82f6; 
+  background: #eff6ff;
+  transform: scale(1.1);
+}
+
+.vue-flow__handle-right {
+  right: -6px;
+}
+.vue-flow__handle-left {
+  left: -6px;
+}
 
 /* --- Properties Panel --- */
 .properties-panel {
@@ -2131,6 +2352,38 @@ const runWorkflow = async () => {
 .info-item .value {
     font-weight: 600;
     color: #155eef;
+}
+
+/* --- Real MiniMap Styling --- */
+.vue-flow__minimap {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  right: 20px;
+  bottom: 70px;
+  width: 200px;
+  height: 150px;
+}
+
+.dark .vue-flow__minimap {
+  background-color: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+.vue-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.05);
+}
+
+.dark .vue-flow__minimap-mask {
+  fill: rgba(255, 255, 255, 0.05);
+}
+
+.vue-flow__minimap-node {
+  rx: 4;
+  ry: 4;
 }
 
 /* Animations */
@@ -2333,13 +2586,18 @@ const runWorkflow = async () => {
 }
 
 .dark .dify-node {
-  background: #1e293b;
-  border-color: #334155;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+.dark .dify-node:hover {
+  box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.6);
 }
 
 .dark .dify-node.selected {
   border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.4);
 }
 
 .dark .node-body .body-text {
@@ -2517,12 +2775,117 @@ const runWorkflow = async () => {
   border-color: #334155;
 }
 
+/* Chat Preview Styles */
+.chat-preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-messages-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background-color: #f8fafc;
+}
+
+.dark .chat-messages-area {
+  background-color: #0f172a;
+}
+
+.empty-chat-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.empty-chat-state p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.message-bubble.bot {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.dark .message-bubble.bot {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.trace-collapse {
+  border-top: none;
+}
+
+.chat-input-area {
+  padding: 16px;
+  background: white;
+  border-top: 1px solid #e2e8f0;
+}
+
+.dark .chat-input-area {
+  background: #1e293b;
+  border-top-color: #334155;
+}
+
+.query-box-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+}
+
+.query-input :deep(.el-textarea__inner) {
+  padding-right: 50px;
+  border-radius: 8px;
+  background-color: #f1f5f9;
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+.query-input :deep(.el-textarea__inner:focus) {
+  border-color: #409eff;
+  background-color: white;
+}
+
+.dark .query-input :deep(.el-textarea__inner) {
+  background-color: #334155;
+  color: #e2e8f0;
+}
+
+.dark .query-input :deep(.el-textarea__inner:focus) {
+  background-color: #1e293b;
+}
+
+.send-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+
+.extra-inputs {
+  margin-bottom: 12px;
+}
+
 .dark .node-id-badge {
   background: #1e293b;
   color: #94a3b8;
 }
 
-.dark .el-dialog {
+.dark .el-dialog,
+.dark .el-drawer {
   background-color: #1e293b !important;
 }
 
@@ -2536,5 +2899,41 @@ const runWorkflow = async () => {
 
 .dark .json-viewer {
   background: #0f172a;
+}
+
+.parsed-raw-collapse {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  background: white;
+}
+
+.dark .parsed-raw-collapse {
+  border-color: #334155;
+  background: #1e293b;
+}
+
+.parsed-raw-collapse :deep(.el-collapse-item__header) {
+  padding: 0 16px;
+  background: #f8fafc;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.dark .parsed-raw-collapse :deep(.el-collapse-item__header) {
+  background: #0f172a;
+  color: #94a3b8;
+}
+
+.parsed-raw-collapse :deep(.el-collapse-item__wrap) {
+  border-top: 1px solid #e2e8f0;
+}
+
+.dark .parsed-raw-collapse :deep(.el-collapse-item__wrap) {
+  border-top-color: #334155;
+}
+
+.parsed-raw-collapse :deep(.el-collapse-item__content) {
+  padding: 12px;
 }
 </style>

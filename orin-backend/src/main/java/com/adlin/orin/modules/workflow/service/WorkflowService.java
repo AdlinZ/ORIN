@@ -35,6 +35,21 @@ public class WorkflowService {
     private final WorkflowEngine workflowEngine;
     private final DifyDslConverter difyDslConverter;
 
+    /**
+     * 将字符串转换为 WorkflowType 枚举
+     */
+    private WorkflowEntity.WorkflowType parseWorkflowType(String type) {
+        if (type == null || type.isBlank()) {
+            return WorkflowEntity.WorkflowType.DAG;
+        }
+        try {
+            return WorkflowEntity.WorkflowType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid workflow type: {}, defaulting to DAG", type);
+            return WorkflowEntity.WorkflowType.DAG;
+        }
+    }
+
     @Transactional
     public WorkflowResponse importDifyWorkflow(String name, String description, String yamlContent) {
         log.info("Importing Dify workflow: {}", name);
@@ -64,14 +79,22 @@ public class WorkflowService {
             return updateWorkflow(request.getId(), request);
         }
 
-        if (workflowRepository.existsByWorkflowName(request.getWorkflowName())) {
-            throw new IllegalArgumentException("Workflow name already exists: " + request.getWorkflowName());
+        String finalName = request.getWorkflowName();
+        if (finalName == null || finalName.trim().isEmpty()) {
+            finalName = "未命名工作流";
+        }
+
+        String baseName = finalName;
+        int counter = 1;
+        while (workflowRepository.existsByWorkflowName(finalName)) {
+            finalName = baseName + " (" + counter + ")";
+            counter++;
         }
 
         WorkflowEntity entity = WorkflowEntity.builder()
-                .workflowName(request.getWorkflowName())
+                .workflowName(finalName)
                 .description(request.getDescription())
-                .workflowType(request.getWorkflowType())
+                .workflowType(parseWorkflowType(request.getWorkflowType()))
                 .workflowDefinition(
                         request.getWorkflowDefinition() != null ? request.getWorkflowDefinition() : new HashMap<>())
                 .timeoutSeconds(request.getTimeoutSeconds())
@@ -107,7 +130,7 @@ public class WorkflowService {
             entity.setDescription(request.getDescription());
         }
         if (request.getWorkflowType() != null) {
-            entity.setWorkflowType(request.getWorkflowType());
+            entity.setWorkflowType(parseWorkflowType(request.getWorkflowType()));
         }
         if (request.getWorkflowDefinition() != null) {
             entity.setWorkflowDefinition(request.getWorkflowDefinition());

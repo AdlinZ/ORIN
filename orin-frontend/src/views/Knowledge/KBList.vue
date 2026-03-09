@@ -14,8 +14,8 @@
       <!-- Uniform Grid Layout (Dify Style) -->
       <div class="kb-grid">
         
-        <!-- 1. Create Knowledge Card -->
-        <div class="kb-grid-item create-card" @click="handleAdd">
+        <!-- 1. Create Knowledge Card (hide when empty) -->
+        <div v-if="allKBs.length > 0" class="kb-grid-item create-card" @click="handleAdd">
           <div class="create-content">
             <div class="create-icon">
               <el-icon><Plus /></el-icon>

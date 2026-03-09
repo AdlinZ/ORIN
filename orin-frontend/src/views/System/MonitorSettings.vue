@@ -235,6 +235,14 @@ sudo systemctl restart prometheus</pre>
                   <el-input v-model="envConfig['siliconflow.api.base-url']" />
                 </el-form-item>
 
+                <el-divider content-position="left">📖 Jina Reader (网页转Markdown)</el-divider>
+                <el-form-item label="启用 Jina Reader">
+                  <el-switch v-model="envConfig['jina.reader.enabled']" />
+                </el-form-item>
+                <el-form-item label="Jina API Key">
+                  <el-input v-model="envConfig['jina.reader.api-key']" type="password" show-password placeholder="可选，无Key时20次/分钟" />
+                </el-form-item>
+
               </el-form>
               <div style="text-align: right">
                 <el-button type="primary" :loading="envSaving" @click="saveEnvConfig">执行覆盖保存</el-button>

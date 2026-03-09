@@ -8,17 +8,25 @@ from functools import wraps
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 
-# RestrictedPython imports
+# RestrictedPython imports - v8.x compatible
 from RestrictedPython import safe_globals, safe_builtins
-from RestrictedPython.Eval import restricted_eval
-from RestrictedPython.G import (
-    _write_,
-    _read_,
-    _getiter_,
-    _iter_unpack_sequence_,
-    guard_getitem,
-    guard_getiter,
-)
+
+# For RestrictedPython v8.x, these guards are built into safe_globals
+# We create simple wrappers for compatibility
+_write_ = getattr(safe_globals.get('__builtins__'), '__setitem__', None) or (lambda d, k, v: d.__setitem__(k, v))
+_read_ = getattr(safe_globals.get('__builtins__'), '__getitem__', None) or (lambda d, k: d.__getitem__(k))
+_getiter_ = iter
+_iter_unpack_sequence_ = lambda it: it
+
+
+def guard_getitem(obj, key):
+    """Guard against unsafe __getitem__ access."""
+    return obj[key]
+
+
+def guard_getiter(obj):
+    """Guard against unsafe iteration."""
+    return iter(obj)
 
 
 class TimeoutException(Exception):

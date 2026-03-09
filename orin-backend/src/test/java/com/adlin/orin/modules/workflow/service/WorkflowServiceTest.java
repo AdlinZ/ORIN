@@ -63,7 +63,7 @@ class WorkflowServiceTest {
 
                 WorkflowRequest request = WorkflowRequest.builder()
                                 .workflowName("Research & Write Workflow")
-                                .workflowType(WorkflowEntity.WorkflowType.SEQUENTIAL)
+                                .workflowType("SEQUENTIAL")
                                 .steps(List.of(step1, step2))
                                 .build();
 
@@ -105,7 +105,7 @@ class WorkflowServiceTest {
 
                 WorkflowRequest request = WorkflowRequest.builder()
                                 .workflowName("Mixed Workflow")
-                                .workflowType(WorkflowEntity.WorkflowType.SEQUENTIAL)
+                                .workflowType("SEQUENTIAL")
                                 .steps(List.of(agentStep, skillStep))
                                 .build();
 

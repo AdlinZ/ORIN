@@ -42,6 +42,13 @@ public class ExternalSyncServiceImpl implements ExternalSyncService {
     @Value("${spring.datasource.url:jdbc:h2:mem:orin}")
     private String defaultDbUrl;
 
+    // Jina Reader Configuration
+    @Value("${jina.reader.enabled:true}")
+    private boolean jinaReaderEnabled;
+
+    @Value("${jina.reader.api-key:}")
+    private String jinaReaderApiKey;
+
     // ==================== Notion Sync ====================
 
     @Override
@@ -237,25 +244,75 @@ public class ExternalSyncServiceImpl implements ExternalSyncService {
     @Override
     public Map<String, Object> testWebUrl(String url) {
         Map<String, Object> result = new HashMap<>();
-        try {
-            String content = fetchWebPage(url);
-            if (content != null) {
-                result.put("success", true);
-                result.put("title", extractPageTitle(content));
-                result.put("contentLength", content.length());
-                result.put("message", "URL is accessible");
-            } else {
-                result.put("success", false);
-                result.put("message", "Failed to fetch URL");
+        boolean usedJina = false;
+
+        // Try Jina Reader first if enabled
+        String content = null;
+        if (jinaReaderEnabled) {
+            try {
+                content = fetchViaJinaReader(url);
+                if (content != null && !content.isEmpty()) {
+                    usedJina = true;
+                }
+            } catch (Exception e) {
+                log.warn("Jina Reader failed, trying direct HTTP: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            result.put("success", false);
-            result.put("message", "Error: " + e.getMessage());
         }
+
+        // Fallback to direct HTTP if Jina failed
+        if (content == null) {
+            content = fetchWebPageDirect(url);
+        }
+
+        if (content != null && !content.isEmpty()) {
+            result.put("success", true);
+            result.put("title", extractPageTitle(content, usedJina));
+            result.put("contentLength", content.length());
+            result.put("usedJinaReader", usedJina);
+            result.put("message", usedJina ? "URL accessible via Jina Reader" : "URL accessible via direct HTTP");
+        } else {
+            result.put("success", false);
+            result.put("message", "Failed to fetch URL");
+        }
+
         return result;
     }
 
+    /**
+     * Direct HTTP fetch without Jina Reader (for fallback)
+     */
+    private String fetchWebPageDirect(String url) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", getRandomUserAgent());
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+            if (response.getStatusCode() == HttpStatus.OK) {
+                return stripHtmlTags(response.getBody());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch web page directly: {}", url, e);
+        }
+        return null;
+    }
+
     private String fetchWebPage(String url) {
+        // Try Jina Reader first if enabled
+        if (jinaReaderEnabled) {
+            try {
+                String content = fetchViaJinaReader(url);
+                if (content != null && !content.isEmpty()) {
+                    log.info("Successfully fetched {} via Jina Reader", url);
+                    return content;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch via Jina Reader, falling back to direct HTTP: {}", url, e);
+            }
+        }
+
+        // Fallback to direct HTTP fetch
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("User-Agent", getRandomUserAgent());
@@ -273,6 +330,29 @@ public class ExternalSyncServiceImpl implements ExternalSyncService {
         return null;
     }
 
+    /**
+     * Fetch URL content via Jina Reader API
+     * Returns clean Markdown format
+     */
+    private String fetchViaJinaReader(String url) {
+        String jinaApiUrl = "https://r.jina.ai/" + url;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "text/plain");
+
+        if (jinaReaderApiKey != null && !jinaReaderApiKey.isEmpty()) {
+            headers.set("Authorization", "Bearer " + jinaReaderApiKey);
+        }
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(jinaApiUrl, HttpMethod.GET, entity, String.class);
+
+        if (response.getStatusCode() == HttpStatus.OK) {
+            return response.getBody();
+        }
+        return null;
+    }
+
     private String stripHtmlTags(String html) {
         if (html == null) return "";
         // Simple HTML stripping - remove script and style tags first
@@ -286,13 +366,32 @@ public class ExternalSyncServiceImpl implements ExternalSyncService {
         return html.trim();
     }
 
-    private String extractPageTitle(String html) {
-        if (html == null) return "";
-        int start = html.indexOf("<title>");
-        int end = html.indexOf("</title>");
-        if (start >= 0 && end > start) {
-            return html.substring(start + 7, end).trim();
+    /**
+     * Extract page title from content (supports both HTML and Markdown)
+     */
+    private String extractPageTitle(String content, boolean isMarkdown) {
+        if (content == null || content.isEmpty()) {
+            return "Web Page";
         }
+
+        if (isMarkdown) {
+            // For Markdown, look for first # heading
+            String[] lines = content.split("\n");
+            for (String line : lines) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("# ")) {
+                    return trimmed.substring(2).trim();
+                }
+            }
+        } else {
+            // For HTML, look for <title> tag
+            int start = content.indexOf("<title>");
+            int end = content.indexOf("</title>");
+            if (start >= 0 && end > start) {
+                return content.substring(start + 7, end).trim();
+            }
+        }
+
         return "Web Page";
     }
 

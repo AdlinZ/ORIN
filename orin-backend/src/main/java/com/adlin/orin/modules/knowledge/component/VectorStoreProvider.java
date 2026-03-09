@@ -46,6 +46,16 @@ public interface VectorStoreProvider {
      */
     List<DocumentChunk> getDocumentChunks(String collectionName, String docId);
 
+    /**
+     * Check if knowledge base has vectors in the store
+     * @param kbId The knowledge base ID
+     * @return Map containing 'exists' (boolean) and 'vectorCount' (long, -1 if unable to determine)
+     */
+    default Map<String, Object> getVectorStats(String kbId) {
+        // Default implementation returns unknown
+        return Map.of("exists", false, "vectorCount", -1L);
+    }
+
     @lombok.Data
     @lombok.Builder
     @lombok.AllArgsConstructor
