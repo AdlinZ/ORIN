@@ -144,6 +144,7 @@ public class RetrievalService {
 
                 Map<String, Object> meta = new HashMap<>();
                 meta.put("doc_id", parent.getDocumentId());
+                meta.put("chunk_id", parent.getId());
                 meta.put("parent_id", parentId);
                 meta.put("chunk_type", "parent");
                 meta.put("title", parent.getTitle());
@@ -178,33 +179,37 @@ public class RetrievalService {
         }
 
         // 6. Add keyword-matched chunks (if not already included)
-        // 简化：直接添加关键词结果，不做严格去重
+        // 使用 chunk_id 精确去重，而不是 content 字符串匹配
         int keywordAdded = 0;
+        Set<String> includedChunkIds = finalResults.stream()
+                .map(r -> (String) r.getMetadata().get("chunk_id"))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
         for (KnowledgeDocumentChunk chunk : keywordChunks) {
             if (chunk.getContent() == null) continue;
 
-            // 简单去重：通过 content 检查
-            String chunkPreview = chunk.getContent().length() > 20 ? chunk.getContent().substring(0, 20) : chunk.getContent();
-            boolean alreadyIncluded = finalResults.stream()
-                    .anyMatch(r -> r.getContent() != null && r.getContent().contains(chunkPreview));
-
-            // 只要不满 topK 就添加
-            if (!alreadyIncluded) {
-                Map<String, Object> meta = new HashMap<>();
-                meta.put("doc_id", chunk.getDocumentId());
-                meta.put("chunk_id", chunk.getId());
-                meta.put("chunk_type", chunk.getChunkType());
-                meta.put("parent_id", chunk.getParentId());
-
-                VectorStoreProvider.SearchResult result = VectorStoreProvider.SearchResult.builder()
-                        .content(chunk.getContent())
-                        .score(WEIGHT_KEYWORD)
-                        .matchType("KEYWORD")
-                        .metadata(meta)
-                        .build();
-                finalResults.add(result);
-                keywordAdded++;
+            // 使用 chunk_id 精确去重
+            String chunkId = chunk.getId();
+            if (includedChunkIds.contains(chunkId)) {
+                continue;
             }
+            includedChunkIds.add(chunkId);
+
+            Map<String, Object> meta = new HashMap<>();
+            meta.put("doc_id", chunk.getDocumentId());
+            meta.put("chunk_id", chunk.getId());
+            meta.put("chunk_type", chunk.getChunkType());
+            meta.put("parent_id", chunk.getParentId());
+
+            VectorStoreProvider.SearchResult result = VectorStoreProvider.SearchResult.builder()
+                    .content(chunk.getContent())
+                    .score(WEIGHT_KEYWORD)
+                    .matchType("KEYWORD")
+                    .metadata(meta)
+                    .build();
+            finalResults.add(result);
+            keywordAdded++;
         }
 
         log.info("Keyword chunks added: {}. Total final results before sort: {}", keywordAdded, finalResults.size());
@@ -219,7 +224,9 @@ public class RetrievalService {
      * Keyword-only search fallback
      */
     private List<VectorStoreProvider.SearchResult> keywordOnlySearch(String kbId, String query, int topK) {
+        log.warn("keywordOnlySearch called: kbId={}, query={}, topK={}", kbId, query, topK);
         List<KnowledgeDocumentChunk> keywordChunks = keywordSearch(kbId, query, topK);
+        log.warn("keywordOnlySearch returned {} chunks", keywordChunks.size());
         List<VectorStoreProvider.SearchResult> results = new ArrayList<>();
 
         for (KnowledgeDocumentChunk chunk : keywordChunks) {
@@ -250,11 +257,11 @@ public class RetrievalService {
             return new ArrayList<>();
         }
 
-        // Split query into words (keep words with length >= 2)
+        // Split query into words (keep words with length >= 1)
         String[] words = query.split("[\\s,，.。!?;；]+");
         Set<String> searchWords = new java.util.HashSet<>();
         for (String word : words) {
-            if (word.length() >= 2) {
+            if (word.length() >= 1) {
                 searchWords.add(word.trim());
             }
         }

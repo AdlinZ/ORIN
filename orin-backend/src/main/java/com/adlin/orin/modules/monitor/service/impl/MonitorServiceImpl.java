@@ -5,10 +5,13 @@ import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import com.adlin.orin.modules.monitor.entity.PrometheusConfig;
 import com.adlin.orin.modules.monitor.entity.ServerHardwareMetric;
+import com.adlin.orin.modules.monitor.entity.ServerInfo;
+import com.adlin.orin.modules.monitor.service.LocalServerInfoService;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.monitor.repository.AgentMetricRepository;
 import com.adlin.orin.modules.monitor.repository.PrometheusConfigRepository;
 import com.adlin.orin.modules.monitor.repository.ServerHardwareMetricRepository;
+import com.adlin.orin.modules.monitor.repository.ServerInfoRepository;
 import com.adlin.orin.modules.monitor.service.MonitorService;
 import com.adlin.orin.modules.monitor.service.PrometheusService;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
@@ -45,6 +48,8 @@ public class MonitorServiceImpl implements MonitorService {
         private final PrometheusService prometheusService;
         private final PrometheusConfigRepository prometheusConfigRepository;
         private final ServerHardwareMetricRepository serverHardwareMetricRepository;
+        private final ServerInfoRepository serverInfoRepository;
+        private final LocalServerInfoService localServerInfoService;
         private final ProviderRegistry providerRegistry;
 
         // Dedicated thread pool for Prometheus queries to avoid using the common
@@ -1093,6 +1098,14 @@ public class MonitorServiceImpl implements MonitorService {
                         }
 
                         long now = System.currentTimeMillis();
+                        boolean isOnline = Boolean.TRUE.equals(hardwareData.get("online"));
+                        String prometheusUrl = (String) hardwareData.get("probedUrl");
+
+                        // 处理服务器静态信息
+                        if (isOnline) {
+                                handleServerInfo(prometheusUrl, hardwareData, now);
+                        }
+
                         ServerHardwareMetric metric = ServerHardwareMetric.builder()
                                 .timestamp(now)
                                 .recordedAt(LocalDateTime.now())
@@ -1112,7 +1125,7 @@ public class MonitorServiceImpl implements MonitorService {
                                 .networkUpload((String) hardwareData.get("networkUpload"))
                                 .os((String) hardwareData.get("os"))
                                 .cpuModel((String) hardwareData.get("cpuModel"))
-                                .online((Boolean) hardwareData.get("online"))
+                                .online(isOnline)
                                 .errorMessage((String) hardwareData.get("error"))
                                 .build();
 
@@ -1122,6 +1135,60 @@ public class MonitorServiceImpl implements MonitorService {
                 } catch (Exception e) {
                         log.error("Failed to save server hardware metric", e);
                 }
+        }
+
+        /**
+         * 处理服务器静态信息 - 首次上线或重连时更新
+         */
+        private void handleServerInfo(String prometheusUrl, Map<String, Object> hardwareData, long now) {
+                LocalDateTime nowDateTime = LocalDateTime.now();
+
+                // 使用 Prometheus URL 作为服务器唯一标识
+                String serverId = prometheusUrl != null ? prometheusUrl : "default";
+
+                Optional<ServerInfo> existingInfoOpt = serverInfoRepository.findByServerId(serverId);
+
+                if (existingInfoOpt.isEmpty()) {
+                        // 首次上线：创建新的 ServerInfo
+                        ServerInfo newInfo = new ServerInfo();
+                        newInfo.setServerId(serverId);
+                        newInfo.setPrometheusUrl(prometheusUrl);
+                        updateServerInfoFromHardwareData(newInfo, hardwareData, nowDateTime);
+                        newInfo.setFirstOnlineTime(nowDateTime);
+                        newInfo.setLastOnlineTime(nowDateTime);
+                        newInfo.setOnline(true);
+                        serverInfoRepository.save(newInfo);
+                        log.info("Server first online: {}, saved static info", serverId);
+                } else {
+                        // 服务器已存在，检查是否重连（之前离线现在在线）
+                        ServerInfo existingInfo = existingInfoOpt.get();
+                        Boolean wasOnline = existingInfo.getOnline();
+
+                        if (!Boolean.TRUE.equals(wasOnline)) {
+                                // 重连：更新静态信息
+                                updateServerInfoFromHardwareData(existingInfo, hardwareData, nowDateTime);
+                                log.info("Server reconnected: {}, updating static info", serverId);
+                        }
+
+                        // 更新最后在线时间
+                        existingInfo.setLastOnlineTime(nowDateTime);
+                        existingInfo.setOnline(true);
+                        serverInfoRepository.save(existingInfo);
+                }
+        }
+
+        /**
+         * 从硬件数据更新 ServerInfo 静态信息
+         */
+        private void updateServerInfoFromHardwareData(ServerInfo serverInfo, Map<String, Object> hardwareData, LocalDateTime nowDateTime) {
+                serverInfo.setCpuModel((String) hardwareData.get("cpuModel"));
+                serverInfo.setCpuCores(parseInteger(hardwareData.get("cpuCores")));
+                serverInfo.setMemoryTotal(parseLong(hardwareData.get("memoryTotal")));
+                serverInfo.setDiskTotal(parseLong(hardwareData.get("diskTotal")));
+                serverInfo.setGpuModel((String) hardwareData.get("gpuModel"));
+                serverInfo.setGpuMemoryTotal(parseLong(hardwareData.get("gpuMemoryTotal")));
+                serverInfo.setOs((String) hardwareData.get("os"));
+                serverInfo.setUpdatedAt(nowDateTime);
         }
 
         @Override
@@ -1282,6 +1349,41 @@ public class MonitorServiceImpl implements MonitorService {
                 } catch (Exception e) {
                         return 0L;
                 }
+        }
+
+        @Override
+        public List<ServerInfo> getServerInfoList() {
+                return serverInfoRepository.findAll();
+        }
+
+        @Override
+        public ServerInfo getServerInfo(String serverId) {
+                return serverInfoRepository.findByServerId(serverId).orElse(null);
+        }
+
+        @Override
+        public void updateServerInfo(ServerInfo serverInfo) {
+                serverInfoRepository.save(serverInfo);
+        }
+
+        @Override
+        public void deleteServerInfo(String serverId) {
+                serverInfoRepository.findByServerId(serverId).ifPresent(serverInfoRepository::delete);
+        }
+
+        @Override
+        public Map<String, Object> getLocalServerInfo() {
+                return localServerInfoService.getLocalServerInfo();
+        }
+
+        @Override
+        public Map<String, Object> debugQueryPrometheus(String query) {
+                PrometheusConfig config = getPrometheusConfig();
+                if (config == null || !Boolean.TRUE.equals(config.getEnabled())) {
+                        return Map.of("error", "Prometheus is not enabled");
+                }
+                String url = config.getPrometheusUrl();
+                return prometheusService.queryRaw(url, query);
         }
 
 }

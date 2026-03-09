@@ -110,6 +110,13 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- OSHI - Native system information library -->
+        <dependency>
+            <groupId>com.github.oshi</groupId>
+            <artifactId>oshi-core</artifactId>
+            <version>6.4.8</version>
+        </dependency>
+
         <!-- Spring Security for Authentication -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -224,4 +224,40 @@ public class MonitorController {
     public Map<String, Object> getServerHardwareStats() {
         return monitorService.getServerHardwareStats();
     }
+
+    @Operation(summary = "获取服务器静态信息列表")
+    @GetMapping("/server-info/list")
+    public List<com.adlin.orin.modules.monitor.entity.ServerInfo> getServerInfoList() {
+        return monitorService.getServerInfoList();
+    }
+
+    @Operation(summary = "获取指定服务器的静态信息")
+    @GetMapping("/server-info/{serverId}")
+    public com.adlin.orin.modules.monitor.entity.ServerInfo getServerInfo(@PathVariable String serverId) {
+        return monitorService.getServerInfo(serverId);
+    }
+
+    @Operation(summary = "更新服务器静态信息")
+    @PutMapping("/server-info")
+    public void updateServerInfo(@RequestBody com.adlin.orin.modules.monitor.entity.ServerInfo serverInfo) {
+        monitorService.updateServerInfo(serverInfo);
+    }
+
+    @Operation(summary = "删除服务器静态信息")
+    @DeleteMapping("/server-info/{serverId}")
+    public void deleteServerInfo(@PathVariable String serverId) {
+        monitorService.deleteServerInfo(serverId);
+    }
+
+    @Operation(summary = "获取本地服务器信息 (通过 OSHI 采集)")
+    @GetMapping("/local-server-info")
+    public Map<String, Object> getLocalServerInfo() {
+        return monitorService.getLocalServerInfo();
+    }
+
+    @Operation(summary = "调试：查询 Prometheus 原始数据")
+    @GetMapping("/debug/prometheus")
+    public Map<String, Object> debugQueryPrometheus(@RequestParam String query) {
+        return monitorService.debugQueryPrometheus(query);
+    }
 }

@@ -498,16 +498,25 @@ public class MilvusVectorService implements VectorStoreProvider {
     @Override
     public List<SearchResult> search(String kbId, String query, int k, String embeddingModel) {
         String partitionName = "kb_" + kbId.replace("-", "_");
-        List<Float> queryVector = textToVector(query, embeddingModel);
 
-        // 维度检查
-        int collectionDimension = getEmbeddingDimension();
-        if (queryVector.size() != collectionDimension) {
-            log.error("向量维度不匹配! 查询向量维度: {}, Collection 维度: {}. 这会导致搜索结果为空. " +
-                      "请重建 Collection 或检查 Embedding 模型配置.",
-                    queryVector.size(), collectionDimension);
+        // 快速失败：如果 Embedding 服务不可用，直接返回空结果
+        List<Float> queryVector;
+        try {
+            queryVector = textToVector(query, embeddingModel);
+
+            // 维度检查
+            int collectionDimension = getEmbeddingDimension();
+            if (queryVector.size() != collectionDimension) {
+                log.error("向量维度不匹配! 查询向量维度: {}, Collection 维度: {}. 这会导致搜索结果为空. " +
+                        "请重建 Collection 或检查 Embedding 模型配置.",
+                        queryVector.size(), collectionDimension);
+            }
+        } catch (Exception e) {
+            log.warn("Embedding 服务不可用，跳过向量搜索: {}", e.getMessage());
+            return Collections.emptyList();
         }
 
+        // 快速失败：如果 Milvus 服务不可用，直接返回空结果
         MilvusServiceClient client = null;
         try {
             client = createClient();

@@ -170,4 +170,40 @@ public interface MonitorService {
      * 获取硬件监控统计信息
      */
     Map<String, Object> getServerHardwareStats();
+
+    /**
+     * 获取服务器静态信息列表
+     */
+    List<com.adlin.orin.modules.monitor.entity.ServerInfo> getServerInfoList();
+
+    /**
+     * 获取指定服务器的静态信息
+     *
+     * @param serverId 服务器 ID
+     */
+    com.adlin.orin.modules.monitor.entity.ServerInfo getServerInfo(String serverId);
+
+    /**
+     * 更新服务器静态信息
+     */
+    void updateServerInfo(com.adlin.orin.modules.monitor.entity.ServerInfo serverInfo);
+
+    /**
+     * 删除服务器静态信息
+     *
+     * @param serverId 服务器 ID
+     */
+    void deleteServerInfo(String serverId);
+
+    /**
+     * 获取本地服务器信息 (通过 OSHI 采集)
+     */
+    Map<String, Object> getLocalServerInfo();
+
+    /**
+     * 调试：查询 Prometheus 原始数据
+     *
+     * @param query PromQL 查询语句
+     */
+    Map<String, Object> debugQueryPrometheus(String query);
 }

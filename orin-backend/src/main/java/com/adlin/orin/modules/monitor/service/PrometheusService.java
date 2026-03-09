@@ -57,6 +57,46 @@ public class PrometheusService {
     }
 
     /**
+     * 调试方法：直接查询 Prometheus 并返回原始数据
+     */
+    public Map<String, Object> queryRaw(String baseUrl, String query) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            if (baseUrl == null) {
+                result.put("error", "baseUrl is null");
+                return result;
+            }
+
+            URI url = buildUri(baseUrl, "/api/v1/query", "query", query);
+            log.info("Querying Prometheus: {} with query: {}", url, query);
+
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            result.put("url", url.toString());
+            result.put("query", query);
+            result.put("response", response);
+
+            if (response != null && "success".equals(response.get("status"))) {
+                Map<String, Object> data = (Map<String, Object>) response.get("data");
+                if (data != null) {
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("result");
+                    if (results != null && !results.isEmpty()) {
+                        result.put("resultCount", results.size());
+                        result.put("firstResult", results.get(0));
+                    } else {
+                        result.put("resultCount", 0);
+                    }
+                }
+            } else if (response != null) {
+                result.put("error", response.get("error"));
+            }
+        } catch (Exception e) {
+            log.error("Query failed: {}", e.getMessage());
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    /**
      * 查询 Prometheus 的当前数据
      * 
      * @param baseUrl Prometheus 基础地址 (如 http://localhost:9090)
@@ -204,13 +244,19 @@ public class PrometheusService {
      * 获取操作系统名称
      */
     public String getOsName(String baseUrl) {
-        // Try Linux directly
-        String linuxQuery = "node_os_info";
-        String osName = queryLabel(baseUrl, linuxQuery, "pretty_name");
+        // Try node_uname_info first (available in most node_exporter versions)
+        String linuxQuery = "node_uname_info";
+        String sysname = queryLabel(baseUrl, linuxQuery, "sysname");
+        String release = queryLabel(baseUrl, linuxQuery, "release");
 
+        if (!"Unknown".equals(sysname)) {
+            return sysname + " " + release;
+        }
+
+        // Fallback: try node_os_info (newer node_exporter 1.6+)
+        String osName = queryLabel(baseUrl, "node_os_info", "pretty_name");
         if ("Unknown".equals(osName)) {
-            // Fallback to name if pretty_name is logic
-            osName = queryLabel(baseUrl, linuxQuery, "name");
+            osName = queryLabel(baseUrl, "node_os_info", "name");
         }
 
         if ("Unknown".equals(osName)) {
@@ -223,7 +269,7 @@ public class PrometheusService {
                 return product;
             }
         }
-        return osName;
+        return "Unknown".equals(sysname) ? osName : sysname + " " + release;
     }
 
     /**
@@ -295,6 +341,14 @@ public class PrometheusService {
             // Try Windows (legacy): wmi_cs_processor -> name
             String wmiQuery = "wmi_cs_processor";
             model = queryLabel(baseUrl, wmiQuery, "name");
+        }
+
+        // Fallback: use node_uname_info.machine as basic CPU architecture info
+        if ("Unknown".equals(model)) {
+            String machine = queryLabel(baseUrl, "node_uname_info", "machine");
+            if (!"Unknown".equals(machine)) {
+                model = machine + " CPU";
+            }
         }
 
         return model;
