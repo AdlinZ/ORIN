@@ -150,3 +150,13 @@ export const getDailyTokenTrend = (period = 'daily', config = {}) => {
 export const getAgentHealthOverview = (config = {}) => {
     return request.get('/monitor/agents/health-overview', config);
 };
+
+// ==================== 数据流追踪 ====================
+
+export const getDataFlow = (traceId) => {
+    return request.get(`/dataflow/${traceId}`);
+};
+
+export const getTraceInstance = (instanceId) => {
+    return request.get(`/traces/instance/${instanceId}`);
+};
