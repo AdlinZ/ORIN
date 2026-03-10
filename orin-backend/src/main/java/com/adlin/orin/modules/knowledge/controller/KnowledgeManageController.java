@@ -333,6 +333,19 @@ public class KnowledgeManageController {
         return result;
     }
 
+    @Operation(summary = "触发文档解析（多模态）")
+    @PostMapping("/documents/{docId}/parse")
+    public KnowledgeDocument triggerParsing(@PathVariable String docId) {
+        KnowledgeDocument result = documentManageService.triggerParsing(docId);
+        // 审计日志
+        auditLogService.logApiCall(
+            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            "/knowledge/documents/" + docId + "/parse", "POST", docId, null, null,
+            null, null, 200, null,
+            null, null, null, true, null, null, null);
+        return result;
+    }
+
     @Operation(summary = "更新向量化状态")
     @PutMapping("/documents/{docId}/vector-status")
     public KnowledgeDocument updateVectorStatus(
@@ -351,6 +364,38 @@ public class KnowledgeManageController {
             @PathVariable String docId,
             @RequestBody Map<String, Object> payload) {
         return documentManageService.updateDocument(docId, payload);
+    }
+
+    @Operation(summary = "获取支持的文件类型")
+    @GetMapping("/supported-file-types")
+    public Map<String, Object> getSupportedFileTypes() {
+        Map<String, Object> result = new HashMap<>();
+        
+        // Document types
+        result.put("documents", Map.of(
+            "extensions", List.of("pdf", "docx", "doc", "txt", "md", "markdown"),
+            "description", "支持 PDF、Word、TXT、Markdown 等文档格式"
+        ));
+        
+        // Image types
+        result.put("images", Map.of(
+            "extensions", List.of("png", "jpg", "jpeg", "gif", "bmp", "webp"),
+            "description", "支持常见图片格式，将通过 OCR 识别文字"
+        ));
+        
+        // Audio types
+        result.put("audio", Map.of(
+            "extensions", List.of("mp3", "wav", "m4a", "aac", "ogg", "flac"),
+            "description", "支持音频格式，将通过语音识别转写为文字"
+        ));
+        
+        // Video types
+        result.put("video", Map.of(
+            "extensions", List.of("mp4", "mov", "avi", "mkv", "webm", "flv"),
+            "description", "支持视频格式，将提取音频后转写为文字"
+        ));
+        
+        return result;
     }
 
     @Operation(summary = "更新文档分段")

@@ -20,6 +20,7 @@ import java.util.UUID;
 
 /**
  * 文档管理服务
+ * 支持多模态文件上传、解析和向量化
  */
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,7 @@ public class DocumentManageService {
     private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository chunkRepository;
     private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
+    private final MultimodalContentParserService multimodalParserService;
 
     // 文件存储根目录 (可配置)
     private static final String UPLOAD_DIR = "storage/uploads/documents";
@@ -86,14 +88,19 @@ public class DocumentManageService {
             metadata = "{\"type\": \"audio\", \"format\": \"" + fileExtension + "\"}";
         }
 
+        // 确定文件类别
+        String fileCategory = multimodalParserService.getFileCategory(fileExtension);
+        
         // 创建文档记录
         KnowledgeDocument document = KnowledgeDocument.builder()
                 .knowledgeBaseId(knowledgeBaseId)
                 .fileName(originalFilename)
                 .fileType(fileExtension)
+                .fileCategory(fileCategory)
                 .fileSize(file.getSize())
                 .storagePath(filePath.toString())
                 .contentPreview(contentPreview)
+                .parseStatus("PENDING")
                 .vectorStatus("PENDING")
                 .charCount(contentPreview != null ? contentPreview.length() : 0)
                 .uploadedBy(uploadedBy != null ? uploadedBy : "system")
@@ -103,14 +110,14 @@ public class DocumentManageService {
         document = documentRepository.save(document);
         log.info("Uploaded document: {} to knowledge base: {}", originalFilename, knowledgeBaseId);
 
-        // 自动触发向量化 - 使用 TransactionSynchronization 确保事务提交后再执行
+        // 自动触发解析和向量化 - 使用 TransactionSynchronization 确保事务提交后再执行
         final String docId = document.getId();
         org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
             new org.springframework.transaction.support.TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    log.info("Transaction committed, triggering vectorization for document: {}", docId);
-                    triggerVectorization(docId);
+                    log.info("Transaction committed, triggering parsing for document: {}", docId);
+                    triggerParsing(docId);
                 }
             }
         );
@@ -190,11 +197,236 @@ public class DocumentManageService {
     }
 
     /**
-     * 触发文档向量化
+     * 触发文档解析（多模态）
+     * 先解析文件内容为文本，再触发向量化
+     */
+    @Transactional
+    public KnowledgeDocument triggerParsing(String documentId) {
+        KnowledgeDocument document = getDocument(documentId);
+
+        // 更新解析状态
+        document.setParseStatus("PARSING");
+        document = documentRepository.save(document);
+
+        final String documentIdFinal = documentId;
+        final String kbId = document.getKnowledgeBaseId();
+        final String fileType = document.getFileType();
+        final String filePath = document.getStoragePath();
+
+        log.info("Starting multimodal parsing for document: {}", documentId);
+        
+        new Thread(() -> {
+            org.springframework.transaction.support.TransactionTemplate transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(
+                    transactionManager);
+            try {
+                // 使用 multimodal parser 解析内容
+                log.info("Parsing: Using MultimodalContentParserService for document: {}", documentIdFinal);
+                String content = multimodalParserService.parseToText(filePath, fileType);
+                
+                if (content == null || content.isEmpty()) {
+                    log.error("Parsing: FAILED - content is null or empty for document: {}", documentIdFinal);
+                    transactionTemplate.executeWithoutResult(status -> {
+                        KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
+                        if (doc != null) {
+                            doc.setParseStatus("FAILED");
+                            documentRepository.save(doc);
+                        }
+                    });
+                    return;
+                }
+
+                // 保存解析后的文本
+                String parsedPath = multimodalParserService.saveParsedText(kbId, documentIdFinal, content);
+                
+                // 生成预览
+                String preview = content.length() > 500 ? content.substring(0, 500) : content;
+                
+                // 更新解析状态和文本路径
+                transactionTemplate.executeWithoutResult(status -> {
+                    KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
+                    if (doc != null) {
+                        doc.setParseStatus("PARSED");
+                        doc.setParsedTextPath(parsedPath);
+                        doc.setContentPreview(preview);
+                        doc.setCharCount(content.length());
+                        documentRepository.save(doc);
+                    }
+                });
+                
+                log.info("Parsing completed for document: {}, content length: {}", documentIdFinal, content.length());
+                
+                // 解析成功后自动触发向量化
+                triggerVectorizationInternal(documentIdFinal, content);
+                
+            } catch (Exception e) {
+                log.error("Parsing CRITICAL FAILURE for document: " + documentIdFinal, e);
+                try {
+                    transactionTemplate.executeWithoutResult(status -> {
+                        KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
+                        if (doc != null) {
+                            doc.setParseStatus("FAILED");
+                            documentRepository.save(doc);
+                        }
+                    });
+                } catch (Exception ex) {
+                    log.error("Failed to update parse status to FAILED for document: " + documentIdFinal, ex);
+                }
+            }
+        }, "ParsingThread-" + documentId).start();
+
+        log.info("Triggered parsing background task for document: {}", documentId);
+        return document;
+    }
+    
+    /**
+     * 内部向量化方法（接受已解析的内容）
+     */
+    private void triggerVectorizationInternal(String documentId, String content) {
+        final String documentIdFinal = documentId;
+        
+        // 查找文档获取 kbId
+        KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
+        if (doc == null) {
+            log.error("Document not found for vectorization: {}", documentIdFinal);
+            return;
+        }
+        
+        String kbId = doc.getKnowledgeBaseId();
+        
+        // 更新状态为 INDEXING
+        doc.setVectorStatus("INDEXING");
+        documentRepository.save(doc);
+        
+        org.springframework.transaction.support.TransactionTemplate transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(
+                transactionManager);
+        
+        try {
+            if (content == null || content.isEmpty()) {
+                log.error("Vectorization: FAILED - content is null or empty for document: {}", documentIdFinal);
+                transactionTemplate.executeWithoutResult(status -> {
+                    documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                });
+                return;
+            }
+
+            String docTitle = doc.getFileName();
+            log.info("Vectorization: Starting hierarchical split for document: {}, content length: {}", documentIdFinal, content.length());
+
+            // 1. Hierarchical Split: Parent-Child chunking
+            com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.HierarchicalChunks hierarchicalChunks =
+                    com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.splitHierarchical(
+                            content, documentIdFinal, docTitle);
+
+            log.info("Vectorization: Hierarchical split done, parent chunks: {}, child chunks: {}",
+                    hierarchicalChunks.getParents().size(), hierarchicalChunks.getChildren().size());
+
+            // Build entities for both parent and child chunks
+            List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> allChunks = new java.util.ArrayList<>();
+
+            // Add parent chunks
+            for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ParentChunk parent :
+                    hierarchicalChunks.getParents()) {
+                allChunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
+                        .id(parent.getId())
+                        .documentId(documentIdFinal)
+                        .chunkIndex(parent.getPosition())
+                        .content(parent.getContent())
+                        .charCount(parent.getContent().length())
+                        .chunkType("parent")
+                        .parentId(null)
+                        .childrenIds(parent.getChildrenIds() != null ?
+                                java.util.Arrays.toString(parent.getChildrenIds().toArray()) : "[]")
+                        .title(parent.getTitle())
+                        .source(docTitle)
+                        .position(parent.getPosition())
+                        .build());
+            }
+
+            // Add child chunks
+            for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ChildChunk child :
+                    hierarchicalChunks.getChildren()) {
+                allChunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
+                        .id(child.getId())
+                        .documentId(documentIdFinal)
+                        .chunkIndex(child.getPosition())
+                        .content(child.getContent())
+                        .charCount(child.getContent().length())
+                        .chunkType("child")
+                        .parentId(child.getParentId())
+                        .title(child.getSource())
+                        .source(docTitle)
+                        .position(child.getPosition())
+                        .build());
+            }
+
+            // 2. DB Operations in transaction (Delete old, Save new)
+            transactionTemplate.executeWithoutResult(status -> {
+                chunkRepository.deleteByDocumentId(documentIdFinal);
+                chunkRepository.saveAll(allChunks);
+            });
+
+            // 3. Vector Store Operation (Milvus) - Outside DB transaction
+            log.info("Vectorization: Deleting old vectors from Milvus for document: {}", documentIdFinal);
+            vectorService.deleteDocuments(kbId, java.util.Collections.singletonList(documentIdFinal));
+            log.info("Vectorization: Adding chunks to Milvus, kbId: {}, chunk count: {}", kbId, allChunks.size());
+            vectorService.addChunks(kbId, allChunks);
+            log.info("Vectorization: Chunks added to Milvus successfully!");
+
+            // 4. Update status and count
+            final int childChunkCount = hierarchicalChunks.getChildren().size();
+            final int totalCharCount = content.length();
+            transactionTemplate.executeWithoutResult(status -> {
+                documentRepository.updateVectorStatus(documentIdFinal, "SUCCESS");
+                KnowledgeDocument finalDoc = documentRepository.findById(documentIdFinal).orElse(null);
+                if (finalDoc != null) {
+                    finalDoc.setChunkCount(childChunkCount);
+                    finalDoc.setCharCount(totalCharCount);
+                    finalDoc.setVectorIndexId("milvus_partition_" + kbId);
+                    documentRepository.save(finalDoc);
+                }
+            });
+
+            log.info("Vectorization completed for document: {}, parent chunks: {}, child chunks: {}",
+                    documentIdFinal, hierarchicalChunks.getParents().size(), childChunkCount);
+
+        } catch (Throwable e) {
+            log.error("Vectorization CRITICAL FAILURE for document: " + documentIdFinal, e);
+            try {
+                transactionTemplate.executeWithoutResult(status -> {
+                    documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                });
+            } catch (Exception ex) {
+                log.error("Failed to update status to FAILED for document: " + documentIdFinal, ex);
+            }
+        }
+    }
+
+    /**
+     * 触发文档向量化（保留原有方法，调用解析后的内容）
      */
     @Transactional
     public KnowledgeDocument triggerVectorization(String documentId) {
         KnowledgeDocument document = getDocument(documentId);
+        
+        // 如果已经有解析后的文本，直接向量化
+        if ("PARSED".equals(document.getParseStatus()) && document.getParsedTextPath() != null) {
+            try {
+                String content = multimodalParserService.readParsedText(
+                    document.getKnowledgeBaseId(), documentId);
+                if (content != null && !content.isEmpty()) {
+                    triggerVectorizationInternal(documentId, content);
+                    return document;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to read parsed text, will re-parse", e);
+            }
+        }
+        
+        // 如果未解析，先触发解析
+        if (!"PARSED".equals(document.getParseStatus())) {
+            triggerParsing(documentId);
+            return document;
+        }
 
         // 更新状态为 INDEXING
         document.setVectorStatus("INDEXING");

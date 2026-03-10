@@ -50,7 +50,7 @@ public class RetrievalService {
      * Hybrid Search with Parent-Child Retrieval
      *
      * Pipeline:
-     * 1. Search vector DB using child chunks
+     * 1. Search vector DB using child chunks (with fallback to keyword-only if fails)
      * 2. Retrieve top-k child matches
      * 3. Use parent_id to fetch corresponding parent chunks from DB
      * 4. Deduplicate parent chunks
@@ -58,9 +58,15 @@ public class RetrievalService {
      */
     public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
             String embeddingModel) {
-        // 1. Vector search (searches child chunks only due to filter)
-        List<VectorStoreProvider.SearchResult> childResults = vectorService.search(kbId, query, topK * 3,
-                embeddingModel);
+        
+        // 1. Vector search with error handling
+        List<VectorStoreProvider.SearchResult> childResults;
+        try {
+            childResults = vectorService.search(kbId, query, topK * 3, embeddingModel);
+        } catch (Exception e) {
+            log.error("Vector search failed, falling back to keyword-only search: {}", e.getMessage());
+            return keywordOnlySearch(kbId, query, topK);
+        }
 
         log.info("HybridSearch: kbId={}, query={}, childResults.size={}", kbId, query, childResults.size());
         if (!childResults.isEmpty() && childResults.get(0).getMetadata() != null) {
