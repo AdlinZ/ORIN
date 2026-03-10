@@ -634,6 +634,11 @@ const getStatusLabel = (status) => {
   overflow-y: auto;
 }
 
+html.dark .result-body {
+  background: #1e1e1e;
+  color: #d4d4d4;
+}
+
 .markdown-preview {
   padding: 30px;
   background: var(--neutral-white);
@@ -643,6 +648,11 @@ const getStatusLabel = (status) => {
   line-height: 1.6;
 }
 
+html.dark .markdown-preview {
+  background: var(--neutral-gray-800);
+  color: #e2e8f0;
+}
+
 .markdown-preview :deep(h1) {
   font-size: 28px;
   border-bottom: 1px solid #eee;
@@ -650,10 +660,18 @@ const getStatusLabel = (status) => {
   margin-bottom: 20px;
 }
 
+html.dark .markdown-preview :deep(h1) {
+  border-bottom-color: var(--neutral-gray-600);
+}
+
 .markdown-preview :deep(h2) {
   font-size: 22px;
   margin-top: 30px;
   color: #2c3e50;
+}
+
+html.dark .markdown-preview :deep(h2) {
+  color: #e2e8f0;
 }
 
 .markdown-preview :deep(pre) {
@@ -663,10 +681,18 @@ const getStatusLabel = (status) => {
   overflow-x: auto;
 }
 
+html.dark .markdown-preview :deep(pre) {
+  background: #1e1e1e;
+}
+
 .markdown-preview :deep(code) {
   background: rgba(175, 184, 193, 0.2);
   padding: 0.2em 0.4em;
   border-radius: 6px;
+}
+
+html.dark .markdown-preview :deep(code) {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .markdown-preview :deep(pre code) {

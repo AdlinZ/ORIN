@@ -5,8 +5,14 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
+// 构建时日期
+const buildDate = new Date().toISOString().split('T')[0]
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __BUILD_DATE__: JSON.stringify(buildDate)
+  },
   plugins: [
     vue(),
     // Element Plus 按需自动导入

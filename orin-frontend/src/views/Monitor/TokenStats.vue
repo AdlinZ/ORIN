@@ -278,10 +278,20 @@ let autoRefreshTimer = null;
 
 // Health status
 const healthStatus = ref('正常');
-const healthStatusStyle = computed(() => ({
-  background: healthStatus.value === '正常' ? 'var(--orin-primary-soft)' : '#fee2e2',
-  color: healthStatus.value === '正常' ? 'var(--orin-primary)' : '#ef4444'
-}));
+const healthStatusStyle = computed(() => {
+  const isDark = document.documentElement.classList.contains('dark');
+  if (healthStatus.value === '正常') {
+    return {
+      background: 'var(--orin-primary-soft)',
+      color: 'var(--orin-primary)'
+    };
+  } else {
+    return {
+      background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+      color: '#ef4444'
+    };
+  }
+});
 
 // Quick stats
 const latencyStats = ref({ avg: 0, p50: 0, p95: 0, p99: 0 });
@@ -533,13 +543,25 @@ const formatToken = (num) => {
 };
 
 const getHeatmapColor = (value, max) => {
-  if (value === 0) return 'var(--orin-primary-soft)';
+  const isDark = document.documentElement.classList.contains('dark');
+  if (value === 0) return isDark ? 'rgba(38, 255, 223, 0.05)' : 'var(--orin-primary-soft)';
+  
   const intensity = (value / max);
-  // Teal scale: from light teal to strong teal (var(--orin-primary) = #00BFA5)
-  const r = Math.round(240 - (215 * intensity));
-  const g = Math.round(253 - (99 * intensity));
-  const b = Math.round(250 - (141 * intensity));
-  return `rgb(${r}, ${g}, ${b})`;
+  
+  if (isDark) {
+    // Dark mode: start from a deeper teal toward bright teal
+    // var(--orin-primary) is #26FFDF (38, 255, 223)
+    const r = Math.round(15 + (23 * intensity));
+    const g = Math.round(45 + (210 * intensity));
+    const b = Math.round(45 + (178 * intensity));
+    return `rgb(${r}, ${g}, ${b})`;
+  } else {
+    // Light mode: from light teal to strong teal (#00BFA5)
+    const r = Math.round(240 - (215 * intensity));
+    const g = Math.round(253 - (99 * intensity));
+    const b = Math.round(250 - (141 * intensity));
+    return `rgb(${r}, ${g}, ${b})`;
+  }
 };
 
 const dailyChartRef = ref(null);
@@ -559,6 +581,10 @@ const updateDailyChart = () => {
   const chartData = dailyChartData.value.length > 0 ? dailyChartData.value : [];
   const maxValue = Math.max(...chartData, 1);
 
+  // Detect dark mode
+  const isDark = document.documentElement.classList.contains('dark');
+  const labelColor = isDark ? '#94a3b8' : '#64748b';
+
   const option = {
     grid: { left: '3%', right: '3%', bottom: '5%', top: '10%', containLabel: true },
     xAxis: {
@@ -566,7 +592,7 @@ const updateDailyChart = () => {
       data: chartData.map((_, i) => i % 2 === 0 ? `${i + 1}日` : ''),
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: '#94a3b8', fontSize: 12, rotate: 45 }
+      axisLabel: { color: labelColor, fontSize: 12, rotate: 45 }
     },
     yAxis: {
       type: 'value',
@@ -586,7 +612,7 @@ const updateDailyChart = () => {
             if(params.value === 0) return '';
             return formatToken(params.value);
           },
-          color: '#94a3b8',
+          color: labelColor,
           fontSize: 10
         }
       }
@@ -685,6 +711,15 @@ onMounted(() => {
   });
   window.addEventListener('resize', handleResize);
   window.addEventListener('page-refresh', fetchAllData);
+
+  // Listen for theme changes
+  const observer = new MutationObserver(() => {
+    updateDailyChart();
+  });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  });
 });
 
 const handleResize = () => {
@@ -705,7 +740,7 @@ onUnmounted(() => {
 <style scoped>
 .metrics-dashboard {
   padding: 24px;
-  background-color: #f8fafc;
+  background-color: var(--bg-color, #f8fafc);
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -720,8 +755,8 @@ onUnmounted(() => {
 
 .stat-card {
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--card-bg, #fff);
 }
 
 .stat-card :deep(.el-card__body) {
@@ -767,14 +802,14 @@ onUnmounted(() => {
 
 .stat-label {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
   margin-bottom: 4px;
 }
 
 .stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
 }
 
 /* Header */
@@ -783,10 +818,10 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  background: white;
+  background: var(--card-bg, #fff);
   padding: 16px 24px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color, #e2e8f0);
 }
 
 .page-title {
@@ -795,7 +830,7 @@ onUnmounted(() => {
   gap: 8px;
   font-weight: 700;
   font-size: 18px;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
 }
 
 .title-icon {
@@ -804,7 +839,7 @@ onUnmounted(() => {
 }
 
 .subtitle {
-  color: #94a3b8;
+  color: var(--text-tertiary, #94a3b8);
   font-size: 12px;
   font-weight: 500;
   margin-left: 8px;
@@ -836,7 +871,7 @@ onUnmounted(() => {
 .action-icons {
   display: flex;
   gap: 12px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
   font-size: 18px;
   cursor: pointer;
 }
@@ -844,8 +879,8 @@ onUnmounted(() => {
 /* Cards General */
 .el-card {
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--card-bg, #fff);
 }
 
 .card-header-flex {
@@ -858,7 +893,7 @@ onUnmounted(() => {
 .card-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
   margin: 0;
 }
 
@@ -870,7 +905,7 @@ onUnmounted(() => {
 
 .card-subtitle {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
   margin: 4px 0 0 0;
 }
 
@@ -882,7 +917,7 @@ onUnmounted(() => {
 .total-tokens {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
 }
 
 .activity-grid {
@@ -895,7 +930,7 @@ onUnmounted(() => {
 .section-title {
   font-size: 13px;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-secondary, #475569);
   margin: 0 0 12px 0;
 }
 
@@ -917,13 +952,13 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 500;
   margin-bottom: 4px;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
 }
 
 .day-value {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
 }
 
 .hours-header {
@@ -935,7 +970,7 @@ onUnmounted(() => {
 
 .hours-range {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
 }
 
 .hours-heatmap {
@@ -955,7 +990,7 @@ onUnmounted(() => {
   justify-content: space-between;
   margin-top: 8px;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-tertiary, #94a3b8);
 }
 
 .legend {
@@ -964,7 +999,7 @@ onUnmounted(() => {
   gap: 8px;
   margin-top: 16px;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-tertiary, #94a3b8);
 }
 
 .legend-gradient {
@@ -1001,7 +1036,7 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #475569;
+  color: var(--text-secondary, #475569);
   margin-bottom: 16px;
 }
 
@@ -1022,7 +1057,7 @@ onUnmounted(() => {
 
 .total-type-label {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
 }
 
 .echarts-wrapper {
@@ -1037,7 +1072,7 @@ onUnmounted(() => {
 
 .sessions-count {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
 }
 
 .sessions-toolbar {
@@ -1046,12 +1081,12 @@ onUnmounted(() => {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
 }
 
 .toolbar-stats {
   font-size: 13px;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
   font-weight: 500;
 }
 
@@ -1062,14 +1097,14 @@ onUnmounted(() => {
 
 .sort-dropdown {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
 }
 
 .session-item {
   display: flex;
   justify-content: space-between;
   padding: 16px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
   cursor: pointer;
   transition: all 0.2s ease;
   border-radius: 8px;
@@ -1090,13 +1125,13 @@ onUnmounted(() => {
 .session-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
   margin-bottom: 6px;
 }
 
 .session-meta {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary, #64748b);
   margin-bottom: 6px;
   display: flex;
   gap: 8px;
@@ -1111,7 +1146,7 @@ onUnmounted(() => {
 
 .session-stats {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary, #94a3b8);
   display: flex;
   gap: 8px;
 }
@@ -1132,7 +1167,7 @@ onUnmounted(() => {
 .session-tokens {
   font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
   min-width: 60px;
   text-align: right;
 }
@@ -1142,5 +1177,70 @@ onUnmounted(() => {
   justify-content: center;
   padding: 16px 0 8px;
   border-top: 1px solid #f1f5f9;
+}
+
+/* 黑夜模式适配 */
+html.dark .metrics-dashboard {
+  background-color: var(--bg-color);
+}
+
+html.dark .stat-card {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+html.dark .day-card {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .hour-cell {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .session-item {
+  border-color: var(--border-light);
+}
+
+html.dark .session-item:hover {
+  background-color: rgba(13, 148, 136, 0.12);
+}
+
+html.dark .session-item.selected {
+  background-color: rgba(13, 148, 136, 0.2);
+  border-left-color: var(--orin-primary);
+}
+
+html.dark .sessions-toolbar {
+  border-color: var(--border-light);
+}
+
+html.dark .pagination-wrapper {
+  border-top-color: var(--border-light);
+}
+
+/* Ensure ECharts labels adapt to theme - these are primarily handled in JS but safe to set text color here too if needed */
+html.dark .echarts-wrapper text {
+  fill: var(--text-secondary);
+}
+
+/* Element Plus Dark Overrides for specific component states on this page */
+html.dark .el-date-editor--daterange {
+  background-color: var(--neutral-gray-100) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .el-select .el-input__wrapper {
+  background-color: var(--neutral-gray-100) !important;
+}
+
+html.dark .el-button:not(.el-button--primary) {
+  background-color: var(--neutral-gray-100);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+html.dark .el-button:not(.el-button--primary):hover {
+  background-color: var(--neutral-gray-200);
+  color: var(--orin-primary);
 }
 </style>

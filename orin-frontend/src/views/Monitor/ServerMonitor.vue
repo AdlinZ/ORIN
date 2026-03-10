@@ -254,6 +254,7 @@ const hwServerInfo = ref({
   gpuModel: '', gpuMemory: '', diskTotal: 0,
   networkDownload: '', networkUpload: '', online: false
 });
+
 const hwPage = ref(1);
 const hwPageSize = ref(20);
 const hwTotal = ref(0);

@@ -386,57 +386,113 @@ public class PrometheusService {
      * Get GPU Usage %
      */
     public Double getGpuUsage(String baseUrl) {
-        // nvidia_smi_utilization_gpu_ratio is 0-1, multiply by 100 for percentage
-        String query1 = "avg(nvidia_smi_utilization_gpu_ratio) * 100";
-        Double val = queryValue(baseUrl, query1);
+        // Try multiple query patterns for different exporters
+        String[] queries = {
+            "avg(nvidia_smi_utilization_gpu_ratio) * 100",  // nvidia_smi (node_exporter)
+            "avg(DCGM_FI_DEV_GPU_UTIL)",                     // DCGM exporter
+            "avg(gpu_utilization)",                           // nvidia_gpu_exporter
+            "avg(gpu_utilization_ratio) * 100"               // alternative nvidia_gpu_exporter
+        };
 
-        if (Double.isNaN(val)) {
-            // Try DCGM: DCGM_FI_DEV_GPU_UTIL (0-100)
-            val = queryValue(baseUrl, "avg(DCGM_FI_DEV_GPU_UTIL)");
+        for (String query : queries) {
+            Double val = queryValue(baseUrl, query);
+            if (!Double.isNaN(val) && val > 0) {
+                log.debug("GPU usage query '{}' returned: {}", query, val);
+                return val;
+            }
         }
-        return !Double.isNaN(val) ? val : 0.0;
+
+        return 0.0;
     }
 
     /**
      * Get GPU Memory Usage %
      */
     public Double getGpuMemoryUsage(String baseUrl) {
-        // For single GPU: direct division
-        String query = "(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100";
-        Double val = queryValue(baseUrl, query);
+        // Try multiple query patterns for different exporters
+        String[] queries = {
+            "(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100",  // nvidia_smi
+            "avg(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100",
+            "avg(DCGM_FI_DEV_MEMORY_USED_PCT)",               // DCGM exporter
+            "(gpu_memory_used_bytes / gpu_memory_total_bytes) * 100", // nvidia_gpu_exporter
+            "avg(gpu_memory_used_bytes / gpu_memory_total_bytes) * 100"
+        };
 
-        if (Double.isNaN(val)) {
-            // For multiple GPUs: average
-            String queryAvg = "avg(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100";
-            val = queryValue(baseUrl, queryAvg);
+        for (String query : queries) {
+            Double val = queryValue(baseUrl, query);
+            if (!Double.isNaN(val) && val > 0) {
+                log.debug("GPU memory usage query '{}' returned: {}", query, val);
+                return val;
+            }
         }
-        return !Double.isNaN(val) ? val : 0.0;
+
+        return 0.0;
     }
 
     /**
      * Get GPU Total Memory in Bytes
      */
     public Long getGpuMemoryTotalBytes(String baseUrl) {
-        String query = "nvidia_smi_memory_total_bytes";
-        Double val = queryValue(baseUrl, query);
-        return !Double.isNaN(val) ? val.longValue() : 0L;
+        String[] queries = {
+            "nvidia_smi_memory_total_bytes",
+            "DCGM_FI_DEV_MEMORY_TOTAL",
+            "gpu_memory_total_bytes"
+        };
+
+        for (String query : queries) {
+            Double val = queryValue(baseUrl, query);
+            if (!Double.isNaN(val) && val > 0) {
+                log.debug("GPU memory total query '{}' returned: {}", query, val);
+                return val.longValue();
+            }
+        }
+
+        return 0L;
     }
 
     /**
      * Get GPU Used Memory in Bytes
      */
     public Long getGpuMemoryUsedBytes(String baseUrl) {
-        String query = "nvidia_smi_memory_used_bytes";
-        Double val = queryValue(baseUrl, query);
-        return !Double.isNaN(val) ? val.longValue() : 0L;
+        String[] queries = {
+            "nvidia_smi_memory_used_bytes",
+            "DCGM_FI_DEV_MEMORY_USED",
+            "gpu_memory_used_bytes"
+        };
+
+        for (String query : queries) {
+            Double val = queryValue(baseUrl, query);
+            if (!Double.isNaN(val) && val > 0) {
+                log.debug("GPU memory used query '{}' returned: {}", query, val);
+                return val.longValue();
+            }
+        }
+
+        return 0L;
     }
 
     /**
      * Get GPU Model
      */
     public String getGpuModel(String baseUrl) {
-        // nvidia_smi_gpu_info -> name label
-        return queryLabel(baseUrl, "nvidia_smi_gpu_info", "name");
+        // Try multiple label queries for different exporters
+        String[][] metricLabelPairs = {
+            {"nvidia_smi_gpu_info", "name"},
+            {"DCGM_FI_DEV_NAME", "device"},
+            {"gpu_info", "name"},
+            {"gpu_name", "name"},
+            {"nvidia_smi_gpu_info", "gpu_name"}
+        };
+
+        for (String[] pair : metricLabelPairs) {
+            String result = queryLabel(baseUrl, pair[0], pair[1]);
+            if (result != null && !result.isEmpty() && !"Unknown".equals(result)) {
+                log.debug("GPU model query '{}/{}' returned: {}", pair[0], pair[1], result);
+                return result;
+            }
+        }
+
+        return "Unknown";
     }
 
     /**

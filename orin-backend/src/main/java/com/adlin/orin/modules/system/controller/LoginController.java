@@ -54,7 +54,8 @@ public class LoginController {
             Map<String, Object> extraClaims = new HashMap<>();
             extraClaims.put("roles", roles);
 
-            String token = jwtService.generateToken(String.valueOf(user.getUserId()), user.getUsername(), extraClaims);
+            boolean rememberMe = loginDTO.isRememberMe();
+            String token = jwtService.generateToken(String.valueOf(user.getUserId()), user.getUsername(), extraClaims, rememberMe);
 
             // Log Success
             auditLogService.logApiCall(

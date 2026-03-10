@@ -879,17 +879,25 @@ public class MonitorServiceImpl implements MonitorService {
                                 status.put("os", osFuture.getNow("Unknown"));
                                 status.put("cpuModel", cpuModelFuture.getNow("Unknown"));
 
-                                // GPU
-                                status.put("gpuUsage", gpuUsageFuture.getNow(0.0));
-                                status.put("gpuMemoryUsage", gpuMemFuture.getNow(0.0));
-                                status.put("gpuModel", gpuModelFuture.getNow("Unknown"));
+                                // GPU - 只从 Prometheus 获取
+                                String gpuModelFromPrometheus = gpuModelFuture.getNow("Unknown");
+                                double gpuUsageFromPrometheus = gpuUsageFuture.getNow(0.0);
+                                double gpuMemUsageFromPrometheus = gpuMemFuture.getNow(0.0);
+                                long gpuMemTotalFromPrometheus = gpuMemTotalFuture.getNow(0L);
+                                long gpuMemUsedFromPrometheus = gpuMemUsedFuture.getNow(0L);
+
+                                log.debug("GPU data from Prometheus - Model: {}, Usage: {}, MemoryUsage: {}",
+                                        gpuModelFromPrometheus, gpuUsageFromPrometheus, gpuMemUsageFromPrometheus);
+
+                                // 设置 GPU 数据
+                                status.put("gpuModel", gpuModelFromPrometheus);
+                                status.put("gpuUsage", gpuUsageFromPrometheus);
+                                status.put("gpuMemoryUsage", gpuMemUsageFromPrometheus);
 
                                 // Format GPU Memory (like "17 MB / 8 GB")
-                                long gpuMemTotal = gpuMemTotalFuture.getNow(0L);
-                                long gpuMemUsed = gpuMemUsedFuture.getNow(0L);
-                                if (gpuMemTotal > 0) {
+                                if (gpuMemTotalFromPrometheus > 0) {
                                         status.put("gpuMemory",
-                                                        formatBytes(gpuMemUsed) + " / " + formatBytes(gpuMemTotal));
+                                                        formatBytes(gpuMemUsedFromPrometheus) + " / " + formatBytes(gpuMemTotalFromPrometheus));
                                 } else {
                                         status.put("gpuMemory", "N/A");
                                 }

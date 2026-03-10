@@ -88,11 +88,37 @@ public class AlertService {
 
     /**
      * 触发告警
+     * 加入防爆冷却机制，避免同一规则对同一智能体重复发送通知
      */
     @Transactional
     public AlertHistory triggerAlert(String ruleId, String agentId, String message) {
         AlertRule rule = ruleRepository.findById(ruleId)
                 .orElseThrow(() -> new RuntimeException("Rule not found: " + ruleId));
+
+        // 检查冷却时间
+        String cacheKey = ruleId + ":" + (agentId != null ? agentId : "null");
+        long currentTime = System.currentTimeMillis();
+        int cooldownMinutes = rule.getCooldownMinutes() != null ? rule.getCooldownMinutes() : 5;
+        long cooldownPeriod = cooldownMinutes * 60 * 1000;
+
+        if (alertCooldownCache.containsKey(cacheKey)) {
+            long lastTriggerTime = alertCooldownCache.get(cacheKey);
+            if (currentTime - lastTriggerTime < cooldownPeriod) {
+                log.debug("Alert cooldown active for {}. Skipping notification.", cacheKey);
+                // 仍然创建告警历史，但不发送通知
+                AlertHistory history = AlertHistory.builder()
+                        .ruleId(ruleId)
+                        .agentId(agentId)
+                        .alertMessage(message)
+                        .severity(rule.getSeverity())
+                        .status("SUPPRESSED")
+                        .build();
+                return historyRepository.save(history);
+            }
+        }
+
+        // 更新冷却缓存
+        alertCooldownCache.put(cacheKey, currentTime);
 
         // 创建告警历史
         AlertHistory history = AlertHistory.builder()

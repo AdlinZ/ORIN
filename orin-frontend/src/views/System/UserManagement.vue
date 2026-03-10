@@ -455,6 +455,8 @@ onUnmounted(() => {
   padding: 32px;
   max-width: 1600px;
   margin: 0 auto;
+  background: var(--bg-color, #f8fafc);
+  min-height: 100vh;
 }
 
 .fade-in {
@@ -479,13 +481,13 @@ onUnmounted(() => {
 
 .page-subtitle {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary, var(--el-text-color-secondary));
 }
 
 .premium-card {
-  background: var(--el-bg-color);
+  background: var(--card-bg, var(--el-bg-color));
   border-radius: 12px;
-  border: 1px solid var(--el-border-color-light);
+  border: 1px solid var(--border-color, var(--el-border-color-light));
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   padding: 24px;
   transition: all 0.3s ease;
@@ -534,8 +536,8 @@ onUnmounted(() => {
 }
 
 .icon-btn {
-  border: 1px solid var(--el-border-color-lighter);
-  background: transparent;
+  border: 1px solid var(--border-color, var(--el-border-color-lighter));
+  background: var(--card-bg, transparent);
 }
 
 .icon-btn:hover {
@@ -616,6 +618,10 @@ onUnmounted(() => {
 .status-dot.active {
   background-color: #13ce66;
   box-shadow: 0 0 0 2px rgba(19, 206, 102, 0.2);
+}
+
+html.dark .status-dot.active {
+  box-shadow: 0 0 0 2px rgba(19, 206, 102, 0.3);
 }
 
 .status-dot.inactive {
@@ -700,28 +706,131 @@ onUnmounted(() => {
 }
 
 /* Dark Mode Overrides */
+html.dark .user-management {
+  background: var(--bg-color);
+}
+
 html.dark .premium-card {
-  background: rgba(30, 30, 30, 0.6);
+  background: var(--card-bg);
   backdrop-filter: blur(10px);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .premium-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
 }
 
 html.dark .page-title {
-  color: #e5eaf3;
+  color: var(--text-primary);
+}
+
+html.dark .page-subtitle {
+  color: var(--text-secondary);
 }
 
 html.dark .search-input :deep(.el-input__wrapper) {
-  background: rgba(0, 0, 0, 0.2);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  background: var(--neutral-gray-100);
+  box-shadow: 0 0 0 1px var(--border-color) inset;
+}
+
+html.dark .icon-btn {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+html.dark .icon-btn:hover {
+  background: var(--neutral-gray-200);
 }
 
 html.dark .role-admin {
   background: rgba(245, 108, 108, 0.15);
-  border-color: rgba(245, 108, 108, 0.2);
+  border-color: rgba(245, 108, 108, 0.3);
+  color: #f56c6c;
 }
 
 html.dark .role-user {
-  background: rgba(64, 158, 255, 0.15);
-  border-color: rgba(64, 158, 255, 0.2);
+  background: rgba(38, 255, 223, 0.1);
+  border-color: rgba(38, 255, 223, 0.2);
+  color: var(--orin-primary);
+}
+
+html.dark .status-text {
+  color: var(--text-secondary);
+}
+
+html.dark .time-text {
+  color: var(--text-secondary);
+}
+
+html.dark .username {
+  color: var(--text-primary);
+}
+
+/* Dialog dark mode */
+html.dark .custom-dialog :deep(.el-dialog) {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+html.dark .custom-dialog :deep(.el-dialog__header) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+html.dark .custom-dialog :deep(.el-dialog__title) {
+  color: var(--text-primary);
+}
+
+html.dark .custom-dialog :deep(.el-dialog__footer) {
+  border-top: 1px solid var(--border-color);
+}
+
+html.dark .custom-form :deep(.el-form-item__label) {
+  color: var(--text-secondary);
+}
+
+html.dark .custom-form :deep(.el-input__wrapper) {
+  background: var(--neutral-gray-100);
+}
+
+html.dark .custom-form :deep(.el-select .el-input__wrapper) {
+  background: var(--neutral-gray-100);
+}
+
+/* Pagination dark mode */
+html.dark .el-pagination {
+  --el-pagination-bg-color: var(--card-bg);
+  --el-pagination-text-color: var(--text-secondary);
+  --el-pagination-button-bg-color: var(--card-bg);
+  --el-pagination-button-color: var(--text-secondary);
+  --el-pagination-hover-color: var(--orin-primary);
+}
+
+html.dark .el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: var(--orin-primary);
+  color: #041010;
+}
+
+html.dark .el-pagination.is-background .el-pager li:not(.is-disabled):hover {
+  color: var(--orin-primary);
+}
+
+html.dark .el-pagination.is-background .btn-prev,
+html.dark .el-pagination.is-background .btn-next {
+  background-color: var(--card-bg);
+  color: var(--text-secondary);
+}
+
+html.dark .el-pagination.is-background .btn-prev:hover,
+html.dark .el-pagination.is-background .btn-next:hover {
+  color: var(--orin-primary);
+}
+
+html.dark .el-pagination__total {
+  color: var(--text-secondary);
+}
+
+html.dark .el-pagination .el-select__wrapper {
+  background: var(--card-bg);
 }
 </style>

@@ -29,6 +29,9 @@ public class JwtService {
     @Value("${jwt.expiration:86400000}") // 默认24小时
     private Long expiration;
 
+    @Value("${jwt.rememberMeExpiration:604800000}") // 默认7天
+    private Long rememberMeExpiration;
+
     // Minimum secret length for security
     private static final int MIN_SECRET_LENGTH = 32;
 
@@ -65,7 +68,17 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>(extraClaims);
         claims.put("userId", userId);
         claims.put("username", username);
-        return createToken(claims, userId);
+        return createToken(claims, userId, false);
+    }
+
+    /**
+     * 生成带额外声明的Token（支持记住我）
+     */
+    public String generateToken(String userId, String username, Map<String, Object> extraClaims, boolean rememberMe) {
+        Map<String, Object> claims = new HashMap<>(extraClaims);
+        claims.put("userId", userId);
+        claims.put("username", username);
+        return createToken(claims, userId, rememberMe);
     }
 
     /**
@@ -75,8 +88,13 @@ public class JwtService {
      * 创建Token
      */
     private String createToken(Map<String, Object> claims, String subject) {
+        return createToken(claims, subject, false);
+    }
+
+    private String createToken(Map<String, Object> claims, String subject, boolean rememberMe) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiration);
+        long expiryTime = rememberMe ? rememberMeExpiration : expiration;
+        Date expiryDate = new Date(now.getTime() + expiryTime);
 
         return Jwts.builder()
                 .claims(claims)

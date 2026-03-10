@@ -14,6 +14,16 @@ public class LoginDTO {
     @Size(min = 6, max = 100, message = "密码长度必须在6-100个字符之间")
     private String password;
 
+    private boolean rememberMe = false;
+
+    public boolean isRememberMe() {
+        return rememberMe;
+    }
+
+    public void setRememberMe(boolean rememberMe) {
+        this.rememberMe = rememberMe;
+    }
+
     public String getUsername() {
         return username;
     }

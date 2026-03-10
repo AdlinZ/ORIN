@@ -20,18 +20,18 @@
 
           <el-form ref="formRef" :model="loginForm" :rules="loginRules" label-position="top">
             <el-form-item label="用户名" prop="username">
-              <el-input 
-                v-model="loginForm.username" 
-                placeholder="请输入用户名" 
+              <el-input
+                v-model="loginForm.username"
+                placeholder="请输入用户名"
                 :prefix-icon="User"
               />
             </el-form-item>
             <el-form-item label="密码" prop="password">
-              <el-input 
-                v-model="loginForm.password" 
-                type="password" 
-                show-password 
-                placeholder="请输入密码" 
+              <el-input
+                v-model="loginForm.password"
+                type="password"
+                show-password
+                placeholder="请输入密码"
                 :prefix-icon="Lock"
                 @keyup.enter="handleLogin"
               />
@@ -101,6 +101,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { User, Lock, CircleCheckFilled, Share, Link, ArrowRight, Check } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import Cookies from 'js-cookie';
 import BrandingLogo from '@/components/BrandingLogo.vue';
 import { useUserStore } from '@/stores/user';
 import { ROUTES } from '@/router/routes';
@@ -187,21 +188,43 @@ const handleLogin = async () => {
     return;
   }
   if (!formRef.value) return;
-  
+
   await formRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true;
       try {
-        const res = await login(loginForm);
+        const loginData = {
+          ...loginForm,
+          rememberMe: rememberMe.value
+        };
+        const res = await login(loginData);
         const token = res.token || (res.data && res.data.token);
         const user = res.user || (res.data && res.data.user);
         const roles = res.roles || (res.data && res.data.roles);
-        
+
         if (!token) throw new Error('Invalid login response');
-        
+
         ElMessage.success('登录成功');
+
+        // 根据 rememberMe 选择存储方式
+        // 如果记住我：存储到 localStorage 并设置 Cookie 7天
+        // 如果不记住我：仅存储到 sessionStorage（浏览器关闭后清除）
+        if (rememberMe.value) {
+          localStorage.setItem('orin_token', token);
+          localStorage.setItem('orin_user', JSON.stringify(user));
+        } else {
+          sessionStorage.setItem('orin_token', token);
+          sessionStorage.setItem('orin_user', JSON.stringify(user));
+        }
+
         userStore.login(token, user, roles || ['ROLE_USER']);
-        localStorage.setItem('orin_user', JSON.stringify(user));
+
+        // 设置 Cookie（用于跨页面恢复），记住我时过期时间更长
+        const cookieExpires = rememberMe.value ? 7 : 1;
+        Cookies.set('orin_token', token, { expires: cookieExpires });
+        Cookies.set('orin_userInfo', JSON.stringify(user), { expires: cookieExpires });
+        Cookies.set('orin_roles', JSON.stringify(roles || ['ROLE_USER']), { expires: cookieExpires });
+
         setTimeout(() => router.push(ROUTES.HOME), 500);
       } catch (error) {
         ElMessage.error('登录失败: ' + (error.response?.data?.message || '请检查账号密码'));

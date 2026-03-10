@@ -183,7 +183,7 @@
                 <span class="f-tag">MAPPING_ENGINE.B_2 // SYSTEM_MONITOR_ON</span>
              </div>
              <div class="f-right">
-                <span class="f-code-tag">ACTIVE_LOGGING_v4.2</span>
+                <span class="f-code-tag">BUILD: {{ buildDate }}</span>
              </div>
           </footer>
         </div>
@@ -251,6 +251,8 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDark } from '@vueuse/core'
 import { Timer, Collection, Connection } from '@element-plus/icons-vue'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import {
   getGlobalSummary,
   getAgentList,
@@ -265,6 +267,9 @@ import { ROUTES } from '@/router/routes'
 import LineChart from '@/components/LineChart.vue'
 
 const router = useRouter()
+
+// 构建日期（Vite 构建时注入）
+const buildDate = __BUILD_DATE__ || new Date().toISOString().split('T')[0]
 
 const isDark = useDark()
 const loading = ref(true)
@@ -282,7 +287,7 @@ const trendData = ref([])
 
 const summary = ref({})
 const agents = ref([])
-const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0 })
+const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0, gpuModel: '' })
 const recentLogs = ref([])
 const distribution = ref([])
 
@@ -382,9 +387,10 @@ const fetchData = async () => {
       recentLogs.value = l.value.content.map(i => {
         let name = i.agentName || i.providerId || 'SYSTEM';
         if (name.length > 12) name = name.substring(0, 8) + '...';
-        
+
         return {
-          time: new Date(i.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          // 使用 dayjs 解析时间，确保时区正确
+          time: dayjs(i.createdAt).format('HH:mm'),
           text: `${name} | ${i.endpoint?.split('/').pop() || 'Processing'}`,
           status: i.success ? 'healthy' : 'critical'
         };
@@ -673,6 +679,7 @@ onUnmounted(() => {
 .rk-item { padding: 14px; background: #f8fafc; border-radius: 12px; border: 1px solid transparent; transition: 0.2s; }
 .rk-item:hover { background: #fff; border-color: var(--orin-primary-fade); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
 .theme-dark .rk-item { background: rgba(255,255,255,0.03); }
+.theme-dark .rk-item:hover { background: rgba(255,255,255,0.06); }
 .theme-dark .rk-item:hover { background: rgba(255,255,255,0.05); }
 
 .rk-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -716,5 +723,85 @@ html.dark .rk-item {
 
 html.dark .rk-item:hover {
   background: var(--neutral-gray-100);
+}
+
+/* 黑夜模式全局适配 - 卡片和背景颜色 */
+html.dark .premium-card {
+  background: rgba(19, 23, 31, 0.8) !important;
+}
+
+html.dark .hub-container {
+  background: rgba(19, 23, 31, 0.85) !important;
+}
+
+html.dark .hub-semantic-panel {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+html.dark .bubble-item {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark .l-rail {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .rk-item {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark .p-chart-tabs {
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 黑夜模式 - 文字颜色 */
+html.dark .card-head,
+html.dark .l-info,
+html.dark .b-lbl,
+html.dark .m-lbl,
+html.dark .p-lbl,
+html.dark .mk-lbl,
+html.dark .re-title,
+html.dark .re-tm,
+html.dark .orb-lbl,
+html.dark .c-date,
+html.dark .pill-group button {
+  color: #94a3b8 !important;
+}
+
+html.dark .p-title-compact,
+html.dark .rk-name,
+html.dark .re-txt,
+html.dark .l-val {
+  color: #e2e8f0 !important;
+}
+
+html.dark .sh-code,
+html.dark .rk-idx {
+  color: #64748b !important;
+}
+
+/* 黑夜模式 - 边框颜色 */
+html.dark .hub-footer,
+html.dark .recent-events-v3 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .head-line {
+  background: rgba(148, 163, 184, 0.2) !important;
+}
+
+html.dark .pill-divider {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 黑夜模式 - 悬停效果 */
+html.dark .rk-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .pill-group button:hover:not(.active) {
+  color: var(--orin-primary) !important;
 }
 </style>

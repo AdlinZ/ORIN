@@ -1356,6 +1356,10 @@ const copyHelperScript = () => {
 }
 .test-result-body .label { font-weight: 600; min-width: 80px; }
 .test-result-body p { margin: 8px 0 0 0; background: #f5f7fa; padding: 12px; border-radius: 4px; font-size: 13px; line-height: 1.6; }
+
+html.dark .test-result-body p {
+  background: #1e293b;
+}
 .clickable-tag { cursor: pointer; }
 
 .table-card { border-radius: 12px; }
@@ -1450,9 +1454,54 @@ const copyHelperScript = () => {
   font-size: 13px;
   margin-right: 12px;
 }
+
+html.dark .tip-text {
+  color: #94a3b8;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 黑夜模式适配 */
+html.dark .onboard-stepper .step-icon-wrapper {
+  background: var(--neutral-gray-800);
+  color: var(--neutral-gray-400);
+}
+
+html.dark .onboard-stepper .step-label {
+  color: var(--neutral-gray-500);
+}
+
+html.dark .onboard-stepper .step-name {
+  color: var(--neutral-gray-400);
+}
+
+html.dark .onboard-stepper .step-item.active .step-name {
+  color: var(--orin-primary);
+}
+
+html.dark .onboard-stepper .step-line {
+  background: var(--neutral-gray-700);
+}
+
+html.dark .fetched-models-section {
+  background: var(--neutral-gray-800);
+}
+
+html.dark .fetched-tag {
+  background: var(--neutral-gray-700);
+}
+
+html.dark .api-fetch-section {
+  background: var(--neutral-gray-800);
+  border-color: var(--neutral-gray-600);
+}
+
+html.dark .code-block {
+  background: var(--neutral-gray-800);
+  border-color: var(--neutral-gray-600);
 }
 </style>

@@ -82,8 +82,8 @@
             <span class="item-label">GPU 使用率</span>
           </div>
           <div class="item-value">{{ serverInfo.gpuUsage }}%</div>
-          <el-progress 
-            :percentage="serverInfo.gpuUsage" 
+          <el-progress
+            :percentage="serverInfo.gpuUsage"
             :stroke-width="8"
             :status="getProgressStatus(serverInfo.gpuUsage)"
             :show-text="false"
@@ -182,7 +182,7 @@ const serverInfo = ref({
   online: false,
   cpuUsage: 0,
   cpuCores: 0,
-  cpuModel: '', 
+  cpuModel: '',
   gpuUsage: 0,
   gpuMemoryUsage: 0,
   gpuModel: '',

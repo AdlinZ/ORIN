@@ -175,13 +175,65 @@ sudo systemctl restart prometheus</pre>
                 </div>
               </div>
               
-              <el-alert 
-                title="提示：系统目前支持 Linux node_exporter 和 Windows windows_exporter 的标准指标。" 
-                type="info" 
+              <el-alert
+                title="提示：系统目前支持 Linux node_exporter 和 Windows windows_exporter 的标准指标。"
+                type="info"
                 :closable="false"
                 show-icon
                 style="margin-top: 20px;"
               />
+
+              <!-- NVIDIA GPU 监控说明 -->
+              <el-collapse style="margin-top: 20px;">
+                <el-collapse-item title="NVIDIA GPU 监控配置 (可选)" name="nvidia">
+                  <div class="nvidia-guide">
+                    <p>如需监控 NVIDIA GPU 指标，需要额外配置 GPU exporter：</p>
+
+                    <div class="guide-step">
+                      <span class="step-num">1</span>
+                      <div class="step-text">
+                        <strong>安装 DCGM Exporter (推荐)</strong>
+                        <pre class="install-cmd"># 使用 Helm 安装 (Kubernetes)
+helm repo add gpu-operator https://nvidia.github.io/gpu-operator
+helm install dcgm-exporter gpu-operator/dcgm-exporter
+
+# 或使用 Docker 直接运行
+docker run -d --gpus all --rm -p 9400:9400 nvidia/dcgm-exporter:latest</pre>
+                      </div>
+                    </div>
+
+                    <div class="guide-step">
+                      <span class="step-num">2</span>
+                      <div class="step-text">
+                        <strong>或使用 nvidia_gpu_exporter</strong>
+                        <pre class="install-cmd"># 下载并运行
+wget https://github.com/mindprince/nvidia_gpu_exporter/releases/download/v1.0.0/nvidia_gpu_exporter_1.0.0_linux_amd64.tar.gz
+tar -xzf nvidia_gpu_exporter_1.0.0_linux_amd64.tar.gz
+./nvidia_gpu_exporter</pre>
+                      </div>
+                    </div>
+
+                    <div class="guide-step">
+                      <span class="step-num">3</span>
+                      <div class="step-text">
+                        <strong>在 Prometheus 中添加 GPU job</strong>
+                        <pre class="install-cmd"># 添加到 prometheus.yml
+  - job_name: 'nvidia_gpu'
+    static_configs:
+      - targets: ['localhost:9400']  # DCGM Exporter 默认端口</pre>
+                      </div>
+                    </div>
+
+                    <el-alert
+                      title="注意：ORIN 支持的 GPU 指标查询包括：nvidia_smi_utilization_gpu_ratio, nvidia_smi_memory_used_bytes, nvidia_smi_gpu_info 等。"
+                      type="warning"
+                      :closable="false"
+                      show-icon
+                      style="margin-top: 10px;"
+                    />
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
             </el-card>
           </el-col>
         </el-row>
