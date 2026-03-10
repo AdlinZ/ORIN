@@ -512,6 +512,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import request from '@/utils/request';
 import PageHeader from '@/components/PageHeader.vue';
+import { diagnoseMilvus, getCollectionInfo, testRetrieval } from '@/api/knowledge';
 
 const router = useRouter();
 import {
@@ -957,20 +958,13 @@ const goToModelConfig = () => {
 const testEmbeddingConnection = async () => {
   testingEmbedding.value = true;
   try {
-    // TODO: 需要后端实现 embedding 测试接口
-    ElMessage.info('Embedding 测试功能待后端实现');
-    testingEmbedding.value = false;
-    return;
-    // const res = await request.get('/knowledge/embedding/test', {
-    //   params: {
-    //     provider: config.embeddingProvider,
-    //     model: config.embeddingModel
-    //   }
-    // });
-    if (res.success) {
-      ElMessage.success('Embedding 模型可用！');
+    const res = await diagnoseMilvus();
+    if (res && res.embedding && res.embedding.status === 'ok') {
+      ElMessage.success('Embedding 模型可用！维度: ' + res.embedding.dimension);
+    } else if (res && res.embedding && res.embedding.status === 'error') {
+      ElMessage.error('Embedding 测试失败: ' + res.embedding.error);
     } else {
-      ElMessage.warning('Embedding 测试失败: ' + (res.error || '未知错误'));
+      ElMessage.warning('Milvus 诊断结果未知');
     }
   } catch (e) {
     ElMessage.error('测试失败: ' + e.message);
@@ -998,15 +992,31 @@ const testDescModel = async () => {
 const loadKnowledgeStats = async () => {
   loadingStats.value = true;
   try {
-    // TODO: 需要后端实现知识库统计接口
-    // 暂时从 Collection 状态推断
-    const collectionInfo = await request.get('/knowledge/collection/info');
-    if (collectionInfo && collectionInfo.exists) {
+    const res = await diagnoseMilvus();
+    if (res && res.documents) {
+      knowledgeStats.value = {
+        totalKBs: 'N/A',
+        totalDocs: res.documents.total,
+        totalVectors: res.collection?.vectorCount || 'N/A'
+      };
+    } else {
       knowledgeStats.value = {
         totalKBs: 'N/A',
         totalDocs: 'N/A',
-        totalVectors: collectionInfo.vectorCount || 'N/A'
+        totalVectors: 'N/A'
       };
+    }
+  } catch (e) {
+    console.error('Failed to load knowledge stats:', e);
+    knowledgeStats.value = {
+      totalKBs: 'N/A',
+      totalDocs: 'N/A',
+      totalVectors: 'N/A'
+    };
+  } finally {
+    loadingStats.value = false;
+  }
+};
     } else {
       knowledgeStats.value = {
         totalKBs: 0,
