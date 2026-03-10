@@ -27,6 +27,11 @@ public class HierarchicalTextSplitter {
     // Minimum parent chunk size to avoid too small chunks
     private static final int MIN_PARENT_SIZE = 200;
 
+    // Default configurable parameters
+    private static final int DEFAULT_PARENT_SIZE = 800;
+    private static final int DEFAULT_CHILD_SIZE = 500;
+    private static final int DEFAULT_OVERLAP = 50;
+
     // Semantic separators (priority from high to low)
     private static final String[] SEPARATORS = {
         "\n\n",   // Double newline (paragraph)
@@ -417,5 +422,56 @@ public class HierarchicalTextSplitter {
         return result.getChildren().stream()
                 .map(ChildChunk::getContent)
                 .toList();
+    }
+
+    /**
+     * Configurable split method
+     * @param text 输入文本
+     * @param docId 文档 ID
+     * @param title 文档标题
+     * @param chunkSize chunk 大小 (500-800 tokens recommended)
+     * @param overlap 重叠大小 (50-100 tokens recommended)
+     * @return 分块结果
+     */
+    public static HierarchicalChunks splitWithConfig(String text, String docId, String title,
+                                                     int chunkSize, int overlap) {
+        if (text == null || text.isEmpty()) {
+            return new HierarchicalChunks(new ArrayList<>(), new ArrayList<>());
+        }
+
+        // 使用可配置参数进行分块
+        // chunkSize 和 overlap 可用于后续优化，目前使用标准分块方法
+        // TODO: 根据 chunkSize 和 overlap 动态调整分块策略
+        return splitHierarchical(text, docId, title);
+    }
+
+    /**
+     * Simple text chunking without parent-child hierarchy
+     * @param text 输入文本
+     * @param chunkSize chunk 大小 (字符数)
+     * @param overlap 重叠大小 (字符数)
+     * @return 文本块列表
+     */
+    public static List<String> splitSimple(String text, int chunkSize, int overlap) {
+        if (text == null || text.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<String> chunks = new ArrayList<>();
+        int textLength = text.length();
+        int position = 0;
+
+        while (position < textLength) {
+            int end = Math.min(position + chunkSize, textLength);
+            String chunk = text.substring(position, end);
+            chunks.add(chunk);
+
+            position += (chunkSize - overlap);
+            if (position < 0 || position >= textLength) {
+                break;
+            }
+        }
+
+        return chunks;
     }
 }

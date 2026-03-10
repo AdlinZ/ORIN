@@ -16,18 +16,23 @@
          <div class="step-line"></div>
          <div class="step-item" :class="{ active: currentStep === 2, done: currentStep > 2 }">
             <div class="step-num">2</div>
+            <span class="step-title">内容解析</span>
+         </div>
+         <div class="step-line"></div>
+         <div class="step-item" :class="{ active: currentStep === 3, done: currentStep > 3 }">
+            <div class="step-num">3</div>
             <span class="step-title">文本分段</span>
          </div>
          <div class="step-line"></div>
-         <div class="step-item" :class="{ active: currentStep === 3 }">
-            <div class="step-num">3</div>
+         <div class="step-item" :class="{ active: currentStep === 4 }">
+            <div class="step-num">4</div>
             <span class="step-title">完成</span>
          </div>
       </div>
     </div>
 
     <!-- Main Content -->
-    <div class="create-container" :class="{ 'wide-container': currentStep === 2, 'finish-container': currentStep === 3 }">
+    <div class="create-container" :class="{ 'wide-container': currentStep === 2 || currentStep === 3, 'finish-container': currentStep === 4 }">
 
        <!-- Step 1: Data Source Selection -->
        <div v-if="currentStep === 1" class="step-content step-1">
@@ -76,13 +81,13 @@
              @drop.prevent="handleDrop"
              @click="triggerUpload"
           >
-             <input type="file" ref="fileInput" style="display: none" multiple accept=".pdf,.txt,.doc,.docx,.md" @change="handleFileChange" />
+             <input type="file" ref="fileInput" style="display: none" multiple accept=".pdf,.txt,.doc,.docx,.md,.jpg,.jpeg,.png,.gif,.bmp,.webp,.mp3,.wav,.m4a,.ogg,.mp4,.avi,.mov,.mkv" @change="handleFileChange" />
              <div class="upload-area">
                 <el-icon class="upload-icon"><UploadFilled /></el-icon>
                 <div class="upload-text">
                    <span class="link">点击上传</span> 或将文件拖拽至此
                 </div>
-                <div class="upload-hint">支持 PDF, TXT, DOC, DOCX, MD 等格式，每个文件不超过 15MB</div>
+                <div class="upload-hint">支持 PDF、TXT、Word、图片、音频、视频等格式，每个文件不超过 15MB</div>
              </div>
           </div>
 
@@ -179,8 +184,181 @@
           </div>
        </div>
 
-       <!-- Step 2: Cleaning & Segmentation (Dify Style) -->
+       <!-- Step 2: Content Parsing (Multimodal) -->
        <div v-if="currentStep === 2" class="step-content step-2-layout">
+          <div class="step-2-config">
+             <!-- 1. Parsing Settings -->
+             <div class="config-section">
+                <div class="section-label">解析设置</div>
+                <el-alert title="多模态内容解析用于从图片、音频、视频中提取文本内容" type="info" :closable="false" style="margin-bottom: 16px" />
+                <div class="parsing-options">
+                   <div class="parsing-card" :class="{ active: form.parsingEnabled }" @click="form.parsingEnabled = true">
+                      <div class="parsing-header">
+                         <div class="parsing-icon"><el-icon><PictureFilled /></el-icon></div>
+                         <div class="parsing-info">
+                            <div class="parsing-title">启用多模态解析</div>
+                            <div class="parsing-desc">对图片、音频、视频进行 OCR 识别或语音转文字</div>
+                         </div>
+                         <div class="check-circle" v-if="form.parsingEnabled"><el-icon><Check /></el-icon></div>
+                      </div>
+                   </div>
+                   <div class="parsing-card" :class="{ active: !form.parsingEnabled }" @click="form.parsingEnabled = false">
+                      <div class="parsing-header">
+                         <div class="parsing-icon"><el-icon><Document /></el-icon></div>
+                         <div class="parsing-info">
+                            <div class="parsing-title">跳过解析</div>
+                            <div class="parsing-desc">直接对文本内容进行分段和向量化</div>
+                         </div>
+                         <div class="check-circle" v-if="!form.parsingEnabled"><el-icon><Check /></el-icon></div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+             <!-- Parsing Configuration -->
+             <div v-if="form.parsingEnabled" class="config-section">
+                <div class="section-label">OCR 图片文字识别</div>
+                <div class="provider-cards">
+                   <div
+                      class="provider-card"
+                      :class="{ active: form.ocrProvider === 'local' }"
+                      @click="form.ocrProvider = 'local'; form.ocrModel = ''"
+                   >
+                      <div class="provider-icon"><el-icon><Monitor /></el-icon></div>
+                      <div class="provider-info">
+                         <div class="provider-name">本地 (Tesseract)</div>
+                         <div class="provider-desc">开源 OCR 引擎，无需联网</div>
+                      </div>
+                      <div class="check-circle" v-if="form.ocrProvider === 'local'"><el-icon><Check /></el-icon></div>
+                   </div>
+                   <div
+                      class="provider-card"
+                      :class="{ active: form.ocrProvider !== 'local' }"
+                      @click="form.ocrProvider = 'azure'"
+                   >
+                      <div class="provider-icon"><el-icon><Cloudy /></el-icon></div>
+                      <div class="provider-info">
+                         <div class="provider-name">云服务 API</div>
+                         <div class="provider-desc">Azure/Google/阿里云/腾讯云</div>
+                      </div>
+                      <div class="check-circle" v-if="form.ocrProvider !== 'local'"><el-icon><Check /></el-icon></div>
+                   </div>
+                </div>
+
+                <!-- OCR Model Selection (when cloud selected) -->
+                <div v-if="form.ocrProvider !== 'local'" class="cloud-config">
+                   <el-select v-model="form.ocrModel" placeholder="选择 OCR 模型" size="large" style="width: 100%">
+                      <el-option v-for="item in ocrModelOptions" :key="item.value" :label="item.label" :value="item.value">
+                         <span style="display: flex; align-items: center; gap: 8px;">
+                            <el-icon class="icon-blue"><Cpu /></el-icon> {{ item.label }}
+                         </span>
+                      </el-option>
+                   </el-select>
+                </div>
+
+                <div class="section-label" style="margin-top: 24px;">ASR 语音识别</div>
+                <div class="provider-cards">
+                   <div
+                      class="provider-card"
+                      :class="{ active: form.asrProvider === 'local' }"
+                      @click="form.asrProvider = 'local'; form.asrModel = ''"
+                   >
+                      <div class="provider-icon"><el-icon><Microphone /></el-icon></div>
+                      <div class="provider-info">
+                         <div class="provider-name">本地 (Whisper)</div>
+                         <div class="provider-desc">开源语音识别模型</div>
+                      </div>
+                      <div class="check-circle" v-if="form.asrProvider === 'local'"><el-icon><Check /></el-icon></div>
+                   </div>
+                   <div
+                      class="provider-card"
+                      :class="{ active: form.asrProvider !== 'local' }"
+                      @click="form.asrProvider = 'azure'"
+                   >
+                      <div class="provider-icon"><el-icon><Cloudy /></el-icon></div>
+                      <div class="provider-info">
+                         <div class="provider-name">云服务 API</div>
+                         <div class="provider-desc">Azure/Google/阿里云/腾讯云</div>
+                      </div>
+                      <div class="check-circle" v-if="form.asrProvider !== 'local'"><el-icon><Check /></el-icon></div>
+                   </div>
+                </div>
+
+                <!-- ASR Model Selection (when cloud selected) -->
+                <div v-if="form.asrProvider !== 'local'" class="cloud-config">
+                   <el-select v-model="form.asrModel" placeholder="选择 ASR 模型" size="large" style="width: 100%">
+                      <el-option v-for="item in asrModelOptions" :key="item.value" :label="item.label" :value="item.value">
+                         <span style="display: flex; align-items: center; gap: 8px;">
+                            <el-icon class="icon-blue"><Cpu /></el-icon> {{ item.label }}
+                         </span>
+                      </el-option>
+                   </el-select>
+                </div>
+             </div>
+
+             <!-- File Type Preview -->
+             <div class="config-section">
+                <div class="section-label">待处理文件</div>
+                <div class="file-type-list" v-if="fileList.length > 0">
+                   <div class="file-type-item" v-for="(file, index) in fileList.slice(0, 5)" :key="index">
+                      <el-icon><Document /></el-icon>
+                      <span class="file-name">{{ file.name }}</span>
+                      <el-tag size="small" :type="getFileTypeTag(file.name)">{{ getFileType(file.name) }}</el-tag>
+                   </div>
+                   <div v-if="fileList.length > 5" class="more-files">
+                      还有 {{ fileList.length - 5 }} 个文件
+                   </div>
+                </div>
+                <div v-else class="no-files-tip">
+                   <el-icon><InfoFilled /></el-icon>
+                   <span>请在第一步选择数据源并上传文件</span>
+                </div>
+             </div>
+          </div>
+
+          <!-- Right Side: Parsing Info -->
+          <div class="step-2-preview">
+             <div class="preview-header">
+                <el-icon class="doc-icon"><InfoFilled /></el-icon>
+                <span>解析说明</span>
+             </div>
+             <div class="preview-body">
+                <div class="parsing-info-list">
+                   <div class="info-item">
+                      <div class="info-icon"><el-icon><Picture /></el-icon></div>
+                      <div class="info-content">
+                         <div class="info-title">图片 (PNG, JPG, JPEG, BMP)</div>
+                         <div class="info-desc">使用 OCR 识别图片中的文字内容</div>
+                      </div>
+                   </div>
+                   <div class="info-item">
+                      <div class="info-icon"><el-icon><Microphone /></el-icon></div>
+                      <div class="info-content">
+                         <div class="info-title">音频 (MP3, WAV, M4A)</div>
+                         <div class="info-desc">使用 ASR 将语音转写为文字</div>
+                      </div>
+                   </div>
+                   <div class="info-item">
+                      <div class="info-icon"><el-icon><VideoCamera /></el-icon></div>
+                      <div class="info-content">
+                         <div class="info-title">视频 (MP4, AVI, MOV)</div>
+                         <div class="info-desc">提取音频并使用 ASR 转写</div>
+                      </div>
+                   </div>
+                   <div class="info-item">
+                      <div class="info-icon"><el-icon><Document /></el-icon></div>
+                      <div class="info-content">
+                         <div class="info-title">文档 (PDF, DOCX, TXT)</div>
+                         <div class="info-desc">直接提取文本，跳过解析步骤</div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </div>
+       </div>
+
+       <!-- Step 3: Cleaning & Segmentation (Dify Style) -->
+       <div v-if="currentStep === 3" class="step-content step-2-layout">
           <div class="step-2-config">
              <!-- 1. Segmentation -->
              <div class="config-section">
@@ -342,7 +520,7 @@
        </div>
 
        <!-- Step 3: Finish & Processing -->
-       <div v-if="currentStep === 3" class="step-content step-3-layout">
+       <div v-if="currentStep === 4" class="step-content step-3-layout">
           <div class="step-3-main">
              <!-- Success Header -->
              <div class="success-header">
@@ -430,6 +608,18 @@
                    <div class="card-body">
                       <div class="config-grid">
                          <div class="config-item">
+                            <span class="config-label">多模态解析</span>
+                            <span class="config-value">{{ form.parsingEnabled ? '已启用' : '已禁用' }}</span>
+                         </div>
+                         <div class="config-item" v-if="form.parsingEnabled">
+                            <span class="config-label">OCR</span>
+                            <span class="config-value">{{ form.ocrProvider === 'local' ? '本地 (Tesseract)' : (form.ocrModel || '云服务') }}</span>
+                         </div>
+                         <div class="config-item" v-if="form.parsingEnabled">
+                            <span class="config-label">ASR</span>
+                            <span class="config-value">{{ form.asrProvider === 'local' ? '本地 (Whisper)' : (form.asrModel || '云服务') }}</span>
+                         </div>
+                         <div class="config-item">
                             <span class="config-label">分段模式</span>
                             <span class="config-value">{{ form.segmentMode === 'general' ? '通用' : '父子分段' }}</span>
                          </div>
@@ -475,8 +665,10 @@
 
     <!-- Footer with Navigation Buttons -->
     <div class="create-footer">
-      <el-button v-if="currentStep > 1 && currentStep < 3" @click="currentStep--">上一步</el-button>
-      <el-button v-if="currentStep < 3" type="primary" @click="handleNext" :disabled="currentStep === 1 && !canProceed">下一步</el-button>
+      <el-button v-if="currentStep > 1 && currentStep < 4" @click="currentStep--">上一步</el-button>
+      <el-button v-if="currentStep < 4" type="primary" @click="handleNext" :disabled="(currentStep === 1 && !canProceed) || (currentStep === 2 && parsingLoading)" :loading="currentStep === 2 && parsingLoading">
+        {{ currentStep === 3 ? '完成创建' : '下一步' }}
+      </el-button>
     </div>
   </div>
 </template>
@@ -488,7 +680,9 @@ import { ROUTES } from '@/router/routes';
 import {
   ArrowLeft, Document, Check, UploadFilled, FolderAdd, Link, Notebook,
   Close, Setting, CopyDocument, QuestionFilled, Cpu, Operation, View, Search,
-  Loading, Connection, Right, Aim, MagicStick
+  Loading, Connection, Right, Aim, MagicStick,
+  PictureFilled, Picture, VideoCamera, Microphone, InfoFilled,
+  Monitor, Cloudy
 } from '@element-plus/icons-vue';
 import { ElMessage, ElNotification } from 'element-plus';
 import request from '@/utils/request';
@@ -556,14 +750,21 @@ const dbConfig = reactive({
 const testingDb = ref(false);
 
 const form = reactive({
-   segmentMode: 'parent_child', 
+   // Parsing settings (Step 2)
+   parsingEnabled: true,
+   ocrProvider: 'local',
+   asrProvider: 'local',
+   ocrModel: '',
+   asrModel: 'base',
+   // Segmentation settings (Step 3)
+   segmentMode: 'parent_child',
    separator: '\\n\\n',
    maxTokens: 500,
    overlap: 50,
    cleanSpaces: true,
    cleanUrls: false,
-   indexType: 'high_quality', 
-   embeddingModel: '', 
+   indexType: 'high_quality',
+   embeddingModel: '',
    enableRerank: false,
    rerankModel: '',
    topK: 3,
@@ -594,6 +795,65 @@ const rerankOptions = computed(() => {
    if (options.length === 0) {
       return [
          { label: 'BGE-Reranker-v2-Mini', value: 'BAAI/bge-reranker-v2-mini' }
+      ];
+   }
+   return options;
+});
+
+// OCR Provider Options (service-based, not model-based)
+const ocrProviderOptions = [
+   { label: '本地 (Tesseract)', value: 'local', icon: 'Monitor' },
+   { label: 'Azure Vision', value: 'azure', icon: 'Cloud' },
+   { label: 'Google Cloud Vision', value: 'google', icon: 'Cloudy' },
+   { label: '阿里云 OCR', value: 'aliyun', icon: 'Cloud' },
+   { label: '腾讯云 OCR', value: 'tencent', icon: 'Cloudy' }
+];
+
+// ASR Provider Options (service-based)
+const asrProviderOptions = [
+   { label: '本地 (Whisper)', value: 'local', icon: 'Monitor' },
+   { label: 'Azure Speech', value: 'azure', icon: 'Cloud' },
+   { label: 'Google Speech', value: 'google', icon: 'Cloudy' },
+   { label: '阿里云 ASR', value: 'aliyun', icon: 'Cloud' },
+   { label: '腾讯云 ASR', value: 'tencent', icon: 'Cloudy' },
+   { label: 'OpenAI Whisper API', value: 'openai', icon: 'MagicStick' }
+];
+
+// OCR Model Options - dynamically from models (OCR/VISION type)
+const ocrModelOptions = computed(() => {
+   const options = allModels.value
+      .filter(m => {
+         const type = m.type?.toUpperCase();
+         const isOCR = type === 'OCR';
+         const isVision = type === 'VISION' || type === 'VLM' || type === 'MULTIMODAL' || type === 'VISUAL';
+         const hasVisionKeywords = (m.modelId + m.name + (m.description || '')).toLowerCase().match(/ocr|vision|vl|multimodal|图片|文字|识别/);
+         return (isOCR || isVision || hasVisionKeywords) && m.status === 'ENABLED';
+      })
+      .map(m => ({
+         label: m.name,
+         value: m.modelId
+      }));
+   return options;
+});
+
+// ASR Model Options - dynamically from models (SPEECH_TO_TEXT type)
+const asrModelOptions = computed(() => {
+   // Filter models with SPEECH_TO_TEXT or ASR type
+   const options = allModels.value
+      .filter(m => m.type === 'SPEECH_TO_TEXT' || m.type === 'ASR' || m.type === 'STT')
+      .map(m => ({
+         label: m.name,
+         value: m.modelId
+      }));
+
+   // If no models found, add cloud options as fallback
+   if (options.length === 0) {
+      return [
+         { label: 'Azure Speech (default)', value: 'azure-speech' },
+         { label: 'Google Speech-to-Text', value: 'google-speech' },
+         { label: '阿里云 ASR', value: 'aliyun-asr' },
+         { label: '腾讯云 ASR', value: 'tencent-asr' },
+         { label: 'OpenAI Whisper-1', value: 'whisper-1' }
       ];
    }
    return options;
@@ -661,6 +921,33 @@ const addFiles = (files) => {
    }
 };
 const removeFile = (i) => { fileList.value.splice(i, 1); };
+
+// File type helpers
+const getFileType = (filename) => {
+   const ext = filename.split('.').pop().toLowerCase();
+   const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'webp'];
+   const audioExts = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'];
+   const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'flv'];
+   const docExts = ['pdf', 'doc', 'docx', 'txt', 'md', 'ppt', 'pptx'];
+
+   if (imageExts.includes(ext)) return '图片';
+   if (audioExts.includes(ext)) return '音频';
+   if (videoExts.includes(ext)) return '视频';
+   if (docExts.includes(ext)) return '文档';
+   return '其他';
+};
+
+const getFileTypeTag = (filename) => {
+   const ext = filename.split('.').pop().toLowerCase();
+   const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'webp'];
+   const audioExts = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'];
+   const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'flv'];
+
+   if (imageExts.includes(ext)) return 'success';
+   if (audioExts.includes(ext)) return 'warning';
+   if (videoExts.includes(ext)) return 'danger';
+   return 'info';
+};
 
 // AI Generate Description
 const generateDescription = async () => {
@@ -814,13 +1101,25 @@ const handleNext = async () => {
       }
    }
 
+   // Step 2: Parsing - upload files, trigger parsing, and wait for completion
    if(currentStep.value === 2) {
-      startProcessing();
+      // 1. 创建知识库
+      // 2. 上传所有文件并触发解析
+      // 3. 等待解析完成
+      // 4. 获取解析后的文本内容
+      await processFilesAndParse();
+      currentStep.value++;
+      return;
+   }
+
+   // Step 3: Segmentation - proceed to finish (vectorization)
+   if(currentStep.value === 3) {
+      startProcessing(); // This will create KB and vectorize
    }
    currentStep.value++;
 };
 
-const createEmpty = () => { currentStep.value = 3; kbName.value = '未命名知识库'; startProcessing(); };
+const createEmpty = () => { currentStep.value = 4; kbName.value = '未命名知识库'; startProcessing(); };
 
 const readFileAsText = (file) => {
    return new Promise((resolve, reject) => {
@@ -892,21 +1191,34 @@ const handlePreview = async () => {
    try {
       const targetFile = fileList.value[0];
       let text = '';
-      
-      // Try to parse file content from backend (for real data preview)
-      const formData = new FormData();
-      formData.append('file', targetFile.rawFile);
-      
-      try {
-         const res = await request.post('/knowledge/documents/parse-text', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-         });
-         text = res.text;
-      } catch (err) {
-         console.warn('Backend parsing failed, falling back to local reading', err);
+
+      // Step 1: Use parsed content from step 2 (already processed)
+      if (parsedContent.value && parsedContent.value.length > 0) {
+         const parsed = parsedContent.value.find(p => p.fileName === targetFile.name);
+         if (parsed && parsed.text) {
+            text = parsed.text;
+            console.log('Using pre-parsed content:', text.length, 'chars');
+         }
       }
 
-      if (!text) {
+      // Step 2: If no pre-parsed content, try to get from document
+      if (!text && createdKbId.value) {
+         try {
+            const docs = await request.get(`/knowledge/${createdKbId.value}/documents`);
+            const uploadedDoc = docs.find(d => d.fileName === targetFile.name);
+            if (uploadedDoc && uploadedDoc.id) {
+               const contentRes = await request.get(`/knowledge/documents/${uploadedDoc.id}/content`);
+               if (contentRes.text && contentRes.text.length > 0) {
+                  text = contentRes.text;
+               }
+            }
+         } catch (err) {
+            console.warn('Failed to get parsed content:', err);
+         }
+      }
+
+      // Step 3: Fallback to local file reading or mock
+      if (!text || text.startsWith('Error:') || text.startsWith('Failed')) {
          if (targetFile.type.startsWith('text/') || targetFile.name.endsWith('.md') || targetFile.name.endsWith('.json')) {
             text = await readFileAsText(targetFile.rawFile);
          } else {
@@ -972,11 +1284,151 @@ const handleResetParams = () => {
    collapsedChunks.value = new Set();
 };
 
-// --- Step 3 Simulation ---
+// --- Step 2 -> Step 3: Upload files and trigger parsing ---
+const parsingLoading = ref(false);
+
+// Step 2: Process files - create KB, upload files, trigger parsing, wait for completion
+const processFilesAndParse = async () => {
+    if (selectedSource.value !== 'file' || fileList.value.length === 0) {
+        return; // No files to parse
+    }
+
+    parsingLoading.value = true;
+    creatingFiles.value = fileList.value.map(f => ({ name: f.name, progress: 0, status: 'uploading' }));
+
+    try {
+        // 1. Create knowledge base (needed for file storage)
+        let newKbId = createdKbId.value;
+        if (!newKbId) {
+            const kb = await request.post('/knowledge', {
+                name: kbName.value || '未命名知识库',
+                description: kbDescription.value || '',
+                status: 'ENABLED',
+                parsingEnabled: form.parsingEnabled,
+                ocrProvider: form.ocrProvider,
+                asrProvider: form.asrProvider,
+                ocrModel: form.ocrModel,
+                asrModel: form.asrModel
+            });
+            newKbId = kb.id;
+            createdKbId.value = newKbId;
+        }
+
+        // 2. Upload files and trigger parsing
+        const uploadedDocIds = [];
+        for (let i = 0; i < fileList.value.length; i++) {
+            const f = fileList.value[i];
+            creatingFiles.value[i].status = 'uploading';
+
+            if (uploadedFiles.value.has(f.name)) {
+                creatingFiles.value[i].progress = 100;
+                creatingFiles.value[i].status = 'parsed';
+                continue;
+            }
+
+            const formData = new FormData();
+            formData.append('file', f.rawFile);
+
+            try {
+                const doc = await request.post(`/knowledge/${newKbId}/documents/upload`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                uploadedFiles.value.add(f.name);
+                uploadedDocIds.push(doc.id);
+                creatingFiles.value[i].progress = 50;
+                creatingFiles.value[i].status = 'parsing';
+            } catch (err) {
+                console.error(`Failed to upload ${f.name}:`, err);
+                creatingFiles.value[i].status = 'error';
+            }
+        }
+
+        // 3. Wait for parsing to complete (poll document status)
+        if (uploadedDocIds.length > 0 && form.parsingEnabled) {
+            ElMessage.info('等待解析完成...');
+            await waitForParsingComplete(uploadedDocIds);
+        }
+
+        // 4. Get parsed text content for step 3 preview
+        parsedContent.value = await fetchParsedContent(newKbId);
+
+        ElMessage.success('文件解析完成');
+    } catch (err) {
+        console.error('Parsing failed:', err);
+        ElMessage.error('解析失败: ' + (err.message || '未知错误'));
+    } finally {
+        parsingLoading.value = false;
+    }
+};
+
+// Wait for parsing to complete
+const waitForParsingComplete = async (docIds) => {
+    const maxAttempts = 60; // 60 seconds max
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
+
+        try {
+            let allComplete = true;
+            for (const docId of docIds) {
+                const doc = await request.get(`/knowledge/documents/${docId}`);
+                const status = doc.parseStatus || doc.vectorStatus;
+
+                if (status === 'PENDING' || status === 'PROCESSING' || status === 'RUNNING') {
+                    allComplete = false;
+                    break;
+                }
+
+                if (status === 'FAILED') {
+                    console.warn(`Document ${docId} parsing failed`);
+                }
+            }
+
+            if (allComplete) {
+                return true;
+            }
+        } catch (err) {
+            console.warn('Error checking parse status:', err);
+        }
+    }
+
+    console.warn('Parsing timeout');
+    return false;
+};
+
+// Fetch parsed content for preview
+const parsedContent = ref([]); // Array of { fileName, text }
+
+const fetchParsedContent = async (kbId) => {
+    const content = [];
+    try {
+        const docs = await request.get(`/knowledge/${kbId}/documents`);
+        for (const doc of docs) {
+            try {
+                const contentRes = await request.get(`/knowledge/documents/${doc.id}/content`);
+                if (contentRes.text) {
+                    content.push({
+                        fileName: doc.fileName,
+                        text: contentRes.text
+                    });
+                }
+            } catch (err) {
+                console.warn(`Failed to get content for ${doc.fileName}:`, err);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch parsed content:', err);
+    }
+    return content;
+};
+
+// --- Step 3: Processing (vectorization) ---
 const startProcessing = () => {
     isFinished.value = false;
     creatingFiles.value = fileList.value.map(f => ({ name: f.name, progress: 0 }));
-    
+
     if(creatingFiles.value.length === 0) { isFinished.value = true; return; }
 
     creatingFiles.value.forEach((f, idx) => {
@@ -1006,14 +1458,14 @@ const saveKB = async () => {
         const payload = {
             name: kbName.value || '未命名知识库',
             description: kbDescription.value || (form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index'),
-            type: 'UNSTRUCTURED',
-            status: 'ENABLED'
+            status: 'ENABLED',
+            // Parsing configuration
+            parsingEnabled: form.parsingEnabled,
+            ocrProvider: form.ocrProvider,
+            asrProvider: form.asrProvider,
+            ocrModel: form.ocrModel,
+            asrModel: form.asrModel
         };
-
-        // Handle source type specific types
-        if (selectedSource.value === 'database') {
-            payload.type = 'STRUCTURED';
-        }
 
         // 1. Create Knowledge Base via API (avoid duplicate if already created)
         let newKbId = createdKbId.value;
@@ -1160,8 +1612,8 @@ const handleGoToDocument = () => {
 .main-title { font-size: 18px; font-weight: 600; color: #111827; }
 .sub-title { font-size: 12px; color: #9CA3AF; font-weight: 500; }
 
-.create-container { flex: 1; max-width: 1000px; width: 100%; margin: 0 auto; padding: 24px; padding-bottom: 80px; display: flex; flex-direction: column; transition: max-width 0.3s; overflow: hidden; }
-.create-container.wide-container { max-width: 1200px; }
+.create-container { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 24px; padding-bottom: 80px; display: flex; flex-direction: column; transition: max-width 0.3s; overflow: hidden; }
+.create-container.wide-container { max-width: 1600px; }
 .create-container.finish-container { max-width: 1000px; }
 
 .create-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: #fff; border-top: 1px solid #E5E7EB; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 24px; z-index: 100; }
@@ -1254,6 +1706,46 @@ const handleGoToDocument = () => {
 .step-2-layout { display: flex; gap: 24px; height: calc(100vh - 190px); overflow: hidden; }
 .step-2-config { flex: 1; overflow-y: auto; padding-right: 12px; }
 .step-2-preview { width: 420px; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+
+/* Parsing Options Styles */
+.parsing-options { display: flex; flex-direction: column; gap: 12px; }
+.parsing-card { border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+
+/* Provider Cards Styles */
+.provider-cards { display: flex; gap: 12px; margin-bottom: 12px; }
+.provider-card { flex: 1; border: 1px solid #E5E7EB; border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; }
+.provider-card:hover { border-color: #93C5FD; }
+.provider-card.active { border-color: #2563EB; background: #EFF6FF; }
+.provider-icon { width: 40px; height: 40px; background: #F3F4F6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #6B7280; font-size: 20px; }
+.provider-card.active .provider-icon { background: #DBEAFE; color: #2563EB; }
+.provider-info { flex: 1; }
+.provider-name { font-weight: 600; font-size: 14px; color: #1F2937; }
+.provider-desc { font-size: 12px; color: #6B7280; margin-top: 2px; }
+.cloud-config { margin-top: 12px; }
+.icon-blue { color: #2563EB; }
+.parsing-card:hover { border-color: #93C5FD; }
+.parsing-card.active { border-color: #2563EB; background: #EFF6FF; }
+.parsing-header { display: flex; align-items: center; gap: 12px; }
+.parsing-icon { width: 40px; height: 40px; background: #F3F4F6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #6B7280; font-size: 20px; }
+.parsing-card.active .parsing-icon { background: #DBEAFE; color: #2563EB; }
+.parsing-info { flex: 1; }
+.parsing-title { font-weight: 600; font-size: 14px; color: #1F2937; }
+.parsing-desc { font-size: 12px; color: #6B7280; margin-top: 2px; }
+.config-item { margin-bottom: 16px; }
+.config-item label { font-size: 12px; font-weight: 500; color: #374151; display: block; margin-bottom: 6px; }
+.config-tip { font-size: 11px; color: #9CA3AF; margin-top: 4px; }
+.file-type-list { display: flex; flex-direction: column; gap: 8px; }
+.file-type-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #F9FAFB; border-radius: 6px; font-size: 13px; }
+.file-type-item .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.more-files { text-align: center; color: #6B7280; font-size: 12px; padding: 8px; }
+.no-files-tip { display: flex; align-items: center; gap: 8px; color: #9CA3AF; font-size: 13px; padding: 16px; background: #F9FAFB; border-radius: 8px; }
+.parsing-info-list { display: flex; flex-direction: column; gap: 16px; }
+.info-item { display: flex; gap: 12px; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid #E5E7EB; }
+.info-icon { width: 36px; height: 36px; background: #F3F4F6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #6B7280; }
+.info-content { flex: 1; }
+.info-title { font-weight: 600; font-size: 13px; color: #1F2937; }
+.info-desc { font-size: 12px; color: #6B7280; margin-top: 2px; }
+
 .config-section { margin-bottom: 32px; }
 .section-label { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px; }
 .segment-mode-cards { display: flex; gap: 16px; margin-bottom: 20px; }
@@ -1294,7 +1786,7 @@ const handleGoToDocument = () => {
 .chunk-item { background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; font-size: 13px; }
 .chunk-meta { color: #9CA3AF; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .chunk-content { color: #374151; line-height: 1.6; word-break: break-word; }
-.chunk-content.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.chunk-content.collapsed { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .empty-preview { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9CA3AF; gap: 16px; }
 
 /* Step 3 Styles - Single Column Layout */
@@ -1349,7 +1841,7 @@ const handleGoToDocument = () => {
 .label-row label { margin-bottom: 0; }
 
 /* Process Card */
-.file-process-list { }
+.file-process-list { display: block; }
 .process-item { padding: 12px; background: #F9FAFB; border-radius: 8px; margin-bottom: 8px; }
 .process-item:last-child { margin-bottom: 0; }
 .file-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 500; }

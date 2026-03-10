@@ -9,6 +9,7 @@ import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.model.service.ZhipuIntegrationService;
 import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
+import com.adlin.orin.modules.model.service.KimiIntegrationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,7 @@ public class AgentHealthCheckTask {
     private final SiliconFlowIntegrationService siliconFlowIntegrationService;
     private final ZhipuIntegrationService zhipuIntegrationService;
     private final DeepSeekIntegrationService deepSeekIntegrationService;
+    private final KimiIntegrationService kimiIntegrationService;
     private final AlertService alertService;
 
     public AgentHealthCheckTask(
@@ -40,6 +42,7 @@ public class AgentHealthCheckTask {
             SiliconFlowIntegrationService siliconFlowIntegrationService,
             ZhipuIntegrationService zhipuIntegrationService,
             DeepSeekIntegrationService deepSeekIntegrationService,
+            KimiIntegrationService kimiIntegrationService,
             AlertService alertService) {
         this.healthStatusRepository = healthStatusRepository;
         this.accessProfileRepository = accessProfileRepository;
@@ -47,6 +50,7 @@ public class AgentHealthCheckTask {
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.zhipuIntegrationService = zhipuIntegrationService;
         this.deepSeekIntegrationService = deepSeekIntegrationService;
+        this.kimiIntegrationService = kimiIntegrationService;
         this.alertService = alertService;
     }
 
@@ -100,6 +104,8 @@ public class AgentHealthCheckTask {
                 isHealthy = checkZhipuAgent(profile, agent);
             } else if ("DeepSeek".equalsIgnoreCase(providerType)) {
                 isHealthy = checkDeepSeekAgent(profile, agent);
+            } else if ("Kimi".equalsIgnoreCase(providerType) || "Moonshot".equalsIgnoreCase(providerType)) {
+                isHealthy = checkKimiAgent(profile);
             } else {
                 log.warn("Unknown provider type for agent {}: {}", agentId, providerType);
                 updateAgentStatus(agent, AgentStatus.UNKNOWN, 50);
@@ -188,6 +194,21 @@ public class AgentHealthCheckTask {
                     modelName);
         } catch (Exception e) {
             log.debug("DeepSeek agent {} connection test failed: {}",
+                    profile.getAgentId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 检查Kimi智能体健康状况
+     */
+    private boolean checkKimiAgent(AgentAccessProfile profile) {
+        try {
+            return kimiIntegrationService.testConnection(
+                    profile.getEndpointUrl(),
+                    profile.getApiKey());
+        } catch (Exception e) {
+            log.debug("Kimi agent {} connection test failed: {}",
                     profile.getAgentId(), e.getMessage());
             return false;
         }

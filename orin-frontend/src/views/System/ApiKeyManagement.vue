@@ -152,12 +152,12 @@
           <el-col :span="12">
             <el-form-item label="供应商" prop="provider">
               <el-select v-model="externalFormData.provider" style="width: 100%">
-                <el-option label="OpenAI" value="OpenAI" />
-                <el-option label="DeepSeek" value="DeepSeek" />
-                <el-option label="SiliconFlow" value="SiliconFlow" />
-                <el-option label="Anthropic" value="Anthropic" />
-                <el-option label="Groq" value="Groq" />
-                <el-option label="Ollama (Local)" value="Ollama" />
+                <el-option
+                  v-for="provider in providerList"
+                  :key="provider.providerKey"
+                  :label="provider.providerName"
+                  :value="provider.providerKey"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -258,6 +258,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { Plus, CopyDocument } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { getProviderList } from '@/api/system';
 import {
   getAllApiKeys,
   createApiKey,
@@ -274,6 +275,7 @@ import { View, Hide } from '@element-plus/icons-vue';
 
 const activeTab = ref('platform');
 const externalKeys = ref([]);
+const providerList = ref([]);
 const externalDialogVisible = ref(false);
 const visibleKeys = ref(new Set());
 const externalFormRef = ref(null);
@@ -329,6 +331,16 @@ const fetchApiKeys = async () => {
   } finally {
     loading.value = false;
     window.dispatchEvent(new Event('page-refresh-done'));
+  }
+};
+
+// 获取供应商列表
+const fetchProviders = async () => {
+  try {
+    const res = await getProviderList();
+    providerList.value = res || [];
+  } catch (e) {
+    console.error('Failed to fetch providers:', e);
   }
 };
 
@@ -508,6 +520,7 @@ const toggleKeyVisibility = (id) => {
 
 onMounted(() => {
   fetchApiKeys();
+  fetchProviders();
 
   // 监听全局刷新事件
   window.addEventListener('global-refresh', fetchApiKeys);

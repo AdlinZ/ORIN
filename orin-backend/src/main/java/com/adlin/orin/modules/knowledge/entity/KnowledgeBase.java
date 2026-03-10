@@ -54,6 +54,26 @@ public class KnowledgeBase {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    // Parsing configuration (multimodal)
+    @Column(name = "parsing_enabled")
+    @Builder.Default
+    private Boolean parsingEnabled = true;
+
+    @Column(name = "ocr_provider")
+    @Builder.Default
+    private String ocrProvider = "local";
+
+    @Column(name = "asr_provider")
+    @Builder.Default
+    private String asrProvider = "local";
+
+    @Column(name = "ocr_model")
+    private String ocrModel;
+
+    @Column(name = "asr_model")
+    @Builder.Default
+    private String asrModel = "base";
+
     /**
      * Store type-specific configuration (JSON).
      * e.g., SQL Connection String, Graph DB Endpoint, or custom Tool definitions.

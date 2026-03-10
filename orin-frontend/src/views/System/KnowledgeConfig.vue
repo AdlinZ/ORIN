@@ -429,6 +429,60 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                 </el-form-item>
               </el-form>
             </el-card>
+
+            <!-- 多模态配置 -->
+            <el-card class="premium-card margin-top-lg">
+              <template #header>
+                <div class="card-header">
+                  <el-icon><Picture /></el-icon>
+                  <span>多模态解析配置</span>
+                </div>
+              </template>
+
+              <el-form :model="config" label-position="top" class="config-form">
+                <el-row :gutter="20">
+                  <el-col :span="12">
+                    <el-form-item label="OCR 图片文字识别">
+                      <el-select v-model="config.ocrProvider" placeholder="选择 OCR 提供商" style="width: 100%">
+                        <el-option value="local" label="本地 (Tesseract)" />
+                        <el-option value="cloud" label="云服务 API" />
+                      </el-select>
+                      <p class="form-tip">图片文字识别服务，用于从图片中提取文本内容</p>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="ASR 语音识别">
+                      <el-select v-model="config.asrProvider" placeholder="选择 ASR 提供商" style="width: 100%">
+                        <el-option value="local" label="本地 (Whisper)" />
+                        <el-option value="cloud" label="云服务 API" />
+                      </el-select>
+                      <p class="form-tip">语音识别服务，用于从音频/视频中提取文本内容</p>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
+                  <el-col :span="12">
+                    <el-form-item label="OCR 模型 (云服务)">
+                      <el-input v-model="config.ocrModel" placeholder="如: ocr-general-v1" />
+                      <p class="form-tip">云服务 OCR 模型名称</p>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="ASR 模型 (本地)">
+                      <el-select v-model="config.asrModel" placeholder="选择模型" style="width: 100%">
+                        <el-option value="tiny" label="tiny - 最快，最低精度" />
+                        <el-option value="base" label="base - 平衡选择" />
+                        <el-option value="small" label="small - 较好精度" />
+                        <el-option value="medium" label="medium - 高精度" />
+                        <el-option value="large" label="large - 最高精度" />
+                      </el-select>
+                      <p class="form-tip">Whisper 模型大小，影响识别精度和速度</p>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-form>
+            </el-card>
           </el-col>
 
           <el-col :lg="8">
@@ -523,7 +577,8 @@ import {
   Setting,
   DataAnalysis,
   MagicStick,
-  Sort
+  Sort,
+  Picture
 } from '@element-plus/icons-vue';
 
 const activeTab = ref('milvus');
@@ -563,7 +618,12 @@ const config = reactive({
   similarityThreshold: 0.7,
   descGenerationModel: '',
   enableRerank: false,
-  rerankModel: ''
+  rerankModel: '',
+  // 多模态配置
+  ocrProvider: 'local',
+  ocrModel: '',
+  asrProvider: 'local',
+  asrModel: 'base'
 });
 
 const milvusStatus = ref({ online: false });

@@ -45,6 +45,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/api/v1/multimodal/files/*/download",
                                 "/api/v1/multimodal/files/*/thumbnail",
+                                "/api/v1/system/providers/**",
                                 "/v1/health",
                                 "/v1/providers",
                                 "/swagger-ui/**",

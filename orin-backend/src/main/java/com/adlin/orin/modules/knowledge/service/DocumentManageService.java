@@ -15,7 +15,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -30,6 +33,7 @@ public class DocumentManageService {
     private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository chunkRepository;
     private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
+    private final com.adlin.orin.modules.knowledge.service.ParsingPipelineService parsingPipelineService;
 
     // 文件存储根目录 (可配置)
     private static final String UPLOAD_DIR = "storage/uploads/documents";
@@ -86,15 +90,21 @@ public class DocumentManageService {
             metadata = "{\"type\": \"audio\", \"format\": \"" + fileExtension + "\"}";
         }
 
+        // 确定媒体类型
+        String mediaType = determineMediaType(fileExtension, mimeType);
+
         // 创建文档记录
         KnowledgeDocument document = KnowledgeDocument.builder()
                 .knowledgeBaseId(knowledgeBaseId)
                 .fileName(originalFilename)
+                .originalFilename(originalFilename)
                 .fileType(fileExtension)
                 .fileSize(file.getSize())
                 .storagePath(filePath.toString())
                 .contentPreview(contentPreview)
                 .vectorStatus("PENDING")
+                .mediaType(mediaType)
+                .parseStatus("PENDING")
                 .charCount(contentPreview != null ? contentPreview.length() : 0)
                 .uploadedBy(uploadedBy != null ? uploadedBy : "system")
                 .metadata(metadata)
@@ -103,17 +113,31 @@ public class DocumentManageService {
         document = documentRepository.save(document);
         log.info("Uploaded document: {} to knowledge base: {}", originalFilename, knowledgeBaseId);
 
-        // 自动触发向量化 - 使用 TransactionSynchronization 确保事务提交后再执行
+        // 自动触发解析或向量化 - 使用 TransactionSynchronization 确保事务提交后再执行
         final String docId = document.getId();
+        final String finalMediaType = mediaType;
+        final String kbId = knowledgeBaseId;
+        final String fileExt = fileExtension;
         org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    log.info("Transaction committed, triggering vectorization for document: {}", docId);
-                    triggerVectorization(docId);
-                }
-            }
-        );
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        // 1. 对于图片/音频/视频，先触发解析任务，解析完成后再向量化
+                        if ("image".equals(finalMediaType) || "audio".equals(finalMediaType)
+                                || "video".equals(finalMediaType)) {
+                            log.info("Transaction committed, creating parsing task for document: {}", docId);
+                            try {
+                                parsingPipelineService.createParsingTask(docId, kbId, fileExt);
+                            } catch (Exception e) {
+                                log.error("Failed to create parsing task: {}", docId, e);
+                            }
+                        } else {
+                            // 2. 对于文本/PDF，直接触发向量化
+                            log.info("Transaction committed, triggering vectorization for document: {}", docId);
+                            triggerVectorization(docId);
+                        }
+                    }
+                });
 
         return document;
     }
@@ -230,11 +254,12 @@ public class DocumentManageService {
 
                 // Get document title for metadata
                 String docTitle = currentDocForSplit != null ? currentDocForSplit.getFileName() : "Document";
-                log.info("Vectorization: Starting hierarchical split for document: {}, content length: {}", documentIdFinal, content.length());
+                log.info("Vectorization: Starting hierarchical split for document: {}, content length: {}",
+                        documentIdFinal, content.length());
 
                 // 1. Hierarchical Split: Parent-Child chunking
-                com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.HierarchicalChunks hierarchicalChunks =
-                        com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.splitHierarchical(
+                com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.HierarchicalChunks hierarchicalChunks = com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter
+                        .splitHierarchical(
                                 content, documentIdFinal, docTitle);
 
                 log.info("Vectorization: Hierarchical split done, parent chunks: {}, child chunks: {}",
@@ -244,8 +269,8 @@ public class DocumentManageService {
                 List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk> allChunks = new java.util.ArrayList<>();
 
                 // Add parent chunks
-                for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ParentChunk parent :
-                        hierarchicalChunks.getParents()) {
+                for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ParentChunk parent : hierarchicalChunks
+                        .getParents()) {
                     allChunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
                             .id(parent.getId())
                             .documentId(documentIdFinal)
@@ -254,8 +279,9 @@ public class DocumentManageService {
                             .charCount(parent.getContent().length())
                             .chunkType("parent")
                             .parentId(null)
-                            .childrenIds(parent.getChildrenIds() != null ?
-                                    java.util.Arrays.toString(parent.getChildrenIds().toArray()) : "[]")
+                            .childrenIds(parent.getChildrenIds() != null
+                                    ? java.util.Arrays.toString(parent.getChildrenIds().toArray())
+                                    : "[]")
                             .title(parent.getTitle())
                             .source(docTitle)
                             .position(parent.getPosition())
@@ -263,8 +289,8 @@ public class DocumentManageService {
                 }
 
                 // Add child chunks
-                for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ChildChunk child :
-                        hierarchicalChunks.getChildren()) {
+                for (com.adlin.orin.modules.knowledge.util.HierarchicalTextSplitter.ChildChunk child : hierarchicalChunks
+                        .getChildren()) {
                     allChunks.add(com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk.builder()
                             .id(child.getId())
                             .documentId(documentIdFinal)
@@ -286,7 +312,8 @@ public class DocumentManageService {
                 });
 
                 // 3. Vector Store Operation (Milvus) - Outside DB transaction
-                // Only child chunks will be embedded (parent chunks get zero vectors as placeholder)
+                // Only child chunks will be embedded (parent chunks get zero vectors as
+                // placeholder)
                 log.info("Vectorization: Deleting old vectors from Milvus for document: {}", documentIdFinal);
                 vectorService.deleteDocuments(kbId, java.util.Collections.singletonList(documentIdFinal));
                 log.info("Vectorization: Adding chunks to Milvus, kbId: {}, chunk count: {}", kbId, allChunks.size());
@@ -475,6 +502,39 @@ public class DocumentManageService {
         return lastDot > 0 ? filename.substring(lastDot + 1).toLowerCase() : "";
     }
 
+    /**
+     * 确定媒体类型
+     */
+    private String determineMediaType(String fileExtension, String mimeType) {
+        // 优先使用 MIME 类型
+        if (mimeType != null) {
+            if (mimeType.startsWith("image/"))
+                return "image";
+            if (mimeType.startsWith("audio/"))
+                return "audio";
+            if (mimeType.startsWith("video/"))
+                return "video";
+            if (mimeType.equals("application/pdf"))
+                return "pdf";
+        }
+
+        // 根据文件扩展名判断
+        String ext = fileExtension.toLowerCase();
+        if (Set.of("jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif").contains(ext)) {
+            return "image";
+        }
+        if (Set.of("mp3", "wav", "m4a", "aac", "ogg", "flac", "wma", "aiff").contains(ext)) {
+            return "audio";
+        }
+        if (Set.of("mp4", "avi", "mov", "mkv", "wmv", "flv", "webm", "m4v", "mpeg", "mpg").contains(ext)) {
+            return "video";
+        }
+        if (Set.of("pdf").contains(ext)) {
+            return "pdf";
+        }
+        return "text";
+    }
+
     private String extractContentPreview(MultipartFile file, String fileType) {
         try {
             // 简单实现：仅支持文本文件
@@ -524,7 +584,8 @@ public class DocumentManageService {
             if (fileType.equals("doc")) {
                 try (java.io.InputStream is = file.getInputStream();
                         org.apache.poi.hwpf.HWPFDocument doc = new org.apache.poi.hwpf.HWPFDocument(is)) {
-                    org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(doc);
+                    org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(
+                            doc);
                     String[] paragraphs = extractor.getParagraphText();
                     StringBuilder text = new StringBuilder();
                     for (String para : paragraphs) {
@@ -573,7 +634,8 @@ public class DocumentManageService {
         } else if (fileType.equalsIgnoreCase("doc")) {
             try (java.io.InputStream is = Files.newInputStream(path);
                     org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(is)) {
-                org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(document);
+                org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(
+                        document);
                 String[] paragraphs = extractor.getParagraphText();
                 StringBuilder text = new StringBuilder();
                 for (String para : paragraphs) {
@@ -593,6 +655,46 @@ public class DocumentManageService {
      * 文档统计信息
      */
     public record DocumentStats(long documentCount, long totalCharCount) {
+    }
+
+    /**
+     * 获取文档解析内容
+     */
+    public Map<String, Object> getDocumentContent(String documentId) {
+        KnowledgeDocument doc = getDocument(documentId);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("fileName", doc.getFileName());
+        result.put("charCount", doc.getCharCount());
+        String mediaType = doc.getMediaType();
+        if (mediaType == null || mediaType.isEmpty()) {
+            mediaType = determineMediaType(doc.getFileType(), null);
+        }
+        result.put("mediaType", mediaType);
+        result.put("id", doc.getId());
+
+        // 优先读取解析后的文件
+        if (doc.getParsedPath() != null && Files.exists(Paths.get(doc.getParsedPath()))) {
+            try {
+                String content = Files.readString(Paths.get(doc.getParsedPath()));
+                result.put("text", content);
+                result.put("charCount", content.length());
+            } catch (IOException e) {
+                log.warn("Failed to read parsed content: {}", e.getMessage());
+                // Fallback to content preview
+                result.put("text", doc.getContentPreview());
+            }
+        } else {
+            // Fallback to original content extraction
+            try {
+                String content = readFileContent(doc);
+                result.put("text", content);
+            } catch (IOException e) {
+                result.put("text", doc.getContentPreview());
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -630,7 +732,8 @@ public class DocumentManageService {
         } else if (extension.equals("doc")) {
             try (java.io.InputStream is = file.getInputStream();
                     org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(is)) {
-                org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(document);
+                org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(
+                        document);
                 String[] paragraphs = extractor.getParagraphText();
                 StringBuilder text = new StringBuilder();
                 for (String para : paragraphs) {
@@ -644,5 +747,17 @@ public class DocumentManageService {
             }
         }
         return "";
+    }
+
+    /**
+     * 获取文档的二进制流 (用于原始文件显示)
+     */
+    public org.springframework.core.io.Resource getDocumentResource(String documentId) {
+        KnowledgeDocument doc = getDocument(documentId);
+        Path path = Paths.get(doc.getStoragePath());
+        if (!Files.exists(path)) {
+            throw new RuntimeException("Original file not found at " + doc.getStoragePath());
+        }
+        return new org.springframework.core.io.FileSystemResource(path);
     }
 }

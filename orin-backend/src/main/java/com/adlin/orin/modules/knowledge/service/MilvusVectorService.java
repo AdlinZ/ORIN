@@ -17,6 +17,8 @@ import io.milvus.param.MetricType;
 import io.milvus.param.collection.CreateCollectionParam;
 import io.milvus.param.collection.FieldType;
 import io.milvus.param.collection.HasCollectionParam;
+import io.milvus.param.collection.GetLoadingProgressParam;
+import io.milvus.grpc.GetLoadingProgressResponse;
 import io.milvus.param.index.CreateIndexParam;
 import io.milvus.param.IndexType;
 import jakarta.annotation.PostConstruct;
@@ -1142,5 +1144,63 @@ public class MilvusVectorService implements VectorStoreProvider {
         }
         // 重新创建
         initCollection();
+    }
+
+    /**
+     * 健康检查 - 检查 Milvus 服务是否可用
+     * 用于检索降级策略
+     */
+    public boolean isHealthy() {
+        MilvusServiceClient client = null;
+        try {
+            client = createClient();
+            // 尝试获取 collection 加载状态
+            R<GetLoadingProgressResponse> response = client.getLoadingProgress(
+                    io.milvus.param.collection.GetLoadingProgressParam.newBuilder()
+                            .withCollectionName(COLLECTION_NAME)
+                            .build()
+            );
+            // 如果能获取响应则认为服务可用
+            return response.getStatus() == io.milvus.param.R.Status.Success.getCode();
+        } catch (Exception e) {
+            log.warn("Milvus health check failed: {}", e.getMessage());
+            return false;
+        } finally {
+            if (client != null) {
+                try {
+                    client.close();
+                } catch (Exception e) {
+                    log.warn("Failed to close Milvus client: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取 Milvus 连接状态信息
+     */
+    public String getConnectionStatus() {
+        MilvusServiceClient client = null;
+        try {
+            client = createClient();
+            R<GetLoadingProgressResponse> response = client.getLoadingProgress(
+                    io.milvus.param.collection.GetLoadingProgressParam.newBuilder()
+                            .withCollectionName(COLLECTION_NAME)
+                            .build()
+            );
+            if (response.getStatus() == io.milvus.param.R.Status.Success.getCode()) {
+                return "CONNECTED";
+            } else {
+                return "ERROR: " + response.getMessage();
+            }
+        } catch (Exception e) {
+            return "UNAVAILABLE: " + e.getMessage();
+        } finally {
+            if (client != null) {
+                try {
+                    client.close();
+                } catch (Exception ignored) {}
+            }
+        }
     }
 }

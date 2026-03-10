@@ -681,6 +681,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import { ElMessage } from 'element-plus';
 import { getExternalKeys } from '@/api/apiKey';
 import { saveModel } from '@/api/model';
+import { getProviderList } from '@/api/system';
 
 const router = useRouter();
 const formRef = ref(null);
@@ -700,69 +701,35 @@ const guideSteps = [
   { title: '填写信息', icon: Cpu }
 ];
 
-// Provider选项
-const providerOptions = [
-  {
-    value: 'dify',
-    label: 'Dify',
-    icon: Platform,
-    description: '开源 AI 应用开发平台'
-  },
-  {
-    value: 'siliconflow',
-    label: '硅基流动',
-    icon: Cpu,
-    description: '高性能 AI 推理服务'
-  },
-  {
-    value: 'deepseek',
-    label: 'DeepSeek',
-    icon: Opportunity,
-    description: '国产之光 - 极高性价比大模型'
-  },
-  {
-    value: 'google',
-    label: 'Google Gemini',
-    icon: Star,
-    description: '谷歌多模态大模型系列'
-  },
-  {
-    value: 'anthropic',
-    label: 'Anthropic Claude',
-    icon: Sunrise,
-    description: '顶级逻辑与创意对话模型'
-  },
-  {
-    value: 'moonshot',
-    label: 'Moonshot (Kimi)',
-    icon: Moon,
-    description: '超长文本处理专家'
-  },
-  {
-    value: 'zhipu',
-    label: '智谱 AI',
-    icon: Connection,
-    description: '中英双语性能领先大模型'
-  },
-  {
-    value: 'openai',
-    label: 'OpenAI',
-    icon: Platform,
-    description: 'GPT 系列模型官方服务'
-  },
-  {
-    value: 'local',
-    label: '本地模型',
-    icon: Monitor,
-    description: 'Ollama、LocalAI 等私有化部署'
-  },
-  {
-    value: 'minimax',
-    label: 'MiniMax',
-    icon: Opportunity,
-    description: '强大国产大模型及领先 TTS 语音能力'
+// Provider选项 - 从API获取
+const providerOptions = ref([]);
+
+// 图标映射
+const iconMap = {
+  'Cpu': Cpu,
+  'Moon': Moon,
+  'Star': Star,
+  'Connection': Connection,
+  'Platform': Platform,
+  'Monitor': Monitor,
+  'Opportunity': Opportunity,
+  'Sunrise': Sunrise
+};
+
+// 从API获取供应商列表并转换格式
+const loadProviderOptions = async () => {
+  try {
+    const res = await getProviderList();
+    providerOptions.value = (res || []).map(p => ({
+      value: p.providerKey,
+      label: p.providerName,
+      description: p.description || '',
+      icon: iconMap[p.icon] || Cpu
+    }));
+  } catch (e) {
+    console.error('加载供应商列表失败', e);
   }
-];
+};
 
 // 表单数据
 const form = reactive({
@@ -853,6 +820,8 @@ onMounted(async () => {
   } catch (e) {
     console.error('加载密钥失败', e);
   }
+  // 加载供应商列表
+  await loadProviderOptions();
 });
 
 const goBack = () => {

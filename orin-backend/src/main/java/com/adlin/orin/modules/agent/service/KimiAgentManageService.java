@@ -57,7 +57,8 @@ public class KimiAgentManageService implements AgentManageService {
 
     public AgentMetadata onboardAgent(String endpointUrl, String apiKey, String model, String agentName) {
         String modelName = model != null && !model.isEmpty() ? model : "moonshot-v1-8k-chat";
-        kimiIntegrationService.testConnection(endpointUrl, apiKey);
+        boolean connectionValid = kimiIntegrationService.testConnection(endpointUrl, apiKey);
+        log.info("Kimi connection test result for onboarding: {}", connectionValid);
 
         String generatedId = UUID.randomUUID().toString().substring(0, 8);
 
@@ -69,13 +70,14 @@ public class KimiAgentManageService implements AgentManageService {
             finalName = "Kimi-" + modelName + "-" + generatedId.substring(0, 4);
         }
 
+        String connectionStatus = connectionValid ? "VALID" : "INVALID";
         AgentAccessProfile profile = AgentAccessProfile.builder()
                 .agentId(generatedId)
                 .endpointUrl(endpointUrl)
                 .apiKey(apiKey)
                 .datasetApiKey(null)
                 .createdAt(LocalDateTime.now())
-                .connectionStatus("VALID")
+                .connectionStatus(connectionStatus)
                 .build();
         accessProfileRepository.save(profile);
 

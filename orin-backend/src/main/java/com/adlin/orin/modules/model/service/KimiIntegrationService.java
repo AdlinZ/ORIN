@@ -32,6 +32,7 @@ public class KimiIntegrationService {
     public boolean testConnection(String endpointUrl, String apiKey) {
         try {
             String url = buildUrl(endpointUrl, "/models");
+            log.info("Testing Kimi connection to: {}", url);
             HttpHeaders headers = createHeaders(apiKey);
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
@@ -41,9 +42,14 @@ public class KimiIntegrationService {
                     entity,
                     new ParameterizedTypeReference<Map<String, Object>>() {});
 
+            log.info("Kimi connection test response status: {}", response.getStatusCode());
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {
-            log.warn("Kimi connection test failed: {}", e.getMessage());
+            log.warn("Kimi connection test failed: {}, endpoint: {}, error type: {}",
+                    e.getMessage(), endpointUrl, e.getClass().getSimpleName());
+            if (e.getCause() != null) {
+                log.warn("Caused by: {}", e.getCause().getMessage());
+            }
             return false;
         }
     }

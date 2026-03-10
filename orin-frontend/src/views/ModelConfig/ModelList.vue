@@ -538,13 +538,14 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Plus, Edit, Delete, Search, Box, Money, Link, Key, View, Hide } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Search, Box, Money, Link, Key, View, Hide, ChatDotRound, Connection, Cpu, Moon, Star, Platform, Monitor, Opportunity, Sunrise } from '@element-plus/icons-vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ResizableTable from '@/components/ResizableTable.vue';
 import { getModelList, saveModel, deleteModel, toggleModelStatus, fetchModels } from '@/api/model';
 import { getPricingConfig, savePricingConfig } from '@/api/monitor';
 import { getModelConfig } from '@/api/modelConfig';
 import { getExternalKeys, saveExternalKey, deleteExternalKey, toggleExternalKeyStatus } from '@/api/apiKey';
+import { getProviderList } from '@/api/system';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
@@ -576,19 +577,35 @@ const wizardSteps = [
   { title: '选择模型', icon: Cpu }
 ];
 
-// 供应商选项配置
-const providerOptions = [
-  { value: 'OpenAI', label: 'OpenAI', description: 'GPT-4o, GPT-4, GPT-3.5', icon: 'Cpu' },
-  { value: 'Anthropic', label: 'Anthropic (Claude)', description: 'Claude 3.5 Sonnet, Opus', icon: 'Cpu' },
-  { value: 'DeepSeek', label: 'DeepSeek', description: 'DeepSeek Coder, Chat', icon: 'Cpu' },
-  { value: 'SiliconFlow', label: 'SiliconFlow', description: '200+ 模型，便宜稳定', icon: 'Cpu' },
-  { value: 'Dify', label: 'Dify (本地/私有)', description: '自部署 Dify 应用', icon: 'Cpu' },
-  { value: 'Ollama', label: 'Ollama (本地)', description: '本地部署 Llama, Mistral 等', icon: 'Cpu' },
-  { value: 'DashScope', label: '阿里云 DashScope', description: '通义千问系列', icon: 'Cpu' },
-  { value: 'HuggingFace', label: 'HuggingFace', description: '开源模型接入', icon: 'Cpu' }
-];
+// 供应商选项配置 - 从API获取
+const providerOptions = ref([]);
 
-import { ChatDotRound, Connection, Cpu } from '@element-plus/icons-vue';
+// 从API获取供应商列表
+const loadProviderOptions = async () => {
+  try {
+    const res = await getProviderList();
+    providerOptions.value = (res || []).map(p => ({
+      value: p.providerKey,
+      label: p.providerName,
+      description: p.description || '',
+      icon: iconMap[p.icon] || Cpu
+    }));
+  } catch (e) {
+    console.error('加载供应商列表失败', e);
+  }
+};
+
+// 图标映射
+const iconMap = {
+  'Cpu': Cpu,
+  'Moon': Moon,
+  'Star': Star,
+  'Connection': Connection,
+  'Platform': Platform,
+  'Monitor': Monitor,
+  'Opportunity': Opportunity,
+  'Sunrise': Sunrise
+};
 
 const form = reactive({
   id: null,
@@ -1037,6 +1054,7 @@ const formatTime = (ts) => {
 
 onMounted(() => {
   fetchData();
+  loadProviderOptions();
   window.addEventListener('page-refresh', fetchData);
 });
 

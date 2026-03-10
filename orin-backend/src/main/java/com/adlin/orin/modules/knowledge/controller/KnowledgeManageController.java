@@ -230,10 +230,10 @@ public class KnowledgeManageController {
         KnowledgeBase result = knowledgeManageService.createKnowledgeBase(kb);
         // 审计日志
         auditLogService.logApiCall(
-            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
-            "/knowledge", "POST", kb.getName(), null, null,
-            "{\"name\":\"" + kb.getName() + "\"}", null, 200, null,
-            null, null, null, true, null, null, null);
+                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                "/knowledge", "POST", kb.getName(), null, null,
+                "{\"name\":\"" + kb.getName() + "\"}", null, 200, null,
+                null, null, null, true, null, null, null);
         return result;
     }
 
@@ -243,10 +243,10 @@ public class KnowledgeManageController {
         KnowledgeBase result = knowledgeManageService.updateKnowledgeBase(kbId, kb);
         // 审计日志
         auditLogService.logApiCall(
-            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
-            "/knowledge/" + kbId, "PUT", kb.getName(), null, null,
-            null, null, 200, null,
-            null, null, null, true, null, null, null);
+                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                "/knowledge/" + kbId, "PUT", kb.getName(), null, null,
+                null, null, 200, null,
+                null, null, null, true, null, null, null);
         return result;
     }
 
@@ -256,10 +256,10 @@ public class KnowledgeManageController {
         knowledgeManageService.deleteKnowledgeBase(kbId);
         // 审计日志
         auditLogService.logApiCall(
-            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
-            "/knowledge/" + kbId, "DELETE", kbId, null, null,
-            null, null, 200, null,
-            null, null, null, true, null, null, null);
+                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                "/knowledge/" + kbId, "DELETE", kbId, null, null,
+                null, null, 200, null,
+                null, null, null, true, null, null, null);
         return Map.of("status", "success", "message", "Knowledge Base deleted successfully");
     }
 
@@ -285,10 +285,10 @@ public class KnowledgeManageController {
             KnowledgeDocument result = documentManageService.uploadDocument(kbId, file, uploadedBy);
             // 审计日志
             auditLogService.logApiCall(
-                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
-                "/knowledge/" + kbId + "/documents/upload", "POST", file.getOriginalFilename(), null, null,
-                "{\"kbId\":\"" + kbId + "\",\"filename\":\"" + file.getOriginalFilename() + "\"}", null, 200, null,
-                null, null, null, true, null, null, null);
+                    "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                    "/knowledge/" + kbId + "/documents/upload", "POST", file.getOriginalFilename(), null, null,
+                    "{\"kbId\":\"" + kbId + "\",\"filename\":\"" + file.getOriginalFilename() + "\"}", null, 200, null,
+                    null, null, null, true, null, null, null);
             return result;
         } catch (Exception e) {
             throw new RuntimeException("Failed to upload document: " + e.getMessage(), e);
@@ -307,16 +307,22 @@ public class KnowledgeManageController {
         return documentManageService.getDocument(docId);
     }
 
+    @Operation(summary = "获取文档解析内容")
+    @GetMapping("/documents/{docId}/content")
+    public Map<String, Object> getDocumentContent(@PathVariable String docId) {
+        return documentManageService.getDocumentContent(docId);
+    }
+
     @Operation(summary = "删除文档")
     @DeleteMapping("/documents/{docId}")
     public Map<String, String> deleteDocument(@PathVariable String docId) {
         documentManageService.deleteDocument(docId);
         // 审计日志
         auditLogService.logApiCall(
-            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
-            "/knowledge/documents/" + docId, "DELETE", docId, null, null,
-            null, null, 200, null,
-            null, null, null, true, null, null, null);
+                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                "/knowledge/documents/" + docId, "DELETE", docId, null, null,
+                null, null, 200, null,
+                null, null, null, true, null, null, null);
         return Map.of("status", "deleted", "documentId", docId);
     }
 
@@ -326,10 +332,10 @@ public class KnowledgeManageController {
         KnowledgeDocument result = documentManageService.triggerVectorization(docId);
         // 审计日志
         auditLogService.logApiCall(
-            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
-            "/knowledge/documents/" + docId + "/vectorize", "POST", docId, null, null,
-            null, null, 200, null,
-            null, null, null, true, null, null, null);
+                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                "/knowledge/documents/" + docId + "/vectorize", "POST", docId, null, null,
+                null, null, 200, null,
+                null, null, null, true, null, null, null);
         return result;
     }
 
@@ -403,6 +409,12 @@ public class KnowledgeManageController {
         return knowledgeManageService.getChunkStats(docId);
     }
 
+    @Operation(summary = "获取文档的检索信息（包括检索内容示例）")
+    @GetMapping("/documents/{docId}/retrieval-info")
+    public Map<String, Object> getRetrievalInfo(@PathVariable String docId) {
+        return knowledgeManageService.getRetrievalInfo(docId);
+    }
+
     @Operation(summary = "检索效果测试 (支持多模态与模型测试)")
     @PostMapping("/retrieve/test")
     public Object testRetrieval(
@@ -423,11 +435,12 @@ public class KnowledgeManageController {
 
         // 审计日志 - RAG 检索
         auditLogService.logApiCall(
-            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
-            "/knowledge/retrieve/test", "POST", kbId != null ? kbId : "all", null, null,
-            "{\"query\":\"" + (query != null ? query.substring(0, Math.min(50, query.length())) : "") + "\",\"topK\":" + topK + "}",
-            null, 200, null,
-            null, null, null, true, null, null, null);
+                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                "/knowledge/retrieve/test", "POST", kbId != null ? kbId : "all", null, null,
+                "{\"query\":\"" + (query != null ? query.substring(0, Math.min(50, query.length())) : "")
+                        + "\",\"topK\":" + topK + "}",
+                null, 200, null,
+                null, null, null, true, null, null, null);
 
         return result;
     }
@@ -527,17 +540,41 @@ public class KnowledgeManageController {
         }
     }
 
+    @Operation(summary = "获取向量服务状态")
+    @GetMapping("/vector/status")
+    public Map<String, Object> getVectorServiceStatus() {
+        Map<String, Object> result = new HashMap<>();
+
+        // 健康检查
+        boolean healthy = milvusVectorService.isHealthy();
+        result.put("healthy", healthy);
+        result.put("connection", milvusVectorService.getConnectionStatus());
+
+        // 获取统计信息
+        try {
+            Map<String, Object> collectionInfo = milvusVectorService.getCollectionInfo();
+            result.put("collection", collectionInfo);
+        } catch (Exception e) {
+            result.put("collectionError", e.getMessage());
+        }
+
+        return result;
+    }
+
     @Operation(summary = "诊断 Milvus 向量库状态")
     @GetMapping("/diagnose/milvus")
     public Map<String, Object> diagnoseMilvus() {
         Map<String, Object> result = new HashMap<>();
 
+        // 添加向量服务健康状态
+        result.put("vectorServiceHealthy", milvusVectorService.isHealthy());
+        result.put("vectorServiceStatus", milvusVectorService.getConnectionStatus());
+
         // 先返回配置信息（不连接 Milvus）
         result.put("config", Map.of(
-            "host", "192.168.1.107",
-            "port", 19530,
-            "collection", "orin_knowledge_base"
-        ));
+                "host", "192.168.1.107",
+                "port", 19530,
+                "collection", "orin_knowledge_base"));
 
         // 添加 Embedding 服务诊断
         int embeddingDimension = 0;
@@ -554,9 +591,8 @@ public class KnowledgeManageController {
         } catch (Exception e) {
             log.error("Embedding diagnosis failed", e);
             result.put("embedding", Map.of(
-                "status", "error",
-                "error", e.getMessage()
-            ));
+                    "status", "error",
+                    "error", e.getMessage()));
         }
 
         // 获取 Collection 维度并检查是否匹配
@@ -569,8 +605,8 @@ public class KnowledgeManageController {
                 int collectionDimension = (int) collectionInfo.get("dimension");
                 if (embeddingDimension > 0 && collectionDimension != embeddingDimension) {
                     String warning = String.format(
-                        "维度不匹配! Embedding 模型维度: %d, Collection 维度: %d. 这会导致语义搜索返回空结果. 请重建 Collection 或更换 Embedding 模型.",
-                        embeddingDimension, collectionDimension);
+                            "维度不匹配! Embedding 模型维度: %d, Collection 维度: %d. 这会导致语义搜索返回空结果. 请重建 Collection 或更换 Embedding 模型.",
+                            embeddingDimension, collectionDimension);
                     result.put("warning", warning);
                     result.put("dimensionMismatch", true);
                     log.error(warning);
@@ -592,11 +628,10 @@ public class KnowledgeManageController {
             long failedCount = allDocs.stream().filter(d -> "FAILED".equals(d.getVectorStatus())).count();
 
             result.put("documents", Map.of(
-                "total", allDocs.size(),
-                "success", successCount,
-                "failed", failedCount,
-                "pending", pendingDocs.size()
-            ));
+                    "total", allDocs.size(),
+                    "success", successCount,
+                    "failed", failedCount,
+                    "pending", pendingDocs.size()));
 
             result.put("status", "ok");
         } catch (Exception e) {
@@ -612,8 +647,34 @@ public class KnowledgeManageController {
     public Map<String, Object> vectorizeAllPending() {
         int count = documentManageService.triggerPendingVectorization();
         return Map.of(
-            "message", "已触发 " + count + " 个文档的向量化",
-            "count", count
-        );
+                "message", "已触发 " + count + " 个文档的向量化",
+                "count", count);
+    }
+
+    @Operation(summary = "下载/查看原始文档文件")
+    @GetMapping("/documents/{docId}/download")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> downloadDocument(
+            @PathVariable String docId) {
+        KnowledgeDocument doc = documentManageService.getDocument(docId);
+        org.springframework.core.io.Resource resource = documentManageService.getDocumentResource(docId);
+
+        String contentType = "application/octet-stream";
+        if (doc.getFileType() != null) {
+            String ext = doc.getFileType().toLowerCase();
+            if (java.util.Set.of("jpg", "jpeg", "png", "gif", "webp").contains(ext))
+                contentType = "image/" + ext;
+            else if (ext.equals("pdf"))
+                contentType = "application/pdf";
+            else if (java.util.Set.of("mp3", "wav", "m4a").contains(ext))
+                contentType = "audio/mpeg";
+            else if (java.util.Set.of("mp4", "webm").contains(ext))
+                contentType = "video/mp4";
+        }
+
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + doc.getFileName() + "\"")
+                .body(resource);
     }
 }

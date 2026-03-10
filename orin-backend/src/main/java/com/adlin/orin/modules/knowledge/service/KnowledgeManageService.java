@@ -3,6 +3,7 @@ package com.adlin.orin.modules.knowledge.service;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import lombok.RequiredArgsConstructor;
@@ -178,6 +179,61 @@ public class KnowledgeManageService {
                 stats.put("childCount", childCount);
                 stats.put("chunkingMode", "PARENT_CHILD");
                 return stats;
+        }
+
+        /**
+         * 获取文档的检索信息（包括多模态描述）
+         */
+        public Map<String, Object> getRetrievalInfo(String docId) {
+                KnowledgeDocument doc = documentRepository.findById(docId)
+                        .orElseThrow(() -> new RuntimeException("Document not found: " + docId));
+
+                List<KnowledgeDocumentChunk> chunks = chunkRepository.findByDocumentIdOrderByChunkIndex(docId);
+
+                Map<String, Object> info = new HashMap<>();
+
+                // 基本信息
+                info.put("documentId", doc.getId());
+                info.put("fileName", doc.getFileName());
+                info.put("mediaType", doc.getMediaType());
+                info.put("vectorStatus", doc.getVectorStatus());
+
+                // 分块统计
+                int totalChunks = chunks.size();
+                int parentCount = 0;
+                int childCount = 0;
+                for (KnowledgeDocumentChunk chunk : chunks) {
+                        if ("parent".equals(chunk.getChunkType())) {
+                                parentCount++;
+                        } else {
+                                childCount++;
+                        }
+                }
+                info.put("totalChunks", totalChunks);
+                info.put("parentCount", parentCount);
+                info.put("childCount", childCount);
+
+                // 索引内容示例（显示前几个 chunk 的内容，用于预览索引文件）
+                List<Map<String, Object>> indexSamples = new ArrayList<>();
+                int sampleCount = Math.min(5, chunks.size());
+                for (int i = 0; i < sampleCount; i++) {
+                        KnowledgeDocumentChunk chunk = chunks.get(i);
+                        Map<String, Object> sample = new HashMap<>();
+                        sample.put("chunkIndex", chunk.getChunkIndex());
+                        sample.put("chunkType", chunk.getChunkType());
+                        sample.put("content", chunk.getContent());
+                        sample.put("charCount", chunk.getCharCount());
+                        sample.put("title", chunk.getTitle());
+                        indexSamples.add(sample);
+                }
+                info.put("indexSamples", indexSamples);
+
+                // 向量化状态详情
+                info.put("chunkMethod", doc.getChunkMethod());
+                info.put("chunkSize", doc.getChunkSize());
+                info.put("chunkOverlap", doc.getChunkOverlap());
+
+                return info;
         }
 
         public List<com.adlin.orin.modules.knowledge.component.VectorStoreProvider.SearchResult> testRetrieval(

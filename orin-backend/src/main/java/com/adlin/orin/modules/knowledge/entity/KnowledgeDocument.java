@@ -136,6 +136,43 @@ public class KnowledgeDocument {
     @Column(name = "metadata", columnDefinition = "TEXT")
     private String metadata;
 
+    /**
+     * 存储根目录
+     */
+    @Column(name = "storage_root", length = 500)
+    private String storageRoot;
+
+    /**
+     * 原始文件名
+     */
+    @Column(name = "original_filename", length = 255)
+    private String originalFilename;
+
+    /**
+     * 媒体类型: image/pdf/audio/video/text
+     */
+    @Column(name = "media_type", length = 50)
+    private String mediaType;
+
+    /**
+     * 解析状态: PENDING/PARSING/SUCCESS/FAILED
+     */
+    @Column(name = "parse_status", length = 20)
+    @Builder.Default
+    private String parseStatus = "PENDING";
+
+    /**
+     * 解析后文本路径
+     */
+    @Column(name = "parsed_path", length = 500)
+    private String parsedPath;
+
+    /**
+     * 解析错误信息
+     */
+    @Column(name = "parse_error", columnDefinition = "TEXT")
+    private String parseError;
+
     @PrePersist
     protected void onCreate() {
         if (uploadTime == null) {

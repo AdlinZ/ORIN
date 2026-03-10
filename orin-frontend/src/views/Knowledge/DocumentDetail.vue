@@ -40,6 +40,45 @@
 
     <!-- Tabs -->
     <el-tabs v-model="activeTab" class="doc-tabs">
+      <!-- Original Content Tab -->
+      <el-tab-pane label="原文内容" name="original">
+        <div class="original-content-container" v-loading="originalLoading">
+          <!-- Text Content -->
+          <div v-if="originalContentInfo.mediaType === 'text' || originalContentInfo.mediaType === 'pdf'" class="original-text">
+            <pre v-if="originalContentInfo.text">{{ originalContentInfo.text }}</pre>
+            <el-empty v-else description="文本内容尚未解析或为空" />
+          </div>
+          
+          <!-- Image Content -->
+          <div v-else-if="originalContentInfo.mediaType === 'image'" class="original-media-preview">
+            <el-image 
+              :src="originalContentInfo.url" 
+              fit="contain"
+              :preview-src-list="[originalContentInfo.url]"
+            />
+          </div>
+
+          <!-- Audio Content -->
+          <div v-else-if="originalContentInfo.mediaType === 'audio'" class="original-media-preview">
+            <div class="audio-player-wrapper">
+              <el-icon :size="64" class="media-icon"><Headset /></el-icon>
+              <audio controls :src="originalContentInfo.url" class="media-player"></audio>
+              <div class="file-name">{{ originalContentInfo.fileName }}</div>
+            </div>
+          </div>
+
+          <!-- Video Content -->
+          <div v-else-if="originalContentInfo.mediaType === 'video'" class="original-media-preview">
+            <div class="video-player-wrapper">
+              <video controls :src="originalContentInfo.url" class="media-player video-player"></video>
+              <div class="file-name">{{ originalContentInfo.fileName }}</div>
+            </div>
+          </div>
+
+          <el-empty v-else-if="!originalLoading" description="暂无原文内容" />
+        </div>
+      </el-tab-pane>
+
       <!-- Segments Tab -->
       <el-tab-pane label="文档分段" name="segments">
         <div class="segments-container">
@@ -135,6 +174,42 @@
               </div>
             </el-form-item>
 
+            <!-- 索引文件内容 -->
+            <el-form-item label="索引文件内容">
+              <div class="retrieval-info-panel" v-loading="retrievalLoading">
+                <template v-if="retrievalInfo && retrievalInfo.indexSamples && retrievalInfo.indexSamples.length > 0">
+                  <div class="retrieval-header">
+                    <el-tag :type="retrievalInfo.vectorStatus === 'SUCCESS' ? 'success' : 'warning'" size="small">
+                      {{ retrievalInfo.vectorStatus === 'SUCCESS' ? '已向量化' : '待处理' }}
+                    </el-tag>
+                    <span class="retrieval-tip">显示索引文件的前 {{ retrievalInfo.indexSamples.length }} 个片段预览</span>
+                  </div>
+                  <div class="retrieval-samples">
+                    <div
+                      v-for="(sample, idx) in retrievalInfo.indexSamples"
+                      :key="idx"
+                      class="retrieval-sample-item"
+                    >
+                      <div class="sample-header">
+                        <el-tag size="small" :type="sample.chunkType === 'parent' ? 'primary' : 'info'">
+                          {{ sample.chunkType === 'parent' ? '父分块' : '子分块' }} #{{ sample.chunkIndex + 1 }}
+                        </el-tag>
+                        <span class="sample-chars">{{ sample.charCount }} 字符</span>
+                      </div>
+                      <div class="sample-content" :title="sample.content">
+                        {{ sample.content }}
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <el-empty v-else-if="!retrievalLoading" description="暂无索引内容，请先进行向量化处理">
+                  <el-button type="primary" size="small" @click="handleVectorize" :loading="vectorizing">
+                    立即向量化
+                  </el-button>
+                </el-empty>
+              </div>
+            </el-form-item>
+
             <!-- 隐藏旧的配置项，因为现在使用固定的 Parent-Child 分块 -->
             <el-form-item label="分段模式">
               <el-select v-model="form.mode" style="width: 100%;" disabled>
@@ -202,7 +277,8 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
 import { 
-  Document, Search, Plus, Setting, Delete, Refresh, Edit
+  Document, Search, Plus, Setting, Delete, Refresh, Edit,
+  Headset, VideoCamera, Picture
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
@@ -222,6 +298,9 @@ const loading = ref(false);
 const vectorizing = ref(false);
 const editingSegment = reactive({ id: '', content: '' });
 const chunkStats = ref({ parentCount: 0, childCount: 0, chunkingMode: 'PARENT_CHILD' });
+const retrievalInfo = ref(null);
+const retrievalLoading = ref(false);
+const submitting = ref(false);
 
 const form = reactive({
   name: '',
@@ -232,7 +311,13 @@ const form = reactive({
 });
 
 const history = ref([]);
-
+const originalLoading = ref(false);
+const originalContentInfo = reactive({
+    text: '',
+    mediaType: 'text',
+    url: '',
+    fileName: ''
+});
 const filteredSegments = computed(() => {
   if (!searchKeyword.value) return segments.value;
   return segments.value.filter(s => 
@@ -280,6 +365,7 @@ const loadDocumentData = async () => {
     
     await loadSegments();
     await loadHistory();
+    await loadOriginalContent();
   } catch (error) {
     ElMessage.error('加载文档详情失败: ' + error.message);
   }
@@ -291,6 +377,23 @@ const loadHistory = async () => {
         history.value = res || [];
     } catch (error) {
         console.warn('Failed to load history', error);
+    }
+};
+
+const loadOriginalContent = async () => {
+    originalLoading.value = true;
+    try {
+        const res = await request.get(`/knowledge/documents/${docId.value}/content`);
+        originalContentInfo.text = res.text || '';
+        originalContentInfo.mediaType = res.mediaType || 'text';
+        originalContentInfo.fileName = res.fileName || '';
+        // Use the new download endpoint for biological viewing
+        originalContentInfo.url = `/api/v1/knowledge/documents/${docId.value}/download`;
+    } catch (error) {
+        console.warn('Failed to load original content', error);
+        originalContentInfo.text = '';
+    } finally {
+        originalLoading.value = false;
     }
 };
 
@@ -330,13 +433,30 @@ const loadChunkStats = async () => {
     }
 };
 
+const loadRetrievalInfo = async () => {
+    retrievalLoading.value = true;
+    try {
+        const res = await request.get(`/knowledge/documents/${docId.value}/retrieval-info`);
+        if (res) {
+            retrievalInfo.value = res;
+        }
+    } catch (error) {
+        console.warn('Failed to load retrieval info:', error);
+    } finally {
+        retrievalLoading.value = false;
+    }
+};
+
 const handleVectorize = async () => {
     vectorizing.value = true;
     try {
         await request.post(`/knowledge/documents/${docId.value}/vectorize`);
         ElMessage.success('已提交向量化任务，请稍后刷新');
         // Poll for status or just wait
-        setTimeout(loadDocumentData, 2000);
+        setTimeout(() => {
+            loadDocumentData();
+            loadRetrievalInfo();
+        }, 2000);
     } catch (error) {
         ElMessage.error('触发向量化失败: ' + error.message);
     } finally {
@@ -433,6 +553,7 @@ const goBackToKB = () => {
 onMounted(() => {
   loadDocumentData();
   loadChunkStats();
+  loadRetrievalInfo();
 });
 </script>
 
@@ -649,8 +770,128 @@ onMounted(() => {
   margin-top: 4px;
 }
 
+.retrieval-info-panel {
+  background: #fafafa;
+  border: 1px solid var(--neutral-gray-200);
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 100px;
+}
+
+.retrieval-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.retrieval-tip {
+  font-size: 12px;
+  color: var(--neutral-gray-500);
+}
+
+.retrieval-samples {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.retrieval-sample-item {
+  background: white;
+  border: 1px solid var(--neutral-gray-200);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.sample-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sample-chars {
+  font-size: 12px;
+  color: var(--neutral-gray-500);
+}
+
+.sample-content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--neutral-gray-700);
+  max-height: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
 .history-timeline {
   padding: 20px 0;
   max-width: 600px;
+}
+
+.original-content-container {
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  min-height: 400px;
+}
+
+.original-text {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.original-text pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  margin: 0;
+  padding: 0;
+}
+
+.original-media-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.audio-player-wrapper, .video-player-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.media-player {
+  width: 100%;
+  max-width: 600px;
+}
+
+.video-player {
+  max-height: 500px;
+  background: #000;
+  border-radius: 8px;
+}
+
+.media-icon {
+  color: var(--orin-blue);
+}
+
+.file-name {
+  font-size: 14px;
+  color: var(--neutral-gray-600);
+  font-weight: 500;
 }
 </style>

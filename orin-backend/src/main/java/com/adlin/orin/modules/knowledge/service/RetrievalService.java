@@ -23,6 +23,10 @@ public class RetrievalService {
     private final com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService;
 
     private static final double WEIGHT_KEYWORD = 0.3;
+    private static final double WEIGHT_VECTOR = 0.7;
+
+    // 降级模式标志：当向量服务不可用时为 true
+    private volatile boolean vectorServiceUnavailable = false;
 
     public RetrievalService(
             MilvusVectorService vectorService,
@@ -31,6 +35,40 @@ public class RetrievalService {
         this.vectorService = vectorService;
         this.chunkRepository = chunkRepository;
         this.visualAnalysisService = visualAnalysisService;
+    }
+
+    /**
+     * 检查向量服务是否可用
+     */
+    public boolean isVectorServiceAvailable() {
+        if (vectorServiceUnavailable) {
+            // 尝试恢复：检查向量服务是否恢复
+            try {
+                if (vectorService.isHealthy()) {
+                    vectorServiceUnavailable = false;
+                    log.info("Vector service recovered, restoring normal operation");
+                }
+            } catch (Exception e) {
+                log.debug("Vector service still unavailable: {}", e.getMessage());
+            }
+        }
+        return !vectorServiceUnavailable;
+    }
+
+    /**
+     * 获取向量服务状态信息
+     */
+    public Map<String, Object> getVectorServiceStatus() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("unavailable", vectorServiceUnavailable);
+        try {
+            status.put("healthy", vectorService.isHealthy());
+            status.put("connection", vectorService.getConnectionStatus());
+        } catch (Exception e) {
+            status.put("healthy", false);
+            status.put("error", e.getMessage());
+        }
+        return status;
     }
 
     /**
@@ -58,17 +96,38 @@ public class RetrievalService {
      */
     public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
             String embeddingModel) {
-        // 1. Vector search (searches child chunks only due to filter)
-        List<VectorStoreProvider.SearchResult> childResults = vectorService.search(kbId, query, topK * 3,
-                embeddingModel);
+        // 1. 首先执行关键词检索（始终可用）
+        List<KnowledgeDocumentChunk> keywordChunks = keywordSearch(kbId, query, topK * 3);
+        log.info("HybridSearch: kbId={}, query={}, keywordResults.size={}", kbId, query, keywordChunks.size());
 
-        log.info("HybridSearch: kbId={}, query={}, childResults.size={}", kbId, query, childResults.size());
-        if (!childResults.isEmpty() && childResults.get(0).getMetadata() != null) {
-            log.info("First child result metadata: {}", childResults.get(0).getMetadata());
+        // 2. 尝试向量检索（可选增强）
+        List<VectorStoreProvider.SearchResult> childResults = new ArrayList<>();
+        boolean vectorSearchFailed = false;
+
+        if (!vectorServiceUnavailable) {
+            try {
+                // 检查向量服务健康状态
+                if (!vectorService.isHealthy()) {
+                    log.warn("Vector service is not healthy, falling back to keyword-only search");
+                    vectorServiceUnavailable = true;
+                    vectorSearchFailed = true;
+                } else {
+                    childResults = vectorService.search(kbId, query, topK * 3, embeddingModel);
+                    log.info("HybridSearch: vector results size={}", childResults.size());
+                }
+            } catch (Exception e) {
+                log.warn("Vector search failed, falling back to keyword-only search: {}", e.getMessage());
+                vectorSearchFailed = true;
+                // 标记向量服务不可用，避免后续请求频繁尝试
+                vectorServiceUnavailable = true;
+            }
+        } else {
+            log.info("Vector service previously marked as unavailable, using keyword-only search");
+            vectorSearchFailed = true;
         }
 
-        if (childResults.isEmpty()) {
-            // Fallback: try keyword search if no vector results
+        // 如果向量检索失败或无可用结果，降级到纯关键词搜索
+        if (childResults.isEmpty() || vectorSearchFailed) {
             return keywordOnlySearch(kbId, query, topK);
         }
 
@@ -103,7 +162,6 @@ public class RetrievalService {
                 parentIds);
 
         // 4. Also include keyword-matched chunks (fallback)
-        List<KnowledgeDocumentChunk> keywordChunks = keywordSearch(kbId, query, topK);
         log.info("Keyword search results: size={}", keywordChunks.size());
 
         // 5. Build final results with parent content (or child content if parent not found)
