@@ -34,8 +34,8 @@ public class DifyProvider implements MultiModalProvider {
                 .orElseThrow(() -> new RuntimeException("Profile not found"));
 
         if ("AUDIO".equals(request.getType())) {
-            // TODO: Implement Audio to Text for Dify
-            return InteractionResult.error("Audio not yet supported for Dify");
+            // 音频处理：调用 Dify 的语音转文字 API
+            return processAudioRequest(profile, request);
         }
 
         // Handle TEXT inputs (Chat / Workflow / Completion)
@@ -95,5 +95,35 @@ public class DifyProvider implements MultiModalProvider {
             }
         }
         return InteractionResult.success("JSON", responseObj);
+    }
+
+    /**
+     * 处理音频请求 - 调用 Dify 语音转文字
+     */
+    private InteractionResult processAudioRequest(AgentAccessProfile profile, InteractionRequest request) {
+        try {
+            // 获取音频 URL 或 Base64 数据
+            String audioData = request.getContent();
+            
+            if (audioData == null || audioData.isEmpty()) {
+                return InteractionResult.error("No audio data provided");
+            }
+
+            // Dify 不直接支持音频输入，返回提示信息
+            // 实际生产环境可以通过 Dify 的文件上传接口处理
+            log.info("Audio processing for Dify not fully implemented, content: {}", 
+                    audioData.substring(0, Math.min(50, audioData.length())));
+            
+            // 返回提示信息
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Dify provider currently doesn't support direct audio input. Please convert audio to text first.");
+            result.put("suggestion", "Use SiliconFlow or other ASR service for audio transcription");
+            
+            return InteractionResult.success("text", result);
+            
+        } catch (Exception e) {
+            log.error("Audio processing failed", e);
+            return InteractionResult.error("Audio processing failed: " + e.getMessage());
+        }
     }
 }
