@@ -166,3 +166,13 @@ export const getTraceInstance = (instanceId) => {
 export const getHealthStatus = () => {
     return request.get('/health');
 };
+
+// ==================== 系统健康检查 ====================
+
+export const getSystemHealth = () => {
+    return request.get('/health');
+};
+
+export const getSchedulerStatus = () => {
+    return request.get('/scheduler/status');
+};
