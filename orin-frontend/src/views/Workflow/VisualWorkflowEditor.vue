@@ -184,6 +184,22 @@
           @keydown="onKeyDown"
           tabindex="0"
         >
+          <!-- 自定义边模板 - 带数据流动效果 -->
+          <template #edge-default="{ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected }">
+            <DataFlowEdge
+              :id="id"
+              :source-x="sourceX"
+              :source-y="sourceY"
+              :target-x="targetX"
+              :target-y="targetY"
+              :source-position="sourcePosition"
+              :target-position="targetPosition"
+              :data="data"
+              :selected="selected"
+              :animated="selected || data?.active"
+            />
+          </template>
+          
           <!-- Custom Background (Dotted) -->
           <Background :pattern-color="isDark ? '#334155' : '#f0f0f0'" :gap="20" />
           
@@ -767,7 +783,12 @@ import { ROUTES } from '@/router/routes';
 import { VueFlow, Handle, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
+import { MarkerType } from '@vue-flow/core';
 import '@vue-flow/core/dist/style.css';
+
+// 导入自定义边组件
+import DataFlowEdge from './components/DataFlowEdge.vue';
+
 import { 
   VideoPlay, User, Tools, Share, CircleCheck, Search, Grid, Collection, 
   CaretBottom, Connection, TrendCharts, Edit, Operation, VideoPause,
