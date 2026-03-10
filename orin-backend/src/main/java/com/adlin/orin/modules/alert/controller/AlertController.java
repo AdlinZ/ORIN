@@ -2,6 +2,7 @@ package com.adlin.orin.modules.alert.controller;
 
 import com.adlin.orin.modules.alert.entity.AlertHistory;
 import com.adlin.orin.modules.alert.entity.AlertRule;
+import com.adlin.orin.modules.alert.service.AlertNotificationService;
 import com.adlin.orin.modules.alert.service.AlertService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class AlertController {
 
     private final AlertService alertService;
+    private final AlertNotificationService notificationService;
 
     @Operation(summary = "创建告警规则")
     @PostMapping("/rules")
@@ -92,5 +94,30 @@ public class AlertController {
         String message = payload.get("message");
 
         return alertService.triggerAlert(ruleId, agentId, message);
+    }
+
+    // ==================== 告警通知配置 ====================
+
+    @Operation(summary = "测试通知渠道")
+    @PostMapping("/notification/test")
+    public Map<String, Object> testNotificationChannel(@RequestBody Map<String, String> payload) {
+        String channel = payload.getOrDefault("channel", "email");
+        boolean success = notificationService.sendTestNotification(channel);
+        
+        return Map.of(
+            "success", success,
+            "channel", channel,
+            "message", success ? "测试通知发送成功" : "测试通知发送失败"
+        );
+    }
+
+    @Operation(summary = "获取通知配置")
+    @GetMapping("/notification/config")
+    public Map<String, Object> getNotificationConfig() {
+        return Map.of(
+            "email", Map.of("enabled", true),
+            "dingtalk", Map.of("enabled", false),
+            "wecom", Map.of("enabled", false)
+        );
     }
 }

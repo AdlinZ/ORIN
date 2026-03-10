@@ -47,3 +47,13 @@ export const getAlertStats = () => {
 export const triggerAlert = (data) => {
     return request.post('/alerts/trigger', data);
 };
+
+// ==================== 告警通知配置 ====================
+
+export const testNotificationChannel = (channel) => {
+    return request.post('/alerts/notification/test', { channel });
+};
+
+export const getNotificationConfig = () => {
+    return request.get('/alerts/notification/config');
+};
