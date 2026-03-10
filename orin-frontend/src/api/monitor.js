@@ -160,3 +160,9 @@ export const getDataFlow = (traceId) => {
 export const getTraceInstance = (instanceId) => {
     return request.get(`/traces/instance/${instanceId}`);
 };
+
+// ==================== 健康检查 ====================
+
+export const getHealthStatus = () => {
+    return request.get('/health');
+};
