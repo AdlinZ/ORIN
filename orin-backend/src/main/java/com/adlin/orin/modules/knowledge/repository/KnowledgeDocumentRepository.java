@@ -66,4 +66,11 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
     @org.springframework.data.jpa.repository.Modifying
     @Query("UPDATE KnowledgeDocument d SET d.vectorStatus = :status, d.lastModified = CURRENT_TIMESTAMP WHERE d.id = :id")
     void updateVectorStatus(@Param("id") String id, @Param("status") String status);
+    
+    /**
+     * 更新解析状态
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE KnowledgeDocument d SET d.parseStatus = :status, d.lastModified = CURRENT_TIMESTAMP WHERE d.id = :id")
+    void updateParseStatus(@Param("id") String id, @Param("status") String status);
 }

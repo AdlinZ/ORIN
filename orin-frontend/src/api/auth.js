@@ -32,3 +32,17 @@ export function validateToken() {
         method: 'get'
     });
 }
+
+// ==================== 用户验证 ====================
+
+export const sendVerificationCode = (email, type = 'bind') => {
+    return request.post('/auth/send-code', { email, type });
+};
+
+export const verifyCode = (email, code) => {
+    return request.post('/auth/verify-code', { email, code });
+};
+
+export const bindEmail = (userId, email, code) => {
+    return request.post('/auth/bind-email', { userId, email, code });
+};

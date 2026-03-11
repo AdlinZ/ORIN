@@ -65,6 +65,27 @@ public class KnowledgeDocument {
     private String contentPreview;
 
     /**
+     * 解析状态: PENDING, PARSING, PARSED, FAILED
+     * 用于多模态文件的解析追踪
+     */
+    @Column(name = "parse_status", length = 20)
+    @Builder.Default
+    private String parseStatus = "PENDING";
+
+    /**
+     * 解析后的文本存储路径
+     */
+    @Column(name = "parsed_text_path", length = 500)
+    private String parsedTextPath;
+
+    /**
+     * 文件类别: DOCUMENT, IMAGE, AUDIO, VIDEO
+     */
+    @Column(name = "file_category", length = 20)
+    @Builder.Default
+    private String fileCategory = "DOCUMENT";
+
+    /**
      * 向量化状态: PENDING, INDEXING, INDEXED, FAILED
      */
     @Column(name = "vector_status", length = 20)

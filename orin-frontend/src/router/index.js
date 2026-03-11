@@ -337,6 +337,14 @@ const routes = [
                         meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
                     },
 
+                    // 系统设置
+                    {
+                        path: "settings",
+                        name: "SystemSettings",
+                        component: () => import("@/views/System/SystemSettings.vue"),
+                        meta: { title: "系统设置", icon: "Setting", roles: ["ROLE_ADMIN"] }
+                    },
+
                     // 知识库配置
                     {
                         path: 'knowledge-config',

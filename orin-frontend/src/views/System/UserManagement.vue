@@ -200,6 +200,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Lock, Unlock, Refresh } from '@element-plus/icons-vue'
+import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus, getRoles } from '@/api/userManage'
 
 // 数据状态
 const loading = ref(false)
@@ -279,31 +280,14 @@ const formatDate = (dateString) => {
 const loadUsers = async () => {
   loading.value = true
   try {
-    // 模拟数据延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const res = await getUserList({
+      page: currentPage.value - 1,
+      size: pageSize.value,
+      search: searchQuery.value
+    })
     
-    // 模拟数据
-    users.value = [
-      {
-        id: 1,
-        username: 'admin',
-        email: 'admin@orin.com',
-        role: 'ROLE_ADMIN',
-        status: 'active',
-        createdAt: '2024-01-01T10:00:00',
-        lastLogin: '2024-02-16T16:00:00'
-      },
-      {
-        id: 2,
-        username: 'user1',
-        email: 'user1@orin.com',
-        role: 'ROLE_USER',
-        status: 'active',
-        createdAt: '2024-01-15T10:00:00',
-        lastLogin: '2024-02-15T14:30:00'
-      }
-    ]
-    totalUsers.value = users.value.length
+    users.value = res.data || []
+    totalUsers.value = res.total || 0
   } catch (error) {
     ElMessage.error('加载用户列表失败')
     console.error(error)

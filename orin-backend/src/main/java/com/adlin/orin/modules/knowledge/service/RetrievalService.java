@@ -88,7 +88,7 @@ public class RetrievalService {
      * Hybrid Search with Parent-Child Retrieval
      *
      * Pipeline:
-     * 1. Search vector DB using child chunks
+     * 1. Search vector DB using child chunks (with fallback to keyword-only if fails)
      * 2. Retrieve top-k child matches
      * 3. Use parent_id to fetch corresponding parent chunks from DB
      * 4. Deduplicate parent chunks
