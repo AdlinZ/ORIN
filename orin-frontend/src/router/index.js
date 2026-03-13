@@ -345,11 +345,11 @@ const routes = [
                         meta: { title: '知识库配置', icon: 'Collection', roles: ['ROLE_ADMIN'] }
                     },
 
-                    // 通知渠道
+                    // 通知渠道 - 邮件中心
                     {
                         path: 'notification-channels',
                         name: 'NotificationChannels',
-                        component: () => import('@/views/System/SystemSettings.vue'),
+                        component: () => import('@/views/System/MailCenter.vue'),
                         meta: { title: '通知渠道', icon: 'Message', roles: ['ROLE_ADMIN'] }
                     }
                 ]
