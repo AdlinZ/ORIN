@@ -55,6 +55,7 @@ export const ROUTES = {
         SYSTEM_ENV: '/dashboard/control/system-env',
         FILE_MANAGEMENT: '/dashboard/control/file-management',
         KNOWLEDGE_CONFIG: '/dashboard/control/knowledge-config',
+        NOTIFICATION_CHANNELS: '/dashboard/control/notification-channels',
     },
 
     // 其他
@@ -238,6 +239,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '知识库配置',
                 path: ROUTES.CONTROL.KNOWLEDGE_CONFIG,
                 icon: 'Collection',
+            },
+            {
+                title: '通知渠道',
+                path: ROUTES.CONTROL.NOTIFICATION_CHANNELS,
+                icon: 'Message',
             },
         ],
     },

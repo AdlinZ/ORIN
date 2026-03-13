@@ -16,6 +16,8 @@ import com.adlin.orin.modules.monitor.service.MonitorService;
 import com.adlin.orin.modules.monitor.service.PrometheusService;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,8 @@ public class MonitorServiceImpl implements MonitorService {
         private final ServerInfoRepository serverInfoRepository;
         private final LocalServerInfoService localServerInfoService;
         private final ProviderRegistry providerRegistry;
+        private final KnowledgeBaseRepository knowledgeBaseRepository;
+        private final KnowledgeDocumentRepository knowledgeDocumentRepository;
 
         // Dedicated thread pool for Prometheus queries to avoid using the common
         // ForkJoinPool
@@ -103,6 +107,14 @@ public class MonitorServiceImpl implements MonitorService {
                 summary.put("stoppedAgents", stoppedCount);
                 summary.put("highLoadAgents", highLoadCount);
                 summary.put("system_status", highLoadCount > 0 ? "高负载" : "正常");
+
+                // 统计知识库数量
+                long totalKnowledgeBases = knowledgeBaseRepository.count();
+                summary.put("total_knowledge", totalKnowledgeBases);
+
+                // 统计文档总数
+                long totalDocuments = knowledgeDocumentRepository.count();
+                summary.put("total_documents", totalDocuments);
 
                 // 计算平均健康分数
                 double avgHealthScore = allAgents.stream()
@@ -745,12 +757,17 @@ public class MonitorServiceImpl implements MonitorService {
                 io.milvus.client.MilvusServiceClient client = null;
                 try {
                         log.info("Testing Milvus Connection: {}:{}", host, port);
-                        io.milvus.param.ConnectParam connectParam = io.milvus.param.ConnectParam.newBuilder()
+                        io.milvus.param.ConnectParam.Builder builder = io.milvus.param.ConnectParam.newBuilder()
                                         .withHost(host)
                                         .withPort(port)
-                                        .withAuthorization("root", token != null ? token : "Milvus")
-                                        .withConnectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                                        .build();
+                                        .withConnectTimeout(5, java.util.concurrent.TimeUnit.SECONDS);
+
+                        // 只有在 token 不为空时才设置认证
+                        if (token != null && !token.isEmpty()) {
+                                builder.withAuthorization("root", token);
+                        }
+
+                        io.milvus.param.ConnectParam connectParam = builder.build();
                         client = new io.milvus.client.MilvusServiceClient(connectParam);
 
                         io.milvus.param.R<Boolean> response = client.hasCollection(

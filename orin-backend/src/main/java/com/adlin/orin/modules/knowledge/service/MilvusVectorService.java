@@ -39,10 +39,10 @@ import java.util.stream.Collectors;
 @org.springframework.context.annotation.Primary
 public class MilvusVectorService implements VectorStoreProvider {
 
-    @Value("${milvus.host:127.0.0.1}")
+    @Value("${milvus.host}")
     private String host;
 
-    @Value("${milvus.port:19530}")
+    @Value("${milvus.port}")
     private int port;
 
     @Value("${milvus.token:}")
@@ -209,14 +209,21 @@ public class MilvusVectorService implements VectorStoreProvider {
      * 创建 Milvus 客户端连接
      */
     public MilvusServiceClient createClient() {
-        ConnectParam connectParam = ConnectParam.newBuilder()
+        ConnectParam.Builder builder = ConnectParam.newBuilder()
                 .withHost(host)
                 .withPort(port)
-                .withAuthorization("root", token != null ? token : "Milvus")
                 .withConnectTimeout(3, java.util.concurrent.TimeUnit.SECONDS) // 3s timeout
-                .withKeepAliveTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-                .build();
-        return new MilvusServiceClient(connectParam);
+                .withKeepAliveTimeout(3, java.util.concurrent.TimeUnit.SECONDS);
+
+        // 使用 token 或默认认证
+        if (token != null && !token.isEmpty()) {
+            builder.withToken(token);
+        } else {
+            // 使用默认用户名 root，无密码
+            builder.withAuthorization("root", "");
+        }
+
+        return new MilvusServiceClient(builder.build());
     }
 
     @Override
@@ -554,6 +561,145 @@ public class MilvusVectorService implements VectorStoreProvider {
         return result;
     }
 
+    /**
+     * 获取指定 chunk 的向量数据
+     * 使用 search API 查询特定的 chunk_id
+     */
+    @Override
+    public Map<String, Object> getChunkVector(String kbId, String chunkId) {
+        Map<String, Object> result = new HashMap<>();
+
+        MilvusServiceClient client = null;
+        try {
+            client = createClient();
+
+            // 加载 collection
+            client.loadCollection(io.milvus.param.collection.LoadCollectionParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .build());
+
+            // 创建一个 dummy 向量用于搜索（我们只关心元数据）
+            int dim = getEmbeddingDimension();
+            List<Float> dummyVector = new ArrayList<>();
+            for (int i = 0; i < dim; i++) {
+                dummyVector.add(0f);
+            }
+
+            // 使用 chunk_id filter 来搜索特定的 chunk
+            SearchParam searchParam = SearchParam.newBuilder()
+                    .withCollectionName(COLLECTION_NAME)
+                    .withMetricType(io.milvus.param.MetricType.COSINE)
+                    .withTopK(1)
+                    .withVectors(Collections.singletonList(dummyVector))
+                    .withVectorFieldName("embedding")
+                    .withExpr("chunk_id == '" + chunkId + "'")
+                    .withOutFields(Arrays.asList("chunk_id", "content", "doc_id", "embedding", "chunk_type", "title"))
+                    .build();
+
+            R<SearchResults> response = client.search(searchParam);
+
+            if (response.getStatus() != R.Status.Success.getCode()) {
+                log.warn("Failed to search chunk vector: {}", response.getMessage());
+                return Map.of("success", false, "error", "Milvus 查询失败: " + response.getMessage());
+            }
+
+            SearchResults searchResults = response.getData();
+            if (searchResults.getResults() == null || searchResults.getResults().getIds() == null) {
+                return Map.of("success", false, "error", "未找到向量数据");
+            }
+
+            // 使用 SearchResultsWrapper 解析结果 - 注意使用 getResults()
+            io.milvus.response.SearchResultsWrapper wrapper = new io.milvus.response.SearchResultsWrapper(searchResults.getResults());
+
+            // 获取第一条结果
+            List<io.milvus.response.SearchResultsWrapper.IDScore> scores = wrapper.getIDScore(0);
+            if (scores == null || scores.isEmpty()) {
+                return Map.of("success", false, "error", "未找到向量数据");
+            }
+
+            // 提取返回的字段数据
+            Map<String, Object> data = new HashMap<>();
+            data.put("chunkId", chunkId);
+            data.put("score", scores.get(0).getScore());
+
+            // 获取各字段数据 - 使用 getFieldData
+            try {
+                List<?> contents = wrapper.getFieldData("content", 0);
+                if (contents != null && !contents.isEmpty()) {
+                    data.put("content", contents.get(0));
+                }
+            } catch (Exception e) {
+                log.debug("Failed to get content field: {}", e.getMessage());
+            }
+
+            try {
+                List<?> docIds = wrapper.getFieldData("doc_id", 0);
+                if (docIds != null && !docIds.isEmpty()) {
+                    data.put("docId", docIds.get(0));
+                }
+            } catch (Exception e) {
+                log.debug("Failed to get doc_id field: {}", e.getMessage());
+            }
+
+            try {
+                List<?> chunkTypes = wrapper.getFieldData("chunk_type", 0);
+                if (chunkTypes != null && !chunkTypes.isEmpty()) {
+                    data.put("chunkType", chunkTypes.get(0));
+                }
+            } catch (Exception e) {
+                log.debug("Failed to get chunk_type field: {}", e.getMessage());
+            }
+
+            try {
+                List<?> titles = wrapper.getFieldData("title", 0);
+                if (titles != null && !titles.isEmpty()) {
+                    data.put("title", titles.get(0));
+                }
+            } catch (Exception e) {
+                log.debug("Failed to get title field: {}", e.getMessage());
+            }
+
+            // 获取 embedding 向量 - 使用 getFieldData
+            try {
+                List<?> vectors = wrapper.getFieldData("embedding", 0);
+                if (vectors != null && !vectors.isEmpty()) {
+                    // embedding 可能是 Float 数组
+                    Object vectorObj = vectors.get(0);
+                    if (vectorObj instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<Float> vectorList = (List<Float>) vectorObj;
+                        List<Double> doubleList = vectorList.stream().map(Double::valueOf).collect(Collectors.toList());
+                        data.put("embedding", doubleList);
+                        data.put("embeddingDimension", doubleList.size());
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Failed to get embedding vector: {}", e.getMessage());
+            }
+
+            result.put("success", true);
+            result.put("data", data);
+
+        } catch (Exception e) {
+            log.warn("Failed to get chunk vector for {}: {}", chunkId, e.getMessage());
+            result.put("success", false);
+            String errorMsg = e.getMessage();
+            // 添加更友好的错误提示
+            if (errorMsg != null && errorMsg.contains("auth")) {
+                errorMsg = "Milvus 认证失败，请检查配置文件中的 milvus.token 设置";
+            } else if (errorMsg != null && errorMsg.contains("Connection")) {
+                errorMsg = "无法连接到 Milvus 服务，请检查网络和配置";
+            }
+            result.put("error", errorMsg);
+        } finally {
+            if (client != null) {
+                client.close();
+            }
+        }
+
+        return result;
+    }
+
     @Override
     public List<SearchResult> search(String kbId, String query, int k) {
         return search(kbId, query, k, null);
@@ -611,13 +757,11 @@ public class MilvusVectorService implements VectorStoreProvider {
             // Only search child chunks for vector retrieval - Temporarily disabled for debugging
             // searchBuilder.withExpr("chunk_type == 'child'");
 
-            // 使用 doc_id filter 来限制搜索特定知识库，避免 partition 问题
+            // 使用 partition 来限制搜索特定知识库
             if (!isGlobalSearch) {
-                // 移除 partition filter，改用 doc_id 过滤
-                // searchBuilder.withPartitionNames(Collections.singletonList(partitionName));
-                // 使用 doc_id 包含 kbId 前8位来过滤（插入时的 doc_id 就是 documentId）
-                searchBuilder.withExpr("doc_id like '%" + kbId.substring(0, 8) + "%'");
-                log.info("Using doc_id filter instead of partition for kbId={}", kbId);
+                // 恢复使用 partition 过滤
+                searchBuilder.withPartitionNames(Collections.singletonList(partitionName));
+                log.info("Using partition filter for kbId={}, partition={}", kbId, partitionName);
             }
 
             SearchParam searchParam = searchBuilder.build();

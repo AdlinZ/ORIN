@@ -21,6 +21,8 @@ import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 import com.adlin.orin.modules.model.service.ModelConfigService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -43,6 +45,7 @@ public class KnowledgeManageService {
         private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository documentRepository;
         private final ModelConfigService modelConfigService;
         private final SiliconFlowIntegrationService siliconFlowIntegrationService;
+        private final ObjectMapper objectMapper = new ObjectMapper();
 
         public List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> getAllKnowledgeBases() {
                 List<KnowledgeBase> bases = knowledgeBaseRepository.findAll();
@@ -51,6 +54,41 @@ public class KnowledgeManageService {
                         dtoList.add(mapToDTO(kb, null));
                 }
                 return dtoList;
+        }
+
+        /**
+         * 获取知识库的检索配置
+         * @param kbId 知识库ID
+         * @return 检索配置 Map，包含 topK, alpha, similarityThreshold, enableRerank, rerankModel，如果没有配置返回 null
+         */
+        public Map<String, Object> getRetrievalConfig(String kbId) {
+                if (kbId == null || kbId.isEmpty()) {
+                        return null;
+                }
+                Optional<KnowledgeBase> kbOpt = knowledgeBaseRepository.findById(kbId);
+                if (kbOpt.isEmpty()) {
+                        return null;
+                }
+                KnowledgeBase kb = kbOpt.get();
+                Map<String, Object> config = new HashMap<>();
+                // 只有当知识库明确设置了值才返回（不为 null）
+                if (kb.getTopK() != null) {
+                        config.put("topK", kb.getTopK());
+                }
+                if (kb.getAlpha() != null) {
+                        config.put("alpha", kb.getAlpha());
+                }
+                if (kb.getSimilarityThreshold() != null) {
+                        config.put("similarityThreshold", kb.getSimilarityThreshold());
+                }
+                // Rerank 配置
+                if (kb.getEnableRerank() != null) {
+                        config.put("enableRerank", kb.getEnableRerank());
+                }
+                if (kb.getRerankModel() != null && !kb.getRerankModel().isEmpty()) {
+                        config.put("rerankModel", kb.getRerankModel());
+                }
+                return config.isEmpty() ? null : config;
         }
 
         /**
@@ -182,7 +220,23 @@ public class KnowledgeManageService {
         }
 
         /**
-         * 获取文档的检索信息（包括多模态描述）
+         * 根据 chunkId 获取对应的知识库 ID
+         */
+        public String getKbIdByChunkId(String chunkId) {
+                Optional<KnowledgeDocumentChunk> chunkOpt = chunkRepository.findById(chunkId);
+                if (chunkOpt.isEmpty()) {
+                        return null;
+                }
+                String docId = chunkOpt.get().getDocumentId();
+                Optional<KnowledgeDocument> docOpt = documentRepository.findById(docId);
+                if (docOpt.isEmpty()) {
+                        return null;
+                }
+                return docOpt.get().getKnowledgeBaseId();
+        }
+
+        /**
+         * 获取文档的索引文件内容（parsedTextPath 指向的原始解析文本）
          */
         public Map<String, Object> getRetrievalInfo(String docId) {
                 KnowledgeDocument doc = documentRepository.findById(docId)
@@ -197,6 +251,7 @@ public class KnowledgeManageService {
                 info.put("fileName", doc.getFileName());
                 info.put("mediaType", doc.getMediaType());
                 info.put("vectorStatus", doc.getVectorStatus());
+                info.put("parseStatus", doc.getParseStatus());
 
                 // 分块统计
                 int totalChunks = chunks.size();
@@ -213,18 +268,49 @@ public class KnowledgeManageService {
                 info.put("parentCount", parentCount);
                 info.put("childCount", childCount);
 
-                // 索引内容示例（显示前几个 chunk 的内容，用于预览索引文件）
+                // 读取索引文件内容（parsedTextPath 指向的原始解析文本）
+                String parsedTextPath = doc.getParsedTextPath();
+                String indexFileContent = null;
+                if (parsedTextPath != null && !parsedTextPath.isEmpty()) {
+                        try {
+                                java.nio.file.Path path = java.nio.file.Paths.get(parsedTextPath);
+                                if (java.nio.file.Files.exists(path)) {
+                                        indexFileContent = java.nio.file.Files.readString(path);
+                                }
+                        } catch (Exception e) {
+                                log.warn("Failed to read index file: {}", e.getMessage());
+                        }
+                }
+
+                // 如果没有索引文件内容，回退到 contentPreview
+                if (indexFileContent == null || indexFileContent.isEmpty()) {
+                        indexFileContent = doc.getContentPreview();
+                }
+
+                // 索引内容示例：将索引文件内容分段显示
                 List<Map<String, Object>> indexSamples = new ArrayList<>();
-                int sampleCount = Math.min(5, chunks.size());
-                for (int i = 0; i < sampleCount; i++) {
-                        KnowledgeDocumentChunk chunk = chunks.get(i);
-                        Map<String, Object> sample = new HashMap<>();
-                        sample.put("chunkIndex", chunk.getChunkIndex());
-                        sample.put("chunkType", chunk.getChunkType());
-                        sample.put("content", chunk.getContent());
-                        sample.put("charCount", chunk.getCharCount());
-                        sample.put("title", chunk.getTitle());
-                        indexSamples.add(sample);
+                if (indexFileContent != null && !indexFileContent.isEmpty()) {
+                        info.put("indexCharCount", indexFileContent.length());
+                        // 返回完整内容
+                        info.put("fullContent", indexFileContent);
+
+                        // 将内容按段落分割，每2000字符一段作为预览（保留用于兼容性）
+                        int segmentSize = 2000;
+                        int totalSegments = (int) Math.ceil((double) indexFileContent.length() / segmentSize);
+                        int sampleCount = Math.min(5, totalSegments);
+
+                        for (int i = 0; i < sampleCount; i++) {
+                                int start = i * segmentSize;
+                                int end = Math.min(start + segmentSize, indexFileContent.length());
+                                String segmentContent = indexFileContent.substring(start, end);
+
+                                Map<String, Object> sample = new HashMap<>();
+                                sample.put("segmentIndex", i);
+                                sample.put("content", segmentContent);
+                                sample.put("charCount", segmentContent.length());
+                                sample.put("isPreview", true);
+                                indexSamples.add(sample);
+                        }
                 }
                 info.put("indexSamples", indexSamples);
 
@@ -419,9 +505,10 @@ public class KnowledgeManageService {
         }
 
         /**
-         * 使用AI生成知识库描述
+         * 使用AI生成知识库描述和标题
+         * @return 包含 title 和 description 的 Map
          */
-        public String generateDescription(String knowledgeBaseId, String modelName) {
+        public Map<String, String> generateDescriptionAndTitle(String knowledgeBaseId, String modelName) {
                 try {
                         // 获取知识库文档
                         List<com.adlin.orin.modules.knowledge.entity.KnowledgeDocument> docs =
@@ -431,21 +518,96 @@ public class KnowledgeManageService {
                                 throw new RuntimeException("知识库中没有文档，无法生成描述");
                         }
 
-                        // 读取前几个文档的内容摘要（限制长度以避免超出token限制）
-                        StringBuilder contentBuilder = new StringBuilder();
-                        int maxDocs = Math.min(docs.size(), 3);
-                        int maxChars = 8000;
+                        log.info("Generating description for KB: {}, found {} documents", knowledgeBaseId, docs.size());
+                        for (com.adlin.orin.modules.knowledge.entity.KnowledgeDocument doc : docs) {
+                                log.info("Doc: {}, parsedTextPath: {}, parseStatus: {}",
+                                        doc.getFileName(), doc.getParsedTextPath(), doc.getParseStatus());
+                        }
 
-                        for (int i = 0; i < maxDocs && contentBuilder.length() < maxChars; i++) {
-                                com.adlin.orin.modules.knowledge.entity.KnowledgeDocument doc = docs.get(i);
-                                String content = documentService.readFileContent(doc);
+                        StringBuilder contentBuilder = new StringBuilder();
+                        int maxChars = 10000; // 限制总长度
+                        int docsWithContent = 0;
+
+                        // 步骤2：优先从 parsedTextPath（解析后的文本文件）读取
+                        for (com.adlin.orin.modules.knowledge.entity.KnowledgeDocument doc : docs) {
+                                if (contentBuilder.length() >= maxChars) break;
+
+                                String content = null;
+                                // 优先读取 parsedTextPath（步骤2解析后生成的文件）
+                                String parsedTextPath = doc.getParsedTextPath();
+                                log.info("Checking doc: {}, parsedTextPath: {}", doc.getFileName(), parsedTextPath);
+                                if (parsedTextPath != null && !parsedTextPath.isEmpty()) {
+                                        try {
+                                                java.nio.file.Path path = java.nio.file.Paths.get(parsedTextPath);
+                                                if (java.nio.file.Files.exists(path)) {
+                                                        content = java.nio.file.Files.readString(path);
+                                                        log.info("Read parsed text for {}: {} chars", doc.getFileName(), content.length());
+                                                } else {
+                                                        log.warn("Parsed file not found: {}", parsedTextPath);
+                                                }
+                                        } catch (Exception e) {
+                                                log.warn("Failed to read parsed text for doc {}: {}", doc.getId(), e.getMessage());
+                                        }
+                                }
+
                                 if (content != null && !content.isEmpty()) {
-                                        // 取前2000字符作为摘要
-                                        String summary = content.length() > 2000 ?
-                                                content.substring(0, 2000) : content;
-                                        contentBuilder.append("文档").append(i + 1)
-                                                .append(" (").append(doc.getFileName()).append("):\n")
-                                                .append(summary).append("\n\n");
+                                        docsWithContent++;
+                                        // 读取完整内容，只在达到总长度限制时截断
+                                        contentBuilder.append("========== 文档 ").append(docsWithContent).append(": ").append(doc.getFileName()).append(" ==========\n")
+                                                .append(content).append("\n\n");
+                                }
+                        }
+
+                        log.info("Read content from {} documents, total chars: {}", docsWithContent, contentBuilder.length());
+
+                        // 如果没有 parsedTextPath，尝试从 chunks 读取（向量化后的分块数据）
+                        if (contentBuilder.length() == 0) {
+                                for (com.adlin.orin.modules.knowledge.entity.KnowledgeDocument doc : docs) {
+                                        if (contentBuilder.length() >= maxChars) break;
+
+                                        // 获取该文档的所有 chunks（优先获取 parent chunks，内容更完整）
+                                        List<KnowledgeDocumentChunk> parentChunks = chunkRepository
+                                                .findByDocumentIdAndChunkType(doc.getId(), "parent");
+                                        List<KnowledgeDocumentChunk> childChunks = chunkRepository
+                                                .findByDocumentIdAndChunkType(doc.getId(), "child");
+
+                                        // 使用 parent chunks（更完整），如果没有则使用 child chunks
+                                        List<KnowledgeDocumentChunk> chunksToUse = parentChunks.isEmpty() ? childChunks : parentChunks;
+
+                                        if (!chunksToUse.isEmpty()) {
+                                                contentBuilder.append("文档 (").append(doc.getFileName()).append("): ");
+                                                for (KnowledgeDocumentChunk chunk : chunksToUse) {
+                                                        if (contentBuilder.length() >= maxChars) break;
+                                                        String chunkContent = chunk.getContent();
+                                                        if (chunkContent != null && !chunkContent.isEmpty()) {
+                                                                // 取前500字符作为摘要
+                                                                String summary = chunkContent.length() > 500 ?
+                                                                        chunkContent.substring(0, 500) : chunkContent;
+                                                                contentBuilder.append(summary).append(" ");
+                                                        }
+                                                }
+                                                contentBuilder.append("\n");
+                                        }
+                                }
+                        }
+
+                        // 最后回退到读取原始文件
+                        if (contentBuilder.length() == 0) {
+                                for (com.adlin.orin.modules.knowledge.entity.KnowledgeDocument doc : docs) {
+                                        if (contentBuilder.length() >= maxChars) break;
+
+                                        try {
+                                                String content = documentService.readFileContent(doc);
+                                                if (content != null && !content.isEmpty()) {
+                                                        // 取前1000字符作为摘要
+                                                        String summary = content.length() > 1000 ?
+                                                                content.substring(0, 1000) : content;
+                                                        contentBuilder.append("文档 (").append(doc.getFileName()).append("): ")
+                                                                .append(summary).append("\n");
+                                                }
+                                        } catch (Exception e) {
+                                                log.warn("Failed to read original file for doc {}: {}", doc.getId(), e.getMessage());
+                                        }
                                 }
                         }
 
@@ -455,8 +617,8 @@ public class KnowledgeManageService {
 
                         String documentContent = contentBuilder.toString();
 
-                        // 调用LLM生成描述
-                        return callLLMForDescription(modelName, documentContent);
+                        // 调用LLM生成标题和描述
+                        return callLLMForTitleAndDescription(modelName, documentContent, docsWithContent);
 
                 } catch (Exception e) {
                         log.error("生成知识库描述失败: {}", e.getMessage(), e);
@@ -465,9 +627,31 @@ public class KnowledgeManageService {
         }
 
         /**
-         * 调用LLM生成描述
+         * 使用AI生成知识库描述（保留兼容性）
          */
-        private String callLLMForDescription(String modelName, String documentContent) {
+        public String generateDescription(String knowledgeBaseId, String modelName) {
+                Map<String, String> result = generateDescriptionAndTitle(knowledgeBaseId, modelName);
+                String desc = result.get("description");
+                // 同时更新 title
+                if (result.get("title") != null && !result.get("title").isEmpty()) {
+                        try {
+                                KnowledgeBase kb = knowledgeBaseRepository.findById(knowledgeBaseId).orElse(null);
+                                if (kb != null) {
+                                        kb.setName(result.get("title"));
+                                        knowledgeBaseRepository.save(kb);
+                                }
+                        } catch (Exception e) {
+                                log.warn("Failed to update KB title: {}", e.getMessage());
+                        }
+                }
+                return desc;
+        }
+
+        /**
+         * 调用LLM生成知识库标题和描述
+         * @return 包含 title 和 description 的 Map
+         */
+        private Map<String, String> callLLMForTitleAndDescription(String modelName, String documentContent, int docCount) {
                 try {
                         ModelConfig config = modelConfigService.getConfig();
                         String endpoint = config.getSiliconFlowEndpoint();
@@ -485,10 +669,18 @@ public class KnowledgeManageService {
                                 model = "Qwen/Qwen2-7B-Instruct";
                         }
 
-                        // 构建prompt
-                        String systemPrompt = "你是一个专业的知识库描述生成助手。请根据用户提供的文档内容，生成一个简洁、准确的知识库描述（100字以内），描述这个知识库的主题、内容和用途。直接输出描述内容，不要有额外说明。";
+                        // 构建prompt - 要求同时生成标题和描述，必须概括所有文档
+                        String systemPrompt = "你是一个专业的知识库描述生成助手。" +
+                                "你必须先分析用户提供的所有文档内容，列出每个文档的主要内容要点，然后生成一个统一的标题和描述。" +
+                                "你必须概括所有文档的内容，不能遗漏任何一个文档。" +
+                                "标题要求简洁有力，最多15个字。" +
+                                "描述要求100字以内，描述这个知识库包含的所有文档的主题、内容和用途。" +
+                                "请严格按照以下JSON格式输出，不要有额外说明：\n" +
+                                "{\"title\": \"标题内容\", \"description\": \"描述内容\"}";
 
-                        String userPrompt = "请为以下文档内容生成知识库描述：\n\n" + documentContent;
+                        String userPrompt = "知识库包含 " + docCount + " 个文档，请先列出每个文档的内容摘要（按\"文档X: 内容要点\"的格式），然后根据所有文档生成统一的标题和描述。\n\n" + documentContent;
+
+                        log.info("调用LLM - model: {}, prompt长度: {}", model, userPrompt.length());
 
                         // 调用API
                         Map<String, Object> requestBody = new HashMap<>();
@@ -497,7 +689,7 @@ public class KnowledgeManageService {
                                 Map.of("role", "system", "content", systemPrompt),
                                 Map.of("role", "user", "content", userPrompt)));
                         requestBody.put("temperature", 0.7);
-                        requestBody.put("max_tokens", 200);
+                        requestBody.put("max_tokens", 300);
 
                         HttpHeaders headers = new HttpHeaders();
                         headers.setBearerAuth(apiKey.trim());
@@ -535,11 +727,32 @@ public class KnowledgeManageService {
                         }
 
                         String content = (String) message.get("content");
+                        log.info("LLM原始响应: {}", content);
+
                         if (content == null || content.isEmpty()) {
                                 throw new RuntimeException("LLM返回内容为空");
                         }
 
-                        return content.trim();
+                        // 解析JSON响应
+                        String trimmedContent = content.trim();
+                        log.info("LLM响应(trimmed): {}", trimmedContent);
+
+                        // 尝试提取JSON
+                        int jsonStart = trimmedContent.indexOf("{");
+                        int jsonEnd = trimmedContent.lastIndexOf("}");
+                        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                                String jsonStr = trimmedContent.substring(jsonStart, jsonEnd + 1);
+                                log.info("提取的JSON: {}", jsonStr);
+                                JsonNode jsonNode = objectMapper.readTree(jsonStr);
+                                String title = jsonNode.has("title") ? jsonNode.get("title").asText() : "";
+                                String description = jsonNode.has("description") ? jsonNode.get("description").asText() : "";
+                                log.info("解析结果: title='{}', description='{}'", title, description);
+                                return Map.of("title", title, "description", description);
+                        }
+
+                        // 如果无法解析JSON，返回整个内容作为描述
+                        log.warn("无法解析JSON，使用原始内容");
+                        return Map.of("title", "知识库", "description", trimmedContent);
 
                 } catch (Exception e) {
                         log.error("调用LLM失败: {}", e.getMessage(), e);

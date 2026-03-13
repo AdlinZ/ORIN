@@ -53,13 +53,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
         Optional<ModelConfig> existingConfig = modelConfigRepository.findFirstByOrderByIdDesc();
         if (existingConfig.isPresent()) {
             ModelConfig config = existingConfig.get();
-            // Ensure defaults for new fields if they are null
-            if (config.getVlmModel() == null)
-                config.setVlmModel("Qwen/Qwen2-VL-72B-Instruct");
-            if (config.getEmbeddingModel() == null)
-                config.setEmbeddingModel("Qwen/Qwen3-Embedding-8B");
-            if (config.getAutoAnalysisEnabled() == null)
-                config.setAutoAnalysisEnabled(true);
+            // 不再设置默认值，必须用户手动配置
             return config;
         }
 
@@ -77,14 +71,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
         defaultConfig.setDifyApiKey("");
         defaultConfig.setSiliconFlowEndpoint("https://api.siliconflow.cn/v1");
         defaultConfig.setSiliconFlowApiKey("");
-        defaultConfig.setSiliconFlowModel("Qwen/Qwen2-7B-Instruct");
-
-        // Multimodal defaults
-        defaultConfig.setVlmModel("Qwen/Qwen2-VL-72B-Instruct");
-        defaultConfig.setEmbeddingModel("BAAI/bge-m3");
-        defaultConfig.setOllamaEndpoint("http://localhost:11434");
-        defaultConfig.setOllamaModel("llama3");
-        defaultConfig.setAutoAnalysisEnabled(true);
+        // 不再设置默认模型，必须用户手动配置
 
         return modelConfigRepository.save(defaultConfig);
     }

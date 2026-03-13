@@ -337,24 +337,40 @@ const routes = [
                         meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
                     },
 
-                    // 系统设置
-                    {
-                        path: "settings",
-                        name: "SystemSettings",
-                        component: () => import("@/views/System/SystemSettings.vue"),
-                        meta: { title: "系统设置", icon: "Setting", roles: ["ROLE_ADMIN"] }
-                    },
-
                     // 知识库配置
                     {
                         path: 'knowledge-config',
                         name: 'ControlKnowledgeConfig',
                         component: () => import('@/views/System/KnowledgeConfig.vue'),
                         meta: { title: '知识库配置', icon: 'Collection', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 通知渠道
+                    {
+                        path: 'notification-channels',
+                        name: 'NotificationChannels',
+                        component: () => import('@/views/System/SystemSettings.vue'),
+                        meta: { title: '通知渠道', icon: 'Message', roles: ['ROLE_ADMIN'] }
                     }
                 ]
+            },
+
+            // 404 页面
+            {
+                path: ':pathMatch(.*)*',
+                name: 'NotFound',
+                component: () => import('@/views/Error/NotFound.vue'),
+                meta: { title: '页面不存在' }
             }
         ]
+    },
+
+    // 404 页面 - 全局捕获（必须放在最后）
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'GlobalNotFound',
+        component: () => import('@/views/Error/NotFound.vue'),
+        meta: { title: '页面不存在' }
     }
 ]
 

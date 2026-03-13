@@ -20,13 +20,13 @@ public class SystemHealthCheckTask {
     private final StringRedisTemplate redisTemplate;
     private final AlertService alertService;
 
-    @Value("${orin.milvus.host:127.0.0.1}")
+    @Value("${milvus.host}")
     private String milvusHost;
 
-    @Value("${orin.milvus.port:19530}")
+    @Value("${milvus.port}")
     private int milvusPort;
 
-    @Value("${orin.milvus.token:}")
+    @Value("${milvus.token:}")
     private String milvusToken;
 
     public SystemHealthCheckTask(JdbcTemplate jdbcTemplate, StringRedisTemplate redisTemplate,

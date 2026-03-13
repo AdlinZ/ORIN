@@ -287,7 +287,7 @@ import {
   DataLine, TrendCharts, Share, Warning,
   Document, Picture, Histogram, Search, View, Grid,
   Notebook, Link, Coin, Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock,
-  Operation, TrendCharts as TrendChartsIcon, Tools, CircleCheck, CircleClose, Clock
+  Operation, TrendCharts as TrendChartsIcon, Tools, CircleCheck, CircleClose, Clock, Message
 } from '@element-plus/icons-vue'
 import BrandingLogo from '@/components/BrandingLogo.vue'
 import { v4 as uuidv4 } from 'uuid'
@@ -309,7 +309,7 @@ const iconMap = {
   List, ChatDotRound, Cpu, MagicStick, Connection,
   DataLine, TrendCharts, Share, Warning,
   Document, Picture, Histogram, Search, View, Grid,
-  User, Notebook, Link, Coin, Operation, TrendChartsIcon, Tools, Clock, Odometer
+  User, Notebook, Link, Coin, Operation, TrendChartsIcon, Tools, Clock, Odometer, Message
 }
 
 // State
@@ -331,14 +331,19 @@ const isDarkMode = useDark({
 })
 
 // Computed
-const userInfo = computed(() => ({
-  name: userStore.userInfo?.username || 'Admin',
-  avatar: userStore.userInfo?.avatar || ''
-}))
+const userInfo = computed(() => {
+  // If no user info is available, try to restore from cookies
+  if (!userStore.userInfo) {
+      userStore.restoreFromCookies()
+  }
+  return {
+    name: userStore.userInfo?.nickname || userStore.userInfo?.username || '用户',
+    avatar: userStore.userInfo?.avatar || ''
+  }
+})
 
 const isAdmin = computed(() => {
-  // 使用 store 中的管理员判断，但为了开发方便暂时默认返回 true 以确保“控制”菜单可见
-  return userStore.isAdmin || true
+  return userStore.isAdmin
 })
 
 const visibleMenus = computed(() => {
@@ -662,15 +667,17 @@ onMounted(() => {
 <style scoped>
 .top-navbar {
   height: 64px;
-  background: white;
-  border-bottom: 1px solid var(--neutral-gray-200);
+  background: linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(248,250,252,0.8) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   display: flex;
   align-items: center;
   padding: 0 24px;
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 /* Logo 区域 */
@@ -749,14 +756,17 @@ onMounted(() => {
   transition: all 0.3s;
 }
 
-/* 下拉菜单 */
+/* 下拉菜单 - Glassmorphism */
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
   min-width: 180px;
   padding: 8px;
   z-index: 1001;
@@ -848,9 +858,9 @@ onMounted(() => {
   gap: 6px;
   padding: 6px 12px;
   height: 36px;
-  border-radius: 8px;
-  background: var(--neutral-gray-50);
-  border: 1px solid var(--neutral-gray-200);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(0, 191, 165, 0.1) 0%, rgba(0, 191, 165, 0.05) 100%);
+  border: 1px solid rgba(0, 191, 165, 0.2);
   color: var(--orin-primary);
   cursor: pointer;
   transition: all 0.3s;
@@ -1010,11 +1020,13 @@ onMounted(() => {
   }
 }
 
-/* 深色模式适配 */
+/* 深色模式适配 - Glassmorphism */
 html.dark .top-navbar {
-  background: #1a1a1a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(10, 22, 22, 0.9) 0%, rgba(4, 16, 16, 0.85) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(38, 255, 223, 0.1);
 }
 
 html.dark .logo-text {
@@ -1034,9 +1046,11 @@ html.dark .menu-title {
 }
 
 html.dark .dropdown-menu {
-  background: #2a2a2a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, rgba(20, 36, 36, 0.95) 0%, rgba(10, 22, 22, 0.92) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(38, 255, 223, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 html.dark .dropdown-item {
@@ -1085,16 +1099,16 @@ html.dark .action-divider {
 }
 
 html.dark .system-ai-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #667eea;
+  background: linear-gradient(135deg, rgba(38, 255, 223, 0.1) 0%, rgba(38, 255, 223, 0.05) 100%);
+  border-color: rgba(38, 255, 223, 0.2);
+  color: #26FFDF;
 }
 
 html.dark .system-ai-btn:hover {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, rgba(38, 255, 223, 0.25) 0%, rgba(38, 255, 223, 0.15) 100%);
+  color: #26FFDF;
+  border-color: rgba(38, 255, 223, 0.4);
+  box-shadow: 0 2px 12px rgba(38, 255, 223, 0.25);
 }
 
 /* --- ORIN CORE (Adaptive Style) --- */

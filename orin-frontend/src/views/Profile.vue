@@ -47,7 +47,7 @@
       <el-col :span="6" v-for="stat in stats" :key="stat.label">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-card-inner">
-            <div class="stat-icon" :style="{ background: stat.color }">
+            <div class="stat-icon">
               <el-icon><component :is="stat.icon" /></el-icon>
             </div>
             <div class="stat-info">
@@ -235,10 +235,10 @@ const userForm = reactive({ ...defaultUserData });
 
 // Stats data
 const stats = ref([
-  { label: '知识库', value: '0', icon: 'Collection', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-  { label: 'AI 智能体', value: '0', icon: 'DataAnalysis', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-  { label: 'Token 消耗', value: '0', icon: 'ChatDotRound', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
-  { label: '活跃天数', value: '0', icon: 'Calendar', color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }
+  { label: '知识库', value: '0', icon: 'Collection' },
+  { label: 'AI 智能体', value: '0', icon: 'DataAnalysis' },
+  { label: 'Token 消耗', value: '0', icon: 'ChatDotRound' },
+  { label: '活跃天数', value: '0', icon: 'Calendar' }
 ]);
 
 // Activity data
@@ -390,8 +390,9 @@ const handleSave = async () => {
 
 /* Header */
 .profile-header {
-  background: linear-gradient(135deg, var(--orin-primary, #10b981) 0%, #059669 100%);
-  border-radius: 16px;
+  background: white;
+  border: 1px solid var(--el-border-color-light, #e2e8f0);
+  border-radius: 12px;
   padding: 32px;
   margin-bottom: 24px;
 }
@@ -414,8 +415,7 @@ const handleSave = async () => {
 }
 
 .user-avatar {
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--el-border-color-light, #e2e8f0);
 }
 
 .avatar-edit-icon {
@@ -430,7 +430,7 @@ const handleSave = async () => {
   align-items: center;
   justify-content: center;
   color: var(--orin-primary, #10b981);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--el-border-color-light, #e2e8f0);
   transition: all 0.2s;
 }
 
@@ -440,7 +440,7 @@ const handleSave = async () => {
 }
 
 .user-details {
-  color: white;
+  color: var(--text-primary, #1e293b);
 }
 
 .user-name {
@@ -451,7 +451,7 @@ const handleSave = async () => {
 
 .user-email {
   font-size: 14px;
-  opacity: 0.9;
+  color: var(--text-secondary, #64748b);
   margin: 0 0 12px 0;
 }
 
@@ -466,7 +466,7 @@ const handleSave = async () => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  opacity: 0.85;
+  color: var(--text-secondary, #64748b);
 }
 
 /* Stats Cards */
@@ -493,14 +493,15 @@ const handleSave = async () => {
 }
 
 .stat-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  color: white;
+  font-size: 20px;
+  background: var(--el-color-primary-light-9, #ecfdf5);
+  color: var(--orin-primary, #10b981);
 }
 
 .stat-info {
@@ -568,7 +569,7 @@ const handleSave = async () => {
   left: 0;
   right: 0;
   height: 100%;
-  background: linear-gradient(180deg, var(--orin-primary, #10b981) 0%, #059669 100%);
+  background: var(--orin-primary, #10b981);
   border-radius: 6px 6px 0 0;
 }
 
@@ -684,12 +685,13 @@ const handleSave = async () => {
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  background: linear-gradient(135deg, var(--orin-primary, #10b981) 0%, #059669 100%);
-  color: white;
+  background: var(--el-color-primary-light-9, #ecfdf5);
+  color: var(--orin-primary, #10b981);
 }
 
 .security-icon.phone {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--el-color-primary-light-9, #ecfdf5);
+  color: #3b82f6;
 }
 
 .security-content {
@@ -712,6 +714,33 @@ const handleSave = async () => {
 /* Dark Mode */
 html.dark .page-container {
   background: #0f172a;
+}
+
+html.dark .profile-header {
+  background: #1e2937 !important;
+  border-color: #374151 !important;
+}
+
+html.dark .user-details {
+  color: #f1f5f9;
+}
+
+html.dark .user-name {
+  color: #f1f5f9;
+}
+
+html.dark .user-email {
+  color: #94a3b8;
+}
+
+html.dark .join-time {
+  color: #94a3b8;
+}
+
+html.dark .stat-icon,
+html.dark .security-icon,
+html.dark .security-icon.phone {
+  background: #374151;
 }
 
 html.dark .stat-card {

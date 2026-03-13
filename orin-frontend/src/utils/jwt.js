@@ -37,7 +37,8 @@ export function parseJwt(token) {
 export function isTokenExpired(token) {
     const payload = parseJwt(token);
     if (!payload || !payload.exp) {
-        return true; // 无法解析或没有过期时间，视为过期
+        // 无法解析或没有过期时间，由后端接口决定，在此不强制判定为过期进而导致状态清理
+        return false; 
     }
 
     // exp 是秒级时间戳，需要转换为毫秒
@@ -55,7 +56,7 @@ export function isTokenExpired(token) {
 export function getTokenRemainingTime(token) {
     const payload = parseJwt(token);
     if (!payload || !payload.exp) {
-        return 0;
+        return Number.MAX_SAFE_INTEGER; // 无法解析或没有过期时间，返回无穷大，由后端判断
     }
 
     const expirationTime = payload.exp * 1000;

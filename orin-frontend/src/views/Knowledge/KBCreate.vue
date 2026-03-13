@@ -294,6 +294,32 @@
                       </el-option>
                    </el-select>
                 </div>
+
+                <!-- Rich Text Parsing Options -->
+                <div class="section-label" style="margin-top: 24px;">文档解析</div>
+                <el-alert title="解析文档时保留格式信息（标题层级、段落结构等），便于后续知识检索" type="info" :closable="false" style="margin-bottom: 16px" />
+                <div class="parsing-options">
+                   <div class="parsing-card" :class="{ active: form.richTextEnabled }" @click="form.richTextEnabled = true">
+                      <div class="parsing-header">
+                         <div class="parsing-icon"><el-icon><Document /></el-icon></div>
+                         <div class="parsing-info">
+                            <div class="parsing-title">富文本解析</div>
+                            <div class="parsing-desc">保留文档格式信息（标题、段落、列表等）</div>
+                         </div>
+                         <div class="check-circle" v-if="form.richTextEnabled"><el-icon><Check /></el-icon></div>
+                      </div>
+                   </div>
+                   <div class="parsing-card" :class="{ active: !form.richTextEnabled }" @click="form.richTextEnabled = false">
+                      <div class="parsing-header">
+                         <div class="parsing-icon"><el-icon><Document /></el-icon></div>
+                         <div class="parsing-info">
+                            <div class="parsing-title">纯文本解析</div>
+                            <div class="parsing-desc">仅提取文本内容，不保留格式</div>
+                         </div>
+                         <div class="check-circle" v-if="!form.richTextEnabled"><el-icon><Check /></el-icon></div>
+                      </div>
+                   </div>
+                </div>
              </div>
 
              <!-- File Type Preview -->
@@ -316,14 +342,49 @@
              </div>
           </div>
 
-          <!-- Right Side: Parsing Info -->
+          <!-- Right Side: Parsing Result / Status -->
           <div class="step-2-preview">
              <div class="preview-header">
                 <el-icon class="doc-icon"><InfoFilled /></el-icon>
-                <span>解析说明</span>
+                <span>{{ parsingComplete ? '解析结果' : '解析状态' }}</span>
+                <el-button v-if="parsingComplete && !parsingLoading" type="primary" link size="small" @click="reparseFiles" :disabled="parsingLoading">
+                  <el-icon><Refresh /></el-icon> 重新解析
+                </el-button>
              </div>
              <div class="preview-body">
-                <div class="parsing-info-list">
+                <!-- Loading State -->
+                <div v-if="parsingLoading" class="parsing-loading">
+                   <el-icon class="loading-icon"><Loading /></el-icon>
+                   <div class="loading-text">正在解析文件...</div>
+                   <div class="loading-progress">
+                      <div v-for="(file, idx) in creatingFiles" :key="idx" class="file-progress-item">
+                         <span class="file-name">{{ file.name }}</span>
+                         <el-progress :percentage="file.progress" :status="file.status === 'error' ? 'exception' : undefined" :show-text="false" />
+                      </div>
+                   </div>
+                </div>
+
+                <!-- Parsed Content Display (after parsing complete) -->
+                <div v-else-if="parsingComplete && parsedContent.length > 0" class="parsed-content-list">
+                   <div v-for="(item, idx) in parsedContent" :key="idx" class="parsed-item">
+                      <div class="parsed-item-header">
+                         <el-icon><Document /></el-icon>
+                         <span class="parsed-filename">{{ item.fileName }}</span>
+                         <el-tag size="small" type="success">{{ item.text.length }} 字符</el-tag>
+                      </div>
+                      <div class="parsed-item-content">{{ item.text.substring(0, 500) }}{{ item.text.length > 500 ? '...' : '' }}</div>
+                   </div>
+                </div>
+
+                <!-- No Content or Failed -->
+                <div v-else-if="parsingComplete && parsedContent.length === 0" class="parsing-failed">
+                   <el-icon class="failed-icon"><WarningFilled /></el-icon>
+                   <div class="failed-text">解析失败或未能获取内容</div>
+                   <div class="failed-hint">请检查文件格式或配置后重试</div>
+                </div>
+
+                <!-- Initial State: Show parsing info -->
+                <div v-else class="parsing-info-list">
                    <div class="info-item">
                       <div class="info-icon"><el-icon><Picture /></el-icon></div>
                       <div class="info-content">
@@ -470,6 +531,57 @@
                             <el-slider v-model="form.scoreThreshold" :max="1" :step="0.01" size="small" />
                          </div>
                       </div>
+                      <!-- 知识库级别检索配置覆盖 -->
+                      <div class="retrieval-config-section">
+                         <div class="section-header">
+                            <el-checkbox v-model="useCustomRetrievalConfig">覆盖默认检索配置</el-checkbox>
+                            <span class="section-tip">启用后该知识库将使用以下配置，而非系统默认配置</span>
+                         </div>
+                         <div v-if="useCustomRetrievalConfig" class="config-fields">
+                            <div class="config-row">
+                               <div class="config-item">
+                                  <label>Chunk 最大字符数</label>
+                                  <el-input-number v-model="form.chunkSize" :min="100" :max="2000" :step="100" size="small" />
+                               </div>
+                               <div class="config-item">
+                                  <label>Chunk 重叠字符数</label>
+                                  <el-input-number v-model="form.chunkOverlap" :min="0" :max="500" :step="50" size="small" />
+                               </div>
+                            </div>
+                            <div class="config-row">
+                               <div class="config-item">
+                                  <label>检索返回结果数 (Top K)</label>
+                                  <el-input-number v-model="form.topK" :min="1" :max="20" :step="1" size="small" />
+                               </div>
+                               <div class="config-item">
+                                  <label>相似度阈值</label>
+                                  <el-input-number v-model="form.similarityThreshold" :min="0" :max="1" :step="0.05" :precision="2" size="small" />
+                               </div>
+                               <div class="config-item">
+                                  <label>向量检索权重 (alpha)</label>
+                                  <el-input-number v-model="form.alpha" :min="0" :max="1" :step="0.1" :precision="2" size="small" />
+                               </div>
+                            </div>
+                            <!-- Rerank 配置 -->
+                            <div class="config-row">
+                               <div class="config-item" style="flex: 1;">
+                                  <label>启用 Rerank</label>
+                                  <el-switch v-model="form.enableRerank" />
+                               </div>
+                               <div class="config-item" style="flex: 2;" v-if="form.enableRerank">
+                                  <label>Rerank 模型</label>
+                                  <el-select v-model="form.rerankModel" placeholder="选择 Rerank 模型" size="small" style="width: 100%" filterable clearable>
+                                     <el-option
+                                        v-for="model in rerankModels"
+                                        :key="model.id"
+                                        :label="model.name"
+                                        :value="model.id"
+                                     />
+                                  </el-select>
+                               </div>
+                            </div>
+                         </div>
+                      </div>
                    </div>
                 </div>
              </div>
@@ -543,7 +655,20 @@
                    </div>
                    <div class="card-body">
                       <div class="form-item">
-                         <label>知识库名称</label>
+                         <div class="label-row">
+                            <label>知识库名称</label>
+                            <el-button
+                              type="primary"
+                              size="small"
+                              link
+                              :loading="generatingName"
+                              @click="generateName"
+                              :disabled="fileList.length === 0 && selectedSource !== 'file'"
+                            >
+                               <el-icon><MagicStick /></el-icon>
+                               AI生成
+                            </el-button>
+                         </div>
                          <el-input v-model="kbName" placeholder="输入知识库名称" />
                       </div>
                       <div class="form-item">
@@ -666,7 +791,7 @@
     <!-- Footer with Navigation Buttons -->
     <div class="create-footer">
       <el-button v-if="currentStep > 1 && currentStep < 4" @click="currentStep--">上一步</el-button>
-      <el-button v-if="currentStep < 4" type="primary" @click="handleNext" :disabled="(currentStep === 1 && !canProceed) || (currentStep === 2 && parsingLoading)" :loading="currentStep === 2 && parsingLoading">
+      <el-button v-if="currentStep < 4" type="primary" @click="handleNext" :disabled="(currentStep === 1 && !canProceed) || (currentStep === 2 && (parsingLoading || (parsingComplete && parsingFailed)))" :loading="currentStep === 2 && parsingLoading">
         {{ currentStep === 3 ? '完成创建' : '下一步' }}
       </el-button>
     </div>
@@ -681,8 +806,8 @@ import {
   ArrowLeft, Document, Check, UploadFilled, FolderAdd, Link, Notebook,
   Close, Setting, CopyDocument, QuestionFilled, Cpu, Operation, View, Search,
   Loading, Connection, Right, Aim, MagicStick,
-  PictureFilled, Picture, VideoCamera, Microphone, InfoFilled,
-  Monitor, Cloudy
+  PictureFilled, Picture, VideoCamera, Microphone, InfoFilled, WarningFilled,
+  Monitor, Cloudy, Refresh
 } from '@element-plus/icons-vue';
 import { ElMessage, ElNotification } from 'element-plus';
 import request from '@/utils/request';
@@ -694,8 +819,21 @@ const kbName = ref('');
 const kbDescription = ref('');
 const descModel = ref('');
 const generatingDesc = ref(false);
+const generatingName = ref(false);
 const creating = ref(false);
 const allModels = ref([]);
+// Rerank 模型列表 (从 allModels 筛选)
+const rerankModels = computed(() => {
+   return allModels.value
+      .filter(m => {
+         const type = m.type?.toUpperCase();
+         return type === 'RERANK' || type === 'RERANKER';
+      })
+      .map(m => ({
+         id: m.modelId || m.name || m.modelName,
+         name: m.name || m.modelName || m.modelId
+      }));
+});
 const createdKbId = ref(null); // Track created KB to avoid duplicate creation
 const uploadedFiles = ref(new Set()); // Track uploaded files to avoid duplicate upload
 
@@ -748,6 +886,7 @@ const dbConfig = reactive({
    password: ''
 });
 const testingDb = ref(false);
+const useCustomRetrievalConfig = ref(false); // 是否使用自定义检索配置覆盖系统默认
 
 const form = reactive({
    // Parsing settings (Step 2)
@@ -756,6 +895,7 @@ const form = reactive({
    asrProvider: 'local',
    ocrModel: '',
    asrModel: 'base',
+   richTextEnabled: true,
    // Segmentation settings (Step 3)
    segmentMode: 'parent_child',
    separator: '\\n\\n',
@@ -768,7 +908,14 @@ const form = reactive({
    enableRerank: false,
    rerankModel: '',
    topK: 3,
-   scoreThreshold: 0.5
+   scoreThreshold: 0.5,
+   // Retrieval config (知识库级别覆盖默认配置)
+   chunkSize: null,       // null 表示使用系统默认
+   chunkOverlap: null,     // null 表示使用系统默认
+   similarityThreshold: null, // null 表示使用系统默认
+   alpha: null,           // null 表示使用系统默认
+   enableRerank: null,    // null 表示使用系统默认
+   rerankModel: null      // null 表示使用系统默认
 });
 
 const embeddingOptions = computed(() => {
@@ -949,6 +1096,79 @@ const getFileTypeTag = (filename) => {
    return 'info';
 };
 
+// AI Generate Name
+const generateName = async () => {
+   if (fileList.value.length === 0 && selectedSource.value !== 'file') {
+      ElMessage.warning('请先上传文档后再生成名称');
+      return;
+   }
+   generatingName.value = true;
+   try {
+      let newKbId = createdKbId.value;
+
+      // 如果还没有创建知识库，则先创建
+      if (!newKbId) {
+         const payload = {
+            name: kbName.value || '未命名知识库',
+            description: kbDescription.value || '临时描述',
+            type: 'UNSTRUCTURED',
+            status: 'ENABLED',
+            parsingEnabled: form.parsingEnabled,
+            ocrProvider: form.ocrProvider,
+            asrProvider: form.asrProvider,
+            ocrModel: form.ocrModel,
+            asrModel: form.asrModel,
+            richTextEnabled: form.richTextEnabled,
+            // 检索配置（知识库级别覆盖默认配置）
+            chunkSize: form.chunkSize || null,
+            chunkOverlap: form.chunkOverlap || null,
+            topK: form.topK || null,
+            similarityThreshold: form.similarityThreshold || null,
+            alpha: form.alpha || null,
+            enableRerank: form.enableRerank || null,
+            rerankModel: form.rerankModel || null
+         };
+         const kb = await request.post('/knowledge', payload);
+         newKbId = kb.id;
+         createdKbId.value = newKbId;
+
+         // 上传文档
+         if (fileList.value.length > 0 && selectedSource.value === 'file') {
+            for (const f of fileList.value) {
+               const formData = new FormData();
+               formData.append('file', f.rawFile || f.raw);
+               await request.post(`/knowledge/${newKbId}/documents/upload`, formData);
+               uploadedFiles.value.add(f.name);
+            }
+         }
+      }
+
+      // 调用AI生成描述（会同时返回 title 和 description）
+      const res = await request.post(`/knowledge/${newKbId}/generate-description`, {
+         model: descModel.value
+      });
+
+      console.log('Generate name response:', res);
+
+      if (res.title) {
+         kbName.value = res.title;
+         // 更新知识库名称
+         await request.put(`/knowledge/${newKbId}`, {
+            name: res.title,
+            description: kbDescription.value || ''
+         });
+         ElMessage.success('名称生成成功');
+      } else {
+         ElMessage.warning('AI未返回名称');
+      }
+   } catch (e) {
+      console.error('生成名称失败:', e);
+      ElMessage.error('生成名称失败: ' + (e.message || '未知错误'));
+   } finally {
+      generatingName.value = false;
+   }
+};
+
 // AI Generate Description
 const generateDescription = async () => {
    if (fileList.value.length === 0 && selectedSource.value !== 'file') {
@@ -965,7 +1185,20 @@ const generateDescription = async () => {
             name: kbName.value || '未命名知识库',
             description: '临时描述',
             type: 'UNSTRUCTURED',
-            status: 'ENABLED'
+            status: 'ENABLED',
+            parsingEnabled: form.parsingEnabled,
+            ocrProvider: form.ocrProvider,
+            asrProvider: form.asrProvider,
+            ocrModel: form.ocrModel,
+            asrModel: form.asrModel,
+            richTextEnabled: form.richTextEnabled,
+            chunkSize: form.chunkSize || null,
+            chunkOverlap: form.chunkOverlap || null,
+            topK: form.topK || null,
+            similarityThreshold: form.similarityThreshold || null,
+            alpha: form.alpha || null,
+            enableRerank: form.enableRerank || null,
+            rerankModel: form.rerankModel || null
          };
          const kb = await request.post('/knowledge', payload);
          newKbId = kb.id;
@@ -990,17 +1223,23 @@ const generateDescription = async () => {
 
       console.log('Generate description response:', res);
 
-      if (res.description) {
-         kbDescription.value = res.description;
-         // 更新知识库描述
+      if (res.description || res.title) {
+         // 同时更新名称和描述
+         if (res.title) {
+            kbName.value = res.title;
+         }
+         if (res.description) {
+            kbDescription.value = res.description;
+         }
+         // 更新知识库名称和描述
          const updateRes = await request.put(`/knowledge/${newKbId}`, {
             name: kbName.value || '未命名知识库',
-            description: res.description
+            description: res.description || ''
          });
          console.log('Update KB response:', updateRes);
-         ElMessage.success('描述生成成功');
+         ElMessage.success(res.title ? '名称和描述生成成功' : '描述生成成功');
       } else {
-         ElMessage.warning('AI未返回描述内容');
+         ElMessage.warning('AI未返回内容');
       }
    } catch (e) {
       console.error('生成描述失败:', e);
@@ -1107,8 +1346,15 @@ const handleNext = async () => {
       // 2. 上传所有文件并触发解析
       // 3. 等待解析完成
       // 4. 获取解析后的文本内容
-      await processFilesAndParse();
-      currentStep.value++;
+      const parseSuccess = await processFilesAndParse();
+      // Only proceed to step 3 if parsing succeeded (or skipped)
+      if (!parseSuccess) {
+         ElMessage.error('解析失败，请检查文件或配置后重试');
+         return;
+      }
+      // 不自动跳转，让用户手动点击下一步
+      ElMessage.success('解析完成，请点击"下一步"继续');
+      currentStep.value = 3; // 跳转到 step 3，等待用户确认
       return;
    }
 
@@ -1286,6 +1532,10 @@ const handleResetParams = () => {
 
 // --- Step 2 -> Step 3: Upload files and trigger parsing ---
 const parsingLoading = ref(false);
+const parsingComplete = ref(false); // Step 2 parsing completed
+const parsingFailed = ref(false); // Has any parsing failure
+const uploadedDocIds = ref([]); // Track uploaded document IDs for parsing status check
+const docIdToIndex = ref(new Map()); // Map docId to file index for progress tracking
 
 // Step 2: Process files - create KB, upload files, trigger parsing, wait for completion
 const processFilesAndParse = async () => {
@@ -1308,14 +1558,22 @@ const processFilesAndParse = async () => {
                 ocrProvider: form.ocrProvider,
                 asrProvider: form.asrProvider,
                 ocrModel: form.ocrModel,
-                asrModel: form.asrModel
+                asrModel: form.asrModel,
+                richTextEnabled: form.richTextEnabled,
+                chunkSize: form.chunkSize || null,
+                chunkOverlap: form.chunkOverlap || null,
+                topK: form.topK || null,
+                similarityThreshold: form.similarityThreshold || null,
+                alpha: form.alpha || null,
+                enableRerank: form.enableRerank || null,
+                rerankModel: form.rerankModel || null
             });
             newKbId = kb.id;
             createdKbId.value = newKbId;
         }
 
         // 2. Upload files and trigger parsing
-        const uploadedDocIds = [];
+        uploadedDocIds.value = [];
         for (let i = 0; i < fileList.value.length; i++) {
             const f = fileList.value[i];
             creatingFiles.value[i].status = 'uploading';
@@ -1334,7 +1592,8 @@ const processFilesAndParse = async () => {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 uploadedFiles.value.add(f.name);
-                uploadedDocIds.push(doc.id);
+                uploadedDocIds.value.push(doc.id);
+                docIdToIndex.value.set(doc.id, i); // 记录 docId 到文件索引的映射
                 creatingFiles.value[i].progress = 50;
                 creatingFiles.value[i].status = 'parsing';
             } catch (err) {
@@ -1344,27 +1603,68 @@ const processFilesAndParse = async () => {
         }
 
         // 3. Wait for parsing to complete (poll document status)
-        if (uploadedDocIds.length > 0 && form.parsingEnabled) {
+        let parseSuccess = true;
+        if (uploadedDocIds.value.length > 0 && form.parsingEnabled) {
             ElMessage.info('等待解析完成...');
-            await waitForParsingComplete(uploadedDocIds);
+            parseSuccess = await waitForParsingComplete(uploadedDocIds.value);
         }
 
         // 4. Get parsed text content for step 3 preview
         parsedContent.value = await fetchParsedContent(newKbId);
 
-        ElMessage.success('文件解析完成');
+        if (parseSuccess) {
+            ElMessage.success('文件解析完成');
+        }
+        return parseSuccess;
     } catch (err) {
         console.error('Parsing failed:', err);
         ElMessage.error('解析失败: ' + (err.message || '未知错误'));
+        parsingFailed.value = true;
+        parsingComplete.value = true;
+        return false;
     } finally {
         parsingLoading.value = false;
     }
 };
 
+// 重新解析文件
+const reparseFiles = async () => {
+    // 重置状态
+    parsingComplete.value = false;
+    parsedContent.value = [];
+    uploadedFiles.value.clear();
+    uploadedDocIds.value = [];
+
+    // 如果已有知识库，先删除其中的所有文档
+    if (createdKbId.value) {
+        try {
+            // 获取知识库中的所有文档
+            const docs = await request.get(`/knowledge/${createdKbId.value}/documents`);
+            if (docs && docs.length > 0) {
+                // 删除所有文档
+                for (const doc of docs) {
+                    try {
+                        await request.delete(`/knowledge/documents/${doc.id}`);
+                    } catch (e) {
+                        console.error(`Failed to delete document ${doc.id}:`, e);
+                    }
+                }
+            }
+            ElMessage.success('已清理旧文档，开始重新解析');
+        } catch (e) {
+            console.error('Failed to get documents for cleanup:', e);
+        }
+    }
+
+    // 重新调用解析逻辑
+    await processFilesAndParse();
+};
+
 // Wait for parsing to complete
 const waitForParsingComplete = async (docIds) => {
-    const maxAttempts = 60; // 60 seconds max
+    const maxAttempts = 300; // 5 minutes max for OCR/ASR processing
     let attempts = 0;
+    parsingFailed.value = false;
 
     while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1372,22 +1672,49 @@ const waitForParsingComplete = async (docIds) => {
 
         try {
             let allComplete = true;
+            let hasFailed = false;
             for (const docId of docIds) {
                 const doc = await request.get(`/knowledge/documents/${docId}`);
                 const status = doc.parseStatus || doc.vectorStatus;
+                // 使用 docIdToIndex 映射获取文件索引
+                const idx = docIdToIndex.value.get(docId);
 
-                if (status === 'PENDING' || status === 'PROCESSING' || status === 'RUNNING') {
+                // 根据文档状态更新进度条
+                if (idx !== undefined && creatingFiles.value[idx]) {
+                    if (status === 'PARSED') {
+                        // 解析完成
+                        creatingFiles.value[idx].progress = 100;
+                        creatingFiles.value[idx].status = 'parsed';
+                    } else if (status === 'FAILED') {
+                        // 解析失败
+                        console.warn(`Document ${docId} parsing failed`);
+                        hasFailed = true;
+                        creatingFiles.value[idx].status = 'error';
+                        creatingFiles.value[idx].progress = 100;
+                    } else if (status === 'PENDING' || status === 'PARSING' || status === 'PROCESSING' || status === 'RUNNING') {
+                        // 解析中 - 动态增长进度 50-90%
+                        if (creatingFiles.value[idx].progress < 90) {
+                            creatingFiles.value[idx].progress += Math.floor(Math.random() * 10) + 5;
+                            if (creatingFiles.value[idx].progress > 90) {
+                                creatingFiles.value[idx].progress = 90;
+                            }
+                        }
+                        creatingFiles.value[idx].status = 'parsing';
+                        allComplete = false;
+                    } else {
+                        // 未知状态，继续等待
+                        allComplete = false;
+                    }
+                } else {
+                    // 如果找不到对应索引，也视为未完成
                     allComplete = false;
-                    break;
-                }
-
-                if (status === 'FAILED') {
-                    console.warn(`Document ${docId} parsing failed`);
                 }
             }
 
             if (allComplete) {
-                return true;
+                parsingFailed.value = hasFailed;
+                parsingComplete.value = true;
+                return !hasFailed; // Return false if any failed
             }
         } catch (err) {
             console.warn('Error checking parse status:', err);
@@ -1395,6 +1722,8 @@ const waitForParsingComplete = async (docIds) => {
     }
 
     console.warn('Parsing timeout');
+    parsingComplete.value = true;
+    parsingFailed.value = true;
     return false;
 };
 
@@ -1405,14 +1734,27 @@ const fetchParsedContent = async (kbId) => {
     const content = [];
     try {
         const docs = await request.get(`/knowledge/${kbId}/documents`);
+        console.log('[Debug] Fetched documents:', docs);
         for (const doc of docs) {
             try {
                 const contentRes = await request.get(`/knowledge/documents/${doc.id}/content`);
+                console.log(`[Debug] Content for ${doc.fileName}:`, JSON.stringify(contentRes));
+                console.log(`[Debug] Has text property:`, 'text' in contentRes, 'keys:', Object.keys(contentRes));
                 if (contentRes.text) {
                     content.push({
+                        docId: doc.id,
                         fileName: doc.fileName,
                         text: contentRes.text
                     });
+                } else if (contentRes.contentPreview) {
+                    console.log(`[Debug] Using contentPreview for ${doc.fileName}`);
+                    content.push({
+                        docId: doc.id,
+                        fileName: doc.fileName,
+                        text: contentRes.contentPreview
+                    });
+                } else {
+                    console.warn(`[Debug] No text content for ${doc.fileName}, contentRes:`, contentRes);
                 }
             } catch (err) {
                 console.warn(`Failed to get content for ${doc.fileName}:`, err);
@@ -1421,6 +1763,7 @@ const fetchParsedContent = async (kbId) => {
     } catch (err) {
         console.error('Failed to fetch parsed content:', err);
     }
+    console.log('[Debug] Final parsed content:', content);
     return content;
 };
 
@@ -1455,6 +1798,18 @@ const saveKB = async () => {
         // Prepare creating status for UI
         isFinished.value = false;
 
+        // Debug: log OCR model selection
+        console.log('[Debug] OCR Provider:', form.ocrProvider);
+        console.log('[Debug] OCR Model:', form.ocrModel);
+        console.log('[Debug] OCR Model Options:', ocrModelOptions.value);
+        console.log('[Debug] All Models:', allModels.value.filter(m => {
+            const type = m.type?.toUpperCase();
+            const isOCR = type === 'OCR';
+            const isVision = type === 'VISION' || type === 'VLM' || type === 'MULTIMODAL' || type === 'VISUAL';
+            const hasVisionKeywords = (m.modelId + m.name + (m.description || '')).toLowerCase().match(/ocr|vision|vl|multimodal|图片|文字|识别/);
+            return (isOCR || isVision || hasVisionKeywords) && m.status === 'ENABLED';
+        }));
+
         const payload = {
             name: kbName.value || '未命名知识库',
             description: kbDescription.value || (form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index'),
@@ -1464,8 +1819,18 @@ const saveKB = async () => {
             ocrProvider: form.ocrProvider,
             asrProvider: form.asrProvider,
             ocrModel: form.ocrModel,
-            asrModel: form.asrModel
+            asrModel: form.asrModel,
+            richTextEnabled: form.richTextEnabled,
+            chunkSize: form.chunkSize || null,
+            chunkOverlap: form.chunkOverlap || null,
+            topK: form.topK || null,
+            similarityThreshold: form.similarityThreshold || null,
+            alpha: form.alpha || null,
+            enableRerank: form.enableRerank || null,
+            rerankModel: form.rerankModel || null
         };
+
+        console.log('[Debug] Saving KB with payload:', payload);
 
         // 1. Create Knowledge Base via API (avoid duplicate if already created)
         let newKbId = createdKbId.value;
@@ -1746,6 +2111,28 @@ const handleGoToDocument = () => {
 .info-title { font-weight: 600; font-size: 13px; color: #1F2937; }
 .info-desc { font-size: 12px; color: #6B7280; margin-top: 2px; }
 
+/* Parsing Loading State */
+.parsing-loading { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+.parsing-loading .loading-icon { font-size: 32px; color: #2563EB; animation: rotate 1s linear infinite; }
+.parsing-loading .loading-text { margin-top: 12px; font-size: 14px; color: #374151; }
+.parsing-loading .loading-progress { width: 100%; margin-top: 16px; }
+.file-progress-item { margin-bottom: 12px; }
+.file-progress-item .file-name { font-size: 12px; color: #6B7280; display: block; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Parsed Content Display */
+.parsed-content-list { display: flex; flex-direction: column; gap: 12px; }
+.parsed-item { background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; }
+.parsed-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.parsed-item-header .parsed-filename { flex: 1; font-weight: 500; font-size: 13px; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.parsed-item-content { font-size: 12px; color: #6B7280; line-height: 1.5; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+
+/* Parsing Failed State */
+.parsing-failed { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+.parsing-failed .failed-icon { font-size: 48px; color: #EF4444; }
+.parsing-failed .failed-text { margin-top: 12px; font-size: 14px; color: #EF4444; font-weight: 500; }
+.parsing-failed .failed-hint { margin-top: 4px; font-size: 12px; color: #6B7280; }
+
 .config-section { margin-bottom: 32px; }
 .section-label { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px; }
 .segment-mode-cards { display: flex; gap: 16px; margin-bottom: 20px; }
@@ -1778,6 +2165,45 @@ const handleGoToDocument = () => {
 .rerank-section { background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
 .sliders-row { display: flex; gap: 24px; }
 .slider-item { flex: 1; }
+
+/* Retrieval Config Section */
+.retrieval-config-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: #F9FAFB;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+}
+.retrieval-config-section .section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.retrieval-config-section .section-tip {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+.retrieval-config-section .config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.retrieval-config-section .config-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.retrieval-config-section .config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+.retrieval-config-section .config-item label {
+  font-size: 12px;
+  color: #6B7280;
+}
 .preview-header { padding: 16px 20px; font-weight: 600; color: #1F2937; border-bottom: 1px solid #E5E7EB; background: #fff; min-height: 57px; display: flex; align-items: center; }
 .header-content { display: flex; align-items: center; gap: 8px; width: 100%; }
 .doc-name { flex: 1; font-size: 13px; font-weight: 500; }

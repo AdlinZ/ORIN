@@ -34,10 +34,10 @@ public class SkillServiceImplEnhanced implements SkillService {
     private final MilvusVectorService milvusVectorService;
     private final FlowExecutor flowExecutor;
 
-    @Value("${milvus.host:localhost}")
+    @Value("${milvus.host}")
     private String milvusHost;
 
-    @Value("${milvus.port:19530}")
+    @Value("${milvus.port}")
     private int milvusPort;
 
     @Value("${milvus.token:}")

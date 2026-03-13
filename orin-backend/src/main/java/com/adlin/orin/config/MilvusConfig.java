@@ -11,10 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 public class MilvusConfig {
 
-    @Value("${milvus.host:localhost}")
+    @Value("${milvus.host}")
     private String host;
 
-    @Value("${milvus.port:19530}")
+    @Value("${milvus.port}")
     private int port;
 
     @Value("${milvus.token:}")

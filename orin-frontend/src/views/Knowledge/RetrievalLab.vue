@@ -233,7 +233,10 @@ const handleSearch = async () => {
             query: query.value,
             kbId: selectedKbId.value,
             topK: config.topK,
-            embeddingModel: config.embeddingModel
+            embeddingModel: config.embeddingModel,
+            alpha: config.alpha,
+            threshold: config.threshold,
+            rerankModel: config.rerankModel
         }, {
             timeout: 600000, 
             _retry: true 

@@ -6,6 +6,7 @@ import com.adlin.orin.modules.knowledge.service.DocumentManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
 import com.adlin.orin.modules.knowledge.service.MilvusVectorService;
 import com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO;
+import com.adlin.orin.modules.knowledge.dto.KeywordTag;
 import com.adlin.orin.modules.audit.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,6 +40,7 @@ public class KnowledgeManageController {
     private final MilvusVectorService milvusVectorService;
     private final EmbeddingService embeddingService;
     private final AuditLogService auditLogService;
+    private final com.adlin.orin.modules.knowledge.service.KeywordExtractService keywordExtractService;
 
     // ==================== Milvus Collection 管理 API ====================
 
@@ -71,6 +73,27 @@ public class KnowledgeManageController {
         result.put("success", true);
         result.put("message", "Collection 已重建");
         return result;
+    }
+
+    // ==================== 语义联想 API ====================
+
+    @Operation(summary = "获取知识库关键词列表")
+    @GetMapping("/semantic/keywords")
+    public List<KeywordTag> getKeywords(
+            @RequestParam(required = false) String datasetId,
+            @RequestParam(defaultValue = "20") int limit) {
+        if (datasetId != null && !datasetId.isEmpty()) {
+            return keywordExtractService.extractKeywordsFromKnowledgeBase(datasetId, limit);
+        }
+        return keywordExtractService.getPopularKeywords(limit);
+    }
+
+    @Operation(summary = "获取搜索联想建议")
+    @GetMapping("/semantic/search-suggest")
+    public List<KeywordTag> getSearchSuggestions(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "10") int limit) {
+        return keywordExtractService.getSearchSuggestions(keyword, limit);
     }
 
     // ==================== 外部同步 API ====================
@@ -269,8 +292,9 @@ public class KnowledgeManageController {
             @PathVariable String kbId,
             @RequestBody Map<String, String> payload) {
         String modelName = payload.get("model");
-        String description = knowledgeManageService.generateDescription(kbId, modelName);
-        return Map.of("description", description);
+        // 同时返回 title 和 description
+        Map<String, String> result = knowledgeManageService.generateDescriptionAndTitle(kbId, modelName);
+        return result;
     }
 
     // ==================== 文档管理 API ====================
@@ -342,7 +366,8 @@ public class KnowledgeManageController {
     @Operation(summary = "触发文档解析（多模态）")
     @PostMapping("/documents/{docId}/parse")
     public KnowledgeDocument triggerParsing(@PathVariable String docId) {
-        KnowledgeDocument result = documentManageService.triggerParsing(docId);
+        // 解析时不自动触发向量化，用户可以手动触发向量化
+        KnowledgeDocument result = documentManageService.triggerParsing(docId, false);
         // 审计日志
         auditLogService.logApiCall(
             "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
@@ -460,13 +485,64 @@ public class KnowledgeManageController {
         return knowledgeManageService.getRetrievalInfo(docId);
     }
 
+    @Operation(summary = "获取指定分块的向量数据")
+    @GetMapping("/chunks/{chunkId}/vector")
+    public Map<String, Object> getChunkVector(@PathVariable String chunkId,
+            @RequestParam(required = false) String kbId) {
+        // 如果没有传入 kbId，需要从 chunkId 查询对应的知识库
+        if (kbId == null || kbId.isEmpty()) {
+            // 从数据库查询 chunk 对应的 docId 和知识库
+            kbId = knowledgeManageService.getKbIdByChunkId(chunkId);
+        }
+        if (kbId == null) {
+            return Map.of("success", false, "error", "无法确定知识库ID");
+        }
+        return milvusVectorService.getChunkVector(kbId, chunkId);
+    }
+
     @Operation(summary = "检索效果测试 (支持多模态与模型测试)")
     @PostMapping("/retrieve/test")
     public Object testRetrieval(
             @RequestBody Map<String, Object> payload) {
         String query = (String) payload.get("query");
         String kbId = (String) payload.get("kbId");
-        Integer topK = (Integer) payload.getOrDefault("topK", 3);
+
+        // 获取知识库的默认检索配置
+        Map<String, Object> kbConfig = knowledgeManageService.getRetrievalConfig(kbId);
+
+        // 如果请求没有指定参数，使用知识库的默认配置
+        Integer topK = (Integer) payload.get("topK");
+        if (topK == null && kbConfig != null && kbConfig.containsKey("topK")) {
+            topK = (Integer) kbConfig.get("topK");
+        }
+        if (topK == null) {
+            topK = 3; // 系统默认
+        }
+
+        Double alpha = payload.get("alpha") != null ? ((Number) payload.get("alpha")).doubleValue() : null;
+        if (alpha == null && kbConfig != null && kbConfig.containsKey("alpha")) {
+            alpha = (Double) kbConfig.get("alpha");
+        }
+
+        Double threshold = payload.get("threshold") != null ? ((Number) payload.get("threshold")).doubleValue() : null;
+        if (threshold == null && kbConfig != null && kbConfig.containsKey("similarityThreshold")) {
+            threshold = (Double) kbConfig.get("similarityThreshold");
+        }
+
+        // Rerank 配置：优先使用请求参数，如果没有则使用知识库配置
+        String rerankModel = (String) payload.get("rerankModel");
+        Boolean enableRerank = payload.get("enableRerank") != null ? (Boolean) payload.get("enableRerank") : null;
+        if (rerankModel == null && kbConfig != null && kbConfig.containsKey("rerankModel")) {
+            rerankModel = (String) kbConfig.get("rerankModel");
+        }
+        if (enableRerank == null && kbConfig != null && kbConfig.containsKey("enableRerank")) {
+            enableRerank = (Boolean) kbConfig.get("enableRerank");
+        }
+        // 如果知识库启用了 rerank 但没有指定模型，使用系统默认
+        if ((rerankModel == null || rerankModel.isEmpty()) && enableRerank != null && enableRerank) {
+            rerankModel = null; // 让 retrievalService 使用系统默认
+        }
+
         String embeddingModel = (String) payload.get("embeddingModel");
         String imageUrl = (String) payload.get("imageUrl");
         String vlmModel = (String) payload.get("vlmModel");
@@ -475,7 +551,7 @@ public class KnowledgeManageController {
         if (imageUrl != null && !imageUrl.isEmpty()) {
             result = retrievalService.multimodalSearch(kbId, imageUrl, vlmModel, embeddingModel, topK);
         } else {
-            result = retrievalService.hybridSearch(kbId, query, topK, embeddingModel);
+            result = retrievalService.hybridSearch(kbId, query, topK, embeddingModel, alpha, threshold, rerankModel);
         }
 
         // 审计日志 - RAG 检索
@@ -483,7 +559,8 @@ public class KnowledgeManageController {
                 "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
                 "/knowledge/retrieve/test", "POST", kbId != null ? kbId : "all", null, null,
                 "{\"query\":\"" + (query != null ? query.substring(0, Math.min(50, query.length())) : "")
-                        + "\",\"topK\":" + topK + "}",
+                        + "\",\"topK\":" + topK + ",\"alpha\":" + alpha + ",\"threshold\":" + threshold
+                        + ",\"rerankModel\":\"" + rerankModel + "\"}",
                 null, 200, null,
                 null, null, null, true, null, null, null);
 

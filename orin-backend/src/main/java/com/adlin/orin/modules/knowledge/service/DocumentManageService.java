@@ -4,6 +4,7 @@ import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -35,9 +36,11 @@ public class DocumentManageService {
     private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
     private final MultimodalContentParserService multimodalParserService;
+    private final com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository knowledgeBaseRepository;
 
-    // 文件存储根目录 (可配置)
-    private static final String UPLOAD_DIR = "storage/uploads/documents";
+    // 文件存储根目录 (从配置读取)
+    @Value("${knowledge.upload.path:storage/uploads/documents}")
+    private String uploadDir;
 
     /**
      * 上传文档
@@ -64,7 +67,7 @@ public class DocumentManageService {
         String mimeType = file.getContentType();
 
         // 创建存储目录
-        Path uploadPath = Paths.get(UPLOAD_DIR, knowledgeBaseId);
+        Path uploadPath = Paths.get(uploadDir, knowledgeBaseId);
         Files.createDirectories(uploadPath);
 
         // 保存文件
@@ -123,7 +126,7 @@ public class DocumentManageService {
                     @Override
                     public void afterCommit() {
                         log.info("Transaction committed, triggering parsing for document: {}", docId);
-                        triggerParsing(docId);
+                        triggerParsing(docId, true);
                     }
                 }
         );
@@ -155,28 +158,60 @@ public class DocumentManageService {
 
     /**
      * 删除文档
+     * 使用正确的删除顺序，确保一致性：
+     * 1. 先删除向量记录（最重要）
+     * 2. 再删除数据库记录
+     * 3. 最后删除物理文件（失败不影响一致性）
      */
     @Transactional
     public void deleteDocument(String documentId) {
         KnowledgeDocument document = getDocument(documentId);
+        String kbId = document.getKnowledgeBaseId();
+        List<String> docIds = List.of(documentId);
 
-        // 删除物理文件
-        if (document.getStoragePath() != null) {
-            try {
-                Path filePath = Paths.get(document.getStoragePath());
-                Files.deleteIfExists(filePath);
-            } catch (IOException e) {
-                log.warn("Failed to delete physical file: {}", document.getStoragePath(), e);
+        // 1. 先删除向量记录（最关键，必须先执行）
+        try {
+            vectorService.deleteDocuments(kbId, docIds);
+            log.debug("Deleted vector records for document: {}", documentId);
+        } catch (Exception e) {
+            log.error("Failed to delete vector records for document: {}, continuing with other deletions",
+                    documentId, e);
+            // 不抛出异常，继续执行后续删除
+        }
+
+        // 2. 删除数据库记录
+        try {
+            documentRepository.delete(document);
+            log.debug("Deleted database record for document: {}", documentId);
+        } catch (Exception e) {
+            log.error("Failed to delete database record for document: {}", documentId, e);
+            // 如果数据库删除失败，记录补偿任务
+            // 这里可以记录到补偿表，后续重试
+            throw new RuntimeException("Failed to delete document from database: " + documentId, e);
+        }
+
+        // 3. 最后删除物理文件（原始文件和索引文件）
+        // 这些删除失败不影响一致性，记录警告即可
+        List<String> filesToDelete = List.of(
+                document.getStoragePath(),
+                document.getParsedTextPath()
+        );
+
+        for (String filePath : filesToDelete) {
+            if (filePath != null && !filePath.isEmpty()) {
+                try {
+                    Path path = Paths.get(filePath);
+                    if (Files.deleteIfExists(path)) {
+                        log.debug("Deleted physical file: {}", filePath);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to delete physical file: {}, error: {}", filePath, e.getMessage());
+                    // 不抛出异常，物理文件可由定时清理任务处理
+                }
             }
         }
 
-        // 删除数据库记录
-        documentRepository.delete(document);
-
-        // 删除向量记录
-        vectorService.deleteDocuments(document.getKnowledgeBaseId(), List.of(documentId));
-
-        log.info("Deleted document: {}", documentId);
+        log.info("Deleted document: {} from knowledge base: {}", documentId, kbId);
     }
 
     /**
@@ -204,10 +239,11 @@ public class DocumentManageService {
 
     /**
      * 触发文档解析（多模态）
-     * 先解析文件内容为文本，再触发向量化
+     * @param documentId 文档ID
+     * @param autoVectorize 是否自动触发向量化，默认true
      */
     @Transactional
-    public KnowledgeDocument triggerParsing(String documentId) {
+    public KnowledgeDocument triggerParsing(String documentId, boolean autoVectorize) {
         KnowledgeDocument document = getDocument(documentId);
 
         // 更新解析状态
@@ -218,23 +254,70 @@ public class DocumentManageService {
         final String kbId = document.getKnowledgeBaseId();
         final String fileType = document.getFileType();
         final String filePath = document.getStoragePath();
+        final boolean shouldVectorize = autoVectorize;
 
-        log.info("Starting multimodal parsing for document: {}", documentId);
-        
+        log.info("Starting multimodal parsing for document: {}, autoVectorize: {}", documentId, autoVectorize);
+
         new Thread(() -> {
             org.springframework.transaction.support.TransactionTemplate transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(
                     transactionManager);
+
+            // 获取知识库配置，用于传递 OCR/ASR 模型和富文本解析设置
+            Map<String, String> parseConfig = new HashMap<>();
             try {
-                // 使用 multimodal parser 解析内容
+                var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+                log.info("Parsing: Found knowledge base: {}, ocrModel: {}, asrModel: {}",
+                        kbId, kb != null ? kb.getOcrModel() : "null", kb != null ? kb.getAsrModel() : "null");
+                if (kb != null) {
+                    if (kb.getOcrModel() != null && !kb.getOcrModel().isEmpty()) {
+                        parseConfig.put("ocr_model", kb.getOcrModel());
+                        log.info("Using ocr_model from knowledge base: {}", kb.getOcrModel());
+                    }
+                    if (kb.getAsrModel() != null && !kb.getAsrModel().isEmpty()) {
+                        parseConfig.put("asr_model", kb.getAsrModel());
+                        log.info("Using asr_model from knowledge base: {}", kb.getAsrModel());
+                    }
+                    // 富文本解析设置
+                    Boolean richText = kb.getRichTextEnabled();
+                    if (richText != null) {
+                        parseConfig.put("richText", richText.toString());
+                        log.info("Using richText from knowledge base: {}", richText);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load knowledge base config: {}", e.getMessage());
+            }
+
+            try {
+                // 首先更新状态为 PARSING，让前端知道正在解析
+                transactionTemplate.executeWithoutResult(status -> {
+                    KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
+                    if (doc != null) {
+                        doc.setParseStatus("PARSING");
+                        documentRepository.save(doc);
+                    }
+                });
+                log.info("Parsing: Status updated to PARSING for document: {}", documentIdFinal);
+
+                // 使用 multimodal parser 解析内容，传入配置
                 log.info("Parsing: Using MultimodalContentParserService for document: {}", documentIdFinal);
-                String content = multimodalParserService.parseToText(filePath, fileType);
-                
-                if (content == null || content.isEmpty()) {
-                    log.error("Parsing: FAILED - content is null or empty for document: {}", documentIdFinal);
+                String content = multimodalParserService.parseToText(filePath, fileType, parseConfig);
+
+                // 检查是否是解析失败的错误信息
+                boolean isParseFailed = content == null || content.isEmpty()
+                        || content.contains("[图片解析失败") || content.contains("[音频解析失败")
+                        || content.contains("[视频解析失败") || content.contains("[PDF解析失败")
+                        || content.contains("[DOCX解析失败") || content.contains("[DOC解析失败");
+
+                if (isParseFailed) {
+                    log.error("Parsing: FAILED - parsing returned error for document: {}, content: {}", documentIdFinal, content);
                     transactionTemplate.executeWithoutResult(status -> {
                         KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
                         if (doc != null) {
                             doc.setParseStatus("FAILED");
+                            String errorMsg = content != null ? (content.length() > 500 ? content.substring(0, 500) : content) : "解析失败";
+                            doc.setContentPreview(errorMsg);
+                            doc.setCharCount(errorMsg.length()); // 更新 charCount
                             documentRepository.save(doc);
                         }
                     });
@@ -243,34 +326,40 @@ public class DocumentManageService {
 
                 // 保存解析后的文本
                 String parsedPath = multimodalParserService.saveParsedText(kbId, documentIdFinal, content);
-                
+
                 // 生成预览
-                String preview = content.length() > 500 ? content.substring(0, 500) : content;
-                
+                String preview = (content != null && content.length() > 500) ? content.substring(0, 500) : content;
+
                 // 更新解析状态和文本路径
+                final String finalContent = content;
                 transactionTemplate.executeWithoutResult(status -> {
                     KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
                     if (doc != null) {
                         doc.setParseStatus("PARSED");
                         doc.setParsedTextPath(parsedPath);
                         doc.setContentPreview(preview);
-                        doc.setCharCount(content.length());
+                        doc.setCharCount(finalContent != null ? finalContent.length() : 0);
                         documentRepository.save(doc);
                     }
                 });
-                
-                log.info("Parsing completed for document: {}, content length: {}", documentIdFinal, content.length());
-                
-                // 解析成功后自动触发向量化
-                triggerVectorizationInternal(documentIdFinal, content);
-                
+
+                log.info("Parsing completed for document: {}, content length: {}", documentIdFinal, content != null ? content.length() : 0);
+
+                // 根据参数决定是否触发向量化
+                if (shouldVectorize && content != null) {
+                    triggerVectorizationInternal(documentIdFinal, content);
+                }
+
             } catch (Exception e) {
                 log.error("Parsing CRITICAL FAILURE for document: " + documentIdFinal, e);
                 try {
+                    String errorMsg = "解析异常: " + e.getMessage();
                     transactionTemplate.executeWithoutResult(status -> {
                         KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
                         if (doc != null) {
                             doc.setParseStatus("FAILED");
+                            doc.setContentPreview(errorMsg.length() > 500 ? errorMsg.substring(0, 500) : errorMsg);
+                            doc.setCharCount(errorMsg.length());
                             documentRepository.save(doc);
                         }
                     });
@@ -430,7 +519,7 @@ public class DocumentManageService {
         
         // 如果未解析，先触发解析
         if (!"PARSED".equals(document.getParseStatus())) {
-            triggerParsing(documentId);
+            triggerParsing(documentId, true);
             return document;
         }
 
@@ -887,24 +976,29 @@ public class DocumentManageService {
         result.put("mediaType", mediaType);
         result.put("id", doc.getId());
 
-        // 优先读取解析后的文件
-        if (doc.getParsedPath() != null && Files.exists(Paths.get(doc.getParsedPath()))) {
+        // 优先读取解析后的文件 (parsedTextPath)
+        if (doc.getParsedTextPath() != null && Files.exists(Paths.get(doc.getParsedTextPath()))) {
             try {
-                String content = Files.readString(Paths.get(doc.getParsedPath()));
+                String content = Files.readString(Paths.get(doc.getParsedTextPath()));
                 result.put("text", content);
                 result.put("charCount", content.length());
             } catch (IOException e) {
                 log.warn("Failed to read parsed content: {}", e.getMessage());
                 // Fallback to content preview
-                result.put("text", doc.getContentPreview());
+                result.put("text", doc.getContentPreview() != null ? doc.getContentPreview() : "");
             }
         } else {
             // Fallback to original content extraction
             try {
                 String content = readFileContent(doc);
-                result.put("text", content);
+                if (content != null) {
+                    result.put("text", content);
+                } else {
+                    // readFileContent 不支持图片类型，fallback 到 contentPreview
+                    result.put("text", doc.getContentPreview() != null ? doc.getContentPreview() : "");
+                }
             } catch (IOException e) {
-                result.put("text", doc.getContentPreview());
+                result.put("text", doc.getContentPreview() != null ? doc.getContentPreview() : "");
             }
         }
 

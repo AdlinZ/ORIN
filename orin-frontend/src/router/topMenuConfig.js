@@ -142,6 +142,11 @@ export const TOP_MENU_CONFIG = [
                 title: '知识库配置',
                 path: ROUTES.CONTROL.KNOWLEDGE_CONFIG,
                 icon: 'Collection'
+            },
+            {
+                title: '通知渠道',
+                path: ROUTES.CONTROL.NOTIFICATION_CHANNELS,
+                icon: 'Message'
             }
         ]
     }

@@ -25,9 +25,13 @@ public class SysUser {
     private String address;
     private String phone;
     private String status; // ENABLED, DISABLED
+    private String role; // ROLE_ADMIN, ROLE_USER
 
     @Column(name = "create_time")
     private LocalDateTime createTime;
+
+    @Column(name = "last_login_time")
+    private LocalDateTime lastLoginTime;
 
     @PrePersist
     protected void onCreate() {
@@ -37,6 +41,11 @@ public class SysUser {
     }
 
     public Long getUserId() {
+        return userId;
+    }
+
+    // 为 Spring Data JPA 分页排序提供 id 别名
+    public Long getId() {
         return userId;
     }
 
@@ -116,11 +125,27 @@ public class SysUser {
         this.status = status;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     public LocalDateTime getCreateTime() {
         return createTime;
     }
 
     public void setCreateTime(LocalDateTime createTime) {
         this.createTime = createTime;
+    }
+
+    public LocalDateTime getLastLoginTime() {
+        return lastLoginTime;
+    }
+
+    public void setLastLoginTime(LocalDateTime lastLoginTime) {
+        this.lastLoginTime = lastLoginTime;
     }
 }

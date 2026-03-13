@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,10 @@ public class AuthService {
             SysUser user = userOpt.get();
 
             if (passwordEncoder.matches(password, user.getPassword())) {
+                // 更新最后登录时间
+                user.setLastLoginTime(LocalDateTime.now());
+                userRepository.save(user);
+
                 // 加载用户角色
                 List<String> roles = userRoleService.getUserRoleCodes(user.getUserId());
 

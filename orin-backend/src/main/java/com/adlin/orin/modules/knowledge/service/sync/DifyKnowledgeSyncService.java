@@ -185,7 +185,7 @@ public class DifyKnowledgeSyncService {
                         .fileType(difyDoc.getType())
                         .vectorStatus("PENDING")
                         .chunkCount(0)
-                        .createdAt(LocalDateTime.now())
+                        .uploadTime(LocalDateTime.now())
                         .build();
                 documentRepository.save(doc);
                 

@@ -273,3 +273,13 @@ export const parseText = (file) => {
         headers: { 'Content-Type': 'multipart/form-data' }
     });
 };
+
+// ==================== 语义联想 ====================
+
+export const getSemanticKeywords = (params) => {
+    return request.get('/knowledge/semantic/keywords', { params });
+};
+
+export const getSearchSuggestions = (keyword, limit = 10) => {
+    return request.get('/knowledge/semantic/search-suggest', { params: { keyword, limit } });
+};

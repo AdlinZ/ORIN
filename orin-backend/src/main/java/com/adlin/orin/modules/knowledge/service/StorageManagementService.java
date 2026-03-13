@@ -48,6 +48,13 @@ public class StorageManagementService {
     }
 
     /**
+     * 获取元数据存储目录
+     */
+    public Path getMetaPath(String knowledgeBaseId) {
+        return getKnowledgeBasePath(knowledgeBaseId).resolve("meta");
+    }
+
+    /**
      * 根据文件类型获取具体的子目录
      */
     public Path getDataTypePath(String knowledgeBaseId, String fileType) {
@@ -61,15 +68,20 @@ public class StorageManagementService {
     public void initializeKnowledgeBase(String knowledgeBaseId) throws IOException {
         Path kbPath = getKnowledgeBasePath(knowledgeBaseId);
 
-        // 创建目录结构
+        // 创建目录结构：data/, parsed/, meta/
         Files.createDirectories(kbPath);
         Files.createDirectories(getDataPath(knowledgeBaseId));
         Files.createDirectories(getParsedPath(knowledgeBaseId));
+        Files.createDirectories(getMetaPath(knowledgeBaseId));
 
         // 创建子目录
         for (String type : new String[]{"pdf", "images", "audio", "video", "text"}) {
             Files.createDirectories(getDataPath(knowledgeBaseId).resolve(type));
         }
+
+        // 创建 meta 子目录（用于存储索引文件信息、版本历史等）
+        Files.createDirectories(getMetaPath(knowledgeBaseId).resolve("index"));
+        Files.createDirectories(getMetaPath(knowledgeBaseId).resolve("history"));
 
         log.info("Initialized storage for knowledge base: {}", knowledgeBaseId);
     }
@@ -138,6 +150,20 @@ public class StorageManagementService {
      */
     public Path getParsedFilePath(String knowledgeBaseId, String documentId, String fileType) {
         return getParsedPath(knowledgeBaseId).resolve(documentId + ".txt");
+    }
+
+    /**
+     * 获取索引元数据文件路径
+     */
+    public Path getIndexMetaPath(String knowledgeBaseId, String documentId) {
+        return getMetaPath(knowledgeBaseId).resolve("index").resolve(documentId + ".json");
+    }
+
+    /**
+     * 获取版本历史文件路径
+     */
+    public Path getHistoryMetaPath(String knowledgeBaseId, String documentId) {
+        return getMetaPath(knowledgeBaseId).resolve("history").resolve(documentId + ".json");
     }
 
     /**

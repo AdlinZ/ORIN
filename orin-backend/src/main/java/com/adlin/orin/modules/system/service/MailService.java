@@ -1,13 +1,18 @@
 package com.adlin.orin.modules.system.service;
 
-import lombok.RequiredArgsConstructor;
+import com.adlin.orin.modules.system.entity.MailConfigEntity;
+import com.adlin.orin.modules.system.entity.MailSendLog;
+import com.adlin.orin.modules.system.repository.MailConfigRepository;
+import com.adlin.orin.modules.system.repository.MailSendLogRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Random;
 import java.util.concurrent.Executors;
@@ -19,16 +24,20 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MailService {
 
     private final JavaMailSender mailSender;
+    private final MailConfigRepository mailConfigRepository;
+    private final MailSendLogRepository mailSendLogRepository;
+    private final RestTemplate restTemplate;
 
     @Value("${spring.mail.username:}")
     private String fromEmail;
 
     @Value("${app.name:ORIN}")
     private String appName;
+
+    private static final String MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
 
     // 验证码缓存 (email -> code)
     private final Map<String, VerificationCode> codeCache = new ConcurrentHashMap<>();
@@ -37,6 +46,23 @@ public class MailService {
     
     private static final int CODE_EXPIRE_MINUTES = 5;
     private static final int MAX_ATTEMPTS = 5;
+
+    public MailService(JavaMailSender mailSender,
+                       MailConfigRepository mailConfigRepository,
+                       MailSendLogRepository mailSendLogRepository,
+                       RestTemplate restTemplate) {
+        this.mailSender = mailSender;
+        this.mailConfigRepository = mailConfigRepository;
+        this.mailSendLogRepository = mailSendLogRepository;
+        this.restTemplate = restTemplate;
+    }
+
+    /**
+     * 获取当前邮件配置
+     */
+    private MailConfigEntity getMailConfig() {
+        return mailConfigRepository.findAll().stream().findFirst().orElse(null);
+    }
 
     /**
      * 发送验证码
@@ -84,19 +110,122 @@ public class MailService {
      * 发送告警通知（支持多个收件人）
      */
     public boolean sendAlertEmail(String[] toArr, String subject, String content) {
+        MailConfigEntity config = getMailConfig();
+        String recipients = String.join(",", toArr);
+        String fullSubject = "[" + appName + " 告警] " + subject;
+
+        // 创建日志记录
+        MailSendLog logEntry = new MailSendLog();
+        logEntry.setSubject(fullSubject);
+        logEntry.setRecipients(recipients);
+        logEntry.setContent(content);
+        logEntry.setMailerType(config != null ? config.getMailerType() : "smtp");
+
+        boolean success = false;
+        String errorMessage = null;
+
+        if (config != null && config.getEnabled() != null && config.getEnabled()) {
+            if ("mailersend".equals(config.getMailerType())) {
+                // MailerSend 批量发送
+                success = sendAlertEmailViaMailerSend(toArr, subject, content, config);
+            }
+        }
+
+        // 默认 SMTP 发送
+        if (!success) {
+            try {
+                SimpleMailMessage message = new SimpleMailMessage();
+                String from = config != null && config.getFromEmail() != null
+                    ? config.getFromEmail() : fromEmail;
+                String fromName = config != null && config.getFromName() != null
+                    ? config.getFromName() : appName;
+
+                message.setFrom(fromName + " <" + from + ">");
+                message.setTo(toArr);
+                message.setSubject(fullSubject);
+                message.setText(content);
+                message.setSentDate(new java.util.Date());
+
+                mailSender.send(message);
+                success = true;
+                log.info("告警邮件发送成功: {}", recipients);
+            } catch (Exception e) {
+                errorMessage = e.getMessage();
+                log.error("告警邮件发送失败", e);
+            }
+        }
+
+        // 记录日志
+        logEntry.setStatus(success ? MailSendLog.STATUS_SUCCESS : MailSendLog.STATUS_FAILED);
+        logEntry.setErrorMessage(errorMessage);
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(toArr);
-            message.setSubject("[" + appName + " 告警] " + subject);
-            message.setText(content);
-            message.setSentDate(new java.util.Date());
-            
-            mailSender.send(message);
-            log.info("告警邮件发送成功: {}", String.join(",", toArr));
-            return true;
+            mailSendLogRepository.save(logEntry);
         } catch (Exception e) {
-            log.error("告警邮件发送失败", e);
+            log.error("保存邮件日志失败", e);
+        }
+
+        return success;
+    }
+
+    /**
+     * 通过 MailerSend 发送告警邮件（批量）
+     */
+    private boolean sendAlertEmailViaMailerSend(String[] toArr, String subject, String content, MailConfigEntity config) {
+        try {
+            String apiKey = config.getApiKey();
+            String fromEmail = config.getFromEmail();
+            String fromName = config.getFromName();
+
+            if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
+                log.warn("MailerSend配置不完整，跳过发送");
+                return false;
+            }
+
+            Map<String, Object> requestBody = new HashMap<>();
+
+            // 发件人
+            Map<String, String> from = new HashMap<>();
+            from.put("email", fromEmail);
+            if (fromName != null && !fromName.isEmpty()) {
+                from.put("name", fromName);
+            }
+            requestBody.put("from", from);
+
+            // 收件人（批量）
+            List<Map<String, String>> toList = new ArrayList<>();
+            for (String to : toArr) {
+                Map<String, String> recipient = new HashMap<>();
+                recipient.put("email", to);
+                toList.add(recipient);
+            }
+            requestBody.put("to", toList);
+
+            // 主题和内容
+            requestBody.put("subject", "[" + appName + " 告警] " + subject);
+            requestBody.put("text", content);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + apiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                MAILERSEND_API_URL,
+                HttpMethod.POST,
+                entity,
+                String.class
+            );
+
+            if (response.getStatusCode() == HttpStatus.ACCEPTED) {
+                log.info("MailerSend告警邮件发送成功: {}", String.join(",", toArr));
+                return true;
+            } else {
+                log.error("MailerSend告警邮件发送失败: {}, status: {}", String.join(",", toArr), response.getStatusCode());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("MailerSend告警邮件发送异常: {}", String.join(",", toArr), e);
             return false;
         }
     }
@@ -126,24 +255,109 @@ public class MailService {
      * 发送邮件
      */
     private boolean sendEmail(String to, String subject, String content) {
-        try {
-            if (fromEmail == null || fromEmail.isEmpty()) {
-                log.warn("邮件服务未配置，跳过发送");
-                return false;
+        MailConfigEntity config = getMailConfig();
+
+        // 如果有数据库配置，优先使用数据库配置
+        if (config != null && config.getEnabled() != null && config.getEnabled()) {
+            if ("mailersend".equals(config.getMailerType())) {
+                return sendEmailViaMailerSend(to, subject, content, config);
+            } else {
+                return sendEmailViaSmtp(to, subject, content, config);
             }
-            
+        }
+
+        // 否则使用配置文件
+        if (fromEmail == null || fromEmail.isEmpty()) {
+            log.warn("邮件服务未配置，跳过发送");
+            return false;
+        }
+
+        return sendEmailViaSmtp(to, subject, content, null);
+    }
+
+    /**
+     * 通过 SMTP 发送邮件
+     */
+    private boolean sendEmailViaSmtp(String to, String subject, String content, MailConfigEntity config) {
+        try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
+            String from = config != null ? config.getFromEmail() : fromEmail;
+            String fromName = config != null ? config.getFromName() : appName;
+
+            message.setFrom(fromName + " <" + from + ">");
             message.setTo(to);
             message.setSubject(subject);
             message.setText(content);
             message.setSentDate(new java.util.Date());
-            
+
             mailSender.send(message);
-            log.info("邮件发送成功: {}", to);
+            log.info("SMTP邮件发送成功: {}", to);
             return true;
         } catch (Exception e) {
-            log.error("邮件发送失败: {}", to, e);
+            log.error("SMTP邮件发送失败: {}", to, e);
+            return false;
+        }
+    }
+
+    /**
+     * 通过 MailerSend API 发送邮件
+     */
+    private boolean sendEmailViaMailerSend(String to, String subject, String content, MailConfigEntity config) {
+        try {
+            String apiKey = config.getApiKey();
+            String fromEmail = config.getFromEmail();
+            String fromName = config.getFromName();
+
+            if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
+                log.warn("MailerSend配置不完整，跳过发送");
+                return false;
+            }
+
+            // 构建请求体
+            Map<String, Object> requestBody = new HashMap<>();
+
+            // 发件人
+            Map<String, String> from = new HashMap<>();
+            from.put("email", fromEmail);
+            if (fromName != null && !fromName.isEmpty()) {
+                from.put("name", fromName);
+            }
+            requestBody.put("from", from);
+
+            // 收件人
+            List<Map<String, String>> toList = new ArrayList<>();
+            Map<String, String> recipient = new HashMap<>();
+            recipient.put("email", to);
+            toList.add(recipient);
+            requestBody.put("to", toList);
+
+            // 主题和内容
+            requestBody.put("subject", subject);
+            requestBody.put("text", content);
+
+            // 设置请求头
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + apiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                MAILERSEND_API_URL,
+                HttpMethod.POST,
+                entity,
+                String.class
+            );
+
+            if (response.getStatusCode() == HttpStatus.ACCEPTED) {
+                log.info("MailerSend邮件发送成功: {}", to);
+                return true;
+            } else {
+                log.error("MailerSend邮件发送失败: {}, status: {}", to, response.getStatusCode());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("MailerSend邮件发送异常: {}", to, e);
             return false;
         }
     }

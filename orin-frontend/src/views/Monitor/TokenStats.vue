@@ -544,24 +544,10 @@ const formatToken = (num) => {
 
 const getHeatmapColor = (value, max) => {
   const isDark = document.documentElement.classList.contains('dark');
-  if (value === 0) return isDark ? 'rgba(38, 255, 223, 0.05)' : 'var(--orin-primary-soft)';
+  if (value === 0) return isDark ? 'rgba(var(--orin-primary-rgb), 0.05)' : 'var(--orin-primary-soft)';
   
-  const intensity = (value / max);
-  
-  if (isDark) {
-    // Dark mode: start from a deeper teal toward bright teal
-    // var(--orin-primary) is #26FFDF (38, 255, 223)
-    const r = Math.round(15 + (23 * intensity));
-    const g = Math.round(45 + (210 * intensity));
-    const b = Math.round(45 + (178 * intensity));
-    return `rgb(${r}, ${g}, ${b})`;
-  } else {
-    // Light mode: from light teal to strong teal (#00BFA5)
-    const r = Math.round(240 - (215 * intensity));
-    const g = Math.round(253 - (99 * intensity));
-    const b = Math.round(250 - (141 * intensity));
-    return `rgb(${r}, ${g}, ${b})`;
-  }
+  const intensity = Math.max(0.15, value / max);
+  return `rgba(var(--orin-primary-rgb), ${intensity})`;
 };
 
 const dailyChartRef = ref(null);
@@ -777,23 +763,23 @@ onUnmounted(() => {
 }
 
 .tokens-icon {
-  background: linear-gradient(135deg, #00BFA5 0%, #00897B 100%);
-  color: white;
+  background: var(--orin-primary-soft);
+  color: var(--orin-primary);
 }
 
 .latency-icon {
-  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
-  color: white;
+  background: var(--orin-primary-soft);
+  color: var(--orin-primary);
 }
 
 .cost-icon {
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  color: white;
+  background: var(--orin-primary-soft);
+  color: var(--orin-primary);
 }
 
 .sessions-icon {
-  background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);
-  color: white;
+  background: var(--orin-primary-soft);
+  color: var(--orin-primary);
 }
 
 .stat-content {
@@ -1029,8 +1015,8 @@ onUnmounted(() => {
   height: 100%;
 }
 .type-segment.output { background-color: var(--orin-primary); }
-.type-segment.input { background-color: #14B8A6; }
-.type-segment.cache-read { background-color: #26FFDF; }
+.type-segment.input { background-color: rgba(var(--orin-primary-rgb), 0.7); }
+.type-segment.cache-read { background-color: rgba(var(--orin-primary-rgb), 0.4); }
 
 .type-legend {
   display: flex;
@@ -1051,9 +1037,9 @@ onUnmounted(() => {
   height: 8px;
 }
 .dot.output { background-color: var(--orin-primary); }
-.dot.input { background-color: #14B8A6; }
-.dot.cache-write { background-color: #10b981; }
-.dot.cache-read { background-color: #26FFDF; }
+.dot.input { background-color: rgba(var(--orin-primary-rgb), 0.7); }
+.dot.cache-write { background-color: rgba(var(--orin-primary-rgb), 0.55); }
+.dot.cache-read { background-color: rgba(var(--orin-primary-rgb), 0.4); }
 
 .total-type-label {
   font-size: 13px;

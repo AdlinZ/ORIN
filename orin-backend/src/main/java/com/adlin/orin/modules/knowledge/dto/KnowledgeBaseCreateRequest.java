@@ -26,4 +26,15 @@ public class KnowledgeBaseCreateRequest {
 
     @Builder.Default
     private Boolean enabled = true;
+
+    // 检索配置（可选，不设置则使用系统默认）
+    private Integer chunkSize;
+    private Integer chunkOverlap;
+    private Integer topK;
+    private Double similarityThreshold;
+    private Double alpha;
+
+    // Rerank 配置
+    private Boolean enableRerank;
+    private String rerankModel;
 }

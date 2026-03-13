@@ -56,6 +56,16 @@ public interface VectorStoreProvider {
         return Map.of("exists", false, "vectorCount", -1L);
     }
 
+    /**
+     * Get vector data for a specific chunk
+     * @param kbId The knowledge base ID
+     * @param chunkId The chunk ID
+     * @return Map containing vector data and metadata, or null if not found
+     */
+    default Map<String, Object> getChunkVector(String kbId, String chunkId) {
+        return null;
+    }
+
     @lombok.Data
     @lombok.Builder
     @lombok.AllArgsConstructor

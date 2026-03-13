@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.workflow.engine.handler;
 
+import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class KnowledgeNodeHandler implements NodeHandler {
 
     private final RetrievalService retrievalService;
+    private final KnowledgeManageService knowledgeManageService;
 
     @Override
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) {
@@ -37,7 +39,36 @@ public class KnowledgeNodeHandler implements NodeHandler {
 
         log.info("KnowledgeNode executing: query='{}', kbId={}", query, kbId);
 
-        var results = retrievalService.hybridSearch(kbId, query, 4);
+        // 获取知识库的默认检索配置
+        Map<String, Object> kbConfig = knowledgeManageService.getRetrievalConfig(kbId);
+
+        // 使用知识库的 topK 配置，如果没有则默认 4
+        int topK = 4;
+        Double alpha = null;
+        Double threshold = null;
+        Boolean enableRerank = null;
+        String rerankModel = null;
+        if (kbConfig != null) {
+            if (kbConfig.containsKey("topK")) {
+                topK = (Integer) kbConfig.get("topK");
+            }
+            if (kbConfig.containsKey("alpha")) {
+                alpha = (Double) kbConfig.get("alpha");
+            }
+            if (kbConfig.containsKey("similarityThreshold")) {
+                threshold = (Double) kbConfig.get("similarityThreshold");
+            }
+            if (kbConfig.containsKey("enableRerank")) {
+                enableRerank = (Boolean) kbConfig.get("enableRerank");
+            }
+            if (kbConfig.containsKey("rerankModel")) {
+                rerankModel = (String) kbConfig.get("rerankModel");
+            }
+        }
+
+        // 如果启用了 Rerank，则传入 rerankModel
+        String finalRerankModel = (enableRerank != null && enableRerank && rerankModel != null) ? rerankModel : null;
+        var results = retrievalService.hybridSearch(kbId, query, topK, null, alpha, threshold, finalRerankModel);
 
         List<Map<String, Object>> docList = new ArrayList<>();
         StringBuilder contextBuilder = new StringBuilder();

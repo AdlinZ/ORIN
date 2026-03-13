@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import Cookies from 'js-cookie'
 import { isTokenExpired, getTokenRemainingTime, formatRemainingTime } from '@/utils/jwt'

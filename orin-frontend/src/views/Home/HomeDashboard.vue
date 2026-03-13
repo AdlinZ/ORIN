@@ -38,17 +38,17 @@
       <!-- LEFT: Telemetry -->
       <aside class="col-telemetry">
         <!-- Assets -->
-        <div class="premium-card clickable" @click="goToPage(ROUTES.APPLICATIONS.AGENTS)">
+        <div class="premium-card">
           <div class="card-glow"></div>
-          <h3 class="card-head">资产中枢 / ASSET_HUB<span class="head-line"></span></h3>
+          <h3 class="card-head clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">资产中枢 / ASSET_HUB<span class="head-line"></span></h3>
           <div class="asset-bubbles">
-            <div class="bubble-item">
+            <div class="bubble-item clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">
               <el-icon><Collection /></el-icon>
-              <div class="b-text"><span class="b-num">{{ summary.total_knowledge || 0 }}</span><span class="b-lbl">知识底座</span></div>
+              <div class="b-text"><span class="b-num">{{ summary.total_knowledge || 0 }}</span><span class="b-lbl">知识库数量</span></div>
             </div>
             <div class="bubble-item">
               <el-icon><Connection /></el-icon>
-              <div class="b-text"><span class="b-num">{{ summary.total_agents || 0 }}</span><span class="b-lbl">受控智能体</span></div>
+              <div class="b-text"><span class="b-num">{{ summary.total_documents || 0 }}</span><span class="b-lbl">文档总数</span></div>
             </div>
           </div>
         </div>
@@ -161,9 +161,10 @@
               <span class="sh-code">LIVE_FETCH_ACTIVE</span>
             </div>
             <div class="semantic-world">
-              <div 
-                v-for="(tag, idx) in intentTags" 
-                :key="tag.label" 
+              <div class="tags-container">
+                <div
+                v-for="(tag, idx) in intentTags"
+                :key="tag.label + keywordPage"
                 class="s-tag-v4"
                 :style="{
                   '--f-size': (tag.size + 2) + 'px',
@@ -173,6 +174,7 @@
                 }"
               >
                 #{{ tag.label }}
+              </div>
               </div>
             </div>
           </div>
@@ -263,6 +265,7 @@ import {
   getTokenDistribution,
   getServerHardwareTrend
 } from '@/api/monitor'
+import { getSemanticKeywords } from '@/api/knowledge'
 import { ROUTES } from '@/router/routes'
 import LineChart from '@/components/LineChart.vue'
 
@@ -290,8 +293,14 @@ const agents = ref([])
 const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0, gpuModel: '' })
 const recentLogs = ref([])
 const distribution = ref([])
+const intentTags = ref([])
+const allKeywords = ref([]) // 保存所有关键词
+const keywordPage = ref(0)
+const KEYWORDS_PER_PAGE = 15 // 每页显示数量
+let keywordInterval = null
 
-const intentTags = [
+// 静态后备标签（API失败时使用）
+const fallbackTags = [
   { label: '知识库检索', size: 14, opacity: 1, delay: 0.1, color: '#00BFA5' },
   { label: '语义理解', size: 11, opacity: 0.7, delay: 0.5, color: '#94a3b8' },
   { label: '逻辑推理', size: 13, opacity: 0.9, delay: 0.8, color: '#26FFDF' },
@@ -301,6 +310,43 @@ const intentTags = [
   { label: '跨库关联', size: 12, opacity: 0.8, delay: 0.4, color: '#00BFA5' },
   { label: '用户建模', size: 11, opacity: 0.6, delay: 1.8, color: '#94a3b8' }
 ]
+
+// 获取语义关键词
+const fetchKeywords = async () => {
+  try {
+    const res = await getSemanticKeywords({ limit: 30 })
+    if (res && res.length > 0) {
+      // 转换后端数据格式以匹配前端展示
+      allKeywords.value = res.map((tag, idx) => ({
+        label: tag.label,
+        size: tag.size || 12,
+        opacity: tag.opacity || 0.8,
+        delay: tag.delay || (idx * 0.2),
+        color: tag.color || '#00BFA5'
+      }))
+      rotateKeywords()
+    } else {
+      allKeywords.value = fallbackTags
+      intentTags.value = fallbackTags
+    }
+  } catch (e) {
+    console.error('获取关键词失败，使用默认标签', e)
+    allKeywords.value = fallbackTags
+    intentTags.value = fallbackTags
+  }
+}
+
+// 轮换显示关键词
+const rotateKeywords = () => {
+  if (!allKeywords.value || allKeywords.value.length <= KEYWORDS_PER_PAGE) {
+    intentTags.value = allKeywords.value
+    return
+  }
+  const start = keywordPage.value * KEYWORDS_PER_PAGE
+  const end = start + KEYWORDS_PER_PAGE
+  intentTags.value = allKeywords.value.slice(start, end)
+  keywordPage.value = (keywordPage.value + 1) % Math.ceil(allKeywords.value.length / KEYWORDS_PER_PAGE)
+}
 
 const formatK = (v) => {
   if (!v) return '0'
@@ -407,13 +453,18 @@ const fetchData = async () => {
 
 watch([chartType, currentRange, hardwareMetric], fetchTrend)
 onMounted(() => {
-  updateTime(); fetchData();
+  updateTime(); fetchData(); fetchKeywords();
   setInterval(updateTime, 1000);
   setInterval(fetchData, 10000);
+  // 每5分钟刷新关键词
+  setInterval(fetchKeywords, 5 * 60 * 1000);
+  // 每8秒轮换显示下一批关键词
+  keywordInterval = setInterval(rotateKeywords, 8000);
   window.addEventListener('page-refresh', fetchData);
 })
 onUnmounted(() => {
   window.removeEventListener('page-refresh', fetchData);
+  if (keywordInterval) clearInterval(keywordInterval);
 })
 </script>
 
@@ -645,13 +696,21 @@ onUnmounted(() => {
 .sh-txt { font-size: 12px; font-weight: 800; color: var(--orin-primary); }
 .sh-code { font-size: 10px; font-weight: 900; color: #cbd5e1; opacity: 0.6; }
 
-.semantic-world { flex: 1; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-content: center; }
+.semantic-world { flex: 1; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; align-content: flex-start; padding: 8px; max-height: 100px; overflow: hidden; position: relative; }
+.tags-container { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.semantic-world::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 20px; background: linear-gradient(transparent, #f8fafc); pointer-events: none; }
+.theme-dark .semantic-world::after { background: linear-gradient(transparent, rgba(19,23,31,0.85)); }
 .s-tag-v4 {
   font-size: var(--f-size); opacity: var(--op); color: var(--c);
   background: #fff; border: 1px solid rgba(0,0,0,0.06);
-  padding: 6px 16px; border-radius: 20px; font-weight: 700;
+  padding: 4px 12px; border-radius: 16px; font-weight: 600;
   box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-  animation: sFloat 4s ease-in-out infinite;
+  animation: fadeInUp 0.4s ease-out forwards, sFloat 4s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: var(--op); transform: translateY(0); }
 }
 .theme-dark .s-tag-v4 { background: rgba(255,255,255,0.05); border-color: transparent; }
 

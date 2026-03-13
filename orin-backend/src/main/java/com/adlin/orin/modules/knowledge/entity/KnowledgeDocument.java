@@ -176,13 +176,6 @@ public class KnowledgeDocument {
     private String mediaType;
 
     /**
-     * 解析状态: PENDING/PARSING/SUCCESS/FAILED
-     */
-    @Column(name = "parse_status", length = 20)
-    @Builder.Default
-    private String parseStatus = "PENDING";
-
-    /**
      * 解析后文本路径
      */
     @Column(name = "parsed_path", length = 500)

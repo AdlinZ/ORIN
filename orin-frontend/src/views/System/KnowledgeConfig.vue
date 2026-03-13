@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="知识库配置"
-      description="配置向量数据库、嵌入模型及知识库核心参数"
+      title="默认知识库配置"
+      description="配置默认向量数据库、嵌入模型及知识库核心参数"
       icon="Collection"
     >
       <template #actions>
@@ -390,15 +390,15 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
         </el-row>
       </el-tab-pane>
 
-      <!-- 知识库全局配置 Tab -->
-      <el-tab-pane label="知识库全局配置" name="global">
+      <!-- 默认知识库配置 Tab -->
+      <el-tab-pane label="默认知识库配置" name="global">
         <el-row :gutter="24">
           <el-col :lg="16">
             <el-card class="premium-card">
               <template #header>
                 <div class="card-header">
                   <el-icon><Setting /></el-icon>
-                  <span>知识库基础配置</span>
+                  <span>默认知识库基础配置</span>
                 </div>
               </template>
 
@@ -408,22 +408,22 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                   <p class="form-tip">全局唯一的 Collection 名称，用于存储所有知识库的向量数据</p>
                 </el-form-item>
 
-                <el-form-item label="Chunk 最大字符数">
+                <el-form-item label="默认 Chunk 最大字符数">
                   <el-input-number v-model="config.chunkSize" :min="100" :max="2000" :step="100" style="width: 200px" />
                   <p class="form-tip">文档分块时每个 Chunk 的最大字符数，默认 500</p>
                 </el-form-item>
 
-                <el-form-item label="Chunk 重叠字符数">
+                <el-form-item label="默认 Chunk 重叠字符数">
                   <el-input-number v-model="config.chunkOverlap" :min="0" :max="500" :step="50" style="width: 200px" />
                   <p class="form-tip">相邻 Chunk 之间的重叠字符数，用于保持上下文连贯性，默认 50</p>
                 </el-form-item>
 
-                <el-form-item label="检索返回结果数 (Top K)">
+                <el-form-item label="默认检索返回结果数 (Top K)">
                   <el-input-number v-model="config.defaultTopK" :min="1" :max="20" :step="1" style="width: 200px" />
                   <p class="form-tip">向量相似度搜索返回的最大结果数，默认 5</p>
                 </el-form-item>
 
-                <el-form-item label="相似度阈值">
+                <el-form-item label="默认相似度阈值">
                   <el-slider v-model="config.similarityThreshold" :min="0" :max="1" :step="0.05" show-stops :format-tooltip="(val) => (val * 100).toFixed(0) + '%'" />
                   <p class="form-tip">只有相似度高于此阈值的文档才会被返回，默认 0.7</p>
                 </el-form-item>
@@ -486,6 +486,57 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
           </el-col>
 
           <el-col :lg="8">
+            <!-- AI 生成知识库名称和描述 -->
+            <el-card class="premium-card margin-bottom-lg">
+              <template #header>
+                <div class="card-header">
+                  <el-icon><MagicStick /></el-icon>
+                  <span>AI 生成知识库描述</span>
+                </div>
+              </template>
+              <div class="ai-generate-form">
+                <el-form label-position="top" size="small">
+                  <el-form-item label="选择知识库">
+                    <el-select v-model="selectedKB" placeholder="选择知识库" style="width: 100%" filterable>
+                      <el-option
+                        v-for="kb in knowledgeBases"
+                        :key="kb.kbId"
+                        :label="kb.name"
+                        :value="kb.kbId"
+                      >
+                        <span>{{ kb.name }}</span>
+                        <span style="float: right; color: #8492a6; font-size: 12px">{{ kb.docCount || 0 }} 文档</span>
+                      </el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="选择 AI 模型">
+                    <el-select v-model="selectedKBModel" placeholder="选择模型" style="width: 100%" filterable>
+                      <el-option
+                        v-for="model in kbModels"
+                        :key="model.id"
+                        :label="model.name"
+                        :value="model.id"
+                      >
+                        <span>{{ model.name }}</span>
+                        <span style="float: right; color: #8492a6; font-size: 12px">{{ model.provider }}</span>
+                      </el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-button
+                    type="primary"
+                    :loading="generatingDesc"
+                    :disabled="!selectedKB || !selectedKBModel"
+                    style="width: 100%"
+                    @click="generateKBNameAndDesc"
+                  >
+                    生成名称和描述
+                  </el-button>
+                </el-form>
+              </div>
+              <p class="form-tip" style="margin-top: 12px">AI 将根据知识库中的文档内容自动生成名称和描述</p>
+            </el-card>
+
+            <!-- 知识库统计 -->
             <el-card class="premium-card">
               <template #header>
                 <div class="card-header">
@@ -596,6 +647,82 @@ const rerankModels = ref([]);
 const chatModelsForConfig = ref([]);
 const testingDescModel = ref(false);
 const apiKeys = ref([]);
+
+// AI 生成知识库名称和描述相关
+const knowledgeBases = ref([]); // 知识库列表
+const selectedKB = ref(null); // 选中的知识库
+const generatingDesc = ref(false); // 正在生成
+const kbModels = ref([]); // 可用于生成描述的模型列表
+const selectedKBModel = ref(''); // 选中的模型
+
+// 加载知识库列表
+const loadKnowledgeBases = async () => {
+  try {
+    const res = await request.get('/knowledge/list');
+    knowledgeBases.value = res || [];
+  } catch (e) {
+    console.error('加载知识库列表失败:', e);
+    knowledgeBases.value = [];
+  }
+};
+
+// 加载可用于生成描述的模型列表
+const loadKBModels = async () => {
+  try {
+    const res = await request.get('/models');
+    if (res && Array.isArray(res)) {
+      // 筛选 CHAT 或 LLM 类型的模型
+      kbModels.value = res.filter(m =>
+        m.type === 'CHAT' || m.type === 'LLM' || m.type === 'chat' || m.type === 'llm' || !m.type
+      ).map(m => ({
+        id: m.modelId || m.modelName || m.name,
+        name: m.name || m.modelName || m.modelId,
+        provider: m.provider || ''
+      }));
+      if (kbModels.value.length > 0 && !selectedKBModel.value) {
+        selectedKBModel.value = kbModels.value[0].id;
+      }
+    }
+  } catch (e) {
+    console.error('加载模型列表失败:', e);
+  }
+};
+
+// AI 生成知识库名称和描述
+const generateKBNameAndDesc = async () => {
+  if (!selectedKB.value) {
+    ElMessage.warning('请先选择知识库');
+    return;
+  }
+  if (!selectedKBModel.value) {
+    ElMessage.warning('请先选择 AI 模型');
+    return;
+  }
+  generatingDesc.value = true;
+  try {
+    const res = await request.post(`/knowledge/${selectedKB.value}/generate-description`, {
+      model: selectedKBModel.value
+    });
+    console.log('Generate description response:', res);
+    if (res.title || res.description) {
+      // 更新知识库名称和描述
+      await request.put(`/knowledge/${selectedKB.value}`, {
+        name: res.title || knowledgeBases.value.find(kb => kb.kbId === selectedKB.value)?.name,
+        description: res.description || ''
+      });
+      ElMessage.success(res.title ? '名称和描述生成成功' : '描述生成成功');
+      // 刷新知识库列表
+      await loadKnowledgeBases();
+    } else {
+      ElMessage.warning('AI 未返回内容');
+    }
+  } catch (e) {
+    console.error('生成失败:', e);
+    ElMessage.error('生成失败: ' + (e.message || '未知错误'));
+  } finally {
+    generatingDesc.value = false;
+  }
+};
 
 // Embedding Provider 列表
 const embeddingProviders = [
@@ -1077,24 +1204,6 @@ const loadKnowledgeStats = async () => {
     loadingStats.value = false;
   }
 };
-    } else {
-      knowledgeStats.value = {
-        totalKBs: 0,
-        totalDocs: 0,
-        totalVectors: 0
-      };
-    }
-  } catch (e) {
-    console.error('加载统计失败:', e);
-    knowledgeStats.value = {
-      totalKBs: 0,
-      totalDocs: 0,
-      totalVectors: 0
-    };
-  } finally {
-    loadingStats.value = false;
-  }
-};
 
 onMounted(() => {
   loadConfig();
@@ -1106,6 +1215,9 @@ onMounted(() => {
   setTimeout(() => {
     loadKnowledgeStats();
   }, 1000);
+  // 加载知识库列表和模型（用于 AI 生成名称描述）
+  loadKnowledgeBases();
+  loadKBModels();
 });
 </script>
 
@@ -1250,5 +1362,9 @@ onMounted(() => {
   font-weight: 700;
   font-size: 18px;
   color: var(--orin-primary);
+}
+
+.ai-generate-form {
+  padding: 8px 0;
 }
 </style>

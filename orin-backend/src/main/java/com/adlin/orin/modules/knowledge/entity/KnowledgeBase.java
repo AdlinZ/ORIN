@@ -74,6 +74,35 @@ public class KnowledgeBase {
     @Builder.Default
     private String asrModel = "base";
 
+    @Column(name = "rich_text_enabled")
+    @Builder.Default
+    private Boolean richTextEnabled = true;
+
+    // ========== 检索配置 ==========
+    @Column(name = "chunk_size")
+    private Integer chunkSize; // null 表示使用系统默认
+
+    @Column(name = "chunk_overlap")
+    private Integer chunkOverlap; // null 表示使用系统默认
+
+    @Column(name = "top_k")
+    private Integer topK; // null 表示使用系统默认
+
+    @Column(name = "similarity_threshold")
+    private Double similarityThreshold; // null 表示使用系统默认
+
+    @Column(name = "alpha")
+    @Builder.Default
+    private Double alpha = 0.7; // 向量检索权重，1-alpha 为关键词权重，默认 0.7
+
+    // Rerank 配置
+    @Column(name = "enable_rerank")
+    @Builder.Default
+    private Boolean enableRerank = false; // 是否启用 Rerank
+
+    @Column(name = "rerank_model")
+    private String rerankModel; // Rerank 模型名称，null 表示使用系统默认
+
     /**
      * Store type-specific configuration (JSON).
      * e.g., SQL Connection String, Graph DB Endpoint, or custom Tool definitions.

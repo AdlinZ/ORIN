@@ -4,6 +4,26 @@
 */
 
 :root {
+  /* ==================== Glassmorphism & Soft Gradients ==================== */
+  /* Subtle gradient backgrounds */
+  --orin-gradient-soft: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+  --orin-gradient-warm: linear-gradient(135deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%);
+  --orin-gradient-cool: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%);
+  --orin-gradient-soft-lg: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.7) 100%);
+
+  /* Glass effect variables */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --glass-blur: blur(16px);
+  --glass-blur-strong: blur(24px);
+
+  /* Subtle ambient light effects */
+  --ambient-glow-primary: radial-gradient(ellipse at top left, rgba(0, 191, 165, 0.08) 0%, transparent 50%);
+  --ambient-glow-secondary: radial-gradient(ellipse at top right, rgba(99, 102, 241, 0.06) 0%, transparent 50%);
+  --ambient-glow-accent: radial-gradient(ellipse at bottom, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+
   /* ==================== Core Color Palette (Jadeite Cyan) ==================== */
   /* Primary - 2026 Jadeite Cyan */
   --orin-primary: #00BFA5;
@@ -219,11 +239,13 @@ html.dark {
   --text-tertiary: #64748b;
 }
 
-/* Dark mode el-card overrides */
+/* Dark mode el-card overrides - Enhanced Glassmorphism */
 html.dark .el-card {
-  background: rgba(19, 36, 36, 0.8) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  background: rgba(10, 22, 22, 0.75) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  border-color: rgba(38, 255, 223, 0.15) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 html.dark .el-card.is-hover-shadow:hover {
@@ -281,7 +303,12 @@ body {
   font-family: var(--font-body);
   font-size: var(--text-base);
   line-height: 1.6;
-  background: var(--neutral-bg);
+  background:
+    var(--ambient-glow-primary),
+    var(--ambient-glow-secondary),
+    var(--ambient-glow-accent),
+    var(--neutral-bg);
+  background-attachment: fixed;
   color: var(--neutral-gray-700);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -409,13 +436,14 @@ code {
   border-color: var(--error-color) !important;
 }
 
-/* Cards */
+/* Cards - Glassmorphism Style */
 .el-card {
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid var(--glass-border) !important;
   border-radius: 20px !important;
-  background: var(--orin-bg-white) !important;
-  backdrop-filter: var(--orin-glass);
-  box-shadow: var(--shadow-sm) !important;
+  background: var(--glass-bg) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  box-shadow: var(--glass-shadow), var(--shadow-sm) !important;
   transition: all var(--transition-base);
   overflow: hidden;
 }
@@ -511,6 +539,7 @@ code {
 /* Table loading overlay */
 .el-table .el-loading-mask {
   background-color: rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
 
@@ -824,13 +853,15 @@ code {
   animation: amber-pulse 2s infinite;
 }
 
-/* Action Bar */
+/* Action Bar - Glassmorphism */
 .action-bar {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(248,250,252,0.75) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--neutral-gray-200);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
   margin-bottom: var(--spacing-lg);
   display: flex;
   justify-content: space-between;
@@ -839,16 +870,20 @@ code {
 }
 
 html.dark .action-bar {
-  background: rgba(17, 24, 39, 0.8);
+  background: linear-gradient(180deg, rgba(19, 36, 36, 0.85) 0%, rgba(10, 22, 22, 0.75) 100%);
+  border-color: rgba(38, 255, 223, 0.15);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
-/* Stats Card */
+/* Stats Card - Glassmorphism */
 .stats-card {
-  background: var(--neutral-white);
-  border: 1px solid var(--neutral-gray-200);
+  background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(248,250,252,0.7) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
   transition: all var(--transition-base);
 }
 

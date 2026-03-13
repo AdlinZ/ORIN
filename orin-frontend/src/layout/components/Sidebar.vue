@@ -103,9 +103,9 @@ import { useUserStore } from '@/stores/user'
 import Cookies from 'js-cookie'
 import { ElMessage } from 'element-plus'
 import { ROUTES, SIDEBAR_MENU_CONFIG } from '@/router/routes'
-import { 
+import {
   HomeFilled, User, SwitchButton, DArrowLeft, DArrowRight, Setting,
-  Box, Monitor, Collection, Setting as SettingIcon
+  Box, Monitor, Collection, Setting as SettingIcon, Message
 } from '@element-plus/icons-vue'
 
 const appStore = useAppStore()
@@ -145,51 +145,36 @@ const getIconComponent = (iconName) => {
     'Box': Box,
     'Monitor': Monitor,
     'Collection': Collection,
-    'Setting': SettingIcon
+    'Setting': SettingIcon,
+    'Message': Message
   }
   return iconMap[iconName] || Box
 }
 
 // 检查登录状态并更新用户信息
 const checkLoginStatus = () => {
-  const token = Cookies.get('orin_token')
-  if (token) {
-    if (userStore.userInfo) {
-      userInfo.name = userStore.userInfo.username || userStore.userInfo.nickname || '用户'
-      userInfo.avatar = userStore.userInfo.avatar || ''
-      if (userStore.roles && userStore.roles.length > 0) {
-        userInfo.role = roleNameMap[userStore.roles[0]] || userStore.roles[0]
-      } else {
-        userInfo.role = '用户'
-      }
+  // Rely directly on userStore state which is now reactive and correct
+  if (userStore.isLoggedIn && userStore.userInfo) {
+    userInfo.name = userStore.userInfo.nickname || userStore.userInfo.username || '用户'
+    userInfo.avatar = userStore.userInfo.avatar || ''
+    
+    if (userStore.roles && userStore.roles.length > 0) {
+      userInfo.role = roleNameMap[userStore.roles[0]] || userStore.roles[0]
     } else {
-      const storedUser = localStorage.getItem('orin_user')
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser)
-          userInfo.name = user.username || user.nickname || '用户'
-          userInfo.avatar = user.avatar || ''
-          const storedRoles = Cookies.get('orin_roles')
-          if (storedRoles) {
-            const roles = JSON.parse(storedRoles)
-            userInfo.role = roleNameMap[roles[0]] || roles[0] || '用户'
-          } else {
-            userInfo.role = '用户'
-          }
-        } catch (e) {
-          console.error('解析用户信息失败:', e)
-          userInfo.name = '用户'
-          userInfo.role = '用户'
-        }
-      } else {
-        userInfo.name = '用户'
-        userInfo.role = '用户'
-      }
+      userInfo.role = '用户'
     }
   } else {
-    userInfo.name = ''
-    userInfo.role = ''
-    userInfo.avatar = ''
+    // 尝试触发store的状态恢复
+    userStore.restoreFromCookies()
+    if (userStore.isLoggedIn && userStore.userInfo) {
+       userInfo.name = userStore.userInfo.nickname || userStore.userInfo.username || '用户'
+       userInfo.avatar = userStore.userInfo.avatar || ''
+       userInfo.role = (userStore.roles && userStore.roles.length > 0) ? (roleNameMap[userStore.roles[0]] || userStore.roles[0]) : '用户'
+    } else {
+       userInfo.name = ''
+       userInfo.role = ''
+       userInfo.avatar = ''
+    }
   }
 }
 
@@ -234,8 +219,11 @@ router.afterEach(() => {
   left: 0;
   top: 0;
   bottom: 0;
-  background-color: var(--neutral-white);
-  border-right: 1px solid var(--neutral-gray-200);
+  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(248,250,252,0.75) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.06);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1001;
   overflow: hidden;
@@ -367,12 +355,14 @@ router.afterEach(() => {
   background-color: rgba(100, 116, 139, 0.05);
 }
 
-/* User Section - fixed at bottom */
+/* User Section - fixed at bottom - Glassmorphism */
 .user-section {
   flex-shrink: 0;
   padding: 16px;
-  border-top: 1px solid var(--neutral-gray-200);
-  background-color: var(--neutral-white);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(248,250,252,0.5) 100%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   transition: all 0.3s;
 }
 
@@ -474,7 +464,7 @@ router.afterEach(() => {
   background-color: #fff1f0 !important;
 }
 
-/* Floating Toggle Button */
+/* Floating Toggle Button - Glassmorphism */
 .sidebar-toggle-btn {
   position: absolute;
   right: -12px;
@@ -482,8 +472,10 @@ router.afterEach(() => {
   transform: translateY(-50%);
   width: 24px;
   height: 48px;
-  background: var(--neutral-white);
-  border: 1px solid var(--neutral-gray-200);
+  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 0 8px 8px 0;
   display: flex;
   align-items: center;
@@ -491,7 +483,7 @@ router.afterEach(() => {
   cursor: pointer;
   opacity: 0;
   transition: all 0.3s;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.08);
   z-index: 10;
 }
 

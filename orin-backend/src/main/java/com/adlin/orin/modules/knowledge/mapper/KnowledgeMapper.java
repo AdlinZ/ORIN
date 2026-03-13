@@ -39,5 +39,7 @@ public interface KnowledgeMapper {
     @Mapping(target = "totalSizeMb", constant = "0.0")
     @Mapping(target = "syncTime", ignore = true)
     @Mapping(target = "configuration", ignore = true)
+    @Mapping(target = "type", ignore = true) // 由 service 层设置
+    @Mapping(target = "description", ignore = true) // 由 service 层设置
     KnowledgeBase toEntity(KnowledgeBaseCreateRequest request);
 }

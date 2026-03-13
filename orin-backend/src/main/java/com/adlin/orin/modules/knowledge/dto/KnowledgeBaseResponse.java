@@ -27,4 +27,15 @@ public class KnowledgeBaseResponse {
     private Integer documentCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // 检索配置
+    private Integer chunkSize;
+    private Integer chunkOverlap;
+    private Integer topK;
+    private Double similarityThreshold;
+    private Double alpha;
+
+    // Rerank 配置
+    private Boolean enableRerank;
+    private String rerankModel;
 }

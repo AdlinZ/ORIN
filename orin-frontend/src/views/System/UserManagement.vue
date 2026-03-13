@@ -286,7 +286,13 @@ const loadUsers = async () => {
       search: searchQuery.value
     })
     
-    users.value = res.data || []
+    // 映射后端字段到前端字段
+    users.value = (res.data || []).map(user => ({
+      ...user,
+      createdAt: user.createTime,
+      lastLogin: user.lastLoginTime || user.lastLogin,
+      status: user.status === 'ENABLED' ? 'active' : 'inactive'
+    }))
     totalUsers.value = res.total || 0
   } catch (error) {
     ElMessage.error('加载用户列表失败')

@@ -18,8 +18,8 @@
           repeatCount="indefinite"
           path="M5,20 Q50,5 95,20"
         />
-      </svg>
-      
+      </circle>
+
       <!-- Main path -->
       <path
         :d="path"

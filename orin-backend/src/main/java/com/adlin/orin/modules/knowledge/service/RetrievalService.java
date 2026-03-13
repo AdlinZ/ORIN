@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
  * 检索服务
  * 负责 Hybrid Search (向量检索 + 关键词检索)
  * 支持 Parent-Child Hierarchical Retrieval
+ * 支持 Rerank 重排序
  */
 @Service
 @Slf4j
@@ -21,7 +22,10 @@ public class RetrievalService {
     private final MilvusVectorService vectorService;
     private final KnowledgeDocumentChunkRepository chunkRepository;
     private final com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService;
+    private final RerankService rerankService;
 
+    // 关键词检索权重 (混合搜索时使用)
+    // 注意：向量检索分数是实际的cosine相似度(0-1)，关键词分数固定为0.3
     private static final double WEIGHT_KEYWORD = 0.3;
     private static final double WEIGHT_VECTOR = 0.7;
 
@@ -31,10 +35,12 @@ public class RetrievalService {
     public RetrievalService(
             MilvusVectorService vectorService,
             KnowledgeDocumentChunkRepository chunkRepository,
-            com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService) {
+            com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService,
+            RerankService rerankService) {
         this.vectorService = vectorService;
         this.chunkRepository = chunkRepository;
         this.visualAnalysisService = visualAnalysisService;
+        this.rerankService = rerankService;
     }
 
     /**
@@ -96,9 +102,27 @@ public class RetrievalService {
      */
     public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
             String embeddingModel) {
+        return hybridSearch(kbId, query, topK, embeddingModel, null, null, null);
+    }
+
+    public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
+            String embeddingModel, Double alpha, Double threshold) {
+        return hybridSearch(kbId, query, topK, embeddingModel, alpha, threshold, null);
+    }
+
+    public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
+            String embeddingModel, Double alpha, Double threshold, String rerankModel) {
+        // 使用前端传入的 alpha，默认为 0.7（语义权重）
+        double actualAlpha = alpha != null ? alpha : 0.7;
+        double actualThreshold = threshold != null ? threshold : 0.0;
+
+        log.info("HybridSearch: kbId={}, query={}, alpha={}, threshold={}, rerankModel={}",
+                kbId, query, actualAlpha, actualThreshold, rerankModel);
+
         // 1. 首先执行关键词检索（始终可用）
-        List<KnowledgeDocumentChunk> keywordChunks = keywordSearch(kbId, query, topK * 3);
-        log.info("HybridSearch: kbId={}, query={}, keywordResults.size={}", kbId, query, keywordChunks.size());
+        // 返回 Map.Entry，包含 chunk 和匹配词数
+        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, topK * 3);
+        log.info("HybridSearch: keywordResults.size={}", keywordResults.size());
 
         // 2. 尝试向量检索（可选增强）
         List<VectorStoreProvider.SearchResult> childResults = new ArrayList<>();
@@ -162,7 +186,7 @@ public class RetrievalService {
                 parentIds);
 
         // 4. Also include keyword-matched chunks (fallback)
-        log.info("Keyword search results: size={}", keywordChunks.size());
+        log.info("Keyword search results: size={}", keywordResults.size());
 
         // 5. Build final results with parent content (or child content if parent not found)
         List<VectorStoreProvider.SearchResult> finalResults = new ArrayList<>();
@@ -209,9 +233,11 @@ public class RetrievalService {
                 meta.put("source", parent.getSource());
 
                 // Use child content for matching, parent content for context
+                // Apply alpha weight to vector score
+                double weightedVectorScore = bestScore * actualAlpha;
                 VectorStoreProvider.SearchResult result = VectorStoreProvider.SearchResult.builder()
                         .content(parent.getContent()) // Return parent content for LLM context
-                        .score(bestScore)
+                        .score(weightedVectorScore)
                         .matchType("VECTOR")
                         .metadata(meta)
                         .build();
@@ -225,10 +251,12 @@ public class RetrievalService {
             for (VectorStoreProvider.SearchResult child : childResults) {
                 Map<String, Object> meta = new HashMap<>(child.getMetadata());
                 meta.put("chunk_type", "child");
+                // Apply alpha weight to vector score
+                double weightedVectorScore = child.getScore() * actualAlpha;
 
                 VectorStoreProvider.SearchResult result = VectorStoreProvider.SearchResult.builder()
                         .content(child.getContent())
-                        .score(child.getScore())
+                        .score(weightedVectorScore)
                         .matchType("VECTOR")
                         .metadata(meta)
                         .build();
@@ -238,13 +266,18 @@ public class RetrievalService {
 
         // 6. Add keyword-matched chunks (if not already included)
         // 使用 chunk_id 精确去重，而不是 content 字符串匹配
+        // 计算关键词权重：1 - alpha
+        double keywordWeight = 1.0 - actualAlpha;
+
         int keywordAdded = 0;
         Set<String> includedChunkIds = finalResults.stream()
                 .map(r -> (String) r.getMetadata().get("chunk_id"))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        for (KnowledgeDocumentChunk chunk : keywordChunks) {
+        for (Map.Entry<KnowledgeDocumentChunk, Integer> entry : keywordResults) {
+            KnowledgeDocumentChunk chunk = entry.getKey();
+            int matchCount = entry.getValue();
             if (chunk.getContent() == null) continue;
 
             // 使用 chunk_id 精确去重
@@ -254,15 +287,21 @@ public class RetrievalService {
             }
             includedChunkIds.add(chunkId);
 
+            // 计算关键词得分：关键词权重 * 匹配度（匹配词数/总词数，上限1.0）
+            // 这样匹配词越多得分越高
+            double matchRatio = Math.min(matchCount / 3.0, 1.0);
+            double keywordScore = keywordWeight * matchRatio;
+
             Map<String, Object> meta = new HashMap<>();
             meta.put("doc_id", chunk.getDocumentId());
             meta.put("chunk_id", chunk.getId());
             meta.put("chunk_type", chunk.getChunkType());
             meta.put("parent_id", chunk.getParentId());
+            meta.put("match_count", matchCount);
 
             VectorStoreProvider.SearchResult result = VectorStoreProvider.SearchResult.builder()
                     .content(chunk.getContent())
-                    .score(WEIGHT_KEYWORD)
+                    .score(keywordScore)
                     .matchType("KEYWORD")
                     .metadata(meta)
                     .build();
@@ -270,11 +309,41 @@ public class RetrievalService {
             keywordAdded++;
         }
 
-        log.info("Keyword chunks added: {}. Total final results before sort: {}", keywordAdded, finalResults.size());
+        // 统计向量和关键词结果数量
+        long vectorCount = finalResults.stream().filter(r -> "VECTOR".equals(r.getMatchType())).count();
+        long keywordCount = finalResults.stream().filter(r -> "KEYWORD".equals(r.getMatchType())).count();
+        log.info("Keyword chunks added: {}. Before sort: VECTOR={}, KEYWORD={}, total={}",
+                keywordAdded, vectorCount, keywordCount, finalResults.size());
 
-        // 7. Sort by score and limit to topK
+        // 7. Sort by score
         finalResults.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
-        log.info("Returning final results: size={}, topK={}", finalResults.size(), topK);
+
+        // 8. Apply threshold filter (过滤低于阈值的结果)
+        if (actualThreshold > 0) {
+            finalResults = finalResults.stream()
+                    .filter(r -> r.getScore() >= actualThreshold)
+                    .collect(Collectors.toList());
+            log.info("After threshold filter ({}): size={}", actualThreshold, finalResults.size());
+        }
+
+        // 排序后再统计一次
+        vectorCount = finalResults.stream().filter(r -> "VECTOR".equals(r.getMatchType())).count();
+        keywordCount = finalResults.stream().filter(r -> "KEYWORD".equals(r.getMatchType())).count();
+
+        // 9. Apply Rerank (if enabled)
+        if (rerankModel != null && !"none".equalsIgnoreCase(rerankModel) && !finalResults.isEmpty()) {
+            log.info("Applying rerank with model: {}", rerankModel);
+            // 增加召回数量用于 rerank，rerank 后会取 topK
+            List<VectorStoreProvider.SearchResult> rerankedResults = rerankService.rerank(
+                    query, finalResults, rerankModel, topK * 2);
+            if (!rerankedResults.isEmpty()) {
+                finalResults = rerankedResults;
+                log.info("After rerank: size={}", finalResults.size());
+            }
+        }
+
+        log.info("Returning final results: size={}, topK={}, VECTOR={}, KEYWORD={}",
+                finalResults.size(), topK, vectorCount, keywordCount);
         return finalResults.stream().limit(topK).collect(Collectors.toList());
     }
 
@@ -283,22 +352,32 @@ public class RetrievalService {
      */
     private List<VectorStoreProvider.SearchResult> keywordOnlySearch(String kbId, String query, int topK) {
         log.warn("keywordOnlySearch called: kbId={}, query={}, topK={}", kbId, query, topK);
-        List<KnowledgeDocumentChunk> keywordChunks = keywordSearch(kbId, query, topK);
-        log.warn("keywordOnlySearch returned {} chunks", keywordChunks.size());
+        // 使用 alpha = 0（纯关键词搜索）
+        double alpha = 0.0;
+        double keywordWeight = 1.0 - alpha;
+
+        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, topK);
+        log.warn("keywordOnlySearch returned {} chunks", keywordResults.size());
         List<VectorStoreProvider.SearchResult> results = new ArrayList<>();
 
-        for (KnowledgeDocumentChunk chunk : keywordChunks) {
+        for (Map.Entry<KnowledgeDocumentChunk, Integer> entry : keywordResults) {
+            KnowledgeDocumentChunk chunk = entry.getKey();
+            int matchCount = entry.getValue();
             if (chunk.getContent() == null) continue;
+
+            double matchRatio = Math.min(matchCount / 3.0, 1.0);
+            double keywordScore = keywordWeight * matchRatio;
 
             Map<String, Object> meta = new HashMap<>();
             meta.put("doc_id", chunk.getDocumentId());
             meta.put("chunk_id", chunk.getId());
+            meta.put("match_count", matchCount);
             meta.put("chunk_type", chunk.getChunkType());
             meta.put("parent_id", chunk.getParentId());
 
             results.add(VectorStoreProvider.SearchResult.builder()
                     .content(chunk.getContent())
-                    .score(WEIGHT_KEYWORD)
+                    .score(keywordScore)
                     .matchType("KEYWORD")
                     .metadata(meta)
                     .build());
@@ -309,8 +388,9 @@ public class RetrievalService {
 
     /**
      * Keyword search helper - split query into words and search each
+     * Returns map of chunk to matched word count
      */
-    private List<KnowledgeDocumentChunk> keywordSearch(String kbId, String query, int topK) {
+    private List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordSearch(String kbId, String query, int topK) {
         if (query == null || query.trim().isEmpty()) {
             return new ArrayList<>();
         }
@@ -324,14 +404,14 @@ public class RetrievalService {
             }
         }
 
-        log.info("Keyword search words: {}", searchWords);
+        log.info("Keyword search: kbId={}, query={}, words={}", kbId, query, searchWords);
 
         if (searchWords.isEmpty()) {
             return new ArrayList<>();
         }
 
-        // Search for each word and collect results
-        Map<String, KnowledgeDocumentChunk> chunkMap = new LinkedHashMap<>();
+        // Search for each word and collect results with match count
+        Map<String, Map.Entry<KnowledgeDocumentChunk, Integer>> chunkMap = new LinkedHashMap<>();
         for (String word : searchWords) {
             List<KnowledgeDocumentChunk> chunks;
             if ("all".equalsIgnoreCase(kbId)) {
@@ -339,13 +419,21 @@ public class RetrievalService {
             } else {
                 chunks = chunkRepository.searchByKeyword(kbId, word);
             }
+            log.info("Keyword '{}' returned {} chunks in kbId={}", word, chunks.size(), kbId);
             for (KnowledgeDocumentChunk chunk : chunks) {
-                // Deduplicate by chunk ID, keep first occurrence
-                chunkMap.putIfAbsent(chunk.getId(), chunk);
+                String chunkId = chunk.getId();
+                if (chunkMap.containsKey(chunkId)) {
+                    // Increment match count for existing chunk
+                    Map.Entry<KnowledgeDocumentChunk, Integer> entry = chunkMap.get(chunkId);
+                    chunkMap.put(chunkId, Map.entry(entry.getKey(), entry.getValue() + 1));
+                } else {
+                    // New chunk, match count = 1
+                    chunkMap.put(chunkId, Map.entry(chunk, 1));
+                }
             }
         }
 
-        List<KnowledgeDocumentChunk> keywordChunks = new ArrayList<>(chunkMap.values());
+        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordChunks = new ArrayList<>(chunkMap.values());
         if (keywordChunks.size() > topK * 2) {
             keywordChunks = keywordChunks.subList(0, topK * 2);
         }

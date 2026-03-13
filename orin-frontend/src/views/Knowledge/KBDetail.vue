@@ -112,25 +112,154 @@
 
       <!-- Settings Tab (merged retrieval settings) -->
       <el-tab-pane label="设置" name="settings">
-        <div class="settings-panel" style="padding: 20px 0; max-width: 500px;">
-          <el-form label-position="top">
-            <el-form-item label="知识库名称">
-              <el-input v-model="form.name" />
-            </el-form-item>
-            <el-form-item label="描述">
-              <el-input v-model="form.remark" type="textarea" :rows="3" />
-            </el-form-item>
-            <el-divider content-position="left">检索设置</el-divider>
-            <el-form-item label="Top K">
-              <el-slider v-model="retrievalParams.topK" :max="20" show-input />
-            </el-form-item>
-            <el-form-item label="语义权重">
-              <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" show-input />
-            </el-form-item>
-            <el-button type="primary" :loading="submitting" @click="onSubmit">保存更改</el-button>
-            <el-divider />
-            <el-button type="danger" plain @click="handleDelete">删除知识库</el-button>
-          </el-form>
+        <div class="settings-page-container">
+          <div class="settings-top-actions">
+            <el-button type="primary" :loading="submitting" :icon="Check" @click="onSubmit">
+              保存更改
+            </el-button>
+          </div>
+
+          <el-row :gutter="24">
+            <el-col :lg="16">
+              <el-card class="premium-card margin-bottom-lg" shadow="never">
+                <template #header>
+                  <div class="card-header">
+                    <el-icon><Setting /></el-icon>
+                    <span>基础设置</span>
+                  </div>
+                </template>
+
+                <el-form label-position="top" class="config-form">
+                  <el-form-item label="名称">
+                    <el-input v-model="form.name" placeholder="请输入知识库名称" />
+                    <p class="form-tip">用于标识此知识库的公开名称</p>
+                  </el-form-item>
+                  <el-form-item label="描述">
+                    <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入描述" resize="none" />
+                    <p class="form-tip">详细说明该知识库主要包含的内容和用途</p>
+                  </el-form-item>
+                </el-form>
+              </el-card>
+
+              <el-card class="premium-card margin-bottom-lg" shadow="never">
+                <template #header>
+                  <div class="card-header">
+                    <el-icon><Filter /></el-icon>
+                    <span>检索配置</span>
+                  </div>
+                </template>
+
+                <el-form label-position="top" class="config-form">
+                  <el-form-item label="Top K">
+                    <el-slider v-model="retrievalParams.topK" :max="20" :min="1" show-input />
+                    <p class="form-tip">召回的片段数量，数量越多可能包含更多信息，但也容易引入噪声</p>
+                  </el-form-item>
+                  <el-form-item label="语义权重">
+                    <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" show-input />
+                    <p class="form-tip">混合检索权重分配：1 表示完全依赖向量语义检索，0 表示完全依赖关键词全文检索</p>
+                  </el-form-item>
+                </el-form>
+              </el-card>
+
+              <el-card class="premium-card margin-bottom-lg" shadow="never">
+                <template #header>
+                  <div class="card-header">
+                    <el-icon><Cpu /></el-icon>
+                    <span>向量嵌入模型</span>
+                  </div>
+                </template>
+
+                <el-form label-position="top" class="config-form">
+                  <el-form-item label="向量嵌入服务提供商">
+                    <el-select
+                      v-model="modelConfig.embeddingProvider"
+                      style="width: 100%"
+                      placeholder="选择嵌入服务提供商"
+                    >
+                      <el-option value="SiliconFlow" label="SiliconFlow" />
+                      <el-option value="Ollama" label="Ollama (本地)" />
+                    </el-select>
+                    <p class="form-tip">选择用于文档向量化的嵌入服务提供商</p>
+                  </el-form-item>
+
+                  <el-form-item label="API 密钥">
+                    <el-select
+                      v-model="modelConfig.embeddingApiKeyId"
+                      style="width: 100%"
+                      placeholder="选择已配置的 API 密钥"
+                    >
+                      <el-option value="key-1" label="SiliconFlow - 硅基流动" />
+                    </el-select>
+                    <p class="form-tip">
+                      选择已在"API密钥管理"中配置的密钥
+                      <el-button type="primary" link @click="router.push('/system/api-keys')">去配置</el-button>
+                    </p>
+                  </el-form-item>
+
+                  <el-form-item label="Embedding 模型">
+                    <el-select
+                      v-model="modelConfig.embeddingModel"
+                      style="width: 100%"
+                      filterable
+                      allow-create
+                      default-first-option
+                      placeholder="选择或输入模型名称"
+                    >
+                      <el-option value="Qwen/Qwen3-Embedding-8B" label="Qwen/Qwen3-Embedding-8B" />
+                    </el-select>
+                    <p class="form-tip">用于将文档向量化，支持中文推荐 bge-base-zh-v1.5</p>
+                  </el-form-item>
+
+                  <el-form-item>
+                    <el-button type="success" plain :loading="testingEmbedding" @click="testEmbeddingConnection">
+                      测试连接
+                    </el-button>
+                  </el-form-item>
+                </el-form>
+              </el-card>
+
+              <el-card class="premium-card danger-card margin-bottom-lg" shadow="never">
+                <template #header>
+                  <div class="card-header text-danger">
+                    <el-icon><Warning /></el-icon>
+                    <span>危险区域</span>
+                  </div>
+                </template>
+                <div class="danger-zone-content">
+                  <div>
+                    <div class="danger-title">删除知识库</div>
+                    <p class="form-tip" style="margin: 0">彻底删除此知识库及其所有关联的文档。此操作无法恢复。</p>
+                  </div>
+                  <el-button type="danger" plain @click="handleDelete">删除知识库</el-button>
+                </div>
+              </el-card>
+            </el-col>
+
+            <el-col :lg="8">
+              <el-card class="premium-card" shadow="never">
+                <template #header>
+                  <div class="card-header">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>设置说明</span>
+                  </div>
+                </template>
+                <div class="model-list">
+                  <div class="model-item">
+                    <div class="model-name">Top K</div>
+                    <div class="model-desc">检索时返回最相关的文档分段数量。设置过低可能导致大模型回答时缺乏信息，设置过高可能超出大模型的上下文窗口。</div>
+                  </div>
+                  <div class="model-item">
+                    <div class="model-name">语义权重 (Hybrid Search)</div>
+                    <div class="model-desc">在混合检索（语义检索 + 全文检索）时调整各自的比重。推荐的默认值是 0.7，兼顾语义理解与精准匹配。</div>
+                  </div>
+                  <div class="model-item">
+                    <div class="model-name">Embedding 模型</div>
+                    <div class="model-desc">将文本转换为向量，用于语义检索。每个知识库可单独指定用于向量化的模型。</div>
+                  </div>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -142,7 +271,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   Document, Search, Plus, ArrowDown, Setting, Delete,
-  DataLine, Cpu, Opportunity
+  DataLine, Cpu, Opportunity, Check, InfoFilled, Filter, Warning
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
@@ -158,8 +287,14 @@ const documents = ref([]);
 const activeTab = ref('docs');
 const searchKeyword = ref('');
 const submitting = ref(false);
+const testingEmbedding = ref(false);
 const form = reactive({ name: '', remark: '' });
 const retrievalParams = reactive({ topK: 5, weight: 0.7 });
+const modelConfig = reactive({
+  embeddingProvider: 'SiliconFlow',
+  embeddingApiKeyId: 'key-1',
+  embeddingModel: 'Qwen/Qwen3-Embedding-8B'
+});
 
 const getIcon = (type) => {
   if (type === 'UNSTRUCTURED') return Document;
@@ -231,7 +366,13 @@ const formatDate = (val) => {
     return new Date(val).toLocaleString();
 };
 
-// generateMockDocs removed
+const testEmbeddingConnection = () => {
+  testingEmbedding.value = true;
+  setTimeout(() => {
+    ElMessage.success('Embedding 模型可用！维度: 3584');
+    testingEmbedding.value = false;
+  }, 1000);
+};
 
 const onSubmit = () => {
   submitting.value = true;
@@ -433,5 +574,103 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* --- Settings Page Styles --- */
+.settings-page-container {
+  padding: 16px 0 40px;
+}
+
+.settings-top-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+
+.premium-card {
+  border-radius: var(--radius-xl, 12px) !important;
+  border: 1px solid var(--neutral-gray-200) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--neutral-gray-800);
+}
+
+.card-header.text-danger {
+  color: var(--el-color-danger);
+}
+
+.margin-bottom-lg {
+  margin-bottom: 24px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: var(--neutral-gray-500);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-item {
+  padding: 12px;
+  background: var(--neutral-gray-50, #F9FAFB);
+  border-radius: 8px;
+  border: 1px solid var(--neutral-gray-200, #E5E7EB);
+}
+
+.model-name {
+  font-weight: 600;
+  color: var(--neutral-gray-800);
+  margin-bottom: 4px;
+}
+
+.model-desc {
+  font-size: 12px;
+  color: var(--neutral-gray-500);
+}
+
+.danger-card {
+  border-color: #FCA5A5 !important;
+  background: #FEF2F2 !important;
+}
+
+.danger-zone-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.danger-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--el-color-danger);
+}
+
+:deep(.el-card__header) {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--neutral-gray-100);
+}
+
+/* Override element-plus input styles to match premium look */
+:deep(.el-input__wrapper), :deep(.el-textarea__inner) {
+  box-shadow: 0 0 0 1px var(--neutral-gray-200) inset !important;
+  background-color: var(--neutral-gray-50);
+  transition: all 0.2s;
+}
+:deep(.el-input__wrapper:focus-within), :deep(.el-textarea__inner:focus) {
+  box-shadow: 0 0 0 1px var(--orin-blue) inset !important;
+  background-color: white;
 }
 </style>

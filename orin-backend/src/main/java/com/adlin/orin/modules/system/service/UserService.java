@@ -83,9 +83,9 @@ public class UserService {
                 org.springframework.data.domain.PageRequest.of(0, 1000)).getContent();
 
         Set<LocalDate> activeDates = new HashSet<>();
-        for (AuditLog log : recentAuditLogs) {
-            if (log.getCreatedAt() != null) {
-                activeDates.add(log.getCreatedAt().toLocalDate());
+        for (AuditLog auditLog : recentAuditLogs) {
+            if (auditLog.getCreatedAt() != null) {
+                activeDates.add(auditLog.getCreatedAt().toLocalDate());
             }
         }
         int activeDays = activeDates.size();
@@ -99,7 +99,7 @@ public class UserService {
         double tokenTrend = 0.0;
         if (totalTokens != null && totalTokens > 0) {
             long oldTokens = olderLogs.stream()
-                    .filter(log -> log.getTotalTokens() != null)
+                    .filter(auditLog -> auditLog.getTotalTokens() != null)
                     .mapToLong(AuditLog::getTotalTokens)
                     .sum();
             if (oldTokens > 0) {
@@ -145,7 +145,7 @@ public class UserService {
         // Get audit logs from last 7 days
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
         List<AuditLog> weekLogs = recentAuditLogs.stream()
-                .filter(log -> log.getCreatedAt() != null && log.getCreatedAt().isAfter(sevenDaysAgo))
+                .filter(auditLog -> auditLog.getCreatedAt() != null && auditLog.getCreatedAt().isAfter(sevenDaysAgo))
                 .collect(Collectors.toList());
 
         for (int i = 6; i >= 0; i--) {
@@ -155,7 +155,7 @@ public class UserService {
             // Count logs for this day
             final LocalDate targetDate = day;
             long dayCount = weekLogs.stream()
-                    .filter(log -> log.getCreatedAt().toLocalDate().equals(targetDate))
+                    .filter(auditLog -> auditLog.getCreatedAt().toLocalDate().equals(targetDate))
                     .count();
 
             // Calculate max value for percentage
@@ -163,7 +163,7 @@ public class UserService {
             int finalI = i;
             final LocalDate targetDay = day;
             int currentCount = (int) weekLogs.stream()
-                    .filter(log -> log.getCreatedAt().toLocalDate().equals(targetDay))
+                    .filter(auditLog -> auditLog.getCreatedAt().toLocalDate().equals(targetDay))
                     .count();
 
             activityData.add(UserDashboardResponse.ActivityData.builder()
@@ -186,31 +186,31 @@ public class UserService {
                     .build());
         } else {
             List<AuditLog> top5Logs = recentAuditLogs.stream().limit(5).collect(Collectors.toList());
-            for (AuditLog log : top5Logs) {
-                boolean isSuccess = Boolean.TRUE.equals(log.getSuccess());
+            for (AuditLog auditLog : top5Logs) {
+                boolean isSuccess = Boolean.TRUE.equals(auditLog.getSuccess());
                 String actionName = "API 调用";
-                if (log.getEndpoint() != null) {
-                    if (log.getEndpoint().contains("models"))
+                if (auditLog.getEndpoint() != null) {
+                    if (auditLog.getEndpoint().contains("models"))
                         actionName = "模型调用";
-                    else if (log.getEndpoint().contains("knowledge"))
+                    else if (auditLog.getEndpoint().contains("knowledge"))
                         actionName = "知识库检索";
-                    else if (log.getEndpoint().contains("chat"))
+                    else if (auditLog.getEndpoint().contains("chat"))
                         actionName = "会话执行";
                 }
 
-                long hoursAgo = ChronoUnit.HOURS.between(log.getCreatedAt(), LocalDateTime.now());
+                long hoursAgo = ChronoUnit.HOURS.between(auditLog.getCreatedAt(), LocalDateTime.now());
                 String timeStr;
                 if (hoursAgo < 1) {
                     timeStr = "刚刚";
                 } else if (hoursAgo < 24) {
                     timeStr = hoursAgo + "小时前";
                 } else {
-                    timeStr = log.getCreatedAt().format(timeFormatter);
+                    timeStr = auditLog.getCreatedAt().format(timeFormatter);
                 }
 
                 String detail = isSuccess ? "执行成功" : "执行失败";
-                if (log.getProviderId() != null) {
-                    detail = isSuccess ? "执行成功 (" + log.getProviderId() + ")" : "执行失败: " + (log.getErrorMessage() != null ? log.getErrorMessage() : "未知错误");
+                if (auditLog.getProviderId() != null) {
+                    detail = isSuccess ? "执行成功 (" + auditLog.getProviderId() + ")" : "执行失败: " + (auditLog.getErrorMessage() != null ? auditLog.getErrorMessage() : "未知错误");
                 }
 
                 activityLogs.add(UserDashboardResponse.ActivityLog.builder()

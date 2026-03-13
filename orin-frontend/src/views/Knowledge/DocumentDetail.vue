@@ -51,18 +51,47 @@
           
           <!-- Image Content -->
           <div v-else-if="originalContentInfo.mediaType === 'image'" class="original-media-preview">
-            <el-image 
-              :src="originalContentInfo.url" 
-              fit="contain"
-              :preview-src-list="[originalContentInfo.url]"
-            />
+            <template v-if="imageLoading">
+              <el-skeleton :rows="5" animated />
+            </template>
+            <template v-else-if="imageError">
+              <el-result
+                icon="error"
+                title="加载失败"
+                sub-title="无法加载图片，请检查文件是否正确上传"
+              >
+              </el-result>
+            </template>
+            <template v-else>
+              <el-image
+                :src="imageBlobUrl"
+                fit="contain"
+                :preview-src-list="imageBlobUrl ? [imageBlobUrl] : []"
+                @load="onImageLoad"
+                @error="onImageError"
+                class="preview-image"
+              >
+                <template #error>
+                  <div class="image-error-placeholder">
+                    <el-icon :size="48"><Picture /></el-icon>
+                    <span>图片加载失败</span>
+                  </div>
+                </template>
+              </el-image>
+              <div class="image-actions" v-if="imageBlobUrl">
+                <el-button type="primary" link @click="downloadOriginalFile">
+                  <el-icon><Download /></el-icon>
+                  下载原图
+                </el-button>
+              </div>
+            </template>
           </div>
 
           <!-- Audio Content -->
           <div v-else-if="originalContentInfo.mediaType === 'audio'" class="original-media-preview">
             <div class="audio-player-wrapper">
               <el-icon :size="64" class="media-icon"><Headset /></el-icon>
-              <audio controls :src="originalContentInfo.url" class="media-player"></audio>
+              <audio controls :src="mediaBlobUrl" class="media-player"></audio>
               <div class="file-name">{{ originalContentInfo.fileName }}</div>
             </div>
           </div>
@@ -70,12 +99,92 @@
           <!-- Video Content -->
           <div v-else-if="originalContentInfo.mediaType === 'video'" class="original-media-preview">
             <div class="video-player-wrapper">
-              <video controls :src="originalContentInfo.url" class="media-player video-player"></video>
+              <video controls :src="mediaBlobUrl" class="media-player video-player"></video>
               <div class="file-name">{{ originalContentInfo.fileName }}</div>
             </div>
           </div>
 
           <el-empty v-else-if="!originalLoading" description="暂无原文内容" />
+        </div>
+      </el-tab-pane>
+
+      <!-- Index File Tab -->
+      <el-tab-pane label="索引文件" name="indexfile">
+        <div class="index-file-container" v-loading="retrievalLoading">
+          <template v-if="retrievalInfo && retrievalInfo.fullContent">
+            <div class="index-file-header">
+              <div class="index-status">
+                <el-tag :type="retrievalInfo.parseStatus === 'PARSED' ? 'success' : (retrievalInfo.parseStatus === 'PARSING' ? 'warning' : 'info')" size="small">
+                  {{ retrievalInfo.parseStatus === 'PARSED' ? '已解析' : (retrievalInfo.parseStatus === 'PARSING' ? '解析中' : '待处理') }}
+                </el-tag>
+                <el-tag v-if="retrievalInfo.vectorStatus" :type="retrievalInfo.vectorStatus === 'SUCCESS' ? 'success' : (retrievalInfo.vectorStatus === 'INDEXING' ? 'warning' : 'info')" size="small" style="margin-left: 8px;">
+                  {{ retrievalInfo.vectorStatus === 'SUCCESS' ? '已向量化' : (retrievalInfo.vectorStatus === 'INDEXING' ? '向量化中' : '待向量化') }}
+                </el-tag>
+                <span class="index-char-count">索引文件共 {{ retrievalInfo.indexCharCount || 0 }} 字符</span>
+              </div>
+              <div class="index-actions">
+                <el-button v-if="retrievalInfo.parseStatus === 'PARSED' && retrievalInfo.vectorStatus !== 'SUCCESS'" type="primary" size="small" @click="handleVectorize" :loading="vectorizing">
+                  立即向量化
+                </el-button>
+                <el-button :icon="Refresh" @click="loadRetrievalInfo" size="small">刷新</el-button>
+                <el-button type="primary" :icon="DocumentCopy" @click="copyIndexContent" size="small">复制全文</el-button>
+              </div>
+            </div>
+
+            <div class="index-full-content">
+              <pre>{{ retrievalInfo.fullContent }}</pre>
+            </div>
+
+            <div class="index-stats">
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-statistic title="总字符数" :value="retrievalInfo.indexCharCount || 0" />
+                </el-col>
+                <el-col :span="8">
+                  <el-statistic title="父分块" :value="chunkStats.parentCount || 0" />
+                </el-col>
+                <el-col :span="8">
+                  <el-statistic title="子分块" :value="chunkStats.childCount || 0" />
+                </el-col>
+              </el-row>
+            </div>
+          </template>
+          <template v-else-if="!retrievalLoading">
+            <div class="index-empty">
+              <template v-if="retrievalInfo?.parseStatus === 'PARSING'">
+                <el-icon class="is-loading" :size="48"><Loading /></el-icon>
+                <p>正在解析文档...</p>
+              </template>
+              <template v-else-if="!retrievalInfo?.parseStatus || retrievalInfo?.parseStatus === 'PENDING' || retrievalInfo?.parseStatus === 'FAILED'">
+                <el-result icon="info" title="暂无索引内容">
+                  <template #extra>
+                    <el-button type="primary" @click="handleParse" :loading="parsing">
+                      立即解析
+                    </el-button>
+                  </template>
+                </el-result>
+              </template>
+              <template v-else-if="retrievalInfo?.parseStatus === 'PARSED' && retrievalInfo?.vectorStatus !== 'SUCCESS'">
+                <el-result icon="success" title="索引文件已生成">
+                  <template #description>
+                    <p>文档已解析完成，共 {{ retrievalInfo.indexCharCount || 0 }} 字符</p>
+                  </template>
+                  <template #extra>
+                    <el-button type="primary" @click="handleVectorize" :loading="vectorizing">
+                      立即向量化
+                    </el-button>
+                  </template>
+                </el-result>
+              </template>
+              <template v-else>
+                <el-result icon="warning" title="状态未知">
+                  <template #extra>
+                    <el-button @click="loadRetrievalInfo">刷新状态</el-button>
+                  </template>
+                </el-result>
+              </template>
+            </div>
+          </template>
         </div>
       </el-tab-pane>
 
@@ -123,7 +232,13 @@
                   <el-tag size="small" :type="segment.status === 'indexed' ? 'success' : 'info'" effect="plain">
                     {{ segment.status === 'indexed' ? '已索引' : '待处理' }}
                   </el-tag>
+                  <el-tag v-if="segment.chunkType" size="small" type="warning" effect="plain">
+                    {{ segment.chunkType === 'parent' ? 'Parent' : 'Child' }}
+                  </el-tag>
                   <div class="segment-actions">
+                    <el-button v-if="segment.chunkType !== 'parent'" link type="success" size="small" @click.stop="loadChunkVector(segment.id)">
+                      <el-icon><DataLine /></el-icon>
+                    </el-button>
                     <el-button link type="primary" size="small" @click.stop="editSegment(segment)">
                       <el-icon><Edit /></el-icon>
                     </el-button>
@@ -174,42 +289,6 @@
               </div>
             </el-form-item>
 
-            <!-- 索引文件内容 -->
-            <el-form-item label="索引文件内容">
-              <div class="retrieval-info-panel" v-loading="retrievalLoading">
-                <template v-if="retrievalInfo && retrievalInfo.indexSamples && retrievalInfo.indexSamples.length > 0">
-                  <div class="retrieval-header">
-                    <el-tag :type="retrievalInfo.vectorStatus === 'SUCCESS' ? 'success' : 'warning'" size="small">
-                      {{ retrievalInfo.vectorStatus === 'SUCCESS' ? '已向量化' : '待处理' }}
-                    </el-tag>
-                    <span class="retrieval-tip">显示索引文件的前 {{ retrievalInfo.indexSamples.length }} 个片段预览</span>
-                  </div>
-                  <div class="retrieval-samples">
-                    <div
-                      v-for="(sample, idx) in retrievalInfo.indexSamples"
-                      :key="idx"
-                      class="retrieval-sample-item"
-                    >
-                      <div class="sample-header">
-                        <el-tag size="small" :type="sample.chunkType === 'parent' ? 'primary' : 'info'">
-                          {{ sample.chunkType === 'parent' ? '父分块' : '子分块' }} #{{ sample.chunkIndex + 1 }}
-                        </el-tag>
-                        <span class="sample-chars">{{ sample.charCount }} 字符</span>
-                      </div>
-                      <div class="sample-content" :title="sample.content">
-                        {{ sample.content }}
-                      </div>
-                    </div>
-                  </div>
-                </template>
-                <el-empty v-else-if="!retrievalLoading" description="暂无索引内容，请先进行向量化处理">
-                  <el-button type="primary" size="small" @click="handleVectorize" :loading="vectorizing">
-                    立即向量化
-                  </el-button>
-                </el-empty>
-              </div>
-            </el-form-item>
-
             <!-- 隐藏旧的配置项，因为现在使用固定的 Parent-Child 分块 -->
             <el-form-item label="分段模式">
               <el-select v-model="form.mode" style="width: 100%;" disabled>
@@ -256,9 +335,9 @@
     <el-dialog v-model="editDialogVisible" title="编辑分段" width="700px">
       <el-form label-position="top">
         <el-form-item label="分段内容">
-          <el-input 
-            v-model="editingSegment.content" 
-            type="textarea" 
+          <el-input
+            v-model="editingSegment.content"
+            type="textarea"
             :rows="10"
             placeholder="输入分段内容..."
           />
@@ -269,6 +348,32 @@
         <el-button type="primary" @click="saveSegment">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 向量数据展示对话框 -->
+    <el-dialog v-model="vectorDialogVisible" title="向量数据" width="800px" v-loading="vectorLoading">
+      <div v-if="vectorData" class="vector-info">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="Chunk ID">{{ vectorData.chunkId }}</el-descriptions-item>
+          <el-descriptions-item label="Doc ID">{{ vectorData.docId }}</el-descriptions-item>
+          <el-descriptions-item label="Chunk Type">{{ vectorData.chunkType }}</el-descriptions-item>
+          <el-descriptions-item label="向量维度">{{ vectorData.embeddingDimension }}</el-descriptions-item>
+          <el-descriptions-item label="内容" :span="2">
+            <div class="vector-content">{{ vectorData.content }}</div>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div class="vector-array-section" v-if="vectorData.embedding">
+          <h4>向量数据 (前20维预览)</h4>
+          <div class="vector-array">
+            {{ vectorData.embedding.slice(0, 20).map(v => v.toFixed(4)).join(', ') }}
+            <span v-if="vectorData.embedding.length > 20">
+              ... (共 {{ vectorData.embedding.length }} 维)
+            </span>
+          </div>
+        </div>
+      </div>
+      <el-empty v-else-if="!vectorLoading" description="暂无向量数据" />
+    </el-dialog>
   </div>
 </template>
 
@@ -276,12 +381,13 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
-import { 
+import {
   Document, Search, Plus, Setting, Delete, Refresh, Edit,
-  Headset, VideoCamera, Picture
+  Headset, VideoCamera, Picture, Download, DocumentCopy, Loading, DataLine
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
+import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
 const router = useRouter();
@@ -296,10 +402,12 @@ const activeTab = ref('segments');
 const searchKeyword = ref('');
 const loading = ref(false);
 const vectorizing = ref(false);
+const parsing = ref(false);
 const editingSegment = reactive({ id: '', content: '' });
 const chunkStats = ref({ parentCount: 0, childCount: 0, chunkingMode: 'PARENT_CHILD' });
 const retrievalInfo = ref(null);
 const retrievalLoading = ref(false);
+const activeIndexCollapse = ref([]);
 const submitting = ref(false);
 
 const form = reactive({
@@ -312,12 +420,27 @@ const form = reactive({
 
 const history = ref([]);
 const originalLoading = ref(false);
+
+// 图片预览相关状态
+const imageLoading = ref(false);
+const imageError = ref(false);
+const imageBlobUrl = ref('');
+
+// 音频/视频 Blob URL
+const mediaBlobUrl = ref('');
+
 const originalContentInfo = reactive({
     text: '',
     mediaType: 'text',
     url: '',
     fileName: ''
 });
+
+// 向量数据展示相关状态
+const vectorDialogVisible = ref(false);
+const vectorData = ref(null);
+const vectorLoading = ref(false);
+
 const filteredSegments = computed(() => {
   if (!searchKeyword.value) return segments.value;
   return segments.value.filter(s => 
@@ -382,13 +505,33 @@ const loadHistory = async () => {
 
 const loadOriginalContent = async () => {
     originalLoading.value = true;
+    imageError.value = false;
+    imageBlobUrl.value = '';
+
+    // 清理之前的 Blob URLs
+    if (imageBlobUrl.value) {
+        URL.revokeObjectURL(imageBlobUrl.value);
+        imageBlobUrl.value = '';
+    }
+    if (mediaBlobUrl.value) {
+        URL.revokeObjectURL(mediaBlobUrl.value);
+        mediaBlobUrl.value = '';
+    }
+
     try {
         const res = await request.get(`/knowledge/documents/${docId.value}/content`);
         originalContentInfo.text = res.text || '';
         originalContentInfo.mediaType = res.mediaType || 'text';
         originalContentInfo.fileName = res.fileName || '';
-        // Use the new download endpoint for biological viewing
-        originalContentInfo.url = `/api/v1/knowledge/documents/${docId.value}/download`;
+
+        // 对于图片类型，使用 Blob URL 加载以支持认证
+        if (originalContentInfo.mediaType === 'image') {
+            await loadImageAsBlob();
+        }
+        // 对于音频/视频，也使用 Blob URL
+        else if (originalContentInfo.mediaType === 'audio' || originalContentInfo.mediaType === 'video') {
+            await loadMediaAsBlob();
+        }
     } catch (error) {
         console.warn('Failed to load original content', error);
         originalContentInfo.text = '';
@@ -433,6 +576,30 @@ const loadChunkStats = async () => {
     }
 };
 
+// 获取 chunk 的向量数据
+const loadChunkVector = async (chunkId) => {
+    vectorLoading.value = true;
+    vectorData.value = null;
+    vectorDialogVisible.value = true;
+    try {
+        const res = await request.get(`/knowledge/chunks/${chunkId}/vector`);
+        if (res && res.success) {
+            vectorData.value = res.data;
+        } else {
+            // 显示详细错误信息
+            const errorMsg = res?.error || '未找到向量数据';
+            ElMessage.error(`获取向量数据失败: ${errorMsg}`);
+        }
+    } catch (error) {
+        console.error('Failed to load chunk vector:', error);
+        // 显示详细错误信息
+        const errorMsg = error?.response?.data?.message || error?.message || '网络错误';
+        ElMessage.error(`获取向量数据失败: ${errorMsg}`);
+    } finally {
+        vectorLoading.value = false;
+    }
+};
+
 const loadRetrievalInfo = async () => {
     retrievalLoading.value = true;
     try {
@@ -447,11 +614,33 @@ const loadRetrievalInfo = async () => {
     }
 };
 
+// 解析文档（生成索引文件）
+const handleParse = async () => {
+    parsing.value = true;
+    try {
+        await request.post(`/knowledge/documents/${docId.value}/parse`);
+        ElMessage.success('已提交解析任务，请稍后刷新');
+        // 轮询检查状态
+        setTimeout(() => {
+            loadRetrievalInfo();
+        }, 2000);
+    } catch (error) {
+        ElMessage.error('提交解析任务失败: ' + error.message);
+    } finally {
+        parsing.value = false;
+    }
+};
+
 const handleVectorize = async () => {
     vectorizing.value = true;
     try {
         await request.post(`/knowledge/documents/${docId.value}/vectorize`);
-        ElMessage.success('已提交向量化任务，请稍后刷新');
+        // 检查当前状态来决定提示文案
+        if (retrievalInfo.value?.parseStatus === 'PARSED') {
+            ElMessage.success('已提交向量化任务，请稍后刷新');
+        } else {
+            ElMessage.success('已提交解析任务，请稍后刷新');
+        }
         // Poll for status or just wait
         setTimeout(() => {
             loadDocumentData();
@@ -461,6 +650,91 @@ const handleVectorize = async () => {
         ElMessage.error('触发向量化失败: ' + error.message);
     } finally {
         vectorizing.value = false;
+    }
+};
+
+// 将图片加载为 Blob URL（解决认证问题）
+const loadImageAsBlob = async () => {
+    imageLoading.value = true;
+    imageError.value = false;
+
+    try {
+        // 使用 fetch 配合认证来获取图片
+        const userStore = useUserStore();
+        const token = userStore.token;
+
+        const response = await fetch(`/api/v1/knowledge/documents/${docId.value}/download`, {
+            headers: {
+                'Authorization': token ? `Bearer ${token}` : ''
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        // 创建 Blob URL
+        imageBlobUrl.value = URL.createObjectURL(blob);
+    } catch (error) {
+        console.error('Failed to load image:', error);
+        imageError.value = true;
+    } finally {
+        imageLoading.value = false;
+    }
+};
+
+const onImageLoad = () => {
+    imageError.value = false;
+};
+
+const onImageError = () => {
+    imageError.value = true;
+};
+
+// 将音频/视频加载为 Blob URL
+const loadMediaAsBlob = async () => {
+    try {
+        const userStore = useUserStore();
+        const token = userStore.token;
+
+        const response = await fetch(`/api/v1/knowledge/documents/${docId.value}/download`, {
+            headers: {
+                'Authorization': token ? `Bearer ${token}` : ''
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        mediaBlobUrl.value = URL.createObjectURL(blob);
+    } catch (error) {
+        console.error('Failed to load media:', error);
+    }
+};
+
+const downloadOriginalFile = () => {
+    if (imageBlobUrl.value) {
+        const link = document.createElement('a');
+        link.href = imageBlobUrl.value;
+        link.download = originalContentInfo.fileName || 'image';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+};
+
+// 复制索引文件全部内容
+const copyIndexContent = async () => {
+    if (!retrievalInfo.value?.fullContent) return;
+
+    try {
+        await navigator.clipboard.writeText(retrievalInfo.value.fullContent);
+        ElMessage.success('索引文件内容已复制到剪贴板');
+    } catch (error) {
+        ElMessage.error('复制失败');
     }
 };
 
@@ -893,5 +1167,121 @@ onMounted(() => {
   font-size: 14px;
   color: var(--neutral-gray-600);
   font-weight: 500;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 600px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.image-error-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--neutral-gray-400);
+  gap: 12px;
+}
+
+.image-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.index-file-container {
+  padding: 20px;
+  min-height: 400px;
+}
+
+.index-file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--neutral-gray-200);
+}
+
+.index-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.index-char-count {
+  font-size: 13px;
+  color: var(--neutral-gray-500);
+}
+
+.index-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.index-segments {
+  margin-bottom: 24px;
+}
+
+.index-full-content {
+  background: #f9fafb;
+  border: 1px solid var(--neutral-gray-200);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.index-full-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--neutral-gray-700);
+  margin: 0;
+}
+
+.index-stats {
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.vector-info {
+  padding: 10px;
+}
+
+.vector-content {
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.vector-array-section {
+  margin-top: 20px;
+}
+
+.vector-array-section h4 {
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.vector-array {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
 }
 </style>
