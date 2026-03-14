@@ -13,7 +13,7 @@ import java.util.Map;
  * 邮件模板管理 Controller
  */
 @RestController
-@RequestMapping("/api/system/mail-templates")
+@RequestMapping("/api/v1/system/mail-templates")
 @RequiredArgsConstructor
 public class MailTemplateController {
 

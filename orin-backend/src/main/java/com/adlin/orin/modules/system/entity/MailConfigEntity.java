@@ -41,16 +41,34 @@ public class MailConfigEntity {
     @Column(name = "from_name", length = 100)
     private String fromName;
 
-    @Column(name = "api_key", length = 200)
+    @Column(name = "api_key", length = 500)
     private String apiKey;
 
     @Column(name = "mailer_type", length = 20)
     @Builder.Default
-    private String mailerType = "mailersend"; // smtp 或 mailersend
+    private String mailerType = "mailersend"; // smtp, mailersend 或 resend
 
     @Column(name = "ssl_enabled")
     @Builder.Default
     private Boolean sslEnabled = true;
+
+    // IMAP 配置
+    @Column(name = "imap_host", length = 100)
+    private String imapHost;
+
+    @Column(name = "imap_port")
+    @Builder.Default
+    private Integer imapPort = 993;
+
+    @Column(name = "imap_username", length = 100)
+    private String imapUsername;
+
+    @Column(name = "imap_password", length = 200)
+    private String imapPassword;
+
+    @Column(name = "imap_enabled")
+    @Builder.Default
+    private Boolean imapEnabled = false;
 
     @Column(name = "enabled")
     @Builder.Default

@@ -10,9 +10,9 @@ import java.util.Optional;
 public interface MailConfigRepository extends JpaRepository<MailConfigEntity, Long> {
 
     /**
-     * 获取当前启用的邮件配置
+     * 获取当前启用的邮件配置（按更新时间倒序，取最新的一条）
      */
-    Optional<MailConfigEntity> findFirstByEnabledTrue();
+    Optional<MailConfigEntity> findFirstByEnabledTrueOrderByUpdatedAtDesc();
 
     /**
      * 获取默认配置（ID=1）

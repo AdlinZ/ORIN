@@ -15,7 +15,7 @@ import java.util.Map;
  * 邮件发送日志 Controller
  */
 @RestController
-@RequestMapping("/api/system/mail-logs")
+@RequestMapping("/api/v1/system/mail-logs")
 @RequiredArgsConstructor
 public class MailSendLogController {
 

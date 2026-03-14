@@ -28,6 +28,7 @@ public class MailConfigService {
     private final RestTemplate restTemplate;
 
     private static final String MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+    private static final String RESEND_API_URL = "https://api.resend.com/emails";
 
     public MailConfigService(MailConfigRepository mailConfigRepository,
                             JavaMailSender mailSender,
@@ -41,15 +42,16 @@ public class MailConfigService {
      * 获取邮件配置
      */
     public Optional<MailConfigEntity> getConfig() {
-        return mailConfigRepository.findFirstByEnabledTrue();
+        return mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc();
     }
 
     /**
      * 获取所有配置（用于管理页面，密码会被掩码）
      */
     public MailConfigEntity getConfigForAdmin() {
-        return mailConfigRepository.findFirstByEnabledTrue()
+        return mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc()
                 .map(config -> {
+                    log.info("获取配置: mailerType={}, fromEmail={}", config.getMailerType(), config.getFromEmail());
                     // 掩码密码
                     if (config.getPassword() != null && !config.getPassword().isEmpty()) {
                         config.setPassword("••••••••");
@@ -67,6 +69,11 @@ public class MailConfigService {
      * 保存邮件配置
      */
     public MailConfigEntity saveConfig(MailConfigEntity config) {
+        log.info("收到邮件配置保存请求: mailerType={}, apiKey={}, fromEmail={}",
+                config.getMailerType(),
+                config.getApiKey() != null && config.getApiKey().startsWith("••") ? "••••••••" : config.getApiKey(),
+                config.getFromEmail());
+
         // 如果设置了新密码且不是掩码，则加密存储
         if (config.getPassword() != null && !config.getPassword().startsWith("••")) {
             // 这里可以添加密码加密逻辑，目前明文存储
@@ -74,7 +81,8 @@ public class MailConfigService {
 
         // 如果 API Key 是掩码，则获取旧的配置
         if (config.getApiKey() != null && config.getApiKey().startsWith("••")) {
-            mailConfigRepository.findFirstByEnabledTrue().ifPresent(oldConfig -> {
+            mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().ifPresent(oldConfig -> {
+                log.info("检测到API Key为掩码，从数据库获取旧值: mailerType={}", oldConfig.getMailerType());
                 config.setApiKey(oldConfig.getApiKey());
             });
         }
@@ -82,8 +90,10 @@ public class MailConfigService {
         config.setEnabled(true);
         MailConfigEntity saved = mailConfigRepository.save(config);
 
+        log.info("邮件配置已保存: mailerType={}, id={}", saved.getMailerType(), saved.getId());
+
         // 更新 JavaMailSender 配置（仅 SMTP 模式）
-        if (!"mailersend".equals(config.getMailerType())) {
+        if ("smtp".equals(config.getMailerType())) {
             updateMailSender(saved);
         }
 
@@ -95,9 +105,21 @@ public class MailConfigService {
      * 测试邮件配置
      */
     public boolean testConfig(MailConfigEntity config, String testEmail) {
+        // 如果 API Key 被掩码了，从数据库获取原始值
+        if (config.getApiKey() != null && config.getApiKey().startsWith("••")) {
+            mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().ifPresent(oldConfig -> {
+                config.setApiKey(oldConfig.getApiKey());
+            });
+        }
+
         // 如果是 MailerSend 模式
         if ("mailersend".equals(config.getMailerType())) {
             return testMailerSend(config, testEmail);
+        }
+
+        // 如果是 Resend 模式
+        if ("resend".equals(config.getMailerType())) {
+            return testResend(config, testEmail);
         }
 
         // SMTP 模式
@@ -176,6 +198,8 @@ public class MailConfigService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
+            log.info("准备发送邮件测试, from: {}, to: {}", fromEmail, testEmail);
+
             ResponseEntity<String> response = restTemplate.exchange(
                 MAILERSEND_API_URL,
                 HttpMethod.POST,
@@ -183,15 +207,233 @@ public class MailConfigService {
                 String.class
             );
 
-            if (response.getStatusCode() == HttpStatus.ACCEPTED) {
-                log.info("MailerSend邮件测试成功: {}", testEmail);
+            log.info("MailerSend响应: status={}, body={}", response.getStatusCode(), response.getBody());
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("MailerSend邮件测试成功: {}, status: {}", testEmail, response.getStatusCode());
                 return true;
             } else {
-                log.error("MailerSend邮件测试失败: status {}", response.getStatusCode());
+                log.error("MailerSend邮件测试失败: status {}, body: {}", response.getStatusCode(), response.getBody());
                 return false;
             }
         } catch (Exception e) {
-            log.error("MailerSend邮件测试异常: {}", e.getMessage());
+            log.error("MailerSend邮件测试异常: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 测试 Resend 配置
+     */
+    private boolean testResend(MailConfigEntity config, String testEmail) {
+        try {
+            String apiKey = config.getApiKey();
+            String fromEmail = config.getFromEmail();
+            String fromName = config.getFromName();
+
+            if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
+                log.error("Resend配置不完整");
+                return false;
+            }
+
+            Map<String, Object> requestBody = new HashMap<>();
+
+            // 发件人
+            requestBody.put("from", fromName != null && !fromName.isEmpty()
+                ? fromName + " <" + fromEmail + ">"
+                : fromEmail);
+
+            // 收件人
+            requestBody.put("to", testEmail);
+
+            requestBody.put("subject", "ORIN 邮件服务测试");
+            requestBody.put("text", "这是一封测试邮件，证明邮件服务配置正确。\n\n发送时间: " + java.time.LocalDateTime.now());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + apiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            log.info("准备发送Resend测试邮件, from: {}, to: {}", fromEmail, testEmail);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                RESEND_API_URL,
+                HttpMethod.POST,
+                entity,
+                String.class
+            );
+
+            log.info("Resend响应: status={}, body={}", response.getStatusCode(), response.getBody());
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Resend邮件测试成功: {}, status: {}", testEmail, response.getStatusCode());
+                return true;
+            } else {
+                log.error("Resend邮件测试失败: status {}, body: {}", response.getStatusCode(), response.getBody());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("Resend邮件测试异常: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 发送邮件
+     */
+    public boolean sendMail(MailConfigEntity config, String to, String subject, String content) {
+        if (config == null || !config.getEnabled()) {
+            log.error("邮件服务未配置");
+            return false;
+        }
+
+        // 如果是 MailerSend 模式
+        if ("mailersend".equals(config.getMailerType())) {
+            return sendViaMailerSend(config, to, subject, content);
+        }
+
+        // 如果是 Resend 模式
+        if ("resend".equals(config.getMailerType())) {
+            return sendViaResend(config, to, subject, content);
+        }
+
+        // SMTP 模式
+        return sendViaSmtp(config, to, subject, content);
+    }
+
+    /**
+     * 通过 MailerSend 发送邮件
+     */
+    private boolean sendViaMailerSend(MailConfigEntity config, String to, String subject, String content) {
+        try {
+            String apiKey = config.getApiKey();
+            String fromEmail = config.getFromEmail();
+            String fromName = config.getFromName();
+
+            if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
+                log.error("MailerSend配置不完整");
+                return false;
+            }
+
+            Map<String, Object> requestBody = new HashMap<>();
+
+            // 发件人
+            Map<String, String> from = new HashMap<>();
+            from.put("email", fromEmail);
+            if (fromName != null && !fromName.isEmpty()) {
+                from.put("name", fromName);
+            }
+            requestBody.put("from", from);
+
+            // 收件人
+            List<Map<String, String>> toList = new ArrayList<>();
+            Map<String, String> recipient = new HashMap<>();
+            recipient.put("email", to);
+            toList.add(recipient);
+            requestBody.put("to", toList);
+
+            requestBody.put("subject", subject);
+            requestBody.put("text", content);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + apiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                MAILERSEND_API_URL,
+                HttpMethod.POST,
+                entity,
+                String.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("MailerSend邮件发送成功: {}", to);
+                return true;
+            } else {
+                log.error("MailerSend邮件发送失败: {}", response.getBody());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("MailerSend邮件发送异常: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 通过 Resend 发送邮件
+     */
+    private boolean sendViaResend(MailConfigEntity config, String to, String subject, String content) {
+        try {
+            String apiKey = config.getApiKey();
+            String fromEmail = config.getFromEmail();
+            String fromName = config.getFromName();
+
+            log.info("Resend发送邮件: fromEmail={}, apiKey={}", fromEmail, apiKey != null ? (apiKey.length() > 10 ? apiKey.substring(0, 10) + "..." : apiKey) : "null");
+
+            if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
+                log.error("Resend配置不完整");
+                return false;
+            }
+
+            Map<String, Object> requestBody = new HashMap<>();
+
+            // 发件人
+            requestBody.put("from", fromName != null && !fromName.isEmpty()
+                ? fromName + " <" + fromEmail + ">"
+                : fromEmail);
+
+            // 收件人
+            requestBody.put("to", to);
+
+            requestBody.put("subject", subject);
+            requestBody.put("text", content);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + apiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                RESEND_API_URL,
+                HttpMethod.POST,
+                entity,
+                String.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Resend邮件发送成功: {}", to);
+                return true;
+            } else {
+                log.error("Resend邮件发送失败: {}", response.getBody());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("Resend邮件发送异常: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 通过 SMTP 发送邮件
+     */
+    private boolean sendViaSmtp(MailConfigEntity config, String to, String subject, String content) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(config.getFromName() + " <" + config.getFromEmail() + ">");
+            message.setTo(to);
+            message.setSubject(subject);
+            message.setText(content);
+            message.setSentDate(new Date());
+
+            mailSender.send(message);
+            log.info("SMTP邮件发送成功: {}", to);
+            return true;
+        } catch (Exception e) {
+            log.error("SMTP邮件发送失败: {}", e.getMessage(), e);
             return false;
         }
     }
@@ -214,6 +456,6 @@ public class MailConfigService {
      * 检查邮件服务是否已配置
      */
     public boolean isConfigured() {
-        return mailConfigRepository.findFirstByEnabledTrue().isPresent();
+        return mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().isPresent();
     }
 }

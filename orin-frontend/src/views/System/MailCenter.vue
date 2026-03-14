@@ -76,8 +76,8 @@
             <div class="status-item">
               <span class="status-label">发送方式</span>
               <span class="status-value">
-                <el-tag size="small" :type="mailConfig.mailerType === 'mailersend' ? 'primary' : 'info'">
-                  {{ mailConfig.mailerType === 'mailersend' ? 'MailerSend API' : 'SMTP' }}
+                <el-tag size="small" :type="mailConfig.mailerType === 'resend' ? 'success' : mailConfig.mailerType === 'mailersend' ? 'primary' : 'info'">
+                  {{ mailConfig.mailerType === 'resend' ? 'Resend' : mailConfig.mailerType === 'mailersend' ? 'MailerSend API' : 'SMTP' }}
                 </el-tag>
               </span>
             </div>
@@ -182,8 +182,8 @@
                     </div>
                     <el-icon v-if="mailConfigForm.mailerType === 'mailersend'" class="check-icon"><CircleCheck /></el-icon>
                   </div>
-                  
-                  <div 
+
+                  <div
                     class="mailer-option"
                     :class="{ selected: mailConfigForm.mailerType === 'smtp' }"
                     @click="selectMailer('smtp')"
@@ -196,6 +196,23 @@
                       <p>通用 • 兼容各种邮件服务</p>
                     </div>
                     <el-icon v-if="mailConfigForm.mailerType === 'smtp'" class="check-icon"><CircleCheck /></el-icon>
+                  </div>
+
+                  <div
+                    class="mailer-option"
+                    :class="{ selected: mailConfigForm.mailerType === 'resend' }"
+                    @click="selectMailer('resend')"
+                  >
+                    <div class="mailer-icon resend-icon">
+                      <svg viewBox="0 0 24 24" width="40" height="40">
+                        <path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                      </svg>
+                    </div>
+                    <div class="mailer-info">
+                      <h4>Resend</h4>
+                      <p>现代 • 开发者友好</p>
+                    </div>
+                    <el-icon v-if="mailConfigForm.mailerType === 'resend'" class="check-icon"><CircleCheck /></el-icon>
                   </div>
                 </div>
                 
@@ -296,9 +313,86 @@
                         </template>
                       </el-input>
                     </el-form-item>
-                    
+
                     <el-form-item label="启用 SSL/TLS">
                       <el-switch v-model="mailConfigForm.sslEnabled" />
+                    </el-form-item>
+
+                    <!-- IMAP 接收配置 -->
+                    <el-divider content-position="left">IMAP 收件配置</el-divider>
+
+                    <el-form-item label="启用 IMAP">
+                      <el-switch v-model="mailConfigForm.imapEnabled" />
+                    </el-form-item>
+
+                    <template v-if="mailConfigForm.imapEnabled">
+                      <el-form-item label="IMAP 服务器">
+                        <el-input v-model="mailConfigForm.imapHost" placeholder="imap.example.com">
+                          <template #prefix>
+                            <el-icon><Monitor /></el-icon>
+                          </template>
+                        </el-input>
+                      </el-form-item>
+
+                      <el-form-item label="IMAP 端口">
+                        <el-input-number v-model="mailConfigForm.imapPort" :min="1" :max="65535" />
+                        <div class="form-tip">默认: 993 (SSL)</div>
+                      </el-form-item>
+
+                      <el-form-item label="IMAP 用户名">
+                        <el-input v-model="mailConfigForm.imapUsername" placeholder="your@email.com">
+                          <template #prefix>
+                            <el-icon><User /></el-icon>
+                          </template>
+                        </el-input>
+                      </el-form-item>
+
+                      <el-form-item label="IMAP 密码">
+                        <el-input v-model="mailConfigForm.imapPassword" type="password" show-password placeholder="密码或应用专用密码">
+                          <template #prefix>
+                            <el-icon><Lock /></el-icon>
+                          </template>
+                        </el-input>
+                        <div class="form-tip">如使用 Gmail，请使用应用专用密码</div>
+                      </el-form-item>
+                    </template>
+                  </template>
+
+                  <!-- Resend 配置 -->
+                  <template v-if="mailConfigForm.mailerType === 'resend'">
+                    <el-form-item label="API Token" required>
+                      <el-input
+                        v-model="mailConfigForm.apiKey"
+                        type="password"
+                        show-password
+                        placeholder="re_xxxxx"
+                      >
+                        <template #prefix>
+                          <el-icon><Key /></el-icon>
+                        </template>
+                      </el-input>
+                      <div class="form-tip">
+                        <el-link href="https://resend.com/api-keys" target="_blank">
+                          获取 API Token <el-icon><Link /></el-icon>
+                        </el-link>
+                      </div>
+                    </el-form-item>
+
+                    <el-form-item label="发件人邮箱" required>
+                      <el-input v-model="mailConfigForm.fromEmail" placeholder="noreply@yourdomain.com">
+                        <template #prefix>
+                          <el-icon><Message /></el-icon>
+                        </template>
+                      </el-input>
+                      <div class="form-tip">在 Resend 域名设置中验证的邮箱地址</div>
+                    </el-form-item>
+
+                    <el-form-item label="发件人名称">
+                      <el-input v-model="mailConfigForm.fromName" placeholder="ORIN 系统">
+                        <template #prefix>
+                          <el-icon><User /></el-icon>
+                        </template>
+                      </el-input>
                     </el-form-item>
                   </template>
                 </el-form>
@@ -325,7 +419,7 @@
                   <div class="verify-details">
                     <div class="verify-item">
                       <span class="verify-label">发送方式</span>
-                      <span class="verify-value">{{ mailConfigForm.mailerType === 'mailersend' ? 'MailerSend API' : 'SMTP' }}</span>
+                      <span class="verify-value">{{ mailConfigForm.mailerType === 'mailersend' ? 'MailerSend API' : mailConfigForm.mailerType === 'resend' ? 'Resend' : 'SMTP' }}</span>
                     </div>
                     <div class="verify-item">
                       <span class="verify-label">发件邮箱</span>
@@ -340,11 +434,55 @@
                   <div class="verify-actions">
                     <el-button @click="configStep = 2">修改配置</el-button>
                     <el-button type="success" @click="saveAndTest" :loading="testingConnection">
-                      <el-icon><Check /></el-icon> 保存并测试
+                      <el-icon><Check /></el-icon> 保存配置
                     </el-button>
                   </div>
                 </div>
               </div>
+            </el-card>
+          </el-tab-pane>
+
+          <!-- 发送邮件 -->
+          <el-tab-pane label="发送邮件" name="send">
+            <el-card class="send-card">
+              <template #header>
+                <div class="card-header">
+                  <span><el-icon><Promotion /></el-icon> 发送邮件</span>
+                </div>
+              </template>
+
+              <el-form :model="sendMailForm" label-width="100px" class="send-form">
+                <el-form-item label="收件人" required>
+                  <el-input v-model="sendMailForm.to" placeholder="请输入收件人邮箱，多个用逗号分隔">
+                    <template #prefix>
+                      <el-icon><Message /></el-icon>
+                    </template>
+                  </el-input>
+                </el-form-item>
+
+                <el-form-item label="主题" required>
+                  <el-input v-model="sendMailForm.subject" placeholder="请输入邮件主题">
+                    <template #prefix>
+                      <el-icon><Edit /></el-icon>
+                    </template>
+                  </el-input>
+                </el-form-item>
+
+                <el-form-item label="内容" required>
+                  <el-input
+                    v-model="sendMailForm.content"
+                    type="textarea"
+                    :rows="15"
+                    placeholder="请输入邮件内容"
+                  />
+                </el-form-item>
+
+                <el-form-item>
+                  <el-button type="primary" @click="sendMail" :loading="sendingMail">
+                    <el-icon><Promotion /></el-icon> 发送邮件
+                  </el-button>
+                </el-form-item>
+              </el-form>
             </el-card>
           </el-tab-pane>
 
@@ -400,7 +538,7 @@
               <el-table-column label="操作" width="160" fixed="right">
                 <template #default="{ row }">
                   <el-button type="primary" link @click="openTemplateDialog(row)">编辑</el-button>
-                  <el-button type="primary" link @click="previewTemplate(row)">预览</el-button>
+                  <el-button type="primary" link @click="previewTemplateFn(row)">预览</el-button>
                   <el-button type="danger" link @click="deleteTemplate(row)">删除</el-button>
                 </template>
               </el-table-column>
@@ -438,8 +576,8 @@
                 <el-table-column prop="recipients" label="收件人" min-width="150" show-overflow-tooltip />
                 <el-table-column prop="mailerType" label="方式" width="100">
                   <template #default="{ row }">
-                    <el-tag :type="row.mailerType === 'mailersend' ? 'primary' : 'info'" size="small">
-                      {{ row.mailerType === 'mailersend' ? 'API' : 'SMTP' }}
+                    <el-tag :type="row.mailerType === 'resend' ? 'success' : row.mailerType === 'mailersend' ? 'primary' : 'info'" size="small">
+                      {{ row.mailerType === 'resend' ? 'Resend' : row.mailerType === 'mailersend' ? 'MailerSend' : 'SMTP' }}
                     </el-tag>
                   </template>
                 </el-table-column>
@@ -478,6 +616,207 @@
                 />
               </div>
             </el-card>
+          </el-tab-pane>
+
+          <!-- 收件箱 -->
+          <el-tab-pane label="收件箱" name="inbox">
+            <el-card class="inbox-card">
+              <template #header>
+                <div class="card-header">
+                  <span><el-icon><Message /></el-icon> 收件箱</span>
+                  <div class="header-actions">
+                    <el-button
+                      type="primary"
+                      size="small"
+                      :icon="Refresh"
+                      :loading="inboxLoading"
+                      @click="fetchInboxEmails"
+                      :disabled="!imapConfigured"
+                    >
+                      拉取邮件
+                    </el-button>
+                  </div>
+                </div>
+              </template>
+
+              <div v-if="!imapConfigured" class="empty-tip">
+                <el-alert type="warning" :closable="false">
+                  <template #title>
+                    IMAP 未配置
+                  </template>
+                  请在"配置管理"中启用 IMAP 并填写配置信息以接收邮件。
+                </el-alert>
+              </div>
+
+              <div v-else>
+                <div class="inbox-stats">
+                  <span class="unread-badge" v-if="inboxUnreadCount > 0">
+                    {{ inboxUnreadCount }} 未读
+                  </span>
+                </div>
+
+                <el-table
+                  :data="inboxList"
+                  v-loading="inboxLoading"
+                  style="width: 100%"
+                  @row-click="viewInboxMail"
+                  class="inbox-table"
+                >
+                  <el-table-column width="40">
+                    <template #default="{ row }">
+                      <el-icon v-if="row.isStarred" color="#E6A23C"><StarFilled /></el-icon>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="fromName" label="发件人" width="180">
+                    <template #default="{ row }">
+                      <span :class="{ 'unread-row': !row.isRead }">
+                        {{ row.fromName || row.fromEmail }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="subject" label="主题" min-width="300">
+                    <template #default="{ row }">
+                      <span :class="{ 'unread-row': !row.isRead }">
+                        {{ row.subject }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="receivedAt" label="时间" width="180">
+                    <template #default="{ row }">
+                      {{ formatDateTime(row.receivedAt) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100" fixed="right">
+                    <template #default="{ row }">
+                      <el-button type="primary" link size="small" @click.stop="viewInboxMail(row)">
+                        查看
+                      </el-button>
+                      <el-button type="danger" link size="small" @click.stop="deleteInboxMail(row.id)">
+                        删除
+                      </el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+
+                <el-pagination
+                  v-model:current-page="inboxPage"
+                  v-model:page-size="inboxPageSize"
+                  :total="inboxTotal"
+                  :page-sizes="[10, 20, 50]"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  @size-change="loadInbox"
+                  @current-change="loadInbox"
+                />
+              </div>
+            </el-card>
+
+            <!-- 邮件详情对话框 -->
+            <el-dialog
+              v-model="inboxDetailVisible"
+              :title="currentInboxMail?.subject"
+              width="70%"
+              top="5vh"
+            >
+              <div class="mail-detail" v-if="currentInboxMail">
+                <div class="mail-header">
+                  <div class="mail-from">
+                    <strong>发件人:</strong> {{ currentInboxMail.fromName || currentInboxMail.fromEmail }}
+                    &lt;{{ currentInboxMail.fromEmail }}&gt;
+                  </div>
+                  <div class="mail-time">
+                    <strong>时间:</strong> {{ formatDateTime(currentInboxMail.receivedAt) }}
+                  </div>
+                </div>
+                <el-divider />
+                <div class="mail-content" v-html="currentInboxMail.contentHtml || currentInboxMail.content"></div>
+              </div>
+            </el-dialog>
+          </el-tab-pane>
+
+          <!-- 发件箱 -->
+          <el-tab-pane label="发件箱" name="sent">
+            <el-card class="sent-card">
+              <template #header>
+                <div class="card-header">
+                  <span><el-icon><Promotion /></el-icon> 发件箱</span>
+                </div>
+              </template>
+
+              <el-table
+                :data="sentList"
+                v-loading="sentLoading"
+                style="width: 100%"
+              >
+                <el-table-column prop="subject" label="主题" min-width="300">
+                  <template #default="{ row }">
+                    {{ row.subject }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="recipients" label="收件人" width="250">
+                  <template #default="{ row }">
+                    {{ row.recipients }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="row.status === 'SUCCESS' ? 'success' : row.status === 'FAILED' ? 'danger' : 'warning'">
+                      {{ row.status === 'SUCCESS' ? '成功' : row.status === 'FAILED' ? '失败' : '待发送' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="createdAt" label="发送时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatDateTime(row.createdAt) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="100" fixed="right">
+                  <template #default="{ row }">
+                    <el-button type="primary" link size="small" @click="viewSentMail(row)">
+                      查看
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <el-pagination
+                v-model:current-page="sentPage"
+                v-model:page-size="sentPageSize"
+                :total="sentTotal"
+                :page-sizes="[10, 20, 50]"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="loadSent"
+                @current-change="loadSent"
+              />
+            </el-card>
+
+            <!-- 发件箱邮件详情对话框 -->
+            <el-dialog
+              v-model="sentDetailVisible"
+              :title="currentSentMail?.subject"
+              width="70%"
+              top="5vh"
+            >
+              <div class="mail-detail" v-if="currentSentMail">
+                <div class="mail-header">
+                  <div class="mail-from">
+                    <strong>收件人:</strong> {{ currentSentMail.recipients }}
+                  </div>
+                  <div class="mail-time">
+                    <strong>发送时间:</strong> {{ formatDateTime(currentSentMail.createdAt) }}
+                  </div>
+                  <div class="mail-status">
+                    <strong>状态:</strong>
+                    <el-tag :type="currentSentMail.status === 'SUCCESS' ? 'success' : currentSentMail.status === 'FAILED' ? 'danger' : 'warning'">
+                      {{ currentSentMail.status === 'SUCCESS' ? '成功' : currentSentMail.status === 'FAILED' ? '失败' : '待发送' }}
+                    </el-tag>
+                  </div>
+                </div>
+                <el-divider />
+                <div class="mail-content">
+                  {{ currentSentMail.content }}
+                </div>
+              </div>
+            </el-dialog>
           </el-tab-pane>
         </el-tabs>
       </div>
@@ -597,12 +936,12 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Plus, Search, Message, Document, CircleCheck, Warning, 
-  InfoFilled, Lightning, EditPen, List, Setting, 
-  Promotion, ArrowRight, ArrowLeft, Key, Link, 
+import {
+  Plus, Search, Message, Document, CircleCheck, Warning,
+  InfoFilled, Lightning, EditPen, List, Setting,
+  Promotion, ArrowRight, ArrowLeft, Key, Link,
   User, Lock, Monitor, MessageBox, CircleCheckFilled,
-  Check, CircleClose, Loading
+  Check, CircleClose, Loading, Refresh, StarFilled
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
@@ -637,12 +976,18 @@ const mailConfigForm = reactive({
   smtpPassword: '',
   fromEmail: '',
   fromName: 'ORIN 系统',
-  sslEnabled: true
+  sslEnabled: true,
+  // IMAP 配置
+  imapEnabled: false,
+  imapHost: '',
+  imapPort: 993,
+  imapUsername: '',
+  imapPassword: ''
 })
 
 // 计算属性：步骤2是否可以继续
 const canProceedStep2 = computed(() => {
-  if (mailConfigForm.mailerType === 'mailersend') {
+  if (mailConfigForm.mailerType === 'mailersend' || mailConfigForm.mailerType === 'resend') {
     return mailConfigForm.apiKey && mailConfigForm.fromEmail
   } else {
     return mailConfigForm.smtpHost && mailConfigForm.fromEmail
@@ -683,9 +1028,37 @@ const testMailForm = reactive({
   code: '123456'
 })
 
+// 发送邮件
+const sendingMail = ref(false)
+const sendMailForm = reactive({
+  to: '',
+  subject: '',
+  content: ''
+})
+
 // 预览
 const previewDialogVisible = ref(false)
 const previewTemplate = ref(null)
+
+// 收件箱相关
+const inboxList = ref([])
+const inboxLoading = ref(false)
+const inboxPage = ref(1)
+const inboxPageSize = ref(20)
+const inboxTotal = ref(0)
+const inboxUnreadCount = ref(0)
+const imapConfigured = ref(false)
+const inboxDetailVisible = ref(false)
+const currentInboxMail = ref(null)
+
+// 发件箱相关
+const sentList = ref([])
+const sentLoading = ref(false)
+const sentPage = ref(1)
+const sentPageSize = ref(20)
+const sentTotal = ref(0)
+const sentDetailVisible = ref(false)
+const currentSentMail = ref(null)
 
 // 计算筛选后的模板
 const filteredTemplates = computed(() => {
@@ -710,10 +1083,10 @@ const loadMailConfig = async () => {
     if (res) {
       mailConfig.value = res
       mailConnected.value = res.enabled
-      
+
       // 填充表单
       mailConfigForm.mailerType = res.mailerType || 'mailersend'
-      if (res.mailerType === 'mailersend') {
+      if (res.mailerType === 'mailersend' || res.mailerType === 'resend') {
         mailConfigForm.apiKey = res.apiKey || ''
       } else {
         mailConfigForm.smtpHost = res.smtpHost || 'smtp.mailersend.net'
@@ -724,19 +1097,27 @@ const loadMailConfig = async () => {
       }
       mailConfigForm.fromEmail = res.fromEmail || ''
       mailConfigForm.fromName = res.fromName || 'ORIN 系统'
+
+      // 加载 IMAP 配置
+      mailConfigForm.imapEnabled = res.imapEnabled || false
+      mailConfigForm.imapHost = res.imapHost || ''
+      mailConfigForm.imapPort = res.imapPort || 993
+      mailConfigForm.imapUsername = res.imapUsername || ''
+      mailConfigForm.imapPassword = res.imapPassword || ''
     }
   } catch (e) {
     console.error('加载配置失败:', e)
   }
 }
 
-// 保存并测试
+// 保存配置
 const saveAndTest = async () => {
   testingConnection.value = true
   try {
     const config = {
+      id: mailConfig.value?.id,
       mailerType: mailConfigForm.mailerType,
-      apiKey: mailConfigForm.mailerType === 'mailersend' ? mailConfigForm.apiKey : null,
+      apiKey: (mailConfigForm.mailerType === 'mailersend' || mailConfigForm.mailerType === 'resend') ? mailConfigForm.apiKey : null,
       smtpHost: mailConfigForm.smtpHost,
       smtpPort: mailConfigForm.smtpPort,
       username: mailConfigForm.smtpUsername,
@@ -744,24 +1125,21 @@ const saveAndTest = async () => {
       fromEmail: mailConfigForm.fromEmail,
       fromName: mailConfigForm.fromName,
       sslEnabled: mailConfigForm.sslEnabled,
-      enabled: true
+      enabled: true,
+      // IMAP 配置
+      imapEnabled: mailConfigForm.imapEnabled,
+      imapHost: mailConfigForm.imapHost,
+      imapPort: mailConfigForm.imapPort,
+      imapUsername: mailConfigForm.imapUsername,
+      imapPassword: mailConfigForm.imapPassword
     }
-    
+
     await request.post('/system/mail-config', config)
-    
-    // 测试发送
-    const testRes = await request.post('/system/mail-config/test', null, {
-      params: { testEmail: mailConfigForm.fromEmail }
-    })
-    
-    if (testRes.success !== false) {
-      ElMessage.success('配置保存成功，测试邮件已发送')
-      mailConnected.value = true
-      configStep.value = 1
-      loadMailConfig()
-    } else {
-      ElMessage.warning('配置已保存，但测试邮件发送失败：' + (testRes.message || ''))
-    }
+
+    ElMessage.success('配置保存成功')
+    mailConnected.value = true
+    configStep.value = 1
+    loadMailConfig()
   } catch (e) {
     ElMessage.error('操作失败: ' + (e.message || e))
   } finally {
@@ -975,15 +1353,15 @@ const sendTestMail = async () => {
     ElMessage.warning('请输入收件人')
     return
   }
-  
+
   sendingTest.value = true
   try {
     // 使用验证码发送接口测试
-    const res = await request.post('/system/send-code', {
+    const res = await request.post('/auth/send-code', {
       email: testMailForm.to,
       type: testMailForm.type
     })
-    
+
     if (res.success !== false) {
       ElMessage.success('测试邮件已发送')
       testMailDialogVisible.value = false
@@ -997,17 +1375,190 @@ const sendTestMail = async () => {
   }
 }
 
-// 预览模板
-const previewTemplate = (template) => {
-  previewTemplate.value = template
-  previewDialogVisible.value = true
+// 发送邮件
+const sendMail = async () => {
+  if (!sendMailForm.to) {
+    ElMessage.warning('请输入收件人')
+    return
+  }
+  if (!sendMailForm.subject) {
+    ElMessage.warning('请输入邮件主题')
+    return
+  }
+  if (!sendMailForm.content) {
+    ElMessage.warning('请输入邮件内容')
+    return
+  }
+
+  sendingMail.value = true
+  try {
+    const res = await request.post('/system/mail-config/send', {
+      to: sendMailForm.to,
+      subject: sendMailForm.subject,
+      content: sendMailForm.content
+    })
+
+    if (res.success) {
+      ElMessage.success('邮件发送成功')
+      // 清空表单
+      sendMailForm.to = ''
+      sendMailForm.subject = ''
+      sendMailForm.content = ''
+    } else {
+      ElMessage.error(res.message || '邮件发送失败')
+    }
+  } catch (e) {
+    ElMessage.error('邮件发送失败: ' + (e.message || e))
+  } finally {
+    sendingMail.value = false
+  }
 }
+
+// ==================== 收件箱相关 ====================
+
+// 加载收件箱
+const loadInbox = async () => {
+  inboxLoading.value = true
+  try {
+    const res = await request.get('/system/mail-inbox', {
+      params: {
+        page: inboxPage.value - 1,
+        size: inboxPageSize.value
+      }
+    })
+    if (res) {
+      inboxList.value = res.content || []
+      inboxTotal.value = res.totalElements || 0
+    }
+  } catch (e) {
+    console.error('加载收件箱失败:', e)
+  } finally {
+    inboxLoading.value = false
+  }
+}
+
+// 获取未读数量和 IMAP 状态
+const loadInboxStatus = async () => {
+  try {
+    const [unreadRes, imapRes] = await Promise.all([
+      request.get('/system/mail-inbox/unread-count'),
+      request.get('/system/mail-inbox/imap-status')
+    ])
+    if (unreadRes) {
+      inboxUnreadCount.value = unreadRes.count || 0
+    }
+    if (imapRes) {
+      imapConfigured.value = imapRes.configured || false
+    }
+  } catch (e) {
+    console.error('加载收件箱状态失败:', e)
+  }
+}
+
+// 拉取邮件
+const fetchInboxEmails = async () => {
+  inboxLoading.value = true
+  try {
+    const res = await request.post('/system/mail-inbox/fetch')
+    if (res.success) {
+      ElMessage.success(`成功拉取 ${res.fetchedCount} 封邮件`)
+      loadInbox()
+      loadInboxStatus()
+    } else {
+      ElMessage.error(res.message || '拉取失败')
+    }
+  } catch (e) {
+    ElMessage.error('拉取失败: ' + (e.message || e))
+  } finally {
+    inboxLoading.value = false
+  }
+}
+
+// 查看邮件详情
+const viewInboxMail = async (row) => {
+  try {
+    // 先标记为已读
+    if (!row.isRead) {
+      await request.post(`/system/mail-inbox/${row.id}/read`)
+      row.isRead = true
+      inboxUnreadCount.value = Math.max(0, inboxUnreadCount.value - 1)
+    }
+    currentInboxMail.value = row
+    inboxDetailVisible.value = true
+  } catch (e) {
+    console.error('加载邮件详情失败:', e)
+  }
+}
+
+// 删除邮件
+const deleteInboxMail = async (id) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这封邮件吗?', '提示', {
+      type: 'warning'
+    })
+    const res = await request.delete(`/system/mail-inbox/${id}`)
+    if (res.success) {
+      ElMessage.success('删除成功')
+      loadInbox()
+      loadInboxStatus()
+    }
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+// ==================== 发件箱相关 ====================
+
+// 加载发件箱（复用日志接口）
+const loadSent = async () => {
+  sentLoading.value = true
+  try {
+    const res = await request.get('/system/mail-logs', {
+      params: {
+        page: sentPage.value - 1,
+        size: sentPageSize.value
+      }
+    })
+    if (res) {
+      sentList.value = res.content || []
+      sentTotal.value = res.totalElements || 0
+    }
+  } catch (e) {
+    console.error('加载发件箱失败:', e)
+  } finally {
+    sentLoading.value = false
+  }
+}
+
+// 查看发件箱邮件详情
+const viewSentMail = (row) => {
+  currentSentMail.value = row
+  sentDetailVisible.value = true
+}
+
+// 格式化日期时间
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
 
 // 初始化
 onMounted(() => {
   loadMailConfig()
   loadTemplates()
   loadLogs()
+  loadInbox()
+  loadInboxStatus()
+  loadSent()
 })
 </script>
 
@@ -1341,6 +1892,11 @@ onMounted(() => {
   color: #fff;
 }
 
+.resend-icon {
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  color: #fff;
+}
+
 .mailer-info h4 {
   margin: 0 0 8px 0;
   color: #303133;
@@ -1424,6 +1980,15 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   gap: 16px;
+}
+
+/* 发送邮件 */
+.send-card {
+  max-width: 900px;
+}
+
+.send-form {
+  padding: 20px;
 }
 
 /* 模板管理 */
@@ -1555,9 +2120,71 @@ onMounted(() => {
   .mailer-selection {
     grid-template-columns: 1fr;
   }
-  
+
   .quick-actions {
     grid-template-columns: 1fr;
   }
+}
+
+/* 收件箱样式 */
+.inbox-card,
+.sent-card {
+  height: 100%;
+}
+
+.inbox-stats {
+  margin-bottom: 16px;
+}
+
+.unread-badge {
+  background: #f56c6c;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.unread-row {
+  font-weight: 600;
+  color: #303133;
+}
+
+.inbox-table .el-table__row {
+  cursor: pointer;
+}
+
+.inbox-table .el-table__row:hover {
+  background-color: #f5f7fa;
+}
+
+.empty-tip {
+  padding: 20px 0;
+}
+
+/* 邮件详情样式 */
+.mail-detail {
+  padding: 10px;
+}
+
+.mail-detail .mail-header {
+  margin-bottom: 16px;
+}
+
+.mail-detail .mail-from,
+.mail-detail .mail-time,
+.mail-detail .mail-status {
+  margin-bottom: 8px;
+  color: #606266;
+}
+
+.mail-detail .mail-content {
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
 </style>

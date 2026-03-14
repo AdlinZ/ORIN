@@ -38,6 +38,7 @@ public class MailService {
     private String appName;
 
     private static final String MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+    private static final String RESEND_API_URL = "https://api.resend.com/emails";
 
     // 验证码缓存 (email -> code)
     private final Map<String, VerificationCode> codeCache = new ConcurrentHashMap<>();
@@ -61,7 +62,20 @@ public class MailService {
      * 获取当前邮件配置
      */
     private MailConfigEntity getMailConfig() {
-        return mailConfigRepository.findAll().stream().findFirst().orElse(null);
+        return mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().orElse(null);
+    }
+
+    /**
+     * 获取原始邮件配置（不掩码）
+     */
+    private MailConfigEntity getRawMailConfig() {
+        MailConfigEntity config = mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().orElse(null);
+        if (config != null) {
+            // 如果配置被缓存掩码了，重新从数据库获取
+            // 这里返回原始配置，调用方需要注意不返回给前端
+            return config;
+        }
+        return null;
     }
 
     /**
@@ -110,7 +124,7 @@ public class MailService {
      * 发送告警通知（支持多个收件人）
      */
     public boolean sendAlertEmail(String[] toArr, String subject, String content) {
-        MailConfigEntity config = getMailConfig();
+        MailConfigEntity config = getRawMailConfig();
         String recipients = String.join(",", toArr);
         String fullSubject = "[" + appName + " 告警] " + subject;
 
@@ -255,12 +269,14 @@ public class MailService {
      * 发送邮件
      */
     private boolean sendEmail(String to, String subject, String content) {
-        MailConfigEntity config = getMailConfig();
+        MailConfigEntity config = getRawMailConfig();
 
         // 如果有数据库配置，优先使用数据库配置
         if (config != null && config.getEnabled() != null && config.getEnabled()) {
             if ("mailersend".equals(config.getMailerType())) {
                 return sendEmailViaMailerSend(to, subject, content, config);
+            } else if ("resend".equals(config.getMailerType())) {
+                return sendEmailViaResend(to, subject, content, config);
             } else {
                 return sendEmailViaSmtp(to, subject, content, config);
             }
@@ -358,6 +374,62 @@ public class MailService {
             }
         } catch (Exception e) {
             log.error("MailerSend邮件发送异常: {}", to, e);
+            return false;
+        }
+    }
+
+    /**
+     * 通过 Resend API 发送邮件
+     */
+    private boolean sendEmailViaResend(String to, String subject, String content, MailConfigEntity config) {
+        try {
+            String apiKey = config.getApiKey();
+            String fromEmail = config.getFromEmail();
+            String fromName = config.getFromName();
+
+            if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
+                log.warn("Resend配置不完整，跳过发送");
+                return false;
+            }
+
+            // 构建请求体
+            Map<String, Object> requestBody = new HashMap<>();
+
+            // 发件人
+            requestBody.put("from", fromName != null && !fromName.isEmpty()
+                ? fromName + " <" + fromEmail + ">"
+                : fromEmail);
+
+            // 收件人
+            requestBody.put("to", to);
+
+            // 主题和内容
+            requestBody.put("subject", subject);
+            requestBody.put("text", content);
+
+            // 设置请求头
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + apiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                RESEND_API_URL,
+                HttpMethod.POST,
+                entity,
+                String.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Resend邮件发送成功: {}", to);
+                return true;
+            } else {
+                log.error("Resend邮件发送失败: {}, status: {}, body: {}", to, response.getStatusCode(), response.getBody());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("Resend邮件发送异常: {}", to, e);
             return false;
         }
     }
