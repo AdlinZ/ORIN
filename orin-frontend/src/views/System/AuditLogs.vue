@@ -22,7 +22,7 @@
               <template #default="{ row }">
                 <div class="expand-content">
                   <el-descriptions title="详细请求参数" :column="2" border>
-                    <el-descriptions-item label="类型">{{ row.providerType }}</el-descriptions-item>
+                    <el-descriptions-item label="类型">{{ formatOperationType(row) }}</el-descriptions-item>
                     <el-descriptions-item label="端点 (Endpoint)">{{ row.endpoint }}</el-descriptions-item>
                     <el-descriptions-item label="Conversation ID">{{ row.conversationId || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="方法 (Method)">{{ row.method }}</el-descriptions-item>
@@ -56,10 +56,11 @@
               </template>
             </el-table-column>
             
-            <el-table-column prop="model" label="类型/模型" width="160">
+            <el-table-column prop="providerId" label="操作类型" width="180">
               <template #default="{ row }">
-                <el-tag size="small" v-if="row.model">{{ row.model }}</el-tag>
-                <el-tag size="small" type="info" v-else>{{ row.providerType || 'System' }}</el-tag>
+                <el-tag size="small" :type="getOperationTypeTag(row.providerId)">
+                  {{ formatOperationType(row) }}
+                </el-tag>
               </template>
             </el-table-column>
 
@@ -441,6 +442,143 @@ const getLatencyTagConfig = (ms) => {
   return { color: '#3c8c25', style: { color: 'white', border: 'none' } };
 };
 
+// 格式化操作类型显示
+const formatOperationType = (row) => {
+  // 判断是否是系统操作类型
+  const isSystemOperation = (val) => {
+    if (!val) return false;
+    return val.startsWith('USER_') || val.startsWith('MAIL_')
+      || val.startsWith('ALERT_') || val.startsWith('LOG_')
+      || val.startsWith('PROVIDER_') || val.startsWith('API_KEY_')
+      || val.startsWith('EXTERNAL_') || val.startsWith('WORKFLOW_')
+      || val === 'SYSTEM_LIFECYCLE' || val === 'AUTH'
+      || val === 'INTERNAL' || val === 'BOOTSTRAP';
+  };
+
+  // 判断是否是模型调用（通过 endpoint 判断）
+  const isModelCall = row.endpoint && (
+    row.endpoint.includes('/chat/completions')
+    || row.endpoint.includes('/completions')
+    || row.endpoint.includes('/embeddings')
+    || row.endpoint.includes('/images/generations')
+    || row.endpoint.includes('/audio')
+  );
+
+  // 如果是模型调用，显示"Model API"
+  if (isModelCall) {
+    return 'Model API';
+  }
+
+  // 判断是否是文件上传
+  const isFileUpload = row.endpoint && (
+    row.endpoint.includes('/upload')
+    || row.endpoint.includes('/file')
+  );
+
+  // 如果是文件上传，显示"File Upload"
+  if (isFileUpload) {
+    return 'File Upload';
+  }
+
+  // 使用 providerId（用于系统操作），显示原始英文
+  if (row.providerId && isSystemOperation(row.providerId)) {
+    return row.providerId;
+  }
+
+  // 降级到 providerType
+  return row.providerType || 'System';
+};
+
+// 格式化 providerId 为可读的中文
+const formatProviderId = (providerId) => {
+  const typeMap = {
+    // 用户管理
+    'USER_CREATE': '创建用户',
+    'USER_UPDATE': '更新用户',
+    'USER_DELETE': '删除用户',
+    'USER_STATUS': '用户状态',
+    // 邮件
+    'MAIL_SERVICE': '邮件服务',
+    'MAIL_CONFIG_SAVE': '保存邮件配置',
+    'MAIL_CONFIG_TEST': '测试邮件',
+    'MAIL_SEND': '发送邮件',
+    'VERIFICATION_CODE': '验证码',
+    'ALERT_EMAIL': '告警邮件',
+    'ALERT_EMAIL_BATCH': '批量告警邮件',
+    // 告警
+    'ALERT_CONFIG_SAVE': '保存告警配置',
+    'ALERT_NOTIFICATION_TEST': '测试告警通知',
+    // 日志
+    'LOG_CLEANUP': '清理日志',
+    'LOG_CONFIG_UPDATE': '更新日志配置',
+    'LOGGER_SET_LEVEL': '设置Logger级别',
+    'LOGGER_RESET': '重置Logger',
+    'LOGGER_BATCH_SET': '批量设置Logger',
+    'LOGGER_RESET_ALL': '重置所有Logger',
+    // 供应商
+    'PROVIDER_CONFIG_UPDATE': '更新供应商配置',
+    'PROVIDER_ORDER_UPDATE': '更新供应商顺序',
+    'PROVIDER_ENABLED': '供应商启用/禁用',
+    // API 密钥
+    'API_KEY_CREATE': '创建API密钥',
+    'API_KEY_DELETE': '删除API密钥',
+    'API_KEY_RESET_QUOTA': '重置API密钥配额',
+    'EXTERNAL_KEY_SAVE': '保存外部密钥',
+    'EXTERNAL_KEY_DELETE': '删除外部密钥',
+    'EXTERNAL_KEY_TOGGLE': '切换外部密钥',
+    // 工作流
+    'WORKFLOW_*': '工作流操作',
+    // 系统
+    'SYSTEM_LIFECYCLE': '系统生命周期',
+    'AUTH': '认证',
+    'INTERNAL': '内部调用',
+    'ORIN_CORE': 'ORIN核心',
+    'BOOTSTRAP': '系统启动'
+  };
+
+  // 精确匹配
+  if (typeMap[providerId]) {
+    return typeMap[providerId];
+  }
+
+  // 前缀匹配
+  for (const key of Object.keys(typeMap)) {
+    if (providerId.startsWith(key.replace('*', ''))) {
+      return typeMap[key];
+    }
+  }
+
+  return providerId;
+};
+
+// 根据操作类型返回标签样式
+const getOperationTypeTag = (providerId) => {
+  if (!providerId) return 'info';
+
+  // Model API / File Upload
+  if (providerId === 'Model API' || providerId === 'File Upload') return 'success';
+
+  // 用户操作
+  if (providerId.startsWith('USER_')) return 'primary';
+
+  // 邮件操作
+  if (providerId.startsWith('MAIL_') || providerId.startsWith('VERIFICATION')) return 'success';
+
+  // 告警操作
+  if (providerId.startsWith('ALERT_')) return 'warning';
+
+  // 日志操作
+  if (providerId.startsWith('LOG_') || providerId.startsWith('LOGGER')) return 'danger';
+
+  // 供应商操作
+  if (providerId.startsWith('PROVIDER_')) return 'info';
+
+  // API 密钥操作
+  if (providerId.startsWith('API_KEY_') || providerId.startsWith('外部')) return 'warning';
+
+  return 'info';
+};
+
 const fetchLogs = async () => {
   loading.value = true;
   try {
@@ -496,11 +634,11 @@ const handleExport = async () => {
       return stringField;
     };
 
-    const headers = ['时间', '类型', '接口', '方法', '模型', '耗时(ms)', 'Tokens', '状态', 'IP', '错误信息'];
+    const headers = ['时间', '操作类型', '接口', '方法', '模型', '耗时(ms)', 'Tokens', '状态', 'IP', '错误信息'];
 
     const rows = allLogs.map(l => [
       `\t${formatDateTime(l.createdAt)}`,
-      l.providerType,
+      formatOperationType(l),
       l.endpoint,
       l.method,
       l.model || '-',

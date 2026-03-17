@@ -5,7 +5,7 @@
       <div class="logo-box">
         <BrandingLogo :height="appStore.isCollapse ? 28 : 32" class="logo" />
       </div>
-      <span class="title" v-show="!appStore.isCollapse"><span class="highlight">Monitor</span></span>
+      <span class="title" v-if="!appStore.isCollapse"><span class="highlight">Monitor</span></span>
     </div>
 
     <!-- Menu Section (scrollable) -->
@@ -19,7 +19,7 @@
       >
         <!-- 首页 -->
         <el-menu-item index="/dashboard/home">
-          <el-icon><HomeFilled /></el-icon>
+          <el-icon><House /></el-icon>
           <template #title>首页</template>
         </el-menu-item>
 
@@ -50,12 +50,12 @@
     <div class="user-section">
       <el-dropdown trigger="click" @command="handleCommand" placement="top-start">
         <div class="user-wrapper">
-          <el-avatar 
-            :size="appStore.isCollapse ? 36 : 40" 
-            :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'" 
+          <el-avatar
+            :size="appStore.isCollapse ? 36 : 40"
+            :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'"
             class="user-avatar"
           />
-          <div class="user-info" v-show="!appStore.isCollapse">
+          <div class="user-info" v-if="!appStore.isCollapse">
             <span class="user-name">{{ userInfo.name || '游客' }}</span>
             <span class="user-role" v-if="userInfo.role">{{ userInfo.role }}</span>
           </div>
@@ -68,6 +68,10 @@
             <el-dropdown-item command="settings" v-if="userInfo.name">
               <el-icon><Setting /></el-icon>账号设置
             </el-dropdown-item>
+            <el-dropdown-item divided command="toggle_menu_mode">
+              <el-icon><Expand /></el-icon>
+              <span>切换到顶栏模式</span>
+            </el-dropdown-item>
             <el-dropdown-item command="login" v-if="!userInfo.name">
               <el-icon><User /></el-icon>登录
             </el-dropdown-item>
@@ -77,20 +81,20 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-    </div>
 
-    <!-- Floating Toggle Button -->
-    <el-tooltip 
-      :content="appStore.isCollapse ? '展开侧边栏' : '收起侧边栏'" 
-      placement="right"
-    >
-      <div class="sidebar-toggle-btn" @click="appStore.toggleSidebar">
-        <el-icon>
-          <DArrowLeft v-if="!appStore.isCollapse" />
-          <DArrowRight v-else />
-        </el-icon>
+      <!-- Bottom Actions -->
+      <div class="bottom-actions" v-if="!appStore.isCollapse">
+        <el-tooltip content="刷新页面" placement="right">
+          <el-button text :icon="Refresh" @click="handleRefresh" class="action-btn" />
+        </el-tooltip>
+        <el-tooltip :content="isDarkMode ? '浅色模式' : '深色模式'" placement="right">
+          <el-button text :icon="isDarkMode ? Sunny : Moon" @click="toggleTheme" class="action-btn" />
+        </el-tooltip>
+        <el-tooltip content="通知中心" placement="right">
+          <el-button text :icon="Bell" @click="showNotifications" class="action-btn" />
+        </el-tooltip>
       </div>
-    </el-tooltip>
+    </div>
   </div>
 </template>
 
@@ -104,9 +108,11 @@ import Cookies from 'js-cookie'
 import { ElMessage } from 'element-plus'
 import { ROUTES, SIDEBAR_MENU_CONFIG } from '@/router/routes'
 import {
-  HomeFilled, User, SwitchButton, DArrowLeft, DArrowRight, Setting,
-  Box, Monitor, Collection, Setting as SettingIcon, Message
+  House, User, SwitchButton, DArrowLeft, DArrowRight, Setting,
+  Box, Monitor, Collection, Setting as SettingIcon, Message, Expand,
+  Refresh, Moon, Sunny, Bell, DataAnalysis
 } from '@element-plus/icons-vue'
+import { useDark } from '@vueuse/core'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
@@ -115,6 +121,43 @@ const router = useRouter()
 
 const activeMenu = computed(() => route.path)
 const isAdmin = computed(() => userStore.isAdmin)
+
+// Dark mode logic
+const isDarkMode = useDark({
+  onChanged(dark) {
+    if (dark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }
+})
+
+// 刷新页面
+const handleRefresh = () => {
+  window.dispatchEvent(new Event('page-refresh'))
+  ElMessage({
+    message: '正在刷新页面数据...',
+    type: 'info',
+    duration: 1500
+  })
+}
+
+// 切换主题
+const toggleTheme = () => {
+  isDarkMode.value = !isDarkMode.value
+}
+
+// 显示通知
+const showNotifications = () => {
+  // 可以在这里打开通知中心，或者通过事件触发
+  ElMessage.info('通知中心功能开发中')
+}
+
+// 显示 AI 助手
+const showSystemAI = () => {
+  ElMessage.info('AI 助手功能开发中')
+}
 
 // 用户信息状态
 const userInfo = reactive({
@@ -153,7 +196,6 @@ const getIconComponent = (iconName) => {
 
 // 检查登录状态并更新用户信息
 const checkLoginStatus = () => {
-  // Rely directly on userStore state which is now reactive and correct
   if (userStore.isLoggedIn && userStore.userInfo) {
     userInfo.name = userStore.userInfo.nickname || userStore.userInfo.username || '用户'
     userInfo.avatar = userStore.userInfo.avatar || ''
@@ -164,7 +206,6 @@ const checkLoginStatus = () => {
       userInfo.role = '用户'
     }
   } else {
-    // 尝试触发store的状态恢复
     userStore.restoreFromCookies()
     if (userStore.isLoggedIn && userStore.userInfo) {
        userInfo.name = userStore.userInfo.nickname || userStore.userInfo.username || '用户'
@@ -196,6 +237,9 @@ const handleCommand = (command) => {
     case 'settings':
       ElMessage.info('系统设置模块开发中')
       break
+    case 'toggle_menu_mode':
+      appStore.toggleMenuMode()
+      break
     case 'login':
       router.push('/login')
       break
@@ -222,8 +266,8 @@ router.afterEach(() => {
   background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(248,250,252,0.75) 100%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   backdrop-filter: blur(20px) saturate(180%);
-  border-right: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.06);
+  border-right: 1px solid var(--neutral-gray-200);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1001;
   overflow: hidden;
@@ -235,6 +279,22 @@ router.afterEach(() => {
   width: var(--sidebar-width-collapsed);
 }
 
+.action-btn {
+  width: 32px;
+  height: 32px;
+  color: var(--neutral-gray-600);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.action-btn:hover {
+  color: var(--orin-primary);
+  background: var(--neutral-gray-50);
+}
+
 .logo-container {
   height: var(--header-height);
   padding: 0 20px;
@@ -243,6 +303,14 @@ router.afterEach(() => {
   gap: 12px;
   border-bottom: 1px solid var(--neutral-gray-100);
   flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.sidebar-container.collapsed .logo-container {
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
 }
 
 .logo-box {
@@ -254,7 +322,9 @@ router.afterEach(() => {
 }
 
 .sidebar-container.collapsed .logo-box {
-  width: 32px;
+  width: 100%;
+  display: grid;
+  place-items: center;
   justify-content: center;
 }
 
@@ -266,7 +336,8 @@ router.afterEach(() => {
 }
 
 .sidebar-container.collapsed .logo {
-  height: 18px;
+  height: 28px;
+  margin: 0 auto;
 }
 
 .title {
@@ -299,71 +370,111 @@ router.afterEach(() => {
   border-radius: 2px;
 }
 
-.menu-wrapper::-webkit-scrollbar-thumb:hover {
-  background: var(--neutral-gray-400);
+.el-menu-vertical {
+  width: 100%;
+  border-right: none;
+  background: transparent;
 }
 
 .el-menu-vertical:not(.el-menu--collapse) {
   width: var(--sidebar-width);
 }
 
-.el-menu {
-  border-right: none;
+.el-menu-vertical.el-menu--collapse {
+  width: var(--sidebar-width-collapsed);
 }
 
-:deep(.el-menu-item) {
-  height: 50px;
-  line-height: 50px;
-  margin: 4px 0;
-  color: var(--neutral-gray-5);
+:deep(.el-menu-item), :deep(.el-sub-menu__title) {
+  height: 54px !important;
+  line-height: 54px !important;
+  color: var(--neutral-gray-600);
+  display: flex;
+  align-items: center;
   transition: all 0.3s;
 }
 
+/* 核心修复：收起状态下的图标居中 */
+:deep(.el-menu--collapse .el-menu-item),
+:deep(.el-menu--collapse .el-sub-menu__title) {
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: var(--sidebar-width-collapsed) !important;
+  position: relative;
+}
+
+:deep(.el-menu--collapse .el-menu-item > .el-icon),
+:deep(.el-menu--collapse .el-sub-menu__title > .el-icon) {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+:deep(.el-menu--collapse .el-icon) {
+  margin: 0 !important;
+  font-size: 22px;
+  width: 22px !important;
+  height: 22px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 隐藏收起状态下的子菜单箭头和文字 */
+:deep(.el-menu--collapse span),
+:deep(.el-menu--collapse .el-sub-menu__icon-arrow) {
+  display: none !important;
+}
+
+/* 统一 Active 状态指示条，使用绝对定位防止挤压图标 */
 :deep(.el-menu-item.is-active) {
   color: var(--orin-primary) !important;
   background-color: var(--orin-primary-soft) !important;
   font-weight: 600;
-  border-left: 3px solid var(--orin-primary);
+  border-left: none !important;
 }
 
-:deep(.el-menu-item.is-active .el-icon) {
-  color: var(--orin-primary) !important;
+:deep(.el-menu-item.is-active)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 3px;
+  background-color: var(--orin-primary);
+  border-radius: 0 4px 4px 0;
 }
 
-:deep(.el-menu-item:hover) {
-  background-color: var(--neutral-gray-1);
+.sidebar-container.collapsed :deep(.el-menu-item.is-active)::after {
+  top: 0;
+  bottom: 0;
+  width: 4px;
 }
 
-:deep(.el-sub-menu__title:hover) {
-  background-color: var(--neutral-gray-1);
+:deep(.el-menu-item:hover), :deep(.el-sub-menu__title:hover) {
+  background-color: var(--neutral-gray-50) !important;
 }
 
-/* 一级菜单主题色 */
-:deep(.menu-applications .el-sub-menu__title:hover) {
-  background-color: rgba(21, 94, 239, 0.05);
-}
-
-:deep(.menu-runtime .el-sub-menu__title:hover) {
-  background-color: rgba(16, 185, 129, 0.05);
-}
-
-:deep(.menu-resources .el-sub-menu__title:hover) {
-  background-color: rgba(139, 92, 246, 0.05);
-}
-
-:deep(.menu-control .el-sub-menu__title:hover) {
-  background-color: rgba(100, 116, 139, 0.05);
-}
-
-/* User Section - fixed at bottom - Glassmorphism */
+/* User Section */
 .user-section {
   flex-shrink: 0;
   padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-top: 1px solid var(--neutral-gray-100);
   background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(248,250,252,0.5) 100%);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   transition: all 0.3s;
+}
+
+.bottom-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--neutral-gray-200);
 }
 
 .user-wrapper {
@@ -392,25 +503,12 @@ router.afterEach(() => {
   transition: all 0.3s;
 }
 
-.user-avatar:hover {
-  border-color: var(--orin-primary);
-  box-shadow: 0 0 0 3px var(--orin-primary-soft);
-}
-
 .user-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
   flex: 1;
-  opacity: 1;
-  transition: opacity 0.3s;
-}
-
-.sidebar-container.collapsed .user-info {
-  opacity: 0;
-  width: 0;
-  overflow: hidden;
 }
 
 .user-name {
@@ -432,10 +530,8 @@ router.afterEach(() => {
   border-radius: 4px;
   display: inline-block;
   align-self: flex-start;
-  white-space: nowrap;
 }
 
-/* Dropdown Menu Styling */
 .user-dropdown {
   padding: 8px !important;
   border-radius: 12px !important;
@@ -449,11 +545,6 @@ router.afterEach(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: all 0.2s;
-}
-
-:deep(.el-dropdown-menu__item:hover) {
-  background-color: var(--neutral-gray-50) !important;
 }
 
 .logout-item {
@@ -464,45 +555,39 @@ router.afterEach(() => {
   background-color: #fff1f0 !important;
 }
 
-/* Floating Toggle Button - Glassmorphism */
-.sidebar-toggle-btn {
-  position: absolute;
-  right: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
-  height: 48px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 0 8px 8px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  transition: all 0.3s;
-  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.08);
-  z-index: 10;
+/* Dark mode */
+html.dark .sidebar-container {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(4, 10, 18, 0.9) 100%);
+  border-color: var(--orin-border);
 }
 
-.sidebar-container:hover .sidebar-toggle-btn {
-  opacity: 1;
+html.dark .action-btn {
+  color: var(--neutral-gray-400);
 }
 
-.sidebar-toggle-btn:hover {
-  background: var(--orin-primary-soft);
-  border-color: var(--orin-primary);
-}
-
-.sidebar-toggle-btn .el-icon {
-  font-size: 14px;
-  color: var(--neutral-gray-600);
-  transition: all 0.3s;
-}
-
-.sidebar-toggle-btn:hover .el-icon {
+html.dark .action-btn:hover {
   color: var(--orin-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .logo-container {
+  border-color: var(--orin-border);
+}
+
+html.dark .menu-wrapper {
+  border-color: var(--orin-border);
+}
+
+html.dark .user-section {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--orin-border);
+}
+
+html.dark .bottom-actions {
+  border-color: var(--orin-border);
+}
+
+html.dark .user-name {
+  color: #fff;
 }
 </style>

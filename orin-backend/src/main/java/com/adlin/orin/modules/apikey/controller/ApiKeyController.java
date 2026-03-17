@@ -4,6 +4,7 @@ import com.adlin.orin.modules.apikey.entity.ApiKey;
 import com.adlin.orin.modules.apikey.entity.ExternalProviderKey;
 import com.adlin.orin.modules.apikey.service.ApiKeyService;
 import com.adlin.orin.modules.apikey.service.ProviderKeyService;
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
@@ -31,6 +32,7 @@ public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
     private final ProviderKeyService providerKeyService;
+    private final AuditHelper auditHelper;
 
     /**
      * 创建API密钥
@@ -50,6 +52,9 @@ public class ApiKeyController {
                 request.getRateLimitPerDay(),
                 request.getMonthlyTokenQuota(),
                 request.getExpiresAt());
+
+        auditHelper.log("SYSTEM", "API_KEY_CREATE", "/api/v1/api-keys",
+                "创建API密钥: " + request.getName() + ", 用户: " + userId, true, null);
 
         Map<String, Object> response = new HashMap<>();
         response.put("apiKey", toApiKeyResponse(result.getApiKey()));
@@ -126,6 +131,9 @@ public class ApiKeyController {
 
         boolean success = apiKeyService.deleteApiKey(keyId, userId);
 
+        auditHelper.log("SYSTEM", "API_KEY_DELETE", "/api/v1/api-keys/" + keyId,
+                "删除API密钥: " + keyId + ", 用户: " + userId, success, success ? null : "删除失败");
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
         response.put("message", success ? "API密钥已删除" : "操作失败");
@@ -143,6 +151,9 @@ public class ApiKeyController {
             @PathVariable String keyId) {
 
         apiKeyService.resetMonthlyQuota(keyId);
+
+        auditHelper.log("SYSTEM", "API_KEY_RESET_QUOTA", "/api/v1/api-keys/" + keyId + "/reset-quota",
+                "重置API密钥配额: " + keyId, true, null);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -218,18 +229,26 @@ public class ApiKeyController {
     @Operation(summary = "新建/编辑外部供应商密钥")
     @PostMapping("/external")
     public ExternalProviderKey saveExternalKey(@RequestBody ExternalProviderKey key) {
-        return providerKeyService.saveKey(key);
+        ExternalProviderKey saved = providerKeyService.saveKey(key);
+        auditHelper.log("SYSTEM", "EXTERNAL_KEY_SAVE", "/api/v1/api-keys/external",
+                "保存外部供应商密钥: " + key.getProvider(), true, null);
+        return saved;
     }
 
     @Operation(summary = "删除外部供应商密钥")
     @DeleteMapping("/external/{id}")
     public void deleteExternalKey(@PathVariable Long id) {
         providerKeyService.deleteKey(id);
+        auditHelper.log("SYSTEM", "EXTERNAL_KEY_DELETE", "/api/v1/api-keys/external/" + id,
+                "删除外部供应商密钥ID: " + id, true, null);
     }
 
     @Operation(summary = "切换外部密钥启用状态")
     @PatchMapping("/external/{id}/toggle")
     public ExternalProviderKey toggleExternalStatus(@PathVariable Long id) {
-        return providerKeyService.toggleStatus(id);
+        ExternalProviderKey toggled = providerKeyService.toggleStatus(id);
+        auditHelper.log("SYSTEM", "EXTERNAL_KEY_TOGGLE", "/api/v1/api-keys/external/" + id + "/toggle",
+                "切换外部密钥启用状态: " + toggled.getProvider() + ", enabled=" + toggled.getEnabled(), true, null);
+        return toggled;
     }
 }

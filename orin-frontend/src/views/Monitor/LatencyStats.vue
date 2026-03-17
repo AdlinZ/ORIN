@@ -30,11 +30,7 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">平均延迟趋势</span>
-              <el-radio-group v-model="trendPeriod" size="small" @change="fetchTrendData">
-                <el-radio-button value="daily">每日</el-radio-button>
-                <el-radio-button value="weekly">每周</el-radio-button>
-                <el-radio-button value="monthly">每月</el-radio-button>
-              </el-radio-group>
+              <el-segmented v-model="trendPeriod" :options="trendPeriodOptions" size="small" @change="fetchTrendData" />
             </div>
           </template>
           <div v-loading="trendLoading" style="height: 400px;">
@@ -123,6 +119,12 @@ const latencyStats = ref({
   monthly: 0,
   max: 0
 });
+
+const trendPeriodOptions = [
+  { label: '每日', value: 'daily' },
+  { label: '每周', value: 'weekly' },
+  { label: '每月', value: 'monthly' }
+]
 
 const trendPeriod = ref('daily');
 const trendLoading = ref(false);

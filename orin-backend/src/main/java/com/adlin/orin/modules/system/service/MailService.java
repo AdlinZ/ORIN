@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.system.service;
 
+import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.system.entity.MailConfigEntity;
 import com.adlin.orin.modules.system.entity.MailSendLog;
 import com.adlin.orin.modules.system.repository.MailConfigRepository;
@@ -30,6 +31,7 @@ public class MailService {
     private final MailConfigRepository mailConfigRepository;
     private final MailSendLogRepository mailSendLogRepository;
     private final RestTemplate restTemplate;
+    private final AuditLogService auditLogService;
 
     @Value("${spring.mail.username:}")
     private String fromEmail;
@@ -51,11 +53,13 @@ public class MailService {
     public MailService(JavaMailSender mailSender,
                        MailConfigRepository mailConfigRepository,
                        MailSendLogRepository mailSendLogRepository,
-                       RestTemplate restTemplate) {
+                       RestTemplate restTemplate,
+                       AuditLogService auditLogService) {
         this.mailSender = mailSender;
         this.mailConfigRepository = mailConfigRepository;
         this.mailSendLogRepository = mailSendLogRepository;
         this.restTemplate = restTemplate;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -86,11 +90,14 @@ public class MailService {
         VerificationCode existing = codeCache.get(email);
         if (existing != null && existing.getAttempts() >= MAX_ATTEMPTS) {
             log.warn("验证码发送次数过多: {}", email);
+            // 记录审计日志
+            logEmailAudit(email, "VERIFICATION_CODE", type, fullSubject("验证码", type),
+                    "发送失败: 验证码发送次数过多", false);
             return false;
         }
 
         String code = generateCode();
-        
+
         String subject = "[%s] 邮箱验证码".formatted(appName);
         String content = "您好，您的验证码是：\n\n" +
                 "【" + code + "】\n\n" +
@@ -98,26 +105,74 @@ public class MailService {
                 "如果不是您本人操作，请忽略此邮件。";
 
         boolean success = sendEmail(email, subject, content);
-        
+
         if (success) {
             codeCache.put(email, new VerificationCode(code, type));
             // 5分钟后过期
             scheduler.schedule(() -> codeCache.remove(email), CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
+            // 记录审计日志 - 发送成功
+            logEmailAudit(email, "VERIFICATION_CODE", type, fullSubject("验证码", type),
+                    "验证码发送成功", true);
         } else {
             // 记录失败次数
             if (existing != null) {
                 existing.incrementAttempts();
             }
+            // 记录审计日志 - 发送失败
+            logEmailAudit(email, "VERIFICATION_CODE", type, fullSubject("验证码", type),
+                    "验证码发送失败", false);
         }
-        
+
         return success;
+    }
+
+    private String fullSubject(String prefix, String type) {
+        return "[" + appName + "] " + prefix + " - " + type;
+    }
+
+    /**
+     * 记录邮件发送审计日志
+     */
+    private void logEmailAudit(String recipient, String emailType, String type, String subject,
+            String errorMessage, boolean success) {
+        try {
+            auditLogService.logApiCall(
+                    "SYSTEM", // userId - 系统操作
+                    null, // apiKeyId
+                    "MAIL_SERVICE", // providerId
+                    "SYSTEM", // providerType - 系统类型
+                    "/mail/send", // endpoint
+                    "POST", // method
+                    emailType, // model - 邮件类型
+                    null, // ipAddress
+                    "MailService", // userAgent
+                    String.format("{\"recipient\":\"%s\",\"type\":\"%s\",\"subject\":\"%s\"}",
+                            recipient, type, subject), // requestParams
+                    null, // responseContent
+                    success ? 200 : 500, // statusCode
+                    0L, // responseTime
+                    0, // promptTokens
+                    0, // completionTokens
+                    0.0, // estimatedCost
+                    success, // success
+                    errorMessage, // errorMessage
+                    null, // workflowId
+                    null // conversationId
+            );
+        } catch (Exception e) {
+            log.error("记录邮件审计日志失败: {}", e.getMessage());
+        }
     }
 
     /**
      * 发送告警邮件
      */
     public boolean sendAlertEmail(String to, String subject, String content) {
-        return sendEmail(to, "[" + appName + " 告警] " + subject, content);
+        boolean success = sendEmail(to, "[" + appName + " 告警] " + subject, content);
+        // 记录审计日志
+        logEmailAudit(to, "ALERT_EMAIL", subject, "[" + appName + " 告警] " + subject,
+                success ? "告警邮件发送成功" : "告警邮件发送失败", success);
+        return success;
     }
 
     /**
@@ -177,6 +232,10 @@ public class MailService {
         } catch (Exception e) {
             log.error("保存邮件日志失败", e);
         }
+
+        // 记录审计日志
+        logEmailAudit(recipients, "ALERT_EMAIL_BATCH", subject, fullSubject,
+                success ? "批量告警邮件发送成功" : ("批量告警邮件发送失败: " + errorMessage), success);
 
         return success;
     }
@@ -464,5 +523,53 @@ public class MailService {
         public boolean isExpired() {
             return System.currentTimeMillis() - createTime > CODE_EXPIRE_MINUTES * 60 * 1000;
         }
+    }
+
+    /**
+     * 重试发送邮件
+     */
+    public void retrySend(MailSendLog mailLog) {
+        String[] recipients = mailLog.getRecipients().split(",");
+        String subject = mailLog.getSubject();
+        String content = mailLog.getContent();
+
+        boolean success = false;
+        String errorMessage = null;
+
+        try {
+            MailConfigEntity config = getRawMailConfig();
+            if (config != null && config.getEnabled() != null && config.getEnabled()) {
+                if ("mailersend".equals(config.getMailerType())) {
+                    success = sendAlertEmailViaMailerSend(recipients, subject, content, config);
+                }
+            }
+
+            // 默认 SMTP 发送
+            if (!success) {
+                // SMTP 方法只接受单个收件人，需要循环发送
+                for (String recipient : recipients) {
+                    recipient = recipient.trim();
+                    if (!recipient.isEmpty()) {
+                        boolean sent = sendEmailViaSmtp(recipient, subject, content, config);
+                        if (!sent) {
+                            errorMessage = "SMTP 发送失败";
+                            success = false;
+                            break;
+                        }
+                        success = true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("重试发送邮件失败", e);
+            errorMessage = e.getMessage();
+        }
+
+        // 更新日志状态
+        mailLog.setStatus(success ? MailSendLog.STATUS_SUCCESS : MailSendLog.STATUS_FAILED);
+        mailLog.setErrorMessage(errorMessage);
+        mailSendLogRepository.save(mailLog);
+
+        log.info("邮件重试发送完成: {}, status: {}", mailLog.getId(), mailLog.getStatus());
     }
 }

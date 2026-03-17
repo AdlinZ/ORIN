@@ -144,9 +144,9 @@ export const TOP_MENU_CONFIG = [
                 icon: 'Collection'
             },
             {
-                title: '通知渠道',
+                title: '通知中心',
                 path: ROUTES.CONTROL.NOTIFICATION_CHANNELS,
-                icon: 'Message'
+                icon: 'Bell'
             }
         ]
     }

@@ -62,13 +62,7 @@
     <el-card shadow="never" class="filter-card">
       <el-row :gutter="20" align="middle">
         <el-col :span="12">
-          <el-radio-group v-model="fileTypeFilter" @change="fetchFiles">
-            <el-radio-button label="">全部</el-radio-button>
-            <el-radio-button label="IMAGE">图片</el-radio-button>
-            <el-radio-button label="VIDEO">视频</el-radio-button>
-            <el-radio-button label="AUDIO">音频</el-radio-button>
-            <el-radio-button label="DOCUMENT">文档</el-radio-button>
-          </el-radio-group>
+          <el-segmented v-model="fileTypeFilter" :options="fileTypeOptions" @change="fetchFiles" />
         </el-col>
         <el-col :span="12" style="text-align: right;">
           <el-input
@@ -171,6 +165,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Search, Download, Delete, Files, Picture, VideoCamera, Microphone, Document } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import request from '@/utils/request'
+
+// 文件类型过滤选项
+const fileTypeOptions = [
+  { label: '全部', value: '' },
+  { label: '图片', value: 'IMAGE' },
+  { label: '视频', value: 'VIDEO' },
+  { label: '音频', value: 'AUDIO' },
+  { label: '文档', value: 'DOCUMENT' }
+]
 
 // 状态
 const loading = ref(false)
@@ -330,41 +333,46 @@ onMounted(() => {
 }
 
 .stat-card {
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.stat-card :deep(.el-card__body) {
   display: flex;
   align-items: center;
   padding: 20px;
 }
 
 .stat-icon {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 15px;
-  font-size: 24px;
+  font-size: 22px;
 }
 
-.stat-icon.total { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-.stat-icon.image { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
-.stat-icon.video { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
-.stat-icon.audio { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+.stat-icon.total { background: var(--orin-primary-soft); color: var(--orin-primary); }
+.stat-icon.image { background: var(--success-50); color: var(--success-color); }
+.stat-icon.video { background: var(--warning-50); color: var(--warning-color); }
+.stat-icon.audio { background: var(--primary-50); color: var(--primary-color); }
 
 .stat-content {
   flex: 1;
 }
 
 .stat-value {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #909399;
-  margin-top: 5px;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
 }
 
 .filter-card {
@@ -405,5 +413,18 @@ onMounted(() => {
 .text-danger {
   color: #f56c6c;
   font-size: 14px;
+}
+
+/* Dark mode */
+html.dark .stat-card {
+  border-color: var(--border-color);
+}
+
+html.dark .stat-value {
+  color: var(--text-primary);
+}
+
+html.dark .stat-label {
+  color: var(--text-secondary);
 }
 </style>

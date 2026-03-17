@@ -7,6 +7,106 @@
   background: var(--app-bg, #f8fafc);
 }
 
+/* ========== Dashboard 页面边界统一（除首页大屏） ========== */
+.content-area :where(
+  .page-container,
+  .server-monitor-page,
+  .workflow-container,
+  .metrics-dashboard,
+  .trace-viewer,
+  .skill-management,
+  .user-management,
+  .notification-channels-container,
+  .mail-system-container,
+  .kb-create-page,
+  .kb-detail-page,
+  .document-detail-page,
+  .alert-manager,
+  .visual-workflow-editor,
+  .workflow-editor,
+  .monitor-dashboard,
+  .data-wall,
+  .model-list-page,
+  .model-system-config,
+  .api-key-page,
+  .file-management-page
+):not(.command-center-root) {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  background: transparent !important;
+}
+
+/* 历史页面里常见的顶层背景卡片，统一去除页面底板差异 */
+.content-area :where(.header-section, .page-header):not(.command-center-root .page-header) {
+  background: transparent;
+}
+
+/* ========== Dashboard 视觉节奏统一 ========== */
+.content-area {
+  --orin-page-gap: 20px;
+  --orin-card-radius: 12px;
+}
+
+/* 统一卡片圆角，减少页面之间的边界差异 */
+.content-area :where(
+  .el-card,
+  .premium-card,
+  .table-card,
+  .filter-card,
+  .list-card,
+  .chart-card,
+  .activity-card,
+  .sessions-card,
+  .stat-card,
+  .stat-mini-card,
+  .hw-stat-card
+) {
+  border-radius: var(--orin-card-radius) !important;
+}
+
+/* 统一页面主区块间距（仅作用于页面根容器的直接子节点） */
+.content-area :where(
+  .page-container,
+  .server-monitor-page,
+  .workflow-container,
+  .metrics-dashboard,
+  .trace-viewer,
+  .skill-management,
+  .user-management,
+  .notification-channels-container,
+  .mail-system-container,
+  .kb-create-page,
+  .kb-detail-page,
+  .document-detail-page,
+  .alert-manager,
+  .visual-workflow-editor,
+  .workflow-editor
+):not(.command-center-root) > * {
+  margin-bottom: var(--orin-page-gap);
+}
+
+.content-area :where(
+  .page-container,
+  .server-monitor-page,
+  .workflow-container,
+  .metrics-dashboard,
+  .trace-viewer,
+  .skill-management,
+  .user-management,
+  .notification-channels-container,
+  .mail-system-container,
+  .kb-create-page,
+  .kb-detail-page,
+  .document-detail-page,
+  .alert-manager,
+  .visual-workflow-editor,
+  .workflow-editor
+):not(.command-center-root) > *:last-child {
+  margin-bottom: 0;
+}
+
 /* ========== 通用卡片 - Glassmorphism ========== */
 .premium-card {
   border-radius: 16px !important;

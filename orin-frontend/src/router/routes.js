@@ -56,6 +56,10 @@ export const ROUTES = {
         FILE_MANAGEMENT: '/dashboard/control/file-management',
         KNOWLEDGE_CONFIG: '/dashboard/control/knowledge-config',
         NOTIFICATION_CHANNELS: '/dashboard/control/notification-channels',
+        MAIL_CENTER: '/dashboard/control/mail/setup',  // 统一入口指向新架构
+        MAIL_SETUP: '/dashboard/control/mail',
+        MAIL_COMPOSE: '/dashboard/control/mail/compose',
+        MAIL_TRACKING: '/dashboard/control/mail/tracking',
     },
 
     // 其他
@@ -186,11 +190,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'Picture',
             },
             {
-                title: '向量实验室',
-                path: ROUTES.RESOURCES.EMBEDDING_LAB,
-                icon: 'Aim',
-            },
-            {
                 title: '检索实验室',
                 path: ROUTES.RESOURCES.RAG_LAB,
                 icon: 'Search',
@@ -241,9 +240,9 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'Collection',
             },
             {
-                title: '通知渠道',
+                title: '通知中心',
                 path: ROUTES.CONTROL.NOTIFICATION_CHANNELS,
-                icon: 'Message',
+                icon: 'Bell',
             },
         ],
     },

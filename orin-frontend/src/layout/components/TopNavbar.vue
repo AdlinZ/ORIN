@@ -108,6 +108,13 @@
               <el-icon><Setting /></el-icon>
               <span>账号设置</span>
             </el-dropdown-item>
+            <el-dropdown-item divided command="toggle_menu_mode">
+              <el-icon>
+                <Fold v-if="appStore.menuMode === 'sidebar'" />
+                <Expand v-else />
+              </el-icon>
+              <span>{{ appStore.menuMode === 'sidebar' ? '切换到顶栏模式' : '切换到侧边栏模式' }}</span>
+            </el-dropdown-item>
             <el-dropdown-item divided command="dev_hub">
               <el-icon><Link /></el-icon>
               <span>开发者服务百宝箱</span>
@@ -275,6 +282,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useAppStore } from '@/stores/app'
 import { useDark } from '@vueuse/core'
 import { ROUTES } from '@/router/routes'
 import { TOP_MENU_CONFIG, getVisibleMenus, getActiveMenuId } from '@/router/topMenuConfig'
@@ -287,7 +295,8 @@ import {
   DataLine, TrendCharts, Share, Warning,
   Document, Picture, Histogram, Search, View, Grid,
   Notebook, Link, Coin, Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock,
-  Operation, TrendCharts as TrendChartsIcon, Tools, CircleCheck, CircleClose, Clock, Message
+  Operation, TrendCharts as TrendChartsIcon, Tools, CircleCheck, CircleClose, Clock, Message,
+  Fold, Expand
 } from '@element-plus/icons-vue'
 import BrandingLogo from '@/components/BrandingLogo.vue'
 import { v4 as uuidv4 } from 'uuid'
@@ -302,6 +311,7 @@ import Cookies from 'js-cookie'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const appStore = useAppStore()
 
 // Icon mapping
 const iconMap = {
@@ -633,6 +643,9 @@ const handleUserCommand = (command) => {
       break
     case 'dev_hub':
       showDevHub.value = true
+      break
+    case 'toggle_menu_mode':
+      appStore.toggleMenuMode()
       break
     case 'logout':
       handleLogout()

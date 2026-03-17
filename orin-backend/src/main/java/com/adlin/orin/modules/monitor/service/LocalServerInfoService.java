@@ -29,7 +29,7 @@ public class LocalServerInfoService {
     }
 
     /**
-     * 获取本地服务器硬件信息
+     * 获取本地服务器硬件信息 (包含实时指标)
      */
     public Map<String, Object> getLocalServerInfo() {
         Map<String, Object> info = new HashMap<>();
@@ -46,11 +46,28 @@ public class LocalServerInfoService {
             info.put("cpuCores", processor.getPhysicalProcessorCount());
             info.put("cpuLogicalCores", processor.getLogicalProcessorCount());
 
+            // Load Average (实时系统负载)
+            double[] loadAverage = processor.getSystemLoadAverage(3);
+            info.put("loadAverage1m", loadAverage[0]);
+            info.put("loadAverage5m", loadAverage[1]);
+            info.put("loadAverage15m", loadAverage[2]);
+
+            // CPU 使用率 (通过获取 CPU 空闲时间计算)
+            long[] cpuLoad = processor.getSystemCpuLoadTicks();
+            long idle = cpuLoad[3]; // IDLE is at index 3
+            long total = Arrays.stream(cpuLoad).sum();
+            double cpuUsage = total > 0 ? ((double) (total - idle) / total) * 100 : 0;
+            info.put("cpuUsage", cpuUsage);
+
             // 内存信息
             GlobalMemory memory = systemInfo.getHardware().getMemory();
-            info.put("memoryTotal", memory.getTotal());
-            info.put("memoryAvailable", memory.getAvailable());
-            info.put("memoryUsed", memory.getTotal() - memory.getAvailable());
+            long memoryTotal = memory.getTotal();
+            long memoryAvailable = memory.getAvailable();
+            long memoryUsed = memoryTotal - memoryAvailable;
+            info.put("memoryTotal", memoryTotal);
+            info.put("memoryAvailable", memoryAvailable);
+            info.put("memoryUsed", memoryUsed);
+            info.put("memoryUsagePercent", memoryTotal > 0 ? ((double) memoryUsed / memoryTotal) * 100 : 0);
 
             // 磁盘信息
             List<Map<String, Object>> disks = new ArrayList<>();
@@ -106,9 +123,11 @@ public class LocalServerInfoService {
             // 系统正常运行时间
             info.put("uptime", os.getSystemUptime());
             info.put("processCount", os.getProcessCount());
+            info.put("threadCount", os.getThreadCount());
 
-            log.info("Collected local server info: CPU={}, Memory={}, OS={}",
-                    info.get("cpuModel"), FormatUtil.formatBytes((Long) info.get("memoryTotal")), info.get("os"));
+            log.info("Collected local server info: CPU={}, Memory={}, OS={}, LoadAvg={}",
+                    info.get("cpuModel"), FormatUtil.formatBytes((Long) info.get("memoryTotal")),
+                    info.get("os"), loadAverage[0]);
 
         } catch (Exception e) {
             log.error("Failed to collect local server info", e);

@@ -26,20 +26,32 @@ public class DynamicLoggerService {
     public Map<String, String> getAllLoggers() {
         Map<String, String> loggers = new LinkedHashMap<>();
 
-        // 获取常见的包路径
+        // 获取常见的包路径（按优先级排序）
         String[] commonPackages = {
                 "com.adlin.orin",
+                "com.adlin.orin.modules",
                 "org.springframework",
                 "org.hibernate",
                 "com.zaxxer.hikari",
+                "org.apache",
+                "org.mongodb",
+                "mysql",
                 "ROOT"
         };
 
         for (String packageName : commonPackages) {
-            LogLevel level = loggingSystem.getLoggerConfiguration(packageName).getEffectiveLevel();
-            loggers.put(packageName, level != null ? level.name() : "NOT_SET");
+            try {
+                var config = loggingSystem.getLoggerConfiguration(packageName);
+                if (config != null) {
+                    LogLevel level = config.getEffectiveLevel();
+                    loggers.put(packageName, level != null ? level.name() : "NOT_SET");
+                }
+            } catch (Exception e) {
+                // 忽略不存在的 logger
+            }
         }
 
+        log.debug("获取Logger列表，共 {} 个", loggers.size());
         return loggers;
     }
 
@@ -77,7 +89,12 @@ public class DynamicLoggerService {
 
         loggingSystem.setLogLevel(loggerName, logLevel);
 
-        log.info("Logger '{}' level changed to: {}", loggerName, level);
+        // 获取设置后的有效级别并记录日志
+        var config = loggingSystem.getLoggerConfiguration(loggerName);
+        LogLevel effectiveLevel = config.getEffectiveLevel();
+
+        log.warn("⚠️ [日志级别变更] Logger='{}', 设置级别='{}', 有效级别='{}' (仅本次运行有效，重启后恢复默认)",
+                loggerName, level, effectiveLevel != null ? effectiveLevel.name() : "DEFAULT");
     }
 
     /**
@@ -85,7 +102,10 @@ public class DynamicLoggerService {
      */
     public void resetLogger(String loggerName) {
         loggingSystem.setLogLevel(loggerName, null);
-        log.info("Logger '{}' reset to default level", loggerName);
+        var config = loggingSystem.getLoggerConfiguration(loggerName);
+        LogLevel effectiveLevel = config.getEffectiveLevel();
+        log.warn("⚠️ [日志级别重置] Logger='{}' 已重置为默认级别, 当前有效级别='{}'", loggerName,
+                effectiveLevel != null ? effectiveLevel.name() : "DEFAULT");
     }
 
     /**

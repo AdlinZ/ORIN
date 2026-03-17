@@ -105,3 +105,39 @@ export function generateAIWorkflow(prompt) {
     })
 }
 
+export function exportWorkflow(id) {
+    return request({
+        baseURL: '',
+        url: `/api/workflows/${id}/export/dify`,
+        method: 'get',
+        responseType: 'blob'
+    })
+}
+
+export function listDifyWorkflows(endpoint, apiKey) {
+    return request({
+        baseURL: '',
+        url: '/api/workflows/sync/dify/workflows',
+        method: 'get',
+        params: { endpoint, apiKey }
+    })
+}
+
+export function importFromDify(data) {
+    return request({
+        baseURL: '',
+        url: '/api/workflows/sync/dify/import',
+        method: 'post',
+        data
+    })
+}
+
+export function testDifyConnection(endpoint, apiKey) {
+    return request({
+        baseURL: '',
+        url: '/api/workflows/sync/dify/test',
+        method: 'post',
+        data: { endpoint, apiKey }
+    })
+}
+

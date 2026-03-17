@@ -201,6 +201,11 @@ public interface MonitorService {
     Map<String, Object> getLocalServerInfo();
 
     /**
+     * 通过 Prometheus 获取远程服务器状态
+     */
+    Map<String, Object> getPrometheusServerStatus();
+
+    /**
      * 调试：查询 Prometheus 原始数据
      *
      * @param query PromQL 查询语句

@@ -1,8 +1,12 @@
 <template>
   <div class="page-container">
+        <PageHeader
+            title="数据流追踪"
+            :description="`Trace ID: ${traceId}`"
+            icon="Share"
+        />
     <div class="action-bar">
       <div>
-        <h2 class="page-title" style="margin-bottom: 0;">请求链路追踪</h2>
         <span class="text-muted">Trace ID: {{ traceId }}</span>
       </div>
       <div>
@@ -58,6 +62,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import request from '@/utils/request'
 import { ArrowLeft } from '@element-plus/icons-vue'
+import PageHeader from '@/components/PageHeader.vue'
 
 const route = useRoute()
 const router = useRouter()

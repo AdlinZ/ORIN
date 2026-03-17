@@ -1,5 +1,10 @@
 <template>
   <div class="document-detail-page">
+    <PageHeader
+      title="文档详情"
+      description="查看原文、索引内容与分段向量化状态"
+      icon="Document"
+    />
     <!-- Header with Breadcrumb -->
     <div class="detail-header">
       <div class="breadcrumb">
@@ -388,6 +393,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
 import { useUserStore } from '@/stores/user';
+import PageHeader from '@/components/PageHeader.vue';
 
 const route = useRoute();
 const router = useRouter();

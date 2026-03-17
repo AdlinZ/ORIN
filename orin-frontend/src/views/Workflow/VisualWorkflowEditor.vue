@@ -1,5 +1,10 @@
 <template>
   <div class="visual-workflow-editor">
+    <PageHeader
+      title="可视化工作流编辑器"
+      description="拖拽节点完成编排、调试与发布"
+      icon="Share"
+    />
 
 
     <!-- Sub Header (Workflow Logic Toolbar) -->
@@ -800,6 +805,7 @@ import { createWorkflow, getWorkflow, executeWorkflow, runWorkflowPreview, gener
 import { getModelList } from '@/api/model';
 import WorkflowApiAccess from './WorkflowApiAccess.vue';
 import JsonViewer from '@/components/JsonViewer.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import { dump } from 'js-yaml';
 import { useDark } from '@vueuse/core';
 

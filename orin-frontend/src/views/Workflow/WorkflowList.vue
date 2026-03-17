@@ -1,11 +1,11 @@
 <template>
   <div class="workflow-container">
-    <div class="header-section">
-      <div class="title-area">
-        <h2 class="page-title">Working Flow 管理</h2>
-        <p class="subtitle">可视化的智能体工作流编排</p>
-      </div>
-      <div class="actions">
+    <PageHeader
+      title="工作流管理"
+      description="管理 Dify 工作流的导入导出与同步"
+      icon="Connection"
+    >
+      <template #actions>
         <el-button type="primary" :icon="Plus" @click="handleCreate">
           新建工作流
         </el-button>
@@ -15,59 +15,64 @@
         <el-button type="warning" :icon="Upload" @click="handleImportClick">
           导入 Dify DSL
         </el-button>
-      </div>
-    </div>
+        <el-button type="info" :icon="Refresh" @click="handleSyncDify">
+          同步 Dify
+        </el-button>
+      </template>
+
+      <template #filters>
+        <el-input
+          v-model="searchQuery"
+          placeholder="搜索工作流..."
+          :prefix-icon="Search"
+          clearable
+          class="search-input"
+        />
+      </template>
+    </PageHeader>
 
     <!-- Stats Cards -->
     <div class="stats-row">
       <el-card shadow="hover" class="stat-card">
         <div class="stat-content">
           <div class="stat-info">
-            <span class="label">活跃工作流</span>
-            <span class="value">12</span>
+            <span class="label">总工作流</span>
+            <span class="value">{{ stats.total }}</span>
           </div>
-          <el-icon class="icon success"><VideoPlay /></el-icon>
-        </div>
-      </el-card>
-      
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-content">
-          <div class="stat-info">
-            <span class="label">总执行次数</span>
-            <span class="value">1,284</span>
-          </div>
-          <el-icon class="icon primary"><DataLine /></el-icon>
+          <el-icon class="icon primary"><Connection /></el-icon>
         </div>
       </el-card>
 
       <el-card shadow="hover" class="stat-card">
         <div class="stat-content">
           <div class="stat-info">
-            <span class="label">平均耗时</span>
-            <span class="value">2.4s</span>
+            <span class="label">已发布</span>
+            <span class="value">{{ stats.published }}</span>
           </div>
-          <el-icon class="icon warning"><Timer /></el-icon>
+          <el-icon class="icon success"><VideoPlay /></el-icon>
+        </div>
+      </el-card>
+
+      <el-card shadow="hover" class="stat-card">
+        <div class="stat-content">
+          <div class="stat-info">
+            <span class="label">草稿</span>
+            <span class="value">{{ stats.draft }}</span>
+          </div>
+          <el-icon class="icon warning"><Edit /></el-icon>
         </div>
       </el-card>
     </div>
 
     <!-- Workflow List -->
-    <el-card class="list-card" shadow="never">
+    <el-card class="table-card" shadow="never">
       <template #header>
         <div class="card-header">
           <span>工作流列表</span>
-          <div class="filter-actions">
-            <el-input
-              v-model="searchQuery"
-              placeholder="搜索工作流..."
-              prefix-icon="Search"
-              class="search-input"
-            />
-          </div>
         </div>
       </template>
 
-      <el-table border :data="workflows" style="width: 100%" v-loading="loading">
+      <el-table border :data="filteredWorkflows" style="width: 100%" v-loading="loading">
         <el-table-column prop="name" label="工作流名称" min-width="180">
           <template #default="{ row }">
             <div class="workflow-name">
@@ -93,10 +98,11 @@
 
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleEdit(row)">编排</el-button>
             <el-button link type="primary" @click="handleRun(row)">测试</el-button>
+            <el-button link type="success" @click="handleExport(row)">导出</el-button>
             <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -143,22 +149,116 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Dify Sync Dialog -->
+    <el-dialog
+      v-model="syncDialogVisible"
+      title="从 Dify 同步工作流"
+      width="700px"
+    >
+      <el-form label-width="100px" class="sync-form">
+        <el-form-item label="Dify 地址">
+          <el-input v-model="syncForm.endpoint" placeholder="http://localhost:3000/v1" />
+        </el-form-item>
+        <el-form-item label="API Key">
+          <el-input v-model="syncForm.apiKey" placeholder="请输入 Dify API Key" show-password />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="testingConnection" @click="handleTestConnection">
+            测试连接
+          </el-button>
+          <el-button type="success" :loading="loadingDifyWorkflows" @click="handleFetchDifyWorkflows">
+            获取工作流列表
+          </el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-divider v-if="difyWorkflows.length > 0" />
+
+      <div v-if="difyWorkflows.length > 0" class="dify-workflows">
+        <h4>Dify 工作流列表</h4>
+        <el-table :data="difyWorkflows" border style="width: 100%" max-height="300">
+          <el-table-column prop="name" label="名称" min-width="150" />
+          <el-table-column prop="mode" label="模式" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.mode === 'workflow' ? 'success' : 'info'" size="small">
+                {{ row.mode }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'published' ? 'success' : 'warning'" size="small">
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120">
+            <template #default="{ row }">
+              <el-button type="primary" size="small" @click="handleImportDifyWorkflow(row)">
+                导入
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="syncDialogVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
-import { Plus, Search, VideoPlay, DataLine, Timer, Connection, Upload } from '@element-plus/icons-vue';
+import { Plus, Search, VideoPlay, DataLine, Timer, Connection, Upload, Refresh, Edit } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import dayjs from 'dayjs';
-import { getWorkflows, importWorkflow, deleteWorkflow } from '@/api/workflow';
+import { getWorkflows, importWorkflow, deleteWorkflow, exportWorkflow, listDifyWorkflows, importFromDify, testDifyConnection } from '@/api/workflow';
+import PageHeader from '@/components/PageHeader.vue';
 
 const router = useRouter();
 const searchQuery = ref('');
 const loading = ref(false);
 const workflows = ref([]);
+
+// 计算统计数据
+const stats = computed(() => {
+  const list = workflows.value;
+  const published = list.filter(w => w.status === 'PUBLISHED').length;
+  const draft = list.filter(w => w.status !== 'PUBLISHED').length;
+  return {
+    total: list.length,
+    published,
+    draft
+  };
+});
+
+const filteredWorkflows = computed(() => {
+  if (!searchQuery.value) return workflows.value;
+
+  const q = searchQuery.value.toLowerCase().trim();
+  return workflows.value.filter((workflow) => {
+    const name = (workflow.workflowName || '').toLowerCase();
+    const desc = (workflow.description || '').toLowerCase();
+    return name.includes(q) || desc.includes(q);
+  });
+});
+
+// Dify Sync
+const syncDialogVisible = ref(false);
+const syncForm = reactive({
+  endpoint: '',
+  apiKey: ''
+});
+const difyWorkflows = ref([]);
+const loadingDifyWorkflows = ref(false);
+const testingConnection = ref(false);
 
 const fetchData = async () => {
   loading.value = true;
@@ -278,16 +378,107 @@ const handleImportSubmit = async () => {
 
 const formatTime = (time) => {
   if (!time) return '-';
-  
+
   // Handle array format [2024, 10, 27, 10, 0, 0] often returned by Spring/Jackson
   if (Array.isArray(time)) {
     // dayjs can't handle [2024, 10, 27...] directly
     const [year, month, day, hour, minute] = time;
     return dayjs(new Date(year, month - 1, day, hour || 0, minute || 0)).format('YYYY-MM-DD HH:mm');
   }
-  
+
   const d = dayjs(time);
   return d.isValid() ? d.format('YYYY-MM-DD HH:mm') : '-';
+};
+
+// Dify Sync Handlers
+const handleSyncDify = () => {
+  syncForm.endpoint = '';
+  syncForm.apiKey = '';
+  difyWorkflows.value = [];
+  syncDialogVisible.value = true;
+};
+
+const handleTestConnection = async () => {
+  if (!syncForm.apiKey) {
+    ElMessage.warning('请输入 API Key');
+    return;
+  }
+
+  testingConnection.value = true;
+  try {
+    const res = await testDifyConnection(syncForm.endpoint, syncForm.apiKey);
+    if (res.success) {
+      ElMessage.success('连接成功');
+    } else {
+      ElMessage.error(res.message || '连接失败');
+    }
+  } catch (error) {
+    ElMessage.error('连接失败: ' + (error.message || '未知错误'));
+  } finally {
+    testingConnection.value = false;
+  }
+};
+
+const handleFetchDifyWorkflows = async () => {
+  if (!syncForm.apiKey) {
+    ElMessage.warning('请输入 API Key');
+    return;
+  }
+
+  loadingDifyWorkflows.value = true;
+  try {
+    const res = await listDifyWorkflows(syncForm.endpoint, syncForm.apiKey);
+    if (res.data) {
+      difyWorkflows.value = res.data;
+      ElMessage.success(`获取到 ${res.data.length} 个工作流`);
+    }
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('获取工作流列表失败');
+  } finally {
+    loadingDifyWorkflows.value = false;
+  }
+};
+
+const handleImportDifyWorkflow = async (difyWorkflow) => {
+  try {
+    const res = await importFromDify({
+      endpoint: syncForm.endpoint,
+      apiKey: syncForm.apiKey,
+      workflowId: difyWorkflow.id,
+      name: difyWorkflow.name
+    });
+
+    if (res.success || res.workflow) {
+      ElMessage.success('导入成功');
+      fetchData();
+      syncDialogVisible.value = false;
+    } else {
+      ElMessage.error(res.error || '导入失败');
+    }
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('导入失败: ' + (error.message || '未知错误'));
+  }
+};
+
+const handleExport = async (row) => {
+  try {
+    const res = await exportWorkflow(row.id);
+    const blob = new Blob([res], { type: 'application/x-yaml' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${row.workflowName}.yaml`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    ElMessage.success('导出成功');
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('导出失败');
+  }
 };
 </script>
 
@@ -296,24 +487,8 @@ const formatTime = (time) => {
   padding: 0 0 20px 0;
 }
 
-.header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--neutral-gray-900);
-  margin: 0 0 8px 0;
-}
-
-.subtitle {
-  color: var(--neutral-gray-500);
-  margin: 0;
-  font-size: 14px;
+.search-input {
+  width: 260px;
 }
 
 .stats-row {
@@ -367,13 +542,14 @@ const formatTime = (time) => {
 .icon.primary { color: var(--primary-color); background: var(--primary-50); }
 .icon.warning { color: var(--warning-color); background: var(--warning-50); }
 
-.list-card {
+.table-card {
+  margin-top: 5px;
   border-radius: 12px;
 }
 
 .card-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
 }
 
@@ -387,5 +563,15 @@ const formatTime = (time) => {
 .flow-icon {
   font-size: 18px;
   color: var(--primary-color);
+}
+
+.sync-form {
+  margin-bottom: 20px;
+}
+
+.dify-workflows h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: var(--neutral-gray-700);
 }
 </style>

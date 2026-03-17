@@ -1,5 +1,10 @@
 <template>
   <div class="page-container">
+    <PageHeader
+      title="应用控制台"
+      description="实时调试应用行为并调整运行参数"
+      icon="Monitor"
+    />
     <div class="dashboard-layout">
       <!-- Main Content: Chat Window -->
       <div class="chat-main">
@@ -312,6 +317,7 @@ import { getAgentMetadata, updateAgent, chatAgent } from '@/api/agent';
 import { getAgentMetrics, getAgentList as getMonitorAgentList } from '@/api/monitor';
 import { getAgentLogs, controlAgent } from '@/api/runtime';
 import request from '@/utils/request';
+import PageHeader from '@/components/PageHeader.vue';
 
 // Runners
 import ChatWindow from './components/ChatWindow.vue';

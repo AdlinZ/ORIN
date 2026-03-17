@@ -345,12 +345,46 @@ const routes = [
                         meta: { title: '知识库配置', icon: 'Collection', roles: ['ROLE_ADMIN'] }
                     },
 
-                    // 通知渠道 - 邮件中心
+                    // 通知中心（统一入口）
                     {
                         path: 'notification-channels',
                         name: 'NotificationChannels',
+                        component: () => import('@/views/Mail/MailSetup.vue'),
+                        meta: { title: '通知中心', icon: 'Bell', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 邮件中心（新版 - 任务导向）
+                    {
+                        path: 'mail',
+                        redirect: '/dashboard/control/mail/setup',
+                        meta: { title: '邮件中心', icon: 'Message' }
+                    },
+                    {
+                        path: 'mail/setup',
+                        name: 'MailSetup',
+                        component: () => import('@/views/Mail/MailSetup.vue'),
+                        meta: { title: '配置与联通', icon: 'Setting', roles: ['ROLE_ADMIN'] },
+                        alias: 'control/mail/setup'
+                    },
+                    {
+                        path: 'mail/compose',
+                        name: 'MailCompose',
+                        component: () => import('@/views/Mail/MailCompose.vue'),
+                        meta: { title: '发送与模板', icon: 'EditPen', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'mail/tracking',
+                        name: 'MailTracking',
+                        component: () => import('@/views/Mail/MailTracking.vue'),
+                        meta: { title: '追踪与回执', icon: 'List', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 邮件中心（旧版，保留兼容）
+                    {
+                        path: 'mail-center',
+                        name: 'MailCenter',
                         component: () => import('@/views/System/MailCenter.vue'),
-                        meta: { title: '通知渠道', icon: 'Message', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '邮件中心', icon: 'Message', roles: ['ROLE_ADMIN'] }
                     }
                 ]
             },

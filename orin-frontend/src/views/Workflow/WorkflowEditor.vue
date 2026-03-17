@@ -1,5 +1,10 @@
 <template>
   <div class="workflow-editor">
+    <PageHeader
+      :title="isEdit ? '编辑工作流' : '创建工作流'"
+      description="配置工作流基本信息与步骤编排"
+      icon="Operation"
+    />
     <div class="header">
       <el-page-header @back="goBack">
         <template #content>
@@ -139,6 +144,7 @@ import { createWorkflow, getWorkflow, updateWorkflow } from '@/api/workflow';
 // Assuming we have a generic agent API. If not, I'll need to double check the path. 
 // Based on file list, src/api/agent.js exists.
 import { getAgentList } from '@/api/agent'; 
+import PageHeader from '@/components/PageHeader.vue';
 
 const router = useRouter();
 const route = useRoute();

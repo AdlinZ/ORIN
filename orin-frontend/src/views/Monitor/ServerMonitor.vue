@@ -1,232 +1,298 @@
 <template>
   <div class="server-monitor-page">
     <PageHeader title="服务器监控" icon="Monitor">
-      <template #tag-content>
-        <el-tag :type="hwServerInfo.online ? 'success' : 'danger'" effect="plain" size="small">
-          <el-icon style="margin-right: 4px;"><component :is="hwServerInfo.online ? 'CircleCheck' : 'CircleClose'" /></el-icon>
-          {{ hwServerInfo.online ? '在线' : '离线' }}
-        </el-tag>
-      </template>
       <template #actions>
-        <el-button :icon="Refresh" @click="fetchHwData" :loading="hwLoading">刷新</el-button>
-        <el-button type="primary" icon="Upload" @click="collectHwData" :loading="collecting">立即采集</el-button>
+        <el-button :icon="Refresh" @click="fetchAllData" :loading="loading">刷新</el-button>
       </template>
     </PageHeader>
 
-    <!-- 服务器信息卡片 -->
-    <el-card class="premium-card margin-bottom-lg hw-server-card">
-      <template #header>
-        <div class="card-header">
-          <el-icon><Monitor /></el-icon>
-          <span>服务器详细信息</span>
-        </div>
-      </template>
-      <div class="server-info-grid">
-        <div class="server-info-item">
-          <div class="info-icon"><el-icon><Monitor /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">操作系统</div>
-            <div class="info-value">{{ hwServerInfo.os || 'Unknown' }}</div>
-          </div>
-        </div>
-        <div class="server-info-item">
-          <div class="info-icon cpu"><el-icon><Cpu /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">CPU型号</div>
-            <div class="info-value">{{ hwServerInfo.cpuModel || 'Unknown' }}</div>
-          </div>
-        </div>
-        <div class="server-info-item">
-          <div class="info-icon"><el-icon><Odometer /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">CPU核心</div>
-            <div class="info-value">{{ hwServerInfo.cpuCores || '-' }} 核</div>
-          </div>
-        </div>
-        <div class="server-info-item">
-          <div class="info-icon memory"><el-icon><Coin /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">总内存</div>
-            <div class="info-value">{{ formatBytes(hwServerInfo.memoryTotal) }}</div>
-          </div>
-        </div>
-        <div class="server-info-item wide">
-          <div class="info-icon gpu"><el-icon><Star /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">GPU型号</div>
-            <div class="info-value">{{ hwServerInfo.gpuModel || 'N/A' }}</div>
-          </div>
-        </div>
-        <div class="server-info-item">
-          <div class="info-icon gpu"><el-icon><Star /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">GPU显存</div>
-            <div class="info-value">{{ hwServerInfo.gpuMemory || 'N/A' }}</div>
-          </div>
-        </div>
-        <div class="server-info-item">
-          <div class="info-icon disk"><el-icon><Folder /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">总磁盘</div>
-            <div class="info-value">{{ formatBytes(hwServerInfo.diskTotal) }}</div>
-          </div>
-        </div>
-        <div class="server-info-item">
-          <div class="info-icon network"><el-icon><Connection /></el-icon></div>
-          <div class="info-content">
-            <div class="info-label">网络吞吐</div>
-            <div class="info-value">{{ hwServerInfo.networkDownload || '-' }} ↓ / {{ hwServerInfo.networkUpload || '-' }} ↑</div>
-          </div>
-        </div>
-      </div>
-    </el-card>
-
-    <!-- Stats Cards -->
-    <el-row :gutter="20" class="margin-bottom-xl" style="padding: 0 4px;">
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-mini-card hw-stat-card">
-          <div class="stat-content">
-            <div class="label text-secondary">记录总数</div>
-            <div class="value">{{ hwStats.totalRecords || 0 }} <small>条</small></div>
-          </div>
-          <el-icon class="icon" color="var(--primary-color)"><Document /></el-icon>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-mini-card hw-stat-card">
-          <div class="stat-content">
-            <div class="label text-secondary">最近1小时</div>
-            <div class="value">{{ hwStats.lastHourRecords || 0 }} <small>条</small></div>
-          </div>
-          <el-icon class="icon" color="var(--success-color)"><Clock /></el-icon>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-mini-card hw-stat-card hw-usage-card">
-          <div class="stat-content">
-            <div class="label text-secondary">当前CPU</div>
-            <div class="value">{{ (hwCurrent.cpuUsage || 0).toFixed(1) }}<small>%</small></div>
-            <div class="progress-ring">
-              <el-progress type="circle" :percentage="hwCurrent.cpuUsage || 0" :width="50" :stroke-width="4" :color="getUsageColor(hwCurrent.cpuUsage)" />
+    <!-- Prometheus 状态卡片 -->
+    <el-row :gutter="20" class="margin-bottom-lg">
+      <el-col :span="24">
+        <el-card shadow="never" class="status-card">
+          <div class="status-content">
+            <div class="status-item">
+              <div class="status-label">
+                <el-icon><Connection /></el-icon>
+                <span>Prometheus</span>
+              </div>
+              <el-tag :type="prometheusStatus.connected ? 'success' : 'danger'" effect="dark" size="small">
+                <el-icon style="margin-right: 4px;"><component :is="prometheusStatus.connected ? 'CircleCheck' : 'CircleClose'" /></el-icon>
+                {{ prometheusStatus.connected ? '已连接' : '未连接' }}
+              </el-tag>
+            </div>
+            <div class="status-item">
+              <div class="status-label">
+                <el-icon><Monitor /></el-icon>
+                <span>服务器状态</span>
+              </div>
+              <el-tag v-if="serverOnline === null" type="info" effect="dark" size="small">
+                <el-icon style="margin-right: 4px;"><Loading /></el-icon>
+                加载中
+              </el-tag>
+              <el-tooltip v-else-if="!serverOnline && serverError" :content="serverError" placement="bottom">
+                <el-tag type="danger" effect="dark" size="small">
+                  <el-icon style="margin-right: 4px;"><CircleClose /></el-icon>
+                  离线
+                </el-tag>
+              </el-tooltip>
+              <el-tag v-else :type="serverOnline ? 'success' : 'danger'" effect="dark" size="small">
+                <el-icon style="margin-right: 4px;"><component :is="serverOnline ? 'CircleCheck' : 'CircleClose'" /></el-icon>
+                {{ serverOnline ? '在线' : '离线' }}
+              </el-tag>
+            </div>
+            <div class="status-item">
+              <div class="status-label">
+                <el-icon><Clock /></el-icon>
+                <span>运行时间</span>
+              </div>
+              <span class="status-value">{{ localServerInfo.uptime || '-' }}</span>
+            </div>
+            <div class="status-item">
+              <div class="status-label">
+                <el-icon><Cpu /></el-icon>
+                <span>CPU 核心</span>
+              </div>
+              <span class="status-value">{{ localServerInfo.cpuCores || 0 }} 核 / {{ localServerInfo.cpuLogicalCores || 0 }} 线程</span>
             </div>
           </div>
-          <el-icon class="icon" color="var(--warning-color)"><TrendCharts /></el-icon>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-mini-card hw-stat-card hw-usage-card">
-          <div class="stat-content">
-            <div class="label text-secondary">当前GPU</div>
-            <div class="value">{{ (hwCurrent.gpuUsage || 0).toFixed(1) }}<small>%</small></div>
-            <div class="progress-ring">
-              <el-progress type="circle" :percentage="hwCurrent.gpuUsage || 0" :width="50" :stroke-width="4" :color="getUsageColor(hwCurrent.gpuUsage)" />
-            </div>
-          </div>
-          <el-icon class="icon" color="#e74c3c"><Monitor /></el-icon>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- Chart -->
-    <el-card class="premium-card margin-bottom-lg">
-      <template #header>
-        <div class="card-header">
-          <el-icon><TrendCharts /></el-icon>
-          <span>硬件资源使用趋势</span>
-        </div>
-        <div>
-          <el-radio-group v-model="hwPeriod" size="small" @change="fetchHwTrend">
-            <el-radio-button label="5m">5分钟</el-radio-button>
-            <el-radio-button label="1h">1小时</el-radio-button>
-            <el-radio-button label="24h">24小时</el-radio-button>
-            <el-radio-button label="7d">7天</el-radio-button>
-          </el-radio-group>
-        </div>
-      </template>
+    <!-- 核心指标卡片 -->
+    <el-row :gutter="20" class="margin-bottom-lg">
+      <!-- CPU 使用率 -->
+      <el-col :span="6">
+        <el-card shadow="never" class="metric-card cpu-card">
+          <div class="metric-header">
+            <el-icon><Cpu /></el-icon>
+            <span>CPU 使用率</span>
+          </div>
+          <div class="metric-value">{{ cpuUsagePercent.toFixed(1) }}%</div>
+          <div class="metric-sub">
+            <span>核心数: {{ localServerInfo.cpuCores || 0 }}</span>
+          </div>
+          <div class="metric-gauge">
+            <el-progress :percentage="cpuUsagePercent" :stroke-width="6" :show-text="false" :color="getUsageColor(cpuUsagePercent)" />
+          </div>
+          <div class="metric-label">型号: {{ localServerInfo.cpuModel || 'Unknown' }}</div>
+        </el-card>
+      </el-col>
 
-      <div v-loading="hwLoading" style="height: 350px;">
-        <LineChart v-if="hwTrendData.length > 0" :data="hwTrendData" title="硬件资源使用趋势" yAxisName="使用率 (%)" height="320px" :color="'#409EFF'" />
-        <el-empty v-else description="暂无数据，请确保 Prometheus 已配置并开启监控" />
-      </div>
-    </el-card>
+      <!-- 内存使用 -->
+      <el-col :span="6">
+        <el-card shadow="never" class="metric-card memory-card">
+          <div class="metric-header">
+            <el-icon><Coin /></el-icon>
+            <span>内存使用</span>
+          </div>
+          <div class="metric-value">{{ formatBytes(memoryInfo.used) }}</div>
+          <div class="metric-sub">
+            <span>已用</span>
+            <span class="divider">/</span>
+            <span>{{ formatBytes(memoryInfo.total) }}</span>
+          </div>
+          <div class="metric-gauge">
+            <el-progress :percentage="memoryInfo.percent" :stroke-width="6" :show-text="false" :color="getUsageColor(memoryInfo.percent)" />
+          </div>
+          <div class="metric-label">可用: {{ formatBytes(memoryInfo.available) }} ({{ (100 - memoryInfo.percent).toFixed(1) }}%)</div>
+        </el-card>
+      </el-col>
 
-    <!-- History Table -->
-    <el-card class="premium-card hw-history-card">
+      <!-- 磁盘使用 -->
+      <el-col :span="6">
+        <el-card shadow="never" class="metric-card disk-card">
+          <div class="metric-header">
+            <el-icon><Folder /></el-icon>
+            <span>磁盘使用</span>
+          </div>
+          <div class="metric-value">{{ formatBytes(diskInfo.used) }}</div>
+          <div class="metric-sub">
+            <span>已用</span>
+            <span class="divider">/</span>
+            <span>{{ formatBytes(diskInfo.total) }}</span>
+          </div>
+          <div class="metric-gauge">
+            <el-progress :percentage="diskInfo.percent" :stroke-width="6" :show-text="false" :color="getUsageColor(diskInfo.percent)" />
+          </div>
+          <div class="metric-label">可用: {{ formatBytes(diskInfo.available) }}</div>
+        </el-card>
+      </el-col>
+
+      <!-- GPU 使用 -->
+      <el-col :span="6">
+        <el-card shadow="never" class="metric-card gpu-card">
+          <div class="metric-header">
+            <el-icon><Star /></el-icon>
+            <span>GPU 使用</span>
+          </div>
+          <div class="metric-value">{{ gpuInfo.used || 0 }}%</div>
+          <div class="metric-sub">
+            <span>显存: {{ formatBytes(gpuInfo.memoryUsed) }}</span>
+            <span class="divider">/</span>
+            <span>{{ formatBytes(gpuInfo.memoryTotal) }}</span>
+          </div>
+          <div class="metric-gauge">
+            <el-progress :percentage="gpuInfo.used || 0" :stroke-width="6" :show-text="false" :color="getUsageColor(gpuInfo.used)" />
+          </div>
+          <div class="metric-label">型号: {{ localServerInfo.gpuModel || 'N/A' }}</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 服务器信息 -->
+    <el-row :gutter="20" class="margin-bottom-lg">
+      <el-col :span="24">
+        <el-card shadow="never" class="info-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Monitor /></el-icon>
+              <span>服务器信息</span>
+            </div>
+          </template>
+          <div class="server-info-grid">
+            <div class="info-item">
+              <span class="info-label">操作系统</span>
+              <span class="info-value">{{ localServerInfo.os || 'Unknown' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">CPU 型号</span>
+              <span class="info-value">{{ localServerInfo.cpuModel || 'Unknown' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">CPU 物理核心</span>
+              <span class="info-value">{{ localServerInfo.cpuCores || 0 }} 核</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">CPU 逻辑核心</span>
+              <span class="info-value">{{ localServerInfo.cpuLogicalCores || 0 }} 线程</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">总内存</span>
+              <span class="info-value">{{ formatBytes(memoryInfo.total) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">进程数</span>
+              <span class="info-value">{{ localServerInfo.processCount || 0 }}</span>
+            </div>
+            <div class="info-item wide">
+              <span class="info-label">GPU</span>
+              <span class="info-value">{{ localServerInfo.gpuModel || 'N/A' }}</span>
+            </div>
+            <div class="info-item wide">
+              <span class="info-label">磁盘</span>
+              <span class="info-value">{{ diskInfo.devices || 'N/A' }}</span>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 趋势图表 -->
+    <el-row :gutter="20" class="margin-bottom-lg">
+      <el-col :span="12">
+        <el-card shadow="never" class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><TrendCharts /></el-icon>
+              <span>CPU & 内存使用趋势</span>
+            </div>
+          </template>
+          <div v-loading="loading" style="height: 280px;">
+            <LineChart v-if="trendData.length > 0" :data="trendData" title="" yAxisName="使用率 (%)" height="260px" :colors="['#667eea', '#11998e']" />
+            <el-empty v-else description="暂无趋势数据" :image-size="80" />
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card shadow="never" class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><DataLine /></el-icon>
+              <span>历史记录</span>
+              <el-select v-model="period" size="small" style="margin-left: auto; width: 100px;" @change="fetchTrendData">
+                <el-option label="5分钟" value="5m" />
+                <el-option label="1小时" value="1h" />
+                <el-option label="24小时" value="24h" />
+                <el-option label="7天" value="7d" />
+              </el-select>
+            </div>
+          </template>
+          <div v-loading="loading" style="height: 280px;">
+            <LineChart v-if="diskTrendData.length > 0" :data="diskTrendData" title="" yAxisName="使用率 (%)" height="260px" :colors="['#f39c12', '#e74c3c']" />
+            <el-empty v-else description="暂无磁盘数据" :image-size="80" />
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 历史数据表格 -->
+    <el-card shadow="never" class="history-card">
       <template #header>
         <div class="card-header">
           <el-icon><List /></el-icon>
-          <span>历史记录</span>
-          <span class="record-count">共 {{ hwTotal }} 条记录</span>
+          <span>采集历史记录</span>
+          <span class="record-count">共 {{ historyTotal }} 条</span>
+          <el-button type="primary" size="small" style="margin-left: auto;" @click="collectNow" :loading="collecting">
+            <el-icon style="margin-right: 4px;"><Refresh /></el-icon>
+            立即采集
+          </el-button>
         </div>
       </template>
 
-      <el-table :data="hwHistory" v-loading="hwLoading" style="width: 100%">
+      <el-table :data="historyData" v-loading="loading" style="width: 100%">
         <el-table-column label="时间" min-width="180" fixed>
           <template #default="{ row }">
             <div class="time-cell">
               <el-icon><Clock /></el-icon>
-              {{ formatDateTime(row.recordedAt || row.timestamp) }}
+              {{ formatDateTime(row.recordedAt) }}
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="CPU" min-width="150" align="center">
+        <el-table-column label="CPU" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <div class="usage-bar-bg">
-                <div class="usage-bar-fill" :style="{ width: (row.cpuUsage || 0) + '%', background: getUsageGradient(row.cpuUsage) }"></div>
-              </div>
-              <span class="usage-text" :class="getUsageClass(row.cpuUsage)">{{ (row.cpuUsage || 0).toFixed(1) }}%</span>
+              <el-progress :percentage="row.cpuUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.cpuUsage)" />
+              <span class="usage-text">{{ (row.cpuUsage || 0).toFixed(1) }}%</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="内存" min-width="150" align="center">
+        <el-table-column label="内存" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <div class="usage-bar-bg">
-                <div class="usage-bar-fill" :style="{ width: (row.memoryUsage || 0) + '%', background: getUsageGradient(row.memoryUsage) }"></div>
-              </div>
-              <span class="usage-text" :class="getUsageClass(row.memoryUsage)">{{ (row.memoryUsage || 0).toFixed(1) }}%</span>
+              <el-progress :percentage="row.memoryUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.memoryUsage)" />
+              <span class="usage-text">{{ (row.memoryUsage || 0).toFixed(1) }}%</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="磁盘" min-width="150" align="center">
+        <el-table-column label="磁盘" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <div class="usage-bar-bg">
-                <div class="usage-bar-fill" :style="{ width: (row.diskUsage || 0) + '%', background: getUsageGradient(row.diskUsage) }"></div>
-              </div>
-              <span class="usage-text" :class="getUsageClass(row.diskUsage)">{{ (row.diskUsage || 0).toFixed(1) }}%</span>
+              <el-progress :percentage="row.diskUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.diskUsage)" />
+              <span class="usage-text">{{ (row.diskUsage || 0).toFixed(1) }}%</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="GPU" min-width="150" align="center">
+        <el-table-column label="GPU" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <div class="usage-bar-bg">
-                <div class="usage-bar-fill" :style="{ width: (row.gpuUsage || 0) + '%', background: getUsageGradient(row.gpuUsage) }"></div>
-              </div>
-              <span class="usage-text" :class="getUsageClass(row.gpuUsage)">{{ (row.gpuUsage || 0).toFixed(1) }}%</span>
+              <el-progress :percentage="row.gpuUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.gpuUsage)" />
+              <span class="usage-text">{{ (row.gpuUsage || 0).toFixed(1) }}%</span>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" min-width="100" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-tag :type="row.online ? 'success' : 'danger'" size="small" effect="dark">
-              {{ row.online ? '在线' : '离线' }}
-            </el-tag>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="pagination-container">
         <el-pagination
-          v-model:current-page="hwPage"
-          v-model:page-size="hwPageSize"
-          :page-sizes="[10, 20, 50, 100]"
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50]"
           layout="total, sizes, prev, pager, next"
-          :total="hwTotal"
-          @size-change="fetchHwHistory"
-          @current-change="fetchHwHistory"
+          :total="historyTotal"
+          @size-change="fetchHistoryData"
+          @current-change="fetchHistoryData"
         />
       </div>
     </el-card>
@@ -234,109 +300,219 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { Cpu, Clock, TrendCharts, Monitor, Odometer, Star, Folder, Connection, Refresh, Document, List, Coin, CircleCheck, CircleClose } from '@element-plus/icons-vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { Cpu, Coin, Folder, Connection, Refresh, TrendCharts, List, Clock, Monitor, CircleCheck, CircleClose, DataLine, Star, Loading } from '@element-plus/icons-vue';
 import LineChart from '@/components/LineChart.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import { getServerHardwareHistory, getServerHardwareTrend, getServerHardwareStats, collectServerHardware } from '@/api/monitor';
+import { getPrometheusConfig, getServerHardwareTrend, getServerHardwareHistory, collectServerHardware } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
 
-// State
-const hwLoading = ref(false);
+// Loading states
+const loading = ref(false);
 const collecting = ref(false);
-const hwPeriod = ref('1h');
-const hwTrendData = ref([]);
-const hwHistory = ref([]);
-const hwStats = ref({ totalRecords: 0, lastHourRecords: 0 });
-const hwCurrent = ref({ cpuUsage: 0, gpuUsage: 0 });
-const hwServerInfo = ref({
-  os: '', cpuModel: '', cpuCores: 0, memoryTotal: 0,
-  gpuModel: '', gpuMemory: '', diskTotal: 0,
-  networkDownload: '', networkUpload: '', online: false
-});
+const period = ref('1h');
 
-const hwPage = ref(1);
-const hwPageSize = ref(20);
-const hwTotal = ref(0);
+// Data
+const prometheusStatus = ref({ connected: false });
+const serverOnline = ref(null); // 服务器在线状态: null=loading, true=online, false=offline
+const serverError = ref(''); // 服务器错误信息
+const localServerInfo = ref({});
+const memoryInfo = ref({ total: 0, used: 0, available: 0, percent: 0 });
+const diskInfo = ref({ total: 0, used: 0, available: 0, percent: 0, devices: '' });
+const gpuInfo = ref({ used: 0, memoryUsed: 0, memoryTotal: 0 });
+const cpuUsagePercent = ref(0);
 
-// Fetch data
-const fetchHwTrend = async () => {
+// Trend data
+const trendData = ref([]);
+const diskTrendData = ref([]);
+
+// History data
+const historyData = ref([]);
+const page = ref(1);
+const pageSize = ref(10);
+const historyTotal = ref(0);
+
+// Auto refresh timer
+let refreshTimer = null;
+
+// Fetch Prometheus status
+const fetchPrometheusStatus = async () => {
   try {
-    const res = await getServerHardwareTrend(hwPeriod.value);
-    hwTrendData.value = res.map(item => ({
+    const config = await getPrometheusConfig();
+    // 只检查是否启用，不测试连接（因为数据来自数据库）
+    prometheusStatus.value.connected = config && config.enabled;
+  } catch (e) {
+    prometheusStatus.value.connected = false;
+  }
+};
+
+// Fetch server status from database (latest record)
+const fetchServerStatusFromDB = async () => {
+  try {
+    // 获取历史数据的第一条作为当前状态
+    const data = await getServerHardwareHistory({ page: 0, size: 1 });
+    if (data.content && data.content.length > 0) {
+      const latest = data.content[0];
+      serverOnline.value = latest.online === true;
+      serverError.value = '';
+
+      localServerInfo.value = {
+        os: latest.os || 'Unknown',
+        cpuModel: latest.cpuModel || 'Unknown',
+        cpuCores: latest.cpuCores || 0,
+        gpuModel: latest.gpuModel || 'N/A'
+      };
+
+      // CPU usage
+      cpuUsagePercent.value = latest.cpuUsage || 0;
+
+      // Memory info
+      if (latest.memoryTotal) {
+        const total = latest.memoryTotal;
+        const used = latest.memoryUsed || 0;
+        memoryInfo.value = {
+          total,
+          used,
+          available: total - used,
+          percent: latest.memoryUsage || 0
+        };
+      }
+
+      // Disk info
+      if (latest.diskTotal) {
+        const total = latest.diskTotal;
+        const used = latest.diskUsed || 0;
+        diskInfo.value = {
+          total,
+          used,
+          available: total - used,
+          percent: latest.diskUsage || 0,
+          devices: 'Root Disk'
+        };
+      }
+
+      // GPU info
+      gpuInfo.value = {
+        used: latest.gpuUsage || 0,
+        memoryUsed: 0,
+        memoryTotal: 0
+      };
+    } else {
+      serverOnline.value = false;
+      serverError.value = '暂无数据';
+    }
+  } catch (e) {
+    console.error('Failed to fetch server status:', e);
+    serverOnline.value = false;
+    serverError.value = e.message || '请求失败';
+  }
+};
+
+// Legacy function - kept for compatibility
+const fetchLocalServerInfo = async () => {
+  await fetchServerStatusFromDB();
+};
+
+// Fetch system load - now uses database (kept for auto-refresh)
+const fetchSystemLoad = async () => {
+  await fetchServerStatusFromDB();
+};
+
+// Fetch trend data
+const fetchTrendData = async () => {
+  try {
+    const data = await getServerHardwareTrend(period.value);
+    trendData.value = data.map(item => ({
       timestamp: item.timestamp,
       value: item.cpuUsage || 0,
-      memoryUsage: item.memoryUsage || 0,
-      diskUsage: item.diskUsage || 0,
+      memoryUsage: item.memoryUsage || 0
+    }));
+    diskTrendData.value = data.map(item => ({
+      timestamp: item.timestamp,
+      value: item.diskUsage || 0,
       gpuUsage: item.gpuUsage || 0
     }));
+
+    // Update disk info with latest data
+    if (data && data.length > 0) {
+      const latest = data[data.length - 1];
+      if (diskInfo.value.total > 0) {
+        const used = (latest.diskUsage / 100) * diskInfo.value.total;
+        diskInfo.value = {
+          ...diskInfo.value,
+          used: used,
+          percent: latest.diskUsage || 0,
+          available: diskInfo.value.total - used
+        };
+      }
+    }
   } catch (e) {
-    console.error('Failed to fetch hardware trend:', e);
-    hwTrendData.value = [];
+    console.error('Failed to fetch trend data:', e);
+    trendData.value = [];
+    diskTrendData.value = [];
   }
 };
 
-const fetchHwHistory = async () => {
-  hwLoading.value = true;
+// Fetch history data
+const fetchHistoryData = async () => {
   try {
-    const res = await getServerHardwareHistory({
-      page: hwPage.value - 1,
-      size: hwPageSize.value
+    const data = await getServerHardwareHistory({
+      page: page.value - 1,
+      size: pageSize.value
     });
-    hwHistory.value = res.content || [];
-    hwTotal.value = res.totalElements || 0;
+    historyData.value = data.content || [];
+    historyTotal.value = data.totalElements || 0;
   } catch (e) {
-    console.error('Failed to fetch hardware history:', e);
-  } finally {
-    hwLoading.value = false;
+    console.error('Failed to fetch history data:', e);
   }
 };
 
-const fetchHwStats = async () => {
-  try {
-    const res = await getServerHardwareStats();
-    hwStats.value = res;
-    if (res.current) {
-      hwCurrent.value = res.current;
-    }
-    if (res.serverInfo) {
-      hwServerInfo.value = res.serverInfo;
-    }
-  } catch (e) {
-    console.error('Failed to fetch hardware stats:', e);
-  }
-};
-
-const fetchHwData = async () => {
-  hwLoading.value = true;
-  try {
-    await Promise.all([fetchHwTrend(), fetchHwHistory(), fetchHwStats()]);
-  } finally {
-    hwLoading.value = false;
-  }
-};
-
-const collectHwData = async () => {
+// Collect now
+const collectNow = async () => {
   collecting.value = true;
   try {
     await collectServerHardware();
     ElMessage.success('数据采集成功');
-    await fetchHwData();
+    await Promise.all([fetchTrendData(), fetchHistoryData()]);
   } catch (e) {
-    console.error('采集失败:', e);
-    ElMessage.error('数据采集失败: ' + (e.response?.data?.message || e.message));
+    ElMessage.error('采集失败: ' + (e.response?.data?.message || e.message));
   } finally {
     collecting.value = false;
   }
 };
 
+// Fetch all data
+const fetchAllData = async () => {
+  loading.value = true;
+  try {
+    await Promise.all([
+      fetchPrometheusStatus(),
+      fetchLocalServerInfo(),
+      fetchTrendData(),
+      fetchHistoryData()
+    ]);
+  } finally {
+    loading.value = false;
+  }
+};
+
 // Helpers
 const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) return '-';
+  if (!bytes || bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const formatUptime = (seconds) => {
+  if (!seconds) return '-';
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}天 ${hours}小时`;
+  if (hours > 0) return `${hours}小时 ${mins}分钟`;
+  return `${mins}分钟`;
 };
 
 const formatDateTime = (val) => {
@@ -360,23 +536,19 @@ const getUsageColor = (val) => {
   return '#27ae60';
 };
 
-const getUsageGradient = (val) => {
-  const v = Number(val) || 0;
-  if (v > 80) return 'linear-gradient(90deg, #e74c3c, #c0392b)';
-  if (v > 60) return 'linear-gradient(90deg, #f39c12, #e67e22)';
-  return 'linear-gradient(90deg, #27ae60, #2ecc71)';
-};
-
-const getUsageClass = (val) => {
-  const v = Number(val) || 0;
-  if (v > 80) return 'danger';
-  if (v > 60) return 'warning';
-  return 'success';
-};
-
 // Lifecycle
 onMounted(() => {
-  fetchHwData();
+  fetchAllData();
+  // Auto refresh every 30 seconds
+  refreshTimer = setInterval(() => {
+    fetchSystemLoad();
+  }, 30000);
+});
+
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
 });
 </script>
 
@@ -385,16 +557,8 @@ onMounted(() => {
   padding: 24px;
 }
 
-.premium-card {
-  border-radius: var(--radius-xl) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  background: rgba(255, 255, 255, 0.6) !important;
-  backdrop-filter: blur(15px);
-}
-
-html.dark .premium-card {
-  background: rgba(30, 41, 59, 0.6) !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
+.margin-bottom-lg {
+  margin-bottom: 20px;
 }
 
 .card-header {
@@ -404,141 +568,200 @@ html.dark .premium-card {
   font-weight: 600;
 }
 
-/* Server Info Card */
-.hw-server-card .server-info-grid {
+/* Status Card */
+.status-card {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-radius: 12px;
+  border: none !important;
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.status-value {
+  color: #f1f5f9;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* Metric Cards */
+.metric-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+html.dark .metric-value {
+  color: #f1f5f9;
+}
+
+.metric-sub {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.metric-sub .divider {
+  margin: 0 6px;
+  color: #cbd5e1;
+}
+
+.metric-gauge {
+  margin-bottom: 8px;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cpu-card { border-top: 3px solid #667eea; }
+.memory-card { border-top: 3px solid #11998e; }
+.disk-card { border-top: 3px solid #f39c12; }
+.gpu-card { border-top: 3px solid #e74c3c; }
+
+.network-value {
+  display: flex;
+  gap: 16px;
+}
+
+.network-down {
+  color: #27ae60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.network-up {
+  color: #e74c3c;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Info Card */
+.info-card {
+  border-radius: 12px !important;
+}
+
+.server-info-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 
-.hw-server-card .server-info-item {
+.info-item {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 12px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
 }
 
-html.dark .hw-server-card .server-info-item {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+html.dark .info-item {
+  background: #1e293b;
 }
 
-.hw-server-card .server-info-item.wide {
+.info-item.wide {
   grid-column: span 2;
 }
 
-.hw-server-card .info-icon {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-color);
-  border-radius: 10px;
-  color: white;
-  font-size: 20px;
+.info-label {
+  font-size: 12px;
+  color: #64748b;
 }
 
-.hw-server-card .info-icon.cpu { background: linear-gradient(135deg, #667eea, #764ba2); }
-.hw-server-card .info-icon.memory { background: linear-gradient(135deg, #11998e, #38ef7d); }
-.hw-server-card .info-icon.gpu { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-.hw-server-card .info-icon.disk { background: linear-gradient(135deg, #f39c12, #f1c40f); }
-.hw-server-card .info-icon.network { background: linear-gradient(135deg, #3498db, #2980b9); }
-
-.hw-server-card .info-content { flex: 1; min-width: 0; }
-.hw-server-card .info-label { font-size: 12px; color: var(--neutral-gray-500); margin-bottom: 4px; }
-.hw-server-card .info-value { font-size: 13px; font-weight: 600; color: var(--neutral-gray-800); }
-
-/* Stats Card */
-.hw-stat-card {
-  position: relative;
+.info-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.hw-stat-card .stat-content .label {
+html.dark .info-value {
+  color: #f1f5f9;
+}
+
+/* Chart Card */
+.chart-card {
+  border-radius: 12px !important;
+}
+
+/* History Card */
+.history-card {
+  border-radius: 12px !important;
+}
+
+.record-count {
   font-size: 12px;
-  margin-bottom: 8px;
-}
-
-.hw-stat-card .stat-content .value {
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.hw-stat-card .stat-content .value small {
-  font-size: 12px;
-  font-weight: normal;
-}
-
-.hw-stat-card .icon {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 40px;
-  opacity: 0.3;
-}
-
-.hw-stat-card.hw-usage-card .stat-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.hw-stat-card.hw-usage-card .progress-ring {
-  margin-top: 12px;
-}
-
-/* History Table */
-.hw-history-card .record-count {
-  font-size: 12px;
-  color: var(--neutral-gray-500);
+  color: #94a3b8;
   font-weight: normal;
   margin-left: 8px;
 }
 
-.hw-history-card .time-cell {
+.time-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--neutral-gray-600);
+  gap: 6px;
+  color: #64748b;
   font-size: 13px;
 }
 
-.hw-history-card .time-cell .el-icon {
-  color: var(--primary-color);
-}
-
-.hw-history-card .usage-cell {
+.usage-cell {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.hw-history-card .usage-bar-bg {
-  flex: 1;
-  height: 6px;
-  background: var(--neutral-gray-200);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.hw-history-card .usage-bar-fill {
-  height: 100%;
-  border-radius: 3px;
-}
-
-.hw-history-card .usage-text {
+.usage-text {
   font-size: 12px;
   font-weight: 600;
   min-width: 45px;
   text-align: right;
 }
-
-.hw-history-card .usage-text.success { color: #27ae60; }
-.hw-history-card .usage-text.warning { color: #f39c12; }
-.hw-history-card .usage-text.danger { color: #e74c3c; }
 
 .pagination-container {
   margin-top: 16px;
@@ -546,11 +769,44 @@ html.dark .hw-server-card .server-info-item {
   justify-content: flex-end;
 }
 
-.margin-bottom-lg {
-  margin-bottom: 24px;
+html.dark .status-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
 }
 
-.margin-bottom-xl {
-  margin-bottom: 32px;
+html.dark .metric-card,
+html.dark .info-card,
+html.dark .chart-card,
+html.dark .history-card {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .info-item {
+  background: #334155;
+}
+
+@media (max-width: 1200px) {
+  .server-info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .info-item.wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .server-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-item.wide {
+    grid-column: span 1;
+  }
+
+  .status-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

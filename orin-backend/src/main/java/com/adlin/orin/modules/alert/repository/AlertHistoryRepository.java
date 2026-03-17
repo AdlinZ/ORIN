@@ -36,4 +36,14 @@ public interface AlertHistoryRepository extends JpaRepository<AlertHistory, Stri
      * 统计未解决的告警数量
      */
     long countByStatus(String status);
+
+    /**
+     * 查询未解决的告警
+     */
+    List<AlertHistory> findByStatusOrderByTriggeredAtDesc(String status);
+
+    /**
+     * 统计未读的告警数量（TRIGGERED 状态）
+     */
+    long countByStatusIn(List<String> statuses);
 }

@@ -1,6 +1,11 @@
 <template>
   <div class="alert-manager">
-    <el-tabs v-model="activeTab">
+    <PageHeader
+      title="异常告警"
+      description="集中管理告警规则、历史记录与处理状态"
+      icon="Bell"
+    />
+    <el-tabs v-model="activeTab" class="config-tabs">
       <!-- 告警规则 Tab -->
       <el-tab-pane label="告警规则" name="rules">
         <el-card class="premium-card">
@@ -206,6 +211,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import dayjs from 'dayjs'
+import PageHeader from '@/components/PageHeader.vue'
 import {
   Bell, Plus, View, Notification, Delete, Clock
 } from '@element-plus/icons-vue'

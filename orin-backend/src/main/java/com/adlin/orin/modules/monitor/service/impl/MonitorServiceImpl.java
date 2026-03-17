@@ -1402,6 +1402,69 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         @Override
+        public Map<String, Object> getPrometheusServerStatus() {
+                Map<String, Object> status = new HashMap<>();
+
+                PrometheusConfig config = getPrometheusConfig();
+                if (config == null || !Boolean.TRUE.equals(config.getEnabled())) {
+                        status.put("online", false);
+                        status.put("error", "Prometheus is not enabled");
+                        return status;
+                }
+
+                String baseUrl = config.getPrometheusUrl();
+                if (baseUrl == null || baseUrl.isEmpty()) {
+                        status.put("online", false);
+                        status.put("error", "Prometheus URL is not configured");
+                        return status;
+                }
+
+                try {
+                        // 直接获取服务器指标，如果失败则说明连接有问题
+                        String os = prometheusService.getOsName(baseUrl);
+                        Integer cpuCores = prometheusService.getCpuCores(baseUrl);
+                        Double cpuUsage = prometheusService.getCpuUsage(baseUrl);
+                        Long memoryTotal = prometheusService.getTotalMemory(baseUrl);
+
+                        // 只要能获取到 CPU 使用率或内存，就认为服务器在线
+                        // 因为有些服务器可能没有 GPU 或者没有完整暴露所有指标
+                        boolean hasMetrics = (cpuUsage != null && cpuUsage >= 0) || (memoryTotal != null && memoryTotal >= 0) || (cpuCores != null && cpuCores > 0) || (os != null && !"Unknown".equals(os));
+
+                        if (!hasMetrics) {
+                                status.put("online", false);
+                                status.put("error", "无法获取服务器指标，请确认 node_exporter 已正确配置");
+                                return status;
+                        }
+
+                        // 获取服务器指标
+                        status.put("online", true);
+                        status.put("os", os);
+                        status.put("cpuModel", prometheusService.getCpuModel(baseUrl));
+                        status.put("cpuCores", cpuCores);
+                        status.put("cpuUsage", cpuUsage);
+                        status.put("memoryTotal", memoryTotal);
+                        status.put("memoryUsage", prometheusService.getMemoryUsage(baseUrl));
+                        status.put("diskTotal", prometheusService.getTotalDiskSpace(baseUrl));
+                        status.put("diskUsage", prometheusService.getDiskUsage(baseUrl));
+                        status.put("gpuModel", prometheusService.getGpuModel(baseUrl));
+                        status.put("gpuUsage", prometheusService.getGpuUsage(baseUrl));
+                        status.put("gpuMemoryTotal", prometheusService.getGpuMemoryTotalBytes(baseUrl));
+                        status.put("gpuMemoryUsage", prometheusService.getGpuMemoryUsage(baseUrl));
+
+                        // 网络流量
+                        status.put("networkReceiveRate", prometheusService.getNetworkReceiveRate(baseUrl));
+                        status.put("networkTransmitRate", prometheusService.getNetworkTransmitRate(baseUrl));
+
+                } catch (Exception e) {
+                        log.error("Failed to get Prometheus server status: {}", e.getMessage());
+                        status.put("online", false);
+                        status.put("error", e.getMessage());
+                }
+
+                return status;
+        }
+
+        @Override
         public Map<String, Object> debugQueryPrometheus(String query) {
                 PrometheusConfig config = getPrometheusConfig();
                 if (config == null || !Boolean.TRUE.equals(config.getEnabled())) {

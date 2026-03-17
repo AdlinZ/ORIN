@@ -1,11 +1,10 @@
 <template>
   <div class="user-management fade-in">
-    <div class="header-section">
-      <div class="header-content">
-        <h1 class="page-title">用户权限管理</h1>
-        <p class="page-subtitle">管理系统用户、角色分配及账号状态</p>
-      </div>
-    </div>
+    <PageHeader
+      title="用户权限"
+      description="管理系统用户、角色分配及账号状态"
+      icon="User"
+    />
     
     <div class="premium-card">
       <!-- 工具栏 -->
@@ -201,6 +200,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Lock, Unlock, Refresh } from '@element-plus/icons-vue'
 import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus, getRoles } from '@/api/userManage'
+import PageHeader from '@/components/PageHeader.vue'
 
 // 数据状态
 const loading = ref(false)
@@ -458,22 +458,6 @@ onUnmounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.header-section {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin-bottom: 8px;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: var(--text-secondary, var(--el-text-color-secondary));
-}
-
 .premium-card {
   background: var(--card-bg, var(--el-bg-color));
   border-radius: 12px;
@@ -709,14 +693,6 @@ html.dark .premium-card {
 
 html.dark .premium-card:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-}
-
-html.dark .page-title {
-  color: var(--text-primary);
-}
-
-html.dark .page-subtitle {
-  color: var(--text-secondary);
 }
 
 html.dark .search-input :deep(.el-input__wrapper) {

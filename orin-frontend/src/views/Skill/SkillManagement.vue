@@ -1,49 +1,58 @@
 <template>
   <div class="skill-management">
-    <el-card class="header-card">
-      <div class="header-content">
-        <div class="header-title">
-          <h2>技能管理</h2>
-          <span class="subtitle">管理 Agent 的核心能力扩展，支持 API、知识库、Shell 和复合工作流</span>
-        </div>
-        <div class="header-actions">
-          <el-button type="success" @click="showImportDialog">
-            <el-icon><Download /></el-icon>
-            导入技能
-          </el-button>
-          <el-button type="primary" @click="showCreateDialog">
-            <el-icon><Plus /></el-icon>
-            创建技能
-          </el-button>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="技能绑定"
+      description="管理 Agent 的核心能力扩展，支持 API、知识库、Shell 和复合工作流"
+      icon="MagicStick"
+    >
+      <template #actions>
+        <el-button type="success" @click="showImportDialog">
+          <el-icon><Download /></el-icon>
+          导入技能
+        </el-button>
+        <el-button type="primary" @click="showCreateDialog">
+          <el-icon><Plus /></el-icon>
+          创建技能
+        </el-button>
+      </template>
 
-    <!-- 筛选器 -->
-    <el-card class="filter-card">
-      <el-form :inline="true">
-        <el-form-item label="技能类型">
-          <el-select v-model="filterType" placeholder="全部类型" clearable @change="loadSkills">
-            <el-option label="全部" value="" />
-            <el-option label="API 调用" value="API" />
-            <el-option label="知识库检索" value="KNOWLEDGE" />
-            <el-option label="Shell 命令" value="SHELL" />
-            <el-option label="复合工作流" value="COMPOSITE" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filterStatus" placeholder="全部状态" clearable @change="loadSkills">
-            <el-option label="全部" value="" />
-            <el-option label="活跃" value="ACTIVE" />
-            <el-option label="未激活" value="INACTIVE" />
-            <el-option label="已废弃" value="DEPRECATED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadSkills">查询</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+      <template #filters>
+        <el-form :inline="true" class="skill-filter-form">
+          <el-form-item label="技能类型">
+            <el-select
+              v-model="filterType"
+              placeholder="全部类型"
+              clearable
+              class="filter-select"
+              @change="loadSkills"
+            >
+              <el-option label="全部" value="" />
+              <el-option label="API 调用" value="API" />
+              <el-option label="知识库检索" value="KNOWLEDGE" />
+              <el-option label="Shell 命令" value="SHELL" />
+              <el-option label="复合工作流" value="COMPOSITE" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select
+              v-model="filterStatus"
+              placeholder="全部状态"
+              clearable
+              class="filter-select"
+              @change="loadSkills"
+            >
+              <el-option label="全部" value="" />
+              <el-option label="活跃" value="ACTIVE" />
+              <el-option label="未激活" value="INACTIVE" />
+              <el-option label="已废弃" value="DEPRECATED" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="loadSkills">查询</el-button>
+          </el-form-item>
+        </el-form>
+      </template>
+    </PageHeader>
 
     <!-- 技能列表 -->
     <el-card class="table-card">
@@ -290,6 +299,7 @@ import {
 } from '@/api/skill'
 import { marked } from 'marked'
 import dayjs from 'dayjs'
+import PageHeader from '@/components/PageHeader.vue'
 
 const skills = ref([])
 const loading = ref(false)
@@ -554,39 +564,17 @@ const getStatusLabel = (status) => {
   padding: 24px;
 }
 
-.header-card {
-  margin-bottom: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+.skill-filter-form {
+  margin-bottom: -18px;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-title h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--neutral-gray-900);
-}
-
-.header-title .subtitle {
-  font-size: 14px;
-  color: var(--neutral-gray-500);
-  margin-top: 4px;
-  display: block;
-}
-
-.filter-card {
-  margin-bottom: 24px;
-  border-radius: 12px;
+.filter-select {
+  width: 180px;
 }
 
 .table-card {
   border-radius: 12px;
+  margin-top: 4px;
 }
 
 .tip-info {

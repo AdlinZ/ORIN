@@ -255,6 +255,12 @@ public class MonitorController {
         return monitorService.getLocalServerInfo();
     }
 
+    @Operation(summary = "通过 Prometheus 获取远程服务器状态")
+    @GetMapping("/prometheus/server-status")
+    public Map<String, Object> getPrometheusServerStatus() {
+        return monitorService.getPrometheusServerStatus();
+    }
+
     @Operation(summary = "调试：查询 Prometheus 原始数据")
     @GetMapping("/debug/prometheus")
     public Map<String, Object> debugQueryPrometheus(@RequestParam String query) {

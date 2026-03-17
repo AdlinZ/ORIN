@@ -207,6 +207,40 @@ public class AlertService {
     }
 
     /**
+     * 标记所有未解决告警为已解决
+     */
+    @Transactional
+    public int resolveAllAlerts() {
+        List<AlertHistory> unresolvedAlerts = historyRepository.findByStatusOrderByTriggeredAtDesc("TRIGGERED");
+        LocalDateTime now = LocalDateTime.now();
+
+        for (AlertHistory alert : unresolvedAlerts) {
+            alert.setStatus("RESOLVED");
+            alert.setResolvedAt(now);
+        }
+
+        historyRepository.saveAll(unresolvedAlerts);
+        log.info("Resolved {} alerts", unresolvedAlerts.size());
+        return unresolvedAlerts.size();
+    }
+
+    /**
+     * 清空所有告警历史
+     */
+    @Transactional
+    public void clearAllAlerts() {
+        historyRepository.deleteAll();
+        log.info("Cleared all alert history");
+    }
+
+    /**
+     * 获取未读告警数量
+     */
+    public long getUnreadCount() {
+        return historyRepository.countByStatusIn(List.of("TRIGGERED"));
+    }
+
+    /**
      * 获取告警历史
      */
     public Page<AlertHistory> getAlertHistory(Pageable pageable) {

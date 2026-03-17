@@ -57,3 +57,37 @@ export const testNotificationChannel = (channel) => {
 export const getNotificationConfig = () => {
     return request.get('/alerts/notification/config');
 };
+
+export const saveNotificationConfig = (data) => {
+    return request.post('/alerts/notification/config', data);
+};
+
+export const getNotificationStatus = () => {
+    return request.get('/alerts/notification-config/status');
+};
+
+export const testNotification = (channel) => {
+    return request.post('/alerts/notification-config/test', { channel });
+};
+
+// ==================== 通知中心 ====================
+
+// 标记单条通知为已读
+export const markNotificationAsRead = (id) => {
+    return request.post(`/alerts/history/${id}/resolve`);
+};
+
+// 标记全部通知为已读
+export const markAllNotificationsAsRead = () => {
+    return request.post('/alerts/history/resolve-all');
+};
+
+// 清空所有通知
+export const clearAllNotifications = () => {
+    return request.delete('/alerts/history/clear-all');
+};
+
+// 获取未读通知数量
+export const getUnreadNotificationCount = () => {
+    return request.get('/alerts/history/unread-count');
+};

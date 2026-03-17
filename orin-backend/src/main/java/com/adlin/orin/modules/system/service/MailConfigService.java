@@ -1,7 +1,9 @@
 package com.adlin.orin.modules.system.service;
 
 import com.adlin.orin.modules.system.entity.MailConfigEntity;
+import com.adlin.orin.modules.system.entity.MailSendLog;
 import com.adlin.orin.modules.system.repository.MailConfigRepository;
+import com.adlin.orin.modules.system.repository.MailSendLogRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.mail.SimpleMailMessage;
@@ -24,6 +26,7 @@ import org.springframework.http.MediaType;
 public class MailConfigService {
 
     private final MailConfigRepository mailConfigRepository;
+    private final MailSendLogRepository mailSendLogRepository;
     private final JavaMailSender mailSender;
     private final RestTemplate restTemplate;
 
@@ -31,9 +34,11 @@ public class MailConfigService {
     private static final String RESEND_API_URL = "https://api.resend.com/emails";
 
     public MailConfigService(MailConfigRepository mailConfigRepository,
+                            MailSendLogRepository mailSendLogRepository,
                             JavaMailSender mailSender,
                             RestTemplate restTemplate) {
         this.mailConfigRepository = mailConfigRepository;
+        this.mailSendLogRepository = mailSendLogRepository;
         this.mailSender = mailSender;
         this.restTemplate = restTemplate;
     }
@@ -288,24 +293,47 @@ public class MailConfigService {
             return false;
         }
 
+        // 创建日志记录
+        MailSendLog logEntry = new MailSendLog();
+        logEntry.setSubject(subject);
+        logEntry.setRecipients(to);
+        logEntry.setContent(content);
+        logEntry.setMailerType(config.getMailerType() != null ? config.getMailerType() : "smtp");
+
+        String errorMessage = null;
+
         // 如果是 MailerSend 模式
         if ("mailersend".equals(config.getMailerType())) {
-            return sendViaMailerSend(config, to, subject, content);
+            errorMessage = sendViaMailerSend(config, to, subject, content);
         }
-
         // 如果是 Resend 模式
-        if ("resend".equals(config.getMailerType())) {
-            return sendViaResend(config, to, subject, content);
+        else if ("resend".equals(config.getMailerType())) {
+            errorMessage = sendViaResend(config, to, subject, content);
+        }
+        // SMTP 模式
+        else {
+            errorMessage = sendViaSmtp(config, to, subject, content);
         }
 
-        // SMTP 模式
-        return sendViaSmtp(config, to, subject, content);
+        boolean success = errorMessage == null;
+
+        // 记录日志
+        logEntry.setStatus(success ? MailSendLog.STATUS_SUCCESS : MailSendLog.STATUS_FAILED);
+        logEntry.setErrorMessage(errorMessage);
+        try {
+            mailSendLogRepository.save(logEntry);
+        } catch (Exception e) {
+            log.error("保存邮件日志失败", e);
+        }
+
+        return success;
     }
 
     /**
      * 通过 MailerSend 发送邮件
+     * @return 成功返回 null，失败返回错误信息
      */
-    private boolean sendViaMailerSend(MailConfigEntity config, String to, String subject, String content) {
+    private String sendViaMailerSend(MailConfigEntity config, String to, String subject, String content) {
         try {
             String apiKey = config.getApiKey();
             String fromEmail = config.getFromEmail();
@@ -313,7 +341,7 @@ public class MailConfigService {
 
             if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
                 log.error("MailerSend配置不完整");
-                return false;
+                return "MailerSend配置不完整";
             }
 
             Map<String, Object> requestBody = new HashMap<>();
@@ -351,21 +379,24 @@ public class MailConfigService {
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("MailerSend邮件发送成功: {}", to);
-                return true;
+                return null;
             } else {
-                log.error("MailerSend邮件发送失败: {}", response.getBody());
-                return false;
+                String error = "MailerSend邮件发送失败: " + response.getBody();
+                log.error(error);
+                return error;
             }
         } catch (Exception e) {
-            log.error("MailerSend邮件发送异常: {}", e.getMessage(), e);
-            return false;
+            String error = "MailerSend邮件发送异常: " + e.getMessage();
+            log.error(error, e);
+            return error;
         }
     }
 
     /**
      * 通过 Resend 发送邮件
+     * @return 成功返回 null，失败返回错误信息
      */
-    private boolean sendViaResend(MailConfigEntity config, String to, String subject, String content) {
+    private String sendViaResend(MailConfigEntity config, String to, String subject, String content) {
         try {
             String apiKey = config.getApiKey();
             String fromEmail = config.getFromEmail();
@@ -375,7 +406,7 @@ public class MailConfigService {
 
             if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
                 log.error("Resend配置不完整");
-                return false;
+                return "Resend配置不完整";
             }
 
             Map<String, Object> requestBody = new HashMap<>();
@@ -406,21 +437,24 @@ public class MailConfigService {
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("Resend邮件发送成功: {}", to);
-                return true;
+                return null;
             } else {
-                log.error("Resend邮件发送失败: {}", response.getBody());
-                return false;
+                String error = "Resend邮件发送失败: " + response.getBody();
+                log.error(error);
+                return error;
             }
         } catch (Exception e) {
-            log.error("Resend邮件发送异常: {}", e.getMessage(), e);
-            return false;
+            String error = "Resend邮件发送异常: " + e.getMessage();
+            log.error(error, e);
+            return error;
         }
     }
 
     /**
      * 通过 SMTP 发送邮件
+     * @return 成功返回 null，失败返回错误信息
      */
-    private boolean sendViaSmtp(MailConfigEntity config, String to, String subject, String content) {
+    private String sendViaSmtp(MailConfigEntity config, String to, String subject, String content) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(config.getFromName() + " <" + config.getFromEmail() + ">");
@@ -431,10 +465,11 @@ public class MailConfigService {
 
             mailSender.send(message);
             log.info("SMTP邮件发送成功: {}", to);
-            return true;
+            return null;
         } catch (Exception e) {
-            log.error("SMTP邮件发送失败: {}", e.getMessage(), e);
-            return false;
+            String error = "SMTP邮件发送失败: " + e.getMessage();
+            log.error(error, e);
+            return error;
         }
     }
 

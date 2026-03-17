@@ -2,7 +2,9 @@ package com.adlin.orin.modules.alert.controller;
 
 import com.adlin.orin.modules.alert.entity.AlertHistory;
 import com.adlin.orin.modules.alert.entity.AlertRule;
+import com.adlin.orin.modules.alert.entity.AlertNotificationConfig;
 import com.adlin.orin.modules.alert.service.AlertNotificationService;
+import com.adlin.orin.modules.alert.service.AlertNotificationConfigService;
 import com.adlin.orin.modules.alert.service.AlertService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,6 +24,7 @@ public class AlertController {
 
     private final AlertService alertService;
     private final AlertNotificationService notificationService;
+    private final AlertNotificationConfigService configService;
 
     @Operation(summary = "创建告警规则")
     @PostMapping("/rules")
@@ -80,6 +83,36 @@ public class AlertController {
         return alertService.resolveAlert(id);
     }
 
+    @Operation(summary = "标记所有告警为已解决")
+    @PostMapping("/history/resolve-all")
+    public Map<String, Object> resolveAllAlerts() {
+        int count = alertService.resolveAllAlerts();
+        return Map.of(
+            "success", true,
+            "message", "已标记 " + count + " 条告警为已解决",
+            "resolvedCount", count
+        );
+    }
+
+    @Operation(summary = "清空所有告警历史")
+    @DeleteMapping("/history/clear-all")
+    public Map<String, Object> clearAllAlerts() {
+        alertService.clearAllAlerts();
+        return Map.of(
+            "success", true,
+            "message", "已清空所有告警历史"
+        );
+    }
+
+    @Operation(summary = "获取未读告警数量")
+    @GetMapping("/history/unread-count")
+    public Map<String, Object> getUnreadCount() {
+        long count = alertService.getUnreadCount();
+        return Map.of(
+            "count", count
+        );
+    }
+
     @Operation(summary = "获取告警统计")
     @GetMapping("/stats")
     public AlertService.AlertStats getStats() {
@@ -113,11 +146,13 @@ public class AlertController {
 
     @Operation(summary = "获取通知配置")
     @GetMapping("/notification/config")
-    public Map<String, Object> getNotificationConfig() {
-        return Map.of(
-            "email", Map.of("enabled", true),
-            "dingtalk", Map.of("enabled", false),
-            "wecom", Map.of("enabled", false)
-        );
+    public AlertNotificationConfig getNotificationConfig() {
+        return configService.getConfig();
+    }
+
+    @Operation(summary = "保存通知配置")
+    @PostMapping("/notification/config")
+    public AlertNotificationConfig saveNotificationConfig(@RequestBody AlertNotificationConfig config) {
+        return configService.saveConfig(config);
     }
 }

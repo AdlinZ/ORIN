@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.system.controller;
 
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.system.entity.LogConfig;
 import com.adlin.orin.modules.system.service.DynamicLoggerService;
 import com.adlin.orin.modules.system.service.LogConfigService;
@@ -20,6 +21,7 @@ public class LogConfigController {
     private final LogConfigService logConfigService;
     private final DynamicLoggerService dynamicLoggerService;
     private final com.adlin.orin.modules.audit.service.AuditLogService auditLogService;
+    private final AuditHelper auditHelper;
 
     @Operation(summary = "获取所有日志配置")
     @GetMapping
@@ -37,6 +39,10 @@ public class LogConfigController {
     @PostMapping("/cleanup")
     public Map<String, Object> manualCleanup(@RequestParam(defaultValue = "0") int days) {
         int deletedCount = auditLogService.manualCleanup(days);
+
+        auditHelper.log("SYSTEM", "LOG_CLEANUP", "/api/v1/system/log-config/cleanup",
+                "手动清理日志: 删除 " + deletedCount + " 条 " + days + " 天前的记录", true, null);
+
         return Map.of(
                 "success", true,
                 "deletedCount", deletedCount,
@@ -51,7 +57,12 @@ public class LogConfigController {
         if (value == null) {
             throw new IllegalArgumentException("Payload must contain 'value'");
         }
-        return logConfigService.updateConfig(key, value);
+        LogConfig config = logConfigService.updateConfig(key, value);
+
+        auditHelper.log("SYSTEM", "LOG_CONFIG_UPDATE", "/api/v1/system/log-config/" + key,
+                "更新日志配置: " + key + "=" + value, true, null);
+
+        return config;
     }
 
     // ==================== 动态日志级别管理 API ====================
@@ -80,6 +91,9 @@ public class LogConfigController {
 
         dynamicLoggerService.setLogLevel(loggerName, level);
 
+        auditHelper.log("SYSTEM", "LOGGER_SET_LEVEL", "/api/v1/system/log-config/loggers/" + loggerName,
+                "设置Logger级别: " + loggerName + "=" + level, true, null);
+
         return Map.of(
                 "logger", loggerName,
                 "level", level,
@@ -91,6 +105,9 @@ public class LogConfigController {
     public Map<String, String> resetLogger(@PathVariable String loggerName) {
         dynamicLoggerService.resetLogger(loggerName);
 
+        auditHelper.log("SYSTEM", "LOGGER_RESET", "/api/v1/system/loggers/" + loggerName,
+                "重置Logger级别: " + loggerName + " 到默认", true, null);
+
         return Map.of(
                 "logger", loggerName,
                 "status", "reset to default");
@@ -101,6 +118,9 @@ public class LogConfigController {
     public Map<String, Object> batchSetLogLevel(@RequestBody Map<String, String> loggerLevels) {
         dynamicLoggerService.batchSetLogLevel(loggerLevels);
 
+        auditHelper.log("SYSTEM", "LOGGER_BATCH_SET", "/api/v1/system/log-config/loggers/batch",
+                "批量设置Logger级别: " + loggerLevels.size() + " 个", true, null);
+
         return Map.of(
                 "updated", loggerLevels.size(),
                 "status", "success");
@@ -110,6 +130,9 @@ public class LogConfigController {
     @PostMapping("/loggers/reset-all")
     public Map<String, String> resetAllLoggers() {
         dynamicLoggerService.resetAllLoggers();
+
+        auditHelper.log("SYSTEM", "LOGGER_RESET_ALL", "/api/v1/system/log-config/loggers/reset-all",
+                "重置所有Logger级别到默认", true, null);
 
         return Map.of("status", "all loggers reset to default");
     }

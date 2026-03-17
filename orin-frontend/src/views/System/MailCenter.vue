@@ -1,29 +1,54 @@
 <template>
   <div class="mail-system-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2 class="page-title">邮件服务中心</h2>
-        <p class="page-desc">管理邮件配置、模板与发送记录</p>
-      </div>
-      <div class="header-right">
-        <el-button type="primary" :icon="Plus" @click="activeTab = 'config'">
-          {{ mailConnected ? '修改配置' : '立即配置' }}
-        </el-button>
-      </div>
-    </div>
+    <PageHeader
+      title="邮件中心"
+      description="管理邮件服务配置、模板与发送记录"
+      icon="Message"
+    />
 
+    <!-- 首屏骨架屏 -->
+    <StateView
+      v-if="pageState === 'loading'"
+      state="loading"
+      :loading-text="'正在加载邮件中心...'"
+      :show-skeleton="true"
+      :skeleton-rows="5"
+      fullscreen
+    />
+
+    <!-- 错误状态 -->
+    <StateView
+      v-else-if="pageState === 'error'"
+      state="error"
+      error-title="加载失败"
+      error-description="无法获取邮件配置信息，请检查网络连接"
+      :show-go-back="true"
+      @retry="loadMailConfig"
+    />
+
+    <!-- 正常内容 -->
+    <template v-else>
     <!-- 统计卡片 -->
     <div class="stats-cards">
-      <div class="stat-card" :class="{ 'stat-success': mailConnected, 'stat-warning': !mailConnected }">
-        <div class="stat-icon">
-          <el-icon :size="28"><Message /></el-icon>
+      <div class="stat-card stat-card-with-actions" :class="{ 'stat-success': mailConnected, 'stat-warning': !mailConnected }">
+        <div class="stat-main">
+          <div class="stat-icon">
+            <el-icon :size="28"><Message /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ mailConnected ? '已连接' : '未配置' }}</div>
+            <div class="stat-label">服务状态</div>
+          </div>
+          <div class="stat-indicator"></div>
         </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ mailConnected ? '已连接' : '未配置' }}</div>
-          <div class="stat-label">服务状态</div>
+        <div class="stat-actions">
+          <el-button type="info" size="small" :icon="Bell" @click="goToNotificationChannels">
+            告警通知
+          </el-button>
+          <el-button size="small" :type="mailConnected ? 'default' : 'primary'" :icon="Plus" @click="activeTab = 'config'">
+            {{ mailConnected ? '修改配置' : '立即配置' }}
+          </el-button>
         </div>
-        <div class="stat-indicator"></div>
       </div>
       
       <div class="stat-card">
@@ -135,7 +160,7 @@
 
       <!-- 右侧：标签页内容 -->
       <div class="right-panel">
-        <el-tabs v-model="activeTab" class="main-tabs">
+        <el-tabs v-model="activeTab" class="config-tabs">
           <!-- 邮件配置 -->
           <el-tab-pane label="配置管理" name="config">
             <el-card class="config-card">
@@ -930,23 +955,39 @@
         <div class="preview-body" v-html="previewTemplate?.content?.replace(/\n/g, '<br>')"></div>
       </div>
     </el-dialog>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Search, Message, Document, CircleCheck, Warning,
   InfoFilled, Lightning, EditPen, List, Setting,
   Promotion, ArrowRight, ArrowLeft, Key, Link,
   User, Lock, Monitor, MessageBox, CircleCheckFilled,
-  Check, CircleClose, Loading, Refresh, StarFilled
+  Check, CircleClose, Loading, Refresh, StarFilled, Bell
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import PageHeader from '@/components/PageHeader.vue'
+import StateView from '@/components/StateView.vue'
+import { ROUTES } from '@/router/routes'
 
-// 状态
-const activeTab = ref('status')
+const router = useRouter()
+
+const goToNotificationChannels = () => {
+  router.push(ROUTES.CONTROL.NOTIFICATION_CHANNELS)
+}
+
+// 状态 - 默认显示配置管理，符合用户任务导向
+const activeTab = ref('config')
+
+// 页面状态: idle | loading | success | error | empty
+// 用于控制骨架屏和状态视图显示
+const pageState = ref<'idle' | 'loading' | 'success' | 'error' | 'empty'>('loading')
+
 const mailConnected = ref(false)
 const templatesLoading = ref(false)
 const logsLoading = ref(false)
@@ -1079,6 +1120,7 @@ const selectMailer = (type) => {
 // 加载配置
 const loadMailConfig = async () => {
   try {
+    pageState.value = 'loading'
     const res = await request.get('/system/mail-config')
     if (res) {
       mailConfig.value = res
@@ -1104,9 +1146,12 @@ const loadMailConfig = async () => {
       mailConfigForm.imapPort = res.imapPort || 993
       mailConfigForm.imapUsername = res.imapUsername || ''
       mailConfigForm.imapPassword = res.imapPassword || ''
+
+      pageState.value = 'success'
     }
   } catch (e) {
     console.error('加载配置失败:', e)
+    pageState.value = 'error'
   }
 }
 
@@ -1570,22 +1615,9 @@ onMounted(() => {
 /* 页面头部 */
 .page-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: flex-start;
   margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 8px 0;
-}
-
-.page-desc {
-  color: #909399;
-  margin: 0;
-  font-size: 14px;
 }
 
 /* 统计卡片 */
@@ -1613,6 +1645,25 @@ onMounted(() => {
 
 .stat-warning {
   border-left: 4px solid #E6A23C;
+}
+
+.stat-card-with-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.stat-main {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.stat-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #ebeef5;
 }
 
 .stat-icon {

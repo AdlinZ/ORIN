@@ -655,6 +655,84 @@ code {
   background-color: var(--orin-primary) !important;
 }
 
+/* ==================== Unified Segmented Tab Style ==================== */
+/* 覆盖所有页面级 Tab 导航，统一为胶囊分段样式 */
+
+.config-tabs > .el-tabs__header,
+.settings-tabs > .el-tabs__header,
+.api-key-tabs > .el-tabs__header {
+  background: #f0f2f5;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 24px;
+  border-bottom: none !important;
+}
+
+.config-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.settings-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.api-key-tabs > .el-tabs__header .el-tabs__nav-wrap::after {
+  display: none !important;
+}
+
+.config-tabs > .el-tabs__header .el-tabs__active-bar,
+.settings-tabs > .el-tabs__header .el-tabs__active-bar,
+.api-key-tabs > .el-tabs__header .el-tabs__active-bar {
+  display: none !important;
+}
+
+.config-tabs > .el-tabs__header .el-tabs__item,
+.settings-tabs > .el-tabs__header .el-tabs__item,
+.api-key-tabs > .el-tabs__header .el-tabs__item {
+  height: 32px;
+  line-height: 32px;
+  padding: 0 20px !important;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-regular);
+  border: none !important;
+  border-radius: 7px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.config-tabs > .el-tabs__header .el-tabs__item:hover,
+.settings-tabs > .el-tabs__header .el-tabs__item:hover,
+.api-key-tabs > .el-tabs__header .el-tabs__item:hover {
+  color: var(--orin-primary);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.config-tabs > .el-tabs__header .el-tabs__item.is-active,
+.settings-tabs > .el-tabs__header .el-tabs__item.is-active,
+.api-key-tabs > .el-tabs__header .el-tabs__item.is-active {
+  background: #fff;
+  color: var(--orin-primary) !important;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.07);
+}
+
+/* Dark mode */
+html.dark .config-tabs > .el-tabs__header,
+html.dark .settings-tabs > .el-tabs__header,
+html.dark .api-key-tabs > .el-tabs__header {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .config-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .settings-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .api-key-tabs > .el-tabs__header .el-tabs__item.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* el-segmented 主题色统一 */
+.el-segmented .el-segmented__item.is-selected .el-segmented__item-label {
+  color: var(--orin-primary) !important;
+}
+
+.el-segmented__item:not(.is-selected):hover .el-segmented__item-label {
+  color: var(--orin-primary);
+}
+
 /* Force sync all active states */
 .el-menu-item.is-active,
 .el-menu-item.is-active .el-icon,

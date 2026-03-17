@@ -1,5 +1,10 @@
 <template>
   <div class="kb-detail-page">
+    <PageHeader
+      title="知识库详情"
+      description="查看知识库文档、检索配置与向量模型设置"
+      icon="Collection"
+    />
     <!-- Header with Breadcrumb -->
     <div class="detail-header">
       <div class="breadcrumb">
@@ -277,6 +282,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
 import { ROUTES } from '@/router/routes';
 import { deleteKnowledge } from '@/api/knowledge';
+import PageHeader from '@/components/PageHeader.vue';
 
 const route = useRoute();
 const router = useRouter();

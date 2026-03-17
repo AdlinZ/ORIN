@@ -1,5 +1,10 @@
 <template>
   <div class="page-container">
+    <PageHeader
+      title="个人中心"
+      description="查看与管理个人资料、账户安全和近期活动"
+      icon="User"
+    />
     <!-- Header -->
     <div class="profile-header">
       <div class="header-content">
@@ -211,6 +216,7 @@ import {
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
 import { getUserProfile, updateUserProfile, uploadAvatar, updateUserAvatar, getUserDashboard } from '@/api/user';
+import PageHeader from '@/components/PageHeader.vue';
 
 const userStore = useUserStore();
 const activeTab = ref('settings');

@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.system.controller;
 
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.system.entity.ProviderConfig;
 import com.adlin.orin.modules.system.service.ProviderConfigService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.Map;
 public class ProviderConfigController {
 
     private final ProviderConfigService providerConfigService;
+    private final AuditHelper auditHelper;
 
     /**
      * 获取所有已启用的供应商列表（按显示顺序）
@@ -58,7 +60,12 @@ public class ProviderConfigController {
             @PathVariable String providerKey,
             @RequestBody ProviderConfig provider) {
         provider.setProviderKey(providerKey);
-        return ResponseEntity.ok(providerConfigService.updateProvider(provider));
+        ProviderConfig updated = providerConfigService.updateProvider(provider);
+
+        auditHelper.log("SYSTEM", "PROVIDER_CONFIG_UPDATE", "/api/v1/system/providers/" + providerKey,
+                "更新供应商配置: " + providerKey, true, null);
+
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -67,6 +74,10 @@ public class ProviderConfigController {
     @PutMapping("/display-order")
     public ResponseEntity<Void> updateDisplayOrders(@RequestBody Map<String, Integer> orders) {
         providerConfigService.updateDisplayOrders(orders);
+
+        auditHelper.log("SYSTEM", "PROVIDER_ORDER_UPDATE", "/api/v1/system/providers/display-order",
+                "批量更新供应商显示顺序: " + orders.size() + " 个", true, null);
+
         return ResponseEntity.ok().build();
     }
 
@@ -78,6 +89,10 @@ public class ProviderConfigController {
             @PathVariable String providerKey,
             @RequestParam boolean enabled) {
         providerConfigService.setEnabled(providerKey, enabled);
+
+        auditHelper.log("SYSTEM", "PROVIDER_ENABLED", "/api/v1/system/providers/" + providerKey + "/enabled",
+                (enabled ? "启用" : "禁用") + "供应商: " + providerKey, true, null);
+
         return ResponseEntity.ok().build();
     }
 }

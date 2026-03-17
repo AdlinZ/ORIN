@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -251,5 +252,55 @@ public class WorkflowService {
                 .apiUrl(baseUrl + "/v1/workflows/" + id + "/execute")
                 .apiKey("sk-orin-" + java.util.UUID.randomUUID().toString()) // Placeholder API Key
                 .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    public String exportDifyWorkflow(Long id) {
+        log.info("Exporting workflow {} as Dify DSL", id);
+
+        WorkflowEntity entity = workflowRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+
+        Map<String, Object> definition = entity.getWorkflowDefinition();
+        if (definition == null || definition.isEmpty()) {
+            // Return minimal Dify DSL structure
+            Map<String, Object> dsl = new HashMap<>();
+            dsl.put("app", Map.of(
+                "name", entity.getWorkflowName(),
+                "mode", "workflow"
+            ));
+            dsl.put("workflow", Map.of(
+                "graph", Map.of(
+                    "nodes", new ArrayList<>(),
+                    "edges", new ArrayList<>(),
+                    "viewport", Map.of("x", 0, "y", 0, "zoom", 1)
+                )
+            ));
+            return new org.yaml.snakeyaml.Yaml().dump(dsl);
+        }
+
+        List<Map<String, Object>> nodes = (List<Map<String, Object>>) definition.get("nodes");
+        List<Map<String, Object>> edges = (List<Map<String, Object>>) definition.get("edges");
+
+        // Build Dify DSL format
+        Map<String, Object> dsl = new HashMap<>();
+        dsl.put("app", Map.of(
+            "name", entity.getWorkflowName(),
+            "description", entity.getDescription() != null ? entity.getDescription() : "",
+            "mode", "workflow",
+            "version", entity.getVersion() != null ? entity.getVersion() : "1.0"
+        ));
+
+        Map<String, Object> graph = new HashMap<>();
+        graph.put("nodes", nodes != null ? nodes : new ArrayList<>());
+        graph.put("edges", edges != null ? edges : new ArrayList<>());
+        graph.put("viewport", Map.of("x", 0, "y", 0, "zoom", 1));
+
+        Map<String, Object> workflow = new HashMap<>();
+        workflow.put("graph", graph);
+
+        dsl.put("workflow", workflow);
+
+        return new org.yaml.snakeyaml.Yaml().dump(dsl);
     }
 }

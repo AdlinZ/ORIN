@@ -144,4 +144,15 @@ public class WorkflowController {
         log.info("REST request to get workflow access info: {}", id);
         return ResponseEntity.ok(workflowService.getWorkflowAccessInfo(id));
     }
+
+    @GetMapping("/{id}/export/dify")
+    @Operation(summary = "导出工作流为 Dify DSL")
+    public ResponseEntity<String> exportDifyWorkflow(@PathVariable Long id) {
+        log.info("REST request to export workflow {} as Dify DSL", id);
+        String dsl = workflowService.exportDifyWorkflow(id);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=workflow_" + id + ".yaml")
+                .header("Content-Type", "application/x-yaml")
+                .body(dsl);
+    }
 }

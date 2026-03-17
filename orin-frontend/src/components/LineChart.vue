@@ -18,6 +18,8 @@ const props = defineProps({
   height: { type: String, default: '300px' },
   yAxisName: String,
   yAxisMax: Number,
+  // 限制显示的点数
+  maxPoints: { type: Number, default: 0 },
   // 支持多系列数据
   series: { type: Array, default: () => [] }
 });
@@ -56,8 +58,11 @@ const initChart = async () => {
 const updateOption = () => {
   if (!chartInstance) return;
 
-  // No manual formatting needed for time axis
-  const values = props.data.map(d => d.value || 0);
+  // 限制显示的点数
+  let displayData = props.data;
+  if (props.maxPoints > 0 && props.data.length > props.maxPoints) {
+    displayData = props.data.slice(-props.maxPoints);
+  }
 
   const option = {
     backgroundColor: 'transparent',
@@ -183,7 +188,7 @@ const updateOption = () => {
           ])
         },
         lineStyle: { width: 3, color: props.color },
-        data: props.data.map(d => [d.timestamp, d.value])
+        data: displayData.map(d => [d.timestamp, d.value])
       }
     ]
   };

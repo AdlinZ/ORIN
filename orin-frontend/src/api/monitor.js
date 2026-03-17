@@ -176,3 +176,25 @@ export const getSystemHealth = () => {
 export const getSchedulerStatus = () => {
     return request.get('/scheduler/status');
 };
+
+// ==================== Local Server Info ====================
+
+export const getLocalServerInfo = (config = {}) => {
+    return request.get('/monitor/local-server-info', config);
+};
+
+export const getPrometheusConfig = (config = {}) => {
+    return request.get('/monitor/prometheus/config', config);
+};
+
+export const updatePrometheusConfig = (data) => {
+    return request.post('/monitor/prometheus/config', data);
+};
+
+export const testPrometheusConnection = (config = {}) => {
+    return request.get('/monitor/prometheus/test', config);
+};
+
+export const getPrometheusServerStatus = (config = {}) => {
+    return request.get('/monitor/prometheus/server-status', config);
+};

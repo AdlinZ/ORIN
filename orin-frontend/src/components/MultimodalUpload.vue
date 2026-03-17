@@ -42,13 +42,7 @@
       </el-row>
 
       <!-- 文件类型筛选 -->
-      <el-radio-group v-model="filterType" @change="loadFiles" class="filter-group">
-        <el-radio-button label="">全部</el-radio-button>
-        <el-radio-button label="IMAGE">图片</el-radio-button>
-        <el-radio-button label="AUDIO">音频</el-radio-button>
-        <el-radio-button label="VIDEO">视频</el-radio-button>
-        <el-radio-button label="DOCUMENT">文档</el-radio-button>
-      </el-radio-group>
+      <el-segmented v-model="filterType" :options="filterTypeOptions" @change="loadFiles" class="filter-group" />
 
       <!-- 文件网格 -->
       <div v-loading="loading" class="file-grid">
@@ -210,6 +204,13 @@ const stats = ref({
   videoCount: 0,
   documentCount: 0
 })
+const filterTypeOptions = [
+  { label: '全部', value: '' },
+  { label: '图片', value: 'IMAGE' },
+  { label: '音频', value: 'AUDIO' },
+  { label: '视频', value: 'VIDEO' },
+  { label: '文档', value: 'DOCUMENT' }
+]
 const filterType = ref('')
 const uploadDialog = ref(false)
 const detailDialog = ref(false)

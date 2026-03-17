@@ -1,8 +1,10 @@
 <template>
   <div class="trace-viewer">
-    <el-card class="header-card">
-      <h2>调用链路追踪</h2>
-    </el-card>
+    <PageHeader
+      title="调用链路"
+      description="查看执行链路、步骤耗时与运行指标"
+      icon="Share"
+    />
 
     <!-- 追踪统计 -->
     <el-row :gutter="20" class="stats-row">
@@ -138,6 +140,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import * as echarts from 'echarts'
+import PageHeader from '@/components/PageHeader.vue'
 
 const route = useRoute()
 const traces = ref([])

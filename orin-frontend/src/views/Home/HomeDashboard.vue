@@ -1,5 +1,5 @@
 <template>
-  <div class="command-center-root" :class="{ 'theme-dark': isDark }">
+  <div class="command-center-root" :class="{ 'theme-dark': isDark, 'with-sidebar': isSidebarMode, 'is-collapsed': appStore.isCollapse }">
     <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay">
       <div class="loading-spinner">
@@ -14,7 +14,7 @@
         <h1 class="logo-text">ORIN<span class="logo-dot">.</span>COMMAND</h1>
         <div class="status-indicator" :class="{ 'is-load': summary.highLoadAgents > 0 }">
           <span class="dot"></span>
-          <span class="txt">{{ summary.highLoadAgents > 0 ? 'HIGH_LOAD' : 'CORE_ACTIVE' }}</span>
+          <span class="txt">{{ summary.highLoadAgents > 0 ? '负载过高' : '运行正常' }}</span>
         </div>
       </div>
       
@@ -22,8 +22,8 @@
         <div class="uptime-orb">
           <el-icon class="orb-icon"><Timer /></el-icon>
           <div class="orb-content">
-            <span class="orb-val">{{ uptimeHours }}<small>h</small> {{ uptimeMinutes }}<small>m</small></span>
-            <span class="orb-lbl">STABLE_UPTIME</span>
+            <span class="orb-val" v-html="formattedUptime"></span>
+            <span class="orb-lbl">稳定运行时长</span>
           </div>
         </div>
         <div class="h-divider"></div>
@@ -40,7 +40,7 @@
         <!-- Assets -->
         <div class="premium-card">
           <div class="card-glow"></div>
-          <h3 class="card-head clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">资产中枢 / ASSET_HUB<span class="head-line"></span></h3>
+          <h3 class="card-head clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">资产中枢<span class="head-line"></span></h3>
           <div class="asset-bubbles">
             <div class="bubble-item clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">
               <el-icon><Collection /></el-icon>
@@ -56,7 +56,7 @@
         <!-- Resources -->
         <div class="premium-card clickable" @click="goToPage(ROUTES.RUNTIME.METRICS)">
           <div class="card-glow"></div>
-          <h3 class="card-head">资源矩阵 / RESOURCE<span class="head-line"></span></h3>
+          <h3 class="card-head">资源矩阵<span class="head-line"></span></h3>
           <div class="matrix-grid">
             <div class="m-box">
               <span class="m-lbl">今日消耗 TOKEN</span>
@@ -82,22 +82,22 @@
         <!-- Load -->
         <div class="premium-card flex-grow shadow-soft clickable" @click="goToPage(ROUTES.RUNTIME.SERVER)">
           <div class="card-glow"></div>
-          <h3 class="card-head">物理负载 / LOAD<span class="head-line"></span></h3>
+          <h3 class="card-head">物理负载<span class="head-line"></span></h3>
           <div class="load-bars">
             <div class="l-item">
-              <div class="l-info"><span>CPU_LOAD</span><span class="l-val">{{ (hardware.cpuUsage || 0).toFixed(1) }}%</span></div>
+              <div class="l-info"><span>CPU 负载</span><span class="l-val">{{ (hardware.cpuUsage || 0).toFixed(1) }}%</span></div>
               <div class="l-rail"><div class="l-fill" :style="{ width: hardware.cpuUsage + '%', background: getBarColor(hardware.cpuUsage) }"></div></div>
             </div>
             <div class="l-item">
-              <div class="l-info"><span>GPU_LOAD</span><span class="l-val">{{ (hardware.gpuUsage || 0).toFixed(1) }}%</span></div>
+              <div class="l-info"><span>GPU 负载</span><span class="l-val">{{ (hardware.gpuUsage || 0).toFixed(1) }}%</span></div>
               <div class="l-rail"><div class="l-fill" :style="{ width: hardware.gpuUsage + '%', background: getBarColor(hardware.gpuUsage) }"></div></div>
             </div>
             <div class="l-item">
-              <div class="l-info"><span>RAM_LOAD</span><span class="l-val">{{ (hardware.memoryUsage || 0).toFixed(1) }}%</span></div>
+              <div class="l-info"><span>内存 负载</span><span class="l-val">{{ (hardware.memoryUsage || 0).toFixed(1) }}%</span></div>
               <div class="l-rail"><div class="l-fill" :style="{ width: hardware.memoryUsage + '%', background: getBarColor(hardware.memoryUsage) }"></div></div>
             </div>
             <div class="l-item">
-              <div class="l-info"><span>DISK_LOAD</span><span class="l-val">{{ (hardware.diskUsage || 0).toFixed(1) }}%</span></div>
+              <div class="l-info"><span>磁盘 负载</span><span class="l-val">{{ (hardware.diskUsage || 0).toFixed(1) }}%</span></div>
               <div class="l-rail"><div class="l-fill" :style="{ width: hardware.diskUsage + '%', background: getBarColor(hardware.diskUsage) }"></div></div>
             </div>
           </div>
@@ -110,44 +110,41 @@
           <!-- Main Chart Panel -->
           <div class="hub-visual-panel">
             <div class="panel-top">
-              <div class="p-title-group">
-                <h2 class="p-title-compact">实时执行动态</h2>
-                <div class="p-chart-tabs">
-                  <div class="pill-group">
-                    <button :class="{ active: chartType === 'tokens' }" @click="chartType = 'tokens'">TOKEN</button>
-                    <button :class="{ active: chartType === 'latency' }" @click="chartType = 'latency'">LATENCY</button>
-                    <button :class="{ active: chartType === 'hardware' }" @click="chartType = 'hardware'">HARDWARE</button>
-                  </div>
-                  <div class="pill-divider"></div>
-                  <div class="pill-group" v-if="chartType === 'hardware'">
-                    <button :class="{ active: hardwareMetric === 'cpuUsage' }" @click="hardwareMetric = 'cpuUsage'">CPU</button>
-                    <button :class="{ active: hardwareMetric === 'memoryUsage' }" @click="hardwareMetric = 'memoryUsage'">MEM</button>
-                    <button :class="{ active: hardwareMetric === 'diskUsage' }" @click="hardwareMetric = 'diskUsage'">DISK</button>
-                    <button :class="{ active: hardwareMetric === 'gpuUsage' }" @click="hardwareMetric = 'gpuUsage'">GPU</button>
-                  </div>
-                  <div class="pill-group" v-else>
-                    <span
-                      v-for="r in ranges"
-                      :key="r"
-                      class="r-pill-v2"
-                      :class="{ active: r === currentRange }"
-                      @click="handleRangeChange(r)"
-                    >
-                      {{ r }}
-                    </span>
-                  </div>
-                </div>
-              </div>
               <div class="p-meta">
-                <div class="pm-item"><span class="p-lbl">今日请求 (Today)</span><span class="p-val accent-blue">{{ summary.daily_requests || 0 }}</span></div>
-                <div class="pm-item"><span class="p-lbl">平均延时 (Avg Lat)</span><span class="p-val accent-green">{{ summary.avg_latency || '0ms' }}</span></div>
+                <div class="pm-item"><span class="p-lbl">今日请求</span><span class="p-val accent-blue">{{ summary.daily_requests || 0 }}</span></div>
+                <div class="pm-item"><span class="p-lbl">平均延时</span><span class="p-val accent-green">{{ summary.avg_latency || '0ms' }}</span></div>
+              </div>
+              <div class="p-chart-controls">
+                <div class="ctrl-group main-tabs">
+                  <button :class="{ active: chartType === 'tokens' }" @click="chartType = 'tokens'">令牌</button>
+                  <button :class="{ active: chartType === 'latency' }" @click="chartType = 'latency'">延时</button>
+                  <button :class="{ active: chartType === 'hardware' }" @click="chartType = 'hardware'">硬件</button>
+                </div>
+                <div class="ctrl-group sub-tabs" v-if="chartType === 'hardware'">
+                  <button :class="{ active: hardwareMetric === 'cpuUsage' }" @click="hardwareMetric = 'cpuUsage'">CPU</button>
+                  <button :class="{ active: hardwareMetric === 'memoryUsage' }" @click="hardwareMetric = 'memoryUsage'">内存</button>
+                  <button :class="{ active: hardwareMetric === 'diskUsage' }" @click="hardwareMetric = 'diskUsage'">磁盘</button>
+                  <button :class="{ active: hardwareMetric === 'gpuUsage' }" @click="hardwareMetric = 'gpuUsage'">GPU</button>
+                </div>
+                <div class="ctrl-group time-range" v-else>
+                  <span
+                    v-for="r in ranges"
+                    :key="r"
+                    class="r-pill-v2"
+                    :class="{ active: r === currentRange }"
+                    @click="handleRangeChange(r)"
+                  >
+                    {{ r }}
+                  </span>
+                </div>
               </div>
             </div>
             <div class="p-chart-wrap">
                 <LineChart
                 :data="trendData"
-                :title="chartType === 'tokens' ? 'Token Usage Stream' : chartType === 'latency' ? 'Response Latency Trend' : getHardwareTitle()"
+                :title="chartType === 'tokens' ? 'Token 消耗趋势' : chartType === 'latency' ? '响应延时趋势' : getHardwareTitle()"
                 :yAxisName="chartType === 'tokens' ? 'Tokens' : chartType === 'latency' ? 'ms' : '%'"
+                :maxPoints="30"
                 height="100%"
                 :color="isDark ? '#26FFDF' : '#00BFA5'"
               />
@@ -157,8 +154,8 @@
           <!-- Semantic Cloud -->
           <div class="hub-semantic-panel">
             <div class="semantic-hdr">
-              <span class="sh-txt">语义联想与决策空间 / SEMANTIC_ORCHESTRATION</span>
-              <span class="sh-code">LIVE_FETCH_ACTIVE</span>
+              <span class="sh-txt">语义联想与决策空间</span>
+              <span class="sh-code">实时获取中</span>
             </div>
             <div class="semantic-world">
               <div class="tags-container">
@@ -182,7 +179,7 @@
           <footer class="hub-footer">
              <div class="f-left">
                 <span class="f-status-dot"></span>
-                <span class="f-tag">MAPPING_ENGINE.B_2 // SYSTEM_MONITOR_ON</span>
+                <span class="f-tag">映射引擎 // 系统监控开启</span>
              </div>
              <div class="f-right">
                 <span class="f-code-tag">BUILD: {{ buildDate }}</span>
@@ -199,7 +196,7 @@
           <div class="mini-kpi-grid">
              <div class="mk-box">
                 <span class="mk-lbl">活跃智能体数</span>
-                <span class="mk-val blue">{{ summary.online_agents || 0 }}<small>AGENT</small></span>
+                <span class="mk-val blue">{{ summary.online_agents || 0 }}<small>智能体</small></span>
              </div>
              <div class="mk-box">
                 <span class="mk-lbl">运行健康评分</span>
@@ -212,8 +209,8 @@
         <div class="premium-card flex-grow battle-card clickable" @click="goToPage(ROUTES.RUNTIME.METRICS)">
           <div class="card-glow"></div>
           <div class="battle-header">
-            <h3 class="b-title">资源分布 (按Agent)</h3>
-            <span class="b-count">{{ distribution.length }} ACTIVE</span>
+            <h3 class="b-title">资源分布（按智能体）</h3>
+            <span class="b-count">{{ distribution.length }} 活跃</span>
           </div>
 
           <div class="rank-list-v4">
@@ -228,7 +225,7 @@
           </div>
 
           <div class="recent-events-v3">
-            <h4 class="re-title">实时审计日志 / AUDIT_STREAM</h4>
+            <h4 class="re-title">实时审计日志</h4>
             <div class="re-list">
               <div class="re-node" v-for="(ev, idx) in recentLogs.slice(0, 3)" :key="idx">
                 <div class="re-line" :class="ev.status"></div>
@@ -252,6 +249,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDark } from '@vueuse/core'
+import { useAppStore } from '@/stores/app'
 import { Timer, Collection, Connection } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
@@ -270,19 +268,35 @@ import { ROUTES } from '@/router/routes'
 import LineChart from '@/components/LineChart.vue'
 
 const router = useRouter()
+const appStore = useAppStore()
 
 // 构建日期（Vite 构建时注入）
 const buildDate = __BUILD_DATE__ || new Date().toISOString().split('T')[0]
 
 const isDark = useDark()
+
+// 是否使用侧边栏模式
+const isSidebarMode = computed(() => appStore.menuMode === 'sidebar')
 const loading = ref(true)
 
 const currentTime = ref('')
 const currentDate = ref('')
+const uptimeDays = ref(0)
 const uptimeHours = ref(24)
 const uptimeMinutes = ref(15)
 const currentRange = ref('1H')
 const ranges = ['5M', '1H', '24H', '7D']
+
+// 格式化运行时长显示
+const formattedUptime = computed(() => {
+  if (uptimeDays.value > 0) {
+    return `${uptimeDays.value}<small>d</small> ${uptimeHours.value}<small>h</small>`
+  } else if (uptimeHours.value > 0) {
+    return `${uptimeHours.value}<small>h</small> ${uptimeMinutes.value}<small>m</small>`
+  } else {
+    return `${uptimeMinutes.value}<small>m</small>`
+  }
+})
 
 const chartType = ref('tokens')
 const hardwareMetric = ref('cpuUsage') // 硬件指标: cpuUsage, memoryUsage, diskUsage, gpuUsage
@@ -365,12 +379,12 @@ const getBarColor = (v) => v > 80 ? '#ef4444' : v > 60 ? '#f59e0b' : '#3b82f6'
 
 const getHardwareTitle = () => {
   const titles = {
-    cpuUsage: 'CPU Usage Trend',
-    memoryUsage: 'Memory Usage Trend',
-    diskUsage: 'Disk Usage Trend',
-    gpuUsage: 'GPU Usage Trend'
+    cpuUsage: 'CPU 使用率',
+    memoryUsage: '内存使用率',
+    diskUsage: '磁盘使用率',
+    gpuUsage: 'GPU 使用率'
   }
-  return titles[hardwareMetric.value] || 'Hardware Usage Trend'
+  return titles[hardwareMetric.value] || '硬件使用率'
 }
 
 const updateTime = () => {
@@ -423,7 +437,8 @@ const fetchData = async () => {
       summary.value = s.value
       if (s.value.system_uptime) {
         const totalMinutes = Math.floor(s.value.system_uptime / (1000 * 60))
-        uptimeHours.value = Math.floor(totalMinutes / 60)
+        uptimeDays.value = Math.floor(totalMinutes / (60 * 24))
+        uptimeHours.value = Math.floor((totalMinutes % (60 * 24)) / 60)
         uptimeMinutes.value = totalMinutes % 60
       }
     }
@@ -480,6 +495,31 @@ onUnmounted(() => {
   overflow: hidden;
   font-family: 'Outfit', 'Inter', system-ui, sans-serif;
   position: relative;
+}
+
+/* 侧边栏模式适配 - 核心修复：确保宽度自适应，不溢出 */
+.command-center-root.with-sidebar {
+  height: calc(100vh - 24px); 
+  padding: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* 当侧边栏展开时，进一步压缩两侧支柱宽度以保护中间核心图表 */
+.command-center-root.with-sidebar:not(.is-collapsed) .cc-layout-grid {
+  grid-template-columns: minmax(180px, 240px) 1fr minmax(220px, 280px);
+  gap: 12px;
+}
+
+/* 当侧边栏收起时，恢复较宽的侧边栏 */
+.command-center-root.with-sidebar.is-collapsed .cc-layout-grid {
+  grid-template-columns: 280px 1fr 320px;
+  gap: 16px;
+}
+
+/* 确保所有网格项都能缩小 */
+.col-telemetry, .col-insight, .col-battle {
+  min-width: 0;
 }
 
 /* Loading Overlay */
@@ -655,41 +695,83 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .theme-dark .p-title-compact { color: #cbd5e1; }
-.p-title-group { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
-.panel-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 20px; }
-
-.p-chart-tabs { 
-  display: flex; 
-  align-items: center; 
-  gap: 8px; 
-  background: rgba(0,0,0,0.03); 
-  padding: 2px 4px; 
-  border-radius: 100px;
-  border: 1px solid rgba(0,0,0,0.04);
-  flex-shrink: 0;
+.panel-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
 }
-.theme-dark .p-chart-tabs { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.05); }
 
-.pill-group { display: flex; gap: 2px; flex-shrink: 0; }
-.pill-divider { width: 1px; height: 12px; background: rgba(0,0,0,0.1); margin: 0 2px; flex-shrink: 0; }
-.theme-dark .pill-divider { background: rgba(255,255,255,0.1); }
+.p-chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 
-.pill-group button, .r-pill-v2 {
-  font-size: 10px; font-weight: 800; border: none; padding: 5px 14px; border-radius: 100px;
-  cursor: pointer; transition: all 0.3s; background: transparent; color: #94a3b8; 
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  background: rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.04);
+  border-radius: 100px;
+  padding: 3px;
+}
+
+.ctrl-group button,
+.ctrl-group .r-pill-v2 {
+  font-size: 10px;
+  font-weight: 700;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  color: #94a3b8;
   white-space: nowrap;
 }
-.pill-group button.active, .r-pill-v2.active {
-  background: var(--orin-primary); color: #fff; box-shadow: 0 2px 8px var(--primary-glow);
+
+.ctrl-group button.active,
+.ctrl-group .r-pill-v2.active {
+  background: var(--orin-primary);
+  color: #fff;
+  box-shadow: 0 2px 6px var(--primary-glow);
 }
-.r-pill-v2:hover:not(.active) { color: var(--orin-primary); }
+
+.ctrl-group button:hover:not(.active),
+.ctrl-group .r-pill-v2:hover:not(.active) {
+  color: var(--orin-primary);
+}
+
+.ctrl-group.main-tabs {
+  gap: 2px;
+}
+
+.ctrl-group.sub-tabs,
+.ctrl-group.time-range {
+  gap: 2px;
+}
+
+.theme-dark .ctrl-group {
+  background: rgba(0,0,0,0.3);
+  border-color: rgba(255,255,255,0.06);
+}
 
 .p-meta { display: flex; gap: 32px; }
 .p-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px; }
 .p-val { font-size: 24px; font-weight: 900; }
 .accent-blue { color: var(--orin-primary); } .accent-green { color: #10b981; }
 
-.p-chart-wrap { flex: 1; min-height: 0; }
+.p-chart-wrap { 
+  flex: 1; 
+  min-height: 0; 
+  min-width: 0; 
+  width: 100%; 
+  overflow: hidden; /* 防止图表内容溢出 */
+}
 
 .hub-semantic-panel { flex: 0.6; background: #f8fafc; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; }
 .theme-dark .hub-semantic-panel { background: rgba(255,255,255,0.02); }
@@ -723,7 +805,11 @@ onUnmounted(() => {
 .theme-dark .f-code-tag { background: rgba(255,255,255,0.05); }
 
 /* BATTLE BOARD */
-.mini-kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mini-kpi-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 8px; /* 减小间距 */
+}
 .mk-box { display: flex; flex-direction: column; gap: 4px; }
 .mk-lbl { font-size: 10px; font-weight: 800; color: #94a3b8; }
 .mk-val { font-size: 22px; font-weight: 900; }
@@ -770,7 +856,34 @@ onUnmounted(() => {
 @keyframes breathe { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
 @keyframes sFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
-@media (max-width: 1550px) { .cc-layout-grid { grid-template-columns: 240px 1fr 280px; } }
+@media (max-width: 1440px) {
+  .h-brand { gap: 12px; }
+  .h-utility { gap: 16px; }
+  .p-meta { gap: 16px; }
+}
+
+@media (max-width: 1280px) {
+  .logo-text { font-size: 16px; }
+  .status-indicator { padding: 4px 8px; }
+  .orb-val { font-size: 14px; }
+  .c-time { font-size: 14px; }
+  .p-val { font-size: 18px; }
+}
+
+@media (max-width: 1680px) { 
+  .cc-layout-grid { grid-template-columns: 240px 1fr 280px; } 
+}
+@media (max-width: 1440px) { 
+  .cc-layout-grid { grid-template-columns: 200px 1fr 240px; } 
+}
+@media (max-width: 1280px) { 
+  .cc-layout-grid { grid-template-columns: 180px 1fr 220px; gap: 10px; } 
+  .p-meta { display: none; } /* 空间不足时隐藏次要元数据 */
+}
+@media (max-width: 1100px) {
+  .cc-layout-grid { grid-template-columns: 1fr; }
+  .col-battle { display: none; }
+}
 /* Unify semantic cloud colors in dark mode */
 html.dark .s-tag-v4 {
   background: var(--neutral-gray-100);
@@ -848,10 +961,6 @@ html.dark .recent-events-v3 {
 
 html.dark .head-line {
   background: rgba(148, 163, 184, 0.2) !important;
-}
-
-html.dark .pill-divider {
-  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* 黑夜模式 - 悬停效果 */

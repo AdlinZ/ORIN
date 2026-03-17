@@ -9,31 +9,30 @@
         <el-button type="primary" :icon="Upload" @click="uploadDialog = true">上传素材</el-button>
         <el-button :icon="Refresh" @click="loadFiles">刷新</el-button>
       </template>
+            <template #filters>
+                <div class="media-filter-row">
+                    <el-radio-group v-model="filterType" @change="loadFiles" size="small">
+                        <el-radio-button value="">全部</el-radio-button>
+                        <el-radio-button value="IMAGE">图像</el-radio-button>
+                        <el-radio-button value="VIDEO">视频</el-radio-button>
+                        <el-radio-button value="AUDIO">音频</el-radio-button>
+                    </el-radio-group>
+
+                    <el-input 
+                        v-model="searchKeyword" 
+                        placeholder="搜索素材名或AI摘要..." 
+                        :prefix-icon="Search"
+                        clearable
+                        class="media-search"
+                        @input="filterFiles"
+                    />
+                </div>
+            </template>
     </PageHeader>
 
     <div class="hub-layout">
       <!-- Main Content: File Grid -->
       <div class="hub-main" v-loading="loading">
-        <!-- Filters & Stats -->
-        <div class="hub-toolbar">
-          <el-radio-group v-model="filterType" @change="loadFiles" size="small">
-            <el-radio-button value="">全部</el-radio-button>
-            <el-radio-button value="IMAGE">图像</el-radio-button>
-            <el-radio-button value="VIDEO">视频</el-radio-button>
-            <el-radio-button value="AUDIO">音频</el-radio-button>
-          </el-radio-group>
-          
-          <div class="search-bar">
-            <el-input 
-              v-model="searchKeyword" 
-              placeholder="搜索素材名或AI摘要..." 
-              :prefix-icon="Search"
-              clearable
-              @input="filterFiles"
-            />
-          </div>
-        </div>
-
         <!-- Grid -->
         <div class="file-grid" v-if="displayFiles.length > 0">
           <div 
@@ -459,16 +458,31 @@ onMounted(() => {
 
 <style scoped>
 .media-hub-container {
-    height: 100vh;
+    min-height: 100vh;
+    padding: 24px;
+    background-color: var(--bg-color, #f8fafc);
     display: flex;
     flex-direction: column;
+}
+
+.media-filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 100%;
+}
+
+.media-search {
+    width: 320px;
 }
 
 .hub-layout {
     flex: 1;
     display: flex;
-    overflow: hidden;
-    background: var(--app-bg);
+    gap: 20px;
+    min-height: 0;
 }
 
 .hub-main {
@@ -477,12 +491,9 @@ onMounted(() => {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-}
-
-.hub-toolbar {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 20px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
 }
 
 .file-grid {
@@ -637,11 +648,12 @@ onMounted(() => {
 /* Sidebar */
 .hub-sidebar {
     width: 350px;
-    background: var(--glass-bg);
-    box-shadow: -5px 0 20px rgba(0,0,0,0.05);
+    background: var(--card-bg, #fff);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
     display: flex;
     flex-direction: column;
-    border-left: 1px solid var(--border-subtle);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
     z-index: 100;
     backdrop-filter: blur(20px);
 }
@@ -788,6 +800,20 @@ onMounted(() => {
 .slide-left-enter-from,
 .slide-left-leave-to {
   transform: translateX(100%);
+}
+
+@media (max-width: 1024px) {
+    .media-search {
+        width: 100%;
+    }
+
+    .hub-layout {
+        flex-direction: column;
+    }
+
+    .hub-sidebar {
+        width: 100%;
+    }
 }
 </style>
 

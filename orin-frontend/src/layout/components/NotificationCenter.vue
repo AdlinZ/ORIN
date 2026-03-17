@@ -83,12 +83,18 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { 
+import {
   Warning, SuccessFilled, InfoFilled,
   Bell, ChatDotRound, Setting
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { getAlertHistory } from '@/api/alert'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  getAlertHistory,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  clearAllNotifications,
+  getUnreadNotificationCount
+} from '@/api/alert'
 import dayjs from 'dayjs'
 
 const props = defineProps({
@@ -109,12 +115,30 @@ const activeTab = ref('all')
 
 // 初始通知数据 (已移除 Mock 数据)
 const notifications = ref([])
+const loading = ref(false)
+let pollTimer = null
+
+// 轮询间隔（毫秒）
+const POLL_INTERVAL = 30000
+const POLL_INTERVAL_BACKGROUND = 60000
+
+// 获取当前轮询间隔（根据页面可见性调整）
+const getPollInterval = () => {
+  if (document.hidden) {
+    return POLL_INTERVAL_BACKGROUND
+  }
+  return POLL_INTERVAL
+}
 
 const fetchNotifications = async () => {
+  // 防止重复请求
+  if (loading.value) return
+
+  loading.value = true
   try {
     const res = await getAlertHistory({ page: 0, size: 20 })
     const data = res.data?.content || res.content || []
-    
+
     notifications.value = data.map(alert => ({
       id: alert.id,
       title: alert.ruleName || '系统告警',
@@ -123,11 +147,22 @@ const fetchNotifications = async () => {
       time: parseSpringDate(alert.triggeredAt),
       read: alert.status === 'RESOLVED'
     }))
-    
+
     emit('update:unreadCount', unreadCount.value)
   } catch (error) {
     console.error('Failed to fetch notifications:', error)
+  } finally {
+    loading.value = false
   }
+}
+
+// 页面可见性变化处理
+const handleVisibilityChange = () => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+  }
+  // 根据可见性调整轮询间隔
+  pollTimer = setInterval(fetchNotifications, getPollInterval())
 }
 
 const mapSeverityToType = (severity) => {
@@ -159,9 +194,16 @@ const parseSpringDate = (dateStr) => {
 
 onMounted(() => {
   fetchNotifications()
-  // 每 30 秒轮询一次
-  const timer = setInterval(fetchNotifications, 30000)
-  onUnmounted(() => clearInterval(timer))
+  // 使用可见性感知的轮询策略
+  pollTimer = setInterval(fetchNotifications, getPollInterval())
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+  }
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 const filteredNotifications = computed(() => {
@@ -207,24 +249,53 @@ const formatTime = (time) => {
   return time.toLocaleDateString('zh-CN')
 }
 
-const markAsRead = (id) => {
+const markAsRead = async (id) => {
   const notification = notifications.value.find(n => n.id === id)
   if (notification && !notification.read) {
-    notification.read = true
-    emit('update:unreadCount', unreadCount.value)
+    try {
+      // 调用服务端接口标记为已读
+      await markNotificationAsRead(id)
+      notification.read = true
+      emit('update:unreadCount', unreadCount.value)
+    } catch (error) {
+      console.error('标记已读失败:', error)
+      ElMessage.error('标记已读失败，请重试')
+    }
   }
 }
 
-const markAllAsRead = () => {
-  notifications.value.forEach(n => n.read = true)
-  emit('update:unreadCount', 0)
-  ElMessage.success('已全部标记为已读')
+const markAllAsRead = async () => {
+  try {
+    // 调用服务端接口标记全部为已读
+    await markAllNotificationsAsRead()
+    notifications.value.forEach(n => n.read = true)
+    emit('update:unreadCount', 0)
+    ElMessage.success('已全部标记为已读')
+  } catch (error) {
+    console.error('标记全部已读失败:', error)
+    ElMessage.error('操作失败，请重试')
+  }
 }
 
-const clearAll = () => {
-  notifications.value = []
-  emit('update:unreadCount', 0)
-  ElMessage.success('已清空所有通知')
+const clearAll = async () => {
+  try {
+    await ElMessageBox.confirm('确定要清空所有通知吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    // 调用服务端接口清空
+    await clearAllNotifications()
+    notifications.value = []
+    emit('update:unreadCount', 0)
+    ElMessage.success('已清空所有通知')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('清空通知失败:', error)
+      ElMessage.error('操作失败，请重试')
+    }
+  }
 }
 
 const handleClose = (done) => {

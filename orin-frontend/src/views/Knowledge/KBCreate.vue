@@ -1,12 +1,14 @@
 <template>
   <div class="kb-create-page">
+      <PageHeader
+         title="创建知识库"
+         description="按步骤完成数据源接入、解析与分段配置"
+         icon="Reading"
+      />
     <!-- Header with Steps -->
     <div class="create-header">
       <div class="header-left" @click="$router.back()">
          <el-icon class="back-icon"><ArrowLeft /></el-icon>
-         <div class="title-block">
-            <span class="main-title">创建知识库</span>
-         </div>
       </div>
       <div class="header-steps">
          <div class="step-item" :class="{ active: currentStep === 1, done: currentStep > 1 }">
@@ -812,6 +814,7 @@ import {
 import { ElMessage, ElNotification } from 'element-plus';
 import request from '@/utils/request';
 import { getModelList } from '@/api/model';
+import PageHeader from '@/components/PageHeader.vue';
 
 const router = useRouter();
 const currentStep = ref(1);
@@ -1973,9 +1976,6 @@ const handleGoToDocument = () => {
 .header-steps .step-line { width: 32px; height: 1px; background: #E5E7EB; margin: 0 8px; }
 .header-left { display: flex; align-items: center; gap: 16px; cursor: pointer; }
 .back-icon { font-size: 20px; color: #6B7280; padding: 8px; border-radius: 8px; border: 1px solid #E5E7EB; }
-.title-block { display: flex; align-items: center; }
-.main-title { font-size: 18px; font-weight: 600; color: #111827; }
-.sub-title { font-size: 12px; color: #9CA3AF; font-weight: 500; }
 
 .create-container { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 24px; padding-bottom: 80px; display: flex; flex-direction: column; transition: max-width 0.3s; overflow: hidden; }
 .create-container.wide-container { max-width: 1600px; }
