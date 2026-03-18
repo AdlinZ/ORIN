@@ -46,6 +46,7 @@ export const ROUTES = {
         RAG_LAB: '/dashboard/resources/rag-lab',
         VLM_LAB: '/dashboard/resources/vlm-lab',
         ARCHITECTURE: '/dashboard/resources/architecture',
+        INTELLIGENCE: '/dashboard/resources/intelligence',
     },
 
     // 控制模块
@@ -211,6 +212,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '资产架构',
                 path: ROUTES.RESOURCES.ARCHITECTURE,
                 icon: 'Grid',
+            },
+            {
+                title: '智力资产',
+                path: ROUTES.RESOURCES.INTELLIGENCE,
+                icon: 'Brain',
             },
         ],
     },

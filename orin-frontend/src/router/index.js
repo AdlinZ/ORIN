@@ -290,10 +290,12 @@ const routes = [
                         meta: { title: '资产架构', icon: 'Grid' }
                     },
 
-                    // 智力资产中心（重定向到资产架构）
+                    // 智力资产中心
                     {
                         path: 'intelligence',
-                        redirect: 'architecture'
+                        name: 'ResourcesIntelligence',
+                        component: () => import('@/views/Knowledge/IntelligenceCenter.vue'),
+                        meta: { title: '智力资产', icon: 'Brain' }
                     }
                 ]
             },

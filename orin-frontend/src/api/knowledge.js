@@ -331,3 +331,44 @@ export const getSemanticKeywords = (params) => {
 export const getSearchSuggestions = (keyword, limit = 10) => {
     return request.get('/knowledge/semantic/search-suggest', { params: { keyword, limit } });
 };
+
+// ==================== 智力资产中心 (Intelligence Center) ====================
+
+// --- 长期记忆 ---
+export const getAgentMemories = (agentId) => {
+    return request.get('/intelligence/memories', { params: { agentId } });
+};
+
+export const saveAgentMemory = (agentId, key, value) => {
+    return request.post('/intelligence/memories', { key, value }, { params: { agentId } });
+};
+
+export const deleteAgentMemory = (id) => {
+    return request.delete(`/intelligence/memories/${id}`);
+};
+
+// --- 技能管理 ---
+export const getAgentSkills = (agentId) => {
+    return request.get('/intelligence/skills', { params: { agentId } });
+};
+
+export const saveAgentSkill = (skill) => {
+    return request.post('/intelligence/skills', skill);
+};
+
+export const deleteAgentSkill = (id) => {
+    return request.delete(`/intelligence/skills/${id}`);
+};
+
+// --- Prompt 模板 ---
+export const getPromptTemplates = (agentId, userId) => {
+    return request.get('/intelligence/prompts', { params: { agentId, userId } });
+};
+
+export const savePromptTemplate = (template) => {
+    return request.post('/intelligence/prompts', template);
+};
+
+export const deletePromptTemplate = (id) => {
+    return request.delete(`/intelligence/prompts/${id}`);
+};
