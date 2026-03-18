@@ -23,6 +23,7 @@ export const ROUTES = {
         WORKFLOW_VISUAL: '/dashboard/applications/workflows/visual',
         AGENT_CONSOLE: '/dashboard/applications/agents/console',
         AGENT_ONBOARD: '/dashboard/applications/agents/onboard',
+        COLLABORATION: '/dashboard/applications/collaboration',
     },
 
     // 运行模块
@@ -139,6 +140,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '流程编排',
                 path: ROUTES.APPLICATIONS.WORKFLOWS,
                 icon: 'Connection',
+            },
+            {
+                title: '多智能体协作',
+                path: ROUTES.APPLICATIONS.COLLABORATION,
+                icon: 'Avatar',
             },
         ],
     },

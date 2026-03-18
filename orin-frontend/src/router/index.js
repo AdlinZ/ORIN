@@ -150,6 +150,14 @@ const routes = [
                         name: 'VisualWorkflowEdit',
                         component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
                         meta: { title: '编辑可视化工作流', hidden: true }
+                    },
+
+                    // 多智能体协作
+                    {
+                        path: 'collaboration',
+                        name: 'ApplicationCollaboration',
+                        component: () => import('@/views/Agent/Collaboration.vue'),
+                        meta: { title: '多智能体协作', icon: 'Avatar' }
                     }
                 ]
             },
