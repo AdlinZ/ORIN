@@ -17,6 +17,10 @@
 
     <properties>
         <java.version>17</java.version>
+        <!-- Database Version Matrix -->
+        <!-- Flyway 9.x supports MySQL 8.0.11+ (includes 8.4.x) -->
+        <flyway.version>9.22.3</flyway.version>
+        <mysql.version>8.0.33</mysql.version>
     </properties>
 
     <dependencies>
@@ -36,10 +40,11 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- MySQL Connector -->
+        <!-- MySQL Connector (version controlled by properties) -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
+            <version>${mysql.version}</version>
             <scope>runtime</scope>
         </dependency>
 
@@ -200,14 +205,16 @@
             <version>2.3.4</version>
         </dependency>
 
-        <!-- Flyway for Database Migration -->
+        <!-- Flyway for Database Migration (version controlled by properties) -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-mysql</artifactId>
+            <version>${flyway.version}</version>
         </dependency>
 
         <!-- MapStruct for DTO Mapping -->
@@ -221,6 +228,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- RabbitMQ Starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
         <!-- Distributed Tracing -->

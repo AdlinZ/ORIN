@@ -38,11 +38,23 @@ public interface ProviderAdapter {
 
     /**
      * 聊天完成 (非流式)
-     * 
+     *
      * @param request 聊天请求
      * @return 聊天响应
      */
     Mono<ChatCompletionResponse> chatCompletion(ChatCompletionRequest request);
+
+    /**
+     * 聊天完成 (非流式，带链路追踪)
+     *
+     * @param request 聊天请求
+     * @param traceId 链路追踪ID
+     * @return 聊天响应
+     */
+    default Mono<ChatCompletionResponse> chatCompletion(ChatCompletionRequest request, String traceId) {
+        // 默认实现调用不带 traceId 的方法
+        return chatCompletion(request);
+    }
 
     /**
      * 聊天完成 (流式)

@@ -4,12 +4,14 @@ import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import com.adlin.orin.modules.monitor.entity.PrometheusConfig;
+import com.adlin.orin.modules.monitor.entity.RateLimitConfig;
 import com.adlin.orin.modules.monitor.entity.ServerHardwareMetric;
 import com.adlin.orin.modules.monitor.entity.ServerInfo;
 import com.adlin.orin.modules.monitor.service.LocalServerInfoService;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.monitor.repository.AgentMetricRepository;
 import com.adlin.orin.modules.monitor.repository.PrometheusConfigRepository;
+import com.adlin.orin.modules.monitor.repository.RateLimitConfigRepository;
 import com.adlin.orin.modules.monitor.repository.ServerHardwareMetricRepository;
 import com.adlin.orin.modules.monitor.repository.ServerInfoRepository;
 import com.adlin.orin.modules.monitor.service.MonitorService;
@@ -49,6 +51,7 @@ public class MonitorServiceImpl implements MonitorService {
         private final DifyIntegrationService difyIntegrationService;
         private final PrometheusService prometheusService;
         private final PrometheusConfigRepository prometheusConfigRepository;
+        private final RateLimitConfigRepository rateLimitConfigRepository;
         private final ServerHardwareMetricRepository serverHardwareMetricRepository;
         private final ServerInfoRepository serverInfoRepository;
         private final LocalServerInfoService localServerInfoService;
@@ -71,6 +74,10 @@ public class MonitorServiceImpl implements MonitorService {
         private long lastHardwareUpdate = 0;
         // Cache TTL is now dynamic, read from PrometheusConfig
 
+        // 限流配置缓存
+        private volatile RateLimitConfig cachedRateLimitConfig;
+        private long lastRateLimitConfigUpdate = 0;
+
         @jakarta.annotation.PostConstruct
         public void init() {
                 if (prometheusConfigRepository.findById("DEFAULT").isEmpty()) {
@@ -83,6 +90,26 @@ public class MonitorServiceImpl implements MonitorService {
                                         .build();
                         prometheusConfigRepository.save(defaultConfig);
                 }
+
+                // 初始化限流配置
+                if (rateLimitConfigRepository.findById("DEFAULT").isEmpty()) {
+                        RateLimitConfig defaultRateLimitConfig = RateLimitConfig.builder()
+                                        .id("DEFAULT")
+                                        .enabled(true)
+                                        .requestsPerMinute(60)
+                                        .requestsPerDay(10000)
+                                        .bucketSize(60)
+                                        .refillRate(1.0)
+                                        .enableUserLimit(true)
+                                        .enableApiKeyLimit(true)
+                                        .enableAgentLimit(false)
+                                        .algorithm("TOKEN_BUCKET")
+                                        .description("默认限流配置")
+                                        .build();
+                        rateLimitConfigRepository.save(defaultRateLimitConfig);
+                }
+                // 初始化缓存
+                cachedRateLimitConfig = rateLimitConfigRepository.findById("DEFAULT").orElse(null);
         }
 
         @Override
@@ -1472,6 +1499,204 @@ public class MonitorServiceImpl implements MonitorService {
                 }
                 String url = config.getPrometheusUrl();
                 return prometheusService.queryRaw(url, query);
+        }
+
+        @Override
+        public Map<String, Object> getTraceById(String traceId) {
+                log.info("Querying trace by traceId: {}", traceId);
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("traceId", traceId);
+
+                // Query audit logs by traceId
+                List<AuditLog> logs = auditLogRepository.findByTraceIdOrderByCreatedAtAsc(traceId);
+
+                if (logs.isEmpty()) {
+                        result.put("status", "not_found");
+                        result.put("message", "No logs found for traceId");
+                        return result;
+                }
+
+                result.put("status", "found");
+                result.put("totalSpans", logs.size());
+
+                // Calculate total duration
+                LocalDateTime earliest = logs.stream()
+                                .map(AuditLog::getCreatedAt)
+                                .min(LocalDateTime::compareTo)
+                                .orElse(null);
+                LocalDateTime latest = logs.stream()
+                                .map(AuditLog::getCreatedAt)
+                                .max(LocalDateTime::compareTo)
+                                .orElse(null);
+
+                if (earliest != null && latest != null) {
+                        long totalDurationMs = ChronoUnit.MILLIS.between(earliest, latest);
+                        result.put("totalDurationMs", totalDurationMs);
+                }
+
+                // Build spans from audit logs
+                List<Map<String, Object>> spans = logs.stream()
+                                .map(log -> {
+                                        Map<String, Object> span = new HashMap<>();
+                                        span.put("id", log.getId());
+                                        span.put("nodeId", log.getProviderId());
+                                        span.put("nodeType", log.getProviderType());
+                                        span.put("endpoint", log.getEndpoint());
+                                        span.put("method", log.getMethod());
+                                        span.put("model", log.getModel());
+                                        span.put("statusCode", log.getStatusCode());
+                                        span.put("duration", log.getResponseTime());
+                                        span.put("timestamp", log.getCreatedAt());
+                                        span.put("success", log.getSuccess());
+                                        span.put("error", log.getErrorMessage());
+                                        return span;
+                                })
+                                .collect(Collectors.toList());
+
+                result.put("spans", spans);
+
+                // Calculate success rate
+                long successCount = logs.stream().filter(l -> Boolean.TRUE.equals(l.getSuccess())).count();
+                double successRate = (double) successCount / logs.size() * 100;
+                result.put("successRate", Math.round(successRate * 100.0) / 100.0);
+
+                return result;
+        }
+
+        @Override
+        public Map<String, Object> getCallSuccessRate(Long startTime, Long endTime) {
+                log.info("Querying call success rate: startTime={}, endTime={}", startTime, endTime);
+
+                LocalDateTime start = startTime != null
+                                ? LocalDateTime.ofInstant(Instant.ofEpochMilli(startTime), ZoneId.systemDefault())
+                                : LocalDateTime.now().minusHours(1);
+                LocalDateTime end = endTime != null
+                                ? LocalDateTime.ofInstant(Instant.ofEpochMilli(endTime), ZoneId.systemDefault())
+                                : LocalDateTime.now();
+
+                List<AuditLog> logs = auditLogRepository.findBusinessLogsByCreatedAtBetween(start, end);
+
+                Map<String, Object> result = new HashMap<>();
+
+                if (logs.isEmpty()) {
+                        result.put("totalCalls", 0);
+                        result.put("successCalls", 0);
+                        result.put("failedCalls", 0);
+                        result.put("successRate", 0.0);
+                        return result;
+                }
+
+                long totalCalls = logs.size();
+                long successCalls = logs.stream().filter(l -> Boolean.TRUE.equals(l.getSuccess())).count();
+                long failedCalls = totalCalls - successCalls;
+                double successRate = (double) successCalls / totalCalls * 100;
+
+                result.put("totalCalls", totalCalls);
+                result.put("successCalls", successCalls);
+                result.put("failedCalls", failedCalls);
+                result.put("successRate", Math.round(successRate * 100.0) / 100.0);
+                result.put("startTime", start);
+                result.put("endTime", end);
+
+                return result;
+        }
+
+        @Override
+        public List<Map<String, Object>> getErrorDistribution(Long startTime, Long endTime) {
+                log.info("Querying error distribution: startTime={}, endTime={}", startTime, endTime);
+
+                LocalDateTime start = startTime != null
+                                ? LocalDateTime.ofInstant(Instant.ofEpochMilli(startTime), ZoneId.systemDefault())
+                                : LocalDateTime.now().minusHours(1);
+                LocalDateTime end = endTime != null
+                                ? LocalDateTime.ofInstant(Instant.ofEpochMilli(endTime), ZoneId.systemDefault())
+                                : LocalDateTime.now();
+
+                List<AuditLog> logs = auditLogRepository.findBusinessLogsByCreatedAtBetween(start, end);
+
+                // Group errors by providerId and error message
+                Map<String, Long> errorCounts = logs.stream()
+                                .filter(l -> !Boolean.TRUE.equals(l.getSuccess()) && l.getErrorMessage() != null)
+                                .collect(Collectors.groupingBy(
+                                                l -> l.getProviderId() + ":" + truncateError(l.getErrorMessage(), 50),
+                                                Collectors.counting()));
+
+                return errorCounts.entrySet().stream()
+                                .map(entry -> {
+                                        String[] parts = entry.getKey().split(":", 2);
+                                        Map<String, Object> item = new HashMap<>();
+                                        item.put("providerId", parts[0]);
+                                        item.put("errorMessage", parts.length > 1 ? parts[1] : "");
+                                        item.put("count", entry.getValue());
+                                        return item;
+                                })
+                                .sorted((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")))
+                                .collect(Collectors.toList());
+        }
+
+        // ========== 限流配置管理 ==========
+
+        @Override
+        public RateLimitConfig getRateLimitConfig() {
+                return rateLimitConfigRepository.findById("DEFAULT").orElse(null);
+        }
+
+        @Override
+        @org.springframework.transaction.annotation.Transactional
+        public void updateRateLimitConfig(RateLimitConfig config, String operator) {
+                RateLimitConfig existingConfig = rateLimitConfigRepository.findById("DEFAULT").orElse(null);
+
+                // 记录配置变更前的值用于审计
+                StringBuilder changeLog = new StringBuilder();
+                if (existingConfig != null) {
+                        changeLog.append("原配置: requestsPerMinute=").append(existingConfig.getRequestsPerMinute())
+                                        .append(", requestsPerDay=").append(existingConfig.getRequestsPerDay())
+                                        .append(", enabled=").append(existingConfig.getEnabled());
+                }
+
+                config.setId("DEFAULT");
+                log.info("Updating rate limit config by {}: {}", operator, changeLog);
+                rateLimitConfigRepository.save(config);
+
+                // 更新缓存
+                cachedRateLimitConfig = config;
+                lastRateLimitConfigUpdate = System.currentTimeMillis();
+
+                // 记录审计日志
+                try {
+                        com.adlin.orin.modules.audit.entity.AuditLog auditLog = com.adlin.orin.modules.audit.entity.AuditLog
+                                        .builder()
+                                        .userId(operator)
+                                        .endpoint("/api/admin/rate-limit-config")
+                                        .method("PUT")
+                                        .success(true)
+                                        .responseContent("限流配置更新: " + changeLog + " -> requestsPerMinute="
+                                                        + config.getRequestsPerMinute() + ", requestsPerDay="
+                                                        + config.getRequestsPerDay() + ", enabled=" + config.getEnabled())
+                                        .build();
+                        auditLogRepository.save(auditLog);
+                } catch (Exception e) {
+                        log.warn("Failed to record rate limit config audit log: {}", e.getMessage());
+                }
+        }
+
+        @Override
+        public RateLimitConfig getRateLimitConfigCached() {
+                // 缓存 5 秒，避免频繁查询数据库
+                if (cachedRateLimitConfig != null
+                                && System.currentTimeMillis() - lastRateLimitConfigUpdate < 5000) {
+                        return cachedRateLimitConfig;
+                }
+                // 重新加载
+                cachedRateLimitConfig = rateLimitConfigRepository.findById("DEFAULT").orElse(null);
+                lastRateLimitConfigUpdate = System.currentTimeMillis();
+                return cachedRateLimitConfig;
+        }
+
+        private String truncateError(String error, int maxLength) {
+                if (error == null) return "";
+                return error.length() > maxLength ? error.substring(0, maxLength) + "..." : error;
         }
 
 }

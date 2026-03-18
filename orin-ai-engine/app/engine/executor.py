@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import List, Dict, Set, Any
+from typing import List, Dict, Set, Any, Optional
 from app.models.workflow import WorkflowDSL, ExecutionResult, Node, NodeStatus, WorkflowStatus, NodeTrace, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 from app.engine.handlers.standard import StartNodeHandler, EndNodeHandler
@@ -13,6 +13,7 @@ from app.engine.handlers.tools import HTTPRequestNodeHandler, ListOperatorNodeHa
 from app.engine.handlers.interaction import AnswerNodeHandler
 from app.engine.handlers.data_processing import KnowledgeRetrievalNodeHandler, TemplateTransformNodeHandler, ParameterExtractorNodeHandler, DocumentExtractorNodeHandler
 from app.core.config import settings
+from app.core.tracing import tracing_client, Span
 
 class GraphExecutor:
     def __init__(self):
@@ -60,16 +61,26 @@ class GraphExecutor:
                 in_degree[edge.target] += 1
         return in_degree
 
-    async def execute(self, dsl: WorkflowDSL, initial_inputs: Dict[str, Any]) -> ExecutionResult:
+    async def execute(self, dsl: WorkflowDSL, initial_inputs: Dict[str, Any], trace_id: Optional[str] = None) -> ExecutionResult:
         """
         Executes the workflow graph using robust parallel implementation with branching support.
+
+        Args:
+            dsl: Workflow DSL definition
+            initial_inputs: Initial inputs for the workflow
+            trace_id: Optional trace ID for distributed tracing
         """
+        # Initialize tracing
+        if trace_id:
+            tracing_client.clear()
+            tracing_client.start_trace(trace_id, f"workflow:{dsl.name or 'unnamed'}")
+
         # 1. Initialization
         nodes_map = {node.id: node for node in dsl.nodes}
         adj = self._build_adjacency_list(dsl)
         rev_adj = self._build_reverse_adj(dsl)
         in_degree = self._build_in_degree(dsl)
-        
+
         # Mapping for easy edge lookup
         edges_by_target = {node.id: [] for node in dsl.nodes}
         for edge in dsl.edges:
@@ -77,15 +88,15 @@ class GraphExecutor:
 
         # State:
         # Context stores outputs: NodeID -> OutputDict
-        context = {"inputs": initial_inputs.copy()}
+        context = {"inputs": initial_inputs.copy(), "_trace_id": trace_id}
         node_outputs = {}
         node_selected_handles = {}
         node_status: Dict[str, NodeStatus] = {node.id: NodeStatus.PENDING for node in dsl.nodes}
         traces: List[NodeTrace] = []
-        
+
         # Queue for nodes ready to execute
         queue = [node_id for node_id, deg in in_degree.items() if deg == 0]
-        
+
         active_tasks: Set[asyncio.Task] = set()
         task_to_node_id = {}
 
@@ -150,17 +161,44 @@ class GraphExecutor:
                 
                 async def run_node_task(n: Node, ctx: Dict[str, Any], h: BaseNodeHandler, t_out: float):
                     start_t = time.time()
+
+                    # Start tracing span for this node
+                    if trace_id:
+                        node_type = n.type.lower() if n.type else "unknown"
+                        tracing_client.start_span(
+                            f"node:{node_type}:{n.id}",
+                            metadata={
+                                "node_id": n.id,
+                                "node_type": node_type,
+                                "node_label": n.data.get("label") if n.data else None
+                            }
+                        )
+
                     try:
                         if not h:
                             raise ValueError(f"No handler for type {n.type}")
-                        
+
                         # Prepare context with upstream outputs
                         exec_ctx = {**ctx, **node_outputs}
-                        
+
                         # Execute with Timeout
                         res: NodeExecutionOutput = await asyncio.wait_for(h.run(n, exec_ctx), timeout=t_out)
-                        
+
                         end_t = time.time()
+
+                        # Record success event in tracing
+                        if trace_id:
+                            tracing_client.record_event(
+                                "node_completed",
+                                metadata={
+                                    "node_id": n.id,
+                                    "node_type": n.type,
+                                    "duration": end_t - start_t,
+                                    "has_output": bool(res.outputs)
+                                }
+                            )
+                            tracing_client.finish_span(status="success")
+
                         return NodeTrace(
                             node_id=n.id,
                             status=NodeStatus.COMPLETED,
@@ -172,6 +210,15 @@ class GraphExecutor:
                         )
                     except asyncio.TimeoutError:
                         end_t = time.time()
+
+                        # Record timeout error in tracing
+                        if trace_id:
+                            tracing_client.record_event(
+                                "node_timeout",
+                                metadata={"node_id": n.id, "timeout": t_out}
+                            )
+                            tracing_client.finish_span(status="error", error=f"Execution timed out after {t_out}s")
+
                         return NodeTrace(
                             node_id=n.id,
                             status=NodeStatus.FAILED,
@@ -183,6 +230,15 @@ class GraphExecutor:
                     except Exception as e:
                         import traceback
                         end_t = time.time()
+
+                        # Record error in tracing
+                        if trace_id:
+                            tracing_client.record_event(
+                                "node_error",
+                                metadata={"node_id": n.id, "error": str(e)}
+                            )
+                            tracing_client.finish_span(status="error", error=str(e))
+
                         return NodeTrace(
                             node_id=n.id,
                             status=NodeStatus.FAILED,
@@ -225,16 +281,28 @@ class GraphExecutor:
 
         # 3. Finalize Result
         has_failure = any(s == NodeStatus.FAILED for s in node_status.values())
-        
+
         final_status = WorkflowStatus.SUCCESS
         if has_failure:
              final_status = WorkflowStatus.PARTIAL
-        
+
         if any(s == NodeStatus.PENDING for s in node_status.values()):
-             final_status = WorkflowStatus.ERROR 
+             final_status = WorkflowStatus.ERROR
+
+        # Get tracing summary if trace_id was provided
+        trace_summary = None
+        if trace_id:
+            trace_summary = tracing_client.get_trace_summary()
+            # Finish the workflow span
+            if tracing_client._current_span:
+                tracing_client.finish_span(
+                    status="success" if final_status == WorkflowStatus.SUCCESS else "error",
+                    error="Partial failure" if final_status == WorkflowStatus.PARTIAL else None
+                )
 
         return ExecutionResult(
             status=final_status,
             outputs=node_outputs,
-            trace=traces
+            trace=traces,
+            trace_summary=trace_summary
         )

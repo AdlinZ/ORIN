@@ -13,7 +13,7 @@ import java.util.Map;
  * 告警通知配置 Controller
  */
 @RestController
-@RequestMapping("/api/alerts/notification-config")
+@RequestMapping("/api/v1/alerts/notification-config")
 @RequiredArgsConstructor
 public class AlertNotificationConfigController {
 

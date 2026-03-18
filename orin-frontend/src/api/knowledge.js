@@ -190,6 +190,54 @@ export const testDifyConnection = (endpoint, apiKey) => {
     return request.post('/knowledge/sync/dify/test', { endpoint, apiKey });
 };
 
+// ==================== 端侧知识库同步 (Side Client Sync) ====================
+
+export const getClientChanges = (agentId, params = {}, config = {}) => {
+    return request.get(`/knowledge/sync/client/${agentId}/changes`, {
+        params,
+        ...config
+    });
+};
+
+export const getPendingChanges = (agentId, config = {}) => {
+    return request.get(`/knowledge/sync/client/${agentId}/pending`, config);
+};
+
+export const getPendingChangeCount = (agentId, config = {}) => {
+    return request.get(`/knowledge/sync/client/${agentId}/pending/count`, config);
+};
+
+export const exportClientDocuments = (agentId, params = {}, config = {}) => {
+    return request.get(`/knowledge/sync/client/${agentId}/export`, {
+        params,
+        ...config
+    });
+};
+
+export const downloadClientDocument = (agentId, documentId, config = {}) => {
+    return request.get(`/knowledge/sync/client/${agentId}/document/${documentId}`, config);
+};
+
+export const getClientCheckpoint = (agentId, config = {}) => {
+    return request.get(`/knowledge/sync/client/${agentId}/checkpoint`, config);
+};
+
+export const markClientSynced = (agentId, config = {}) => {
+    return request.post(`/knowledge/sync/client/${agentId}/mark-synced`, null, config);
+};
+
+export const getClientWebhooks = (agentId, config = {}) => {
+    return request.get(`/knowledge/sync/client/${agentId}/webhooks`, config);
+};
+
+export const saveClientWebhook = (agentId, data, config = {}) => {
+    return request.post(`/knowledge/sync/client/${agentId}/webhook`, data, config);
+};
+
+export const deleteClientWebhook = (webhookId, config = {}) => {
+    return request.delete(`/knowledge/sync/client/webhook/${webhookId}`, config);
+};
+
 // ==================== 知识统计 ====================
 
 export const getKnowledgeBaseStats = (kbId) => {

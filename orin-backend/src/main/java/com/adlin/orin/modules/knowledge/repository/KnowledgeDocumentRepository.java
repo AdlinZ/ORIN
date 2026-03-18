@@ -1,6 +1,8 @@
 package com.adlin.orin.modules.knowledge.repository;
 
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +12,11 @@ import java.util.List;
 
 @Repository
 public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocument, String> {
+
+    /**
+     * 按知识库ID列表查询文档 (分页)
+     */
+    Page<KnowledgeDocument> findByKnowledgeBaseIdIn(List<String> knowledgeBaseIds, Pageable pageable);
 
     /**
      * 获取指定知识库的所有文档

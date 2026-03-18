@@ -17,7 +17,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_api_key_id", columnList = "apiKeyId"),
         @Index(name = "idx_created_at", columnList = "createdAt"),
         @Index(name = "idx_endpoint", columnList = "endpoint"),
-        @Index(name = "idx_conversation_id", columnList = "conversationId")
+        @Index(name = "idx_conversation_id", columnList = "conversationId"),
+        @Index(name = "idx_trace_id", columnList = "traceId")
 })
 @Data
 @Builder
@@ -61,6 +62,12 @@ public class AuditLog {
      * Provider类型
      */
     private String providerType;
+
+    /**
+     * 链路追踪ID (用于调用链监控)
+     */
+    @Column(name = "trace_id", length = 64)
+    private String traceId;
 
     /**
      * 请求端点

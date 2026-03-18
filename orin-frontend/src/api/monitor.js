@@ -198,3 +198,23 @@ export const testPrometheusConnection = (config = {}) => {
 export const getPrometheusServerStatus = (config = {}) => {
     return request.get('/monitor/prometheus/server-status', config);
 };
+
+// ==================== 链路追踪查询 ====================
+
+export const getTraceById = (traceId, config = {}) => {
+    return request.get(`/monitor/traces/${traceId}`, config);
+};
+
+export const getCallSuccessRate = (params = {}, config = {}) => {
+    return request.get('/monitor/traces/success-rate', {
+        params,
+        ...config
+    });
+};
+
+export const getErrorDistribution = (params = {}, config = {}) => {
+    return request.get('/monitor/traces/error-distribution', {
+        params,
+        ...config
+    });
+};

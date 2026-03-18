@@ -63,6 +63,103 @@
       </el-row>
     </el-skeleton>
 
+        <!-- 链路追踪查询面板 -->
+    <el-card class="trace-query-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span>
+            <el-icon><Connection /></el-icon>
+            调用链查询
+          </span>
+          <el-button text @click="querySuccessRate">
+            <el-icon><Refresh /></el-icon> 刷新成功率
+          </el-button>
+        </div>
+      </template>
+
+      <el-row :gutter="20">
+        <el-col :span="8">
+          <div class="trace-input-row">
+            <el-input
+              v-model="traceIdInput"
+              placeholder="输入 Trace ID 查询链路"
+              clearable
+              @keyup.enter="queryTrace"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-button type="primary" :loading="traceQueryLoading" @click="queryTrace">
+              查询
+            </el-button>
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="success-rate-display" v-if="successRateData">
+            <span class="label">调用成功率:</span>
+            <span class="value" :class="successRateData.successRate >= 90 ? 'success' : successRateData.successRate >= 60 ? 'warning' : 'danger'">
+              {{ successRateData.successRate?.toFixed(2) }}%
+            </span>
+            <span class="detail">({{ successRateData.successCalls }}/{{ successRateData.totalCalls }})</span>
+          </div>
+          <div v-else class="placeholder-text">点击"刷新成功率"获取数据</div>
+        </el-col>
+        <el-col :span="8">
+          <div class="error-dist-display" v-if="errorDistributionData.length > 0">
+            <span class="label">错误分布:</span>
+            <el-tag v-for="item in errorDistributionData.slice(0, 3)" :key="item.errorMessage" size="small" type="danger" class="error-tag">
+              {{ item.errorMessage?.substring(0, 20) }}... ({{ item.count }})
+            </el-tag>
+          </div>
+          <div v-else class="placeholder-text">暂无错误</div>
+        </el-col>
+      </el-row>
+
+      <!-- 链路详情 -->
+      <el-divider v-if="traceResult" />
+      <div v-if="traceResult && traceResult.status === 'found'" class="trace-result">
+        <el-descriptions :column="4" border>
+          <el-descriptions-item label="Trace ID">{{ traceResult.traceId }}</el-descriptions-item>
+          <el-descriptions-item label="总节点数">{{ traceResult.totalSpans }}</el-descriptions-item>
+          <el-descriptions-item label="总耗时">{{ traceResult.totalDurationMs }}ms</el-descriptions-item>
+          <el-descriptions-item label="成功率">
+            <el-tag :type="traceResult.successRate >= 90 ? 'success' : traceResult.successRate >= 60 ? 'warning' : 'danger'">
+              {{ traceResult.successRate?.toFixed(2) }}%
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-table :data="traceResult.spans" style="margin-top: 16px; width: 100%" max-height="300">
+          <el-table-column prop="nodeId" label="节点ID" width="150" show-overflow-tooltip />
+          <el-table-column prop="nodeType" label="节点类型" width="120" />
+          <el-table-column prop="endpoint" label="端点" show-overflow-tooltip />
+          <el-table-column prop="model" label="模型" width="120" />
+          <el-table-column prop="duration" label="耗时(ms)" width="100">
+            <template #default="{ row }">
+              {{ row.duration || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="statusCode" label="状态码" width="80" />
+          <el-table-column prop="timestamp" label="时间" width="180">
+            <template #default="{ row }">
+              {{ formatTime(row.timestamp) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.success ? 'success' : 'danger'" size="small">
+                {{ row.success ? '成功' : '失败' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div v-else-if="traceResult && traceResult.status === 'not_found'" class="trace-not-found">
+        <el-empty description="未找到该 Trace ID 的记录" :image-size="60" />
+      </div>
+    </el-card>
+
     <!-- Main Content Area -->
     <el-row :gutter="24" class="content-row">
       <!-- Left: Agent Grid -->
@@ -238,7 +335,7 @@ import { useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
 import { useDark } from '@vueuse/core';
 const isDark = useDark();
-import { getGlobalSummary, getAgentList, getAgentMetrics } from '../api/monitor';
+import { getGlobalSummary, getAgentList, getAgentMetrics, getTraceById, getCallSuccessRate, getErrorDistribution } from '../api/monitor';
 import { controlAgent, getAgentLogs } from '../api/runtime'; 
 import { getAgentKnowledge } from '../api/knowledge';
 import { useRefreshStore } from '@/stores/refresh';
@@ -247,9 +344,9 @@ import PieChart from '../components/PieChart.vue';
 import PageHeader from '../components/PageHeader.vue';
 import DashboardCardConfig from '../components/DashboardCardConfig.vue';
 import ServerHardwareCard from '../components/ServerHardwareCard.vue';
-import { 
+import {
   VideoPlay, VideoPause, Refresh, Monitor, Cpu, Connection, Tickets, ArrowRight, Setting,
-  CircleCheck, CircleClose, Warning 
+  CircleCheck, CircleClose, Warning, Search
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
@@ -271,6 +368,13 @@ const showCardConfig = ref(false);
 const cardConfigRef = ref(null);
 const enabledCards = ref([]);
 const serverConnected = ref(false); // 服务器连接状态
+
+// 链路追踪查询状态
+const traceQueryLoading = ref(false);
+const traceIdInput = ref('');
+const traceResult = ref(null);
+const successRateData = ref(null);
+const errorDistributionData = ref([]);
 
 // 系统状态计算
 const systemStatus = computed(() => {
@@ -567,11 +671,54 @@ const handleControl = async (action) => {
 };
 
 const openAgentDetail = (agent) => {
-  router.push({ 
-    name: 'AgentConsole', 
+  router.push({
+    name: 'AgentConsole',
     params: { id: agent.agentId },
     query: { tab: 'chat' } // Default to chat when coming from dashboard
   });
+};
+
+// 链路追踪查询
+const queryTrace = async () => {
+  if (!traceIdInput.value.trim()) {
+    ElMessage.warning('请输入 Trace ID');
+    return;
+  }
+
+  traceQueryLoading.value = true;
+  traceResult.value = null;
+
+  try {
+    const res = await getTraceById(traceIdInput.value.trim());
+    traceResult.value = res.data || res;
+    ElMessage.success('查询成功');
+  } catch (e) {
+    ElMessage.error('查询失败: ' + (e.message || '未知错误'));
+  } finally {
+    traceQueryLoading.value = false;
+  }
+};
+
+// 查询调用成功率
+const querySuccessRate = async () => {
+  try {
+    const now = Date.now();
+    const res = await getCallSuccessRate({ startTime: now - 3600000, endTime: now });
+    successRateData.value = res.data || res;
+  } catch (e) {
+    console.error('查询成功率失败:', e);
+  }
+};
+
+// 查询错误分布
+const queryErrorDistribution = async () => {
+  try {
+    const now = Date.now();
+    const res = await getErrorDistribution({ startTime: now - 3600000, endTime: now });
+    errorDistributionData.value = (res.data || res) || [];
+  } catch (e) {
+    console.error('查询错误分布失败:', e);
+  }
 };
 
 const getStatusType = (s) => ({ 'RUNNING': 'success', 'HIGH_LOAD': 'warning', 'STOPPED': 'info' }[s] || 'danger');
@@ -619,6 +766,67 @@ onUnmounted(() => {
 }
 
 .stats-row { margin-bottom: 24px; }
+
+.trace-query-card {
+  margin-bottom: 24px;
+  border-radius: var(--radius-xl) !important;
+}
+
+.trace-query-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.trace-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.success-rate-display, .error-dist-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.success-rate-display .label, .error-dist-display .label {
+  font-weight: 500;
+  color: var(--el-text-color-secondary);
+}
+
+.success-rate-display .value {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.success-rate-display .value.success { color: var(--el-color-success); }
+.success-rate-display .value.warning { color: var(--el-color-warning); }
+.success-rate-display .value.danger { color: var(--el-color-danger); }
+
+.success-rate-display .detail {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.error-tag {
+  margin-right: 4px;
+}
+
+.placeholder-text {
+  color: var(--el-text-color-placeholder);
+  font-size: 14px;
+  line-height: 32px;
+}
+
+.trace-result {
+  margin-top: 16px;
+}
+
+.trace-not-found {
+  margin-top: 16px;
+  text-align: center;
+}
 
 .stat-card {
   border-radius: var(--radius-xl) !important;

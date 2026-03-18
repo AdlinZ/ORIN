@@ -266,4 +266,26 @@ public class MonitorController {
     public Map<String, Object> debugQueryPrometheus(@RequestParam String query) {
         return monitorService.debugQueryPrometheus(query);
     }
+
+    @Operation(summary = "根据 traceId 查询链路追踪详情")
+    @GetMapping("/trace/{traceId}")
+    public Map<String, Object> getTraceById(@PathVariable String traceId) {
+        return monitorService.getTraceById(traceId);
+    }
+
+    @Operation(summary = "获取调用成功率统计")
+    @GetMapping("/stats/success-rate")
+    public Map<String, Object> getCallSuccessRate(
+            @RequestParam(required = false) Long startTime,
+            @RequestParam(required = false) Long endTime) {
+        return monitorService.getCallSuccessRate(startTime, endTime);
+    }
+
+    @Operation(summary = "获取错误分布统计")
+    @GetMapping("/stats/error-distribution")
+    public List<Map<String, Object>> getErrorDistribution(
+            @RequestParam(required = false) Long startTime,
+            @RequestParam(required = false) Long endTime) {
+        return monitorService.getErrorDistribution(startTime, endTime);
+    }
 }

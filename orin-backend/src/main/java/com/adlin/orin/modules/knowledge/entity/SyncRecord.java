@@ -52,4 +52,34 @@ public class SyncRecord {
 
     @Column(name = "details", columnDefinition = "TEXT")
     private String details; // JSON 格式的详细信息
+
+    /**
+     * 同步方向: PULL (从Dify拉取), PUSH (推送到Dify)
+     */
+    @Column(name = "direction", length = 10)
+    private String direction;
+
+    /**
+     * 同步检查点 (用于断点续传)
+     */
+    @Column(name = "checkpoint", length = 100)
+    private String checkpoint;
+
+    /**
+     * 同步耗时 (毫秒)
+     */
+    @Column(name = "duration_ms")
+    private Long durationMs;
+
+    /**
+     * 处理文档总数
+     */
+    @Column(name = "total_docs")
+    private Integer totalDocs;
+
+    /**
+     * 同步方向 (兼容旧字段): INBOUND (拉取), OUTBOUND (推送)
+     */
+    @Column(name = "sync_direction", length = 10)
+    private String syncDirection;
 }

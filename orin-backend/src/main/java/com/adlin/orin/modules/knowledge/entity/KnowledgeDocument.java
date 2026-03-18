@@ -146,6 +146,32 @@ public class KnowledgeDocument {
     private LocalDateTime lastModified;
 
     /**
+     * 文档版本号 (用于增量同步)
+     */
+    @Column(name = "version")
+    @Builder.Default
+    private Integer version = 1;
+
+    /**
+     * 文档内容hash (用于幂等比对)
+     */
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
+
+    /**
+     * 删除标志 (软删除，用于增量同步)
+     */
+    @Column(name = "deleted_flag")
+    @Builder.Default
+    private Boolean deletedFlag = false;
+
+    /**
+     * 同步检查点 (用于断点续传)
+     */
+    @Column(name = "sync_checkpoint", length = 100)
+    private String syncCheckpoint;
+
+    /**
      * 上传者
      */
     @Column(name = "uploaded_by", length = 100)

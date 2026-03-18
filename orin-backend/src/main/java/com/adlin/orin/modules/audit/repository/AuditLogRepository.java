@@ -199,4 +199,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          */
         @Query("SELECT a FROM AuditLog a WHERE a.createdAt BETWEEN ?1 AND ?2 AND a.providerId != 'ORIN_CORE'")
         List<AuditLog> findBusinessLogsByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+        /**
+         * 根据 traceId 查询审计日志
+         */
+        List<AuditLog> findByTraceIdOrderByCreatedAtAsc(String traceId);
+
+        /**
+         * 根据 traceId 查询审计日志 (分页)
+         */
+        Page<AuditLog> findByTraceIdOrderByCreatedAtDesc(String traceId, Pageable pageable);
 }

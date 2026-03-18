@@ -211,4 +211,54 @@ public interface MonitorService {
      * @param query PromQL 查询语句
      */
     Map<String, Object> debugQueryPrometheus(String query);
+
+    /**
+     * 根据 traceId 查询链路追踪摘要
+     *
+     * @param traceId 链路追踪ID
+     * @return 链路追踪详情
+     */
+    Map<String, Object> getTraceById(String traceId);
+
+    /**
+     * 获取调用成功率统计
+     *
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 调用成功率数据
+     */
+    Map<String, Object> getCallSuccessRate(Long startTime, Long endTime);
+
+    /**
+     * 获取错误分布统计
+     *
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 错误分布数据
+     */
+    List<Map<String, Object>> getErrorDistribution(Long startTime, Long endTime);
+
+    // ========== 限流配置管理 ==========
+
+    /**
+     * 获取限流配置
+     *
+     * @return 限流配置
+     */
+    com.adlin.orin.modules.monitor.entity.RateLimitConfig getRateLimitConfig();
+
+    /**
+     * 更新限流配置
+     *
+     * @param config 限流配置
+     * @param operator 操作者ID（用于审计）
+     */
+    void updateRateLimitConfig(com.adlin.orin.modules.monitor.entity.RateLimitConfig config, String operator);
+
+    /**
+     * 获取当前限流配置（带缓存，用于高性能读取）
+     *
+     * @return 限流配置
+     */
+    com.adlin.orin.modules.monitor.entity.RateLimitConfig getRateLimitConfigCached();
 }

@@ -12,9 +12,11 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * 告警通知服务
@@ -106,8 +108,38 @@ public class AlertNotificationService {
         }
     }
 
+    /**
+     * 验证 Webhook URL 是否安全，防止 SSRF 攻击。
+     * 仅允许 HTTPS 协议，且不允许请求内网保留地址。
+     */
+    private void validateWebhookUrl(String url) {
+        if (url == null || url.isBlank()) {
+            throw new IllegalArgumentException("Webhook URL 不能为空");
+        }
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Webhook URL 格式无效: " + url);
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme())) {
+            throw new IllegalArgumentException("Webhook URL 必须使用 HTTPS 协议");
+        }
+        String host = uri.getHost();
+        if (host == null) {
+            throw new IllegalArgumentException("Webhook URL 缺少合法 Host");
+        }
+        // 拒绝内网 / 左集地址，防止 SSRF
+        if (Pattern.matches(
+                "(localhost|.*\\.local|127\\..+|10\\..+|172\\.(1[6-9]|2[0-9]|3[01])\\..+|192\\.168\\..+|0\\.0\\.0\\.0|169\\.254\\..+|::1|fc.+|fd.+)",
+                host.toLowerCase())) {
+            throw new IllegalArgumentException("Webhook URL 不允许指向内网地址");
+        }
+    }
+
     private boolean sendDingtalkNotification(AlertNotificationConfig config, String title, String content) {
         try {
+            validateWebhookUrl(config.getDingtalkWebhook());
             String markdownContent = String.format(
                 "## %s\n\n%s\n\n> 来源: ORIN 智能体管理系统",
                 title, content.replace("\n", "\n\n")
@@ -135,6 +167,7 @@ public class AlertNotificationService {
 
     private boolean sendWecomNotification(AlertNotificationConfig config, String title, String content) {
         try {
+            validateWebhookUrl(config.getWecomWebhook());
             Map<String, Object> body = new HashMap<>();
             body.put("msgtype", "text");
             body.put("text", Map.of(

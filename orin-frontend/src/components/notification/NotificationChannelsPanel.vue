@@ -7,7 +7,7 @@
       <span>正在加载通知配置...</span>
     </div>
 
-    <div class="channels-grid">
+    <div v-else>
       <div class="channel-card" :class="{ 'channel-active': config.emailEnabled }">
         <div class="channel-header">
           <div class="channel-icon email-icon">

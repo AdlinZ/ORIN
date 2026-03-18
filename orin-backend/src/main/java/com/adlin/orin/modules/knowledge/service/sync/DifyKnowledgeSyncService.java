@@ -3,9 +3,11 @@ package com.adlin.orin.modules.knowledge.service.sync;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.SyncRecord;
+import com.adlin.orin.modules.knowledge.entity.SyncChangeLog;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.modules.knowledge.repository.SyncRecordRepository;
+import com.adlin.orin.modules.knowledge.repository.SyncChangeLogRepository;
 import com.adlin.orin.modules.knowledge.component.EmbeddingService;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,8 +39,46 @@ public class DifyKnowledgeSyncService {
     private final SyncRecordRepository syncRecordRepository;
     private final AgentAccessProfileRepository profileRepository;
     private final EmbeddingService embeddingService;
+    private final SyncChangeLogRepository changeLogRepository;
 
     private static final int MAX_RETRIES = 3;
+
+    /**
+     * 生成内容hash
+     */
+    private String generateContentHash(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            return UUID.randomUUID().toString();
+        }
+    }
+
+    /**
+     * 记录变更日志
+     */
+    private void recordChange(String agentId, String documentId, String knowledgeBaseId,
+                              String changeType, Integer version, String contentHash) {
+        SyncChangeLog changeLog = SyncChangeLog.builder()
+                .agentId(agentId)
+                .documentId(documentId)
+                .knowledgeBaseId(knowledgeBaseId)
+                .changeType(changeType)
+                .version(version)
+                .contentHash(contentHash)
+                .changedAt(LocalDateTime.now())
+                .synced(false)
+                .build();
+        changeLogRepository.save(changeLog);
+    }
 
     /**
      * 触发知识库同步
@@ -61,6 +103,8 @@ public class DifyKnowledgeSyncService {
         SyncRecord syncRecord = new SyncRecord();
         syncRecord.setAgentId(agentId);
         syncRecord.setSyncType(fullSync ? "FULL" : "INCREMENTAL");
+        syncRecord.setDirection("PULL");
+        syncRecord.setSyncDirection("INBOUND");
         syncRecord.setStartTime(LocalDateTime.now());
         syncRecord.setStatus("RUNNING");
 
@@ -84,7 +128,7 @@ public class DifyKnowledgeSyncService {
             int added = 0, updated = 0, deleted = 0;
 
             for (DifyDataset difyKb : difyDatasets) {
-                var result = syncSingleDataset(difyKb, endpoint, apiKey, lastSyncTime);
+                var result = syncSingleDataset(agentId, difyKb, endpoint, apiKey, lastSyncTime);
                 added += result.getAdded();
                 updated += result.getUpdated();
                 deleted += result.getDeleted();
@@ -111,7 +155,13 @@ public class DifyKnowledgeSyncService {
             syncRecord.setAddedCount(added);
             syncRecord.setUpdatedCount(updated);
             syncRecord.setDeletedCount(deleted);
+            syncRecord.setTotalDocs(added + updated);
             syncRecord.setEndTime(LocalDateTime.now());
+            // 计算同步耗时
+            if (syncRecord.getStartTime() != null) {
+                long durationMs = java.time.Duration.between(syncRecord.getStartTime(), syncRecord.getEndTime()).toMillis();
+                syncRecord.setDurationMs(durationMs);
+            }
             syncRecordRepository.save(syncRecord);
 
             log.info("Sync completed: added={}, updated={}, deleted={}", added, updated, deleted);
@@ -130,7 +180,7 @@ public class DifyKnowledgeSyncService {
     /**
      * 同步单个知识库
      */
-    private DatasetSyncResult syncSingleDataset(DifyDataset difyKb, String endpoint, String apiKey, 
+    private DatasetSyncResult syncSingleDataset(String agentId, DifyDataset difyKb, String endpoint, String apiKey, 
                                                  LocalDateTime lastSyncTime) {
         int added = 0, updated = 0;
 
@@ -169,29 +219,69 @@ public class DifyKnowledgeSyncService {
 
         // 同步文档
         List<DifyDocument> difyDocs = difyApiClient.listDocuments(endpoint, apiKey, difyKb.getId());
+        Set<String> currentDocIds = new HashSet<>();
+
         for (DifyDocument difyDoc : difyDocs) {
+            currentDocIds.add(difyDoc.getId());
             Optional<KnowledgeDocument> existingDoc = documentRepository.findById(difyDoc.getId());
+
             if (existingDoc.isPresent()) {
-                updated++;
+                // 检查是否需要更新（版本控制）
+                KnowledgeDocument doc = existingDoc.get();
+                String content = difyApiClient.getDocumentContent(endpoint, apiKey, difyKb.getId(), difyDoc.getId());
+                String newHash = generateContentHash(content);
+
+                if (!newHash.equals(doc.getContentHash())) {
+                    // 内容有变化，更新文档
+                    doc.setFileName(difyDoc.getName());
+                    doc.setFileSize((long) (content.length() * 2));
+                    doc.setContentHash(newHash);
+                    doc.setVersion(doc.getVersion() + 1);
+                    doc.setLastModified(LocalDateTime.now());
+                    documentRepository.save(doc);
+
+                    // 记录变更日志
+                    recordChange(agentId, doc.getId(), kb.getId(), "UPDATED", doc.getVersion(), newHash);
+                    updated++;
+                }
             } else {
                 // 下载文档内容
                 String content = difyApiClient.getDocumentContent(endpoint, apiKey, difyKb.getId(), difyDoc.getId());
-                
+                String contentHash = generateContentHash(content);
+
                 KnowledgeDocument doc = KnowledgeDocument.builder()
                         .id(difyDoc.getId())
                         .knowledgeBaseId(kb.getId())
                         .fileName(difyDoc.getName())
-                        .fileSize((long) (content.length() * 2)) // 估算
+                        .fileSize((long) (content.length() * 2))
                         .fileType(difyDoc.getType())
+                        .contentHash(contentHash)
+                        .version(1)
+                        .deletedFlag(false)
                         .vectorStatus("PENDING")
                         .chunkCount(0)
                         .uploadTime(LocalDateTime.now())
+                        .lastModified(LocalDateTime.now())
                         .build();
                 documentRepository.save(doc);
-                
-                // 自动触发向量化
-                // triggerVectorization(doc.getId());
+
+                // 记录变更日志
+                recordChange(agentId, doc.getId(), kb.getId(), "ADDED", 1, contentHash);
                 added++;
+            }
+        }
+
+        // 处理已删除的文档（软删除）
+        List<KnowledgeDocument> allDocs = documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(kb.getId());
+        for (KnowledgeDocument doc : allDocs) {
+            if (!currentDocIds.contains(doc.getId()) && !Boolean.TRUE.equals(doc.getDeletedFlag())) {
+                doc.setDeletedFlag(true);
+                doc.setVersion(doc.getVersion() + 1);
+                doc.setLastModified(LocalDateTime.now());
+                documentRepository.save(doc);
+
+                // 记录变更日志
+                recordChange(agentId, doc.getId(), kb.getId(), "DELETED", doc.getVersion(), doc.getContentHash());
             }
         }
 

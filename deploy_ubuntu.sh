@@ -197,15 +197,42 @@ ln -sf /etc/nginx/sites-available/orin /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 systemctl restart nginx
 
+# 10. Flyway 数据库迁移 (阶段 A - 必须在应用启动前执行)
+echo -e "${YELLOW}[10/12] 执行 Flyway 数据库迁移...${NC}"
+JAR_FILE="$PROJECT_DIR/orin-backend/target/orin-backend-1.0.0-SNAPSHOT.jar"
+
+if [ -f "$JAR_FILE" ]; then
+    # 检查迁移状态
+    echo -e "${BLUE}检查 Flyway 迁移状态...${NC}"
+
+    # 执行 repair 修复历史失败记录
+    echo -e "${YELLOW}执行 Flyway Repair...${NC}"
+    java -jar "$JAR_FILE" --spring.profiles.active=prod flyway:repair 2>&1 | tail -10 || true
+
+    # 执行 migrate
+    echo -e "${YELLOW}执行 Flyway Migrate...${NC}"
+    if java -jar "$JAR_FILE" --spring.profiles.active=prod flyway:migrate 2>&1 | tail -15; then
+        echo -e "${GREEN}✓ 数据库迁移成功${NC}"
+    else
+        echo -e "${RED}✗ 数据库迁移失败！${NC}"
+        echo -e "${RED}✗ 禁止启动新版本应用，发布中止${NC}"
+        echo -e "${YELLOW}提示: 请检查迁移失败原因，修复后重新发布${NC}"
+        exit 1
+    fi
+else
+    echo -e "${RED}错误: 未找到 JAR 文件: $JAR_FILE${NC}"
+    exit 1
+fi
+
 # 11. 启动周边组件
-echo -e "${YELLOW}启动 Milvus 向量引擎 (Docker Compose)...${NC}"
+echo -e "${YELLOW}[11/12] 启动 Milvus 向量引擎 (Docker Compose)...${NC}"
 cd $PROJECT_DIR
 if [ -f milvus-docker-compose.yml ]; then
     docker-compose -f milvus-docker-compose.yml up -d
 fi
 
-# 12. 启动核心服务
-echo -e "${YELLOW}正在启动 ORIN 核心服务...${NC}"
+# 12. 启动核心服务 (阶段 B - 仅在迁移成功后执行)
+echo -e "${YELLOW}[12/12] 启动 ORIN 核心服务...${NC}"
 systemctl start orin-backend
 systemctl start orin-ai-engine
 

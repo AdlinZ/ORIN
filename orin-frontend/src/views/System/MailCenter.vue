@@ -981,8 +981,8 @@ const goToNotificationChannels = () => {
   router.push(ROUTES.CONTROL.NOTIFICATION_CHANNELS)
 }
 
-// 状态 - 默认显示配置管理，符合用户任务导向
-const activeTab = ref('config')
+// 状态 - 默认显示收件箱，已配置时进入首页，未配置时显示配置
+const activeTab = ref('inbox')
 
 // 页面状态: idle | loading | success | error | empty
 // 用于控制骨架屏和状态视图显示
@@ -1147,6 +1147,14 @@ const loadMailConfig = async () => {
       mailConfigForm.imapUsername = res.imapUsername || ''
       mailConfigForm.imapPassword = res.imapPassword || ''
 
+      // 根据连接状态决定默认显示的标签页（类似 Gmail）
+      // 已配置 -> 收件箱，未配置 -> 配置页面
+      activeTab.value = mailConnected.value ? 'inbox' : 'config'
+
+      pageState.value = 'success'
+    } else {
+      // 无配置时默认显示配置页面
+      activeTab.value = 'config'
       pageState.value = 'success'
     }
   } catch (e) {

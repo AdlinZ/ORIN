@@ -33,6 +33,7 @@ export const ROUTES = {
         TRACES: '/dashboard/runtime/traces',
         ALERTS: '/dashboard/runtime/alerts',
         SERVER: '/dashboard/runtime/server',
+        TASKS: '/dashboard/runtime/tasks',
     },
 
     // 资源模块
@@ -56,6 +57,7 @@ export const ROUTES = {
         FILE_MANAGEMENT: '/dashboard/control/file-management',
         KNOWLEDGE_CONFIG: '/dashboard/control/knowledge-config',
         NOTIFICATION_CHANNELS: '/dashboard/control/notification-channels',
+        CLIENT_SYNC: '/dashboard/control/client-sync',
         MAIL_CENTER: '/dashboard/control/mail/setup',  // 统一入口指向新架构
         MAIL_SETUP: '/dashboard/control/mail',
         MAIL_COMPOSE: '/dashboard/control/mail/compose',
@@ -170,6 +172,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: ROUTES.RUNTIME.SERVER,
                 icon: 'Monitor',
             },
+            {
+                title: '任务队列',
+                path: ROUTES.RUNTIME.TASKS,
+                icon: 'Tickets',
+            },
         ],
     },
     {
@@ -243,6 +250,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '通知中心',
                 path: ROUTES.CONTROL.NOTIFICATION_CHANNELS,
                 icon: 'Bell',
+            },
+            {
+                title: '端侧同步',
+                path: ROUTES.CONTROL.CLIENT_SYNC,
+                icon: 'Upload',
             },
         ],
     },

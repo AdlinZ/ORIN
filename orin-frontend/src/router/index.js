@@ -209,6 +209,14 @@ const routes = [
                         name: 'RuntimeServer',
                         component: () => import('@/views/Monitor/ServerMonitor.vue'),
                         meta: { title: '服务器监控', icon: 'Monitor' }
+                    },
+
+                    // 任务队列
+                    {
+                        path: 'tasks',
+                        name: 'RuntimeTasks',
+                        component: () => import('@/views/Monitor/TaskQueue.vue'),
+                        meta: { title: '任务队列', icon: 'Tickets' }
                     }
                 ]
             },
@@ -351,6 +359,14 @@ const routes = [
                         name: 'NotificationChannels',
                         component: () => import('@/views/Mail/MailSetup.vue'),
                         meta: { title: '通知中心', icon: 'Bell', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 端侧知识库同步
+                    {
+                        path: 'client-sync',
+                        name: 'ClientSync',
+                        component: () => import('@/views/System/ClientSync.vue'),
+                        meta: { title: '端侧同步', icon: 'Upload', roles: ['ROLE_ADMIN'] }
                     },
 
                     // 邮件中心（新版 - 任务导向）

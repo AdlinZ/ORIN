@@ -1,10 +1,9 @@
 import { ref, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
-import request from '@/utils/request';
 import {
   getNotificationConfig,
   saveNotificationConfig,
-  testNotification
+  testNotificationChannel
 } from '@/api/alert';
 
 const DEFAULT_CONFIG = {
@@ -59,14 +58,9 @@ export const useNotificationChannels = () => {
     try {
       const data = await getNotificationConfig();
       config.value = normalizeConfig(data);
-    } catch (primaryError) {
-      try {
-        const data = await request.get('/alert/notification-config');
-        config.value = normalizeConfig(data);
-      } catch (fallbackError) {
-        console.error('加载通知配置失败:', primaryError, fallbackError);
-        ElMessage.error('加载通知配置失败，请刷新重试');
-      }
+    } catch (error) {
+      console.error('加载通知配置失败:', error);
+      ElMessage.error('加载通知配置失败，请刷新重试');
     } finally {
       loaded.value = true;
     }
@@ -102,14 +96,9 @@ export const useNotificationChannels = () => {
     try {
       await saveNotificationConfig(config.value);
       return true;
-    } catch (primaryError) {
-      try {
-        await request.post('/alert/notification-config', config.value);
-        return true;
-      } catch (fallbackError) {
-        console.error('保存通知配置失败:', primaryError, fallbackError);
-        return false;
-      }
+    } catch (error) {
+      console.error('保存通知配置失败:', error);
+      return false;
     } finally {
       saving.value = false;
     }
@@ -136,6 +125,25 @@ export const useNotificationChannels = () => {
       config.value[key] = true;
       ElMessage.warning('请至少开启一个通知渠道');
       return;
+    }
+
+    // 开启渠道时校验必填字段
+    if (enabled) {
+      if (channel === 'email' && !config.value.emailRecipients.trim()) {
+        config.value[key] = false;
+        ElMessage.warning('请先填写邮件收件人再开启邮件通知');
+        return;
+      }
+      if (channel === 'dingtalk' && !config.value.dingtalkWebhook.trim()) {
+        config.value[key] = false;
+        ElMessage.warning('请先填写钉钉 Webhook 地址再开启钉钉通知');
+        return;
+      }
+      if (channel === 'wecom' && !config.value.wecomWebhook.trim()) {
+        config.value[key] = false;
+        ElMessage.warning('请先填写企业微信 Webhook 地址再开启企业微信通知');
+        return;
+      }
     }
 
     const ok = await persistConfig();
@@ -174,13 +182,7 @@ export const useNotificationChannels = () => {
 
     testing[channel] = true;
     try {
-      let res;
-      try {
-        res = await testNotification(channel);
-      } catch (primaryError) {
-        res = await request.post('/alert/notification-test', { channel });
-      }
-
+      const res = await testNotificationChannel(channel);
       if (res?.success) {
         ElMessage.success(res.message || '测试通知发送成功');
       } else {

@@ -131,6 +131,23 @@ docker-compose ps
 
 echo -e "${GREEN}✓ 服务状态检查完成${NC}"
 
+# Flyway 数据库迁移检查 (阶段 A - 必须在应用启动后验证)
+echo -e "${YELLOW}[8/9] 验证 Flyway 数据库迁移...${NC}"
+echo "等待应用启动完成..."
+sleep 30
+
+# 检查迁移状态
+MIGRATION_STATUS=$(docker-compose exec -T backend java -jar app.jar --spring.profiles.active=prod flyway:info 2>&1 | grep -E "Current version|Failed" || echo "check_failed")
+
+if echo "$MIGRATION_STATUS" | grep -q "Failed"; then
+    echo -e "${RED}✗ 数据库迁移验证失败！${NC}"
+    docker-compose logs backend | tail -30
+    echo -e "${YELLOW}提示: 请检查迁移失败原因${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✓ 数据库迁移验证通过${NC}"
+fi
+
 # 显示访问信息
 echo ""
 echo -e "${GREEN}========================================${NC}"

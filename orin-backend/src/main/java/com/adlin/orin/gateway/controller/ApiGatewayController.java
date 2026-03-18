@@ -6,6 +6,8 @@ import com.adlin.orin.gateway.dto.ChatCompletionResponse;
 import com.adlin.orin.gateway.dto.EmbeddingRequest;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import com.adlin.orin.gateway.service.RouterService;
+import com.adlin.orin.modules.audit.service.AuditLogService;
+import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 统一API网关控制器
@@ -34,6 +37,9 @@ public class ApiGatewayController {
 
     private final ProviderRegistry providerRegistry;
     private final RouterService routerService;
+    private final AuditLogService auditLogService;
+
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
 
     /**
      * 聊天完成接口 (OpenAI兼容)
@@ -44,9 +50,19 @@ public class ApiGatewayController {
     public Mono<ResponseEntity<Object>> chatCompletions(
             @RequestBody ChatCompletionRequest request,
             @RequestHeader(value = "X-Provider-Id", required = false) String providerId,
-            @RequestHeader(value = "X-Routing-Strategy", required = false) String routingStrategy) {
-        log.info("Chat completion request: model={}, stream={}, providerId={}",
-                request.getModel(), request.getStream(), providerId);
+            @RequestHeader(value = "X-Routing-Strategy", required = false) String routingStrategy,
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
+
+        // 生成或使用传入的 trace_id
+        final String finalTraceId;
+        if (traceId == null || traceId.isEmpty()) {
+            finalTraceId = UUID.randomUUID().toString();
+        } else {
+            finalTraceId = traceId;
+        }
+
+        log.info("Chat completion request: model={}, stream={}, providerId={}, traceId={}",
+                request.getModel(), request.getStream(), providerId, finalTraceId);
 
         // 选择Provider
         Mono<ProviderAdapter> providerMono;
@@ -73,16 +89,20 @@ public class ApiGatewayController {
                         return Mono.error(
                                 new UnsupportedOperationException("Streaming not yet implemented in this endpoint"));
                     } else {
-                        // 非流式响应
-                        return provider.chatCompletion(request)
-                                .map(response -> ResponseEntity.ok((Object) response));
+                        // 非流式响应 - 透传 trace_id 到下游
+                        return provider.chatCompletion(request, finalTraceId)
+                                .map(response -> ResponseEntity.ok()
+                                        .header(TRACE_ID_HEADER, finalTraceId)
+                                        .body((Object) response));
                     }
                 })
                 .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .header(TRACE_ID_HEADER, finalTraceId)
                         .body((Object) createError("No available provider", "service_unavailable"))))
                 .onErrorResume(e -> {
                     log.error("Chat completion error: {}", e.getMessage(), e);
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .header(TRACE_ID_HEADER, finalTraceId)
                             .body((Object) createError(e.getMessage(), "internal_error")));
                 });
     }
@@ -244,15 +264,14 @@ public class ApiGatewayController {
     @PostMapping("/workflows/{workflowId}/execute")
     public Mono<ResponseEntity<Map<String, Object>>> executeWorkflow(
             @PathVariable String workflowId,
+            @RequestParam(value = "priority", required = false) String priority,
             @RequestBody Map<String, Object> input) {
 
         return Mono.fromCallable(() -> {
             Long id = Long.parseLong(workflowId);
-            Long instanceId = workflowService.triggerWorkflow(id, input, "API_GATEWAY");
-            Map<String, Object> result = new HashMap<>();
-            result.put("instanceId", instanceId);
-            result.put("status", "RUNNING");
-            result.put("message", "Workflow execution started");
+            TaskPriority taskPriority = com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority.fromString(priority);
+
+            Map<String, Object> result = workflowService.triggerWorkflowAsync(id, input, taskPriority, "API_GATEWAY");
             return result;
         })
                 .map(result -> ResponseEntity.ok(result))

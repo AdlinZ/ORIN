@@ -70,6 +70,18 @@ public class AuditLogService {
             Long responseTime, Integer promptTokens, Integer completionTokens,
             Double estimatedCost, Boolean success, String errorMessage, String workflowId, String conversationId,
             String fileId, String downloadUrl) {
+        logApiCall(userId, apiKeyId, providerId, providerType, endpoint, method, model, ipAddress,
+                userAgent, requestParams, responseContent, statusCode, responseTime, promptTokens, completionTokens,
+                estimatedCost, success, errorMessage, workflowId, conversationId, fileId, downloadUrl, null);
+    }
+
+    @Async
+    public void logApiCall(String userId, String apiKeyId, String providerId, String providerType,
+            String endpoint, String method, String model, String ipAddress,
+            String userAgent, String requestParams, String responseContent, Integer statusCode,
+            Long responseTime, Integer promptTokens, Integer completionTokens,
+            Double estimatedCost, Boolean success, String errorMessage, String workflowId, String conversationId,
+            String fileId, String downloadUrl, String traceId) {
 
         // Check config
         boolean auditEnabled = logConfigService.isAuditEnabled();
@@ -107,6 +119,7 @@ public class AuditLogService {
                     .apiKeyId(apiKeyId)
                     .providerId(providerId)
                     .providerType(providerType)
+                    .traceId(traceId)
                     .endpoint(endpoint)
                     .method(method)
                     .model(model)

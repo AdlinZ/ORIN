@@ -70,3 +70,4 @@ class ExecutionResult(BaseModel):
     outputs: Dict[str, Any] = Field(default_factory=dict) # NodeID -> Output
     trace: List[NodeTrace] = Field(default_factory=list)
     error: Optional[str] = None # Global error message if status is ERROR
+    trace_summary: Optional[Dict[str, Any]] = None # Tracing summary for distributed tracing
