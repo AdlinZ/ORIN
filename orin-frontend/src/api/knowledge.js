@@ -360,15 +360,15 @@ export const deleteAgentSkill = (id) => {
     return request.delete(`/intelligence/skills/${id}`);
 };
 
-// --- Prompt 模板 ---
-export const getPromptTemplates = (agentId, userId) => {
+// --- Prompt 模板 (Intelligence Center) ---
+export const getIntelligencePrompts = (agentId, userId) => {
     return request.get('/intelligence/prompts', { params: { agentId, userId } });
 };
 
-export const savePromptTemplate = (template) => {
+export const saveIntelligencePrompt = (template) => {
     return request.post('/intelligence/prompts', template);
 };
 
-export const deletePromptTemplate = (id) => {
+export const deleteIntelligencePrompt = (id) => {
     return request.delete(`/intelligence/prompts/${id}`);
 };

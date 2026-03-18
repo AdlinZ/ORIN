@@ -240,9 +240,9 @@ import {
   getAgentSkills,
   saveAgentSkill,
   deleteAgentSkill,
-  getPromptTemplates,
-  savePromptTemplate,
-  deletePromptTemplate
+  getIntelligencePrompts,
+  saveIntelligencePrompt,
+  deleteIntelligencePrompt
 } from '@/api/knowledge'
 
 const activeTab = ref('memories')
@@ -413,7 +413,7 @@ const loadPrompts = async () => {
   }
   promptsLoading.value = true
   try {
-    const res = await getPromptTemplates(selectedAgentId.value)
+    const res = await getIntelligencePrompts(selectedAgentId.value)
     prompts.value = res.data || []
   } catch (error) {
     console.error('加载 Prompt 模板失败:', error)
@@ -440,7 +440,7 @@ const savePrompt = async () => {
     return
   }
   try {
-    await savePromptTemplate(promptForm.value)
+    await saveIntelligencePrompt(promptForm.value)
     ElMessage.success('保存成功')
     showPromptDialog.value = false
     loadPrompts()
@@ -454,7 +454,7 @@ const savePrompt = async () => {
 const deletePrompt = async (id) => {
   try {
     await ElMessageBox.confirm('确认删除该 Prompt 模板?', '警告', { type: 'warning' })
-    await deletePromptTemplate(id)
+    await deleteIntelligencePrompt(id)
     ElMessage.success('删除成功')
     loadPrompts()
   } catch (error) {
