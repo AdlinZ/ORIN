@@ -218,3 +218,13 @@ export const getErrorDistribution = (params = {}, config = {}) => {
         ...config
     });
 };
+
+// ==================== 限流配置 ====================
+
+export const getRateLimitConfig = (config = {}) => {
+    return request.get('/admin/rate-limit/config', config);
+};
+
+export const updateRateLimitConfig = (data, config = {}) => {
+    return request.put('/admin/rate-limit/config', data, config);
+};

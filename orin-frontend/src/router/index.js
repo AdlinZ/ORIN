@@ -369,6 +369,14 @@ const routes = [
                         meta: { title: '端侧同步', icon: 'Upload', roles: ['ROLE_ADMIN'] }
                     },
 
+                    // 限流配置
+                    {
+                        path: 'rate-limit',
+                        name: 'RateLimitConfig',
+                        component: () => import('@/views/System/RateLimitConfig.vue'),
+                        meta: { title: '限流配置', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
+                    },
+
                     // 邮件中心（新版 - 任务导向）
                     {
                         path: 'mail',

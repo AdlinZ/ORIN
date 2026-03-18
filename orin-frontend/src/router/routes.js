@@ -58,6 +58,7 @@ export const ROUTES = {
         KNOWLEDGE_CONFIG: '/dashboard/control/knowledge-config',
         NOTIFICATION_CHANNELS: '/dashboard/control/notification-channels',
         CLIENT_SYNC: '/dashboard/control/client-sync',
+        RATE_LIMIT: '/dashboard/control/rate-limit',
         MAIL_CENTER: '/dashboard/control/mail/setup',  // 统一入口指向新架构
         MAIL_SETUP: '/dashboard/control/mail',
         MAIL_COMPOSE: '/dashboard/control/mail/compose',
@@ -255,6 +256,11 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '端侧同步',
                 path: ROUTES.CONTROL.CLIENT_SYNC,
                 icon: 'Upload',
+            },
+            {
+                title: '限流配置',
+                path: ROUTES.CONTROL.RATE_LIMIT,
+                icon: 'Lightning',
             },
         ],
     },
