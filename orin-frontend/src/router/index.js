@@ -217,6 +217,14 @@ const routes = [
                         name: 'RuntimeTasks',
                         component: () => import('@/views/Monitor/TaskQueue.vue'),
                         meta: { title: '任务队列', icon: 'Tickets' }
+                    },
+
+                    // 限流配置
+                    {
+                        path: 'rate-limit',
+                        name: 'RuntimeRateLimit',
+                        component: () => import('@/views/Monitor/RateLimit.vue'),
+                        meta: { title: '限流配置', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
                     }
                 ]
             },
