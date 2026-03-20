@@ -20,7 +20,7 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationService {
+public class SystemNotificationService {
 
     private final SystemMessageRepository messageRepository;
 
@@ -68,7 +68,7 @@ public class NotificationService {
      * 获取用户消息列表
      */
     public Page<SystemMessage> getUserMessages(String userId, int page, int size) {
-        return messageRepository.findByUserMessages(userId, 
+        return messageRepository.findByUserMessages(userId,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 

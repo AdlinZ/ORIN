@@ -1,7 +1,7 @@
 package com.adlin.orin.modules.notification.controller;
 
 import com.adlin.orin.modules.notification.entity.SystemMessage;
-import com.adlin.orin.modules.notification.service.NotificationService;
+import com.adlin.orin.modules.notification.service.SystemNotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import java.util.Map;
 @Tag(name = "Notifications", description = "消息中心")
 public class NotificationController {
 
-    private final NotificationService notificationService;
+    private final SystemNotificationService notificationService;
 
     @Operation(summary = "获取消息列表")
     @GetMapping

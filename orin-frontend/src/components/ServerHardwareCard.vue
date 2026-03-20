@@ -197,7 +197,7 @@ const serverInfo = ref({
 let refreshTimer = null;
 
 const openConfig = () => {
-  router.push('/dashboard/control/system-env');
+  router.push('/dashboard/system/monitor-settings');
 };
 
 // Helper function to extract concise error message

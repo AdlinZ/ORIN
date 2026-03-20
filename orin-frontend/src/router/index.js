@@ -53,332 +53,342 @@ const routes = [
                 meta: { title: '个人中心', icon: 'User' }
             },
 
-            // ==================== 应用模块 ====================
+            // ==================== 智能体模块 ====================
             {
-                path: 'applications',
-                meta: { title: '应用', category: 'applications' },
+                path: 'agents',
+                meta: { title: '智能体', category: 'agents' },
+                redirect: ROUTES.AGENTS.LIST,
                 children: [
-                    // 应用列表（智能体）
+                    // 智能体管理（三级菜单父级）
                     {
-                        path: 'agents',
-                        name: 'ApplicationAgents',
+                        path: 'manage',
+                        name: 'AgentManage',
+                        redirect: ROUTES.AGENTS.LIST,
+                        meta: { title: '智能体管理', hidden: true }
+                    },
+                    // 会话管理（三级菜单父级）
+                    {
+                        path: 'session',
+                        name: 'SessionManage',
+                        redirect: ROUTES.AGENTS.CHAT_LOGS,
+                        meta: { title: '会话管理', hidden: true }
+                    },
+                    // 能力扩展（三级菜单父级）
+                    {
+                        path: 'capability',
+                        name: 'CapabilityManage',
+                        redirect: ROUTES.AGENTS.SKILLS,
+                        meta: { title: '能力扩展', hidden: true }
+                    },
+                    // 智能体列表
+                    {
+                        path: 'list',
+                        name: 'AgentList',
                         component: () => import('@/views/Agent/AgentList.vue'),
-                        meta: { title: '应用列表', icon: 'Grid' }
+                        meta: { title: '智能体列表', icon: 'Grid' }
                     },
+                    // 智能体接入
                     {
-                        path: 'agents/console/:id',
-                        name: 'AgentConsole',
-                        component: () => import('@/views/Agent/AgentConsole.vue'),
-                        meta: { title: '应用控制台', hidden: true }
-                    },
-                    {
-                        path: 'agents/onboard',
+                        path: 'onboard',
                         name: 'AgentOnboard',
                         component: () => import('@/views/AgentOnboarding.vue'),
-                        meta: { title: '接入新应用', hidden: true }
+                        meta: { title: '智能体接入', icon: 'Plus' }
                     },
-
+                    // 智能体控制台
+                    {
+                        path: 'console/:id',
+                        name: 'AgentConsole',
+                        component: () => import('@/views/Agent/AgentConsole.vue'),
+                        meta: { title: '智能体控制台', hidden: true }
+                    },
                     // 会话记录
                     {
-                        path: 'conversations',
-                        name: 'ApplicationConversations',
+                        path: 'chat-logs',
+                        name: 'ChatLogs',
                         component: () => import('@/views/Agent/ChatLogs.vue'),
                         meta: { title: '会话记录', icon: 'ChatDotRound' }
                     },
-
-                    // 模型管理
-                    {
-                        path: 'models',
-                        name: 'ApplicationModels',
-                        component: () => import('@/views/ModelConfig/ModelList.vue'),
-                        meta: { title: '模型管理', icon: 'Cpu' }
-                    },
-                    {
-                        path: 'models/config',
-                        name: 'ModelConfig',
-                        component: () => import('@/views/ModelConfig/ModelSystemConfig.vue'),
-                        meta: { title: '模型配置', hidden: true }
-                    },
-                    {
-                        path: 'models/add',
-                        name: 'ModelAdd',
-                        component: () => import('@/views/ModelConfig/AddModel.vue'),
-                        meta: { title: '添加模型', hidden: true }
-                    },
-                    {
-                        path: 'models/edit/:id',
-                        name: 'ModelEdit',
-                        component: () => import('@/views/ModelConfig/AddModel.vue'),
-                        meta: { title: '编辑模型', hidden: true }
-                    },
-
-                    // 技能绑定
-                    {
-                        path: 'skills',
-                        name: 'ApplicationSkills',
-                        component: () => import('@/views/Skill/SkillManagement.vue'),
-                        meta: { title: '技能绑定', icon: 'MagicStick' }
-                    },
-
-                    // 流程编排
-                    {
-                        path: 'workflows',
-                        name: 'ApplicationWorkflows',
-                        component: () => import('@/views/Workflow/WorkflowList.vue'),
-                        meta: { title: '流程编排', icon: 'Connection' }
-                    },
-                    {
-                        path: 'workflows/create',
-                        name: 'WorkflowCreate',
-                        component: () => import('@/views/Workflow/WorkflowEditor.vue'),
-                        meta: { title: '创建工作流', hidden: true }
-                    },
-                    {
-                        path: 'workflows/edit/:id',
-                        name: 'WorkflowEdit',
-                        component: () => import('@/views/Workflow/WorkflowEditor.vue'),
-                        meta: { title: '编辑工作流', hidden: true }
-                    },
-                    {
-                        path: 'workflows/visual',
-                        name: 'VisualWorkflowCreate',
-                        component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
-                        meta: { title: '可视化工作流编辑器', hidden: true }
-                    },
-                    {
-                        path: 'workflows/visual/:id',
-                        name: 'VisualWorkflowEdit',
-                        component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
-                        meta: { title: '编辑可视化工作流', hidden: true }
-                    },
-
-                    // 多智能体协作
+                    // 协作任务
                     {
                         path: 'collaboration',
-                        name: 'ApplicationCollaboration',
+                        name: 'Collaboration',
                         component: () => import('@/views/Agent/Collaboration.vue'),
-                        meta: { title: '多智能体协作', icon: 'Avatar' }
-                    }
+                        meta: { title: '协作任务', icon: 'Avatar' }
+                    },
+                    // 技能管理
+                    {
+                        path: 'skills',
+                        name: 'SkillList',
+                        component: () => import('@/views/Skill/SkillManagement.vue'),
+                        meta: { title: '技能管理', icon: 'MagicStick' }
+                    },
+                    // MCP 管理
+                    {
+                        path: 'mcp',
+                        name: 'McpList',
+                        component: () => import('@/views/Skill/SkillManagement.vue'),
+                        meta: { title: 'MCP 管理', icon: 'Connection' }
+                    },
+                    // Tools 注册
+                    {
+                        path: 'tools',
+                        name: 'ToolList',
+                        component: () => import('@/views/Skill/SkillManagement.vue'),
+                        meta: { title: 'Tools 注册', icon: 'Tool' }
+                    },
+                    // 工作流编排
+                    {
+                        path: 'workflows',
+                        name: 'WorkflowList',
+                        component: () => import('@/views/Workflow/WorkflowList.vue'),
+                        meta: { title: '工作流编排', icon: 'Edit' }
+                    },
+                    {
+                        path: 'workflows/visual/:id?',
+                        name: 'VisualWorkflow',
+                        component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
+                        meta: { title: '可视化编排', hidden: true }
+                    },
                 ]
             },
 
-            // ==================== 运行模块 ====================
+            // ==================== 知识中心模块 ====================
             {
-                path: 'runtime',
-                meta: { title: '运行', category: 'runtime' },
+                path: 'knowledge',
+                meta: { title: '知识中心', category: 'knowledge' },
+                redirect: ROUTES.KNOWLEDGE.LIST,
                 children: [
-                    // 运行概览
+                    // 知识库管理
                     {
-                        path: 'overview',
-                        name: 'RuntimeOverview',
-                        component: () => import('@/views/MonitorDashboard.vue'),
-                        meta: { title: '运行概览', icon: 'DataAnalysis' }
-                    },
-
-                    // 实时指标
-                    {
-                        path: 'metrics',
-                        name: 'RuntimeMetrics',
-                        component: () => import('@/views/Monitor/TokenStats.vue'),
-                        meta: { title: '实时指标', icon: 'TrendCharts' }
-                    },
-
-                    // 调用链路
-                    {
-                        path: 'traces',
-                        name: 'RuntimeTraces',
-                        component: () => import('@/views/Trace/TraceViewer.vue'),
-                        meta: { title: '调用链路', icon: 'Share' }
-                    },
-                    {
-                        path: 'traces/:traceId',
-                        name: 'TraceDetail',
-                        component: () => import('@/views/Trace/TraceViewer.vue'),
-                        meta: { title: '链路详情', hidden: true }
-                    },
-                    {
-                        path: 'dataflow/:traceId',
-                        name: 'DataFlow',
-                        component: () => import('@/views/Monitor/DataFlow.vue'),
-                        meta: { title: '数据流追踪', hidden: true }
-                    },
-
-                    // 异常告警
-                    {
-                        path: 'alerts',
-                        name: 'RuntimeAlerts',
-                        component: () => import('@/views/System/AlertManagement.vue'),
-                        meta: { title: '异常告警', icon: 'Bell', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 服务器监控
-                    {
-                        path: 'server',
-                        name: 'RuntimeServer',
-                        component: () => import('@/views/Monitor/ServerMonitor.vue'),
-                        meta: { title: '服务器监控', icon: 'Monitor' }
-                    },
-
-                    // 任务队列
-                    {
-                        path: 'tasks',
-                        name: 'RuntimeTasks',
-                        component: () => import('@/views/Monitor/TaskQueue.vue'),
-                        meta: { title: '任务队列', icon: 'Tickets' }
-                    }
-                ]
-            },
-
-            // ==================== 资源模块 ====================
-            {
-                path: 'resources',
-                meta: { title: '资源', category: 'resources' },
-                children: [
-                    // 知识库
-                    {
-                        path: 'knowledge',
-                        name: 'ResourcesKnowledge',
+                        path: 'list',
+                        name: 'KnowledgeList',
                         component: () => import('@/views/Knowledge/KBList.vue'),
-                        meta: { title: '知识库', icon: 'Reading' }
+                        meta: { title: '知识库管理', icon: 'Collection' }
                     },
                     {
-                        path: 'knowledge/create',
+                        path: 'create',
                         name: 'KnowledgeCreate',
                         component: () => import('@/views/Knowledge/KBCreate.vue'),
                         meta: { title: '创建知识库', hidden: true }
                     },
                     {
-                        path: 'knowledge/detail/:id',
+                        path: 'detail/:id',
                         name: 'KnowledgeDetail',
                         component: () => import('@/views/Knowledge/KBDetail.vue'),
                         meta: { title: '知识库详情', hidden: true }
                     },
-                    {
-                        path: 'knowledge/:kbId/document/:docId',
-                        name: 'DocumentDetail',
-                        component: () => import('@/views/Knowledge/DocumentDetail.vue'),
-                        meta: { title: '文档详情', hidden: true }
-                    },
-
                     // 素材库
                     {
                         path: 'media',
-                        name: 'ResourcesMedia',
+                        name: 'KnowledgeMedia',
                         component: () => import('@/views/Knowledge/MediaHub.vue'),
                         meta: { title: '素材库', icon: 'Picture' }
                     },
-
-                    // RAG 实验室（合并了原「向量实验室」+「检索实验室」）
+                    // 检索实验室
+                    {
+                        path: 'retrieval-lab',
+                        name: 'RetrievalLab',
+                        component: () => import('@/views/Knowledge/RetrievalLab.vue'),
+                        meta: { title: '检索实验室', icon: 'Search' }
+                    },
+                    // 嵌入实验室
                     {
                         path: 'embedding-lab',
-                        name: 'ResourcesEmbeddingLab',
+                        name: 'EmbeddingLab',
                         component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
-                        meta: { title: 'RAG 实验室', icon: 'Aim' }
+                        meta: { title: '嵌入实验室', icon: 'Aim' }
                     },
-
-                    // 检索实验室 → 重定向到 RAG 实验室（已合并）
-                    {
-                        path: 'rag-lab',
-                        redirect: '/dashboard/resources/embedding-lab'
-                    },
-
                     // 视觉实验室
                     {
                         path: 'vlm-lab',
-                        name: 'ResourcesVlmLab',
+                        name: 'VlmLab',
                         component: () => import('@/views/Knowledge/VlmPlayground.vue'),
                         meta: { title: '视觉实验室', icon: 'View' }
                     },
-
-                    // 资产架构
-                    {
-                        path: 'architecture',
-                        name: 'ResourcesArchitecture',
-                        component: () => import('@/views/Knowledge/AssetSchema.vue'),
-                        meta: { title: '资产架构', icon: 'Grid' }
-                    },
-
-                    // 智力资产中心
+                    // 智力资产
                     {
                         path: 'intelligence',
-                        name: 'ResourcesIntelligence',
+                        name: 'Intelligence',
                         component: () => import('@/views/Knowledge/IntelligenceCenter.vue'),
                         meta: { title: '智力资产', icon: 'Brain' }
-                    }
+                    },
+                    // 端侧同步
+                    {
+                        path: 'sync',
+                        name: 'KnowledgeSync',
+                        component: () => import('@/views/System/ClientSync.vue'),
+                        meta: { title: '端侧同步', icon: 'Upload' }
+                    },
+                    // 知识图谱（暂时重定向到知识库）
+                    {
+                        path: 'graph',
+                        redirect: ROUTES.KNOWLEDGE.LIST
+                    },
                 ]
             },
 
-            // ==================== 控制模块 ====================
+            // ==================== 监控运维模块 ====================
             {
-                path: 'control',
-                meta: { title: '控制', category: 'control', requiresAdmin: true },
+                path: 'monitor',
+                meta: { title: '监控运维', category: 'monitor' },
+                redirect: ROUTES.MONITOR.DASHBOARD,
                 children: [
-                    // 用户权限
+                    // 监控大盘
+                    {
+                        path: 'dashboard',
+                        name: 'MonitorDashboard',
+                        component: () => import('@/views/MonitorDashboard.vue'),
+                        meta: { title: '监控大盘', icon: 'DataAnalysis' }
+                    },
+                    // 统计分析（三级菜单父级）
+                    {
+                        path: 'stats',
+                        name: 'MonitorStats',
+                        redirect: ROUTES.MONITOR.TOKENS,
+                        meta: { title: '统计分析', hidden: true }
+                    },
+                    // Token 统计
+                    {
+                        path: 'tokens',
+                        name: 'TokenStats',
+                        component: () => import('@/views/Monitor/TokenStats.vue'),
+                        meta: { title: 'Token 统计', icon: 'Coin' }
+                    },
+                    // 时延统计
+                    {
+                        path: 'latency',
+                        name: 'LatencyStats',
+                        component: () => import('@/views/Monitor/LatencyStats.vue'),
+                        meta: { title: '时延统计', icon: 'Timer' }
+                    },
+                    // 错误统计
+                    {
+                        path: 'errors',
+                        name: 'ErrorStats',
+                        component: () => import('@/views/Monitor/TokenStats.vue'),
+                        meta: { title: '错误统计', icon: 'Warning' }
+                    },
+                    // 调用链路
+                    {
+                        path: 'traces',
+                        name: 'Traces',
+                        component: () => import('@/views/Trace/TraceViewer.vue'),
+                        meta: { title: '调用链路', icon: 'Share' }
+                    },
+                    // 数据流
+                    {
+                        path: 'dataflow/:traceId?',
+                        name: 'DataFlow',
+                        component: () => import('@/views/Monitor/DataFlow.vue'),
+                        meta: { title: '数据流', icon: 'Switch' }
+                    },
+                    // 告警中心（三级菜单父级）
+                    {
+                        path: 'alerts-center',
+                        name: 'AlertsCenter',
+                        redirect: ROUTES.MONITOR.ALERTS,
+                        meta: { title: '告警中心', hidden: true }
+                    },
+                    // 告警管理
+                    {
+                        path: 'alerts',
+                        name: 'Alerts',
+                        component: () => import('@/views/System/AlertManagement.vue'),
+                        meta: { title: '告警管理', icon: 'Bell' }
+                    },
+                    // 告警规则
+                    {
+                        path: 'alert-rules',
+                        name: 'AlertRules',
+                        component: () => import('@/views/System/AlertManagement.vue'),
+                        meta: { title: '告警规则', icon: 'Bell' }
+                    },
+                    // 通知渠道
+                    {
+                        path: 'notifications',
+                        name: 'NotificationChannels',
+                        component: () => import('@/views/System/NotificationChannels.vue'),
+                        meta: { title: '通知渠道', icon: 'Message' }
+                    },
+                    // 运维工具（三级菜单父级）
+                    {
+                        path: 'ops',
+                        name: 'MonitorOps',
+                        redirect: ROUTES.MONITOR.TASKS,
+                        meta: { title: '运维工具', hidden: true }
+                    },
+                    // 任务队列
+                    {
+                        path: 'tasks',
+                        name: 'TaskQueue',
+                        component: () => import('@/views/Monitor/TaskQueue.vue'),
+                        meta: { title: '任务队列', icon: 'Tickets' }
+                    },
+                    // 服务器监控
+                    {
+                        path: 'server',
+                        name: 'ServerMonitor',
+                        component: () => import('@/views/Monitor/ServerMonitor.vue'),
+                        meta: { title: '服务器监控', icon: 'Cpu' }
+                    },
+                    // 日志归档
+                    {
+                        path: 'logs',
+                        name: 'LogArchive',
+                        component: () => import('@/views/System/AuditLogs.vue'),
+                        meta: { title: '日志归档', icon: 'Document' }
+                    },
+                ]
+            },
+
+            // ==================== 系统管理模块 ====================
+            {
+                path: 'system',
+                meta: { title: '系统管理', category: 'system', requiresAdmin: true },
+                redirect: ROUTES.SYSTEM.USERS,
+                children: [
+                    // 用户权限（三级菜单父级）
+                    {
+                        path: 'auth',
+                        name: 'SystemAuth',
+                        redirect: ROUTES.SYSTEM.USERS,
+                        meta: { title: '用户权限', hidden: true }
+                    },
+                    // 用户管理
                     {
                         path: 'users',
-                        name: 'ControlUsers',
+                        name: 'UserManagement',
                         component: () => import('@/views/System/UserManagement.vue'),
-                        meta: { title: '用户权限', icon: 'User', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '用户管理', icon: 'User', roles: ['ROLE_ADMIN'] }
                     },
-
-
-
-                    // 审计日志
+                    // 部门权限
                     {
-                        path: 'audit-logs',
-                        name: 'ControlAuditLogs',
-                        component: () => import('@/views/System/AuditLogs.vue'),
-                        meta: { title: '审计日志', icon: 'List', roles: ['ROLE_ADMIN'] }
+                        path: 'departments',
+                        name: 'DepartmentManagement',
+                        component: () => import('@/views/System/UserManagement.vue'),
+                        meta: { title: '部门权限', icon: 'OfficeBuilding', roles: ['ROLE_ADMIN'] }
                     },
-
-                    // API 密钥管理
+                    // 角色管理
+                    {
+                        path: 'roles',
+                        name: 'RoleManagement',
+                        component: () => import('@/views/System/UserManagement.vue'),
+                        meta: { title: '角色管理', icon: 'UserFilled', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 认证鉴权（三级菜单父级）
+                    {
+                        path: 'security',
+                        name: 'SystemSecurity',
+                        redirect: ROUTES.SYSTEM.API_KEYS,
+                        meta: { title: '认证鉴权', hidden: true }
+                    },
+                    // API Key
                     {
                         path: 'api-keys',
                         name: 'ApiKeyManagement',
                         component: () => import('@/views/System/ApiKeyManagement.vue'),
-                        meta: { title: 'API 密钥管理', icon: 'Key', roles: ['ROLE_ADMIN'] }
+                        meta: { title: 'API Key', icon: 'Key', roles: ['ROLE_ADMIN'] }
                     },
-
-                    // 文件管理
-                    {
-                        path: 'file-management',
-                        name: 'FileManagement',
-                        component: () => import('@/views/System/FileManagement.vue'),
-                        meta: { title: '文件管理', icon: 'Folder', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 系统环境配置
-                    {
-                        path: 'system-env',
-                        name: 'ControlSystemEnv',
-                        component: () => import('@/views/System/MonitorSettings.vue'),
-                        meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 知识库配置
-                    {
-                        path: 'knowledge-config',
-                        name: 'ControlKnowledgeConfig',
-                        component: () => import('@/views/System/KnowledgeConfig.vue'),
-                        meta: { title: '知识库配置', icon: 'Collection', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 通知中心（统一入口）
-                    {
-                        path: 'notification-channels',
-                        name: 'NotificationChannels',
-                        component: () => import('@/views/Mail/MailSetup.vue'),
-                        meta: { title: '通知中心', icon: 'Bell', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 端侧知识库同步
-                    {
-                        path: 'client-sync',
-                        name: 'ClientSync',
-                        component: () => import('@/views/System/ClientSync.vue'),
-                        meta: { title: '端侧同步', icon: 'Upload', roles: ['ROLE_ADMIN'] }
-                    },
-
                     // 限流配置
                     {
                         path: 'rate-limit',
@@ -386,40 +396,62 @@ const routes = [
                         component: () => import('@/views/System/RateLimitConfig.vue'),
                         meta: { title: '限流配置', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
                     },
-
-                    // 邮件中心（新版 - 任务导向）
+                    // 消息中心
                     {
-                        path: 'mail',
-                        redirect: '/dashboard/control/mail/setup',
-                        meta: { title: '邮件中心', icon: 'Message' }
-                    },
-                    {
-                        path: 'mail/setup',
-                        name: 'MailSetup',
-                        component: () => import('@/views/Mail/MailSetup.vue'),
-                        meta: { title: '配置与联通', icon: 'Setting', roles: ['ROLE_ADMIN'] },
-                        alias: 'control/mail/setup'
-                    },
-                    {
-                        path: 'mail/compose',
-                        name: 'MailCompose',
-                        component: () => import('@/views/Mail/MailCompose.vue'),
-                        meta: { title: '发送与模板', icon: 'EditPen', roles: ['ROLE_ADMIN'] }
-                    },
-                    {
-                        path: 'mail/tracking',
-                        name: 'MailTracking',
-                        component: () => import('@/views/Mail/MailTracking.vue'),
-                        meta: { title: '追踪与回执', icon: 'List', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 邮件中心（旧版，保留兼容）
-                    {
-                        path: 'mail-center',
-                        name: 'MailCenter',
+                        path: 'messages',
+                        name: 'MessageCenter',
                         component: () => import('@/views/System/MailCenter.vue'),
-                        meta: { title: '邮件中心', icon: 'Message', roles: ['ROLE_ADMIN'] }
-                    }
+                        meta: { title: '消息中心', icon: 'Message', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 文件管理
+                    {
+                        path: 'files',
+                        name: 'FileManagement',
+                        component: () => import('@/views/System/FileManagement.vue'),
+                        meta: { title: '文件管理', icon: 'Folder', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 系统设置（三级菜单父级）
+                    {
+                        path: 'system-settings',
+                        name: 'SystemSettingsParent',
+                        redirect: ROUTES.SYSTEM.SETTINGS,
+                        meta: { title: '系统设置', hidden: true }
+                    },
+                    // 系统设置
+                    {
+                        path: 'settings',
+                        name: 'SystemSettings',
+                        component: () => import('@/views/System/SystemSettings.vue'),
+                        meta: { title: '系统设置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 审计日志
+                    {
+                        path: 'audit-logs',
+                        name: 'AuditLogs',
+                        component: () => import('@/views/System/AuditLogs.vue'),
+                        meta: { title: '审计日志', icon: 'Document', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 模型配置
+                    {
+                        path: 'models',
+                        name: 'ModelConfig',
+                        component: () => import('@/views/ModelConfig/ModelList.vue'),
+                        meta: { title: '模型配置', icon: 'Cpu', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 定价配置
+                    {
+                        path: 'pricing',
+                        name: 'PricingConfig',
+                        component: () => import('@/views/System/PricingConfig.vue'),
+                        meta: { title: '定价配置', icon: 'PriceTag', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 系统环境配置
+                    {
+                        path: 'monitor-settings',
+                        name: 'MonitorSettings',
+                        component: () => import('@/views/System/MonitorSettings.vue'),
+                        meta: { title: '系统环境配置', icon: 'Setting', roles: ['ROLE_ADMIN'] }
+                    },
                 ]
             },
 
@@ -451,7 +483,7 @@ Object.entries(LEGACY_ROUTE_REDIRECTS).forEach(([oldPath, newPath]) => {
         const relativePath = oldPath.replace('/dashboard/', '')
         dashboardRoute.children.push({
             path: relativePath,
-            redirect: newPath  // 使用完整路径，不要移除前缀
+            redirect: newPath
         })
     }
 })
