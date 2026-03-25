@@ -61,7 +61,13 @@
             </span>
           </template>
         </el-table-column>
-        
+
+        <el-table-column label="部门" width="150">
+          <template #default="{ row }">
+            <span class="department-text">{{ getDepartmentName(row.departmentId) }}</span>
+          </template>
+        </el-table-column>
+
         <el-table-column label="状态" width="120">
           <template #default="{ row }">
             <div class="status-indicator">
@@ -168,9 +174,21 @@
               <el-option label="普通用户" value="ROLE_USER" />
             </el-select>
           </el-form-item>
-          
-          <el-form-item label="状态" prop="status" class="half-width">
-            <div class="status-switch-wrapper">
+
+          <el-form-item label="部门" prop="departmentId" class="half-width">
+            <el-select v-model="formData.departmentId" placeholder="选择部门" clearable>
+              <el-option
+                v-for="dept in departments"
+                :key="dept.departmentId"
+                :label="dept.departmentName"
+                :value="dept.departmentId"
+              />
+            </el-select>
+          </el-form-item>
+        </div>
+
+        <el-form-item label="状态" prop="status">
+          <div class="status-switch-wrapper">
                <el-switch
                 v-model="formData.status"
                 active-value="active"
@@ -180,7 +198,6 @@
               <span class="status-text">{{ formData.status === 'active' ? '已激活' : '已禁用' }}</span>
             </div>
           </el-form-item>
-        </div>
       </el-form>
       
       <template #footer>
@@ -200,12 +217,14 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Lock, Unlock, Refresh } from '@element-plus/icons-vue'
 import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus, getRoles } from '@/api/userManage'
+import { getDepartmentList } from '@/api/department'
 import PageHeader from '@/components/PageHeader.vue'
 
 // 数据状态
 const loading = ref(false)
 const submitting = ref(false)
 const users = ref([])
+const departments = ref([])
 const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -221,7 +240,8 @@ const formData = reactive({
   email: '',
   password: '',
   role: 'ROLE_USER',
-  status: 'active'
+  status: 'active',
+  departmentId: null
 })
 
 // 表单验证规则
@@ -263,6 +283,13 @@ const getRoleName = (role) => {
   return roleMap[role] || role
 }
 
+// 获取部门名称
+const getDepartmentName = (departmentId) => {
+  if (!departmentId) return '-'
+  const dept = departments.value.find(d => d.departmentId === departmentId)
+  return dept ? dept.departmentName : '-'
+}
+
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -280,20 +307,27 @@ const formatDate = (dateString) => {
 const loadUsers = async () => {
   loading.value = true
   try {
-    const res = await getUserList({
-      page: currentPage.value - 1,
-      size: pageSize.value,
-      search: searchQuery.value
-    })
-    
+    // 加载用户列表和部门列表
+    const [userRes, deptRes] = await Promise.all([
+      getUserList({
+        page: currentPage.value - 1,
+        size: pageSize.value,
+        search: searchQuery.value
+      }),
+      getDepartmentList()
+    ])
+
+    // 设置部门列表
+    departments.value = deptRes.data || []
+
     // 映射后端字段到前端字段
-    users.value = (res.data || []).map(user => ({
+    users.value = (userRes.data || []).map(user => ({
       ...user,
       createdAt: user.createTime,
       lastLogin: user.lastLoginTime || user.lastLogin,
       status: user.status === 'ENABLED' ? 'active' : 'inactive'
     }))
-    totalUsers.value = res.total || 0
+    totalUsers.value = userRes.total || 0
   } catch (error) {
     ElMessage.error('加载用户列表失败')
     console.error(error)
@@ -328,7 +362,8 @@ const handleCreate = () => {
     email: '',
     password: '',
     role: 'ROLE_USER',
-    status: 'active'
+    status: 'active',
+    departmentId: null
   })
   dialogVisible.value = true
 }
@@ -342,7 +377,8 @@ const handleEdit = (row) => {
     email: row.email,
     password: '', // 编辑时不显示密码
     role: row.role,
-    status: row.status
+    status: row.status,
+    departmentId: row.departmentId
   })
   dialogVisible.value = true
 }
@@ -350,21 +386,29 @@ const handleEdit = (row) => {
 // 提交表单
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
-    
+
     submitting.value = true
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
+      const userData = {
+        username: formData.username,
+        email: formData.email,
+        role: formData.role,
+        status: formData.status === 'active' ? 'ENABLED' : 'DISABLED',
+        departmentId: formData.departmentId
+      }
+
       if (isEdit.value) {
+        await updateUser(formData.id, userData)
         ElMessage.success('用户更新成功')
       } else {
+        userData.password = formData.password
+        await createUser(userData)
         ElMessage.success('用户创建成功')
       }
-      
+
       dialogVisible.value = false
       loadUsers()
     } catch (error) {
@@ -379,7 +423,7 @@ const handleSubmit = async () => {
 const handleToggleStatus = async (row) => {
   const newStatus = row.status === 'active' ? 'inactive' : 'active'
   const action = newStatus === 'active' ? '启用' : '禁用'
-  
+
   try {
     await ElMessageBox.confirm(
       `确定要${action}用户 ${row.username} 吗？`,
@@ -390,8 +434,8 @@ const handleToggleStatus = async (row) => {
         type: newStatus === 'active' ? 'success' : 'warning'
       }
     )
-    
-    // 模拟API
+
+    await toggleUserStatus(row.id, newStatus === 'active')
     row.status = newStatus
     ElMessage.success(`${action}成功`)
   } catch (error) {
@@ -413,7 +457,8 @@ const handleDelete = async (row) => {
         type: 'error'
       }
     )
-    
+
+    await deleteUser(row.id)
     ElMessage.success('删除成功')
     loadUsers()
   } catch (error) {
@@ -574,6 +619,11 @@ onUnmounted(() => {
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
   border: 1px solid var(--el-color-primary-light-8);
+}
+
+.department-text {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 .status-indicator {

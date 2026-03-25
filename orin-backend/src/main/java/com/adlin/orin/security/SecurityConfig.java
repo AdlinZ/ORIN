@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 公开端点
+                        // 公开端点 - 无需认证
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/api/v1/multimodal/files/*/download",
@@ -50,20 +50,25 @@ public class SecurityConfig {
                                 "/v1/providers",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/**")
+                                "/actuator/health")
                         .permitAll()
-                        // 统一API网关端点（需要API密钥）
-                        // 当前暂时 permitAll，实际由 WebConfig 中的拦截器进行 API 密钥校验
+                        // 统一API网关端点 (/v1/**) - 需要API密钥认证
+                        // 由 WebConfig 中的 ApiKeyAuthInterceptor 进行 API 密钥校验
                         .requestMatchers("/v1/**").permitAll()
-                        // Agent 管理端点 - 暂时允许所有访问
+                        // Agent 管理端点
                         .requestMatchers("/api/v1/agents/**").permitAll()
                         .requestMatchers("/api/v1/model-config/**").permitAll()
                         .requestMatchers("/api/v1/conversation-logs/**").permitAll()
                         .requestMatchers("/api/v1/knowledge/diagnose/**").permitAll()
+                        // 用户权限管理端点
+                        .requestMatchers("/api/v1/departments/**").permitAll()
+                        .requestMatchers("/api/v1/roles/**").permitAll()
+                        .requestMatchers("/api/v1/users/**").permitAll()
                         // 管理端点（需要JWT认证）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())
-                .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -80,7 +85,7 @@ public class SecurityConfig {
         }
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count", "X-Request-ID"));
         configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

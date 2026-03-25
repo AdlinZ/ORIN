@@ -57,7 +57,7 @@
         </div>
         <div class="nav-links">
           <el-button link @click="$router.push(ROUTES.HOME)">监控中心</el-button>
-          <el-button link @click="$router.push(ROUTES.APPLICATIONS.AGENTS)">智能体管理</el-button>
+          <el-button link @click="$router.push(ROUTES.AGENTS.LIST)">智能体管理</el-button>
 
           <template v-if="isLoggedIn">
             <el-dropdown trigger="click" @command="handleCommand">
@@ -113,7 +113,7 @@
             <el-button type="primary" size="large" class="start-btn" @click="$router.push(ROUTES.HOME)">
                进入监控大屏 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
             </el-button>
-            <el-button size="large" class="secondary-btn" @click="$router.push(ROUTES.APPLICATIONS.AGENT_ONBOARD)">
+            <el-button size="large" class="secondary-btn" @click="$router.push(ROUTES.AGENTS.ONBOARD)">
                接入新智能体
             </el-button>
           </div>

@@ -3,10 +3,10 @@
  * 集中管理所有路由路径，避免硬编码
  *
  * 菜单结构：
- * 1. 智能体 - 智能体管理、会话管理、能力扩展、工作流编排
- * 2. 知识中心 - 知识库、素材库、实验室、知识图谱、端侧同步
+ * 1. 智能体 - 智能体管理、协作任务、版本管理、工作流编排
+ * 2. 知识中心 - 知识库、素材库、实验室、端侧同步
  * 3. 监控运维 - 监控大盘、统计分析、调用链路、告警中心、运维工具
- * 4. 系统管理 - 用户权限、认证鉴权、消息中心、文件管理、系统设置
+ * 4. 系统管理 - 用户权限、认证鉴权、外部框架集成、帮助中心、系统维护
  */
 
 // ==================== 主要路由 ====================
@@ -23,11 +23,18 @@ export const ROUTES = {
         CONSOLE: '/dashboard/agents/console/:id',
         // 会话管理（二级）
         CHAT_LOGS: '/dashboard/agents/chat-logs',
+        // 协作任务（二级）
         COLLABORATION: '/dashboard/agents/collaboration',
+        COLLABORATION_TASKS: '/dashboard/agents/collaboration/tasks',
+        COLLABORATION_CONFIG: '/dashboard/agents/collaboration/config',
+        // 版本管理与测试（二级）
+        VERSION_MANAGE: '/dashboard/agents/version',
+        TEST_DEBUG: '/dashboard/agents/test',
         // 能力扩展（二级）
         SKILLS: '/dashboard/agents/skills',
         MCP: '/dashboard/agents/mcp',
         TOOLS: '/dashboard/agents/tools',
+        EXTERNAL_FRAMEWORKS: '/dashboard/agents/external-frameworks',
         // 工作流编排（二级）
         WORKFLOWS: '/dashboard/agents/workflows',
     },
@@ -47,8 +54,8 @@ export const ROUTES = {
         VLM_LAB: '/dashboard/knowledge/vlm-lab',
         // 智力资产
         INTELLIGENCE: '/dashboard/knowledge/intelligence',
-        // 知识图谱（暂时指向知识库，待实现）
-        GRAPH: '/dashboard/knowledge/list',
+        // 知识图谱（LightRAG + Neo4j 可视化）
+        GRAPH: '/dashboard/knowledge/graph',
         // 端侧同步（二级）
         SYNC: '/dashboard/knowledge/sync',
     },
@@ -73,6 +80,7 @@ export const ROUTES = {
         TASKS: '/dashboard/monitor/tasks',
         SERVER: '/dashboard/monitor/server',
         LOGS: '/dashboard/monitor/logs',
+        VERSION_UPGRADE: '/dashboard/monitor/version-upgrade',
     },
 
     // ==================== 系统管理模块 ====================
@@ -97,6 +105,21 @@ export const ROUTES = {
         PRICING: '/dashboard/system/pricing',
         // 系统环境配置
         MONITOR_SETTINGS: '/dashboard/system/monitor-settings',
+        // 网关与分布式
+        GATEWAY: '/dashboard/system/gateway',
+        DISTRIBUTED_LOCK: '/dashboard/system/distributed-lock',
+        // 外部框架集成（二级）
+        EXTERNAL_FRAMEWORKS: '/dashboard/system/external-frameworks',
+        DIFY: '/dashboard/system/external-frameworks/dify',
+        RAGFLOW: '/dashboard/system/external-frameworks/ragflow',
+        AUTOGEN: '/dashboard/system/external-frameworks/autogen',
+        CREWAI: '/dashboard/system/external-frameworks/crewai',
+        // MCP服务管理（二级）
+        MCP_SERVICE: '/dashboard/system/mcp-service',
+        // 帮助中心（二级）
+        HELP_CENTER: '/dashboard/system/help-center',
+        // 系统维护（二级）
+        SYSTEM_MAINTENANCE: '/dashboard/system/maintenance',
     },
 
     // 个人中心
@@ -226,6 +249,7 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '技能管理', path: ROUTES.AGENTS.SKILLS },
                     { title: 'MCP 管理', path: ROUTES.AGENTS.MCP },
                     { title: 'Tools 注册', path: ROUTES.AGENTS.TOOLS },
+                    { title: '外部框架', path: ROUTES.AGENTS.EXTERNAL_FRAMEWORKS },
                 ]
             },
             // 工作流编排
@@ -341,6 +365,7 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '任务队列', path: ROUTES.MONITOR.TASKS },
                     { title: '服务器监控', path: ROUTES.MONITOR.SERVER },
                     { title: '日志归档', path: ROUTES.MONITOR.LOGS },
+                    { title: '版本升级', path: ROUTES.MONITOR.VERSION_UPGRADE },
                 ]
             },
         ],
@@ -402,6 +427,17 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '审计日志', path: ROUTES.SYSTEM.AUDIT_LOGS },
                     { title: '模型配置', path: ROUTES.SYSTEM.MODELS },
                     { title: '定价配置', path: ROUTES.SYSTEM.PRICING },
+                ]
+            },
+            // 网关与分布式（三级）
+            {
+                id: 'gateway',
+                title: '网关与分布式',
+                icon: 'Router',
+                path: '/dashboard/system/gateway',
+                children: [
+                    { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY },
+                    { title: '分布式锁', path: ROUTES.SYSTEM.DISTRIBUTED_LOCK },
                 ]
             },
         ],

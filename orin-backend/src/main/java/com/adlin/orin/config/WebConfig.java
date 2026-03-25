@@ -58,34 +58,46 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 添加API密钥验证拦截器(优先级最高)
+        // 添加API密钥验证拦截器
         registry.addInterceptor(apiKeyAuthInterceptor)
                 .addPathPatterns("/v1/**", "/api/v1/**")
                 .excludePathPatterns(
+                        // 公开端点
                         "/v1/health",
                         "/v1/providers",
                         "/api/v1/auth/**",
+                        "/api/v1/system/providers/**",
+                        "/api/v1/multimodal/files/**",
+                        "/api/v1/knowledge/diagnose/**",
+                        // Agent和配置端点
                         "/api/v1/agents/**",
                         "/api/v1/model-config/**",
-                        "/api/v1/multimodal/files/**",
                         "/api/v1/conversation-logs/**",
-                        "/api/v1/knowledge/diagnose/**",
-                        "/api/v1/system/providers/**")
+                        // 用户权限管理端点
+                        "/api/v1/departments/**",
+                        "/api/v1/roles/**",
+                        "/api/v1/users/**")
                 .order(1);
 
         // 添加速率限制拦截器(在API密钥验证之后)
         registry.addInterceptor(apiRateLimitInterceptor)
                 .addPathPatterns("/v1/**", "/api/v1/**")
                 .excludePathPatterns(
+                        // 公开端点
                         "/v1/health",
                         "/v1/providers",
                         "/api/v1/auth/**",
+                        "/api/v1/system/providers/**",
+                        "/api/v1/multimodal/files/**",
+                        "/api/v1/knowledge/diagnose/**",
+                        // Agent和配置端点
                         "/api/v1/agents/**",
                         "/api/v1/model-config/**",
-                        "/api/v1/multimodal/files/**",
                         "/api/v1/conversation-logs/**",
-                        "/api/v1/knowledge/diagnose/**",
-                        "/api/v1/system/providers/**")
+                        // 用户权限管理端点
+                        "/api/v1/departments/**",
+                        "/api/v1/roles/**",
+                        "/api/v1/users/**")
                 .order(2);
     }
 

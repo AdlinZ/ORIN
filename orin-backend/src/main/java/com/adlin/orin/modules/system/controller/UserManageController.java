@@ -10,13 +10,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 用户管理控制器
@@ -38,41 +39,84 @@ public class UserManageController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String role) {
-        
+
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<SysUser> userPage = userRepository.findAll(pageRequest);
-        
+
         List<SysUser> users = userPage.getContent();
-        
+
         // 如果有搜索条件，过滤结果
         if (search != null && !search.isEmpty()) {
             users = users.stream()
-                    .filter(u -> u.getUsername().contains(search) || 
+                    .filter(u -> u.getUsername().contains(search) ||
                                (u.getEmail() != null && u.getEmail().contains(search)))
                     .toList();
         }
-        
+
         if (role != null && !role.isEmpty()) {
             users = users.stream()
                     .filter(u -> role.equals(u.getRole()))
                     .toList();
         }
-        
+
+        // 使用 DTO
+        List<Map<String, Object>> userResponses = users.stream()
+                .map(u -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("userId", u.getUserId());
+                    map.put("username", u.getUsername());
+                    map.put("nickname", u.getNickname());
+                    map.put("email", u.getEmail());
+                    map.put("avatar", u.getAvatar());
+                    map.put("bio", u.getBio());
+                    map.put("address", u.getAddress());
+                    map.put("phone", u.getPhone());
+                    map.put("status", u.getStatus());
+                    map.put("role", u.getRole());
+                    // 强制添加 departmentId 字段，添加日志
+                    Long deptId = u.getDepartmentId();
+                    log.info("User {} has departmentId: {}", u.getUsername(), deptId);
+                    map.put("departmentId", deptId);
+                    map.put("createTime", u.getCreateTime());
+                    map.put("lastLoginTime", u.getLastLoginTime());
+                    map.put("id", u.getUserId());
+                    return map;
+                })
+                .collect(Collectors.toList());
+
         Map<String, Object> result = new HashMap<>();
-        result.put("data", users);
+        result.put("data", userResponses);
         result.put("total", userPage.getTotalElements());
         result.put("page", page);
         result.put("size", size);
-        
+
         return result;
     }
 
     @Operation(summary = "获取用户详情")
     @GetMapping("/{id}")
-    public ResponseEntity<SysUser> getUser(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public Map<String, Object> getUser(@PathVariable Long id) {
+        Optional<SysUser> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            return Map.of("error", "User not found");
+        }
+        SysUser user = userOpt.get();
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", user.getUserId());
+        result.put("username", user.getUsername());
+        result.put("nickname", user.getNickname());
+        result.put("email", user.getEmail());
+        result.put("avatar", user.getAvatar());
+        result.put("bio", user.getBio());
+        result.put("address", user.getAddress());
+        result.put("phone", user.getPhone());
+        result.put("status", user.getStatus());
+        result.put("role", user.getRole());
+        result.put("departmentId", user.getDepartmentId());
+        result.put("createTime", user.getCreateTime());
+        result.put("lastLoginTime", user.getLastLoginTime());
+        result.put("id", user.getUserId());
+        return result;
     }
 
     @Operation(summary = "创建用户")
@@ -100,14 +144,32 @@ public class UserManageController {
             user.setRole("ROLE_USER");
         }
 
+        // 注意：不设置默认部门，让 departmentId 为 null
+
         SysUser saved = userRepository.save(user);
 
         auditHelper.log("SYSTEM", "USER_CREATE", "/api/v1/users",
                 "创建用户成功: " + saved.getUsername() + ", 角色: " + saved.getRole(), true, null);
 
+        Map<String, Object> userData = new HashMap<>();
+        userData.put("userId", saved.getUserId());
+        userData.put("username", saved.getUsername());
+        userData.put("nickname", saved.getNickname());
+        userData.put("email", saved.getEmail());
+        userData.put("avatar", saved.getAvatar());
+        userData.put("bio", saved.getBio());
+        userData.put("address", saved.getAddress());
+        userData.put("phone", saved.getPhone());
+        userData.put("status", saved.getStatus());
+        userData.put("role", saved.getRole());
+        userData.put("departmentId", saved.getDepartmentId());
+        userData.put("createTime", saved.getCreateTime());
+        userData.put("lastLoginTime", saved.getLastLoginTime());
+        userData.put("id", saved.getUserId());
+
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
-        result.put("data", saved);
+        result.put("data", userData);
         result.put("message", "用户创建成功");
 
         return result;
@@ -136,6 +198,12 @@ public class UserManageController {
         }
         if (userDetails.getStatus() != null) {
             user.setStatus(userDetails.getStatus());
+        }
+        // 允许设置 departmentId 为 null 或 0 表示无部门
+        if (userDetails.getDepartmentId() != null && userDetails.getDepartmentId() != 0L) {
+            user.setDepartmentId(userDetails.getDepartmentId());
+        } else {
+            user.setDepartmentId(null);
         }
 
         userRepository.save(user);

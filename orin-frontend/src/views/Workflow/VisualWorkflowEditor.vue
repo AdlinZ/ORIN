@@ -987,7 +987,7 @@ const onDeleteWorkflow = () => {
         // Implement actual deletion logic here
         // API call to delete...
         ElMessage.success('工作流已删除');
-        router.push(ROUTES.APPLICATIONS.WORKFLOWS);
+        router.push(ROUTES.AGENTS.WORKFLOWS);
     }).catch(() => {});
 };
 
@@ -1409,7 +1409,7 @@ const handleSave = async (isAuto = false) => {
     
     if (res && res.id && !route.params.id) {
         // New workflow created, navigate to it
-        router.push(`${ROUTES.APPLICATIONS.WORKFLOW_VISUAL}/${res.id}`);
+        router.push(`${ROUTES.AGENTS.WORKFLOWS}/${res.id}`);
         if (!isAuto) ElMessage.success('保存成功');
     } else {
         if (!isAuto) ElMessage.success('保存成功');

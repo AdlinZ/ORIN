@@ -284,15 +284,15 @@ onUnmounted(() => {
 });
 
 const handleCreate = () => {
-  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL);
+    router.push(ROUTES.AGENTS.WORKFLOWS);
 };
 
 const handleCreateVisual = () => {
-  router.push(ROUTES.APPLICATIONS.WORKFLOW_VISUAL);
+  router.push('/dashboard/agents/workflows/visual');
 };
 
 const handleEdit = (row) => {
-  router.push(`${ROUTES.APPLICATIONS.WORKFLOW_VISUAL}/${row.id}`);
+    router.push(`${ROUTES.AGENTS.WORKFLOWS}/${row.id}`);
 };
 
 const handleRun = (row) => {

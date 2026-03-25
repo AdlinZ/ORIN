@@ -15,7 +15,7 @@
         >
           批量注销 ({{ selectedRows.length }})
         </el-button>
-        <el-button type="primary" :icon="Plus" @click="$router.push(ROUTES.APPLICATIONS.AGENT_ONBOARD)">接入新智能体</el-button>
+        <el-button type="primary" :icon="Plus" @click="$router.push(ROUTES.AGENTS.ONBOARD)">接入新智能体</el-button>
         <el-button :icon="Refresh" @click="fetchData">刷新列表</el-button>
       </template>
 

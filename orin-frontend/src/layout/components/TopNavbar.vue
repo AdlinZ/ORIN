@@ -29,18 +29,44 @@
             @mouseenter="keepDropdownOpen(menu.id)"
             @mouseleave="handleMenuLeave"
           >
-            <router-link 
-              v-for="child in menu.children"
-              :key="child.path"
-              :to="child.path"
-              class="dropdown-item"
-              @click="closeDropdown"
-            >
-              <el-icon v-if="child.icon">
-                <component :is="getIconComponent(child.icon)" />
-              </el-icon>
-              <span>{{ child.title }}</span>
-            </router-link>
+            <template v-for="child in menu.children.filter(c => !c.divider)" :key="child.path">
+              <!-- 有三级菜单的二级菜单项 -->
+              <div v-if="child.children && child.children.length > 0" class="dropdown-submenu">
+                <div class="dropdown-submenu-title">
+                  <el-icon v-if="child.icon">
+                    <component :is="getIconComponent(child.icon)" />
+                  </el-icon>
+                  <span>{{ child.title }}</span>
+                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                </div>
+                <div class="dropdown-submenu-items">
+                  <router-link
+                    v-for="subChild in child.children.filter(c => !c.divider)"
+                    :key="subChild.path"
+                    :to="subChild.path"
+                    class="dropdown-item"
+                    @click="closeDropdown"
+                  >
+                    <el-icon v-if="subChild.icon">
+                      <component :is="getIconComponent(subChild.icon)" />
+                    </el-icon>
+                    <span>{{ subChild.title }}</span>
+                  </router-link>
+                </div>
+              </div>
+              <!-- 无三级菜单的二级菜单项 -->
+              <router-link
+                v-else
+                :to="child.path"
+                class="dropdown-item"
+                @click="closeDropdown"
+              >
+                <el-icon v-if="child.icon">
+                  <component :is="getIconComponent(child.icon)" />
+                </el-icon>
+                <span>{{ child.title }}</span>
+              </router-link>
+            </template>
           </div>
         </transition>
       </div>
@@ -162,15 +188,30 @@
           <el-icon><component :is="getIconComponent(menu.icon)" /></el-icon>
           <span>{{ menu.title }}</span>
         </div>
-        <router-link
-          v-for="child in menu.children"
-          :key="child.path"
-          :to="child.path"
-          class="mobile-menu-item"
-          @click="closeMobileMenu"
-        >
-          {{ child.title }}
-        </router-link>
+        <template v-for="child in menu.children.filter(c => !c.divider)" :key="child.path">
+          <!-- 有三级菜单的二级菜单项 -->
+          <div v-if="child.children && child.children.length > 0" class="mobile-submenu-group">
+            <div class="mobile-submenu-title">{{ child.title }}</div>
+            <router-link
+              v-for="subChild in child.children.filter(c => !c.divider)"
+              :key="subChild.path"
+              :to="subChild.path"
+              class="mobile-menu-item mobile-submenu-item"
+              @click="closeMobileMenu"
+            >
+              {{ subChild.title }}
+            </router-link>
+          </div>
+          <!-- 无三级菜单的二级菜单项 -->
+          <router-link
+            v-else
+            :to="child.path"
+            class="mobile-menu-item"
+            @click="closeMobileMenu"
+          >
+            {{ child.title }}
+          </router-link>
+        </template>
       </div>
     </div>
   </el-drawer>
@@ -289,14 +330,16 @@ import { TOP_MENU_CONFIG, getVisibleMenus, getActiveMenuId } from '@/router/topM
 import NotificationCenter from './NotificationCenter.vue'
 import DeveloperHub from './DeveloperHub.vue'
 import {
-  Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
+  Bell, ArrowDown, ArrowRight, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
   Box, Monitor, Collection, Setting as SettingIcon,
   List, ChatDotRound, Cpu, MagicStick, Connection,
   DataLine, TrendCharts, Share, Warning,
   Document, Picture, Histogram, Search, View, Grid,
   Notebook, Link, Coin, Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock,
-  Operation, TrendCharts as TrendChartsIcon, Tools, CircleCheck, CircleClose, Clock, Message,
-  Fold, Expand
+  Operation, TrendCharts as TrendChartsIcon, CircleCheck, CircleClose, Clock, Message,
+  Fold, Expand, Money, Upload, WarningFilled, Service, QuestionFilled,
+  PriceTag, OfficeBuilding, UserFilled, Lightning, Folder, SetUp, Plus, Grid as GridIcon,
+  Avatar, Timer, Tickets, Aim, Reading, Key
 } from '@element-plus/icons-vue'
 import BrandingLogo from '@/components/BrandingLogo.vue'
 import { v4 as uuidv4 } from 'uuid'
@@ -318,8 +361,17 @@ const iconMap = {
   Box, Monitor, Collection, Setting: SettingIcon,
   List, ChatDotRound, Cpu, MagicStick, Connection,
   DataLine, TrendCharts, Share, Warning,
-  Document, Picture, Histogram, Search, View, Grid,
-  User, Notebook, Link, Coin, Operation, TrendChartsIcon, Tools, Clock, Odometer, Message
+  Document, Picture, Histogram, Search, View, Grid: GridIcon,
+  User, Notebook, Link, Coin, Operation, TrendChartsIcon, Clock, Odometer, Message,
+  Money, Upload, WarningFilled, Service, QuestionFilled,
+  PriceTag, OfficeBuilding, UserFilled, Lightning, Folder, SetUp, Plus, Avatar, Timer, Tickets, Aim,
+  Reading, Key,
+  Tools: SettingIcon,
+  Router: Connection,
+  Wrench: SettingIcon,
+  Robot: Cpu,
+  Star: MagicStick,
+  Bug: Warning
 }
 
 // State
@@ -806,6 +858,64 @@ onMounted(() => {
   font-size: 16px;
 }
 
+/* 三级菜单样式 */
+.dropdown-submenu {
+  position: relative;
+}
+
+.dropdown-submenu-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  color: var(--neutral-gray-700);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.dropdown-submenu-title:hover {
+  background: var(--neutral-gray-50);
+  color: var(--orin-primary);
+}
+
+.dropdown-submenu-title .el-icon:first-child {
+  font-size: 16px;
+}
+
+.submenu-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--neutral-gray-400);
+  transition: transform 0.2s;
+}
+
+.dropdown-submenu:hover .submenu-arrow {
+  transform: translateX(4px);
+  color: var(--orin-primary);
+}
+
+.dropdown-submenu-items {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+  min-width: 160px;
+  padding: 8px;
+  margin-left: 8px;
+}
+
+.dropdown-submenu:hover > .dropdown-submenu-items {
+  display: block;
+}
+
 /* 下拉动画 */
 .dropdown-enter-active,
 .dropdown-leave-active {
@@ -1004,6 +1114,23 @@ onMounted(() => {
   color: var(--orin-primary);
 }
 
+/* 移动端三级菜单样式 */
+.mobile-submenu-group {
+  margin: 4px 0;
+}
+
+.mobile-submenu-title {
+  padding: 8px 16px 8px 48px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--neutral-gray-500);
+}
+
+.mobile-submenu-item {
+  padding-left: 72px !important;
+  font-size: 13px !important;
+}
+
 /* 响应式 */
 @media (max-width: 1024px) {
   .navbar-menu {
@@ -1073,6 +1200,28 @@ html.dark .dropdown-item {
 html.dark .dropdown-item:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
+}
+
+/* 三级菜单深色模式 */
+html.dark .dropdown-submenu-title {
+  color: #e0e0e0;
+}
+
+html.dark .dropdown-submenu-title:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+html.dark .submenu-arrow {
+  color: #888;
+}
+
+html.dark .dropdown-submenu-items {
+  background: linear-gradient(180deg, rgba(20, 36, 36, 0.95) 0%, rgba(10, 22, 22, 0.92) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(38, 255, 223, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 html.dark .user-info {

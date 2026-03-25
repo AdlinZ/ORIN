@@ -32,15 +32,37 @@
               </el-icon>
               <span>{{ menu.title }}</span>
             </template>
-            
+
             <!-- 二级菜单 -->
-            <el-menu-item 
-              v-for="child in menu.children" 
-              :key="child.path" 
-              :index="child.path"
-            >
-              {{ child.title }}
-            </el-menu-item>
+            <template v-for="child in menu.children.filter(c => !c.divider)" :key="child.path">
+              <!-- 有三级菜单的二级菜单 -->
+              <el-sub-menu v-if="child.children && child.children.length > 0" :index="child.path">
+                <template #title>
+                  <el-icon v-if="child.icon">
+                    <component :is="getIconComponent(child.icon)" />
+                  </el-icon>
+                  <span>{{ child.title }}</span>
+                </template>
+                <!-- 三级菜单 -->
+                <el-menu-item
+                  v-for="subChild in child.children.filter(c => !c.divider)"
+                  :key="subChild.path"
+                  :index="subChild.path"
+                >
+                  <el-icon v-if="subChild.icon">
+                    <component :is="getIconComponent(subChild.icon)" />
+                  </el-icon>
+                  <span>{{ subChild.title }}</span>
+                </el-menu-item>
+              </el-sub-menu>
+              <!-- 无三级菜单的二级菜单 -->
+              <el-menu-item v-else :index="child.path">
+                <el-icon v-if="child.icon">
+                  <component :is="getIconComponent(child.icon)" />
+                </el-icon>
+                <span>{{ child.title }}</span>
+              </el-menu-item>
+            </template>
           </el-sub-menu>
         </template>
       </el-menu>
@@ -106,11 +128,17 @@ import BrandingLogo from '@/components/BrandingLogo.vue'
 import { useUserStore } from '@/stores/user'
 import Cookies from 'js-cookie'
 import { ElMessage } from 'element-plus'
-import { ROUTES, SIDEBAR_MENU_CONFIG } from '@/router/routes'
+import { ROUTES } from '@/router/routes'
+import { TOP_MENU_CONFIG, getVisibleMenus } from '@/router/topMenuConfig'
 import {
   House, User, SwitchButton, DArrowLeft, DArrowRight, Setting,
   Box, Monitor, Collection, Setting as SettingIcon, Message, Expand,
-  Refresh, Moon, Sunny, Bell, DataAnalysis
+  Refresh, Moon, Sunny, Bell, DataAnalysis, Grid, List, Edit, Avatar,
+  MagicStick, Connection, Tools, Clock, ChatDotRound, Reading, Picture,
+  Document, DataLine, Share, Coin, Warning, Bell as BellIcon, Cpu,
+  Document as DocumentIcon, Upload, Timer, Tickets, Aim, Search, View,
+  Grid as GridIcon, UserFilled, OfficeBuilding, Lightning, Folder, SetUp,
+  PriceTag, Service, QuestionFilled, WarningFilled, Lock, Key, TrendCharts
 } from '@element-plus/icons-vue'
 import { useDark } from '@vueuse/core'
 
@@ -172,14 +200,9 @@ const roleNameMap = {
   'ROLE_USER': '用户'
 }
 
-// 可见菜单（根据权限过滤）
+// 可见菜单（根据权限过滤）- 使用与 TopNavbar 相同的配置
 const visibleMenus = computed(() => {
-  return SIDEBAR_MENU_CONFIG.filter(menu => {
-    if (menu.requiresAdmin) {
-      return isAdmin.value
-    }
-    return true
-  })
+  return getVisibleMenus(isAdmin.value)
 })
 
 // 获取图标组件
@@ -189,7 +212,50 @@ const getIconComponent = (iconName) => {
     'Monitor': Monitor,
     'Collection': Collection,
     'Setting': SettingIcon,
-    'Message': Message
+    'Message': Message,
+    'Grid': Grid,
+    'List': List,
+    'Edit': Edit,
+    'Avatar': Avatar,
+    'MagicStick': MagicStick,
+    'Connection': Connection,
+    'Tool': Tools,
+    'Tools': Tools,
+    'Clock': Clock,
+    'ChatDotRound': ChatDotRound,
+    'Reading': Reading,
+    'Picture': Picture,
+    'Document': DocumentIcon,
+    'DataLine': DataLine,
+    'Share': Share,
+    'Coin': Coin,
+    'Warning': Warning,
+    'Bell': BellIcon,
+    'Cpu': Cpu,
+    'Upload': Upload,
+    'Timer': Timer,
+    'Tickets': Tickets,
+    'Aim': Aim,
+    'Search': Search,
+    'View': View,
+    'GridIcon': GridIcon,
+    'UserFilled': UserFilled,
+    'OfficeBuilding': OfficeBuilding,
+    'Lightning': Lightning,
+    'Folder': Folder,
+    'SetUp': SetUp,
+    'PriceTag': PriceTag,
+    'Service': Service,
+    'QuestionFilled': QuestionFilled,
+    'WarningFilled': WarningFilled,
+    'Lock': Lock,
+    'Key': Key,
+    'TrendCharts': TrendCharts,
+    'Router': Connection,
+    'Wrench': SettingIcon,
+    'Robot': Cpu,
+    'Star': MagicStick,
+    'Bug': Warning
   }
   return iconMap[iconName] || Box
 }

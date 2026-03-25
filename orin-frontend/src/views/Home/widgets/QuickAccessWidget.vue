@@ -30,14 +30,14 @@ const shortcuts = ref([
   {
     title: '应用',
     description: '管理智能体应用',
-    path: ROUTES.APPLICATIONS.AGENTS,
+    path: ROUTES.AGENTS.LIST,
     icon: Box,
     color: '#155eef'
   },
   {
     title: '运行',
     description: '监控运行状态',
-    path: ROUTES.RUNTIME.OVERVIEW,
+    path: ROUTES.MONITOR.DASHBOARD,
     icon: Monitor,
     color: '#10b981'
   },

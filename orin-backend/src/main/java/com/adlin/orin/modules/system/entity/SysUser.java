@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.system.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -26,6 +27,10 @@ public class SysUser {
     private String phone;
     private String status; // ENABLED, DISABLED
     private String role; // ROLE_ADMIN, ROLE_USER
+
+    @Column(name = "department_id")
+    @JsonProperty("departmentId")
+    private Long departmentId;
 
     @Column(name = "create_time")
     private LocalDateTime createTime;
@@ -131,6 +136,14 @@ public class SysUser {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Long getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(Long departmentId) {
+        this.departmentId = departmentId;
     }
 
     public LocalDateTime getCreateTime() {

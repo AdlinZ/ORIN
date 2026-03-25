@@ -59,7 +59,7 @@
       <!-- 3. Procedural View -->
       <div v-if="activeTab === 'PROCEDURAL'">
           <div class="mb-4 flex justify-between">
-              <el-button type="primary" @click="$router.push(ROUTES.APPLICATIONS.WORKFLOWS)">创建新技能</el-button>
+              <el-button type="primary" @click="$router.push(ROUTES.AGENTS.WORKFLOWS)">创建新技能</el-button>
           </div>
           <knowledge-table type="api" :data="knowledgeStore.knowledgeList" />
       </div>

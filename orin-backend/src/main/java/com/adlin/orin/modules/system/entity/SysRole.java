@@ -42,6 +42,12 @@ public class SysRole {
     private String description;
 
     /**
+     * 所属部门ID
+     */
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    /**
      * 创建时间
      */
     @Column(name = "create_time")

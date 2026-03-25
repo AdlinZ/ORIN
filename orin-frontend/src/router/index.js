@@ -101,6 +101,13 @@ const routes = [
                         component: () => import('@/views/Agent/AgentConsole.vue'),
                         meta: { title: '智能体控制台', hidden: true }
                     },
+                    // 智能体控制台入口（选择代理）
+                    {
+                        path: 'console',
+                        name: 'AgentConsoleEntry',
+                        component: () => import('@/views/Agent/AgentConsoleEntry.vue'),
+                        meta: { title: '应用控制台', hidden: true }
+                    },
                     // 会话记录
                     {
                         path: 'chat-logs',
@@ -114,6 +121,41 @@ const routes = [
                         name: 'Collaboration',
                         component: () => import('@/views/Agent/Collaboration.vue'),
                         meta: { title: '协作任务', icon: 'Avatar' }
+                    },
+                    // 协作仪表盘
+                    {
+                        path: 'collaboration/dashboard',
+                        name: 'CollaborationDashboard',
+                        component: () => import('@/views/Agent/CollaborationDashboard.vue'),
+                        meta: { title: '协作仪表盘', icon: 'DataAnalysis' }
+                    },
+                    // 协作任务列表
+                    {
+                        path: 'collaboration/tasks',
+                        name: 'CollaborationTasks',
+                        component: () => import('@/views/Agent/Collaboration.vue'),
+                        meta: { title: '协作任务列表', icon: 'List' }
+                    },
+                    // 协作模式配置
+                    {
+                        path: 'collaboration/config',
+                        name: 'CollaborationConfig',
+                        component: () => import('@/views/Agent/Collaboration.vue'),
+                        meta: { title: '协作模式配置', icon: 'SetUp' }
+                    },
+                    // 版本管理
+                    {
+                        path: 'version',
+                        name: 'VersionManage',
+                        component: () => import('@/views/Agent/AgentList.vue'),
+                        meta: { title: '版本管理', icon: 'Clock' }
+                    },
+                    // 测试与调试
+                    {
+                        path: 'test',
+                        name: 'TestDebug',
+                        component: () => import('@/views/Agent/AgentList.vue'),
+                        meta: { title: '测试与调试', icon: 'Bug' }
                     },
                     // 技能管理
                     {
@@ -365,14 +407,14 @@ const routes = [
                     {
                         path: 'departments',
                         name: 'DepartmentManagement',
-                        component: () => import('@/views/System/UserManagement.vue'),
+                        component: () => import('@/views/System/DepartmentManagement.vue'),
                         meta: { title: '部门权限', icon: 'OfficeBuilding', roles: ['ROLE_ADMIN'] }
                     },
                     // 角色管理
                     {
                         path: 'roles',
                         name: 'RoleManagement',
-                        component: () => import('@/views/System/UserManagement.vue'),
+                        component: () => import('@/views/System/RoleManagement.vue'),
                         meta: { title: '角色管理', icon: 'UserFilled', roles: ['ROLE_ADMIN'] }
                     },
                     // 认证鉴权（三级菜单父级）
@@ -451,6 +493,76 @@ const routes = [
                         name: 'MonitorSettings',
                         component: () => import('@/views/System/MonitorSettings.vue'),
                         meta: { title: '系统环境配置', icon: 'Setting', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 统一网关
+                    {
+                        path: 'gateway',
+                        name: 'ApiGateway',
+                        component: () => import('@/views/System/ApiGateway.vue'),
+                        meta: { title: '统一网关', icon: 'Router', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 分布式锁
+                    {
+                        path: 'distributed-lock',
+                        name: 'DistributedLock',
+                        component: () => import('@/views/System/DistributedLock.vue'),
+                        meta: { title: '分布式锁', icon: 'Lock', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 外部框架集成汇总
+                    {
+                        path: 'external-frameworks',
+                        name: 'ExternalFrameworksList',
+                        component: () => import('@/views/System/ExternalFrameworks.vue'),
+                        meta: { title: '外部框架集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                    },
+                    // Dify 集成
+                    {
+                        path: 'external-frameworks/dify',
+                        name: 'DifyIntegration',
+                        component: () => import('@/views/System/ExternalFrameworks.vue'),
+                        meta: { title: 'Dify 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                    },
+                    // RAGFlow 集成
+                    {
+                        path: 'external-frameworks/ragflow',
+                        name: 'RagflowIntegration',
+                        component: () => import('@/views/System/ExternalFrameworks.vue'),
+                        meta: { title: 'RAGFlow 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                    },
+                    // AutoGen 集成
+                    {
+                        path: 'external-frameworks/autogen',
+                        name: 'AutogenIntegration',
+                        component: () => import('@/views/System/ExternalFrameworks.vue'),
+                        meta: { title: 'AutoGen 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                    },
+                    // CrewAI 集成
+                    {
+                        path: 'external-frameworks/crewai',
+                        name: 'CrewaiIntegration',
+                        component: () => import('@/views/System/ExternalFrameworks.vue'),
+                        meta: { title: 'CrewAI 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                    },
+                    // MCP 服务管理
+                    {
+                        path: 'mcp-service',
+                        name: 'McpService',
+                        component: () => import('@/views/System/McpService.vue'),
+                        meta: { title: 'MCP 服务管理', icon: 'Service', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 帮助中心
+                    {
+                        path: 'help-center',
+                        name: 'HelpCenter',
+                        component: () => import('@/views/System/HelpCenter.vue'),
+                        meta: { title: '帮助中心', icon: 'QuestionFilled', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 系统维护
+                    {
+                        path: 'maintenance',
+                        name: 'SystemMaintenance',
+                        component: () => import('@/views/System/SystemMaintenance.vue'),
+                        meta: { title: '系统维护', icon: 'Tools', roles: ['ROLE_ADMIN'] }
                     },
                 ]
             },

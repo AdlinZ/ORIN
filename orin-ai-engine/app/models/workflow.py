@@ -14,6 +14,19 @@ class WorkflowStatus(str, Enum):
     PARTIAL = "partial" # Some nodes failed, but workflow finished
     ERROR = "error"     # Engine execution error
 
+# DSL v2 协作节点类型
+class CollaborationNodeType(str, Enum):
+    PLANNER = "planner"
+    DELEGATE = "delegate"
+    PARALLEL_FORK = "parallel_fork"
+    CONSENSUS = "consensus"
+    CRITIC = "critic"
+    MEMORY_READ = "memory_read"
+    MEMORY_WRITE = "memory_write"
+    EVENT_EMIT = "event_emit"
+    EVENT_LISTEN = "event_listen"
+    RETRY_POLICY = "retry_policy"
+
 class NodeExecutionOutput(BaseModel):
     outputs: Dict[str, Any]
     selected_handle: Optional[str] = None

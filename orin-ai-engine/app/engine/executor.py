@@ -12,6 +12,12 @@ from app.engine.handlers.logic import IfElseNodeHandler, QuestionClassifierNodeH
 from app.engine.handlers.tools import HTTPRequestNodeHandler, ListOperatorNodeHandler, ToolNodeHandler
 from app.engine.handlers.interaction import AnswerNodeHandler
 from app.engine.handlers.data_processing import KnowledgeRetrievalNodeHandler, TemplateTransformNodeHandler, ParameterExtractorNodeHandler, DocumentExtractorNodeHandler
+from app.engine.handlers.collaboration import (
+    PlannerNodeHandler, DelegateNodeHandler, ParallelForkNodeHandler,
+    ConsensusNodeHandler, CriticNodeHandler, MemoryReadNodeHandler,
+    MemoryWriteNodeHandler, EventEmitNodeHandler, EventListenNodeHandler,
+    RetryPolicyNodeHandler
+)
 from app.core.config import settings
 from app.core.tracing import tracing_client, Span
 
@@ -38,6 +44,17 @@ class GraphExecutor:
             "template_transform": TemplateTransformNodeHandler(),
             "parameter_extractor": ParameterExtractorNodeHandler(),
             "document_extractor": DocumentExtractorNodeHandler(),
+            # DSL v2 协作节点
+            "planner": PlannerNodeHandler(),
+            "delegate": DelegateNodeHandler(),
+            "parallel_fork": ParallelForkNodeHandler(),
+            "consensus": ConsensusNodeHandler(),
+            "critic": CriticNodeHandler(),
+            "memory_read": MemoryReadNodeHandler(),
+            "memory_write": MemoryWriteNodeHandler(),
+            "event_emit": EventEmitNodeHandler(),
+            "event_listen": EventListenNodeHandler(),
+            "retry_policy": RetryPolicyNodeHandler(),
         }
 
     def _build_adjacency_list(self, dsl: WorkflowDSL) -> Dict[str, List[str]]:

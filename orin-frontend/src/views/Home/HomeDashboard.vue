@@ -54,7 +54,7 @@
         </div>
 
         <!-- Resources -->
-        <div class="premium-card clickable" @click="goToPage(ROUTES.RUNTIME.METRICS)">
+        <div class="premium-card clickable" @click="goToPage(ROUTES.MONITOR.TOKENS)">
           <div class="card-glow"></div>
           <h3 class="card-head">资源矩阵<span class="head-line"></span></h3>
           <div class="matrix-grid">
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Load -->
-        <div class="premium-card flex-grow shadow-soft clickable" @click="goToPage(ROUTES.RUNTIME.SERVER)">
+        <div class="premium-card flex-grow shadow-soft clickable" @click="goToPage(ROUTES.MONITOR.SERVER)">
           <div class="card-glow"></div>
           <h3 class="card-head">物理负载<span class="head-line"></span></h3>
           <div class="load-bars">
@@ -191,7 +191,7 @@
       <!-- RIGHT: Tactical Board -->
       <aside class="col-battle">
         <!-- Top KPIs -->
-        <div class="premium-card clickable" @click="goToPage(ROUTES.RUNTIME.OVERVIEW)">
+        <div class="premium-card clickable" @click="goToPage(ROUTES.MONITOR.DASHBOARD)">
           <div class="card-glow"></div>
           <div class="mini-kpi-grid">
              <div class="mk-box">
@@ -206,7 +206,7 @@
         </div>
 
         <!-- Rank List -->
-        <div class="premium-card flex-grow battle-card clickable" @click="goToPage(ROUTES.RUNTIME.METRICS)">
+        <div class="premium-card flex-grow battle-card clickable" @click="goToPage(ROUTES.MONITOR.TOKENS)">
           <div class="card-glow"></div>
           <div class="battle-header">
             <h3 class="b-title">资源分布（按智能体）</h3>

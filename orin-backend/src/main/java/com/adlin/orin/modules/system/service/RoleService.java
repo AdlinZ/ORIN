@@ -4,6 +4,8 @@ import com.adlin.orin.modules.system.entity.SysRole;
 import com.adlin.orin.modules.system.repository.SysRoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,13 @@ public class RoleService {
      */
     public List<SysRole> getAllRoles() {
         return roleRepository.findAll();
+    }
+
+    /**
+     * 分页获取角色
+     */
+    public Page<SysRole> getAllRolesPageable(Pageable pageable) {
+        return roleRepository.findAll(pageable);
     }
 
     /**

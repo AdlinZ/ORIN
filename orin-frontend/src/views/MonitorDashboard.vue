@@ -507,9 +507,9 @@ const handleCardClick = (item) => {
   if (item.cardId === 'stat-tokens') {
     router.push('/dashboard/stats/tokens');
   } else if (item.cardId === 'stat-latency') {
-    router.push(ROUTES.RUNTIME.METRICS);
+    router.push(ROUTES.MONITOR.TOKENS);
   } else if (item.cardId === 'stat-agents') {
-    router.push(ROUTES.APPLICATIONS.AGENTS);
+    router.push(ROUTES.AGENTS.LIST);
   }
 };
 
