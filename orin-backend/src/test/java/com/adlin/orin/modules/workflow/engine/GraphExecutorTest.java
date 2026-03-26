@@ -5,6 +5,7 @@ import com.adlin.orin.modules.trace.service.TraceService;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
+import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -24,6 +25,9 @@ class GraphExecutorTest {
 
     @Mock
     private TraceService traceService;
+
+    @Mock
+    private LangfuseObservabilityService langfuseObservabilityService;
 
     private Map<String, NodeHandler> nodeHandlers;
 
@@ -54,7 +58,7 @@ class GraphExecutorTest {
             return NodeExecutionResult.success(Collections.emptyMap(), handle);
         });
 
-        graphExecutor = new GraphExecutor(nodeHandlers, eventPublisher, traceService);
+        graphExecutor = new GraphExecutor(nodeHandlers, eventPublisher, traceService, langfuseObservabilityService);
         graphExecutor.setInstanceId(1L);
     }
 

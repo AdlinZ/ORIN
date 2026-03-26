@@ -27,8 +27,17 @@ public class NotificationController {
     public ResponseEntity<Page<SystemMessage>> getMessages(
             @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId,
             @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String scope) {
+        return ResponseEntity.ok(notificationService.getUserMessages(userId, page, size, scope));
+    }
+
+    @Operation(summary = "获取广播消息")
+    @GetMapping("/broadcasts")
+    public ResponseEntity<Page<SystemMessage>> getBroadcasts(
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(notificationService.getUserMessages(userId, page, size));
+        return ResponseEntity.ok(notificationService.getBroadcasts(page, size));
     }
 
     @Operation(summary = "获取未读消息数")
@@ -68,8 +77,14 @@ public class NotificationController {
         String content = request.get("content");
         String type = request.getOrDefault("type", "INFO");
         String receiverId = request.get("receiverId");
+        String scope = request.getOrDefault("scope", "USER");
 
-        SystemMessage message = notificationService.sendMessage(title, content, type, receiverId, senderId);
+        // 自动判断：如果没有 receiverId 则为广播
+        if (receiverId == null || receiverId.isEmpty()) {
+            scope = "BROADCAST";
+        }
+
+        SystemMessage message = notificationService.sendMessage(title, content, type, receiverId, senderId, scope);
         return ResponseEntity.ok(message);
     }
 

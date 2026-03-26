@@ -19,4 +19,12 @@ public interface CollaborationPackageRepository extends JpaRepository<Collaborat
     List<CollaborationPackageEntity> findByTraceId(String traceId);
 
     List<CollaborationPackageEntity> findByRootTaskId(Long rootTaskId);
+
+    List<CollaborationPackageEntity> findByIntentPriority(String intentPriority);
+
+    List<CollaborationPackageEntity> findByStatusAndCreatedBy(String status, String createdBy);
+
+    List<CollaborationPackageEntity> findByIntentPriorityAndCreatedBy(String intentPriority, String createdBy);
+
+    List<CollaborationPackageEntity> findByIntentCategory(String category);
 }

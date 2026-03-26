@@ -30,6 +30,9 @@
         <el-select v-model="statusFilter" placeholder="状态筛选" clearable class="filter-select">
           <el-option label="ACTIVE (运行中)" value="RUNNING" />
           <el-option label="IDLE (已停止)" value="STOPPED" />
+          <el-option label="HIGH_LOAD (高负载)" value="HIGH_LOAD" />
+          <el-option label="ERROR (异常)" value="ERROR" />
+          <el-option label="UNKNOWN (未知)" value="UNKNOWN" />
         </el-select>
       </template>
     </PageHeader>
@@ -79,7 +82,7 @@
         <el-table-column prop="status" label="状态" width="120" align="center" sortable>
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="light">
-              {{ row.status === 'RUNNING' ? 'ACTIVE' : 'IDLE' }}
+              {{ formatStatus(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -221,7 +224,25 @@ const handleBulkDelete = () => {
 };
 
 const getStatusType = (status) => {
-  return status === 'RUNNING' ? 'success' : 'info';
+  const statusTypeMap = {
+    'RUNNING': 'success',
+    'STOPPED': 'info',
+    'HIGH_LOAD': 'warning',
+    'ERROR': 'danger',
+    'UNKNOWN': 'info'
+  };
+  return statusTypeMap[status] || 'info';
+};
+
+const formatStatus = (status) => {
+  const statusMap = {
+    'RUNNING': 'ACTIVE',
+    'STOPPED': 'IDLE',
+    'HIGH_LOAD': '高负载',
+    'ERROR': '异常',
+    'UNKNOWN': '未知'
+  };
+  return statusMap[status] || status || '未知';
 };
 
 const formatTime = (ts) => {

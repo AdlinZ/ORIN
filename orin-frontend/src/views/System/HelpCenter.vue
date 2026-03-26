@@ -7,25 +7,26 @@
     />
 
     <el-row :gutter="20">
-      <!-- 左侧导航 -->
+      <!-- 左侧导航：分类 -->
       <el-col :span="6">
         <el-card class="nav-card">
-          <el-menu :default-active="activeMenu" @select="handleMenuSelect">
-            <el-menu-item index="guide">
-              <el-icon><Guide /></el-icon>
-              <span>使用指南</span>
+          <div class="search-box">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索文章..."
+              prefix-icon="Search"
+              clearable
+              @keyup.enter="handleSearch"
+            />
+          </div>
+          <el-menu :default-active="activeCategory" @select="handleCategorySelect">
+            <el-menu-item index="">
+              <el-icon><List /></el-icon>
+              <span>全部文章</span>
             </el-menu-item>
-            <el-menu-item index="faq">
-              <el-icon><QuestionFilled /></el-icon>
-              <span>常见问题</span>
-            </el-menu-item>
-            <el-menu-item index="api">
-              <el-icon><Document /></el-icon>
-              <span>API 文档</span>
-            </el-menu-item>
-            <el-menu-item index="feedback">
-              <el-icon><ChatDotRound /></el-icon>
-              <span>反馈建议</span>
+            <el-menu-item v-for="cat in categories" :key="cat" :index="cat">
+              <el-icon><Folder /></el-icon>
+              <span>{{ cat }}</span>
             </el-menu-item>
           </el-menu>
         </el-card>
@@ -33,219 +34,228 @@
 
       <!-- 右侧内容 -->
       <el-col :span="18">
-        <!-- 使用指南 -->
-        <div v-if="activeMenu === 'guide'">
+        <!-- 文章列表 -->
+        <div v-if="!selectedArticle">
           <el-card>
             <template #header>
-              <span>系统使用指南</span>
+              <div class="card-header">
+                <span>{{ activeCategory ? activeCategory : '全部文章' }}</span>
+                <el-tag v-if="totalCount > 0" type="info" size="small">{{ totalCount }} 篇</el-tag>
+              </div>
             </template>
 
-            <el-timeline>
-              <el-timeline-item timestamp="快速开始" placement="top">
-                <h4>1. 快速开始</h4>
-                <ul>
-                  <li>完成系统登录后，进入首页仪表盘</li>
-                  <li>点击「智能体管理」创建您的第一个智能体</li>
-                  <li>配置智能体的模型、能力、技能</li>
-                  <li>开始与智能体对话</li>
-                </ul>
-              </el-timeline-item>
+            <div v-loading="loading">
+              <el-table :data="articles" v-if="articles.length > 0">
+                <el-table-column label="标题" min-width="200">
+                  <template #default="{ row }">
+                    <el-link type="primary" @click="viewArticle(row)">
+                      {{ row.title }}
+                    </el-link>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="category" label="分类" width="120" />
+                <el-table-column prop="viewCount" label="阅读" width="80" />
+                <el-table-column label="更新时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatDate(row.updatedAt) }}
+                  </template>
+                </el-table-column>
+              </el-table>
 
-              <el-timeline-item timestamp="智能体管理" placement="top">
-                <h4>2. 智能体管理</h4>
-                <ul>
-                  <li>支持创建、编辑、删除智能体</li>
-                  <li>可以为智能体绑定技能、MCP 工具</li>
-                  <li>支持配置智能体的温度、上下文长度等参数</li>
-                  <li>查看智能体的使用统计和对话历史</li>
-                </ul>
-              </el-timeline-item>
+              <el-empty v-else description="暂无文章" />
 
-              <el-timeline-item timestamp="知识库" placement="top">
-                <h4>3. 知识库使用</h4>
-                <ul>
-                  <li>创建知识库并上传文档</li>
-                  <li>系统自动进行文档解析和向量化</li>
-                  <li>智能体可引用知识库内容进行回答</li>
-                  <li>支持 RAG 检索效果测试</li>
-                </ul>
-              </el-timeline-item>
-
-              <el-timeline-item timestamp="工作流编排" placement="top">
-                <h4>4. 工作流编排</h4>
-                <ul>
-                  <li>使用可视化编辑器创建工作流</li>
-                  <li>拖拽节点设计智能体协作流程</li>
-                  <li>支持条件分支、循环等复杂逻辑</li>
-                  <li>发布工作流并在智能体中调用</li>
-                </ul>
-              </el-timeline-item>
-
-              <el-timeline-item timestamp="监控运维" placement="top">
-                <h4>5. 监控运维</h4>
-                <ul>
-                  <li>查看 Token 消耗和成本统计</li>
-                  <li>分析智能体响应时延</li>
-                  <li>配置告警规则和通知渠道</li>
-                  <li>追踪调用链路和调试问题</li>
-                </ul>
-              </el-timeline-item>
-            </el-timeline>
+              <div v-if="totalCount > pageSize" class="pagination">
+                <el-pagination
+                  v-model:current-page="currentPage"
+                  :page-size="pageSize"
+                  :total="totalCount"
+                  layout="prev, pager, next"
+                  @current-change="fetchArticles"
+                />
+              </div>
+            </div>
           </el-card>
         </div>
 
-        <!-- 常见问题 -->
-        <div v-if="activeMenu === 'faq'">
+        <!-- 文章详情 -->
+        <div v-else>
           <el-card>
             <template #header>
-              <span>常见问题</span>
-            </template>
-
-            <el-collapse v-model="activeFaq">
-              <el-collapse-item title="如何创建智能体?" name="faq1">
-                <div>点击「智能体管理」→「新建智能体」，填写名称、描述，选择模型后保存即可。您还可以为智能体添加技能和知识库。</div>
-              </el-collapse-item>
-
-              <el-collapse-item title="如何上传知识库文档?" name="faq2">
-                <div>进入「知识库管理」，选择或创建知识库，点击「上传文档」按钮，支持 PDF、Word、txt 等格式。系统会自动解析文档内容。</div>
-              </el-collapse-item>
-
-              <el-collapse-item title="智能体回复很慢怎么办?" name="faq3">
-                <div>1. 检查网络连接是否正常；2. 更换响应更快的模型；3. 在「监控运维」→「时延统计」中分析耗时节点；4. 减少上下文长度。</div>
-              </el-collapse-item>
-
-              <el-collapse-item title="如何配置告警通知?" name="faq4">
-                <div>进入「监控运维」→「通知渠道」，可以配置邮件、钉钉、企业微信等通知方式，然后在「告警规则」中创建触发条件。</div>
-              </el-collapse-item>
-
-              <el-collapse-item title="API Key 如何获取?" name="faq5">
-                <div>在「系统管理」→「API Key」页面，点击「创建 API Key」，设置名称和权限后即可获取。记得妥善保存，密钥只会显示一次。</div>
-              </el-collapse-item>
-
-              <el-collapse-item title="如何进行端侧同步?" name="faq6">
-                <div>进入「知识中心」→「端侧同步」，配置同步策略和目标设备。客户端安装对应 SDK 后即可接收知识库更新。</div>
-              </el-collapse-item>
-            </el-collapse>
-          </el-card>
-        </div>
-
-        <!-- API 文档 -->
-        <div v-if="activeMenu === 'api'">
-          <el-card>
-            <template #header>
-              <span>API 接口文档</span>
-            </template>
-
-            <el-alert type="info" :closable="false" show-icon>
-              <template #title>
-                <span>API 文档迁移中</span>
-              </template>
-              <template #default>
-                完整 API 文档请访问 <el-link type="primary">/api/docs</el-link> 或使用 Swagger UI
-              </template>
-            </el-alert>
-
-            <el-divider>基础接口</el-divider>
-
-            <h4>智能体对话</h4>
-            <el-table :data="apiList" size="small">
-              <el-table-column prop="method" label="方法" width="80">
-                <template #default="{ row }">
-                  <el-tag :type="row.method === 'GET' ? 'success' : row.method === 'POST' ? 'primary' : 'warning'" size="small">
-                    {{ row.method }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="path" label="路径" min-width="200" />
-              <el-table-column prop="desc" label="描述" />
-            </el-table>
-          </el-card>
-        </div>
-
-        <!-- 反馈建议 -->
-        <div v-if="activeMenu === 'feedback'">
-          <el-card>
-            <template #header>
-              <span>反馈与建议</span>
-            </template>
-
-            <el-form :model="feedbackForm" label-width="80px">
-              <el-form-item label="反馈类型">
-                <el-radio-group v-model="feedbackForm.type">
-                  <el-radio value="bug">Bug 报告</el-radio>
-                  <el-radio value="feature">功能建议</el-radio>
-                  <el-radio value="other">其他</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item label="标题">
-                <el-input v-model="feedbackForm.title" placeholder="请简要描述问题" />
-              </el-form-item>
-              <el-form-item label="详细内容">
-                <el-input v-model="feedbackForm.content" type="textarea" :rows="6" placeholder="请详细描述您遇到的问题或建议" />
-              </el-form-item>
-              <el-form-item label="联系方式">
-                <el-input v-model="feedbackForm.contact" placeholder="邮箱或微信（选填）" />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" :loading="submitting" @click="submitFeedback">
-                  提交反馈
+              <div class="article-header">
+                <el-button text @click="selectedArticle = null">
+                  <el-icon><ArrowLeft /></el-icon>
+                  返回列表
                 </el-button>
-              </el-form-item>
-            </el-form>
+              </div>
+            </template>
+
+            <div class="article-content">
+              <h1>{{ selectedArticle.title }}</h1>
+              <div class="article-meta">
+                <el-tag size="small">{{ selectedArticle.category }}</el-tag>
+                <span class="meta-item">
+                  <el-icon><View /></el-icon>
+                  {{ selectedArticle.viewCount }} 次阅读
+                </span>
+                <span class="meta-item">
+                  更新时间：{{ formatDate(selectedArticle.updatedAt) }}
+                </span>
+              </div>
+
+              <el-divider />
+
+              <div class="markdown-body" v-html="renderContent(selectedArticle.content)"></div>
+            </div>
           </el-card>
         </div>
+
+        <!-- 静态降级内容：搜索无结果时显示 -->
+        <el-card v-if="showFallback && !selectedArticle" class="fallback-card">
+          <template #header>
+            <span>推荐阅读</span>
+          </template>
+          <el-timeline>
+            <el-timeline-item timestamp="快速开始" placement="top">
+              <h4>1. 快速开始</h4>
+              <ul>
+                <li>完成系统登录后，进入首页仪表盘</li>
+                <li>点击「智能体管理」创建您的第一个智能体</li>
+                <li>配置智能体的模型、能力、技能</li>
+                <li>开始与智能体对话</li>
+              </ul>
+            </el-timeline-item>
+            <el-timeline-item timestamp="智能体管理" placement="top">
+              <h4>2. 智能体管理</h4>
+              <ul>
+                <li>支持创建、编辑、删除智能体</li>
+                <li>可以为智能体绑定技能、MCP 工具</li>
+                <li>支持配置智能体的温度、上下文长度等参数</li>
+              </ul>
+            </el-timeline-item>
+          </el-timeline>
+        </el-card>
       </el-col>
     </el-row>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { List, Folder, ArrowLeft, View } from '@element-plus/icons-vue'
+import { marked } from 'marked'
 import PageHeader from '@/components/PageHeader.vue'
-import request from '@/utils/request'
+import {
+  getHelpArticles,
+  getHelpArticle,
+  searchHelpArticles,
+  getHelpCategories
+} from '@/api/help'
+import dayjs from 'dayjs'
 
-const activeMenu = ref('guide')
-const activeFaq = ref(['faq1'])
+const loading = ref(false)
+const articles = ref([])
+const categories = ref([])
+const selectedArticle = ref(null)
+const activeCategory = ref('')
+const searchKeyword = ref('')
+const showFallback = ref(false)
 
-const feedbackForm = reactive({
-  type: 'bug',
-  title: '',
-  content: '',
-  contact: ''
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+const totalCount = ref(0)
+
+onMounted(async () => {
+  await fetchCategories()
+  await fetchArticles()
 })
 
-const submitting = ref(false)
-
-const apiList = ref([
-  { method: 'POST', path: '/api/v1/agents/:id/chat', desc: '智能体对话' },
-  { method: 'GET', path: '/api/v1/agents', desc: '获取智能体列表' },
-  { method: 'POST', path: '/api/v1/knowledge', desc: '创建知识库' },
-  { method: 'POST', path: '/api/v1/knowledge/:id/documents', desc: '上传文档' },
-  { method: 'GET', path: '/api/v1/monitor/stats', desc: '获取监控统计' }
-])
-
-const handleMenuSelect = (index) => {
-  activeMenu.value = index
+const fetchCategories = async () => {
+  try {
+    const res = await getHelpCategories()
+    categories.value = res.data || res || []
+  } catch (e) {
+    console.error('获取分类失败:', e)
+    categories.value = ['快速开始', '智能体管理', '知识库', '工作流', 'API接口']
+  }
 }
 
-const submitFeedback = async () => {
-  if (!feedbackForm.title || !feedbackForm.content) {
-    ElMessage.warning('请填写标题和内容')
+const fetchArticles = async () => {
+  loading.value = true
+  showFallback.value = false
+  try {
+    const params = {
+      page: currentPage.value - 1,
+      size: pageSize.value,
+      category: activeCategory.value || undefined
+    }
+    const res = await getHelpArticles(params)
+    const data = res.data || res
+    articles.value = data.content || []
+    totalCount.value = data.totalElements || data.total || articles.value.length
+  } catch (e) {
+    console.error('获取文章列表失败:', e)
+    articles.value = []
+    showFallback.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleCategorySelect = (index) => {
+  activeCategory.value = index
+  currentPage.value = 1
+  selectedArticle.value = null
+  fetchArticles()
+}
+
+const handleSearch = async () => {
+  if (!searchKeyword.value.trim()) {
+    activeCategory.value = ''
+    fetchArticles()
     return
   }
 
-  submitting.value = true
+  loading.value = true
   try {
-    await request.post('/system/feedback', feedbackForm)
-    ElMessage.success('反馈已提交，感谢您的建议')
-    feedbackForm.title = ''
-    feedbackForm.content = ''
-    feedbackForm.contact = ''
+    const res = await searchHelpArticles(searchKeyword.value, 0, 20)
+    const data = res.data || res
+    articles.value = data.content || data || []
+    totalCount.value = articles.value.length
+    showFallback.value = articles.value.length === 0
   } catch (e) {
-    ElMessage.error('提交失败: ' + (e.message || e))
+    console.error('搜索失败:', e)
+    showFallback.value = true
   } finally {
-    submitting.value = false
+    loading.value = false
+  }
+}
+
+const viewArticle = async (article) => {
+  try {
+    const res = await getHelpArticle(article.id)
+    selectedArticle.value = res.data || res
+  } catch (e) {
+    console.error('获取文章详情失败:', e)
+    ElMessage.error('获取文章详情失败')
+  }
+}
+
+const formatDate = (date) => {
+  if (!date) return '-'
+  if (Array.isArray(date)) {
+    return dayjs(new Date(date[0], date[1] - 1, date[2], date[3] || 0, date[4] || 0)).format('YYYY-MM-DD HH:mm')
+  }
+  return dayjs(date).format('YYYY-MM-DD HH:mm')
+}
+
+const renderContent = (content) => {
+  if (!content) return ''
+  try {
+    return marked(content)
+  } catch (e) {
+    return content
   }
 }
 </script>
@@ -258,6 +268,85 @@ const submitFeedback = async () => {
 .nav-card {
   position: sticky;
   top: 20px;
+}
+
+.search-box {
+  margin-bottom: 12px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.article-header {
+  display: flex;
+  align-items: center;
+}
+
+.article-content h1 {
+  margin: 0 0 16px;
+  font-size: 24px;
+}
+
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.markdown-body {
+  line-height: 1.8;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3) {
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.markdown-body :deep(p) {
+  margin-bottom: 12px;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 24px;
+  margin-bottom: 12px;
+}
+
+.markdown-body :deep(code) {
+  background: var(--el-fill-color-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.markdown-body :deep(pre) {
+  background: var(--el-fill-color-light);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.fallback-card {
+  margin-top: 20px;
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
 }
 
 h4 {

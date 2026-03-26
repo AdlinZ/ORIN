@@ -137,15 +137,16 @@ public class TaskQueueConsumer {
             task.setNextRetryAt(nextRetryAt);
             taskRepository.save(task);
 
-            // 更新消息并重新入队
+            // 更新消息
             taskMessage.setRetryCount(currentRetry + 1);
             taskMessage.setErrorMessage(e.getMessage());
 
-            // 延迟发送重试任务
-            taskQueueProducer.sendToRetry(taskMessage);
+            // 标记为延迟重试，由 RetryScheduler 定时检查并发送
+            taskMessage.setDelayedRetry(true);
+            taskMessage.setDelayMillis(delay);
 
-            log.info("Task scheduled for retry: taskId={}, retryCount={}, nextRetryAt={}",
-                    taskMessage.getTaskId(), currentRetry + 1, nextRetryAt);
+            log.info("Task scheduled for delayed retry: taskId={}, retryCount={}, delay={}ms, nextRetryAt={}",
+                    taskMessage.getTaskId(), currentRetry + 1, delay, nextRetryAt);
 
         } else {
             // 超过最大重试次数，进入死信队列

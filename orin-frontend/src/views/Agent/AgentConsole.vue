@@ -1,365 +1,382 @@
 <template>
-  <div class="console-page">
-    <PageHeader
-      title="应用控制台"
-      description="实时调试应用行为并调整运行参数"
-      icon="Monitor"
-    />
-    
-    <div class="console-container">
-      <!-- Left: Main Runner Area -->
-      <div class="runner-panel">
-        <!-- Mode Selector Bar -->
-        <div class="mode-bar">
-          <el-radio-group v-model="currentMode" size="small" class="mode-group">
-            <el-radio-button
-              v-for="mode in modeOptions"
-              :key="mode.value"
-              :label="mode.value"
-            >
-              <span class="mode-label">{{ mode.label }}</span>
-            </el-radio-button>
-          </el-radio-group>
-          <div class="mode-bar-actions">
-            <el-button link :icon="ArrowLeft" @click="handleBack" title="返回列表" />
-          </div>
-        </div>
+  <div class="page-shell">
+    <div class="page-ambient ambient-one"></div>
+    <div class="page-ambient ambient-two"></div>
 
-        <!-- Runner Component Container -->
-        <div class="runner-container">
-          <component 
-            :is="activeRunner" 
-            :agentId="agentId" 
-            :agentInfo="agentInfo"
-            :parameters="currentParameters"
-            :logs="logs"
-            @refresh-logs="fetchLogs"
-          />
-        </div>
-      </div>
-
-      <!-- Right: Config Sidebar -->
+    <div class="dashboard-layout">
       <aside class="config-sidebar">
-        <!-- Sidebar Header -->
-        <div class="sidebar-header">
-          <div class="header-title">
-            <el-icon><Setting /></el-icon>
-            <h3>配置中心</h3>
-          </div>
-          <div class="header-controls">
-            <el-tooltip content="配置快照">
-              <el-button 
-                link 
-                :icon="Tickets" 
-                @click="showSnapshotPanel = !showSnapshotPanel"
-                :class="{ active: showSnapshotPanel }"
-              />
-            </el-tooltip>
-            <el-button 
-              type="primary" 
-              size="small"
-              :loading="saveLoading"
-              @click="saveConfig"
-            >
-              <el-icon><CircleCheck /></el-icon>
-              保存
-            </el-button>
-          </div>
-        </div>
-
-        <!-- Status Indicator -->
-        <div class="status-bar">
-          <div v-if="hasUnsavedChanges" class="status warning">
-            <div class="status-dot"></div>
-            <span>有未保存的更改</span>
-          </div>
-          <div v-else class="status saved">
-            <div class="status-dot"></div>
-            <span>已保存</span>
-          </div>
-        </div>
-
-        <!-- Config Content -->
-        <div class="sidebar-content">
-          <!-- Snapshot Panel (Conditional) -->
-          <div v-if="showSnapshotPanel" class="snapshot-panel">
-            <div class="panel-title">最近快照</div>
-            <div v-if="configSnapshots.length === 0" class="empty-state">
-              <el-icon><Tickets /></el-icon>
-              <span>暂无快照</span>
-            </div>
-            <div v-else class="snapshot-list">
-              <div 
-                v-for="snapshot in configSnapshots"
-                :key="snapshot.id"
-                class="snapshot-item"
-                @click="applySnapshot(snapshot.id)"
+        <div class="sidebar-card">
+          <div class="sidebar-header">
+            <div class="sidebar-header-top">
+              <el-button
+                link
+                :icon="ArrowLeft"
+                @click="$router.push(ROUTES.AGENTS.LIST)"
+                class="back-btn"
               >
-                <div class="snapshot-time">{{ formatSnapshotTime(snapshot.timestamp) }}</div>
-                <div class="snapshot-note">{{ snapshot.label }}</div>
-                <el-button size="small" type="text">恢复</el-button>
+                返回智能体列表
+              </el-button>
+              <el-button
+                circle
+                :icon="Setting"
+                class="settings-trigger"
+                @click="settingsVisible = !settingsVisible"
+              />
+            </div>
+
+            <div class="agent-profile">
+              <div class="agent-avatar" :style="{ background: currentAccent.soft, color: currentAccent.strong }">
+                <el-icon><component :is="getViewIcon(agentInfo.viewType)" /></el-icon>
+              </div>
+              <div class="agent-profile-info">
+                <h2>{{ editForm.name || agentInfo.agentName || '智能体控制台' }}</h2>
+                <p>{{ agentInfo.modelName || editForm.model || '未识别模型信息' }}</p>
               </div>
             </div>
-            <div class="panel-action">
-              <el-button @click="createSnapshot" icon="Plus" size="small" block>
-                新建快照
-              </el-button>
+
+            <div class="identity-tags">
+              <el-tag size="small" effect="plain" :type="getViewTagType(agentInfo.viewType)">
+                {{ getViewLabel(agentInfo.viewType) }}
+              </el-tag>
+              <el-tag size="small" effect="plain" :type="getProviderTagType(agentInfo.providerType)">
+                {{ agentInfo.providerType || '本地运行' }}
+              </el-tag>
+              <el-tag size="small" effect="plain">
+                ID: {{ agentId }}
+              </el-tag>
+            </div>
+
+            <div v-if="!settingsVisible" class="sidebar-context">
+              <div class="stage-kicker">
+                <el-icon><component :is="getProviderIcon(agentInfo.providerType)" /></el-icon>
+                <span>{{ agentInfo.providerType || 'ORIN Runtime' }}</span>
+              </div>
+              <p>当前为 {{ getModeLabel(currentMode) }}，该页面固定当前智能体能力，不提供模式切换。</p>
+              <div class="context-metrics">
+                <div class="context-pill primary">
+                  <span>状态</span>
+                  <strong>{{ runtimeStatusLabel }}</strong>
+                </div>
+                <div class="context-pill">
+                  <span>Prompt 模板</span>
+                  <strong>{{ promptTemplates.length }}</strong>
+                </div>
+              </div>
+              <div class="agent-meta-grid">
+                <div class="agent-meta-card accent">
+                  <span>最近日志</span>
+                  <strong>{{ latestLogTime }}</strong>
+                </div>
+                <div class="agent-meta-card">
+                  <span>模式</span>
+                  <strong>{{ getModeLabel(currentMode) }}</strong>
+                </div>
+                <div class="agent-meta-card">
+                  <span>模型</span>
+                  <strong>{{ editForm.model || agentInfo.modelName || '未设置' }}</strong>
+                </div>
+                <div class="agent-meta-card">
+                  <span>能力类型</span>
+                  <strong>{{ getViewLabel(agentInfo.viewType || currentMode) }}</strong>
+                </div>
+                <div class="agent-meta-card">
+                  <span>提供方</span>
+                  <strong>{{ agentInfo.providerType || 'Local' }}</strong>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Config Form -->
-          <el-form v-else :model="editForm" label-position="top" class="config-form">
-            <!-- Basic Settings Section -->
-            <div class="config-group">
-              <div class="group-header">
-                <el-icon><Menu /></el-icon>
-                <span>基础设置</span>
-              </div>
-              <div class="group-content">
-                <el-form-item label="名称" required>
-                  <el-input 
-                    v-model="editForm.name" 
-                    placeholder="输入智能体名称"
-                    clearable
-                    maxlength="100"
-                  />
-                </el-form-item>
-                <el-form-item label="模型" required>
-                  <el-input 
-                    v-model="editForm.model" 
-                    placeholder="核心模型"
-                    clearable
-                  />
-                </el-form-item>
+          <div v-if="settingsVisible" class="sidebar-body">
+            <div class="settings-panel-head">
+              <div class="settings-title">智能体信息与设置</div>
+              <div class="settings-actions">
+                <el-button size="small" @click="settingsVisible = false">关闭</el-button>
+                <el-button type="primary" size="small" @click="saveConfig" :loading="saveLoading">
+                  保存
+                </el-button>
               </div>
             </div>
 
-            <!-- Inference Parameters Section -->
-            <div v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent" class="config-group">
-              <div class="group-header">
-                <el-icon><Operation /></el-icon>
-                <span>推理参数</span>
+            <el-form :model="editForm" label-position="top" class="playground-form">
+              <div class="config-section">
+                <div class="section-title">
+                  <el-icon><Menu /></el-icon>
+                  <span>基础设置</span>
+                </div>
+                <div class="section-panel">
+                  <el-form-item label="名称">
+                    <el-input v-model="editForm.name" placeholder="设置智能体名称" />
+                  </el-form-item>
+                  <el-form-item label="模型">
+                    <el-input v-model="editForm.model" placeholder="核心模型架构" />
+                  </el-form-item>
+                </div>
               </div>
-              <div class="group-content">
-                <!-- Temperature Slider -->
-                <div class="param-item">
-                  <div class="param-header">
-                    <label>Temperature</label>
-                    <span class="param-value">{{ editForm.temperature.toFixed(2) }}</span>
-                  </div>
-                  <el-slider 
-                    v-model="editForm.temperature" 
-                    :min="0" 
-                    :max="2" 
-                    :step="0.01"
-                  />
-                  <div class="param-hint">控制生成结果的多样性，越高越随机</div>
-                </div>
 
-                <!-- Top P Slider -->
-                <div class="param-item">
-                  <div class="param-header">
-                    <label>Top P</label>
-                    <span class="param-value">{{ editForm.topP.toFixed(2) }}</span>
-                  </div>
-                  <el-slider 
-                    v-model="editForm.topP" 
-                    :min="0" 
-                    :max="1" 
-                    :step="0.01"
-                  />
-                  <div class="param-hint">核采样，限制采样范围</div>
+              <div class="config-section" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
+                <div class="section-title">
+                  <el-icon><Operation /></el-icon>
+                  <span>推理参数</span>
                 </div>
-
-                <!-- Thinking Toggle -->
-                <div class="thinking-box">
-                  <div class="thinking-header">
-                    <span class="thinking-title">深度思考</span>
-                    <el-switch v-model="editForm.enableThinking" />
-                  </div>
-                  <el-collapse-transition>
-                    <div v-if="editForm.enableThinking" class="thinking-content">
-                      <el-form-item label="思考预算 (Tokens)">
-                        <el-input-number 
-                          v-model="editForm.thinkingBudget" 
-                          :min="0" 
-                          :max="64000" 
-                          :step="1024"
-                        />
-                      </el-form-item>
+                <div class="section-panel">
+                  <div class="param-group">
+                    <div class="param-header">
+                      <div class="param-label-wrap">
+                        <span class="param-label">Temperature</span>
+                        <span class="param-desc">控制回复随机性和创造力</span>
+                      </div>
+                      <span class="value-badge">{{ editForm.temperature }}</span>
                     </div>
-                  </el-collapse-transition>
+                    <el-slider v-model="editForm.temperature" :min="0" :max="2" :step="0.1" />
+                  </div>
+
+                  <div class="param-group">
+                    <div class="param-header">
+                      <div class="param-label-wrap">
+                        <span class="param-label">Top P</span>
+                        <span class="param-desc">限制采样范围，收敛输出风格</span>
+                      </div>
+                      <span class="value-badge">{{ editForm.topP }}</span>
+                    </div>
+                    <el-slider v-model="editForm.topP" :min="0" :max="1" :step="0.1" />
+                  </div>
+
+                  <div class="thinking-card">
+                    <div class="thinking-main">
+                      <div>
+                        <div class="thinking-title">深度思考</div>
+                        <div class="thinking-desc">启用推理链输出与预算控制</div>
+                      </div>
+                      <el-switch v-model="editForm.enableThinking" />
+                    </div>
+                    <div v-if="editForm.enableThinking" class="thinking-extra">
+                      <span>思考预算 Tokens</span>
+                      <el-input-number
+                        v-model="editForm.thinkingBudget"
+                        :min="0"
+                        :max="64000"
+                        :step="1024"
+                        controls-position="right"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- System Prompt Section -->
-            <div v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent" class="config-group">
-              <div class="group-header">
-                <el-icon><ChatDotRound /></el-icon>
-                <span>人设指令</span>
-              </div>
-              <div class="group-content">
-                <el-form-item label="System Prompt">
-                  <el-input 
-                    v-model="editForm.systemPrompt" 
+              <div class="config-section" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
+                <div class="section-title">
+                  <el-icon><ChatDotRound /></el-icon>
+                  <span>人设指令</span>
+                </div>
+                <div class="section-panel">
+                  <div class="prompt-toolbar">
+                    <span>System Prompt</span>
+                    <el-select
+                      v-model="selectedPromptTemplate"
+                      placeholder="模板"
+                      size="small"
+                      class="template-select"
+                      @change="applyPromptTemplate"
+                    >
+                      <el-option
+                        v-for="t in promptTemplates"
+                        :key="t.id"
+                        :label="t.name"
+                        :value="t.content"
+                      />
+                    </el-select>
+                  </div>
+                  <el-input
+                    v-model="editForm.systemPrompt"
                     type="textarea"
-                    :rows="6"
-                    placeholder="定义智能体的身份、角色和回复风格..."
-                  />
-                </el-form-item>
-              </div>
-            </div>
-
-            <!-- Image Generation Section -->
-            <div v-if="isImageGenerationAgent" class="config-group">
-              <div class="group-header">
-                <el-icon><Picture /></el-icon>
-                <span>图像生成参数</span>
-              </div>
-              <div class="group-content">
-                <el-form-item label="图像尺寸">
-                  <el-select v-model="editForm.imageSize">
-                    <el-option label="1:1 (1328x1328)" value="1328x1328" />
-                    <el-option label="16:9 (1664x928)" value="1664x928" />
-                    <el-option label="9:16 (928x1664)" value="928x1664" />
-                    <el-option label="4:3 (1472x1140)" value="1472x1140" />
-                    <el-option label="3:4 (1140x1472)" value="1140x1472" />
-                  </el-select>
-                </el-form-item>
-
-                <div class="param-item">
-                  <div class="param-header">
-                    <label>引导系数 (CFG)</label>
-                    <span class="param-value">{{ editForm.guidanceScale.toFixed(1) }}</span>
-                  </div>
-                  <el-slider 
-                    v-model="editForm.guidanceScale" 
-                    :min="1" 
-                    :max="20" 
-                    :step="0.5"
-                  />
-                </div>
-
-                <div class="param-item">
-                  <div class="param-header">
-                    <label>推理步数</label>
-                    <span class="param-value">{{ editForm.inferenceSteps }}</span>
-                  </div>
-                  <el-slider 
-                    v-model="editForm.inferenceSteps" 
-                    :min="1" 
-                    :max="50"
-                  />
-                </div>
-
-                <el-form-item label="随机种子">
-                  <el-input 
-                    v-model="editForm.seed" 
-                    placeholder="留空则随机生成"
-                  >
-                    <template #append>
-                      <el-button @click="generateRandomSeed">随机</el-button>
-                    </template>
-                  </el-input>
-                </el-form-item>
-
-                <el-form-item label="反向提示词">
-                  <el-input 
-                    v-model="editForm.negativePrompt" 
-                    type="textarea"
-                    :rows="3"
-                    placeholder="描述不希望在图像中出现的内容..."
-                  />
-                </el-form-item>
-              </div>
-            </div>
-
-            <!-- Video Generation Section -->
-            <div v-if="isTTVAgent" class="config-group">
-              <div class="group-header">
-                <el-icon><VideoPlay /></el-icon>
-                <span>视频生成参数</span>
-              </div>
-              <div class="group-content">
-                <el-form-item v-if="!editForm.model?.includes('I2V')" label="视频比例">
-                  <el-radio-group v-model="editForm.videoSize">
-                    <el-radio-button value="16:9">16:9</el-radio-button>
-                    <el-radio-button value="9:16">9:16</el-radio-button>
-                    <el-radio-button value="1:1">1:1</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-
-                <el-form-item label="随机种子">
-                  <el-input 
-                    v-model="editForm.seed" 
-                    placeholder="留空则随机"
-                  >
-                    <template #append>
-                      <el-button @click="generateRandomSeed">随机</el-button>
-                    </template>
-                  </el-input>
-                </el-form-item>
-
-                <el-form-item label="反向提示词">
-                  <el-input 
-                    v-model="editForm.negativePrompt" 
-                    type="textarea"
-                    :rows="3"
-                    placeholder="不希望出现的内容..."
-                  />
-                </el-form-item>
-              </div>
-            </div>
-
-            <!-- TTS Section -->
-            <div v-if="isTTSAgent" class="config-group">
-              <div class="group-header">
-                <el-icon><Microphone /></el-icon>
-                <span>语音合成配置</span>
-              </div>
-              <div class="group-content">
-                <el-form-item label="音色 (Voice)">
-                  <el-select v-model="editForm.voice" placeholder="选择音色">
-                    <el-option label="Alex" value="alex" />
-                    <el-option label="Anna" value="anna" />
-                    <el-option label="Bella" value="bella" />
-                    <el-option label="Benjamin" value="benjamin" />
-                  </el-select>
-                </el-form-item>
-
-                <div class="param-item">
-                  <div class="param-header">
-                    <label>语速</label>
-                    <span class="param-value">{{ editForm.speed.toFixed(1) }}x</span>
-                  </div>
-                  <el-slider 
-                    v-model="editForm.speed" 
-                    :min="0.5" 
-                    :max="2.0" 
-                    :step="0.1"
-                  />
-                </div>
-
-                <div class="param-item">
-                  <div class="param-header">
-                    <label>音量增益</label>
-                    <span class="param-value">{{ editForm.gain }}dB</span>
-                  </div>
-                  <el-slider 
-                    v-model="editForm.gain" 
-                    :min="-10" 
-                    :max="10"
+                    :rows="8"
+                    placeholder="定义智能体的身份、回复风格和约束条件..."
                   />
                 </div>
               </div>
-            </div>
-          </el-form>
+
+              <div class="config-section" v-if="isImageGenerationAgent">
+                <div class="section-title">
+                  <el-icon><Picture /></el-icon>
+                  <span>图像生成参数</span>
+                </div>
+                <div class="section-panel">
+                  <el-form-item label="图像尺寸 (Image Size)">
+                    <el-select v-model="editForm.imageSize">
+                      <el-option label="正方形 1:1 (1328x1328)" value="1328x1328" />
+                      <el-option label="横屏 16:9 (1664x928)" value="1664x928" />
+                      <el-option label="竖屏 9:16 (928x1664)" value="928x1664" />
+                      <el-option label="标准 4:3 (1472x1140)" value="1472x1140" />
+                      <el-option label="标准 3:4 (1140x1472)" value="1140x1472" />
+                      <el-option label="经典 3:2 (1584x1056)" value="1584x1056" />
+                      <el-option label="经典 2:3 (1056x1584)" value="1584x1056" />
+                    </el-select>
+                  </el-form-item>
+
+                  <el-form-item label="随机种子 (Seed)">
+                    <el-input v-model="editForm.seed" placeholder="留空则随机生成">
+                      <template #append>
+                        <el-button :icon="Refresh" @click="generateRandomSeed" />
+                      </template>
+                    </el-input>
+                  </el-form-item>
+
+                  <div class="param-group">
+                    <div class="param-header">
+                      <div class="param-label-wrap">
+                        <span class="param-label">CFG Scale</span>
+                        <span class="param-desc">提示词约束强度</span>
+                      </div>
+                      <span class="value-badge">{{ editForm.guidanceScale || 7.5 }}</span>
+                    </div>
+                    <el-slider v-model="editForm.guidanceScale" :min="1" :max="20" :step="0.5" />
+                  </div>
+
+                  <div class="param-group">
+                    <div class="param-header">
+                      <div class="param-label-wrap">
+                        <span class="param-label">Steps</span>
+                        <span class="param-desc">影响生成质量与耗时</span>
+                      </div>
+                      <span class="value-badge">{{ editForm.inferenceSteps || 20 }}</span>
+                    </div>
+                    <el-slider v-model="editForm.inferenceSteps" :min="1" :max="50" :step="1" />
+                  </div>
+
+                  <el-form-item label="反向提示词 (Negative Prompt)">
+                    <el-input
+                      v-model="editForm.negativePrompt"
+                      type="textarea"
+                      :rows="3"
+                      placeholder="描述你不希望出现在图像中的元素..."
+                    />
+                  </el-form-item>
+                </div>
+              </div>
+
+              <div class="config-section" v-if="isTTVAgent">
+                <div class="section-title">
+                  <el-icon><VideoCamera /></el-icon>
+                  <span>视频生成参数</span>
+                </div>
+                <div class="section-panel">
+                  <el-form-item label="视频比例 (Aspect Ratio)" v-if="!editForm.model?.includes('I2V')">
+                    <el-radio-group v-model="editForm.videoSize" size="small">
+                      <el-radio-button value="16:9" label="16:9" />
+                      <el-radio-button value="9:16" label="9:16" />
+                      <el-radio-button value="1:1" label="1:1" />
+                    </el-radio-group>
+                  </el-form-item>
+
+                  <el-form-item label="随机种子 (Seed)">
+                    <el-input v-model="editForm.seed" placeholder="留空则随机">
+                      <template #append>
+                        <el-button :icon="Refresh" @click="generateRandomSeed" />
+                      </template>
+                    </el-input>
+                  </el-form-item>
+
+                  <el-form-item label="反向提示词 (Negative Prompt)">
+                    <el-input
+                      v-model="editForm.negativePrompt"
+                      type="textarea"
+                      :rows="2"
+                      placeholder="描述不希望出现的内容..."
+                    />
+                  </el-form-item>
+                </div>
+              </div>
+
+              <div class="config-section" v-if="isTTSAgent">
+                <div class="section-title">
+                  <el-icon><Microphone /></el-icon>
+                  <span>语音合成配置</span>
+                </div>
+                <div class="section-panel">
+                  <el-form-item label="音色 (Voice)">
+                    <el-select v-model="editForm.voice" placeholder="请选择音色" filterable allow-create clearable>
+                      <el-option label="Alex" value="alex" />
+                      <el-option label="Anna" value="anna" />
+                      <el-option label="Bella" value="bella" />
+                      <el-option label="Benjamin" value="benjamin" />
+                      <el-option label="Charles" value="charles" />
+                      <el-option label="David" value="david" />
+                    </el-select>
+                    <div class="helper-text">具体可用音色取决于所选模型能力</div>
+                  </el-form-item>
+
+                  <div class="param-group">
+                    <div class="param-header">
+                      <div class="param-label-wrap">
+                        <span class="param-label">Speed</span>
+                        <span class="param-desc">输出语速倍率</span>
+                      </div>
+                      <span class="value-badge">{{ editForm.speed || 1.0 }}x</span>
+                    </div>
+                    <el-slider v-model="editForm.speed" :min="0.5" :max="2.0" :step="0.1" />
+                  </div>
+
+                  <div class="param-group">
+                    <div class="param-header">
+                      <div class="param-label-wrap">
+                        <span class="param-label">Gain</span>
+                        <span class="param-desc">输出音量增益</span>
+                      </div>
+                      <span class="value-badge">{{ editForm.gain || 0 }} dB</span>
+                    </div>
+                    <el-slider v-model="editForm.gain" :min="-10" :max="10" :step="1" />
+                  </div>
+                </div>
+              </div>
+            </el-form>
+          </div>
         </div>
+      </aside>
 
-        <!-- Sidebar Footer: Save Actions -->
-        <div class="sidebar-footer">
-          <el-button @click="handleBack" block>返回列表</el-button>
+      <main class="chat-main">
+        <section class="stage-shell">
+          <div class="runner-frame">
+            <component
+              :is="activeRunner"
+              :agent-id="agentId"
+              :agent-info="agentInfo"
+              :parameters="currentParameters"
+              :mode="currentMode"
+            />
+          </div>
+        </section>
+      </main>
+
+      <aside class="history-sidebar">
+        <div class="history-card">
+          <div class="history-header">
+            <div>
+              <div class="history-kicker">Timeline</div>
+              <h3>执行历史</h3>
+            </div>
+            <el-button link :icon="Refresh" @click="fetchLogs">刷新</el-button>
+          </div>
+
+          <div class="history-content">
+            <div v-if="loading" class="history-empty">正在加载历史记录...</div>
+            <div v-else-if="!logs || logs.length === 0" class="history-empty">
+              暂无历史记录，发起一次对话或生成任务后这里会出现时间线。
+            </div>
+            <button
+              v-for="(log, idx) in logs"
+              :key="idx"
+              type="button"
+              class="history-item"
+              @click="restoreHistory(log)"
+            >
+              <div class="history-item-top">
+                <span class="history-time">{{ formatTime(log.timestamp) }}</span>
+                <el-tag size="small" effect="plain" class="history-tag">{{ log.type || 'LOG' }}</el-tag>
+              </div>
+              <div class="history-preview">{{ log.content || (log.response ? '[' + log.status + '] ' + log.response?.substring(0, 80) : (log.sessionId ? '会话: ' + log.sessionId : (log.duration ? '耗时: ' + log.duration + 'ms' : '无内容'))) }}</div>
+            </button>
+          </div>
         </div>
       </aside>
     </div>
@@ -367,60 +384,36 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, onBeforeUnmount, reactive, computed, nextTick } from 'vue';
-import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
+import { ref, onMounted, onUnmounted, onBeforeUnmount, computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { ROUTES } from '@/router/routes';
-import { 
-  ChatDotRound, Monitor, Setting, Position, UserFilled,
-  VideoPlay, VideoPause, VideoCamera, Refresh, Cpu, ArrowLeft,
-  ArrowUp, ArrowDown, Timer, CircleCheck, Tickets,
-  Microphone, Picture, Connection, Clock, Close, Service, Plus,
-  Menu, ElementPlus as LightningIcon, Headset
+import {
+  ChatDotRound, VideoCamera, Refresh, Cpu, ArrowLeft,
+  Microphone, Picture, Connection, Service,
+  Menu, ElementPlus as LightningIcon, Headset, Setting
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import { getAgentMetadata, updateAgent, chatAgent } from '@/api/agent';
-import { getAgentMetrics, getAgentList as getMonitorAgentList } from '@/api/monitor';
-import { getAgentLogs, controlAgent } from '@/api/runtime';
+import { getAgentMetadata, updateAgent } from '@/api/agent';
+import { getAgentList as getMonitorAgentList } from '@/api/monitor';
+import { getAgentLogs } from '@/api/runtime';
 import request from '@/utils/request';
-import PageHeader from '@/components/PageHeader.vue';
 
-// Runners
-import ChatWindow from './components/ChatWindow.vue';
-import WorkflowRunner from './components/WorkflowRunner.vue';
-import CompletionRunner from './components/CompletionRunner.vue';
-import AudioTranscriber from './components/AudioTranscriber.vue';
-import ImageGenerator from './components/ImageGenerator.vue';
-import AudioGenerator from './components/AudioGenerator.vue';
-import VideoGenerator from './components/VideoGenerator.vue';
+import UnifiedConversationRunner from './components/UnifiedConversationRunner.vue';
 
 const route = useRoute();
-const router = useRouter();
 const agentId = route.params.id;
 
-// UI State
 const isMounted = ref(false);
+onMounted(() => {
+  isMounted.value = true;
+});
+
 const loading = ref(false);
 const saveLoading = ref(false);
-const showSnapshotPanel = ref(false);
-const currentMode = ref('chat');
-const selectedSnapshotId = ref(null);
+const settingsVisible = ref(false);
 
-// Mode Options
-const modeOptions = [
-  { value: 'chat', label: '对话' },
-  { value: 'workflow', label: '工作流' },
-  { value: 'image', label: '图文' },
-  { value: 'tts', label: '语音' },
-  { value: 'stt', label: '转写' },
-  { value: 'video', label: '视频' }
-];
-
-// Data
 const agentInfo = ref({});
-const metrics = ref({ latency: [], tokens: [] });
 const logs = ref([]);
-const configSnapshots = ref([]);
-
 const editForm = ref({
   agentId: '',
   name: '',
@@ -439,11 +432,76 @@ const editForm = ref({
   speed: 1.0,
   gain: 0,
   videoSize: '16:9',
-  videoDuration: 6,
-  fps: 24
+  videoDuration: '5',
+  fps: 30,
+  useReferenceImage: false
+});
+const promptTemplates = ref([]);
+const selectedPromptTemplate = ref('');
+
+const resolveModeFromTab = (tab) => {
+  if (!tab) return '';
+  const normalized = String(tab).toLowerCase();
+  if (normalized === 'image') return 'image';
+  if (normalized === 'stt' || normalized === 'audio') return 'stt';
+  if (normalized === 'tts') return 'tts';
+  if (normalized === 'video') return 'video';
+  if (normalized === 'workflow') return 'workflow';
+  if (normalized === 'completion') return 'completion';
+  if (normalized === 'chat') return 'chat';
+  return '';
+};
+
+const resolveModeFromViewType = (viewType) => {
+  const type = (viewType || '').toUpperCase();
+  if (type === 'TEXT_TO_IMAGE' || type === 'IMAGE_TO_IMAGE' || type === 'TTI') return 'image';
+  if (type === 'SPEECH_TO_TEXT' || type === 'STT') return 'stt';
+  if (type === 'TEXT_TO_SPEECH' || type === 'TTS') return 'tts';
+  if (type === 'TEXT_TO_VIDEO' || type === 'VIDEO' || type === 'TTV') return 'video';
+  if (type === 'WORKFLOW') return 'workflow';
+  return '';
+};
+
+const currentMode = ref(resolveModeFromTab(route.query.tab) || 'chat');
+
+const currentParameters = computed(() => {
+  if (isImageGenerationAgent.value) {
+    return {
+      imageSize: editForm.value.imageSize,
+      seed: editForm.value.seed,
+      guidanceScale: editForm.value.guidanceScale,
+      inferenceSteps: editForm.value.inferenceSteps,
+      negativePrompt: editForm.value.negativePrompt
+    };
+  }
+
+  if (isTTSAgent.value) {
+    return {
+      voice: editForm.value.voice,
+      speed: editForm.value.speed,
+      gain: editForm.value.gain,
+      model: editForm.value.model
+    };
+  }
+  if (isTTVAgent.value) {
+    return {
+      videoSize: editForm.value.videoSize,
+      videoDuration: editForm.value.videoDuration,
+      fps: editForm.value.fps,
+      seed: editForm.value.seed,
+      negativePrompt: editForm.value.negativePrompt,
+      model: editForm.value.model
+    };
+  }
+  return {
+    temperature: editForm.value.temperature,
+    topP: editForm.value.topP,
+    systemPrompt: editForm.value.systemPrompt,
+    enableThinking: editForm.value.enableThinking,
+    thinkingBudget: editForm.value.thinkingBudget
+  };
 });
 
-// Computed Properties
 const isImageGenerationAgent = computed(() => {
   if (currentMode.value === 'image') return true;
   const viewType = (agentInfo.value.viewType || '').toUpperCase();
@@ -462,556 +520,797 @@ const isTTVAgent = computed(() => {
   return viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV' || viewType === 'VIDEO';
 });
 
-const HasAnySnapshots = computed(() => configSnapshots.value.length > 0);
+const activeRunner = computed(() => UnifiedConversationRunner);
 
-const hasUnsavedChanges = computed(() => {
-  const baseline = {
-    name: agentInfo.value.name || '',
-    model: agentInfo.value.model || '',
-    temperature: agentInfo.value.temperature ?? 0.7,
-    topP: agentInfo.value.topP ?? 0.7,
-    systemPrompt: agentInfo.value.systemPrompt || '',
-    enableThinking: agentInfo.value.enableThinking ?? false,
-    thinkingBudget: agentInfo.value.thinkingBudget ?? 4096,
-    imageSize: agentInfo.value.imageSize ?? '',
-    seed: agentInfo.value.seed ?? '',
-    guidanceScale: agentInfo.value.guidanceScale ?? 7.5,
-    inferenceSteps: agentInfo.value.inferenceSteps ?? 20,
-    negativePrompt: agentInfo.value.negativePrompt ?? '',
-    voice: agentInfo.value.voice ?? '',
-    speed: agentInfo.value.speed ?? 1.0,
-    gain: agentInfo.value.gain ?? 0
-  };
+const syncCurrentMode = (metaRes) => {
+  const fromTab = resolveModeFromTab(route.query.tab);
+  const fromMode = metaRes?.mode ? String(metaRes.mode).toLowerCase() : '';
+  const fromViewType = resolveModeFromViewType(metaRes?.viewType || agentInfo.value?.viewType);
+  currentMode.value = fromTab || fromMode || fromViewType || 'chat';
+};
 
-  return JSON.stringify(editForm.value) !== JSON.stringify(baseline);
+const currentAccent = computed(() => {
+  const type = (agentInfo.value.viewType || currentMode.value || '').toUpperCase();
+  if (type === 'WORKFLOW') return { soft: 'rgba(14, 165, 233, 0.14)', strong: '#0369a1' };
+  if (type.includes('TTS') || type.includes('TEXT_TO_SPEECH')) return { soft: 'rgba(217, 70, 239, 0.14)', strong: '#a21caf' };
+  if (type.includes('STT') || type.includes('SPEECH_TO_TEXT')) return { soft: 'rgba(34, 197, 94, 0.14)', strong: '#15803d' };
+  if (type.includes('TTI') || type.includes('IMAGE')) return { soft: 'rgba(249, 115, 22, 0.14)', strong: '#c2410c' };
+  if (type.includes('TTV') || type.includes('VIDEO')) return { soft: 'rgba(239, 68, 68, 0.14)', strong: '#b91c1c' };
+  return { soft: 'rgba(20, 184, 166, 0.14)', strong: '#0f766e' };
 });
 
-const currentParameters = computed(() => {
-  if (isTTSAgent.value) {
-    return { voice: editForm.value.voice, speed: editForm.value.speed, gain: editForm.value.gain, model: editForm.value.model };
-  }
-  if (isImageGenerationAgent.value) {
-    return {
-      imageSize: editForm.value.imageSize,
-      seed: editForm.value.seed,
-      guidanceScale: editForm.value.guidanceScale,
-      inferenceSteps: editForm.value.inferenceSteps,
-      negativePrompt: editForm.value.negativePrompt
-    };
-  }
-  if (isTTVAgent.value) {
-    return {
-      videoSize: editForm.value.videoSize,
-      seed: editForm.value.seed,
-      negativePrompt: editForm.value.negativePrompt
-    };
-  }
-  return {
-    temperature: editForm.value.temperature,
-    topP: editForm.value.topP,
-    systemPrompt: editForm.value.systemPrompt,
-    enableThinking: editForm.value.enableThinking,
-    thinkingBudget: editForm.value.thinkingBudget
-  };
+const runtimeStatusLabel = computed(() => {
+  if (loading.value) return '加载中';
+  return agentInfo.value.status || '已就绪';
 });
 
-const activeRunner = computed(() => {
-  if (currentMode.value === 'tts') return AudioGenerator;
-  if (currentMode.value === 'stt') return AudioTranscriber;
-  if (currentMode.value === 'image') return ImageGenerator;
-  if (currentMode.value === 'video') return VideoGenerator;
-  if (currentMode.value === 'workflow') return WorkflowRunner;
-  if (currentMode.value === 'completion') return CompletionRunner;
-  
-  const viewType = (agentInfo.value.viewType || '').toUpperCase();
-  if (viewType === 'STT') return AudioTranscriber;
-  if (viewType === 'TTS') return AudioGenerator;
-  if (viewType === 'TEXT_TO_IMAGE' || viewType === 'IMAGE_TO_IMAGE') return ImageGenerator;
-  if (viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV') return VideoGenerator;
-  if (viewType === 'WORKFLOW') return WorkflowRunner;
-  
-  return ChatWindow;
+const latestLogTime = computed(() => {
+  if (!logs.value.length) return '暂无';
+  return formatTime(logs.value[0]?.timestamp);
 });
 
-// Methods
+let pollTimer = null;
+
 const fetchData = async () => {
+  loading.value = true;
   try {
-    loading.value = true;
-    const response = await getAgentMetadata(agentId);
-    agentInfo.value = response.data || {};
-    Object.assign(editForm.value, agentInfo.value);
+    const listRes = await getMonitorAgentList();
+    const list = listRes?.data || listRes || [];
+    const current = list.find((a) => a.agentId === agentId || a.id === agentId);
+    if (current) agentInfo.value = current;
+
+    const [metaRes, promptRes] = await Promise.all([
+      getAgentMetadata(agentId),
+      request.get(`/knowledge/agents/${agentId}/meta/prompts`).catch(() => [])
+    ]);
+
+    if (metaRes) {
+      let extraParams = {};
+      if (metaRes.parameters) {
+        try {
+          extraParams = JSON.parse(metaRes.parameters);
+        } catch (e) {
+          console.warn('Failed to parse extra parameters');
+        }
+      }
+
+      editForm.value = {
+        agentId,
+        name: metaRes.name || metaRes.agentName || '',
+        model: metaRes.modelName || '',
+        temperature: metaRes.temperature || 0.7,
+        topP: metaRes.topP || 0.7,
+        systemPrompt: metaRes.systemPrompt || '',
+        enableThinking: metaRes.enableThinking || false,
+        thinkingBudget: metaRes.thinkingBudget || 4096,
+        imageSize: extraParams.imageSize || metaRes.imageSize || '1328x1328',
+        seed: extraParams.seed || metaRes.seed || '',
+        guidanceScale: extraParams.guidanceScale || metaRes.guidanceScale || 7.5,
+        inferenceSteps: extraParams.inferenceSteps || metaRes.inferenceSteps || 20,
+        negativePrompt: extraParams.negativePrompt || metaRes.negativePrompt || '',
+        voice: extraParams.voice || '',
+        speed: extraParams.speed !== undefined ? extraParams.speed : 1.0,
+        gain: extraParams.gain !== undefined ? extraParams.gain : 0,
+        videoSize: extraParams.videoSize || metaRes.videoSize || '16:9',
+        videoDuration: extraParams.videoDuration || metaRes.videoDuration || '5',
+        fps: extraParams.fps || metaRes.fps || 30
+      };
+
+      syncCurrentMode(metaRes);
+
+      if (metaRes.viewType) {
+        agentInfo.value = {
+          ...agentInfo.value,
+          viewType: metaRes.viewType,
+          providerType: metaRes.providerType,
+          agentName: metaRes.name || metaRes.agentName,
+          modelName: metaRes.modelName
+        };
+      }
+    }
+    promptTemplates.value = promptRes?.data || promptRes || [];
+    fetchLogs();
   } catch (error) {
-    ElMessage.error('加载智能体元数据失败');
+    ElMessage.error('加载智能体数据失败');
   } finally {
     loading.value = false;
   }
 };
 
-const saveConfig = async () => {
+const fetchLogs = async () => {
   try {
-    saveLoading.value = true;
+    const res = await getAgentLogs(agentId);
+    logs.value = res?.data || res || [];
+  } catch (e) {
+    console.warn('Logs error');
+  }
+};
+
+const saveConfig = async () => {
+  saveLoading.value = true;
+  try {
     await updateAgent(agentId, editForm.value);
-    agentInfo.value = { ...editForm.value };
     ElMessage.success('配置已保存');
-  } catch (error) {
+    const metaRes = await getAgentMetadata(agentId);
+    if (metaRes) {
+      agentInfo.value.agentName = metaRes.name || metaRes.agentName;
+      agentInfo.value.modelName = metaRes.modelName;
+      agentInfo.value.viewType = metaRes.viewType || agentInfo.value.viewType;
+      agentInfo.value.providerType = metaRes.providerType || agentInfo.value.providerType;
+    }
+  } catch (e) {
     ElMessage.error('保存失败');
   } finally {
     saveLoading.value = false;
   }
 };
 
-const loadSnapshots = () => {
-  const key = `agent-snapshots-${agentId}`;
-  const stored = localStorage.getItem(key);
-  configSnapshots.value = stored ? JSON.parse(stored) : [];
-};
-
-const createSnapshot = () => {
-  const snapshot = {
-    id: Date.now(),
-    timestamp: new Date(),
-    label: `快照 ${configSnapshots.value.length + 1}`,
-    data: { ...editForm.value }
-  };
-  
-  configSnapshots.value.unshift(snapshot);
-  if (configSnapshots.value.length > 5) configSnapshots.value.pop();
-  
-  const key = `agent-snapshots-${agentId}`;
-  localStorage.setItem(key, JSON.stringify(configSnapshots.value));
-  ElMessage.success('快照已保存');
-};
-
-const applySnapshot = (snapshotId) => {
-  const snapshot = configSnapshots.value.find(s => s.id === snapshotId);
-  if (snapshot) {
-    Object.assign(editForm.value, snapshot.data);
-    ElMessage.success('配置已恢复');
-  }
-};
-
-const formatSnapshotTime = (date) => {
-  const d = new Date(date);
-  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+const applyPromptTemplate = (content) => {
+  if (content) editForm.value.systemPrompt = content;
 };
 
 const generateRandomSeed = () => {
-  editForm.value.seed = Math.floor(Math.random() * 1000000).toString();
+  editForm.value.seed = Math.floor(Math.random() * 10000000000).toString();
 };
 
-const handleBack = () => {
-  if (hasUnsavedChanges.value) {
-    if (window.confirm('有未保存的更改，确定要离开吗？')) {
-      router.push(ROUTES.AGENTS.LIST);
-    }
-  } else {
-    router.push(ROUTES.AGENTS.LIST);
-  }
+const getProviderIcon = (p) => {
+  if (!p) return Cpu;
+  const type = p.toUpperCase();
+  if (type === 'DIFY') return Service;
+  if (type.includes('SILICON')) return LightningIcon;
+  if (type.includes('OPENAI')) return Connection;
+  return Cpu;
 };
 
-const fetchLogs = async () => {
-  try {
-    const response = await getAgentLogs(agentId);
-    logs.value = response.data || [];
-  } catch (error) {
-    console.error('获取日志失败', error);
-  }
+const getProviderTagType = (p) => {
+  if (!p) return 'info';
+  const type = p.toUpperCase();
+  if (type === 'DIFY') return 'primary';
+  if (type.includes('SILICON')) return 'warning';
+  return 'info';
 };
 
-const handleBeforeUnload = (event) => {
-  if (hasUnsavedChanges.value) {
-    event.preventDefault();
-    event.returnValue = '';
-  }
+const getViewIcon = (v) => {
+  if (!v) return ChatDotRound;
+  const type = v.toUpperCase();
+  if (type === 'CHAT') return ChatDotRound;
+  if (type === 'WORKFLOW') return Connection;
+  if (type === 'STT' || type === 'SPEECH_TO_TEXT') return Microphone;
+  if (type === 'TTS' || type === 'TEXT_TO_SPEECH') return Headset;
+  if (type === 'TTI' || type === 'TEXT_TO_IMAGE' || type === 'IMAGE_TO_IMAGE') return Picture;
+  if (type === 'TTV' || type === 'TEXT_TO_VIDEO') return VideoCamera;
+  return Menu;
 };
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (!hasUnsavedChanges.value) {
-    next();
-    return;
+const formatTime = (ts) => {
+  if (!ts) return '-';
+  if (Array.isArray(ts)) {
+    return new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0).toLocaleTimeString();
   }
-  if (window.confirm('有未保存的更改，确定要离开吗？')) {
-    next();
-  } else {
-    next(false);
-  }
-});
+  const dateStr = String(ts).replace(' ', 'T');
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleTimeString();
+};
 
-let pollTimer;
+const getViewTagType = (v) => {
+  if (!v) return 'info';
+  const type = v.toUpperCase();
+  if (type === 'CHAT') return 'success';
+  if (type === 'WORKFLOW') return 'primary';
+  if (type.includes('TTS') || type.includes('SPEECH')) return 'warning';
+  if (type.includes('TTI') || type.includes('IMAGE')) return 'danger';
+  if (type.includes('TTV') || type.includes('VIDEO')) return 'primary';
+  return 'info';
+};
+
+const getViewLabel = (v) => {
+  if (!v) return '未知类型';
+  const type = v.toUpperCase();
+  if (type === 'CHAT') return '智能对话';
+  if (type === 'WORKFLOW') return '工作流';
+  if (type === 'STT' || type === 'SPEECH_TO_TEXT') return '语音转文字';
+  if (type === 'TTS' || type === 'TEXT_TO_SPEECH') return '语音合成';
+  if (type === 'TTI' || type === 'TEXT_TO_IMAGE') return '文生图';
+  if (type === 'IMAGE_TO_IMAGE') return '图生图';
+  if (type === 'TTV' || type === 'TEXT_TO_VIDEO') return '视频生成';
+  if (type === 'COMPLETION') return '文本补全';
+  return type;
+};
+
+const getModeLabel = (mode) => {
+  const map = {
+    chat: '对话模式',
+    completion: '文本补全',
+    workflow: '工作流',
+    image: '图像生成',
+    tts: '语音合成',
+    stt: '语音转写',
+    video: '视频生成'
+  };
+  return map[String(mode || '').toLowerCase()] || '对话模式';
+};
+
+const restoreHistory = (log) => {
+  console.log('历史记录详情:', log);
+  const content = log.content || (log.response ? '[' + log.status + '] ' + log.response.substring(0, 200) : (log.sessionId ? '会话: ' + log.sessionId : null));
+  ElMessage.info(`历史记录: ${content || '无内容'}`);
+};
+
+watch(
+  () => route.query.tab,
+  () => {
+    syncCurrentMode(agentInfo.value);
+  }
+);
+
+watch(
+  () => agentInfo.value.viewType,
+  () => {
+    syncCurrentMode(agentInfo.value);
+  }
+);
 
 onMounted(() => {
-  isMounted.value = true;
   fetchData();
-  loadSnapshots();
-  window.addEventListener('beforeunload', handleBeforeUnload);
   pollTimer = setInterval(() => {
-    fetchLogs();
+    if (isMounted.value) fetchLogs();
   }, 5000);
 });
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
   isMounted.value = false;
-  window.removeEventListener('beforeunload', handleBeforeUnload);
+});
+
+onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer);
 });
 </script>
 
 <style scoped>
-/* Page Layout */
-.console-page {
-  height: calc(100vh - 64px);
-  display: flex;
-  flex-direction: column;
-  background: #f6f8fa;
-}
-
-.console-container {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  gap: 0;
-}
-
-/* Left Panel: Runner Area */
-.runner-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
-}
-
-.mode-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fafbfc;
-}
-
-.mode-group {
-  display: flex;
-  gap: 4px;
-}
-
-.mode-group :deep(.el-radio-button__inner) {
-  padding: 6px 12px;
-  font-size: 13px;
-  border-radius: 6px;
-}
-
-.mode-bar-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.runner-container {
-  flex: 1;
-  overflow: auto;
+.page-shell {
   position: relative;
+  min-height: calc(100vh - 64px);
+  background:
+    radial-gradient(circle at left top, rgba(20, 184, 166, 0.12), transparent 24%),
+    radial-gradient(circle at right top, rgba(14, 165, 233, 0.11), transparent 22%),
+    linear-gradient(180deg, #f2f8f8 0%, #f6f8fb 48%, #eef2f7 100%);
+  overflow: hidden;
 }
 
-/* Right Panel: Config Sidebar */
-.config-sidebar {
-  width: 360px;
+.page-ambient {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(36px);
+  pointer-events: none;
+}
+
+.ambient-one {
+  width: 320px;
+  height: 320px;
+  left: -120px;
+  top: 160px;
+  background: rgba(20, 184, 166, 0.12);
+}
+
+.ambient-two {
+  width: 260px;
+  height: 260px;
+  right: -90px;
+  top: 80px;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.dashboard-layout {
+  position: relative;
+  z-index: 1;
+  height: calc(100vh - 64px);
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr) 300px;
+  gap: 20px;
+  padding: 20px;
+}
+
+.config-sidebar,
+.history-sidebar,
+.chat-main {
+  min-height: 0;
+}
+
+.sidebar-card,
+.history-card,
+.stage-shell {
+  height: 100%;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+}
+
+.sidebar-card {
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-left: 1px solid #e5e7eb;
-  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 }
 
 .sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(247, 250, 252, 0.92));
+}
+
+.sidebar-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 12px;
 }
 
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-title h3 {
-  margin: 0;
-  font-size: 14px;
+.back-btn {
+  padding: 0;
   font-weight: 600;
-  color: #1f2937;
 }
 
-.header-title :deep(.el-icon) {
-  font-size: 18px;
-  color: #6366f1;
+.settings-trigger {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.9);
+  color: #334155;
 }
 
-.header-controls {
+.agent-profile {
+  display: flex;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.agent-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.header-controls :deep(.el-button.active) {
-  color: #6366f1;
-  background: #eef2ff;
-}
-
-/* Status Bar */
-.status-bar {
-  padding: 8px 16px;
-  background: #fafbfc;
-  border-bottom: 1px solid #f0f1f3;
-}
-
-.status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-}
-
-.status.warning .status-dot {
-  background: #f59e0b;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* Sidebar Content */
-.sidebar-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 0;
-}
-
-.sidebar-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-content::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
-}
-
-.sidebar-content::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Snapshot Panel */
-.snapshot-panel {
-  padding: 16px;
-  border-bottom: 1px solid #f0f1f3;
-}
-
-.panel-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: #1f2937;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 20px 0;
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.empty-state :deep(.el-icon) {
+  justify-content: center;
   font-size: 24px;
-  margin-bottom: 8px;
-  opacity: 0.5;
+  flex-shrink: 0;
 }
 
-.snapshot-list {
+.agent-profile-info h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.agent-profile-info p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.identity-tags {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sidebar-context {
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  padding-top: 14px;
 }
 
-.snapshot-item {
+.sidebar-context p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.context-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.context-pill {
+  min-width: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), #f8fafc);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.context-pill.primary {
+  background: linear-gradient(135deg, #0f766e, #155e75);
+  color: #f8fafc;
+  border-color: transparent;
+}
+
+.context-pill span {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.78;
+}
+
+.context-pill strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  color: inherit;
+}
+
+.agent-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.agent-meta-card {
+  min-width: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), #f8fafc);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.agent-meta-card.accent {
+  background: linear-gradient(135deg, #0f766e, #155e75);
+  border-color: transparent;
+}
+
+.agent-meta-card span {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.agent-meta-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.agent-meta-card.accent span,
+.agent-meta-card.accent strong {
+  color: #f8fafc;
+}
+
+.sidebar-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 18px 26px;
+}
+
+.settings-panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px;
-  background: #f9fafb;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
-.snapshot-item:hover {
-  background: #f3f4f6;
+.settings-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.snapshot-time {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6366f1;
-}
-
-.snapshot-note {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 2px;
-}
-
-.panel-action {
-  padding-top: 12px;
-  border-top: 1px solid #f0f1f3;
-}
-
-/* Config Form */
-.config-form {
-  padding: 0 16px;
-}
-
-.config-group {
-  margin-bottom: 20px;
-}
-
-.group-header {
+.settings-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #f0f1f3;
 }
 
-.group-header :deep(.el-icon) {
-  font-size: 16px;
-  color: #6366f1;
+.playground-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.group-content {
+.config-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.config-form :deep(.el-form-item) {
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.section-panel {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  padding: 16px;
+}
+
+.section-panel :deep(.el-form-item:last-child) {
   margin-bottom: 0;
 }
 
-.config-form :deep(.el-form-item__label) {
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.config-form :deep(.el-input__wrapper),
-.config-form :deep(.el-textarea__inner) {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s;
-}
-
-.config-form :deep(.el-input__wrapper:hover),
-.config-form :deep(.el-textarea__inner:hover) {
-  border-color: #d1d5db;
-}
-
-.config-form :deep(.el-input__wrapper:focus-within) {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-/* Parameter Controls */
-.param-item {
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 8px;
+.param-group + .param-group {
+  margin-top: 18px;
 }
 
 .param-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
+  gap: 12px;
   margin-bottom: 10px;
 }
 
-.param-header label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
+.param-label-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.param-value {
+.param-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.param-desc,
+.helper-text {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.value-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
   font-size: 12px;
   font-weight: 700;
-  color: #6366f1;
-  background: #eef2ff;
-  padding: 2px 8px;
-  border-radius: 6px;
 }
 
-.param-hint {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-top: 6px;
+.thinking-card {
+  margin-top: 18px;
+  border-radius: 18px;
+  padding: 14px;
+  background: #f7fbfb;
+  border: 1px solid rgba(20, 184, 166, 0.14);
 }
 
-/* Thinking Box */
-.thinking-box {
-  padding: 12px;
-  background: #f0fdf4;
-  border: 1px solid #d1fae5;
-  border-radius: 8px;
-}
-
-.thinking-header {
+.thinking-main {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .thinking-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.thinking-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.thinking-extra {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   font-size: 13px;
-  font-weight: 600;
-  color: #047857;
+  color: #475569;
 }
 
-.thinking-content {
-  padding-top: 8px;
-  border-top: 1px solid #d1fae5;
+.prompt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-/* Sidebar Footer */
-.sidebar-footer {
-  padding: 12px 16px;
-  border-top: 1px solid #e5e7eb;
-  background: #fafbfc;
+.template-select {
+  width: 128px;
 }
 
-/* Utilities */
-.mode-label {
-  display: inline-block;
+.stage-shell {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
 }
 
-/* Responsive */
-@media (max-width: 1400px) {
-  .config-sidebar {
-    width: 320px;
+.stage-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.runner-frame {
+  flex: 1;
+  min-height: 0;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.runner-frame :deep(.unified-runner) {
+  height: 100%;
+}
+
+.history-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 18px;
+}
+
+.history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.history-header h3 {
+  margin: 6px 0 0;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.history-content {
+  flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-empty {
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(248, 250, 252, 0.8);
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.history-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 14px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.history-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(15, 118, 110, 0.28);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.history-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.history-preview {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #334155;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sidebar-body::-webkit-scrollbar,
+.history-content::-webkit-scrollbar,
+.sidebar-body::-webkit-scrollbar-thumb,
+.history-content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.55);
+  border-radius: 999px;
+}
+
+@media (max-width: 1440px) {
+  .dashboard-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
   }
+
+  .history-sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 1080px) {
+  .dashboard-layout {
+    height: auto;
+    min-height: calc(100vh - 64px);
+    grid-template-columns: 1fr;
+  }
+
+  .config-sidebar {
+    order: 2;
+  }
+
+  .chat-main {
+    order: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-layout {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .stage-shell,
+  .sidebar-card {
+    border-radius: 22px;
+  }
+
+  .context-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
 }
 </style>

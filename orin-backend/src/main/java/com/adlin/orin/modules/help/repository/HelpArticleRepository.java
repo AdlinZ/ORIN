@@ -52,4 +52,9 @@ public interface HelpArticleRepository extends JpaRepository<HelpArticle, Long> 
      * 按标题查找
      */
     Optional<HelpArticle> findByTitle(String title);
+
+    /**
+     * 按页面路径查找相关文档
+     */
+    List<HelpArticle> findByPagePathAndEnabledTrue(String pagePath);
 }

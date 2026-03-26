@@ -15,6 +15,8 @@ public interface ConversationLogRepository extends JpaRepository<ConversationLog
 
     List<ConversationLog> findByConversationIdOrderByCreatedAtAsc(String conversationId);
 
+    List<ConversationLog> findByAgentIdOrderByCreatedAtDesc(String agentId);
+
     @Query(value = "SELECT cl.id, cl.conversation_id, cl.agent_id, cl.user_id, " +
             "cl.model, cl.query, cl.response, " +
             "cl.prompt_tokens, cl.completion_tokens, cl.total_tokens, " +

@@ -92,8 +92,16 @@
             {{ row.durationMs || '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
+            <el-button
+              type="info"
+              size="small"
+              text
+              @click="handleViewDetail(row)"
+            >
+              详情
+            </el-button>
             <el-button
               v-if="row.status === 'FAILED' || row.status === 'DEAD'"
               type="primary"
@@ -128,6 +136,38 @@
         />
       </div>
     </el-card>
+
+    <!-- 任务详情对话框 -->
+    <el-dialog v-model="showDetailDialog" title="任务详情" width="700px">
+      <el-descriptions :column="2" border v-if="currentTask">
+        <el-descriptions-item label="任务ID">{{ currentTask.taskId }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(currentTask.status)">{{ currentTask.status }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="工作流ID">{{ currentTask.workflowId }}</el-descriptions-item>
+        <el-descriptions-item label="工作流实例ID">{{ currentTask.workflowInstanceId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="优先级">
+          <el-tag :type="getPriorityType(currentTask.priority)">{{ currentTask.priority }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="触发来源">{{ currentTask.triggerSource || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="触发者">{{ currentTask.triggeredBy || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="重试次数">{{ currentTask.retryCount || 0 }} / {{ currentTask.maxRetries || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="下次重试时间">{{ formatTime(currentTask.nextRetryAt) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="耗时">{{ currentTask.durationMs ? currentTask.durationMs + 'ms' : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="入队时间">{{ formatTime(currentTask.queuedAt) }}</el-descriptions-item>
+        <el-descriptions-item label="开始时间">{{ formatTime(currentTask.startedAt) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="完成时间">{{ formatTime(currentTask.completedAt) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatTime(currentTask.createdAt) }}</el-descriptions-item>
+        <el-descriptions-item label="错误信息" :span="2">{{ currentTask.errorMessage || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="死信原因" :span="2">{{ currentTask.deadLetterReason || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="输入数据" :span="2">
+          <pre class="json-content">{{ JSON.stringify(currentTask.inputData, null, 2) || '-' }}</pre>
+        </el-descriptions-item>
+        <el-descriptions-item label="输出数据" :span="2">
+          <pre class="json-content">{{ JSON.stringify(currentTask.outputData, null, 2) || '-' }}</pre>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
   </div>
 </template>
 
@@ -143,6 +183,7 @@ import {
   getRunningTasks,
   getFailedTasks,
   getDeadTasks,
+  getTaskById,
   replayTask,
   cancelTask
 } from '@/api/task';
@@ -155,6 +196,8 @@ const total = ref(0);
 const taskList = ref([]);
 const taskStats = ref({});
 const priorityStats = ref([]);
+const showDetailDialog = ref(false);
+const currentTask = ref(null);
 
 const statusMap = {
   QUEUED: { label: '排队中', icon: Tickets, color: '#909399', bgColor: 'rgba(144, 147, 153, 0.1)', class: 'stat-queued' },
@@ -282,6 +325,17 @@ const handleReplay = async (task) => {
   }
 };
 
+const handleViewDetail = async (task) => {
+  // 获取任务详情
+  try {
+    const res = await getTaskById(task.taskId);
+    currentTask.value = res.data || res;
+    showDetailDialog.value = true;
+  } catch (e) {
+    ElMessage.error('获取任务详情失败');
+  }
+};
+
 const handleCancel = async (task) => {
   try {
     await ElMessageBox.confirm(`确定要取消任务 ${task.taskId} 吗?`, '确认取消', {
@@ -394,5 +448,16 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.json-content {
+  background: var(--el-fill-color-light);
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 </style>

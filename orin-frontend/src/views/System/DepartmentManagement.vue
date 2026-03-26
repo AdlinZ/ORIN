@@ -4,54 +4,139 @@
       title="部门管理"
       description="管理系统部门组织结构"
       icon="OfficeBuilding"
-    />
+    >
+      <template #actions>
+        <div class="header-toolbar">
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索部门名称/编码"
+            clearable
+            class="search-input"
+            @input="handleSearch"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <el-button-group>
+            <el-button @click="expandAll" title="展开全部">
+              <el-icon><ArrowDown /></el-icon>
+            </el-button>
+            <el-button @click="collapseAll" title="收起全部">
+              <el-icon><ArrowUp /></el-icon>
+            </el-button>
+          </el-button-group>
+          <el-button @click="loadDepartments" title="刷新">
+            <el-icon><Refresh /></el-icon>
+          </el-button>
+          <el-button type="primary" @click="handleCreateRoot">
+            <el-icon class="mr-1"><Plus /></el-icon>
+            创建顶级部门
+          </el-button>
+        </div>
+      </template>
+    </PageHeader>
 
     <div class="content-wrapper">
       <!-- 左侧部门树 -->
       <div class="tree-panel premium-card">
         <div class="panel-header">
-          <span>部门结构</span>
-          <el-button type="primary" size="small" @click="handleCreateRoot">
-            <el-icon class="mr-1"><Plus /></el-icon>
-            新增部门
-          </el-button>
+          <span>组织结构</span>
+        </div>
+
+        <!-- 统计胶囊 -->
+        <div class="stats-capsules" v-if="stats.total > 0">
+          <div class="capsule">
+            <span class="capsule-value">{{ stats.total }}</span>
+            <span class="capsule-label">部门</span>
+          </div>
+          <div class="capsule enabled">
+            <span class="capsule-value">{{ stats.enabled }}</span>
+            <span class="capsule-label">启用</span>
+          </div>
+          <div class="capsule root">
+            <span class="capsule-value">{{ stats.root }}</span>
+            <span class="capsule-label">顶级</span>
+          </div>
         </div>
 
         <div class="tree-content" v-loading="loading">
           <el-tree
-            :data="treeData"
+            ref="treeRef"
+            :data="filteredTreeData"
             :props="treeProps"
             node-key="departmentId"
-            default-expand-all
+            :default-expanded-keys="expandedKeys"
             :expand-on-click-node="false"
+            :filter-node-method="filterNode"
             @node-click="handleNodeClick"
           >
             <template #default="{ node, data }">
-              <div class="tree-node">
-                <span class="node-label">{{ data.departmentName }}</span>
+              <div class="tree-node" :class="{ 'is-selected': selectedDepartment?.departmentId === data.departmentId }">
+                <div class="node-info">
+                  <span class="status-dot" :class="data.status === 'ENABLED' ? 'enabled' : 'disabled'"></span>
+                  <span class="node-label">{{ data.departmentName }}</span>
+                  <span class="child-count" v-if="data.children && data.children.length > 0">
+                    {{ data.children.length }}
+                  </span>
+                </div>
                 <div class="node-actions">
-                  <el-button link type="primary" size="small" @click.stop="handleAddChild(data)">
-                    <el-icon><Plus /></el-icon>
-                  </el-button>
-                  <el-button link type="primary" size="small" @click.stop="handleEdit(data)">
-                    <el-icon><Edit /></el-icon>
-                  </el-button>
-                  <el-button link type="danger" size="small" @click.stop="handleDelete(data)" :disabled="data.children && data.children.length > 0">
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
+                  <el-tooltip content="新增子部门" placement="top">
+                    <el-button link type="primary" size="small" @click.stop="handleAddChild(data)">
+                      <el-icon><Plus /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip content="编辑" placement="top">
+                    <el-button link type="primary" size="small" @click.stop="handleEdit(data)">
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip
+                    :content="data.children && data.children.length > 0 ? '存在子部门，无法删除' : '删除'"
+                    placement="top"
+                  >
+                    <el-button
+                      link
+                      type="danger"
+                      size="small"
+                      @click.stop="handleDelete(data)"
+                      :disabled="data.children && data.children.length > 0"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-tooltip>
                 </div>
               </div>
             </template>
           </el-tree>
+
+          <el-empty v-if="!loading && (!treeData || treeData.length === 0)" description="暂无部门数据">
+            <template #description>
+              <div class="empty-tip">
+                <p>暂无部门组织</p>
+                <el-button type="primary" size="small" @click="handleCreateRoot">
+                  <el-icon class="mr-1"><Plus /></el-icon>
+                  创建第一个部门
+                </el-button>
+              </div>
+            </template>
+          </el-empty>
         </div>
       </div>
 
       <!-- 右侧部门详情 -->
       <div class="detail-panel premium-card" v-if="selectedDepartment">
         <div class="panel-header">
-          <span>部门详情</span>
+          <div class="header-title">
+            <span class="status-dot large" :class="selectedDepartment.status === 'ENABLED' ? 'enabled' : 'disabled'"></span>
+            <span>{{ selectedDepartment.departmentName }}</span>
+          </div>
           <div class="header-actions">
-            <el-button type="primary" @click="handleEdit(selectedDepartment)">
+            <el-button type="primary" @click="handleAddChild(selectedDepartment)">
+              <el-icon class="mr-1"><Plus /></el-icon>
+              新增子部门
+            </el-button>
+            <el-button @click="handleEdit(selectedDepartment)">
               <el-icon class="mr-1"><Edit /></el-icon>
               编辑
             </el-button>
@@ -59,41 +144,94 @@
         </div>
 
         <div class="detail-content">
-          <div class="detail-row">
-            <span class="label">部门名称：</span>
-            <span class="value">{{ selectedDepartment.departmentName }}</span>
+          <!-- 概览卡片 -->
+          <div class="overview-card">
+            <div class="overview-item">
+              <el-icon class="overview-icon"><OfficeBuilding /></el-icon>
+              <div class="overview-info">
+                <span class="overview-value">{{ selectedDepartment.departmentCode }}</span>
+                <span class="overview-label">部门编码</span>
+              </div>
+            </div>
+            <div class="overview-item">
+              <el-icon class="overview-icon"><Clock /></el-icon>
+              <div class="overview-info">
+                <span class="overview-value">{{ formatDate(selectedDepartment.createTime) }}</span>
+                <span class="overview-label">创建时间</span>
+              </div>
+            </div>
+            <div class="overview-item">
+              <el-tag :type="selectedDepartment.status === 'ENABLED' ? 'success' : 'danger'" size="large">
+                {{ selectedDepartment.status === 'ENABLED' ? '启用' : '禁用' }}
+              </el-tag>
+              <span class="overview-label">状态</span>
+            </div>
           </div>
-          <div class="detail-row">
-            <span class="label">部门编码：</span>
-            <span class="value code">{{ selectedDepartment.departmentCode }}</span>
+
+          <!-- 基础信息 -->
+          <div class="info-section">
+            <div class="section-title">基础信息</div>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">部门负责人</span>
+                <span class="info-value">{{ selectedDepartment.leader || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">联系电话</span>
+                <span class="info-value">{{ selectedDepartment.phone || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">排序号</span>
+                <span class="info-value">{{ selectedDepartment.orderNum || 0 }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">父级部门</span>
+                <span class="info-value">{{ getParentName(selectedDepartment.parentId) }}</span>
+              </div>
+            </div>
           </div>
-          <div class="detail-row">
-            <span class="label">部门状态：</span>
-            <el-tag :type="selectedDepartment.status === 'ENABLED' ? 'success' : 'danger'">
-              {{ selectedDepartment.status === 'ENABLED' ? '启用' : '禁用' }}
-            </el-tag>
+
+          <!-- 描述/元信息 -->
+          <div class="info-section" v-if="selectedDepartment.description">
+            <div class="section-title">部门描述</div>
+            <div class="description-content">
+              {{ selectedDepartment.description }}
+            </div>
           </div>
-          <div class="detail-row">
-            <span class="label">部门负责人：</span>
-            <span class="value">{{ selectedDepartment.leader || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">联系电话：</span>
-            <span class="value">{{ selectedDepartment.phone || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">部门描述：</span>
-            <span class="value">{{ selectedDepartment.description || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">创建时间：</span>
-            <span class="value">{{ formatDate(selectedDepartment.createTime) }}</span>
+
+          <!-- 子部门信息 -->
+          <div class="info-section" v-if="selectedDepartment.children && selectedDepartment.children.length > 0">
+            <div class="section-title">
+              下级部门
+              <span class="section-count">{{ selectedDepartment.children.length }}</span>
+            </div>
+            <div class="children-list">
+              <div
+                class="child-item"
+                v-for="child in selectedDepartment.children"
+                :key="child.departmentId"
+                @click="handleNodeClick(child)"
+              >
+                <span class="status-dot small" :class="child.status === 'ENABLED' ? 'enabled' : 'disabled'"></span>
+                <span class="child-name">{{ child.departmentName }}</span>
+                <el-tag size="small" :type="child.status === 'ENABLED' ? 'success' : 'danger'">
+                  {{ child.status === 'ENABLED' ? '启用' : '禁用' }}
+                </el-tag>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="detail-panel premium-card empty" v-else>
-        <el-empty description="请选择部门查看详情" />
+        <el-empty>
+          <template #description>
+            <div class="empty-detail">
+              <p class="empty-title">请选择部门查看详情</p>
+              <p class="empty-tip">可从左侧选择部门，或创建顶级部门开始搭建组织结构</p>
+            </div>
+          </template>
+        </el-empty>
       </div>
     </div>
 
@@ -121,7 +259,16 @@
         </el-form-item>
 
         <el-form-item label="部门编码" prop="departmentCode">
-          <el-input v-model="formData.departmentCode" placeholder="如: DEPT_001" :disabled="isEdit" />
+          <el-input
+            v-model="formData.departmentCode"
+            placeholder="如: DEPT_001"
+            :disabled="isEdit"
+            @input="handleCodeInput"
+          >
+            <template #prefix>
+              <el-tag size="small" type="info">自动转大写</el-tag>
+            </template>
+          </el-input>
         </el-form-item>
 
         <div class="form-row">
@@ -168,9 +315,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh, ArrowDown, ArrowUp, OfficeBuilding, Clock } from '@element-plus/icons-vue'
 import { getDepartmentList, getAllDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/department'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -180,12 +327,31 @@ const submitting = ref(false)
 const treeData = ref([])
 const flatData = ref([])
 const selectedDepartment = ref(null)
+const searchKeyword = ref('')
+const treeRef = ref(null)
+const expandedKeys = ref([])
 
 // 树形配置
 const treeProps = {
   children: 'children',
   label: 'departmentName'
 }
+
+// 统计计算
+const stats = computed(() => {
+  const all = flatData.value
+  return {
+    total: all.length,
+    enabled: all.filter(d => d.status === 'ENABLED').length,
+    root: all.filter(d => !d.parentId || d.parentId === 0).length
+  }
+})
+
+// 过滤后的树数据
+const filteredTreeData = computed(() => {
+  if (!searchKeyword.value) return treeData.value
+  return treeData.value
+})
 
 // 对话框状态
 const dialogVisible = ref(false)
@@ -233,6 +399,20 @@ const formatDate = (dateString) => {
   })
 }
 
+// 获取初始展开的keys（只展开前两级）
+const getInitialExpandedKeys = (data) => {
+  const keys = []
+  data.forEach(item => {
+    keys.push(item.departmentId)
+    if (item.children && item.children.length > 0 && keys.length < 10) {
+      item.children.slice(0, 3).forEach(child => {
+        keys.push(child.departmentId)
+      })
+    }
+  })
+  return keys
+}
+
 // 加载部门列表
 const loadDepartments = async () => {
   loading.value = true
@@ -244,6 +424,7 @@ const loadDepartments = async () => {
 
     treeData.value = treeRes.data || []
     flatData.value = flatRes.data || []
+    expandedKeys.value = getInitialExpandedKeys(treeData.value)
   } catch (error) {
     ElMessage.error('加载部门列表失败')
     console.error(error)
@@ -251,6 +432,37 @@ const loadDepartments = async () => {
     loading.value = false
     window.dispatchEvent(new Event('page-refresh-done'))
   }
+}
+
+// 搜索过滤
+const handleSearch = (value) => {
+  treeRef.value?.filter(value)
+}
+
+const filterNode = (value, data) => {
+  if (!value) return true
+  const keyword = value.toLowerCase()
+  return data.departmentName.toLowerCase().includes(keyword) ||
+    (data.departmentCode && data.departmentCode.toLowerCase().includes(keyword))
+}
+
+// 展开/收起全部
+const expandAll = () => {
+  const allKeys = []
+  const getAllKeys = (data) => {
+    data.forEach(item => {
+      allKeys.push(item.departmentId)
+      if (item.children) {
+        getAllKeys(item.children)
+      }
+    })
+  }
+  getAllKeys(treeData.value)
+  expandedKeys.value = allKeys
+}
+
+const collapseAll = () => {
+  expandedKeys.value = []
 }
 
 // 点击树节点
@@ -313,6 +525,11 @@ const handleEdit = (data) => {
     description: data.description || ''
   })
   dialogVisible.value = true
+}
+
+// 编码自动转大写
+const handleCodeInput = (e) => {
+  formData.departmentCode = e.target.value.toUpperCase()
 }
 
 // 获取父部门名称
@@ -417,13 +634,24 @@ onUnmounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Header Toolbar */
+.header-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-input {
+  width: 240px;
+}
+
 .content-wrapper {
   display: flex;
   gap: 24px;
 }
 
 .tree-panel {
-  width: 400px;
+  width: 380px;
   flex-shrink: 0;
 }
 
@@ -462,9 +690,55 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+}
+
 .header-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Stats Capsules */
+.stats-capsules {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--el-color-primary-light-9);
+  border-radius: 8px;
+}
+
+.capsule {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: var(--el-bg-color);
+  border-radius: 6px;
+}
+
+.capsule.enabled {
+  background: rgba(103, 194, 58, 0.1);
+}
+
+.capsule.root {
+  background: rgba(64, 158, 255, 0.1);
+}
+
+.capsule-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.capsule-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .tree-content {
@@ -473,16 +747,66 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
+/* Tree Node */
 .tree-node {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex: 1;
-  padding-right: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.tree-node.is-selected {
+  background: var(--el-color-primary-light-9);
+}
+
+.tree-node:hover {
+  background: var(--el-fill-color-light);
+}
+
+.node-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.enabled {
+  background: #67c23a;
+}
+
+.status-dot.disabled {
+  background: #f56c6c;
+}
+
+.status-dot.large {
+  width: 12px;
+  height: 12px;
+}
+
+.status-dot.small {
+  width: 6px;
+  height: 6px;
 }
 
 .node-label {
   font-size: 14px;
+}
+
+.child-count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color);
+  padding: 2px 6px;
+  border-radius: 10px;
 }
 
 .node-actions {
@@ -494,34 +818,148 @@ onUnmounted(() => {
   display: flex;
 }
 
-/* Detail Panel Styles */
+/* Empty State */
+.empty-tip {
+  text-align: center;
+  color: var(--el-text-color-secondary);
+}
+
+.empty-detail {
+  text-align: center;
+}
+
+.empty-title {
+  font-size: 16px;
+  color: var(--el-text-color-primary);
+  margin-bottom: 8px;
+}
+
+.empty-tip p {
+  margin-bottom: 12px;
+}
+
+/* Detail Content */
 .detail-content {
   display: flex;
   flex-direction: column;
+  gap: 24px;
+}
+
+/* Overview Card */
+.overview-card {
+  display: flex;
+  gap: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--el-color-primary-light-9) 0%, var(--el-color-primary-light-8) 100%);
+  border-radius: 12px;
+}
+
+.overview-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.overview-icon {
+  font-size: 32px;
+  color: var(--el-color-primary);
+}
+
+.overview-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.overview-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.overview-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+/* Info Section */
+.info-section {
+  padding: 16px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-count {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--el-text-color-secondary);
+  background: var(--el-bg-color);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
-.detail-row {
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.info-value {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+}
+
+.description-content {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  line-height: 1.6;
+}
+
+/* Children List */
+.children-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.child-item {
   display: flex;
   align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--el-bg-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.detail-row .label {
-  width: 100px;
-  color: var(--el-text-color-secondary);
-  font-size: 14px;
-}
-
-.detail-row .value {
-  color: var(--el-text-color-primary);
-  font-size: 14px;
-}
-
-.detail-row .value.code {
-  font-family: monospace;
-  padding: 2px 8px;
+.child-item:hover {
   background: var(--el-color-primary-light-9);
-  border-radius: 4px;
+}
+
+.child-name {
+  flex: 1;
+  font-size: 14px;
 }
 
 /* Form Styles */
@@ -540,6 +978,25 @@ onUnmounted(() => {
   gap: 12px;
 }
 
+/* Responsive */
+@media (max-width: 1200px) {
+  .content-wrapper {
+    flex-direction: column;
+  }
+
+  .tree-panel {
+    width: 100%;
+  }
+
+  .overview-card {
+    flex-wrap: wrap;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Dark Mode */
 html.dark .department-management {
   background: var(--bg-color);
@@ -550,17 +1007,32 @@ html.dark .premium-card {
   border-color: var(--border-color);
 }
 
-html.dark .detail-row .label {
-  color: var(--text-secondary);
+html.dark .stats-capsules {
+  background: rgba(64, 158, 255, 0.15);
 }
 
-html.dark .detail-row .value {
-  color: var(--text-primary);
+html.dark .capsule {
+  background: var(--el-bg-color-overlay);
 }
 
-html.dark .detail-row .value.code {
-  background: rgba(38, 255, 223, 0.1);
-  color: var(--orin-primary);
+html.dark .capsule.enabled {
+  background: rgba(103, 194, 58, 0.15);
+}
+
+html.dark .capsule.root {
+  background: rgba(64, 158, 255, 0.15);
+}
+
+html.dark .overview-card {
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.2) 0%, rgba(64, 158, 255, 0.1) 100%);
+}
+
+html.dark .info-section {
+  background: var(--el-fill-color-dark);
+}
+
+html.dark .child-item {
+  background: var(--el-bg-color-overlay);
 }
 
 html.dark .custom-dialog :deep(.el-dialog) {

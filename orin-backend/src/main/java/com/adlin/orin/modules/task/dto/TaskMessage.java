@@ -79,4 +79,14 @@ public class TaskMessage implements Serializable {
      * 原始任务ID（重放时使用）
      */
     private String originalTaskId;
+
+    /**
+     * 是否为延迟重试
+     */
+    private boolean delayedRetry;
+
+    /**
+     * 延迟毫秒数
+     */
+    private Long delayMillis;
 }

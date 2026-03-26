@@ -41,6 +41,12 @@ public class SystemMessage {
     private String type = "INFO";
 
     /**
+     * 消息范围: USER (用户消息) 或 BROADCAST (系统广播)
+     */
+    @Builder.Default
+    private String scope = "USER";
+
+    /**
      * 接收者 ID（为空表示广播给所有人）
      */
     private String receiverId;

@@ -72,6 +72,14 @@
           <template #header>
             <div class="card-header">
               <span>最近同步记录</span>
+              <div>
+                <el-button type="primary" size="small" @click="handleFullSync" :loading="syncing">
+                  全量同步
+                </el-button>
+                <el-button type="success" size="small" @click="handleIncrementalSync" :loading="syncing">
+                  增量同步
+                </el-button>
+              </div>
             </div>
           </template>
 
@@ -131,13 +139,26 @@
             </el-table-column>
             <el-table-column prop="enabled" label="状态" width="80">
               <template #default="{ row }">
-                <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-                  {{ row.enabled ? '启用' : '禁用' }}
+                <el-tag :type="row.disabled ? 'danger' : (row.enabled ? 'success' : 'info')" size="small">
+                  {{ row.disabled ? '已失效' : (row.enabled ? '启用' : '禁用') }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120">
+            <el-table-column prop="failureCount" label="失败次数" width="100">
               <template #default="{ row }">
+                <span :class="{ 'text-danger': row.failureCount > 0 }">{{ row.failureCount || 0 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="lastFailureTime" label="最后失败" width="150">
+              <template #default="{ row }">
+                {{ row.lastFailureTime ? formatDateTime(row.lastFailureTime) : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="180">
+              <template #default="{ row }">
+                <el-button v-if="row.disabled" type="primary" size="small" text @click="handleReenableWebhook(row.id)">
+                  重新启用
+                </el-button>
                 <el-button type="danger" size="small" text @click="handleDeleteWebhook(row.id)">删除</el-button>
               </template>
             </el-table-column>
@@ -182,7 +203,10 @@ import {
   getPendingChangeCount,
   getClientWebhooks,
   saveClientWebhook,
-  deleteClientWebhook
+  deleteClientWebhook,
+  reenableClientWebhook,
+  triggerFullSync,
+  triggerIncrementalSync
 } from '@/api/knowledge';
 
 const activeTab = ref('changes');
@@ -209,6 +233,10 @@ const webhookForm = ref({
   webhookSecret: '',
   eventTypes: []
 });
+
+// Sync state
+const syncing = ref(false);
+const selectedAgentId = ref('');
 
 const getChangeTypeTag = (type) => {
   const map = {
@@ -258,6 +286,48 @@ const loadCheckpoint = async () => {
     pendingCount.value = (countRes.data || countRes).pendingCount || 0;
   } catch (e) {
     console.error('加载检查点失败:', e);
+  }
+};
+
+// 手动触发全量同步
+const handleFullSync = async () => {
+  if (!agentIdInput.value) {
+    ElMessage.warning('请先输入 Agent ID');
+    return;
+  }
+  syncing.value = true;
+  try {
+    const res = await triggerFullSync(agentIdInput.value);
+    if (res.success || res.data?.success) {
+      ElMessage.success('全量同步已触发');
+    } else {
+      ElMessage.error(res.message || '全量同步失败');
+    }
+  } catch (e) {
+    ElMessage.error('全量同步失败: ' + e.message);
+  } finally {
+    syncing.value = false;
+  }
+};
+
+// 手动触发增量同步
+const handleIncrementalSync = async () => {
+  if (!agentIdInput.value) {
+    ElMessage.warning('请先输入 Agent ID');
+    return;
+  }
+  syncing.value = true;
+  try {
+    const res = await triggerIncrementalSync(agentIdInput.value);
+    if (res.success || res.data?.success) {
+      ElMessage.success('增量同步已触发');
+    } else {
+      ElMessage.error(res.message || '增量同步失败');
+    }
+  } catch (e) {
+    ElMessage.error('增量同步失败: ' + e.message);
+  } finally {
+    syncing.value = false;
   }
 };
 
@@ -317,6 +387,16 @@ const handleDeleteWebhook = async (webhookId) => {
     if (e !== 'cancel') {
       ElMessage.error('删除失败: ' + e.message);
     }
+  }
+};
+
+const handleReenableWebhook = async (webhookId) => {
+  try {
+    await reenableClientWebhook(webhookId);
+    ElMessage.success('Webhook 已重新启用');
+    loadWebhooks();
+  } catch (e) {
+    ElMessage.error('启用失败: ' + e.message);
   }
 };
 
@@ -400,5 +480,10 @@ onMounted(() => {
 
 .event-tag {
   margin-right: 4px;
+}
+
+.text-danger {
+  color: var(--el-color-danger);
+  font-weight: 500;
 }
 </style>

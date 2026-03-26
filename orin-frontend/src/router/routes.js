@@ -93,12 +93,20 @@ export const ROUTES = {
         // 认证鉴权（二级）
         API_KEYS: '/dashboard/system/api-keys',
         RATE_LIMIT: '/dashboard/system/rate-limit',
-        // 消息中心（二级）
-        MESSAGES: '/dashboard/system/messages',
+        // 消息中心（邮件中心）
+        MESSAGES: '/dashboard/system/settings/mail',
         // 文件管理（二级）
         FILES: '/dashboard/system/files',
         // 系统设置（二级）
         SETTINGS: '/dashboard/system/settings',
+        SETTINGS_BASE: '/dashboard/system/settings/base',
+        SETTINGS_MAIL: '/dashboard/system/settings/mail',
+        SETTINGS_NOTIFICATIONS: '/dashboard/system/settings/notifications',
+        SETTINGS_MODEL_DEFAULTS: '/dashboard/system/settings/model-defaults',
+        SETTINGS_MONITOR: '/dashboard/system/settings/monitor',
+        SETTINGS_KNOWLEDGE: '/dashboard/system/settings/knowledge',
+        SETTINGS_GATEWAY: '/dashboard/system/settings/gateway',
+        SETTINGS_SYNC: '/dashboard/system/settings/sync',
         AUDIT_LOGS: '/dashboard/system/audit-logs',
         // 配置中心（二级）
         MODELS: '/dashboard/system/models',
@@ -118,6 +126,8 @@ export const ROUTES = {
         MCP_SERVICE: '/dashboard/system/mcp-service',
         // 帮助中心（二级）
         HELP_CENTER: '/dashboard/system/help-center',
+        // 统计分析（二级）
+        STATISTICS: '/dashboard/system/statistics',
         // 系统维护（二级）
         SYSTEM_MAINTENANCE: '/dashboard/system/maintenance',
     },
@@ -175,14 +185,16 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/system/log-config': ROUTES.SYSTEM.AUDIT_LOGS,
     '/dashboard/system/audit-logs': ROUTES.SYSTEM.AUDIT_LOGS,
     '/dashboard/system/api-keys': ROUTES.SYSTEM.API_KEYS,
-    '/dashboard/system/monitor-config': ROUTES.SYSTEM.SETTINGS,
+    '/dashboard/system/settings': ROUTES.SYSTEM.SETTINGS_BASE,
+    '/dashboard/system/monitor-config': ROUTES.SYSTEM.SETTINGS_MONITOR,
+    '/dashboard/system/monitor-settings': ROUTES.SYSTEM.SETTINGS_MONITOR,
     '/dashboard/control/users': ROUTES.SYSTEM.USERS,
     '/dashboard/control/audit-logs': ROUTES.SYSTEM.AUDIT_LOGS,
     '/dashboard/control/file-management': ROUTES.SYSTEM.FILES,
-    '/dashboard/control/system-env': ROUTES.SYSTEM.MONITOR_SETTINGS,
-    '/dashboard/control/knowledge-config': ROUTES.SYSTEM.SETTINGS,
-    '/dashboard/control/notification-channels': ROUTES.MONITOR.NOTIFICATIONS,
-    '/dashboard/control/client-sync': ROUTES.KNOWLEDGE.SYNC,
+    '/dashboard/control/system-env': ROUTES.SYSTEM.SETTINGS_MONITOR,
+    '/dashboard/control/knowledge-config': ROUTES.SYSTEM.SETTINGS_KNOWLEDGE,
+    '/dashboard/control/notification-channels': ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS,
+    '/dashboard/control/client-sync': ROUTES.SYSTEM.SETTINGS_SYNC,
     '/dashboard/control/rate-limit': ROUTES.SYSTEM.RATE_LIMIT,
     '/dashboard/control/mail': ROUTES.SYSTEM.MESSAGES,
 

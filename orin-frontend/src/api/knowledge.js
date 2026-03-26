@@ -238,6 +238,20 @@ export const deleteClientWebhook = (webhookId, config = {}) => {
     return request.delete(`/knowledge/sync/client/webhook/${webhookId}`, config);
 };
 
+export const reenableClientWebhook = (webhookId, config = {}) => {
+    return request.post(`/knowledge/sync/client/webhook/${webhookId}/reenable`, null, config);
+};
+
+// 手动触发全量同步
+export const triggerFullSync = (agentId, config = {}) => {
+    return request.post(`/knowledge/sync/client/${agentId}/sync/full`, null, config);
+};
+
+// 手动触发增量同步
+export const triggerIncrementalSync = (agentId, config = {}) => {
+    return request.post(`/knowledge/sync/client/${agentId}/sync/incremental`, null, config);
+};
+
 // ==================== 知识统计 ====================
 
 export const getKnowledgeBaseStats = (kbId) => {

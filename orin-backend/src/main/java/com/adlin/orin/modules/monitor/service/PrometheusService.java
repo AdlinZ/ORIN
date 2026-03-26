@@ -116,7 +116,7 @@ public class PrometheusService {
             if (response != null && "success".equals(response.get("status"))) {
                 Map<String, Object> data = (Map<String, Object>) response.get("data");
                 if (data == null)
-                    return 0.0;
+                    return Double.NaN;  // 没有数据时返回 NaN
 
                 List<Map<String, Object>> result = (List<Map<String, Object>>) data.get("result");
                 if (result != null && !result.isEmpty()) {
@@ -396,7 +396,8 @@ public class PrometheusService {
 
         for (String query : queries) {
             Double val = queryValue(baseUrl, query);
-            if (!Double.isNaN(val) && val > 0) {
+            // 区分 0 和 NaN：只要有有效数值就返回（包括0）
+            if (!Double.isNaN(val)) {
                 log.debug("GPU usage query '{}' returned: {}", query, val);
                 return val;
             }
@@ -420,7 +421,8 @@ public class PrometheusService {
 
         for (String query : queries) {
             Double val = queryValue(baseUrl, query);
-            if (!Double.isNaN(val) && val > 0) {
+            // 区分 0 和 NaN：只要有有效数值就返回（包括0）
+            if (!Double.isNaN(val)) {
                 log.debug("GPU memory usage query '{}' returned: {}", query, val);
                 return val;
             }
@@ -441,7 +443,8 @@ public class PrometheusService {
 
         for (String query : queries) {
             Double val = queryValue(baseUrl, query);
-            if (!Double.isNaN(val) && val > 0) {
+            // 区分 0 和 NaN：只要有有效数值就返回（包括0）
+            if (!Double.isNaN(val)) {
                 log.debug("GPU memory total query '{}' returned: {}", query, val);
                 return val.longValue();
             }
@@ -462,7 +465,8 @@ public class PrometheusService {
 
         for (String query : queries) {
             Double val = queryValue(baseUrl, query);
-            if (!Double.isNaN(val) && val > 0) {
+            // 区分 0 和 NaN：只要有有效数值就返回（包括0）
+            if (!Double.isNaN(val)) {
                 log.debug("GPU memory used query '{}' returned: {}", query, val);
                 return val.longValue();
             }

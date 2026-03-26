@@ -68,6 +68,8 @@
                 <span>{{ formatSize(doc.fileSize) }}</span>
                 <el-divider direction="vertical" />
                 <span>{{ formatTime(doc.uploadTime) }}</span>
+                <el-divider direction="vertical" v-if="doc.lastModified" />
+                <span v-if="doc.lastModified">更新: {{ formatTime(doc.lastModified) }}</span>
               </div>
             </div>
 

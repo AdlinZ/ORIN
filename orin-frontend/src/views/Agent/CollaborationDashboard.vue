@@ -83,6 +83,34 @@
             </div>
           </template>
 
+          <!-- 筛选器 -->
+          <div class="filter-bar">
+            <el-select v-model="filters.status" placeholder="状态" clearable style="width: 120px" @change="loadPackages">
+              <el-option value="PLANNING" label="规划中" />
+              <el-option value="DECOMPOSING" label="分解中" />
+              <el-option value="EXECUTING" label="执行中" />
+              <el-option value="CONSENSUS" label="共识中" />
+              <el-option value="COMPLETED" label="已完成" />
+              <el-option value="FAILED" label="失败" />
+              <el-option value="FALLBACK" label="回退中" />
+            </el-select>
+            <el-select v-model="filters.priority" placeholder="优先级" clearable style="width: 120px" @change="loadPackages">
+              <el-option value="LOW" label="低" />
+              <el-option value="NORMAL" label="普通" />
+              <el-option value="HIGH" label="高" />
+              <el-option value="URGENT" label="紧急" />
+            </el-select>
+            <el-select v-model="filters.category" placeholder="类别" clearable style="width: 120px" @change="loadPackages">
+              <el-option value="ANALYSIS" label="分析" />
+              <el-option value="GENERATION" label="生成" />
+              <el-option value="REVIEW" label="审查" />
+              <el-option value="RESEARCH" label="研究" />
+              <el-option value="CODING" label="编码" />
+              <el-option value="TESTING" label="测试" />
+            </el-select>
+            <el-button :icon="Refresh" @click="resetFilters">重置</el-button>
+          </div>
+
           <el-table :data="packages" v-loading="loading" stripe>
             <el-table-column prop="packageId" label="任务包ID" width="200">
               <template #default="{ row }">
@@ -198,9 +226,9 @@
               <el-card class="subtask-card">
                 <template #header>
                   <div class="subtask-header">
-                    <span class="subtask-id">#{{ subtask.subTaskId }}</span>
+                    <span class="subtask-id">#{{ index + 1 }} {{ subtask.subTaskId?.substring(0, 8) }}</span>
                     <el-tag size="small" :type="getStatusType(subtask.status)">
-                      {{ subtask.status }}
+                      {{ getStatusName(subtask.status) }}
                     </el-tag>
                   </div>
                 </template>
@@ -209,7 +237,36 @@
                   <div class="subtask-meta">
                     <span>角色: {{ subtask.expectedRole }}</span>
                     <span v-if="subtask.executedBy">执行者: {{ subtask.executedBy }}</span>
-                    <span v-if="subtask.result">结果: {{ subtask.result?.substring(0, 50) }}...</span>
+                  </div>
+                  <div class="subtask-result" v-if="subtask.result">
+                    <span class="result-label">结果:</span>
+                    <el-input v-model="subtask.result" type="textarea" :rows="2" size="small" placeholder="执行结果" />
+                  </div>
+                  <div class="subtask-actions">
+                    <el-button
+                      v-if="subtask.status === 'FAILED'"
+                      type="warning"
+                      size="small"
+                      @click="handleRetry(subtask)"
+                    >
+                      重试
+                    </el-button>
+                    <el-button
+                      v-if="subtask.status === 'PENDING' || subtask.status === 'FAILED'"
+                      type="info"
+                      size="small"
+                      @click="handleSkip(subtask)"
+                    >
+                      跳过
+                    </el-button>
+                    <el-button
+                      v-if="subtask.status === 'PENDING' || subtask.status === 'RUNNING'"
+                      type="success"
+                      size="small"
+                      @click="handleManualComplete(subtask)"
+                    >
+                      手动完成
+                    </el-button>
                   </div>
                 </div>
               </el-card>
@@ -248,10 +305,11 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Loading, CircleCheck, User, Coin, Timer, DataLine } from '@element-plus/icons-vue'
+import { Plus, Loading, CircleCheck, User, Coin, Timer, DataLine, Refresh } from '@element-plus/icons-vue'
 import {
   getAllPackages, createCollaborationPackage, decomposePackage,
-  getExecutableSubtasks, updateSubtaskStatus
+  getExecutableSubtasks, updateSubtaskStatus, getSubtasks, getEventHistory,
+  filterPackages, retrySubtask, skipSubtask, manualCompleteSubtask
 } from '@/api/collaboration'
 
 // 状态
@@ -264,6 +322,13 @@ const showCreateDialog = ref(false)
 const showTopologyDialog = ref(false)
 const showTimelineDialog = ref(false)
 const currentPackage = ref(null)
+
+// 筛选条件
+const filters = reactive({
+  status: '',
+  priority: '',
+  category: ''
+})
 
 // 创建表单
 const createForm = reactive({
@@ -288,7 +353,17 @@ const stats = reactive({
 const loadPackages = async () => {
   loading.value = true
   try {
-    const res = await getAllPackages()
+    let res
+    // 如果有筛选条件
+    if (filters.status || filters.priority || filters.category) {
+      res = await filterPackages({
+        status: filters.status || undefined,
+        priority: filters.priority || undefined,
+        category: filters.category || undefined
+      })
+    } else {
+      res = await getAllPackages()
+    }
     packages.value = res.data || []
 
     // 更新统计
@@ -299,6 +374,14 @@ const loadPackages = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 重置筛选
+const resetFilters = () => {
+  filters.status = ''
+  filters.priority = ''
+  filters.category = ''
+  loadPackages()
 }
 
 // 创建任务包
@@ -337,12 +420,14 @@ const viewTopology = async (pkg) => {
   currentPackage.value = pkg
   showTopologyDialog.value = true
 
-  // 加载子任务（这里简化处理，实际应调用 API）
-  subtasks.value = [
-    { subTaskId: '1', description: '收集信息', expectedRole: 'SPECIALIST', status: 'COMPLETED', executedBy: 'agent-1' },
-    { subTaskId: '2', description: '分析数据', expectedRole: 'SPECIALIST', status: 'RUNNING', executedBy: 'agent-2' },
-    { subTaskId: '3', description: '总结结论', expectedRole: 'REVIEWER', status: 'PENDING' }
-  ]
+  // 加载子任务
+  try {
+    const res = await getSubtasks(pkg.packageId)
+    subtasks.value = res.data || []
+  } catch (error) {
+    console.error('加载子任务失败:', error)
+    subtasks.value = []
+  }
 }
 
 // 查看时间线
@@ -350,12 +435,14 @@ const viewTimeline = async (pkg) => {
   currentPackage.value = pkg
   showTimelineDialog.value = true
 
-  // 模拟事件数据
-  events.value = [
-    { eventId: '1', eventType: 'PACKAGE_CREATED', timestamp: new Date(), agentId: null, eventData: { intent: pkg.intent } },
-    { eventId: '2', eventType: 'SUBTASK_ASSIGNED', timestamp: new Date(), agentId: 'agent-1', eventData: { subTaskId: '1' } },
-    { eventId: '3', eventType: 'SUBTASK_COMPLETED', timestamp: new Date(), agentId: 'agent-1', eventData: { result: 'success' } }
-  ]
+  // 加载事件历史
+  try {
+    const res = await getEventHistory(pkg.packageId)
+    events.value = res.data || []
+  } catch (error) {
+    console.error('加载事件历史失败:', error)
+    events.value = []
+  }
 }
 
 // 辅助函数
@@ -391,6 +478,49 @@ const formatNumber = (num) => {
   if (num > 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num > 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
+}
+
+// 人工干预操作
+const handleRetry = async (subtask) => {
+  try {
+    await retrySubtask(currentPackage.value.packageId, subtask.subTaskId)
+    ElMessage.success('重试成功')
+    viewTopology(currentPackage.value)
+  } catch (error) {
+    ElMessage.error('重试失败')
+  }
+}
+
+const handleSkip = async (subtask) => {
+  try {
+    await ElMessageBox.confirm('确定要跳过此子任务吗？', '确认跳过', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await skipSubtask(currentPackage.value.packageId, subtask.subTaskId)
+    ElMessage.success('已跳过')
+    viewTopology(currentPackage.value)
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('跳过失败')
+    }
+  }
+}
+
+const handleManualComplete = async (subtask) => {
+  const { value } = await ElMessageBox.prompt('请输入完成结果', '手动完成', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputValue: subtask.result || ''
+  })
+  try {
+    await manualCompleteSubtask(currentPackage.value.packageId, subtask.subTaskId, value)
+    ElMessage.success('已完成')
+    viewTopology(currentPackage.value)
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
 }
 
 onMounted(() => {
@@ -452,6 +582,15 @@ onMounted(() => {
   align-items: center;
 }
 
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+}
+
 .topology-container, .timeline-container {
   padding: 10px;
 }
@@ -502,5 +641,22 @@ onMounted(() => {
   background: var(--el-fill-color-light);
   padding: 10px;
   border-radius: 4px;
+}
+
+.subtask-result {
+  margin-top: 10px;
+}
+
+.subtask-result .result-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 5px;
+  display: block;
+}
+
+.subtask-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
 }
 </style>

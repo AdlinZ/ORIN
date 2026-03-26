@@ -24,13 +24,17 @@ public class LangfuseObservabilityService {
 
     private final WebClient webClient;
     private final boolean enabled;
+    private final String host;
+    private final String publicKey;
 
     public LangfuseObservabilityService(
             @Value("${langfuse.public-key:}") String publicKey,
             @Value("${langfuse.secret-key:}") String secretKey,
             @Value("${langfuse.host:}") String host,
             @Value("${langfuse.enabled:false}") boolean enabled) {
-        
+
+        this.publicKey = publicKey;
+        this.host = host;
         this.enabled = enabled && !publicKey.isEmpty() && !secretKey.isEmpty();
         
         if (this.enabled) {
@@ -215,6 +219,30 @@ public class LangfuseObservabilityService {
      */
     public boolean isEnabled() {
         return enabled && webClient != null;
+    }
+
+    /**
+     * 检查是否已配置凭证（即使未启用）
+     */
+    public boolean isConfigured() {
+        return !publicKey.isEmpty();
+    }
+
+    /**
+     * 检查是否有公钥
+     */
+    public boolean hasPublicKey() {
+        return !publicKey.isEmpty();
+    }
+
+    /**
+     * 获取 Dashboard URL
+     */
+    public String getDashboardUrl() {
+        if (host != null && !host.isEmpty()) {
+            return host;
+        }
+        return "https://cloud.langfuse.com";
     }
 
     // Response DTOs

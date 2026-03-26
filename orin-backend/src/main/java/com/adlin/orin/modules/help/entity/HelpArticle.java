@@ -45,6 +45,11 @@ public class HelpArticle {
     private String tags;
 
     /**
+     * 关联页面路径（如 /dashboard/agents/list）
+     */
+    private String pagePath;
+
+    /**
      * 排序顺序
      */
     @Builder.Default

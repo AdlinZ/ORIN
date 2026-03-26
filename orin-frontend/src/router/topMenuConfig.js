@@ -394,31 +394,41 @@ export const TOP_MENU_CONFIG = [
                 ]
             },
             { divider: true },
-            // 系统配置
+            // 系统设置
             {
-                title: '系统配置',
-                path: ROUTES.SYSTEM.SETTINGS,
+                title: '系统设置',
+                path: '/dashboard/system/settings',
                 icon: 'Tools',
                 children: [
                     {
-                        title: '系统设置',
-                        path: ROUTES.SYSTEM.SETTINGS,
+                        title: '基础设置',
+                        path: ROUTES.SYSTEM.SETTINGS_BASE,
                         icon: 'Setting'
                     },
                     {
-                        title: '模型配置',
-                        path: ROUTES.SYSTEM.MODELS,
+                        title: '邮件服务',
+                        path: ROUTES.SYSTEM.SETTINGS_MAIL,
+                        icon: 'Message'
+                    },
+                    {
+                        title: '通知渠道',
+                        path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS,
+                        icon: 'Bell'
+                    },
+                    {
+                        title: '模型默认参数',
+                        path: ROUTES.SYSTEM.SETTINGS_MODEL_DEFAULTS,
                         icon: 'Cpu'
                     },
                     {
-                        title: 'API Key',
-                        path: ROUTES.SYSTEM.API_KEYS,
-                        icon: 'Key'
+                        title: '监控配置',
+                        path: ROUTES.SYSTEM.SETTINGS_MONITOR,
+                        icon: 'Monitor'
                     },
                     {
-                        title: '定价配置',
-                        path: ROUTES.SYSTEM.PRICING,
-                        icon: 'PriceTag'
+                        title: '知识库配置',
+                        path: ROUTES.SYSTEM.SETTINGS_KNOWLEDGE,
+                        icon: 'Document'
                     }
                 ]
             },
@@ -449,6 +459,11 @@ export const TOP_MENU_CONFIG = [
                         title: '帮助中心',
                         path: ROUTES.SYSTEM.HELP_CENTER,
                         icon: 'QuestionFilled'
+                    },
+                    {
+                        title: '统计分析',
+                        path: ROUTES.SYSTEM.STATISTICS,
+                        icon: 'DataAnalysis'
                     },
                     {
                         title: '系统维护',

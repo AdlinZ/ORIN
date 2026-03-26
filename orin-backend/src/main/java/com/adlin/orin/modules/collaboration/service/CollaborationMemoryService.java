@@ -29,6 +29,12 @@ public class CollaborationMemoryService {
     private static final String CHECKPOINT_PREFIX = "collab:checkpoint:";
     private static final String BLACKBOARD_PREFIX = "collab:blackboard:";
 
+    // 黑板标准键名
+    public static final String KEY_CURRENT_INTENT = "_current_intent";
+    public static final String KEY_CONTEXT_SUMMARY = "_context_summary";
+    public static final String KEY_INTERMEDIATE_RESULTS = "_intermediate_results";
+    public static final String KEY_FINAL_CONCLUSION = "_final_conclusion";
+
     // 默认 TTL
     private static final Duration DEFAULT_TTL = Duration.ofHours(24);
     private static final Duration CURSOR_TTL = Duration.ofHours(1);
@@ -110,6 +116,88 @@ public class CollaborationMemoryService {
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);
         }
+    }
+
+    // ========== 黑板统一结构（Standard Blackboard Structure）==========
+
+    /**
+     * 设置当前意图
+     */
+    public void setCurrentIntent(String packageId, String intent) {
+        writeToBlackboard(packageId, KEY_CURRENT_INTENT, intent);
+    }
+
+    /**
+     * 获取当前意图
+     */
+    public Optional<String> getCurrentIntent(String packageId) {
+        return readFromBlackboard(packageId, KEY_CURRENT_INTENT)
+                .map(obj -> obj.toString());
+    }
+
+    /**
+     * 设置上下文摘要
+     */
+    public void setContextSummary(String packageId, String summary) {
+        writeToBlackboard(packageId, KEY_CONTEXT_SUMMARY, summary);
+    }
+
+    /**
+     * 获取上下文摘要
+     */
+    public Optional<String> getContextSummary(String packageId) {
+        return readFromBlackboard(packageId, KEY_CONTEXT_SUMMARY)
+                .map(obj -> obj.toString());
+    }
+
+    /**
+     * 添加中间结果
+     */
+    public void addIntermediateResult(String packageId, String subtaskId, Object result) {
+        List<Map<String, Object>> results = getIntermediateResults(packageId);
+        Map<String, Object> entry = new HashMap<>();
+        entry.put("subtaskId", subtaskId);
+        entry.put("result", result);
+        entry.put("timestamp", System.currentTimeMillis());
+        results.add(entry);
+        writeToBlackboard(packageId, KEY_INTERMEDIATE_RESULTS, results);
+    }
+
+    /**
+     * 获取所有中间结果
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getIntermediateResults(String packageId) {
+        return readFromBlackboard(packageId, KEY_INTERMEDIATE_RESULTS)
+                .map(obj -> (List<Map<String, Object>>) obj)
+                .orElse(Collections.emptyList());
+    }
+
+    /**
+     * 设置最终结论
+     */
+    public void setFinalConclusion(String packageId, String conclusion) {
+        writeToBlackboard(packageId, KEY_FINAL_CONCLUSION, conclusion);
+    }
+
+    /**
+     * 获取最终结论
+     */
+    public Optional<String> getFinalConclusion(String packageId) {
+        return readFromBlackboard(packageId, KEY_FINAL_CONCLUSION)
+                .map(obj -> obj.toString());
+    }
+
+    /**
+     * 获取完整黑板结构
+     */
+    public Map<String, Object> getBlackboardStructure(String packageId) {
+        Map<String, Object> structure = new HashMap<>();
+        getCurrentIntent(packageId).ifPresent(intent -> structure.put("currentIntent", intent));
+        getContextSummary(packageId).ifPresent(summary -> structure.put("contextSummary", summary));
+        structure.put("intermediateResults", getIntermediateResults(packageId));
+        getFinalConclusion(packageId).ifPresent(conclusion -> structure.put("finalConclusion", conclusion));
+        return structure;
     }
 
     // ========== 执行游标（Execution Cursor）==========

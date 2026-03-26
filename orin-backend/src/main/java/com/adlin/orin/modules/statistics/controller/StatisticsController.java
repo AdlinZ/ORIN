@@ -3,11 +3,13 @@ package com.adlin.orin.modules.statistics.controller;
 import com.adlin.orin.modules.statistics.service.StatisticsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Map;
 
@@ -67,5 +69,15 @@ public class StatisticsController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(statisticsService.getTaskStats(startDate, endDate));
+    }
+
+    @Operation(summary = "导出统计报表")
+    @GetMapping("/export")
+    public void exportStatistics(
+            @RequestParam String type,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            HttpServletResponse response) throws IOException {
+        statisticsService.exportStatistics(type, startDate, endDate, response);
     }
 }

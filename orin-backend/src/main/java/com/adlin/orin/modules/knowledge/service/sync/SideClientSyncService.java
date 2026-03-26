@@ -185,12 +185,59 @@ public class SideClientSyncService {
                 continue;
             }
 
+            // 检查 webhook 是否已失效
+            if (Boolean.TRUE.equals(webhook.getDisabled())) {
+                log.warn("Webhook {} is disabled, skipping", webhook.getWebhookUrl());
+                continue;
+            }
+
             try {
                 sendWebhook(webhook, eventType, data);
+                // 成功后重置失败计数
+                webhook.setFailureCount(0);
+                webhook.setLastFailureTime(null);
+                webhook.setLastFailureReason(null);
+                webhookRepository.save(webhook);
             } catch (Exception e) {
                 log.error("Failed to send webhook to {}: {}", webhook.getWebhookUrl(), e.getMessage());
+                handleWebhookFailure(webhook, e.getMessage());
             }
         }
+    }
+
+    /**
+     * 处理 webhook 失败，增加失败计数并在连续失败3次后标记为失效
+     */
+    @Transactional
+    private void handleWebhookFailure(SyncWebhook webhook, String errorMsg) {
+        int failureCount = webhook.getFailureCount() != null ? webhook.getFailureCount() : 0;
+        webhook.setFailureCount(failureCount + 1);
+        webhook.setLastFailureTime(LocalDateTime.now());
+        webhook.setLastFailureReason(errorMsg != null && errorMsg.length() > 500
+                ? errorMsg.substring(0, 500) : errorMsg);
+
+        // 连续失败3次以上标记为失效
+        if (failureCount >= 2) { // 已经失败2次，这是第3次失败
+            webhook.setDisabled(true);
+            log.warn("Webhook {} has failed {} times, disabling it",
+                    webhook.getWebhookUrl(), failureCount + 1);
+        }
+
+        webhookRepository.save(webhook);
+    }
+
+    /**
+     * 重新启用已失效的 webhook
+     */
+    @Transactional
+    public SyncWebhook reenableWebhook(Long webhookId) {
+        SyncWebhook webhook = webhookRepository.findById(webhookId)
+                .orElseThrow(() -> new RuntimeException("Webhook not found: " + webhookId));
+        webhook.setDisabled(false);
+        webhook.setFailureCount(0);
+        webhook.setLastFailureTime(null);
+        webhook.setLastFailureReason(null);
+        return webhookRepository.save(webhook);
     }
 
     /**

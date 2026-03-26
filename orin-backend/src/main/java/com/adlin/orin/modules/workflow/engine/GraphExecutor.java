@@ -6,6 +6,7 @@ import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
 import com.adlin.orin.common.exception.WorkflowExecutionException;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
+import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,7 @@ public class GraphExecutor {
     private final Map<String, NodeHandler> nodeHandlers;
     private final WorkflowEventPublisher eventPublisher;
     private final TraceService traceService;
+    private final LangfuseObservabilityService langfuseService;
 
     // Thread pool for async execution
     private final ExecutorService executor = Executors.newCachedThreadPool(); // Use Spring's TaskExecutor in production
@@ -266,10 +268,19 @@ public class GraphExecutor {
                         }
                         eventPublisher.publishNodeStarted(currentInstanceId, nodeId, (String) nodeDef.get("type"));
 
+                        long nodeStartTime = System.currentTimeMillis();
+                        String nodeType = (String) nodeDef.getOrDefault("type", "unknown");
+                        String nodeTitle = (String) nodeDef.getOrDefault("title", nodeType);
+
                         NodeExecutionResult result = handler.execute(
                                 nodeDef.get("data") != null ? (Map<String, Object>) nodeDef.get("data")
                                         : Collections.emptyMap(),
                                 context);
+
+                        long nodeDurationMs = System.currentTimeMillis() - nodeStartTime;
+
+                        // Record node execution to Langfuse as span
+                        recordNodeSpan(parentTraceId, nodeId, nodeType, nodeTitle, nodeStartTime, nodeDurationMs, result);
 
                         // Update Context
                         if (result.isSuccess() && result.getOutputs() != null) {
@@ -332,6 +343,43 @@ public class GraphExecutor {
             return Long.parseLong(nodeId.replaceAll("\\D+", ""));
         } catch (Exception e) {
             return (long) nodeId.hashCode();
+        }
+    }
+
+    /**
+     * 记录工作流节点执行到 Langfuse（作为 Span）
+     */
+    private void recordNodeSpan(String traceId, String nodeId, String nodeType, String nodeTitle,
+                                long startTime, long durationMs, NodeExecutionResult result) {
+        if (traceId == null || !langfuseService.isEnabled()) {
+            return;
+        }
+
+        try {
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("nodeId", nodeId);
+            metadata.put("nodeType", nodeType);
+            metadata.put("success", result.isSuccess());
+
+            if (result.getOutputs() != null) {
+                metadata.put("outputKeys", result.getOutputs().keySet());
+            }
+
+            langfuseService.recordToolExecution(
+                    traceId,
+                    nodeTitle,
+                    "", // input
+                    result.isSuccess() ? "completed" : "failed",
+                    startTime,
+                    startTime + durationMs
+            );
+
+            log.debug("Recorded workflow node to Langfuse: traceId={}, node={}, duration={}ms",
+                    traceId, nodeTitle, durationMs);
+
+        } catch (Exception e) {
+            // Langfuse 错误降级，不影响主流程
+            log.warn("Failed to record Langfuse node span: {}", e.getMessage());
         }
     }
 }

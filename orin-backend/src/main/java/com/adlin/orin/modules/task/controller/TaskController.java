@@ -47,10 +47,16 @@ public class TaskController {
                     result.put("workflowInstanceId", task.getWorkflowInstanceId());
                     result.put("priority", task.getPriority());
                     result.put("status", task.getStatus());
+                    result.put("triggeredBy", task.getTriggeredBy());
+                    result.put("triggerSource", task.getTriggerSource());
                     result.put("retryCount", task.getRetryCount());
                     result.put("maxRetries", task.getMaxRetries());
+                    result.put("nextRetryAt", task.getNextRetryAt());
                     result.put("errorMessage", task.getErrorMessage());
+                    result.put("errorStack", task.getErrorStack());
                     result.put("deadLetterReason", task.getDeadLetterReason());
+                    result.put("inputData", task.getInputData());
+                    result.put("outputData", task.getOutputData());
                     result.put("queuedAt", task.getQueuedAt());
                     result.put("startedAt", task.getStartedAt());
                     result.put("completedAt", task.getCompletedAt());

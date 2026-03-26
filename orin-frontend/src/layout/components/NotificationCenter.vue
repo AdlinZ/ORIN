@@ -16,7 +16,7 @@
               :key="notification.id"
               class="notification-item"
               :class="{ unread: !notification.read }"
-              @click="markAsRead(notification.id)"
+              @click="markAsReadHandler(notification.id)"
             >
               <div class="notification-icon" :class="notification.type">
                 <el-icon>
@@ -48,7 +48,7 @@
               v-for="notification in unreadNotifications" 
               :key="notification.id"
               class="notification-item unread"
-              @click="markAsRead(notification.id)"
+              @click="markAsReadHandler(notification.id)"
             >
               <div class="notification-icon" :class="notification.type">
                 <el-icon>
@@ -74,7 +74,7 @@
       
       <!-- 操作按钮 -->
       <div class="notification-actions">
-        <el-button size="small" @click="markAllAsRead">全部标记为已读</el-button>
+        <el-button size="small" @click="markAllAsReadHandler">全部标记为已读</el-button>
         <el-button size="small" @click="clearAll">清空全部</el-button>
       </div>
     </div>
@@ -89,12 +89,12 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  getAlertHistory,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
-  clearAllNotifications,
-  getUnreadNotificationCount
-} from '@/api/alert'
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  cleanupNotifications,
+  getUnreadCount as getUnreadNotificationCount
+} from '@/api/notification'
 import dayjs from 'dayjs'
 
 const props = defineProps({
@@ -136,16 +136,16 @@ const fetchNotifications = async () => {
 
   loading.value = true
   try {
-    const res = await getAlertHistory({ page: 0, size: 20 })
+    const res = await getNotifications({ page: 0, size: 20 })
     const data = res.data?.content || res.content || []
 
-    notifications.value = data.map(alert => ({
-      id: alert.id,
-      title: alert.ruleName || '系统告警',
-      message: alert.alertMessage,
-      type: mapSeverityToType(alert.severity),
-      time: parseSpringDate(alert.triggeredAt),
-      read: alert.status === 'RESOLVED'
+    notifications.value = data.map(msg => ({
+      id: msg.id,
+      title: msg.title,
+      message: msg.content,
+      type: msg.type?.toLowerCase() || 'info',
+      time: parseSpringDate(msg.createdAt),
+      read: msg.read || false
     }))
 
     emit('update:unreadCount', unreadCount.value)
@@ -249,12 +249,12 @@ const formatTime = (time) => {
   return time.toLocaleDateString('zh-CN')
 }
 
-const markAsRead = async (id) => {
+const markAsReadHandler = async (id) => {
   const notification = notifications.value.find(n => n.id === id)
   if (notification && !notification.read) {
     try {
       // 调用服务端接口标记为已读
-      await markNotificationAsRead(id)
+      await markAsRead(id)
       notification.read = true
       emit('update:unreadCount', unreadCount.value)
     } catch (error) {
@@ -264,10 +264,10 @@ const markAsRead = async (id) => {
   }
 }
 
-const markAllAsRead = async () => {
+const markAllAsReadHandler = async () => {
   try {
     // 调用服务端接口标记全部为已读
-    await markAllNotificationsAsRead()
+    await markAllAsRead()
     notifications.value.forEach(n => n.read = true)
     emit('update:unreadCount', 0)
     ElMessage.success('已全部标记为已读')
@@ -286,7 +286,7 @@ const clearAll = async () => {
     })
 
     // 调用服务端接口清空
-    await clearAllNotifications()
+    await cleanupNotifications()
     notifications.value = []
     emit('update:unreadCount', 0)
     ElMessage.success('已清空所有通知')

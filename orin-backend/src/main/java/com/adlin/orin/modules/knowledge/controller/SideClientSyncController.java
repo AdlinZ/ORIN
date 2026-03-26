@@ -1,10 +1,12 @@
 package com.adlin.orin.modules.knowledge.controller;
 
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.knowledge.entity.SyncWebhook;
 import com.adlin.orin.modules.knowledge.service.sync.SideClientSyncService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +24,11 @@ import java.util.Map;
 @RequestMapping("/api/v1/knowledge/sync")
 @RequiredArgsConstructor
 @Tag(name = "Side Client Knowledge Sync", description = "端侧知识库同步接口")
+@Slf4j
 public class SideClientSyncController {
 
     private final SideClientSyncService sideClientSyncService;
+    private final AuditHelper auditHelper;
 
     // ==================== 变更查询接口 ====================
 
@@ -74,6 +78,9 @@ public class SideClientSyncController {
     public Map<String, Object> downloadDocument(
             @PathVariable String agentId,
             @PathVariable String documentId) {
+        // 记录下载操作审计
+        auditHelper.logFileOperation(agentId, "DOWNLOAD", documentId,
+                "Agent: " + agentId + ", DocId: " + documentId, true, null);
         return sideClientSyncService.downloadDocument(documentId);
     }
 
@@ -99,6 +106,42 @@ public class SideClientSyncController {
         return result;
     }
 
+    // ==================== 手动同步接口 ====================
+
+    @Operation(summary = "触发全量同步", description = "手动触发客户端全量同步")
+    @PostMapping("/client/{agentId}/sync/full")
+    public Map<String, Object> triggerFullSync(@PathVariable String agentId) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            // 全量同步：导出全部文档
+            var exportResult = sideClientSyncService.exportDocuments(agentId, null, 0, 1000);
+            result.put("success", true);
+            result.put("message", "全量同步已触发");
+            result.put("exportedCount", exportResult.getOrDefault("totalCount", 0));
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "全量同步失败: " + e.getMessage());
+        }
+        return result;
+    }
+
+    @Operation(summary = "触发增量同步", description = "手动触发客户端增量同步")
+    @PostMapping("/client/{agentId}/sync/incremental")
+    public Map<String, Object> triggerIncrementalSync(@PathVariable String agentId) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            // 增量同步：获取待同步变更
+            var pendingChanges = sideClientSyncService.getPendingChanges(agentId);
+            result.put("success", true);
+            result.put("message", "增量同步已触发");
+            result.put("pendingCount", pendingChanges.size());
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "增量同步失败: " + e.getMessage());
+        }
+        return result;
+    }
+
     // ==================== Webhook 配置接口 ====================
 
     @Operation(summary = "保存Webhook配置")
@@ -121,6 +164,16 @@ public class SideClientSyncController {
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("message", "Webhook deleted");
+        return result;
+    }
+
+    @Operation(summary = "重新启用已失效的Webhook")
+    @PostMapping("/client/webhook/{webhookId}/reenable")
+    public Map<String, Object> reenableWebhook(@PathVariable Long webhookId) {
+        SyncWebhook reenabled = sideClientSyncService.reenableWebhook(webhookId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("webhook", reenabled);
         return result;
     }
 

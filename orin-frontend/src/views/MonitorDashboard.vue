@@ -160,6 +160,36 @@
       </div>
     </el-card>
 
+    <!-- Langfuse 可观测性面板 -->
+    <el-card class="langfuse-card" shadow="hover" v-if="langfuseStatus.enabled || langfuseStatus.configured">
+      <template #header>
+        <div class="card-header">
+          <span>
+            <el-icon><DataLine /></el-icon>
+            LLM 链路追踪 (Langfuse)
+          </span>
+          <el-tag :type="langfuseStatus.enabled ? 'success' : 'info'" size="small">
+            {{ langfuseStatus.enabled ? '已启用' : '未启用' }}
+          </el-tag>
+        </div>
+      </template>
+      <div class="langfuse-content">
+        <div v-if="langfuseStatus.enabled && langfuseStatus.link" class="langfuse-info">
+          <p class="text-secondary">Langfuse 已配置并启用，可查看 LLM 调用链路详情</p>
+          <el-button type="primary" @click="openLangfuse">
+            <el-icon><Link /></el-icon>
+            打开 Langfuse Dashboard
+          </el-button>
+        </div>
+        <div v-else-if="langfuseStatus.configured && !langfuseStatus.enabled" class="langfuse-info">
+          <p class="text-secondary">Langfuse 已配置但未启用，请在配置文件中启用</p>
+        </div>
+        <div v-else class="langfuse-info">
+          <p class="text-secondary">请配置 Langfuse 以启用 LLM 链路追踪</p>
+        </div>
+      </div>
+    </el-card>
+
     <!-- Main Content Area -->
     <el-row :gutter="24" class="content-row">
       <!-- Left: Agent Grid -->
@@ -189,7 +219,7 @@
                 v-for="agent in agents" 
                 :key="agent.agentId"
                 class="agent-item"
-                :class="[agent.status.toLowerCase(), { 'selected': selectedAgent?.agentId === agent.agentId }]"
+                :class="agent.status.toLowerCase()"
                 @click="openAgentDetail(agent)"
               >
                 <!-- Existing Item Content... -->
@@ -272,60 +302,6 @@
       </el-col>
     </el-row>
 
-    <!-- Refactored Detail Drawer -->
-    <el-drawer
-      v-model="drawerVisible"
-      :title="selectedAgent ? '监控详情：' + selectedAgent.agentName : '详情'"
-      size="50%"
-      destroy-on-close
-      class="custom-drawer"
-    >
-      <div v-if="selectedAgent" class="detail-content">
-        <div class="detail-header-info">
-          <div class="status-badge" :class="selectedAgent.status.toLowerCase()">
-             <span class="dot"></span> {{ selectedAgent.status }}
-          </div>
-          <div class="control-btns">
-            <el-button-group>
-              <el-button type="success" :icon="VideoPlay" :disabled="selectedAgent.status === 'RUNNING'" @click="handleControl('start')">启动</el-button>
-              <el-button type="danger" :icon="VideoPause" :disabled="selectedAgent.status === 'STOPPED'" @click="handleControl('stop')">停止</el-button>
-              <el-button type="warning" :icon="Refresh" @click="handleControl('restart')">重启</el-button>
-            </el-button-group>
-          </div>
-        </div>
-
-        <el-tabs v-model="activeTab" class="detail-tabs">
-          <el-tab-pane label="性能监控" name="monitor">
-            <div class="chart-section">
-               <LineChart title="Token 消耗 (累计)" :data="metrics.tokens" yAxisName="tokens" color="#00BFA5" />
-               <LineChart title="延迟 (ms)" :data="metrics.latency" yAxisName="ms" color="#14B8A6" />
-               <LineChart v-if="selectedAgent.cpuUsage > 0 || selectedAgent.isLocal" title="CPU 负载" :data="metrics.cpu" yAxisName="%" :yAxisMax="100" color="#F56C6C" />
-               <LineChart v-if="selectedAgent.memoryUsage > 0 || selectedAgent.isLocal" title="内存占用" :data="metrics.memory" yAxisName="MB" color="var(--orin-primary)" />
-            </div>
-          </el-tab-pane>
-          <el-tab-pane label="运行日志" name="logs">
-             <div class="log-stream">
-                <div v-for="(log, index) in logs" :key="index" class="log-entry" :class="log.type">
-                   <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-                   <span class="log-tag">{{ log.type }}</span>
-                   <span class="log-msg">{{ log.content }}</span>
-                </div>
-             </div>
-          </el-tab-pane>
-          <el-tab-pane label="资料库" name="knowledge">
-             <el-table border :data="knowledgeList" size="small">
-                <el-table-column prop="name" label="名称" />
-                <el-table-column prop="docCount" label="文件" width="70" align="center" />
-                <el-table-column prop="status" label="状态" width="90" align="center">
-                  <template #default="{ row }">
-                    <el-tag size="small" :type="row.status === 'ENABLED' ? 'success' : 'info'">{{ row.status }}</el-tag>
-                  </template>
-                </el-table-column>
-             </el-table>
-          </el-tab-pane>
-        </el-tabs>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
@@ -333,20 +309,16 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
-import { useDark } from '@vueuse/core';
-const isDark = useDark();
-import { getGlobalSummary, getAgentList, getAgentMetrics, getTraceById, getCallSuccessRate, getErrorDistribution } from '../api/monitor';
-import { controlAgent, getAgentLogs } from '../api/runtime'; 
-import { getAgentKnowledge } from '../api/knowledge';
+import { getGlobalSummary, getAgentList, getTraceById, getCallSuccessRate, getErrorDistribution, getLangfuseStatus } from '../api/monitor';
+import { getAgentLogs } from '../api/runtime'; 
 import { useRefreshStore } from '@/stores/refresh';
-import LineChart from '../components/LineChart.vue';
 import PieChart from '../components/PieChart.vue';
 import PageHeader from '../components/PageHeader.vue';
 import DashboardCardConfig from '../components/DashboardCardConfig.vue';
 import ServerHardwareCard from '../components/ServerHardwareCard.vue';
 import {
-  VideoPlay, VideoPause, Refresh, Monitor, Cpu, Connection, Tickets, ArrowRight, Setting,
-  CircleCheck, CircleClose, Warning, Search
+  Refresh, Monitor, Cpu, Connection, Tickets, ArrowRight, Setting,
+  CircleCheck, CircleClose, Warning, Search, DataLine, Link
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
@@ -358,12 +330,7 @@ const agents = ref([]);
 const loading = ref(true);
 const refreshLoading = ref(false);
 const autoRefresh = ref(true);
-const drawerVisible = ref(false);
-const selectedAgent = ref(null);
-const metrics = ref({ cpu: [], memory: [], latency: [], tokens: [] });
 const logs = ref([]);
-const knowledgeList = ref([]);
-const activeTab = ref('monitor');
 const showCardConfig = ref(false);
 const cardConfigRef = ref(null);
 const enabledCards = ref([]);
@@ -375,6 +342,26 @@ const traceIdInput = ref('');
 const traceResult = ref(null);
 const successRateData = ref(null);
 const errorDistributionData = ref([]);
+
+// Langfuse 状态
+const langfuseStatus = ref({ enabled: false, configured: false, link: '' });
+
+// 加载 Langfuse 状态
+const loadLangfuseStatus = async () => {
+  try {
+    const res = await getLangfuseStatus();
+    langfuseStatus.value = res.data || res;
+  } catch (e) {
+    console.error('加载 Langfuse 状态失败:', e);
+  }
+};
+
+// 打开 Langfuse Dashboard
+const openLangfuse = () => {
+  if (langfuseStatus.value.link) {
+    window.open(langfuseStatus.value.link, '_blank');
+  }
+};
 
 // 系统状态计算
 const systemStatus = computed(() => {
@@ -498,7 +485,6 @@ const statusDistribution = computed(() => [
 ]);
 
 let pollTimer = null;
-let detailPollTimer = null;
 
 // 跳转逻辑增强: 支持更多类型
 const handleCardClick = (item) => {
@@ -581,6 +567,8 @@ const fetchData = async () => {
         }
       }
     }
+
+    queryErrorDistribution().catch(() => {});
     
     // 刷新成功提示（手动刷新时显示更明显的提示）
     if (isManualRefresh) {
@@ -635,39 +623,6 @@ const handleRefreshToggle = (val) => {
     clearInterval(pollTimer);
     ElMessage.warning('已关闭自动刷新');
   }
-};
-
-const fetchDetail = async () => {
-  if (!selectedAgent.value) return;
-  const end = Date.now();
-  const start = end - 5 * 60 * 1000;
-  try {
-    const res = await getAgentMetrics(selectedAgent.value.agentId, start, end);
-    const data = res.data;
-    metrics.value = {
-      cpu: data.map(d => ({ timestamp: d.timestamp, value: d.cpuUsage })),
-      memory: data.map(d => ({ timestamp: d.timestamp, value: d.memoryUsage })),
-      latency: data.map(d => ({ timestamp: d.timestamp, value: d.responseLatency })),
-      tokens: data.map(d => ({ timestamp: d.timestamp, value: d.tokenCost }))
-    };
-    
-    const logRes = await getAgentLogs(selectedAgent.value.agentId);
-    logs.value = logRes.data;
-    
-    if (activeTab.value === 'knowledge' && knowledgeList.value.length === 0) {
-        const kbRes = await getAgentKnowledge(selectedAgent.value.agentId);
-        knowledgeList.value = kbRes.data;
-    }
-  } catch (e) { console.error(e); }
-};
-
-const handleControl = async (action) => {
-    try {
-        await controlAgent(selectedAgent.value.agentId, action);
-        ElMessage.success(`操作成功：${action}`);
-        fetchData();
-        fetchDetail();
-    } catch (e) { ElMessage.error('失败: ' + e.message); }
 };
 
 const openAgentDetail = (agent) => {
@@ -726,7 +681,10 @@ const getHealthStatus = (s) => s >= 90 ? 'success' : (s >= 60 ? 'warning' : 'exc
 
 onMounted(() => {
   initCardConfig();
-  
+
+  // 加载 Langfuse 状态
+  loadLangfuseStatus();
+
   // Restore auto-refresh state
   const savedAutoRefresh = localStorage.getItem('dashboard_auto_refresh');
   if (savedAutoRefresh !== null) {
@@ -737,14 +695,13 @@ onMounted(() => {
   if (autoRefresh.value) {
     pollTimer = setInterval(fetchData, 5000);
   }
-  
+
   // 监听全局刷新事件（来自Navbar的刷新按钮）
   window.addEventListener('global-refresh', fetchData);
 });
 
 onUnmounted(() => {
   clearInterval(pollTimer);
-  clearInterval(detailPollTimer);
   
   // 清理全局刷新事件监听器
   window.removeEventListener('global-refresh', fetchData);
@@ -776,6 +733,32 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.langfuse-card {
+  margin-bottom: 24px;
+  border-radius: var(--radius-xl) !important;
+}
+
+.langfuse-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.langfuse-content {
+  padding: 10px;
+}
+
+.langfuse-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.langfuse-info p {
+  margin: 0;
+  flex: 1;
 }
 
 .trace-input-row {

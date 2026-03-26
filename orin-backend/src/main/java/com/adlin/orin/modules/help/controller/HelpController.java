@@ -110,4 +110,12 @@ public class HelpController {
         HelpArticle article = helpService.toggleEnabled(id, enabled);
         return ResponseEntity.ok(article);
     }
+
+    @Operation(summary = "获取与当前页面相关的帮助文档")
+    @GetMapping("/articles/related")
+    public ResponseEntity<List<HelpArticle>> getRelatedArticles(
+            @RequestParam String pagePath,
+            @RequestParam(defaultValue = "5") int limit) {
+        return ResponseEntity.ok(helpService.getRelatedArticles(pagePath, limit));
+    }
 }

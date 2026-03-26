@@ -37,8 +37,8 @@
               <el-switch v-model="difyConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="difyLoading" @click="saveDifyConfig">保存配置</el-button>
-              <el-button @click="testDifyConnection" :disabled="!difyConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="difyLoading" @click="handleSaveDifyConfig">保存配置</el-button>
+              <el-button @click="handleTestDifyConnection" :disabled="!difyConfig.enabled">测试连接</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -74,8 +74,8 @@
               <el-switch v-model="ragflowConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="ragflowLoading" @click="saveRagflowConfig">保存配置</el-button>
-              <el-button @click="testRagflowConnection" :disabled="!ragflowConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="ragflowLoading" @click="handleSaveRagflowConfig">保存配置</el-button>
+              <el-button @click="handleTestRagflowConnection" :disabled="!ragflowConfig.enabled">测试连接</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -93,11 +93,24 @@
                   <p>集成 Microsoft AutoGen 多智能体框架</p>
                 </div>
               </div>
-              <el-tag :type="autogenConfig.enabled ? 'success' : 'info'">
-                {{ autogenConfig.enabled ? '已启用' : '未启用' }}
-              </el-tag>
+              <div class="header-actions">
+                <el-tag type="warning">预留位</el-tag>
+                <el-tag :type="autogenConfig.enabled ? 'success' : 'info'">
+                  {{ autogenConfig.enabled ? '已启用' : '未启用' }}
+                </el-tag>
+              </div>
             </div>
           </template>
+
+          <el-alert
+            title="AutoGen 集成预留提示"
+            type="info"
+            :closable="false"
+            show-icon
+            class="预留提示"
+          >
+            AutoGen 多智能体框架集成正在规划中，暂未开放使用。
+          </el-alert>
 
           <el-form :model="autogenConfig" label-width="120px">
             <el-form-item label="服务地址">
@@ -114,8 +127,8 @@
               <el-switch v-model="autogenConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="autogenLoading" @click="saveAutogenConfig">保存配置</el-button>
-              <el-button @click="testAutogenConnection" :disabled="!autogenConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="autogenLoading" @click="handleSaveAutogenConfig">保存配置</el-button>
+              <el-button @click="handleTestAutogenConnection" :disabled="!autogenConfig.enabled">测试连接</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -133,11 +146,24 @@
                   <p>集成 CrewAI 多智能体协作框架</p>
                 </div>
               </div>
-              <el-tag :type="crewaiConfig.enabled ? 'success' : 'info'">
-                {{ crewaiConfig.enabled ? '已启用' : '未启用' }}
-              </el-tag>
+              <div class="header-actions">
+                <el-tag type="warning">预留位</el-tag>
+                <el-tag :type="crewaiConfig.enabled ? 'success' : 'info'">
+                  {{ crewaiConfig.enabled ? '已启用' : '未启用' }}
+                </el-tag>
+              </div>
             </div>
           </template>
+
+          <el-alert
+            title="CrewAI 集成预留提示"
+            type="info"
+            :closable="false"
+            show-icon
+            class="预留提示"
+          >
+            CrewAI 多智能体协作框架集成正在规划中，暂未开放使用。
+          </el-alert>
 
           <el-form :model="crewaiConfig" label-width="120px">
             <el-form-item label="服务地址">
@@ -154,8 +180,8 @@
               <el-switch v-model="crewaiConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="crewaiLoading" @click="saveCrewaiConfig">保存配置</el-button>
-              <el-button @click="testCrewaiConnection" :disabled="!crewaiConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="crewaiLoading" @click="handleSaveCrewaiConfig">保存配置</el-button>
+              <el-button @click="handleTestCrewaiConnection" :disabled="!crewaiConfig.enabled">测试连接</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -168,7 +194,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
-import request from '@/utils/request'
+import { getDifyConfig, saveDifyConfig, testDifyConnection, getRagflowConfig, saveRagflowConfig, testRagflowConnection, getAutogenConfig, saveAutogenConfig, testAutogenConnection, getCrewaiConfig, saveCrewaiConfig, testCrewaiConnection } from '@/api/integrations'
 
 const activeTab = ref('dify')
 
@@ -209,7 +235,7 @@ const crewaiLoading = ref(false)
 // 加载 Dify 配置
 const loadDifyConfig = async () => {
   try {
-    const res = await request.get('/system/integrations/dify')
+    const res = await getDifyConfig()
     if (res) {
       difyConfig.apiUrl = res.apiUrl || ''
       difyConfig.apiKey = res.apiKey || ''
@@ -221,10 +247,10 @@ const loadDifyConfig = async () => {
 }
 
 // 保存 Dify 配置
-const saveDifyConfig = async () => {
+const handleSaveDifyConfig = async () => {
   difyLoading.value = true
   try {
-    await request.post('/system/integrations/dify', difyConfig)
+    await saveDifyConfig(difyConfig)
     ElMessage.success('Dify 配置已保存')
   } catch (e) {
     ElMessage.error('保存失败: ' + (e.message || e))
@@ -234,9 +260,9 @@ const saveDifyConfig = async () => {
 }
 
 // 测试 Dify 连接
-const testDifyConnection = async () => {
+const handleTestDifyConnection = async () => {
   try {
-    const res = await request.get('/system/integrations/dify/test')
+    const res = await testDifyConnection()
     if (res.success) {
       ElMessage.success('Dify 连接成功')
     } else {
@@ -250,7 +276,7 @@ const testDifyConnection = async () => {
 // 加载 RAGFlow 配置
 const loadRagflowConfig = async () => {
   try {
-    const res = await request.get('/system/integrations/ragflow')
+    const res = await getRagflowConfig()
     if (res) {
       ragflowConfig.apiUrl = res.apiUrl || ''
       ragflowConfig.apiKey = res.apiKey || ''
@@ -262,10 +288,10 @@ const loadRagflowConfig = async () => {
 }
 
 // 保存 RAGFlow 配置
-const saveRagflowConfig = async () => {
+const handleSaveRagflowConfig = async () => {
   ragflowLoading.value = true
   try {
-    await request.post('/system/integrations/ragflow', ragflowConfig)
+    await saveRagflowConfig(ragflowConfig)
     ElMessage.success('RAGFlow 配置已保存')
   } catch (e) {
     ElMessage.error('保存失败: ' + (e.message || e))
@@ -275,9 +301,9 @@ const saveRagflowConfig = async () => {
 }
 
 // 测试 RAGFlow 连接
-const testRagflowConnection = async () => {
+const handleTestRagflowConnection = async () => {
   try {
-    const res = await request.get('/system/integrations/ragflow/test')
+    const res = await testRagflowConnection()
     if (res.success) {
       ElMessage.success('RAGFlow 连接成功')
     } else {
@@ -291,7 +317,7 @@ const testRagflowConnection = async () => {
 // 加载 AutoGen 配置
 const loadAutogenConfig = async () => {
   try {
-    const res = await request.get('/system/integrations/autogen')
+    const res = await getAutogenConfig()
     if (res) {
       autogenConfig.serviceUrl = res.serviceUrl || ''
       autogenConfig.apiKey = res.apiKey || ''
@@ -304,10 +330,10 @@ const loadAutogenConfig = async () => {
 }
 
 // 保存 AutoGen 配置
-const saveAutogenConfig = async () => {
+const handleSaveAutogenConfig = async () => {
   autogenLoading.value = true
   try {
-    await request.post('/system/integrations/autogen', autogenConfig)
+    await saveAutogenConfig(autogenConfig)
     ElMessage.success('AutoGen 配置已保存')
   } catch (e) {
     ElMessage.error('保存失败: ' + (e.message || e))
@@ -317,9 +343,9 @@ const saveAutogenConfig = async () => {
 }
 
 // 测试 AutoGen 连接
-const testAutogenConnection = async () => {
+const handleTestAutogenConnection = async () => {
   try {
-    const res = await request.get('/system/integrations/autogen/test')
+    const res = await testAutogenConnection()
     if (res.success) {
       ElMessage.success('AutoGen 连接成功')
     } else {
@@ -333,7 +359,7 @@ const testAutogenConnection = async () => {
 // 加载 CrewAI 配置
 const loadCrewaiConfig = async () => {
   try {
-    const res = await request.get('/system/integrations/crewai')
+    const res = await getCrewaiConfig()
     if (res) {
       crewaiConfig.serviceUrl = res.serviceUrl || ''
       crewaiConfig.apiKey = res.apiKey || ''
@@ -346,10 +372,10 @@ const loadCrewaiConfig = async () => {
 }
 
 // 保存 CrewAI 配置
-const saveCrewaiConfig = async () => {
+const handleSaveCrewaiConfig = async () => {
   crewaiLoading.value = true
   try {
-    await request.post('/system/integrations/crewai', crewaiConfig)
+    await saveCrewaiConfig(crewaiConfig)
     ElMessage.success('CrewAI 配置已保存')
   } catch (e) {
     ElMessage.error('保存失败: ' + (e.message || e))
@@ -359,9 +385,9 @@ const saveCrewaiConfig = async () => {
 }
 
 // 测试 CrewAI 连接
-const testCrewaiConnection = async () => {
+const handleTestCrewaiConnection = async () => {
   try {
-    const res = await request.get('/system/integrations/crewai/test')
+    const res = await testCrewaiConnection()
     if (res.success) {
       ElMessage.success('CrewAI 连接成功')
     } else {
@@ -416,9 +442,19 @@ onMounted(() => {
   color: #909399;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .form-tip {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+
+.预留提示 {
+  margin-bottom: 16px;
 }
 </style>

@@ -6,6 +6,7 @@ import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.collaboration.repository.CollabSubtaskRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class CollaborationOrchestrator {
     private final CollabSubtaskRepository subtaskRepository;
     private final CollaborationMemoryService memoryService;
     private final CollaborationEventBus eventBus;
+    private final AuditHelper auditHelper;
     private final ObjectMapper objectMapper;
 
     // 角色类型常量
@@ -43,6 +45,26 @@ public class CollaborationOrchestrator {
     public static final String MODE_PARALLEL = "PARALLEL";
     public static final String MODE_CONSENSUS = "CONSENSUS";
     public static final String MODE_HIERARCHICAL = "HIERARCHICAL";
+
+    /**
+     * 子任务状态
+     */
+    public static final String SUBTASK_PENDING = "PENDING";
+    public static final String SUBTASK_RUNNING = "RUNNING";
+    public static final String SUBTASK_COMPLETED = "COMPLETED";
+    public static final String SUBTASK_FAILED = "FAILED";
+    public static final String SUBTASK_SKIPPED = "SKIPPED";
+    public static final String SUBTASK_CANCELLED = "CANCELLED";
+
+    // 状态流转校验映射：当前状态 -> 可转换的目标状态
+    private static final Map<String, Set<String>> SUBTASK_STATUS_TRANSITIONS = Map.of(
+            SUBTASK_PENDING, Set.of(SUBTASK_RUNNING, SUBTASK_CANCELLED),
+            SUBTASK_RUNNING, Set.of(SUBTASK_COMPLETED, SUBTASK_FAILED, SUBTASK_CANCELLED),
+            SUBTASK_COMPLETED, Set.of(),  // 已完成状态不可转换
+            SUBTASK_FAILED, Set.of(SUBTASK_PENDING, SUBTASK_SKIPPED),  // 失败后可重试或跳过
+            SUBTASK_SKIPPED, Set.of(),  // 已跳过不可转换
+            SUBTASK_CANCELLED, Set.of(SUBTASK_PENDING)  // 取消后可重置
+    );
 
     // 任务状态
     public static final String STATUS_PLANNING = "PLANNING";
@@ -235,6 +257,7 @@ public class CollaborationOrchestrator {
 
     /**
      * 更新子任务状态
+     * @throws IllegalStateException 如果状态转换不合法
      */
     @Transactional
     public CollabSubtaskEntity updateSubtaskStatus(String packageId, String subTaskId, String status,
@@ -246,6 +269,15 @@ public class CollaborationOrchestrator {
         }
 
         CollabSubtaskEntity subtask = subtaskOpt.get();
+        String currentStatus = subtask.getStatus();
+
+        // 校验状态转换是否合法
+        if (!isValidStatusTransition(currentStatus, status)) {
+            throw new IllegalStateException(
+                    String.format("Invalid status transition: %s -> %s for subtask %s",
+                            currentStatus, status, subTaskId));
+        }
+
         subtask.setStatus(status);
 
         if (result != null) {
@@ -348,7 +380,32 @@ public class CollaborationOrchestrator {
         // 保存最终检查点
         memoryService.saveCheckpoint(packageId, "completed", Map.of("result", result, "timestamp", System.currentTimeMillis()));
 
+        // 记录审计日志
+        recordAuditLog(entity, "COMPLETED", result, null);
+
         return toDto(packageRepository.save(entity));
+    }
+
+    /**
+     * 记录协作包审计日志
+     */
+    private void recordAuditLog(CollaborationPackageEntity entity, String status, String result, String errorMessage) {
+        try {
+            auditHelper.log(
+                    entity.getCreatedBy(),
+                    "COLLABORATION_" + status,
+                    "/collaboration/package",
+                    String.format("任务包[%s]完成: 意图=%s, 状态=%s, 结果=%s",
+                            entity.getPackageId(),
+                            entity.getIntent() != null ? entity.getIntent().substring(0, Math.min(50, entity.getIntent().length())) : "",
+                            status,
+                            result != null ? result.substring(0, Math.min(100, result.length())) : ""),
+                    errorMessage == null,
+                    errorMessage
+            );
+        } catch (Exception e) {
+            log.warn("记录协作审计日志失败: {}", e.getMessage());
+        }
     }
 
     /**
@@ -369,6 +426,9 @@ public class CollaborationOrchestrator {
         // 清理 Redis 资源
         memoryService.cleanupPackage(packageId);
 
+        // 记录审计日志
+        recordAuditLog(entity, "FAILED", null, errorMessage);
+
         return toDto(packageRepository.save(entity));
     }
 
@@ -387,17 +447,20 @@ public class CollaborationOrchestrator {
     }
 
     /**
-     * 获取任务包
+     * 获取任务包详情（包含子任务）
      */
     public Optional<CollaborationPackage> getPackage(String packageId) {
-        return packageRepository.findByPackageId(packageId).map(this::toDto);
+        return packageRepository.findByPackageId(packageId)
+                .map(entity -> toDto(entity, subtaskRepository.findByPackageId(packageId)));
     }
 
     /**
-     * 获取所有任务包
+     * 获取所有任务包（包含子任务）
      */
     public List<CollaborationPackage> getAllPackages() {
-        return packageRepository.findAll().stream().map(this::toDto).collect(Collectors.toList());
+        return packageRepository.findAll().stream()
+                .map(entity -> toDto(entity, subtaskRepository.findByPackageId(entity.getPackageId())))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -405,7 +468,43 @@ public class CollaborationOrchestrator {
      */
     public List<CollaborationPackage> getPackagesByUser(String createdBy) {
         return packageRepository.findByCreatedByOrderByCreatedAtDesc(createdBy)
-                .stream().map(this::toDto).collect(Collectors.toList());
+                .stream()
+                .map(entity -> toDto(entity, subtaskRepository.findByPackageId(entity.getPackageId())))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 筛选任务包
+     */
+    public List<CollaborationPackage> filterPackages(String status, String createdBy, String priority, String category) {
+        List<CollaborationPackageEntity> entities;
+
+        if (status != null && createdBy != null) {
+            entities = packageRepository.findByStatusAndCreatedBy(status, createdBy);
+        } else if (priority != null && createdBy != null) {
+            entities = packageRepository.findByIntentPriorityAndCreatedBy(priority, createdBy);
+        } else if (status != null) {
+            entities = packageRepository.findByStatus(status);
+        } else if (priority != null) {
+            entities = packageRepository.findByIntentPriority(priority);
+        } else if (category != null) {
+            entities = packageRepository.findByIntentCategory(category);
+        } else if (createdBy != null) {
+            entities = packageRepository.findByCreatedByOrderByCreatedAtDesc(createdBy);
+        } else {
+            entities = packageRepository.findAll();
+        }
+
+        return entities.stream()
+                .map(entity -> toDto(entity, subtaskRepository.findByPackageId(entity.getPackageId())))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取任务包的子任务列表
+     */
+    public List<CollabSubtaskEntity> getSubtasks(String packageId) {
+        return subtaskRepository.findByPackageId(packageId);
     }
 
     // ========== 辅助方法 ==========
@@ -435,6 +534,17 @@ public class CollaborationOrchestrator {
         } catch (JsonProcessingException e) {
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * 校验子任务状态转换是否合法
+     */
+    private boolean isValidStatusTransition(String currentStatus, String newStatus) {
+        if (currentStatus == null || newStatus == null) {
+            return false;
+        }
+        Set<String> allowedTransitions = SUBTASK_STATUS_TRANSITIONS.get(currentStatus);
+        return allowedTransitions != null && allowedTransitions.contains(newStatus);
     }
 
     private CollaborationPackage toDto(CollaborationPackageEntity entity) {

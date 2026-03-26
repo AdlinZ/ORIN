@@ -73,6 +73,32 @@ public class SyncWebhook {
     @Column(name = "created_by", length = 100)
     private String createdBy;
 
+    /**
+     * 失败次数
+     */
+    @Column(name = "failure_count")
+    @Builder.Default
+    private Integer failureCount = 0;
+
+    /**
+     * 最后失败时间
+     */
+    @Column(name = "last_failure_time")
+    private LocalDateTime lastFailureTime;
+
+    /**
+     * 最后失败原因
+     */
+    @Column(name = "last_failure_reason", length = 500)
+    private String lastFailureReason;
+
+    /**
+     * 是否失效 (连续失败3次后标记为失效)
+     */
+    @Column(name = "disabled")
+    @Builder.Default
+    private Boolean disabled = false;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

@@ -1,10 +1,13 @@
 package com.adlin.orin.modules.statistics.service;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -296,5 +299,113 @@ public class StatisticsService {
         stats.put("tasks", tasks != null ? tasks : 0);
         
         return stats;
+    }
+
+    /**
+     * 导出统计报表
+     */
+    public void exportStatistics(String type, LocalDate startDate, LocalDate endDate, HttpServletResponse response) throws IOException {
+        response.setContentType("text/csv;charset=UTF-8");
+        String filename = String.format("statistics_%s_%s_%s.csv", type, startDate, endDate);
+        response.setHeader("Content-Disposition", "attachment;filename=" + filename);
+
+        PrintWriter writer = response.getWriter();
+        writer.println("日期,指标,数值");
+
+        List<Map<String, Object>> data;
+
+        switch (type.toLowerCase()) {
+            case "daily":
+                data = getDailyExportData(startDate, endDate);
+                for (Map<String, Object> row : data) {
+                    writer.printf("%s,API调用,%d%n", row.get("date"), row.get("apiCalls"));
+                    writer.printf("%s,Token消耗,%d%n", row.get("date"), row.get("tokens"));
+                    writer.printf("%s,任务数,%d%n", row.get("date"), row.get("tasks"));
+                }
+                break;
+            case "weekly":
+                data = getWeeklyExportData(startDate, endDate);
+                for (Map<String, Object> row : data) {
+                    writer.printf("%s,周活跃用户,%d%n", row.get("week"), row.get("activeUsers"));
+                    writer.printf("%s,周API调用,%d%n", row.get("week"), row.get("apiCalls"));
+                }
+                break;
+            case "monthly":
+                data = getMonthlyExportData(startDate, endDate);
+                for (Map<String, Object> row : data) {
+                    writer.printf("%s,月活跃用户,%d%n", row.get("month"), row.get("activeUsers"));
+                    writer.printf("%s,月Token消耗,%d%n", row.get("month"), row.get("tokens"));
+                }
+                break;
+            default:
+                writer.println("不支持的报表类型");
+        }
+
+        writer.flush();
+    }
+
+    private List<Map<String, Object>> getDailyExportData(LocalDate startDate, LocalDate endDate) {
+        String sql = """
+            SELECT DATE(created_at) as date,
+                   COUNT(*) as apiCalls,
+                   COALESCE(SUM(total_tokens), 0) as tokens,
+                   (SELECT COUNT(*) FROM task_queue WHERE DATE(created_at) = DATE(audit_log.created_at)) as tasks
+            FROM audit_log
+            WHERE created_at BETWEEN ? AND ?
+            GROUP BY DATE(created_at)
+            ORDER BY date
+            """;
+        return jdbcTemplate.query(sql,
+            (rs, rowNum) -> {
+                Map<String, Object> row = new HashMap<>();
+                row.put("date", rs.getString("date"));
+                row.put("apiCalls", rs.getInt("apiCalls"));
+                row.put("tokens", rs.getLong("tokens"));
+                row.put("tasks", rs.getInt("tasks"));
+                return row;
+            },
+            startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
+    }
+
+    private List<Map<String, Object>> getWeeklyExportData(LocalDate startDate, LocalDate endDate) {
+        String sql = """
+            SELECT DATE_FORMAT(created_at, '%Y-W%u') as week,
+                   COUNT(DISTINCT created_by) as activeUsers,
+                   COUNT(*) as apiCalls
+            FROM audit_log
+            WHERE created_at BETWEEN ? AND ?
+            GROUP BY week
+            ORDER BY week
+            """;
+        return jdbcTemplate.query(sql,
+            (rs, rowNum) -> {
+                Map<String, Object> row = new HashMap<>();
+                row.put("week", rs.getString("week"));
+                row.put("activeUsers", rs.getInt("activeUsers"));
+                row.put("apiCalls", rs.getInt("apiCalls"));
+                return row;
+            },
+            startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
+    }
+
+    private List<Map<String, Object>> getMonthlyExportData(LocalDate startDate, LocalDate endDate) {
+        String sql = """
+            SELECT DATE_FORMAT(created_at, '%Y-%m') as month,
+                   COUNT(DISTINCT created_by) as activeUsers,
+                   COALESCE(SUM(total_tokens), 0) as tokens
+            FROM audit_log
+            WHERE created_at BETWEEN ? AND ?
+            GROUP BY month
+            ORDER BY month
+            """;
+        return jdbcTemplate.query(sql,
+            (rs, rowNum) -> {
+                Map<String, Object> row = new HashMap<>();
+                row.put("month", rs.getString("month"));
+                row.put("activeUsers", rs.getInt("activeUsers"));
+                row.put("tokens", rs.getLong("tokens"));
+                return row;
+            },
+            startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
     }
 }

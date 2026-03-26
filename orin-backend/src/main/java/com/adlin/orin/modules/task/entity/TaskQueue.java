@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 /**
  * 任务队列实体
  * 支持优先级管理
+ * @deprecated 请使用 TaskEntity 代替，该实体已被废弃
  */
 @Data
 @Entity
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "task_queue")
+@Deprecated
 public class TaskQueue {
 
     @Id

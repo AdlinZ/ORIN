@@ -5,6 +5,8 @@ import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
+import com.adlin.orin.modules.conversation.entity.ConversationLog;
+import com.adlin.orin.modules.conversation.repository.ConversationLogRepository;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
@@ -32,6 +34,7 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
     private final AgentAccessProfileRepository profileRepository;
     private final DifyIntegrationService difyIntegrationService;
     private final AuditLogRepository auditLogRepository;
+    private final ConversationLogRepository conversationLogRepository;
     private final LogConfigService logConfigService;
 
     @Override
@@ -72,14 +75,34 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
 
     @Override
     public List<AgentLog> getAgentLogs(String agentId) {
-        // 首先尝试从审计日志获取真实数据
+        // 1. 首先从对话日志表获取真实对话数据
+        List<ConversationLog> conversationLogs = conversationLogRepository.findByAgentIdOrderByCreatedAtDesc(agentId);
+        log.info("Retrieving conversation logs for agent: {}, found {} conversation logs", agentId, conversationLogs.size());
+
+        if (!conversationLogs.isEmpty()) {
+            return conversationLogs.stream()
+                    .map(conv -> AgentLog.builder()
+                            .agentId(agentId)
+                            .type("CONVERSATION")
+                            .content(conv.getQuery() != null ? conv.getQuery().substring(0, Math.min(100, conv.getQuery().length())) : null)
+                            .status(conv.getSuccess() != null && conv.getSuccess() ? "SUCCESS" : "FAILED")
+                            .duration(conv.getResponseTime() != null ? conv.getResponseTime().intValue() : 0)
+                            .tokens(conv.getTotalTokens())
+                            .sessionId(conv.getConversationId())
+                            .response(conv.getResponse())
+                            .timestamp(conv.getCreatedAt())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+
+        // 2. 尝试从审计日志获取真实数据
         int retentionDays = logConfigService.getRetentionDays();
-        LocalDateTime startTime = LocalDateTime.now().minusDays(Math.max(retentionDays, 7)); // At least 7 days default
+        LocalDateTime startTime = LocalDateTime.now().minusDays(Math.max(retentionDays, 7));
 
         List<AuditLog> auditLogs = auditLogRepository
                 .findByProviderIdAndCreatedAtBetweenOrderByCreatedAtDesc(agentId, startTime, LocalDateTime.now());
 
-        log.info("Retrieving logs for agent: {}, found {} audit logs from {}", agentId, auditLogs.size(), startTime);
+        log.info("Retrieving audit logs for agent: {}, found {} audit logs from {}", agentId, auditLogs.size(), startTime);
 
         // 转换审计日志为AgentLog
         List<AgentLog> logsFromAudit = auditLogs.stream()
@@ -100,7 +123,7 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
             return logsFromAudit;
         }
 
-        // 尝试从Dify获取对话历史
+        // 3. 尝试从Dify获取对话历史
         Optional<AgentAccessProfile> profileOpt = profileRepository
                 .findById(agentId);
         if (profileOpt.isPresent()) {
@@ -135,7 +158,7 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
             }
         }
 
-        // 最后从数据库获取已保存的日志
+        // 4. 最后从数据库获取已保存的日志
         return logRepository.findByAgentIdOrderByTimestampDesc(agentId);
     }
 }

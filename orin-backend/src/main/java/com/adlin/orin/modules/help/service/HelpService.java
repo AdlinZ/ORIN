@@ -90,6 +90,30 @@ public class HelpService {
     }
 
     /**
+     * 获取与当前页面相关的帮助文档
+     */
+    public List<HelpArticle> getRelatedArticles(String pagePath, int limit) {
+        if (pagePath == null || pagePath.isEmpty()) {
+            return articleRepository.findByEnabledTrue(
+                    PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "viewCount"))).getContent();
+        }
+
+        // 先按 pagePath 匹配，再按阅读量排序
+        List<HelpArticle> related = articleRepository.findByPagePathAndEnabledTrue(pagePath);
+        if (related.size() < limit) {
+            // 补充热门文章
+            List<HelpArticle> hot = articleRepository.findByEnabledTrue(
+                    PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "viewCount"))).getContent();
+            for (HelpArticle article : hot) {
+                if (!related.contains(article) && related.size() < limit) {
+                    related.add(article);
+                }
+            }
+        }
+        return related;
+    }
+
+    /**
      * 创建文档
      */
     @Transactional

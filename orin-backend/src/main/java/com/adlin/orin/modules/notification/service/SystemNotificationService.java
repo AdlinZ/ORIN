@@ -29,12 +29,34 @@ public class SystemNotificationService {
      */
     @Transactional
     public SystemMessage sendMessage(String title, String content, String type, String receiverId, String senderId) {
+        String scope = (receiverId == null || receiverId.isEmpty()) ? "BROADCAST" : "USER";
+
         SystemMessage message = SystemMessage.builder()
                 .title(title)
                 .content(content)
                 .type(type)
                 .receiverId(receiverId)
                 .senderId(senderId)
+                .scope(scope)
+                .read(false)
+                .build();
+
+        SystemMessage saved = messageRepository.save(message);
+        return saved;
+    }
+
+    /**
+     * 发送消息（支持指定范围）
+     */
+    @Transactional
+    public SystemMessage sendMessage(String title, String content, String type, String receiverId, String senderId, String scope) {
+        SystemMessage message = SystemMessage.builder()
+                .title(title)
+                .content(content)
+                .type(type)
+                .receiverId(receiverId)
+                .senderId(senderId)
+                .scope(scope)
                 .read(false)
                 .build();
 
@@ -65,10 +87,24 @@ public class SystemNotificationService {
     }
 
     /**
-     * 获取用户消息列表
+     * 获取用户消息列表（支持按范围过滤）
      */
-    public Page<SystemMessage> getUserMessages(String userId, int page, int size) {
+    public Page<SystemMessage> getUserMessages(String userId, int page, int size, String scope) {
+        if (scope != null && "USER".equals(scope)) {
+            // 只返回用户消息
+            return messageRepository.findByReceiverIdAndScope(userId, "USER",
+                    PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        }
+        // 返回所有消息（用户消息 + 广播）
         return messageRepository.findByUserMessages(userId,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+    }
+
+    /**
+     * 获取广播消息列表
+     */
+    public Page<SystemMessage> getBroadcasts(int page, int size) {
+        return messageRepository.findByScope("BROADCAST",
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 

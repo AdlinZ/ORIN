@@ -2,6 +2,16 @@
 
 ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分离架构的企业级 AI 智能体管理与监控平台。作为连接 AI 模型（如 Dify、SiliconFlow）与业务系统的桥梁，它实现了全链路监控、知识库自动化同步、多模型智能调度及可视化工作流编排。
 
+## 当前实现说明
+
+当前仓库的真实实现架构为：
+
+- `orin-backend`: Spring Boot 主后端，负责智能体、知识库、工作流、监控、任务、权限、审计与统一 API 网关
+- `orin-frontend`: Vue 3 管理端
+- `orin-ai-engine`: Python FastAPI 执行引擎，负责部分工作流/DSL 执行
+
+项目早期需求来源于基于 Yuxi-Know 的设计方案，但当前代码并不是“纯 Yuxi-Know/FastAPI 单体实现”。后续开发与改造请以仓库中的实际结构为准，详细基线见 [docs/阶段0_改造基线.md](docs/阶段0_改造基线.md)。
+
 ## 项目结构
 
 ```
@@ -93,13 +103,14 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 ## 技术栈
 
 ### 后端
-- **框架**: Spring Boot 3.2.1
+- **主控后端**: Spring Boot 3.2.1
 - **持久层**: Spring Data JPA + Flyway (数据库迁移)
 - **数据库**: MySQL 8.0, Milvus (向量引擎), Redis (缓存/限流)
 - **其他**: Maven, Hibernate, MapStruct, Micrometer Tracing (Zipkin 可选)
 - **通知**: JavaMailSender, DingTalk/WeChat Webhook
 
 ### AI 引擎 (Python)
+- **角色**: 独立工作流/DSL 执行引擎
 - **核心**: Python 3.10+, FastAPI
 - **执行器**: 异步图执行架构 (Asyncio Graph Executor)
 - **模板**: Jinja2

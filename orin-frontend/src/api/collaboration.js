@@ -94,6 +94,22 @@ export function getMyPackages() {
   })
 }
 
+// 获取协作统计
+export function getCollaborationStats() {
+  return request({
+    url: '/collaboration/stats',
+    method: 'get'
+  })
+}
+
+// 获取任务包的子任务列表
+export function getSubtasks(packageId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/subtasks`,
+    method: 'get'
+  })
+}
+
 // 获取协作事件历史
 export function getEventHistory(packageId) {
   return request({
@@ -102,10 +118,102 @@ export function getEventHistory(packageId) {
   })
 }
 
-// 获取协作统计
-export function getCollaborationStats() {
+// 启动子任务执行
+export function executeSubtask(packageId, subTaskId) {
   return request({
-    url: '/collaboration/stats',
+    url: `/collaboration/packages/${packageId}/subtasks/${subTaskId}/execute`,
+    method: 'post'
+  })
+}
+
+// 重试子任务
+export function retrySubtask(packageId, subTaskId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/subtasks/${subTaskId}/retry`,
+    method: 'post'
+  })
+}
+
+// 跳过子任务
+export function skipSubtask(packageId, subTaskId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/subtasks/${subTaskId}/skip`,
+    method: 'post'
+  })
+}
+
+// 手动完成子任务
+export function manualCompleteSubtask(packageId, subTaskId, result) {
+  return request({
+    url: `/collaboration/packages/${packageId}/subtasks/${subTaskId}/manual-complete`,
+    method: 'post',
+    data: { result }
+  })
+}
+
+// 手动完成协作包
+export function manualCompletePackage(packageId, result) {
+  return request({
+    url: `/collaboration/packages/${packageId}/manual-complete`,
+    method: 'post',
+    data: { result }
+  })
+}
+
+// 获取黑板结构
+export function getBlackboard(packageId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/blackboard`,
     method: 'get'
+  })
+}
+
+// 保存检查点
+export function saveCheckpoint(packageId, checkpointId, data) {
+  return request({
+    url: `/collaboration/packages/${packageId}/checkpoints`,
+    method: 'post',
+    data: { checkpointId, data }
+  })
+}
+
+// 获取检查点
+export function getCheckpoint(packageId, checkpointId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/checkpoints/${checkpointId}`,
+    method: 'get'
+  })
+}
+
+// 列出所有检查点
+export function listCheckpoints(packageId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/checkpoints`,
+    method: 'get'
+  })
+}
+
+// 回滚到检查点
+export function rollbackToCheckpoint(packageId, checkpointId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/checkpoints/${checkpointId}/rollback`,
+    method: 'post'
+  })
+}
+
+// 删除检查点
+export function deleteCheckpoint(packageId, checkpointId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/checkpoints/${checkpointId}`,
+    method: 'delete'
+  })
+}
+
+// 筛选任务包
+export function filterPackages(params) {
+  return request({
+    url: '/collaboration/packages/filter',
+    method: 'get',
+    params
   })
 }

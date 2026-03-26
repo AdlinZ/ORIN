@@ -438,12 +438,12 @@ const routes = [
                         component: () => import('@/views/System/RateLimitConfig.vue'),
                         meta: { title: '限流配置', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
                     },
-                    // 消息中心
+                    // 消息中心（邮件服务）
                     {
                         path: 'messages',
                         name: 'MessageCenter',
-                        component: () => import('@/views/System/MailCenter.vue'),
-                        meta: { title: '消息中心', icon: 'Message', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_MAIL,
+                        meta: { title: '消息中心', icon: 'Message', roles: ['ROLE_ADMIN'], hidden: true }
                     },
                     // 文件管理
                     {
@@ -456,15 +456,74 @@ const routes = [
                     {
                         path: 'system-settings',
                         name: 'SystemSettingsParent',
-                        redirect: ROUTES.SYSTEM.SETTINGS,
+                        redirect: ROUTES.SYSTEM.SETTINGS_BASE,
                         meta: { title: '系统设置', hidden: true }
                     },
-                    // 系统设置
+                    // 系统设置统一壳层
                     {
                         path: 'settings',
-                        name: 'SystemSettings',
-                        component: () => import('@/views/System/SystemSettings.vue'),
-                        meta: { title: '系统设置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                        name: 'SystemSettingsLayout',
+                        component: () => import('@/views/SystemSettings/SystemSettingsLayout.vue'),
+                        redirect: ROUTES.SYSTEM.SETTINGS_BASE,
+                        meta: { title: '系统设置', hidden: true },
+                        children: [
+                            // 基础设置
+                            {
+                                path: 'base',
+                                name: 'BaseSettings',
+                                component: () => import('@/views/SystemSettings/BaseSettings.vue'),
+                                meta: { title: '基础设置', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 邮件服务
+                            {
+                                path: 'mail',
+                                name: 'MailSettings',
+                                component: () => import('@/views/SystemSettings/MailSettings.vue'),
+                                meta: { title: '邮件服务', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 通知渠道
+                            {
+                                path: 'notifications',
+                                name: 'NotificationSettings',
+                                component: () => import('@/views/SystemSettings/NotificationSettings.vue'),
+                                meta: { title: '通知渠道', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 模型默认参数
+                            {
+                                path: 'model-defaults',
+                                name: 'ModelDefaultSettings',
+                                component: () => import('@/views/SystemSettings/ModelDefaultSettings.vue'),
+                                meta: { title: '模型默认参数', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 监控配置 - 复用现有页面
+                            {
+                                path: 'monitor',
+                                name: 'MonitorSettings',
+                                component: () => import('@/views/System/MonitorSettings.vue'),
+                                meta: { title: '监控配置', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 知识库配置 - 复用现有页面
+                            {
+                                path: 'knowledge',
+                                name: 'KnowledgeSettings',
+                                component: () => import('@/views/System/KnowledgeConfig.vue'),
+                                meta: { title: '知识库配置', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 网关配置 - 复用现有页面
+                            {
+                                path: 'gateway',
+                                name: 'GatewaySettings',
+                                component: () => import('@/views/System/ApiGateway.vue'),
+                                meta: { title: '网关配置', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 同步配置 - 复用现有页面
+                            {
+                                path: 'sync',
+                                name: 'SyncSettings',
+                                component: () => import('@/views/System/ClientSync.vue'),
+                                meta: { title: '同步配置', roles: ['ROLE_ADMIN'] }
+                            }
+                        ]
                     },
                     // 审计日志
                     {
@@ -490,7 +549,7 @@ const routes = [
                     // 系统环境配置
                     {
                         path: 'monitor-settings',
-                        name: 'MonitorSettings',
+                        name: 'LegacyMonitorSettings',
                         component: () => import('@/views/System/MonitorSettings.vue'),
                         meta: { title: '系统环境配置', icon: 'Setting', roles: ['ROLE_ADMIN'] }
                     },
@@ -556,6 +615,13 @@ const routes = [
                         name: 'HelpCenter',
                         component: () => import('@/views/System/HelpCenter.vue'),
                         meta: { title: '帮助中心', icon: 'QuestionFilled', roles: ['ROLE_ADMIN'] }
+                    },
+                    // 统计分析
+                    {
+                        path: 'statistics',
+                        name: 'Statistics',
+                        component: () => import('@/views/System/Statistics.vue'),
+                        meta: { title: '统计分析', icon: 'DataAnalysis', roles: ['ROLE_ADMIN'] }
                     },
                     // 系统维护
                     {
@@ -631,6 +697,15 @@ router.beforeEach((to, from, next) => {
         const hasRole = to.meta.roles.some(role => userStore.roles?.includes(role))
 
         if (!hasRole) {
+            ElMessage.error('您没有权限访问此页面')
+            return next(from.path || ROUTES.HOME)
+        }
+    }
+
+    // 检查 requiresAdmin
+    if (to.meta.requiresAdmin) {
+        const userStore = useUserStore()
+        if (!userStore.isAdmin) {
             ElMessage.error('您没有权限访问此页面')
             return next(from.path || ROUTES.HOME)
         }

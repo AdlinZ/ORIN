@@ -25,7 +25,7 @@
 
         <!-- 动态渲染四大模块 -->
         <template v-for="menu in visibleMenus" :key="menu.id">
-          <el-sub-menu :index="menu.path" :class="`menu-${menu.id}`">
+          <el-sub-menu :index="getSubMenuIndex('menu', menu)" :class="`menu-${menu.id}`">
             <template #title>
               <el-icon :style="{ color: menu.color }">
                 <component :is="getIconComponent(menu.icon)" />
@@ -36,7 +36,7 @@
             <!-- 二级菜单 -->
             <template v-for="child in menu.children.filter(c => !c.divider)" :key="child.path">
               <!-- 有三级菜单的二级菜单 -->
-              <el-sub-menu v-if="child.children && child.children.length > 0" :index="child.path">
+              <el-sub-menu v-if="child.children && child.children.length > 0" :index="getSubMenuIndex('child', child, menu.id)">
                 <template #title>
                   <el-icon v-if="child.icon">
                     <component :is="getIconComponent(child.icon)" />
@@ -86,9 +86,6 @@
           <el-dropdown-menu class="user-dropdown">
             <el-dropdown-item command="profile" v-if="userInfo.name">
               <el-icon><User /></el-icon>个人中心
-            </el-dropdown-item>
-            <el-dropdown-item command="settings" v-if="userInfo.name">
-              <el-icon><Setting /></el-icon>账号设置
             </el-dropdown-item>
             <el-dropdown-item divided command="toggle_menu_mode">
               <el-icon><Expand /></el-icon>
@@ -260,6 +257,12 @@ const getIconComponent = (iconName) => {
   return iconMap[iconName] || Box
 }
 
+const getSubMenuIndex = (level, item, parentId = '') => {
+  // 子菜单容器使用内部唯一 key，避免与真实路由路径重复时吃掉叶子节点点击。
+  const identity = item.id || item.path || item.title || 'menu'
+  return `${level}:${parentId}:${identity}`
+}
+
 // 检查登录状态并更新用户信息
 const checkLoginStatus = () => {
   if (userStore.isLoggedIn && userStore.userInfo) {
@@ -299,9 +302,6 @@ const handleCommand = (command) => {
       break
     case 'profile':
       router.push(ROUTES.PROFILE)
-      break
-    case 'settings':
-      ElMessage.info('系统设置模块开发中')
       break
     case 'toggle_menu_mode':
       appStore.toggleMenuMode()

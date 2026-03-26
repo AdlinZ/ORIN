@@ -14,8 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.adlin.orin.modules.alert.service.AlertService;
-
 import java.util.List;
 
 /**
@@ -33,7 +31,6 @@ public class AgentHealthCheckTask {
     private final ZhipuIntegrationService zhipuIntegrationService;
     private final DeepSeekIntegrationService deepSeekIntegrationService;
     private final KimiIntegrationService kimiIntegrationService;
-    private final AlertService alertService;
 
     public AgentHealthCheckTask(
             AgentHealthStatusRepository healthStatusRepository,
@@ -42,8 +39,7 @@ public class AgentHealthCheckTask {
             SiliconFlowIntegrationService siliconFlowIntegrationService,
             ZhipuIntegrationService zhipuIntegrationService,
             DeepSeekIntegrationService deepSeekIntegrationService,
-            KimiIntegrationService kimiIntegrationService,
-            AlertService alertService) {
+            KimiIntegrationService kimiIntegrationService) {
         this.healthStatusRepository = healthStatusRepository;
         this.accessProfileRepository = accessProfileRepository;
         this.difyIntegrationService = difyIntegrationService;
@@ -51,7 +47,6 @@ public class AgentHealthCheckTask {
         this.zhipuIntegrationService = zhipuIntegrationService;
         this.deepSeekIntegrationService = deepSeekIntegrationService;
         this.kimiIntegrationService = kimiIntegrationService;
-        this.alertService = alertService;
     }
 
     /**
@@ -88,8 +83,7 @@ public class AgentHealthCheckTask {
             AgentAccessProfile profile = accessProfileRepository.findById(agentId).orElse(null);
             if (profile == null) {
                 log.warn("No access profile found for agent: {}", agentId);
-                updateAgentStatus(agent, AgentStatus.ERROR, 0);
-                alertService.triggerSystemAlert("HEALTH_CHECK", agentId, "找不到智能体的访问凭证，无法进行健康检查");
+                // 找不到凭证时不改为 ERROR，保持原有状态
                 return;
             }
 
@@ -117,15 +111,14 @@ public class AgentHealthCheckTask {
                 updateAgentStatus(agent, AgentStatus.RUNNING, 100);
                 log.debug("Agent {} is healthy", agentId);
             } else {
-                updateAgentStatus(agent, AgentStatus.ERROR, 0);
-                log.warn("Agent {} health check failed", agentId);
-                alertService.triggerSystemAlert("HEALTH_CHECK", agentId, "智能体健康检查未通过，服务可能不可用");
+                // 健康检查失败时不改为 ERROR，保留原状态避免误报
+                // 因为外部 API 可能暂时不可达但实际使用正常
+                log.warn("Agent {} health check failed, keeping existing status: {}", agentId, agent.getStatus());
             }
 
         } catch (Exception e) {
             log.error("Error checking agent {}: {}", agent.getAgentId(), e.getMessage());
-            updateAgentStatus(agent, AgentStatus.ERROR, 0);
-            alertService.triggerSystemAlert("HEALTH_CHECK", agent.getAgentId(), "智能体健康检查执行异常: " + e.getMessage());
+            // 检查异常时不改为 ERROR，保留原状态避免误报
         }
     }
 

@@ -45,4 +45,14 @@ public interface SystemMessageRepository extends JpaRepository<SystemMessage, Lo
     @Modifying
     @Query("DELETE FROM SystemMessage m WHERE m.expireAt IS NOT NULL AND m.expireAt < CURRENT_TIMESTAMP")
     int deleteExpiredMessages();
+
+    /**
+     * 按用户和范围查询消息
+     */
+    Page<SystemMessage> findByReceiverIdAndScope(String receiverId, String scope, Pageable pageable);
+
+    /**
+     * 按范围查询消息（广播）
+     */
+    Page<SystemMessage> findByScope(String scope, Pageable pageable);
 }
