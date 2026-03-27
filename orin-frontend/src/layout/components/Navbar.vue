@@ -2,9 +2,8 @@
   <div class="header-container">
     <div class="left-panel">
       <el-breadcrumb separator="/" class="dynamic-breadcrumb">
-        <el-breadcrumb-item :to="{ path: '/dashboard/monitor' }">智能看板</el-breadcrumb-item>
         <el-breadcrumb-item v-for="(item, index) in breadcrumbs" :key="index" :to="item.path">
-          {{ item.meta.title }}
+          {{ item.title }}
         </el-breadcrumb-item>
       </el-breadcrumb>
     </div>
@@ -154,10 +153,10 @@
 
 <script setup>
 import { computed, ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { useAppStore } from '@/stores/app';
 import { useDark, useFullscreen } from '@vueuse/core';
+import { generateBreadcrumbs } from '@/router/routes';
 import { 
   Refresh, Moon, Sunny, FullScreen, DataAnalysis, Cpu, Aim, EditPen, User, Loading,
   Close, HelpFilled, Odometer, DocumentChecked, Lock
@@ -170,18 +169,10 @@ import { nextTick } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import { marked } from 'marked';
 
-const router = useRouter();
 const route = useRoute();
 
-const appStore = useAppStore();
-
 const breadcrumbs = computed(() => {
-  return route.matched.filter(item => 
-    item.meta && 
-    item.meta.title && 
-    item.path !== '/dashboard' && 
-    item.path !== '/dashboard/monitor'
-  );
+  return generateBreadcrumbs(route.path);
 });
 
 // Dark mode logic

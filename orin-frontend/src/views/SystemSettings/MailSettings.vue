@@ -135,7 +135,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getMailConfig, saveMailConfig as saveMailConfigApi, testMailConnection, getMailTemplates, saveTemplate as saveTemplateApi, deleteTemplate as deleteTemplateApi } from '@/api/mail'
+import { getMailConfig, saveMailConfig as saveMailConfigApi, testMailConnection, getMailTemplates, saveMailTemplate as saveTemplateApi, deleteMailTemplate as deleteTemplateApi } from '@/api/mail'
 
 const activeTab = ref('mail-config')
 const saving = ref(false)

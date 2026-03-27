@@ -1,0 +1,6 @@
+UPDATE knowledge_bases
+SET type = 'UNSTRUCTURED'
+WHERE type IS NULL OR UPPER(type) = 'DOCUMENT' OR TRIM(type) = '';
+
+ALTER TABLE knowledge_bases
+MODIFY COLUMN type VARCHAR(50) DEFAULT 'UNSTRUCTURED';

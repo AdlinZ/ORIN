@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 import java.util.Map;
@@ -205,11 +206,13 @@ public class AgentManageController {
     }
 
     @Operation(summary = "查询异步任务状态")
-    @GetMapping("/{agentId}/jobs/{jobId}")
-    public Object getJobStatus(
-            @PathVariable String agentId,
-            @PathVariable String jobId) {
-        return agentManageService.getJobStatus(agentId, jobId);
+    @GetMapping("/jobs/{jobId}")
+    public ResponseEntity<?> getJobStatus(@PathVariable String jobId) {
+        Object status = agentManageService.getJobStatus(jobId);
+        if (status == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(status);
     }
 
     // ==================== 版本管理 API ====================

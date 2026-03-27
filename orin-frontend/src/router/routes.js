@@ -4,9 +4,9 @@
  *
  * 菜单结构：
  * 1. 智能体 - 智能体管理、协作任务、版本管理、工作流编排
- * 2. 知识中心 - 知识库、素材库、实验室、端侧同步
- * 3. 监控运维 - 监控大盘、统计分析、调用链路、告警中心、运维工具
- * 4. 系统管理 - 用户权限、认证鉴权、外部框架集成、帮助中心、系统维护
+ * 2. 知识中心 - 知识库、知识图谱、同步管理
+ * 3. 监控运维 - 监控总览、链路与分析、告警与事件、运维操作
+ * 4. 系统管理 - 组织与权限、平台配置、模型与资源、安全与运维、支持与维护
  */
 
 // ==================== 主要路由 ====================
@@ -21,13 +21,14 @@ export const ROUTES = {
         LIST: '/dashboard/agents/list',
         ONBOARD: '/dashboard/agents/onboard',
         CONSOLE: '/dashboard/agents/console/:id',
-        // 会话管理（二级）
+        // 运行与交互（二级）
         CHAT_LOGS: '/dashboard/agents/chat-logs',
-        // 协作任务（二级）
+        // 编排与协作（二级）
+        COLLABORATION_DASHBOARD: '/dashboard/agents/collaboration/dashboard',
         COLLABORATION: '/dashboard/agents/collaboration',
         COLLABORATION_TASKS: '/dashboard/agents/collaboration/tasks',
         COLLABORATION_CONFIG: '/dashboard/agents/collaboration/config',
-        // 版本管理与测试（二级）
+        // 版本与调试（二级）
         VERSION_MANAGE: '/dashboard/agents/version',
         TEST_DEBUG: '/dashboard/agents/test',
         // 能力扩展（二级）
@@ -42,44 +43,45 @@ export const ROUTES = {
     // ==================== 知识中心模块 ====================
     KNOWLEDGE: {
         ROOT: '/dashboard/knowledge',
-        // 知识库管理（二级）
+        // 知识库（二级）
         LIST: '/dashboard/knowledge/list',
         CREATE: '/dashboard/knowledge/create',
         DETAIL: '/dashboard/knowledge/detail/:id',
-        // 素材库（二级）
+        // 素材管理（归属知识库）
         MEDIA: '/dashboard/knowledge/media',
         // 实验室（二级）
         RETRIEVAL_LAB: '/dashboard/knowledge/retrieval-lab',
         EMBEDDING_LAB: '/dashboard/knowledge/embedding-lab',
         VLM_LAB: '/dashboard/knowledge/vlm-lab',
-        // 智力资产
+        // 智力资产（保留路由，暂不在主导航暴露）
         INTELLIGENCE: '/dashboard/knowledge/intelligence',
         // 知识图谱（LightRAG + Neo4j 可视化）
         GRAPH: '/dashboard/knowledge/graph',
-        // 端侧同步（二级）
+        // 同步管理（二级）
         SYNC: '/dashboard/knowledge/sync',
     },
 
     // ==================== 监控运维模块 ====================
     MONITOR: {
         ROOT: '/dashboard/monitor',
-        // 监控大盘（二级）
+        // 监控总览（二级）
         DASHBOARD: '/dashboard/monitor/dashboard',
-        // 统计分析（二级）
+        // 链路与分析（二级）
         TOKENS: '/dashboard/monitor/tokens',
+        COSTS: '/dashboard/monitor/costs',
         LATENCY: '/dashboard/monitor/latency',
         ERRORS: '/dashboard/monitor/errors',
-        // 调用链路（二级）
         TRACES: '/dashboard/monitor/traces',
         DATAFLOW: '/dashboard/monitor/dataflow',
-        // 告警中心（二级）
+        // 告警与事件（二级）
         ALERTS: '/dashboard/monitor/alerts',
         ALERT_RULES: '/dashboard/monitor/alert-rules',
         NOTIFICATIONS: '/dashboard/monitor/notifications',
-        // 运维工具（二级）
+        // 运维操作（二级）
         TASKS: '/dashboard/monitor/tasks',
         SERVER: '/dashboard/monitor/server',
         LOGS: '/dashboard/monitor/logs',
+        MAINTENANCE: '/dashboard/monitor/maintenance',
         VERSION_UPGRADE: '/dashboard/monitor/version-upgrade',
     },
 
@@ -107,6 +109,8 @@ export const ROUTES = {
         SETTINGS_KNOWLEDGE: '/dashboard/system/settings/knowledge',
         SETTINGS_GATEWAY: '/dashboard/system/settings/gateway',
         SETTINGS_SYNC: '/dashboard/system/settings/sync',
+        SETTINGS_INTEGRATIONS: '/dashboard/system/settings/integrations',
+        SETTINGS_MCP_SERVICE: '/dashboard/system/settings/mcp-service',
         AUDIT_LOGS: '/dashboard/system/audit-logs',
         // 配置中心（二级）
         MODELS: '/dashboard/system/models',
@@ -179,6 +183,7 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/runtime/overview': ROUTES.MONITOR.DASHBOARD,
     '/dashboard/runtime/metrics': ROUTES.MONITOR.TOKENS,
     '/dashboard/stats/tokens': ROUTES.MONITOR.TOKENS,
+    '/dashboard/stats/costs': ROUTES.MONITOR.COSTS,
     '/dashboard/system/alerts': ROUTES.MONITOR.ALERTS,
 
     // 系统管理模块（旧路径）
@@ -203,6 +208,7 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/runtime/server': ROUTES.MONITOR.SERVER,
     '/dashboard/runtime/tasks': ROUTES.MONITOR.TASKS,
     '/dashboard/monitor/tokens': ROUTES.MONITOR.TOKENS,
+    '/dashboard/monitor/costs': ROUTES.MONITOR.COSTS,
     '/dashboard/monitor/latency': ROUTES.MONITOR.LATENCY,
     '/dashboard/monitor/traces': ROUTES.MONITOR.TRACES,
     '/dashboard/monitor/alerts': ROUTES.MONITOR.ALERTS,
@@ -285,39 +291,29 @@ export const SIDEBAR_MENU_CONFIG = [
         children: [
             {
                 id: 'kb-manage',
-                title: '知识库管理',
+                title: '知识库',
                 icon: 'Collection',
                 path: ROUTES.KNOWLEDGE.LIST,
-            },
-            {
-                id: 'media',
-                title: '素材库',
-                icon: 'Picture',
-                path: ROUTES.KNOWLEDGE.MEDIA,
-            },
-            // 实验室（三级）
-            {
-                id: 'labs',
-                title: '实验室',
-                icon: 'Cpu',
-                redirect: ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
                 children: [
-                    { title: '检索实验室', path: ROUTES.KNOWLEDGE.RETRIEVAL_LAB },
-                    { title: '嵌入实验室', path: ROUTES.KNOWLEDGE.EMBEDDING_LAB },
-                    { title: '视觉实验室', path: ROUTES.KNOWLEDGE.VLM_LAB },
+                    { title: '知识库列表', path: ROUTES.KNOWLEDGE.LIST },
+                    { title: '素材管理', path: ROUTES.KNOWLEDGE.MEDIA },
                 ]
             },
             {
-                id: 'intelligence',
-                title: '智力资产',
-                icon: 'Brain',
-                path: ROUTES.KNOWLEDGE.INTELLIGENCE,
+                id: 'graph',
+                title: '知识图谱',
+                icon: 'Connection',
+                path: ROUTES.KNOWLEDGE.GRAPH,
             },
             {
                 id: 'sync',
-                title: '端侧同步',
+                title: '同步管理',
                 icon: 'Upload',
                 path: ROUTES.KNOWLEDGE.SYNC,
+                children: [
+                    { title: '同步任务', path: ROUTES.KNOWLEDGE.SYNC },
+                    { title: '设备管理', path: ROUTES.KNOWLEDGE.SYNC },
+                ]
             },
         ],
     },
@@ -332,52 +328,47 @@ export const SIDEBAR_MENU_CONFIG = [
         redirect: ROUTES.MONITOR.DASHBOARD,
         children: [
             {
-                id: 'dashboard',
-                title: '监控大盘',
+                id: 'overview',
+                title: '监控总览',
                 icon: 'DataAnalysis',
                 path: ROUTES.MONITOR.DASHBOARD,
-            },
-            // 统计分析（三级）
-            {
-                id: 'stats',
-                title: '统计分析',
-                icon: 'TrendCharts',
-                path: '/dashboard/monitor/stats',
                 children: [
+                    { title: '监控大盘', path: ROUTES.MONITOR.DASHBOARD },
+                    { title: '服务器监控', path: ROUTES.MONITOR.SERVER },
+                    { title: '任务队列', path: ROUTES.MONITOR.TASKS },
+                ]
+            },
+            {
+                id: 'analysis',
+                title: '链路与分析',
+                icon: 'TrendCharts',
+                path: '/dashboard/monitor/analysis',
+                children: [
+                    { title: '调用链路', path: ROUTES.MONITOR.TRACES },
                     { title: 'Token 统计', path: ROUTES.MONITOR.TOKENS },
+                    { title: '成本分析', path: ROUTES.MONITOR.COSTS },
                     { title: '时延统计', path: ROUTES.MONITOR.LATENCY },
                     { title: '错误统计', path: ROUTES.MONITOR.ERRORS },
                 ]
             },
             {
-                id: 'traces',
-                title: '调用链路',
-                icon: 'Share',
-                path: ROUTES.MONITOR.TRACES,
-            },
-            // 告警中心（三级）
-            {
-                id: 'alerts',
-                title: '告警中心',
+                id: 'incidents',
+                title: '告警与事件',
                 icon: 'Bell',
-                path: '/dashboard/monitor/alerts',
+                path: '/dashboard/monitor/incidents',
                 children: [
                     { title: '告警管理', path: ROUTES.MONITOR.ALERTS },
                     { title: '告警规则', path: ROUTES.MONITOR.ALERT_RULES },
-                    { title: '通知渠道', path: ROUTES.MONITOR.NOTIFICATIONS },
                 ]
             },
-            // 运维工具（三级）
             {
                 id: 'ops',
-                title: '运维工具',
+                title: '运维操作',
                 icon: 'Tools',
                 path: '/dashboard/monitor/ops',
                 children: [
-                    { title: '任务队列', path: ROUTES.MONITOR.TASKS },
-                    { title: '服务器监控', path: ROUTES.MONITOR.SERVER },
                     { title: '日志归档', path: ROUTES.MONITOR.LOGS },
-                    { title: '版本升级', path: ROUTES.MONITOR.VERSION_UPGRADE },
+                    { title: '系统维护', path: ROUTES.MONITOR.MAINTENANCE },
                 ]
             },
         ],
@@ -393,63 +384,73 @@ export const SIDEBAR_MENU_CONFIG = [
         redirect: ROUTES.SYSTEM.USERS,
         requiresAdmin: true,
         children: [
-            // 用户权限（三级）
+            // 组织与权限（三级）
             {
-                id: 'auth',
-                title: '用户权限',
+                id: 'organization',
+                title: '组织与权限',
                 icon: 'User',
-                path: '/dashboard/system/auth',
+                path: '/dashboard/system/organization',
                 children: [
                     { title: '用户管理', path: ROUTES.SYSTEM.USERS },
-                    { title: '部门权限', path: ROUTES.SYSTEM.DEPARTMENTS },
+                    { title: '部门管理', path: ROUTES.SYSTEM.DEPARTMENTS },
                     { title: '角色管理', path: ROUTES.SYSTEM.ROLES },
-                ]
-            },
-            // 认证鉴权（三级）
-            {
-                id: 'security',
-                title: '认证鉴权',
-                icon: 'Key',
-                path: '/dashboard/system/security',
-                children: [
                     { title: 'API Key', path: ROUTES.SYSTEM.API_KEYS },
-                    { title: '限流配置', path: ROUTES.SYSTEM.RATE_LIMIT },
                 ]
             },
+            // 平台配置（三级）
             {
-                id: 'messages',
-                title: '消息中心',
-                icon: 'Message',
-                path: ROUTES.SYSTEM.MESSAGES,
-            },
-            {
-                id: 'files',
-                title: '文件管理',
-                icon: 'Folder',
-                path: ROUTES.SYSTEM.FILES,
-            },
-            // 系统设置（三级）
-            {
-                id: 'settings',
-                title: '系统设置',
+                id: 'platform',
+                title: '平台配置',
                 icon: 'Tools',
-                path: '/dashboard/system/settings',
+                path: '/dashboard/system/platform',
                 children: [
-                    { title: '系统配置', path: ROUTES.SYSTEM.SETTINGS },
-                    { title: '审计日志', path: ROUTES.SYSTEM.AUDIT_LOGS },
+                    { title: '基础设置', path: ROUTES.SYSTEM.SETTINGS_BASE },
+                    { title: '邮件服务', path: ROUTES.SYSTEM.SETTINGS_MAIL },
+                    { title: '通知渠道', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
+                    { title: '同步配置', path: ROUTES.SYSTEM.SETTINGS_SYNC },
+                    { title: '外部集成', path: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS },
+                    { title: 'MCP 服务', path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE },
+                ]
+            },
+            // 模型与资源（三级）
+            {
+                id: 'resources',
+                title: '模型与资源',
+                icon: 'Cpu',
+                path: '/dashboard/system/resources',
+                children: [
+                    { title: '模型默认参数', path: ROUTES.SYSTEM.SETTINGS_MODEL_DEFAULTS },
                     { title: '模型配置', path: ROUTES.SYSTEM.MODELS },
                     { title: '定价配置', path: ROUTES.SYSTEM.PRICING },
+                    { title: '知识库配置', path: ROUTES.SYSTEM.SETTINGS_KNOWLEDGE },
+                    { title: '文件管理', path: ROUTES.SYSTEM.FILES },
                 ]
             },
-            // 网关与分布式（三级）
+            // 安全与运维（三级）
             {
-                id: 'gateway',
-                title: '网关与分布式',
-                icon: 'Router',
-                path: '/dashboard/system/gateway',
+                id: 'security-ops',
+                title: '安全与运维',
+                icon: 'Shield',
+                path: '/dashboard/system/security-ops',
                 children: [
                     { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY },
+                    { title: '网关配置', path: ROUTES.SYSTEM.SETTINGS_GATEWAY },
+                    { title: '限流规则', path: ROUTES.SYSTEM.RATE_LIMIT },
                     { title: '分布式锁', path: ROUTES.SYSTEM.DISTRIBUTED_LOCK },
+                    { title: '监控配置', path: ROUTES.SYSTEM.SETTINGS_MONITOR },
+                    { title: '审计日志', path: ROUTES.SYSTEM.AUDIT_LOGS },
+                ]
+            },
+            // 支持与维护（三级）
+            {
+                id: 'support',
+                title: '支持与维护',
+                icon: 'QuestionFilled',
+                path: '/dashboard/system/support',
+                children: [
+                    { title: '帮助中心', path: ROUTES.SYSTEM.HELP_CENTER },
+                    { title: '统计分析', path: ROUTES.SYSTEM.STATISTICS },
+                    { title: '系统维护', path: ROUTES.SYSTEM.SYSTEM_MAINTENANCE },
                 ]
             },
         ],

@@ -4,6 +4,23 @@ import request from '@/utils/request'
  * 系统配置接口
  */
 
+// 获取系统基础配置
+export function getSystemConfig() {
+    return request({
+        url: '/system/config',
+        method: 'get'
+    })
+}
+
+// 更新系统基础配置
+export function updateSystemConfig(data) {
+    return request({
+        url: '/system/config',
+        method: 'put',
+        data
+    })
+}
+
 // 获取供应商列表（按显示顺序）
 export function getProviderList() {
     return request({

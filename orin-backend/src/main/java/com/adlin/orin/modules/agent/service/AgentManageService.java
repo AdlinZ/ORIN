@@ -142,8 +142,21 @@ public interface AgentManageService {
 
     /**
      * 获取异步任务状态
+     * @param jobId 任务ID
+     * @return 任务状态信息
      */
-    default Object getJobStatus(String agentId, String jobId) {
+    default Object getJobStatus(String jobId) {
         throw new UnsupportedOperationException("Get job status not supported");
+    }
+
+    /**
+     * 创建异步任务并开始执行
+     * @param jobType 任务类型 (EXPORT, IMPORT, REFRESH_METADATA)
+     * @param agentIds 涉及的智能体ID列表（可为空）
+     * @param triggeredBy 触发者
+     * @return 任务ID
+     */
+    default String createAsyncJob(String jobType, List<String> agentIds, String triggeredBy) {
+        throw new UnsupportedOperationException("Async job not supported");
     }
 }

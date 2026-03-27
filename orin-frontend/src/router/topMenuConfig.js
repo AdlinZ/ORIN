@@ -6,9 +6,9 @@ import { ROUTES } from './routes'
  *
  * 菜单结构：
  * 1. 智能体 - 智能体管理、工作流编排、多智能体协作、版本管理与测试
- * 2. 知识中心 - 知识库管理、知识图谱、端侧同步
- * 3. 监控运维 - 监控大盘、链路追踪、成本分析、告警中心、运维工具
- * 4. 系统管理 - 用户权限、外部集成、网关、安全、配置、帮助与维护
+ * 2. 知识中心 - 知识库、知识图谱、同步管理
+ * 3. 监控运维 - 监控总览、链路与分析、告警与事件、运维操作
+ * 4. 系统管理 - 组织与权限、平台配置、模型与资源、安全与运维、支持与维护
  */
 export const TOP_MENU_CONFIG = [
     // ==================== 1. 智能体 ====================
@@ -22,33 +22,55 @@ export const TOP_MENU_CONFIG = [
         children: [
             // 智能体管理
             {
-                title: '智能体列表',
+                title: '智能体管理',
                 path: ROUTES.AGENTS.LIST,
-                icon: 'Grid'
-            },
-            {
-                title: '智能体控制台',
-                path: ROUTES.AGENTS.CONSOLE.replace('/:id', ''),
-                icon: 'Monitor'
-            },
-            { divider: true },
-            // 工作流编排
-            {
-                title: '工作流编排',
-                path: ROUTES.AGENTS.WORKFLOWS,
-                icon: 'Edit'
-            },
-            { divider: true },
-            // 多智能体协作
-            {
-                title: '多智能体协作',
-                path: ROUTES.AGENTS.COLLABORATION,
-                icon: 'Avatar',
+                icon: 'Grid',
                 children: [
+                    {
+                        title: '智能体列表',
+                        path: ROUTES.AGENTS.LIST,
+                        icon: 'List'
+                    },
+                    {
+                        title: '智能体接入',
+                        path: ROUTES.AGENTS.ONBOARD,
+                        icon: 'Plus'
+                    }
+                ]
+            },
+            { divider: true },
+            {
+                title: '运行与交互',
+                path: ROUTES.AGENTS.CONSOLE.replace('/:id', ''),
+                icon: 'Monitor',
+                children: [
+                    {
+                        title: '智能体控制台',
+                        path: ROUTES.AGENTS.CONSOLE.replace('/:id', ''),
+                        icon: 'Monitor'
+                    },
+                    {
+                        title: '会话记录',
+                        path: ROUTES.AGENTS.CHAT_LOGS,
+                        icon: 'ChatDotRound'
+                    }
+                ]
+            },
+            { divider: true },
+            {
+                title: '编排与协作',
+                path: ROUTES.AGENTS.WORKFLOWS,
+                icon: 'Edit',
+                children: [
+                    {
+                        title: '工作流编排',
+                        path: ROUTES.AGENTS.WORKFLOWS,
+                        icon: 'Edit'
+                    },
                     {
                         title: '协作任务列表',
                         path: ROUTES.AGENTS.COLLABORATION,
-                        icon: 'List'
+                        icon: 'Avatar'
                     },
                     {
                         title: '协作模式配置',
@@ -56,14 +78,13 @@ export const TOP_MENU_CONFIG = [
                         icon: 'SetUp'
                     },
                     {
-                        title: '任务队列监控',
-                        path: ROUTES.MONITOR.TASKS,
-                        icon: 'Tickets'
+                        title: '协作仪表盘',
+                        path: ROUTES.AGENTS.COLLABORATION_DASHBOARD,
+                        icon: 'DataAnalysis'
                     }
                 ]
             },
             { divider: true },
-            // 能力扩展
             {
                 title: '能力扩展',
                 path: ROUTES.AGENTS.SKILLS,
@@ -87,9 +108,8 @@ export const TOP_MENU_CONFIG = [
                 ]
             },
             { divider: true },
-            // 版本与测试
             {
-                title: '版本与测试',
+                title: '版本与调试',
                 path: ROUTES.AGENTS.VERSION_MANAGE,
                 icon: 'Clock',
                 children: [
@@ -104,13 +124,6 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Bug'
                     }
                 ]
-            },
-            { divider: true },
-            // 会话记录
-            {
-                title: '会话记录',
-                path: ROUTES.AGENTS.CHAT_LOGS,
-                icon: 'ChatDotRound'
             }
         ]
     },
@@ -124,9 +137,9 @@ export const TOP_MENU_CONFIG = [
         path: ROUTES.KNOWLEDGE.ROOT,
         requiresAdmin: false,
         children: [
-            // 知识库管理
+            // 知识库
             {
-                title: '知识库管理',
+                title: '知识库',
                 path: ROUTES.KNOWLEDGE.LIST,
                 icon: 'Collection',
                 children: [
@@ -139,30 +152,24 @@ export const TOP_MENU_CONFIG = [
                         title: '文档管理',
                         path: ROUTES.KNOWLEDGE.LIST,
                         icon: 'Document'
+                    },
+                    {
+                        title: '素材管理',
+                        path: ROUTES.KNOWLEDGE.MEDIA,
+                        icon: 'Picture'
                     }
                 ]
             },
-            {
-                title: '素材库',
-                path: ROUTES.KNOWLEDGE.MEDIA,
-                icon: 'Picture'
-            },
             { divider: true },
-            // 知识图谱
             {
                 title: '知识图谱',
                 path: ROUTES.KNOWLEDGE.GRAPH,
-                icon: 'Connection'
-            },
-            {
-                title: '知识库评估',
-                path: ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
-                icon: 'DataAnalysis'
+                icon: 'Connection',
+                status: 'placeholder'
             },
             { divider: true },
-            // 端侧同步
             {
-                title: '端侧同步',
+                title: '同步管理',
                 path: ROUTES.KNOWLEDGE.SYNC,
                 icon: 'Upload',
                 children: [
@@ -175,30 +182,6 @@ export const TOP_MENU_CONFIG = [
                         title: '设备列表',
                         path: ROUTES.KNOWLEDGE.SYNC,
                         icon: 'Monitor'
-                    }
-                ]
-            },
-            { divider: true },
-            // 实验室
-            {
-                title: '实验室',
-                path: ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
-                icon: 'Cpu',
-                children: [
-                    {
-                        title: '检索实验室',
-                        path: ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
-                        icon: 'Search'
-                    },
-                    {
-                        title: '嵌入实验室',
-                        path: ROUTES.KNOWLEDGE.EMBEDDING_LAB,
-                        icon: 'Aim'
-                    },
-                    {
-                        title: '视觉实验室',
-                        path: ROUTES.KNOWLEDGE.VLM_LAB,
-                        icon: 'View'
                     }
                 ]
             }
@@ -214,74 +197,17 @@ export const TOP_MENU_CONFIG = [
         path: ROUTES.MONITOR.ROOT,
         requiresAdmin: false,
         children: [
-            // 运行仪表盘
+            // 监控总览
             {
-                title: '运行仪表盘',
+                title: '监控总览',
                 path: ROUTES.MONITOR.DASHBOARD,
-                icon: 'DataLine'
-            },
-            { divider: true },
-            // 调用链路
-            {
-                title: '调用链路',
-                path: ROUTES.MONITOR.TRACES,
-                icon: 'Share'
-            },
-            { divider: true },
-            // 成本统计
-            {
-                title: '成本统计',
-                path: ROUTES.MONITOR.TOKENS,
-                icon: 'Coin',
+                icon: 'DataLine',
                 children: [
                     {
-                        title: 'Token 统计',
-                        path: ROUTES.MONITOR.TOKENS,
-                        icon: 'Coin'
+                        title: '监控大盘',
+                        path: ROUTES.MONITOR.DASHBOARD,
+                        icon: 'DataAnalysis'
                     },
-                    {
-                        title: '成本分析',
-                        path: ROUTES.MONITOR.TOKENS,
-                        icon: 'Money'
-                    },
-                    {
-                        title: '时延统计',
-                        path: ROUTES.MONITOR.LATENCY,
-                        icon: 'Timer'
-                    }
-                ]
-            },
-            {
-                title: '错误统计',
-                path: ROUTES.MONITOR.ERRORS,
-                icon: 'Warning'
-            },
-            { divider: true },
-            // 告警中心
-            {
-                title: '告警中心',
-                path: ROUTES.MONITOR.ALERTS,
-                icon: 'Bell',
-                children: [
-                    {
-                        title: '告警规则配置',
-                        path: ROUTES.MONITOR.ALERT_RULES,
-                        icon: 'Setting'
-                    },
-                    {
-                        title: '通知渠道',
-                        path: ROUTES.MONITOR.NOTIFICATIONS,
-                        icon: 'Message'
-                    }
-                ]
-            },
-            { divider: true },
-            // 系统监控
-            {
-                title: '系统监控',
-                path: ROUTES.MONITOR.SERVER,
-                icon: 'Cpu',
-                children: [
                     {
                         title: '服务器监控',
                         path: ROUTES.MONITOR.SERVER,
@@ -295,30 +221,76 @@ export const TOP_MENU_CONFIG = [
                 ]
             },
             { divider: true },
-            // 日志中心
+            // 链路与分析
             {
-                title: '日志中心',
-                path: ROUTES.MONITOR.LOGS,
-                icon: 'Document',
+                title: '链路与分析',
+                path: ROUTES.MONITOR.TRACES,
+                icon: 'TrendCharts',
                 children: [
                     {
-                        title: '日志查询',
-                        path: ROUTES.MONITOR.LOGS,
-                        icon: 'Search'
+                        title: '调用链路',
+                        path: ROUTES.MONITOR.TRACES,
+                        icon: 'Share'
                     },
                     {
-                        title: '审计日志',
-                        path: ROUTES.SYSTEM.AUDIT_LOGS,
-                        icon: 'List'
+                        title: 'Token 统计',
+                        path: ROUTES.MONITOR.TOKENS,
+                        icon: 'Coin'
+                    },
+                    {
+                        title: '成本分析',
+                        path: ROUTES.MONITOR.COSTS,
+                        icon: 'Money'
+                    },
+                    {
+                        title: '时延统计',
+                        path: ROUTES.MONITOR.LATENCY,
+                        icon: 'Timer'
+                    },
+                    {
+                        title: '错误统计',
+                        path: ROUTES.MONITOR.ERRORS,
+                        icon: 'Warning'
                     }
                 ]
             },
             { divider: true },
-            // 异常事件
+            // 告警与事件
             {
-                title: '异常事件',
+                title: '告警与事件',
                 path: ROUTES.MONITOR.ALERTS,
-                icon: 'WarningFilled'
+                icon: 'Bell',
+                children: [
+                    {
+                        title: '告警管理',
+                        path: ROUTES.MONITOR.ALERTS,
+                        icon: 'Bell'
+                    },
+                    {
+                        title: '告警规则配置',
+                        path: ROUTES.MONITOR.ALERT_RULES,
+                        icon: 'Setting'
+                    }
+                ]
+            },
+            { divider: true },
+            // 运维操作
+            {
+                title: '运维操作',
+                path: ROUTES.MONITOR.LOGS,
+                icon: 'Tools',
+                children: [
+                    {
+                        title: '日志归档',
+                        path: ROUTES.MONITOR.LOGS,
+                        icon: 'Document'
+                    },
+                    {
+                        title: '系统维护',
+                        path: ROUTES.MONITOR.MAINTENANCE,
+                        icon: 'Setting'
+                    }
+                ]
             }
         ]
     },
@@ -332,47 +304,9 @@ export const TOP_MENU_CONFIG = [
         path: ROUTES.SYSTEM.ROOT,
         requiresAdmin: true,
         children: [
-            // 集成管理
+            // 组织与权限
             {
-                title: '集成管理',
-                path: ROUTES.SYSTEM.EXTERNAL_FRAMEWORKS,
-                icon: 'Connection',
-                children: [
-                    {
-                        title: '外部框架集成',
-                        path: ROUTES.SYSTEM.EXTERNAL_FRAMEWORKS,
-                        icon: 'Grid'
-                    },
-                    {
-                        title: 'MCP 服务管理',
-                        path: ROUTES.SYSTEM.MCP_SERVICE,
-                        icon: 'Service'
-                    }
-                ]
-            },
-            { divider: true },
-            // API 网关
-            {
-                title: 'API 网关',
-                path: ROUTES.SYSTEM.GATEWAY,
-                icon: 'Router',
-                children: [
-                    {
-                        title: '网关配置',
-                        path: ROUTES.SYSTEM.GATEWAY,
-                        icon: 'Connection'
-                    },
-                    {
-                        title: '限流规则',
-                        path: ROUTES.SYSTEM.RATE_LIMIT,
-                        icon: 'Lightning'
-                    }
-                ]
-            },
-            { divider: true },
-            // 用户权限
-            {
-                title: '用户权限',
+                title: '组织与权限',
                 path: ROUTES.SYSTEM.USERS,
                 icon: 'User',
                 children: [
@@ -390,14 +324,19 @@ export const TOP_MENU_CONFIG = [
                         title: '角色管理',
                         path: ROUTES.SYSTEM.ROLES,
                         icon: 'UserFilled'
+                    },
+                    {
+                        title: 'API Key',
+                        path: ROUTES.SYSTEM.API_KEYS,
+                        icon: 'Key'
                     }
                 ]
             },
             { divider: true },
-            // 系统设置
+            // 平台配置
             {
-                title: '系统设置',
-                path: '/dashboard/system/settings',
+                title: '平台配置',
+                path: ROUTES.SYSTEM.SETTINGS_BASE,
                 icon: 'Tools',
                 children: [
                     {
@@ -416,9 +355,82 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Bell'
                     },
                     {
+                        title: '同步配置',
+                        path: ROUTES.SYSTEM.SETTINGS_SYNC,
+                        icon: 'Refresh'
+                    },
+                    {
+                        title: '外部集成',
+                        path: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS,
+                        icon: 'Connection'
+                    },
+                    {
+                        title: 'MCP 服务',
+                        path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE,
+                        icon: 'Service'
+                    }
+                ]
+            },
+            { divider: true },
+            // 模型与资源
+            {
+                title: '模型与资源',
+                path: ROUTES.SYSTEM.MODELS,
+                icon: 'Cpu',
+                children: [
+                    {
                         title: '模型默认参数',
                         path: ROUTES.SYSTEM.SETTINGS_MODEL_DEFAULTS,
                         icon: 'Cpu'
+                    },
+                    {
+                        title: '模型配置',
+                        path: ROUTES.SYSTEM.MODELS,
+                        icon: 'SetUp'
+                    },
+                    {
+                        title: '定价配置',
+                        path: ROUTES.SYSTEM.PRICING,
+                        icon: 'PriceTag'
+                    },
+                    {
+                        title: '知识库配置',
+                        path: ROUTES.SYSTEM.SETTINGS_KNOWLEDGE,
+                        icon: 'Document'
+                    },
+                    {
+                        title: '文件管理',
+                        path: ROUTES.SYSTEM.FILES,
+                        icon: 'Folder'
+                    }
+                ]
+            },
+            { divider: true },
+            // 安全与运维
+            {
+                title: '安全与运维',
+                path: ROUTES.SYSTEM.GATEWAY,
+                icon: 'Shield',
+                children: [
+                    {
+                        title: '统一网关',
+                        path: ROUTES.SYSTEM.GATEWAY,
+                        icon: 'Router'
+                    },
+                    {
+                        title: '网关配置',
+                        path: ROUTES.SYSTEM.SETTINGS_GATEWAY,
+                        icon: 'Connection'
+                    },
+                    {
+                        title: '限流规则',
+                        path: ROUTES.SYSTEM.RATE_LIMIT,
+                        icon: 'Lightning'
+                    },
+                    {
+                        title: '分布式锁',
+                        path: ROUTES.SYSTEM.DISTRIBUTED_LOCK,
+                        icon: 'Lock'
                     },
                     {
                         title: '监控配置',
@@ -426,35 +438,19 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Monitor'
                     },
                     {
-                        title: '知识库配置',
-                        path: ROUTES.SYSTEM.SETTINGS_KNOWLEDGE,
+                        title: '审计日志',
+                        path: ROUTES.SYSTEM.AUDIT_LOGS,
                         icon: 'Document'
                     }
                 ]
             },
             { divider: true },
-            // 运维工具
+            // 支持与维护
             {
-                title: '运维工具',
-                path: ROUTES.SYSTEM.MESSAGES,
-                icon: 'Tools',
+                title: '支持与维护',
+                path: ROUTES.SYSTEM.HELP_CENTER,
+                icon: 'QuestionFilled',
                 children: [
-                    {
-                        title: '消息中心',
-                        path: ROUTES.SYSTEM.MESSAGES,
-                        icon: 'Message'
-                    },
-                    {
-                        title: '文件管理',
-                        path: ROUTES.SYSTEM.FILES,
-                        icon: 'Folder'
-                    },
-                    {
-                        title: '分布式锁',
-                        path: ROUTES.SYSTEM.DISTRIBUTED_LOCK,
-                        icon: 'Lock'
-                    },
-                    { divider: true },
                     {
                         title: '帮助中心',
                         path: ROUTES.SYSTEM.HELP_CENTER,
@@ -471,13 +467,6 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Wrench'
                     }
                 ]
-            },
-            { divider: true },
-            // 审计日志
-            {
-                title: '审计日志',
-                path: ROUTES.SYSTEM.AUDIT_LOGS,
-                icon: 'Document'
             }
         ]
     }

@@ -200,12 +200,12 @@ const routes = [
                 meta: { title: '知识中心', category: 'knowledge' },
                 redirect: ROUTES.KNOWLEDGE.LIST,
                 children: [
-                    // 知识库管理
+                    // 知识库
                     {
                         path: 'list',
                         name: 'KnowledgeList',
                         component: () => import('@/views/Knowledge/KBList.vue'),
-                        meta: { title: '知识库管理', icon: 'Collection' }
+                        meta: { title: '知识库', icon: 'Collection' }
                     },
                     {
                         path: 'create',
@@ -219,52 +219,54 @@ const routes = [
                         component: () => import('@/views/Knowledge/KBDetail.vue'),
                         meta: { title: '知识库详情', hidden: true }
                     },
-                    // 素材库
+                    // 素材管理
                     {
                         path: 'media',
                         name: 'KnowledgeMedia',
                         component: () => import('@/views/Knowledge/MediaHub.vue'),
-                        meta: { title: '素材库', icon: 'Picture' }
+                        meta: { title: '素材管理', icon: 'Picture' }
                     },
                     // 检索实验室
                     {
                         path: 'retrieval-lab',
                         name: 'RetrievalLab',
                         component: () => import('@/views/Knowledge/RetrievalLab.vue'),
-                        meta: { title: '检索实验室', icon: 'Search' }
+                        meta: { title: '检索实验室', icon: 'Search', hidden: true }
                     },
                     // 嵌入实验室
                     {
                         path: 'embedding-lab',
                         name: 'EmbeddingLab',
                         component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
-                        meta: { title: '嵌入实验室', icon: 'Aim' }
+                        meta: { title: '嵌入实验室', icon: 'Aim', hidden: true }
                     },
                     // 视觉实验室
                     {
                         path: 'vlm-lab',
                         name: 'VlmLab',
                         component: () => import('@/views/Knowledge/VlmPlayground.vue'),
-                        meta: { title: '视觉实验室', icon: 'View' }
+                        meta: { title: '视觉实验室', icon: 'View', hidden: true }
                     },
                     // 智力资产
                     {
                         path: 'intelligence',
                         name: 'Intelligence',
                         component: () => import('@/views/Knowledge/IntelligenceCenter.vue'),
-                        meta: { title: '智力资产', icon: 'Brain' }
+                        meta: { title: '智力资产', icon: 'Headset', hidden: true }
                     },
-                    // 端侧同步
+                    // 同步管理
                     {
                         path: 'sync',
                         name: 'KnowledgeSync',
                         component: () => import('@/views/System/ClientSync.vue'),
-                        meta: { title: '端侧同步', icon: 'Upload' }
+                        meta: { title: '同步管理', icon: 'Upload' }
                     },
-                    // 知识图谱（暂时重定向到知识库）
+                    // 知识图谱
                     {
                         path: 'graph',
-                        redirect: ROUTES.KNOWLEDGE.LIST
+                        name: 'KnowledgeGraph',
+                        component: () => import('@/views/Knowledge/KnowledgeGraphPlaceholder.vue'),
+                        meta: { title: '知识图谱', icon: 'Connection' }
                     },
                 ]
             },
@@ -275,6 +277,13 @@ const routes = [
                 meta: { title: '监控运维', category: 'monitor' },
                 redirect: ROUTES.MONITOR.DASHBOARD,
                 children: [
+                    // 监控总览（三级菜单父级）
+                    {
+                        path: 'overview',
+                        name: 'MonitorOverview',
+                        redirect: ROUTES.MONITOR.DASHBOARD,
+                        meta: { title: '监控总览', hidden: true }
+                    },
                     // 监控大盘
                     {
                         path: 'dashboard',
@@ -282,12 +291,12 @@ const routes = [
                         component: () => import('@/views/MonitorDashboard.vue'),
                         meta: { title: '监控大盘', icon: 'DataAnalysis' }
                     },
-                    // 统计分析（三级菜单父级）
+                    // 链路与分析（三级菜单父级）
                     {
-                        path: 'stats',
-                        name: 'MonitorStats',
-                        redirect: ROUTES.MONITOR.TOKENS,
-                        meta: { title: '统计分析', hidden: true }
+                        path: 'analysis',
+                        name: 'MonitorAnalysis',
+                        redirect: ROUTES.MONITOR.TRACES,
+                        meta: { title: '链路与分析', hidden: true }
                     },
                     // Token 统计
                     {
@@ -295,6 +304,13 @@ const routes = [
                         name: 'TokenStats',
                         component: () => import('@/views/Monitor/TokenStats.vue'),
                         meta: { title: 'Token 统计', icon: 'Coin' }
+                    },
+                    // 成本分析
+                    {
+                        path: 'costs',
+                        name: 'CostStats',
+                        component: () => import('@/views/Monitor/CostStats.vue'),
+                        meta: { title: '成本分析', icon: 'Money' }
                     },
                     // 时延统计
                     {
@@ -307,7 +323,7 @@ const routes = [
                     {
                         path: 'errors',
                         name: 'ErrorStats',
-                        component: () => import('@/views/Monitor/TokenStats.vue'),
+                        component: () => import('@/views/Monitor/ErrorStats.vue'),
                         meta: { title: '错误统计', icon: 'Warning' }
                     },
                     // 调用链路
@@ -324,12 +340,12 @@ const routes = [
                         component: () => import('@/views/Monitor/DataFlow.vue'),
                         meta: { title: '数据流', icon: 'Switch' }
                     },
-                    // 告警中心（三级菜单父级）
+                    // 告警与事件（三级菜单父级）
                     {
-                        path: 'alerts-center',
-                        name: 'AlertsCenter',
+                        path: 'incidents',
+                        name: 'MonitorIncidents',
                         redirect: ROUTES.MONITOR.ALERTS,
-                        meta: { title: '告警中心', hidden: true }
+                        meta: { title: '告警与事件', hidden: true }
                     },
                     // 告警管理
                     {
@@ -345,19 +361,18 @@ const routes = [
                         component: () => import('@/views/System/AlertManagement.vue'),
                         meta: { title: '告警规则', icon: 'Bell' }
                     },
-                    // 通知渠道
+                    // 通知渠道 - 重定向到统一系统设置
                     {
                         path: 'notifications',
-                        name: 'NotificationChannels',
-                        component: () => import('@/views/System/NotificationChannels.vue'),
-                        meta: { title: '通知渠道', icon: 'Message' }
+                        redirect: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS,
+                        meta: { title: '通知渠道', hidden: true }
                     },
-                    // 运维工具（三级菜单父级）
+                    // 运维操作（三级菜单父级）
                     {
                         path: 'ops',
                         name: 'MonitorOps',
-                        redirect: ROUTES.MONITOR.TASKS,
-                        meta: { title: '运维工具', hidden: true }
+                        redirect: ROUTES.MONITOR.LOGS,
+                        meta: { title: '运维操作', hidden: true }
                     },
                     // 任务队列
                     {
@@ -380,6 +395,19 @@ const routes = [
                         component: () => import('@/views/System/AuditLogs.vue'),
                         meta: { title: '日志归档', icon: 'Document' }
                     },
+                    // 系统维护 - 监控域内别名，避免从监控菜单跳转到系统管理主类目
+                    {
+                        path: 'maintenance',
+                        name: 'MonitorMaintenance',
+                        component: () => import('@/views/System/SystemMaintenance.vue'),
+                        meta: { title: '系统维护', icon: 'Tools' }
+                    },
+                    // 版本升级 - 暂复用系统维护页面中的升级能力
+                    {
+                        path: 'version-upgrade',
+                        redirect: ROUTES.MONITOR.MAINTENANCE,
+                        meta: { title: '版本升级', hidden: true }
+                    },
                 ]
             },
 
@@ -389,12 +417,19 @@ const routes = [
                 meta: { title: '系统管理', category: 'system', requiresAdmin: true },
                 redirect: ROUTES.SYSTEM.USERS,
                 children: [
-                    // 用户权限（三级菜单父级）
+                    // 组织与权限（三级菜单父级）
+                    {
+                        path: 'organization',
+                        name: 'SystemOrganization',
+                        redirect: ROUTES.SYSTEM.USERS,
+                        meta: { title: '组织与权限', hidden: true }
+                    },
+                    // 兼容旧路径：用户权限
                     {
                         path: 'auth',
                         name: 'SystemAuth',
                         redirect: ROUTES.SYSTEM.USERS,
-                        meta: { title: '用户权限', hidden: true }
+                        meta: { title: '组织与权限', hidden: true }
                     },
                     // 用户管理
                     {
@@ -403,12 +438,12 @@ const routes = [
                         component: () => import('@/views/System/UserManagement.vue'),
                         meta: { title: '用户管理', icon: 'User', roles: ['ROLE_ADMIN'] }
                     },
-                    // 部门权限
+                    // 部门管理
                     {
                         path: 'departments',
                         name: 'DepartmentManagement',
                         component: () => import('@/views/System/DepartmentManagement.vue'),
-                        meta: { title: '部门权限', icon: 'OfficeBuilding', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ['ROLE_ADMIN'] }
                     },
                     // 角色管理
                     {
@@ -417,12 +452,40 @@ const routes = [
                         component: () => import('@/views/System/RoleManagement.vue'),
                         meta: { title: '角色管理', icon: 'UserFilled', roles: ['ROLE_ADMIN'] }
                     },
-                    // 认证鉴权（三级菜单父级）
+                    // 平台配置（三级菜单父级）
+                    {
+                        path: 'platform',
+                        name: 'SystemPlatform',
+                        redirect: ROUTES.SYSTEM.SETTINGS_BASE,
+                        meta: { title: '平台配置', hidden: true }
+                    },
+                    // 模型与资源（三级菜单父级）
+                    {
+                        path: 'resources',
+                        name: 'SystemResources',
+                        redirect: ROUTES.SYSTEM.MODELS,
+                        meta: { title: '模型与资源', hidden: true }
+                    },
+                    // 安全与运维（三级菜单父级）
+                    {
+                        path: 'security-ops',
+                        name: 'SystemSecurityOps',
+                        redirect: ROUTES.SYSTEM.GATEWAY,
+                        meta: { title: '安全与运维', hidden: true }
+                    },
+                    // 支持与维护（三级菜单父级）
+                    {
+                        path: 'support',
+                        name: 'SystemSupport',
+                        redirect: ROUTES.SYSTEM.HELP_CENTER,
+                        meta: { title: '支持与维护', hidden: true }
+                    },
+                    // 兼容旧路径：认证鉴权
                     {
                         path: 'security',
                         name: 'SystemSecurity',
                         redirect: ROUTES.SYSTEM.API_KEYS,
-                        meta: { title: '认证鉴权', hidden: true }
+                        meta: { title: '组织与权限', hidden: true }
                     },
                     // API Key
                     {
@@ -438,12 +501,12 @@ const routes = [
                         component: () => import('@/views/System/RateLimitConfig.vue'),
                         meta: { title: '限流配置', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
                     },
-                    // 消息中心（邮件服务）
+                    // 兼容旧路径：消息中心 -> 邮件服务
                     {
                         path: 'messages',
                         name: 'MessageCenter',
                         redirect: ROUTES.SYSTEM.SETTINGS_MAIL,
-                        meta: { title: '消息中心', icon: 'Message', roles: ['ROLE_ADMIN'], hidden: true }
+                        meta: { title: '邮件服务', icon: 'Message', roles: ['ROLE_ADMIN'], hidden: true }
                     },
                     // 文件管理
                     {
@@ -452,12 +515,12 @@ const routes = [
                         component: () => import('@/views/System/FileManagement.vue'),
                         meta: { title: '文件管理', icon: 'Folder', roles: ['ROLE_ADMIN'] }
                     },
-                    // 系统设置（三级菜单父级）
+                    // 兼容旧路径：系统设置
                     {
                         path: 'system-settings',
                         name: 'SystemSettingsParent',
                         redirect: ROUTES.SYSTEM.SETTINGS_BASE,
-                        meta: { title: '系统设置', hidden: true }
+                        meta: { title: '平台配置', hidden: true }
                     },
                     // 系统设置统一壳层
                     {
@@ -465,7 +528,7 @@ const routes = [
                         name: 'SystemSettingsLayout',
                         component: () => import('@/views/SystemSettings/SystemSettingsLayout.vue'),
                         redirect: ROUTES.SYSTEM.SETTINGS_BASE,
-                        meta: { title: '系统设置', hidden: true },
+                        meta: { title: '平台配置', hidden: true },
                         children: [
                             // 基础设置
                             {
@@ -522,6 +585,20 @@ const routes = [
                                 name: 'SyncSettings',
                                 component: () => import('@/views/System/ClientSync.vue'),
                                 meta: { title: '同步配置', roles: ['ROLE_ADMIN'] }
+                            },
+                            // 外部集成 - 复用现有页面
+                            {
+                                path: 'integrations',
+                                name: 'IntegrationSettings',
+                                component: () => import('@/views/System/ExternalFrameworks.vue'),
+                                meta: { title: '外部集成', roles: ['ROLE_ADMIN'] }
+                            },
+                            // MCP 服务 - 复用现有页面
+                            {
+                                path: 'mcp-service',
+                                name: 'McpServiceSettings',
+                                component: () => import('@/views/System/McpService.vue'),
+                                meta: { title: 'MCP 服务', roles: ['ROLE_ADMIN'] }
                             }
                         ]
                     },
@@ -546,12 +623,11 @@ const routes = [
                         component: () => import('@/views/System/PricingConfig.vue'),
                         meta: { title: '定价配置', icon: 'PriceTag', roles: ['ROLE_ADMIN'] }
                     },
-                    // 系统环境配置
+                    // 兼容旧路径：系统环境配置
                     {
                         path: 'monitor-settings',
-                        name: 'LegacyMonitorSettings',
-                        component: () => import('@/views/System/MonitorSettings.vue'),
-                        meta: { title: '系统环境配置', icon: 'Setting', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_MONITOR,
+                        meta: { title: '监控配置', hidden: true }
                     },
                     // 统一网关
                     {
@@ -567,47 +643,41 @@ const routes = [
                         component: () => import('@/views/System/DistributedLock.vue'),
                         meta: { title: '分布式锁', icon: 'Lock', roles: ['ROLE_ADMIN'] }
                     },
-                    // 外部框架集成汇总
+                    // 兼容旧路径：外部框架集成汇总
                     {
                         path: 'external-frameworks',
-                        name: 'ExternalFrameworksList',
-                        component: () => import('@/views/System/ExternalFrameworks.vue'),
-                        meta: { title: '外部框架集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS,
+                        meta: { title: '外部集成', icon: 'Connection', roles: ['ROLE_ADMIN'], hidden: true }
                     },
                     // Dify 集成
                     {
                         path: 'external-frameworks/dify',
-                        name: 'DifyIntegration',
-                        component: () => import('@/views/System/ExternalFrameworks.vue'),
-                        meta: { title: 'Dify 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS,
+                        meta: { title: 'Dify 集成', icon: 'Connection', roles: ['ROLE_ADMIN'], hidden: true }
                     },
                     // RAGFlow 集成
                     {
                         path: 'external-frameworks/ragflow',
-                        name: 'RagflowIntegration',
-                        component: () => import('@/views/System/ExternalFrameworks.vue'),
-                        meta: { title: 'RAGFlow 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS,
+                        meta: { title: 'RAGFlow 集成', icon: 'Connection', roles: ['ROLE_ADMIN'], hidden: true }
                     },
                     // AutoGen 集成
                     {
                         path: 'external-frameworks/autogen',
-                        name: 'AutogenIntegration',
-                        component: () => import('@/views/System/ExternalFrameworks.vue'),
-                        meta: { title: 'AutoGen 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS,
+                        meta: { title: 'AutoGen 集成', icon: 'Connection', roles: ['ROLE_ADMIN'], hidden: true }
                     },
                     // CrewAI 集成
                     {
                         path: 'external-frameworks/crewai',
-                        name: 'CrewaiIntegration',
-                        component: () => import('@/views/System/ExternalFrameworks.vue'),
-                        meta: { title: 'CrewAI 集成', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS,
+                        meta: { title: 'CrewAI 集成', icon: 'Connection', roles: ['ROLE_ADMIN'], hidden: true }
                     },
-                    // MCP 服务管理
+                    // 兼容旧路径：MCP 服务管理
                     {
                         path: 'mcp-service',
-                        name: 'McpService',
-                        component: () => import('@/views/System/McpService.vue'),
-                        meta: { title: 'MCP 服务管理', icon: 'Service', roles: ['ROLE_ADMIN'] }
+                        redirect: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE,
+                        meta: { title: 'MCP 服务', icon: 'Service', roles: ['ROLE_ADMIN'], hidden: true }
                     },
                     // 帮助中心
                     {

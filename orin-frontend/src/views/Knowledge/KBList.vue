@@ -305,6 +305,11 @@ const retrievalParams = reactive({ topK: 5, weight: 0.7 });
 const searchKeyword = ref('');
 const mockDocs = ref([]);
 
+const normalizeKbType = (type) => {
+  if (!type || type === 'DOCUMENT') return 'UNSTRUCTURED';
+  return type;
+};
+
 // API Endpoint - Unified knowledge
 const fetchData = async () => {
   loading.value = true;
@@ -314,9 +319,11 @@ const fetchData = async () => {
         rawData.value = res.map(kb => ({
             ...kb,
             // Map backend fields to frontend expected fields if needed
-            type: kb.type || 'UNSTRUCTURED',
+            type: normalizeKbType(kb.type),
             stats: kb.stats || { documentCount: kb.docCount || 0 }
         }));
+     } else {
+        rawData.value = [];
      }
   } catch (e) {
     console.error('Failed to load KB list:', e);
@@ -388,8 +395,7 @@ const generateMockDocs = (kb) => {
 };
 
 const openInspector = (kb) => {
-  // Navigate to detail page instead of opening drawer
-  router.push(`/dashboard/resources/knowledge/detail/${kb.id}`);
+  router.push(`/dashboard/knowledge/detail/${kb.id}`);
 };
 
 const closeInspector = () => {
@@ -398,7 +404,7 @@ const closeInspector = () => {
 };
 
 const handleAdd = () => {
-  router.push(ROUTES.RESOURCES.KNOWLEDGE_CREATE);
+  router.push(ROUTES.KNOWLEDGE.CREATE);
 };
 
 const handleEdit = (kb) => {

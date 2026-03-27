@@ -6,6 +6,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
+import com.adlin.orin.modules.agent.entity.AgentJobEntity;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
@@ -55,6 +56,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final AgentAccessProfileRepository accessProfileRepository;
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
+    private final com.adlin.orin.modules.agent.repository.AgentJobRepository agentJobRepository;
     private final AuditLogService auditLogService;
     private final com.adlin.orin.modules.conversation.service.ConversationLogService conversationLogService;
     private final MultimodalFileService multimodalFileService;
@@ -91,7 +93,8 @@ public class AgentManageServiceImpl implements AgentManageService {
             com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
             com.adlin.orin.modules.agent.service.KimiAgentManageService kimiAgentManageService,
             com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService,
-            com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService) {
+            com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService,
+            com.adlin.orin.modules.agent.repository.AgentJobRepository agentJobRepository) {
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.minimaxIntegrationService = minimaxIntegrationService;
@@ -99,6 +102,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
+        this.agentJobRepository = agentJobRepository;
         this.auditLogService = auditLogService;
         this.conversationLogService = conversationLogService;
         this.multimodalFileService = multimodalFileService;
@@ -2108,5 +2112,265 @@ public class AgentManageServiceImpl implements AgentManageService {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    @Override
+    public byte[] batchExportAgents(List<String> agentIds) {
+        log.info("Starting batch export for agentIds: {}", agentIds);
+
+        List<AgentMetadata> agentsToExport;
+        if (agentIds == null || agentIds.isEmpty()) {
+            // Export all agents
+            agentsToExport = metadataRepository.findAll();
+        } else {
+            agentsToExport = metadataRepository.findAllById(agentIds);
+        }
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+
+            List<Map<String, Object>> exportData = agentsToExport.stream().map(agent -> {
+                Map<String, Object> data = new HashMap<>();
+                data.put("agentId", agent.getAgentId());
+                data.put("name", agent.getName());
+                data.put("description", agent.getDescription());
+                data.put("icon", agent.getIcon());
+                data.put("mode", agent.getMode());
+                data.put("modelName", agent.getModelName());
+                data.put("providerType", agent.getProviderType());
+                data.put("viewType", agent.getViewType());
+                data.put("temperature", agent.getTemperature());
+                data.put("topP", agent.getTopP());
+                data.put("maxTokens", agent.getMaxTokens());
+                data.put("systemPrompt", agent.getSystemPrompt());
+                data.put("parameters", agent.getParameters());
+
+                // Get access profile (mask API key for security)
+                accessProfileRepository.findById(agent.getAgentId()).ifPresent(profile -> {
+                    Map<String, Object> accessData = new HashMap<>();
+                    accessData.put("endpointUrl", profile.getEndpointUrl());
+                    accessData.put("apiKey", "***MASKED***"); // Never export raw API key
+                    data.put("accessProfile", accessData);
+                });
+
+                return data;
+            }).toList();
+
+            String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(exportData);
+            return json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        } catch (Exception e) {
+            log.error("Failed to export agents", e);
+            throw new RuntimeException("Failed to export agents: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void batchImportAgents(MultipartFile file) {
+        log.info("Starting batch import from file: {}", file.getOriginalFilename());
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> importData = mapper.readValue(file.getInputStream(),
+                    new TypeReference<List<Map<String, Object>>>() {});
+
+            int importedCount = 0;
+            int skippedCount = 0;
+
+            for (Map<String, Object> data : importData) {
+                String agentId = (String) data.get("agentId");
+                String name = (String) data.get("name");
+
+                if (agentId == null || name == null) {
+                    log.warn("Skipping invalid agent entry: {}", data);
+                    skippedCount++;
+                    continue;
+                }
+
+                // Check if agent already exists
+                if (metadataRepository.existsById(agentId)) {
+                    log.warn("Agent {} already exists, skipping", agentId);
+                    skippedCount++;
+                    continue;
+                }
+
+                // Create new agent metadata
+                AgentMetadata metadata = new AgentMetadata();
+                metadata.setAgentId(agentId);
+                metadata.setName(name);
+                metadata.setDescription((String) data.get("description"));
+                metadata.setIcon((String) data.get("icon"));
+                metadata.setMode((String) data.get("mode"));
+                metadata.setModelName((String) data.get("modelName"));
+                metadata.setProviderType((String) data.get("providerType"));
+                metadata.setViewType((String) data.get("viewType"));
+                metadata.setTemperature(toDouble(data.get("temperature")));
+                metadata.setTopP(toDouble(data.get("topP")));
+                metadata.setMaxTokens(toInteger(data.get("maxTokens")));
+                metadata.setSystemPrompt((String) data.get("systemPrompt"));
+                metadata.setParameters((String) data.get("parameters"));
+                metadata.setSyncTime(LocalDateTime.now());
+
+                metadataRepository.save(metadata);
+
+                // Create access profile (if provided)
+                @SuppressWarnings("unchecked")
+                Map<String, Object> accessData = (Map<String, Object>) data.get("accessProfile");
+                if (accessData != null) {
+                    AgentAccessProfile profile = new AgentAccessProfile();
+                    profile.setAgentId(agentId);
+                    profile.setEndpointUrl((String) accessData.get("endpointUrl"));
+                    // Note: API key is masked during export, so we skip importing it
+                    profile.setCreatedAt(LocalDateTime.now());
+                    profile.setUpdatedAt(LocalDateTime.now());
+                    accessProfileRepository.save(profile);
+                }
+
+                // Create health status entry
+                AgentHealthStatus status = new AgentHealthStatus();
+                status.setAgentId(agentId);
+                status.setAgentName(name);
+                status.setModelName(metadata.getModelName());
+                status.setStatus(com.adlin.orin.modules.monitor.entity.AgentStatus.UNKNOWN);
+                status.setLastHeartbeat(System.currentTimeMillis());
+                healthStatusRepository.save(status);
+
+                importedCount++;
+                log.info("Imported agent: {} ({})", name, agentId);
+            }
+
+            log.info("Batch import completed: {} imported, {} skipped", importedCount, skippedCount);
+
+        } catch (Exception e) {
+            log.error("Failed to import agents", e);
+            throw new RuntimeException("Failed to import agents: " + e.getMessage(), e);
+        }
+    }
+
+    private Double toDouble(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof Double) return (Double) obj;
+        if (obj instanceof Number) return ((Number) obj).doubleValue();
+        try {
+            return Double.parseDouble(String.valueOf(obj));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Integer toInteger(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof Integer) return (Integer) obj;
+        if (obj instanceof Number) return ((Number) obj).intValue();
+        try {
+            return Integer.parseInt(String.valueOf(obj));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public void refreshAllAgentsMetadata() {
+        log.info("Starting refresh of all agents metadata");
+
+        List<AgentMetadata> allAgents = metadataRepository.findAll();
+        int successCount = 0;
+        int failedCount = 0;
+
+        for (AgentMetadata agent : allAgents) {
+            try {
+                String agentId = agent.getAgentId();
+                String providerType = agent.getProviderType();
+
+                // Get access profile for API credentials
+                AgentAccessProfile profile = accessProfileRepository.findById(agentId).orElse(null);
+                if (profile == null) {
+                    log.warn("No access profile for agent {}, skipping", agentId);
+                    failedCount++;
+                    continue;
+                }
+
+                if ("DIFY".equals(providerType)) {
+                    // Fetch app info from Dify
+                    difyIntegrationService.fetchAppMeta(profile.getEndpointUrl(), profile.getApiKey())
+                            .ifPresent(meta -> {
+                                if (meta.containsKey("name")) {
+                                    agent.setName((String) meta.get("name"));
+                                }
+                                if (meta.containsKey("description")) {
+                                    agent.setDescription((String) meta.get("description"));
+                                }
+                            });
+
+                    // Fetch parameters from Dify
+                    difyIntegrationService.fetchAppParameters(profile.getEndpointUrl(), profile.getApiKey())
+                            .ifPresent(params -> {
+                                try {
+                                    agent.setParameters(new ObjectMapper().writeValueAsString(params));
+                                } catch (Exception e) {
+                                    log.warn("Failed to serialize parameters for agent {}", agentId);
+                                }
+                            });
+
+                } else if ("SILICONFLOW".equals(providerType)) {
+                    // For SiliconFlow, sync model name and other settings
+                    // SiliconFlow agents typically don't have remote metadata to fetch
+                    log.debug("SiliconFlow agent {} doesn't support remote metadata fetch", agentId);
+
+                } else if ("OLLAMA".equals(providerType)) {
+                    // For Ollama, try to verify connection
+                    if (!ollamaIntegrationService.testConnection(profile.getEndpointUrl(), null, agent.getModelName())) {
+                        log.warn("Ollama connection failed for agent {}", agentId);
+                    }
+                }
+
+                agent.setSyncTime(LocalDateTime.now());
+                metadataRepository.save(agent);
+                successCount++;
+
+            } catch (Exception e) {
+                log.error("Failed to refresh metadata for agent {}: {}", agent.getAgentId(), e.getMessage());
+                failedCount++;
+            }
+        }
+
+        log.info("Refresh completed: {} success, {} failed", successCount, failedCount);
+    }
+
+    @Override
+    public Object getJobStatus(String jobId) {
+        return agentJobRepository.findByJobId(jobId)
+                .map(job -> java.util.Map.of(
+                        "jobId", job.getJobId(),
+                        "agentId", job.getAgentId() != null ? job.getAgentId() : "",
+                        "jobType", job.getJobType(),
+                        "status", job.getStatus().name(),
+                        "statusDesc", job.getStatus().getDescription(),
+                        "progress", job.getProgress() != null ? job.getProgress() : 0,
+                        "resultData", job.getResultData() != null ? job.getResultData() : "",
+                        "errorMessage", job.getErrorMessage() != null ? job.getErrorMessage() : "",
+                        "createdAt", job.getCreatedAt() != null ? job.getCreatedAt().toString() : "",
+                        "completedAt", job.getCompletedAt() != null ? job.getCompletedAt().toString() : ""
+                ))
+                .orElse(null);
+    }
+
+    @Override
+    public String createAsyncJob(String jobType, List<String> agentIds, String triggeredBy) {
+        String jobId = "job-" + UUID.randomUUID().toString();
+        AgentJobEntity job = AgentJobEntity.builder()
+                .jobId(jobId)
+                .jobType(jobType)
+                .status(AgentJobEntity.JobStatus.PENDING)
+                .progress(0)
+                .triggeredBy(triggeredBy)
+                .build();
+        agentJobRepository.save(job);
+        log.info("Created async job: {} of type {}", jobId, jobType);
+        return jobId;
     }
 }

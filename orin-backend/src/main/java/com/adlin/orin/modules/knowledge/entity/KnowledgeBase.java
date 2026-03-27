@@ -25,8 +25,8 @@ public class KnowledgeBase {
     @Column(name = "name")
     private String name;
 
-    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     @Column(name = "type")
+    @jakarta.persistence.Convert(converter = KnowledgeTypeConverter.class)
     @Builder.Default
     private KnowledgeType type = KnowledgeType.UNSTRUCTURED;
 

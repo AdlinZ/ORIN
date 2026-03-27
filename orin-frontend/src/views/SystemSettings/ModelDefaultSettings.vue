@@ -16,9 +16,9 @@
           <el-select v-model="form.defaultChatModel" placeholder="选择默认模型" clearable>
             <el-option
               v-for="model in availableModels"
-              :key="model.identifier"
+              :key="model.modelId || model.identifier"
               :label="model.name"
-              :value="model.identifier"
+              :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
               <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
@@ -31,9 +31,9 @@
           <el-select v-model="form.defaultEmbeddingModel" placeholder="选择 Embedding 模型" clearable>
             <el-option
               v-for="model in embeddingModels"
-              :key="model.identifier"
+              :key="model.modelId || model.identifier"
               :label="model.name"
-              :value="model.identifier"
+              :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
               <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
@@ -46,9 +46,9 @@
           <el-select v-model="form.defaultVlmModel" placeholder="选择 VLM 模型" clearable>
             <el-option
               v-for="model in vlmModels"
-              :key="model.identifier"
+              :key="model.modelId || model.identifier"
               :label="model.name"
-              :value="model.identifier"
+              :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
               <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
@@ -61,9 +61,9 @@
           <el-select v-model="form.defaultEvalModel" placeholder="选择评估模型" clearable>
             <el-option
               v-for="model in availableModels"
-              :key="model.identifier"
+              :key="model.modelId || model.identifier"
               :label="model.name"
-              :value="model.identifier"
+              :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
               <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
@@ -150,17 +150,26 @@ const handleSave = async () => {
   }
 }
 
-// 过滤模型类型
+// 过滤模型类型（兼容大小写）
 const availableModels = computed(() => {
-  return models.value.filter(m => m.type === 'chat')
+  return models.value.filter(m => {
+    const t = m.type?.toLowerCase()
+    return t === 'chat' || t === 'llm'
+  })
 })
 
 const embeddingModels = computed(() => {
-  return models.value.filter(m => m.type === 'embedding')
+  return models.value.filter(m => {
+    const t = m.type?.toLowerCase()
+    return t === 'embedding'
+  })
 })
 
 const vlmModels = computed(() => {
-  return models.value.filter(m => m.type === 'vlm')
+  return models.value.filter(m => {
+    const t = m.type?.toLowerCase()
+    return t === 'vlm' || t === 'multimodal'
+  })
 })
 
 onMounted(() => {

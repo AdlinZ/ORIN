@@ -53,6 +53,7 @@
                     <component :is="getIconComponent(subChild.icon)" />
                   </el-icon>
                   <span>{{ subChild.title }}</span>
+                  <el-tag v-if="subChild.status === 'placeholder'" size="small" type="info" effect="plain" class="menu-status-tag">占位</el-tag>
                 </el-menu-item>
               </el-sub-menu>
               <!-- 无三级菜单的二级菜单 -->
@@ -61,6 +62,7 @@
                   <component :is="getIconComponent(child.icon)" />
                 </el-icon>
                 <span>{{ child.title }}</span>
+                <el-tag v-if="child.status === 'placeholder'" size="small" type="info" effect="plain" class="menu-status-tag">占位</el-tag>
               </el-menu-item>
             </template>
           </el-sub-menu>
@@ -134,7 +136,7 @@ import {
   MagicStick, Connection, Tools, Clock, ChatDotRound, Reading, Picture,
   Document, DataLine, Share, Coin, Warning, Bell as BellIcon, Cpu,
   Document as DocumentIcon, Upload, Timer, Tickets, Aim, Search, View,
-  Grid as GridIcon, UserFilled, OfficeBuilding, Lightning, Folder, SetUp,
+  Grid as GridIcon, UserFilled, OfficeBuilding, Lightning, Folder, SetUp, Plus,
   PriceTag, Service, QuestionFilled, WarningFilled, Lock, Key, TrendCharts
 } from '@element-plus/icons-vue'
 import { useDark } from '@vueuse/core'
@@ -241,6 +243,7 @@ const getIconComponent = (iconName) => {
     'Lightning': Lightning,
     'Folder': Folder,
     'SetUp': SetUp,
+    'Plus': Plus,
     'PriceTag': PriceTag,
     'Service': Service,
     'QuestionFilled': QuestionFilled,
@@ -655,5 +658,15 @@ html.dark .bottom-actions {
 
 html.dark .user-name {
   color: #fff;
+}
+
+/* Menu status tag for placeholder items */
+.menu-status-tag {
+  margin-left: 8px;
+  font-size: 10px;
+  padding: 0 4px;
+  height: 18px;
+  line-height: 16px;
+  opacity: 0.7;
 }
 </style>

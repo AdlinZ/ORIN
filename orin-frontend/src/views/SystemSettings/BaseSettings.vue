@@ -93,7 +93,7 @@ const handleSave = async () => {
   saving.value = true
   try {
     await updateSystemConfig(form)
-    ElMessage.success('配置保存成功')
+    ElMessage.success('配置保存成功（当前为临时配置，重启后可能失效）')
   } catch (e) {
     ElMessage.error('配置保存失败')
   } finally {

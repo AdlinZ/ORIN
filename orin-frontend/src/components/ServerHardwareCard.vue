@@ -169,12 +169,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { 
-  Setting, Cpu, Memo, FolderOpened, Connection, 
-  SuccessFilled, CircleCloseFilled, Top, Bottom, Refresh, VideoPlay 
+import {
+  Setting, Cpu, Memo, FolderOpened, Connection,
+  SuccessFilled, CircleCloseFilled, Top, Bottom, Refresh, VideoPlay
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
+import { ROUTES } from '@/router/routes';
 
 const router = useRouter();
 const loading = ref(true);
@@ -197,7 +198,7 @@ const serverInfo = ref({
 let refreshTimer = null;
 
 const openConfig = () => {
-  router.push('/dashboard/system/monitor-settings');
+  router.push(ROUTES.SYSTEM.SETTINGS_MONITOR);
 };
 
 // Helper function to extract concise error message

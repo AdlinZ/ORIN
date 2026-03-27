@@ -51,7 +51,7 @@ public class KnowledgeManageService {
                 List<KnowledgeBase> bases = knowledgeBaseRepository.findAll();
                 List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> dtoList = new ArrayList<>();
                 for (KnowledgeBase kb : bases) {
-                        dtoList.add(mapToDTO(kb, null));
+                        dtoList.add(mapToDTO(kb, null, false));
                 }
                 return dtoList;
         }
@@ -446,13 +446,16 @@ public class KnowledgeManageService {
                 List<UnifiedKnowledgeDTO> unifiedList = new ArrayList<>();
 
                 for (KnowledgeBase kb : bases) {
-                        unifiedList.add(mapToDTO(kb, agentId));
+                        unifiedList.add(mapToDTO(kb, agentId, true));
                 }
 
                 return unifiedList;
         }
 
-        private com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO mapToDTO(KnowledgeBase kb, String agentId) {
+        private com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO mapToDTO(
+                        KnowledgeBase kb,
+                        String agentId,
+                        boolean includeVectorStats) {
                 Map<String, Object> stats = new HashMap<>();
                 String effectiveAgentId = agentId != null ? agentId : kb.getSourceAgentId();
 
@@ -484,7 +487,8 @@ public class KnowledgeManageService {
 
                 // 获取 Milvus 向量状态 (仅对 UNSTRUCTURED 类型)
                 Map<String, Object> vectorStats = null;
-                if (kb.getType() == com.adlin.orin.modules.knowledge.entity.KnowledgeType.UNSTRUCTURED) {
+                if (includeVectorStats
+                                && kb.getType() == com.adlin.orin.modules.knowledge.entity.KnowledgeType.UNSTRUCTURED) {
                         try {
                                 vectorStats = milvusVectorService.getVectorStats(kb.getId());
                         } catch (Exception e) {

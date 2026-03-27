@@ -206,14 +206,14 @@ export const getTraceById = (traceId, config = {}) => {
 };
 
 export const getCallSuccessRate = (params = {}, config = {}) => {
-    return request.get('/monitor/traces/success-rate', {
+    return request.get('/monitor/stats/success-rate', {
         params,
         ...config
     });
 };
 
 export const getErrorDistribution = (params = {}, config = {}) => {
-    return request.get('/monitor/traces/error-distribution', {
+    return request.get('/monitor/stats/error-distribution', {
         params,
         ...config
     });

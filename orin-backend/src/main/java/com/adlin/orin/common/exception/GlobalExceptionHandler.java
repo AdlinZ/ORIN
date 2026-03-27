@@ -217,6 +217,27 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理未实现异常 - 针对暂未开放的功能接口
+     */
+    @ExceptionHandler(UnsupportedOperationException.class)
+    public ResponseEntity<Result<Object>> handleUnsupportedOperation(
+            UnsupportedOperationException ex, HttpServletRequest request) {
+
+        String traceId = UUID.randomUUID().toString();
+        log.warn("[TraceId: {}] Unsupported operation: {}", traceId, ex.getMessage());
+
+        Result<Object> response = Result.<Object>builder()
+                .code("NOT_IMPLEMENTED")
+                .message("该功能暂未开放：" + ex.getMessage())
+                .detail(isDevMode() ? "功能开发中，敬请期待" : null)
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(response);
+    }
+
+    /**
      * 处理通用异常
      */
     @ExceptionHandler(Exception.class)

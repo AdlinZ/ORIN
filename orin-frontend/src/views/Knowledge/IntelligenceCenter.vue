@@ -3,7 +3,7 @@
     <PageHeader
       title="智力资产中心"
       description="管理智能体的长期记忆、技能和 Prompt 模板"
-      icon="Brain"
+      icon="Headset"
     />
 
     <el-tabs v-model="activeTab" class="intelligence-tabs">
@@ -230,7 +230,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Brain } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { getAgentList } from '@/api/agent'
 import {

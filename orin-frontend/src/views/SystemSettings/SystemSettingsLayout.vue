@@ -20,9 +20,6 @@
 </template>
 
 <script setup>
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
 </script>
 
 <style scoped>
@@ -33,15 +30,14 @@ const route = useRoute()
 }
 
 .settings-container {
-  display: flex;
   flex: 1;
   padding: 0 24px 24px;
-  gap: 24px;
   overflow: hidden;
 }
 
 .settings-content {
-  flex: 1;
+  min-width: 0;
+  height: 100%;
   overflow-y: auto;
   background: var(--el-bg-color);
   border-radius: 8px;

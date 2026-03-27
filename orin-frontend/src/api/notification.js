@@ -1,5 +1,31 @@
 import request from '@/utils/request'
 
+// 获取告警通知配置
+export function getNotificationConfig() {
+  return request({
+    url: '/alerts/notification-config',
+    method: 'get'
+  })
+}
+
+// 保存告警通知配置
+export function saveNotificationConfig(data) {
+  return request({
+    url: '/alerts/notification-config',
+    method: 'post',
+    data
+  })
+}
+
+// 测试通知渠道
+export function testNotification(channel) {
+  return request({
+    url: '/alerts/notification-config/test',
+    method: 'post',
+    data: { channel }
+  })
+}
+
 export function getNotifications(params) {
   return request({
     url: '/api/v1/notifications',

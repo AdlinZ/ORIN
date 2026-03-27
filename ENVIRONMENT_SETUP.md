@@ -91,7 +91,17 @@ SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run
 
 ## 多环境部署
 
-ORIN 支持三种环境配置：
+ORIN 支持三种环境配置，各环境的环境变量来源如下：
+
+### 环境变量来源一览
+
+| 环境 | 配置文件 | 环境变量来源 | 数据库 | 启动命令 |
+|------|----------|-------------|--------|----------|
+| **dev** | `application-dev.properties` | `.env` 文件（通过 EnvFileLoader 自动加载） | MySQL（本地） | `mvn spring-boot:run` |
+| **test** | `application-test.properties` | 测试配置内嵌，无需外部变量 | H2 内存数据库 | `mvn test` 或 `@ActiveProfiles("test")` |
+| **prod** | `application-prod.properties` | 系统环境变量（必需全部设置） | MySQL（生产实例） | `java -jar app.jar --spring.profiles.active=prod` |
+
+> **提示**: `.env` 文件仅用于本地开发环境。生产环境必须使用系统环境变量或配置管理工具（Docker Secrets、Kubernetes Secret 等）。
 
 ### 开发环境 (dev)
 
@@ -106,7 +116,7 @@ ORIN 支持三种环境配置：
 
 **启动方式**:
 ```bash
-# 方式1：使用Maven
+# 方式1：使用Maven（自动加载 .env 文件）
 mvn spring-boot:run
 
 # 方式2：使用环境变量
