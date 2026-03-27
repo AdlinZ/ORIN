@@ -92,6 +92,15 @@ public class AlertService {
      */
     @Transactional
     public AlertHistory triggerAlert(String ruleId, String agentId, String message) {
+        return triggerAlert(ruleId, agentId, message, null);
+    }
+
+    /**
+     * 触发告警（带 traceId）
+     * 加入防爆冷却机制，避免同一规则对同一智能体重复发送通知
+     */
+    @Transactional
+    public AlertHistory triggerAlert(String ruleId, String agentId, String message, String traceId) {
         AlertRule rule = ruleRepository.findById(ruleId)
                 .orElseThrow(() -> new RuntimeException("Rule not found: " + ruleId));
 
@@ -109,6 +118,7 @@ public class AlertService {
                 AlertHistory history = AlertHistory.builder()
                         .ruleId(ruleId)
                         .agentId(agentId)
+                        .traceId(traceId)
                         .alertMessage(message)
                         .severity(rule.getSeverity())
                         .status("SUPPRESSED")
@@ -124,6 +134,7 @@ public class AlertService {
         AlertHistory history = AlertHistory.builder()
                 .ruleId(ruleId)
                 .agentId(agentId)
+                .traceId(traceId)
                 .alertMessage(message)
                 .severity(rule.getSeverity())
                 .status("TRIGGERED")
@@ -148,6 +159,15 @@ public class AlertService {
      */
     @Transactional
     public void triggerSystemAlert(String ruleType, String agentId, String message) {
+        triggerSystemAlert(ruleType, agentId, message, null);
+    }
+
+    /**
+     * 触发系统级告警（带 traceId）
+     * 加入防爆冷却机制 (5分钟内同类型同智能体不重复通知)
+     */
+    @Transactional
+    public void triggerSystemAlert(String ruleType, String agentId, String message, String traceId) {
         String cacheKey = ruleType + ":" + agentId;
         long currentTime = System.currentTimeMillis();
 
@@ -173,7 +193,7 @@ public class AlertService {
         if (!rules.isEmpty()) {
             // Trigger alert for matched rules
             for (AlertRule rule : rules) {
-                triggerAlert(rule.getId(), agentId, message);
+                triggerAlert(rule.getId(), agentId, message, traceId);
             }
         } else {
             // Fallback: create a generic alert history if no rule is configured
@@ -181,6 +201,7 @@ public class AlertService {
             AlertHistory history = AlertHistory.builder()
                     .ruleId("SYSTEM_DEFAULT")
                     .agentId(agentId)
+                    .traceId(traceId)
                     .alertMessage(message)
                     .severity("WARNING") // Default severity
                     .status("TRIGGERED")

@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.listener;
 
+import com.adlin.orin.common.enums.TaskStatus;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
@@ -8,12 +9,14 @@ import com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository;
 import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository;
 import com.adlin.orin.modules.multimodal.service.VisualAnalysisService;
+import org.slf4j.MDC;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+
 import java.time.LocalDateTime;
 
 import java.util.Collections;
@@ -22,7 +25,6 @@ import java.util.Base64;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 
 @Slf4j
 @Component
@@ -33,50 +35,65 @@ public class KnowledgeTaskListener {
     private final MultimodalFileRepository fileRepository;
     private final VisualAnalysisService visualAnalysisService;
     private final VectorStoreProvider vectorStoreProvider;
-    // Note: EmbeddingService is conceptually used by VectorStoreProvider,
-    // or we can use it here if we manually handle vectors.
-    // For now, we delegate embedding to VectorStoreProvider to keep Milvus logic
-    // encapsulated.
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onTaskCreated(TaskCreatedEvent event) {
         String taskId = event.getTaskId();
-        log.info("🚀 Received TaskCreatedEvent for task: {}", taskId);
-
-        KnowledgeTask task = taskRepository.findById(taskId).orElse(null);
-        if (task == null) {
-            log.warn("❌ Task not found in database: {}", taskId);
-            return;
+        String traceId = event.getTraceId();
+        // Propagate traceId to async thread via MDC
+        if (traceId != null) {
+            MDC.put("traceId", traceId);
         }
-
-        if (!"PENDING".equals(task.getStatus())) {
-            log.info("ℹ️ Task {} is already in status: {}, skipping", taskId, task.getStatus());
-            return;
-        }
-
         try {
-            log.info("⚙️ Processing task {} (Type: {})", taskId, task.getTaskType());
-            task.setStatus("PROCESSING");
-            task.setUpdatedAt(LocalDateTime.now());
-            taskRepository.save(task);
+            log.info("Received TaskCreatedEvent for task: {}", taskId);
 
-            if ("CAPTIONING".equals(task.getTaskType())) {
-                processCaptioning(task);
-            } else if ("EMBEDDING".equals(task.getTaskType())) {
-                processEmbedding(task);
-            } else {
-                log.warn("⚠️ Unknown task type: {}", task.getTaskType());
-                task.setStatus("FAILED");
-                task.setErrorMessage("Unknown task type: " + task.getTaskType());
-                taskRepository.save(task);
+            KnowledgeTask task = taskRepository.findById(taskId).orElse(null);
+            if (task == null) {
+                log.warn("Task not found in database: {}", taskId);
+                return;
             }
 
-            log.info("✅ Task {} completed successfully", taskId);
+            if (task.getStatus() != TaskStatus.PENDING) {
+                log.info("Task {} is already in status: {}, skipping", taskId, task.getStatus());
+                return;
+            }
 
-        } catch (Exception e) {
-            log.error("❌ Task {} processing failed: {}", taskId, e.getMessage(), e);
-            handleFailure(task, e);
+            long startTime = System.currentTimeMillis();
+
+            try {
+                log.info("Processing task {} (Type: {})", taskId, task.getTaskType());
+                task.setStatus(TaskStatus.RUNNING);
+                task.setStartedAt(LocalDateTime.now());
+                task.setUpdatedAt(LocalDateTime.now());
+                taskRepository.save(task);
+
+                if ("CAPTIONING".equals(task.getTaskType())) {
+                    processCaptioning(task);
+                } else if ("EMBEDDING".equals(task.getTaskType())) {
+                    processEmbedding(task);
+                } else if ("GRAPH_BUILDING".equals(task.getTaskType())) {
+                    processGraphBuilding(task);
+                } else {
+                    log.warn("Unknown task type: {}", task.getTaskType());
+                    task.setStatus(TaskStatus.FAILED);
+                    task.setErrorMessage("Unknown task type: " + task.getTaskType());
+                    taskRepository.save(task);
+                }
+
+                // Calculate execution time
+                long executionTime = System.currentTimeMillis() - startTime;
+                task.setExecutionTimeMs(executionTime);
+                task.setCompletedAt(LocalDateTime.now());
+
+                log.info("Task {} completed successfully in {}ms", taskId, executionTime);
+
+            } catch (Exception e) {
+                log.error("Task {} processing failed: {}", taskId, e.getMessage(), e);
+                handleFailure(task, e, startTime);
+            }
+        } finally {
+            MDC.remove("traceId");
         }
     }
 
@@ -124,7 +141,7 @@ public class KnowledgeTaskListener {
         fileRepository.save(file);
 
         // Mark captioning task as completed
-        task.setStatus("COMPLETED");
+        task.setStatus(TaskStatus.SUCCESS);
         taskRepository.save(task);
 
         // Try to create embedding task, but don't block on it
@@ -159,8 +176,45 @@ public class KnowledgeTaskListener {
         file.setEmbeddingStatus("SUCCESS");
         fileRepository.save(file);
 
-        task.setStatus("COMPLETED");
+        task.setStatus(TaskStatus.SUCCESS);
         taskRepository.save(task);
+    }
+
+    /**
+     * 处理图谱构建任务
+     * 从指定文档中抽取实体和关系，构建知识图谱
+     */
+    private void processGraphBuilding(KnowledgeTask task) {
+        // TODO: 实现真实的图谱构建逻辑
+        // 1. 从assetId获取源文档内容
+        // 2. 使用LLM进行实体抽取
+        // 3. 使用LLM进行关系抽取
+        // 4. 存储实体和关系到图谱数据库
+
+        log.info("Graph building task {} started for asset {}", task.getId(), task.getAssetId());
+
+        // 占位实现：模拟图谱构建过程
+        // 实际实现需要接入LLM进行实体/关系抽取
+        try {
+            // 模拟处理延迟
+            Thread.sleep(1000);
+
+            // 标记任务成功
+            task.setStatus(TaskStatus.SUCCESS);
+            taskRepository.save(task);
+
+            log.info("Graph building task {} completed", task.getId());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            task.setStatus(TaskStatus.FAILED);
+            task.setErrorMessage("Graph building interrupted");
+            taskRepository.save(task);
+        } catch (Exception e) {
+            log.error("Graph building failed for task {}: {}", task.getId(), e.getMessage());
+            task.setStatus(TaskStatus.FAILED);
+            task.setErrorMessage(e.getMessage());
+            taskRepository.save(task);
+        }
     }
 
     private void createEmbeddingTask(String assetId) {
@@ -168,22 +222,25 @@ public class KnowledgeTaskListener {
                 .assetId(assetId)
                 .assetType("MULTIMODAL_FILE")
                 .taskType("EMBEDDING")
-                .status("PENDING")
+                .status(TaskStatus.PENDING)
                 .build();
         taskRepository.save(newTask);
         // Self-trigger (or rely on scheduled job? Better self-trigger via method call
         // or event)
-        onTaskCreated(new TaskCreatedEvent(this, newTask.getId()));
+        onTaskCreated(new TaskCreatedEvent(this, newTask.getId(), MDC.get("traceId")));
     }
 
-    private void handleFailure(KnowledgeTask task, Exception e) {
+    private void handleFailure(KnowledgeTask task, Exception e, long startTime) {
         task.setErrorMessage(e.getMessage());
+        task.setExecutionTimeMs(System.currentTimeMillis() - startTime);
+        task.setCompletedAt(LocalDateTime.now());
+
         int retry = task.getRetryCount() == null ? 0 : task.getRetryCount();
         if (retry < (task.getMaxRetries() == null ? 3 : task.getMaxRetries())) {
             task.setRetryCount(retry + 1);
-            task.setStatus("PENDING"); // Retry
+            task.setStatus(TaskStatus.PENDING); // Will be picked up again by listener
         } else {
-            task.setStatus("FAILED");
+            task.setStatus(TaskStatus.FAILED);
             // Also update File status
             Optional<MultimodalFile> fileOpt = fileRepository.findById(task.getAssetId());
             fileOpt.ifPresent(f -> {

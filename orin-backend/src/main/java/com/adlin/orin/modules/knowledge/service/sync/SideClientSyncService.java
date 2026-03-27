@@ -311,6 +311,210 @@ public class SideClientSyncService {
         return changeLogRepository.findLatestChangeTime(agentId);
     }
 
+    // ==================== 冲突处理 ====================
+
+    /**
+     * 检测冲突
+     * 比较客户端内容哈希与服务端内容哈希
+     *
+     * @param agentId     Agent ID
+     * @param documentId  文档ID
+     * @param clientHash 客户端内容哈希
+     * @return 冲突结果
+     */
+    public ConflictResult detectConflict(String agentId, String documentId, String clientHash) {
+        Optional<KnowledgeDocument> docOpt = documentRepository.findById(documentId);
+
+        if (docOpt.isEmpty()) {
+            // 文档不存在，可能是被删除
+            return new ConflictResult(true, ConflictType.DELETED_ON_SERVER,
+                    "Document does not exist on server", null);
+        }
+
+        KnowledgeDocument serverDoc = docOpt.get();
+
+        // 验证文档属于该 Agent
+        if (!belongsToAgent(serverDoc, agentId)) {
+            return new ConflictResult(true, ConflictType.UNAUTHORIZED,
+                    "Document does not belong to this agent", null);
+        }
+
+        String serverHash = serverDoc.getContentHash();
+        if (serverHash == null) {
+            return new ConflictResult(false, null, null, serverDoc);
+        }
+
+        if (!serverHash.equals(clientHash)) {
+            // 哈希不一致，发生冲突
+            return new ConflictResult(true, ConflictType.CONTENT_MISMATCH,
+                    "Content hash mismatch - server: " + serverHash + ", client: " + clientHash,
+                    serverDoc);
+        }
+
+        return new ConflictResult(false, null, null, serverDoc);
+    }
+
+    /**
+     * 解决冲突 - 服务端胜出
+     */
+    public ConflictResult resolveConflictServerWins(String agentId, String documentId) {
+        KnowledgeDocument serverDoc = documentRepository.findById(documentId)
+                .filter(doc -> belongsToAgent(doc, agentId))
+                .orElseThrow(() -> new RuntimeException("Document not found or unauthorized: " + documentId));
+
+        return new ConflictResult(false, null, "Server version retained", serverDoc);
+    }
+
+    /**
+     * 解决冲突 - 客户端胜出（强制覆盖服务端）
+     */
+    @Transactional
+    public ConflictResult resolveConflictClientWins(String agentId, String documentId,
+                                                     Map<String, Object> clientDoc) {
+        KnowledgeDocument serverDoc = documentRepository.findById(documentId)
+                .filter(doc -> belongsToAgent(doc, agentId))
+                .orElseThrow(() -> new RuntimeException("Document not found or unauthorized: " + documentId));
+
+        // 更新服务端文档
+        if (clientDoc.containsKey("content")) {
+            serverDoc.setContentPreview((String) clientDoc.get("content"));
+        }
+        if (clientDoc.containsKey("version")) {
+            serverDoc.setVersion((Integer) clientDoc.get("version"));
+        }
+
+        documentRepository.save(serverDoc);
+
+        // 记录变更
+        recordChange(agentId, documentId, serverDoc.getKnowledgeBaseId(),
+                "UPDATED", serverDoc.getVersion(), serverDoc.getContentHash());
+
+        return new ConflictResult(false, null, "Client version applied", serverDoc);
+    }
+
+    /**
+     * 解决冲突 - 合并（保留两端变更）
+     */
+    @Transactional
+    public ConflictResult resolveConflictMerge(String agentId, String documentId,
+                                               String clientContent) {
+        KnowledgeDocument serverDoc = documentRepository.findById(documentId)
+                .filter(doc -> belongsToAgent(doc, agentId))
+                .orElseThrow(() -> new RuntimeException("Document not found or unauthorized: " + documentId));
+
+        // 简单合并策略：客户端内容 + 服务端元数据
+        String mergedContent = clientContent + "\n\n[Server metadata: " +
+                "version=" + serverDoc.getVersion() + ", lastModified=" + serverDoc.getLastModified() + "]";
+
+        serverDoc.setContentPreview(mergedContent);
+        serverDoc.setVersion(serverDoc.getVersion() + 1);
+
+        documentRepository.save(serverDoc);
+
+        recordChange(agentId, documentId, serverDoc.getKnowledgeBaseId(),
+                "UPDATED", serverDoc.getVersion(), serverDoc.getContentHash());
+
+        return new ConflictResult(false, null, "Merged successfully", serverDoc);
+    }
+
+    /**
+     * 冲突结果
+     */
+    public record ConflictResult(
+            boolean hasConflict,
+            ConflictType conflictType,
+            String message,
+            KnowledgeDocument serverDocument
+    ) {}
+
+    /**
+     * 冲突类型
+     */
+    public enum ConflictType {
+        CONTENT_MISMATCH,  // 内容不一致
+        DELETED_ON_SERVER, // 服务端已删除
+        DELETED_ON_CLIENT, // 客户端已删除
+        UNAUTHORIZED       // 无权限
+    }
+
+    // ==================== 权限校验 ====================
+
+    /**
+     * 验证 Agent 是否有权访问知识库
+     */
+    public boolean validateAgentAccess(String agentId, String knowledgeBaseId) {
+        List<KnowledgeBase> agentKBs = knowledgeBaseRepository.findBySourceAgentId(agentId);
+        return agentKBs.stream().anyMatch(kb -> kb.getId().equals(knowledgeBaseId));
+    }
+
+    /**
+     * 验证 Agent 是否有权访问文档
+     */
+    public boolean validateDocumentAccess(String agentId, String documentId) {
+        Optional<KnowledgeDocument> docOpt = documentRepository.findById(documentId);
+        if (docOpt.isEmpty()) {
+            return false;
+        }
+        return belongsToAgent(docOpt.get(), agentId);
+    }
+
+    /**
+     * 检查文档是否属于该 Agent 的知识库
+     */
+    private boolean belongsToAgent(KnowledgeDocument doc, String agentId) {
+        if (doc.getKnowledgeBaseId() == null) {
+            return false;
+        }
+        return validateAgentAccess(agentId, doc.getKnowledgeBaseId());
+    }
+
+    // ==================== 同步记录查询 ====================
+
+    /**
+     * 获取同步历史记录
+     */
+    public List<SyncRecord> getSyncHistory(String agentId, int limit) {
+        return syncRecordRepository.findByAgentIdOrderByStartTimeDesc(agentId)
+                .stream().limit(limit).toList();
+    }
+
+    /**
+     * 获取同步状态摘要
+     */
+    public SyncStatusSummary getSyncStatusSummary(String agentId) {
+        List<SyncRecord> recentRecords = getSyncHistory(agentId, 10);
+
+        long totalSyncs = recentRecords.size();
+        long successfulSyncs = recentRecords.stream()
+                .filter(r -> "COMPLETED".equals(r.getStatus()) || "SUCCESS".equals(r.getStatus()))
+                .count();
+        long failedSyncs = recentRecords.stream()
+                .filter(r -> "FAILED".equals(r.getStatus()))
+                .count();
+        long pendingChanges = changeLogRepository.countByAgentIdAndSyncedFalse(agentId);
+
+        return new SyncStatusSummary(
+                agentId,
+                totalSyncs,
+                successfulSyncs,
+                failedSyncs,
+                pendingChanges,
+                recentRecords.isEmpty() ? null : recentRecords.get(0).getStartTime()
+        );
+    }
+
+    /**
+     * 同步状态摘要
+     */
+    public record SyncStatusSummary(
+            String agentId,
+            long totalSyncs,
+            long successfulSyncs,
+            long failedSyncs,
+            long pendingChanges,
+            LocalDateTime lastSyncTime
+    ) {}
+
     private Map<String, Object> toChangeMap(SyncChangeLog changeLog) {
         Map<String, Object> map = new HashMap<>();
         map.put("id", changeLog.getId());

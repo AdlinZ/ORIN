@@ -2,11 +2,13 @@ package com.adlin.orin.modules.multimodal.service;
 
 import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository;
+import org.slf4j.MDC;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
 import com.adlin.orin.modules.knowledge.event.TaskCreatedEvent;
+import com.adlin.orin.common.enums.TaskStatus;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -144,10 +146,10 @@ public class MultimodalFileService {
                     .assetId(file.getId())
                     .assetType("MULTIMODAL_FILE")
                     .taskType("CAPTIONING")
-                    .status("PENDING")
+                    .status(TaskStatus.PENDING)
                     .build();
             taskRepository.save(task);
-            eventPublisher.publishEvent(new TaskCreatedEvent(this, task.getId()));
+            eventPublisher.publishEvent(new TaskCreatedEvent(this, task.getId(), MDC.get("traceId")));
 
             file.setEmbeddingStatus("PENDING");
             fileRepository.save(file);

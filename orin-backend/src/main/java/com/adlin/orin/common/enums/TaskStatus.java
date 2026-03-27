@@ -10,7 +10,7 @@ public enum TaskStatus {
     QUEUED("排队中"),
     RUNNING("执行中"),
     RETRYING("重试中"),
-    COMPLETED("已完成"),
+    SUCCESS("成功"),
     FAILED("失败"),
     DEAD("死信"),
     CANCELLED("已取消");
@@ -26,14 +26,19 @@ public enum TaskStatus {
     }
 
     /**
-     * 从字符串转换（兼容旧数据）
+     * 从字符串转换（兼容旧数据，包括 "COMPLETED" 别名）
      */
     public static TaskStatus fromString(String status) {
         if (status == null) {
             return PENDING;
         }
+        String upper = status.toUpperCase();
+        // Handle backwards compatibility with COMPLETED -> SUCCESS
+        if ("COMPLETED".equals(upper)) {
+            return SUCCESS;
+        }
         try {
-            return valueOf(status.toUpperCase());
+            return valueOf(upper);
         } catch (IllegalArgumentException e) {
             return PENDING;
         }

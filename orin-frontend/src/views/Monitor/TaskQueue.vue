@@ -102,24 +102,26 @@
             >
               详情
             </el-button>
-            <el-button
-              v-if="row.status === 'FAILED' || row.status === 'DEAD'"
-              type="primary"
-              size="small"
-              text
-              @click="handleReplay(row)"
-            >
-              重放
-            </el-button>
-            <el-button
-              v-if="row.status === 'QUEUED'"
-              type="danger"
-              size="small"
-              text
-              @click="handleCancel(row)"
-            >
-              取消
-            </el-button>
+            <el-tooltip v-if="row.status === 'FAILED' || row.status === 'DEAD'" content="重新执行该任务" placement="top">
+              <el-button
+                type="primary"
+                size="small"
+                text
+                @click="handleReplay(row)"
+              >
+                重放
+              </el-button>
+            </el-tooltip>
+            <el-tooltip v-if="row.status === 'QUEUED'" content="取消该排队中的任务" placement="top">
+              <el-button
+                type="danger"
+                size="small"
+                text
+                @click="handleCancel(row)"
+              >
+                取消
+              </el-button>
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>

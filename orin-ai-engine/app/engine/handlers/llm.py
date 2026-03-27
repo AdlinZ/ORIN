@@ -1,12 +1,16 @@
 import asyncio
-from typing import Any, Dict
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from openai import AsyncOpenAI, APITimeoutError, APIConnectionError, RateLimitError
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 from app.core.config import settings
 
+if TYPE_CHECKING:
+    from app.engine.executor import GraphExecutor
+
 class RealLLMNodeHandler(BaseNodeHandler):
-    def __init__(self):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
         self._client = None
 
     @property

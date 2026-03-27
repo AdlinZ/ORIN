@@ -47,7 +47,9 @@
            </el-select>
          </div>
          <div class="action-bar">
-           <el-button @click="handleImportPricing" :icon="Money" style="margin-right: 12px;">导入定价(JSON)</el-button>
+           <el-tooltip content="从 SiliconFlow 后台复制定价数据批量导入" placement="top">
+             <el-button @click="handleImportPricing" :icon="Money" style="margin-right: 12px;">导入定价(JSON)</el-button>
+           </el-tooltip>
            <el-input 
              v-model="searchQuery" 
              placeholder="搜索名称或供应商..." 

@@ -1,10 +1,16 @@
 import httpx
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 
+if TYPE_CHECKING:
+    from app.engine.executor import GraphExecutor
+
 class HTTPRequestNodeHandler(BaseNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Executes an HTTP request (GET, POST, PUT, DELETE, etc.)
@@ -97,6 +103,9 @@ class HTTPRequestNodeHandler(BaseNodeHandler):
         return pattern.sub(replace_var, template)
 
 class ListOperatorNodeHandler(BaseNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Performs operations on lists (limit, sort, reverse).
@@ -135,6 +144,9 @@ class ListOperatorNodeHandler(BaseNodeHandler):
         return curr
 
 class ToolNodeHandler(BaseNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         # Placeholder for external tools
         tool_name = node.data.get("tool_name", "unknown")

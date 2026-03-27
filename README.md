@@ -12,6 +12,8 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 
 项目早期需求来源于基于 Yuxi-Know 的设计方案，但当前代码并不是“纯 Yuxi-Know/FastAPI 单体实现”。后续开发与改造请以仓库中的实际结构为准，详细基线见 [docs/阶段0_改造基线.md](docs/阶段0_改造基线.md)。
 
+文档入口已整理，建议优先从 [docs/README.md](docs/README.md) 开始阅读，避免误用历史报告或阶段性文档。
+
 ## 项目结构
 
 ```
@@ -61,10 +63,11 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 │   └── vite.config.js
 ├── docs/                   # 项目文档
 │   ├── dev/                # 开发指南
-│   ├── 使用指南.md          # 基本功能使用
-│   ├── 部署指南.md          # 详细环境搭建
-│   ├── API文档.md          # 接口定义参考
-│   └── 系统功能实现评估报告.md # 核心能力评估
+│   ├── README.md            # 文档索引与阅读顺序
+│   ├── 使用指南.md          # 当前功能入口与联调方式
+│   ├── 部署指南.md          # 开发/生产部署说明
+│   ├── API文档.md           # 接口导航与 OpenAPI 入口
+│   └── 系统功能实现评估报告.md # 当前能力边界评估
 ├── scripts/                # 辅助脚本
 └── manage.sh               # 一键管理脚本
 ```
@@ -79,23 +82,23 @@ ORIN (Advanced Agent Management & Monitoring System) 是一个基于前后端分
 | 功能模块 | 状态 | 说明 |
 |---------|------|------|
 | 全链路监控 | `已上线` | CPU/内存/令牌消耗追踪，Actuator + Prometheus 集成 |
-| 知识库管理 | `已上线` | Milvus 向量引擎同步，Dify/RAGFlow 集成 |
-| 智能体管理 | `已上线` | 接入控制、版本管理、运行时状态跟踪 |
+| 知识库管理 | `已上线` | 上传、解析、检索与同步主链路已具备，扩展能力成熟度不一 |
+| 智能体管理 | `已上线` | 接入控制、交互、统一网关与基础管理能力已具备 |
 | 工作流编排 | `内测` | 可视化编辑器、DSL 执行，节点处理器部分实现 |
 | 监控告警 | `内测` | 阈值监控、邮件/钉钉/企微通知，规则配置待完善 |
 | 系统设置 | `内测` | 基础设置、邮件配置、模型默认参数 |
 | 模型管理 | `开发中` | 多模型适配框架，OpenAI 兼容接口转发 |
 | 审计日志 | `开发中` | 会话流水记录，全站事件溯源框架 |
-| 知识图谱 | `占位` | 仅有入口页面，暂无实际功能 |
-| 多模态处理 | `占位` | 图片/音频/视频生成器均为占位页面 |
+| 知识图谱 | `开发中` | 已有页面与后端模型/仓储实现，仍需闭环验证 |
+| 多模态处理 | `开发中` | OCR/ASR 已有实现，强依赖外部配置与降级策略 |
 | 媒体中心 | `占位` | 暂无实际功能 |
 
 ### 已上线功能详情
 
 - **全链路监控**：实时追踪 CPU、内存利用率及令牌消耗，集成 Micrometer 链路追踪与 Trace ID 溯源，秒级洞察系统性能瓶颈
-- **知识库管理**：支持 Milvus 向量引擎，实现文档上传、解析、分块、向量化同步
+- **知识库管理**：支持文档上传、解析、分块、向量检索及多源同步入口
 - **智能体生命周期**：从接入到注销，一站式控制不同环境下的智能体运行状态
-- **交互日志审计**：全面保留会话流水与逻辑树，支持全站事件溯源
+- **交互日志审计**：保留会话流水与事件溯源入口，具体覆盖深度需结合模块确认
 
 ### 开发中功能详情
 
@@ -185,7 +188,7 @@ FLUSH PRIVILEGES;
 
 #### 3. AI 引擎启动 (Python)
 
-AI 引擎使用 [Poetry](https://python-poetry.org/) 管理依赖，项目根目录已有预配置的 venv。
+AI 引擎使用 [Poetry](https://python-poetry.org/) 管理依赖。
 
 ```bash
 cd orin-ai-engine
@@ -198,7 +201,7 @@ cd orin-ai-engine
 ./venv/bin/python -m poetry install
 
 # 启动服务
-./venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8088
+./venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ### 一键启动 (本地管理)
@@ -316,16 +319,19 @@ java -jar target/orin-backend-1.0.0-SNAPSHOT.jar
 
 ## API 接口
 
-系统提供 RESTful API 接口，主要路径包括：
-- `/api/agents` - 智能体管理
-- `/api/knowledge` - 知识库管理
-- `/api/models` - 模型管理
-- `/api/monitor` - 监控接口
-- `/api/runtime` - 运行时接口
+系统当前同时提供业务接口和 OpenAI 兼容网关，常见入口包括：
+
+- `/api/v1/agents/*` - 智能体管理与交互
+- `/api/v1/knowledge/*` - 知识库与同步
+- `/api/workflows/*`、`/api/v1/workflow/*` - 工作流管理与执行
+- `/api/traces/*` - Trace 查询
+- `/api/v1/system/*` - 系统配置与运维
+- `/v1/*` - OpenAI 兼容网关
 
 ## 文档资源
 
 - **部署与运维**:
+  - [文档索引](docs/README.md)
   - [部署指南](docs/部署指南.md)
   - [环境配置指南](ENVIRONMENT_SETUP.md)
   - [使用指南](docs/使用指南.md)

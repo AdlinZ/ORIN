@@ -1,7 +1,10 @@
 package com.adlin.orin.modules.knowledge.controller;
 
+import com.adlin.orin.common.enums.TaskStatus;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository;
 import com.adlin.orin.modules.knowledge.service.DocumentManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
 import com.adlin.orin.modules.knowledge.service.MilvusVectorService;
@@ -12,12 +15,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 import com.adlin.orin.modules.knowledge.component.EmbeddingService;
@@ -41,6 +46,7 @@ public class KnowledgeManageController {
     private final EmbeddingService embeddingService;
     private final AuditLogService auditLogService;
     private final com.adlin.orin.modules.knowledge.service.KeywordExtractService keywordExtractService;
+    private final KnowledgeTaskRepository knowledgeTaskRepository;
 
     // ==================== Milvus Collection 管理 API ====================
 
@@ -798,5 +804,81 @@ public class KnowledgeManageController {
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"" + doc.getFileName() + "\"")
                 .body(resource);
+    }
+
+    // ==================== Knowledge Task 管理 API ====================
+
+    @Operation(summary = "获取知识任务详情", description = "根据任务ID查询知识库任务详情和状态")
+    @GetMapping("/tasks/{taskId}")
+    public ResponseEntity<Map<String, Object>> getKnowledgeTaskDetail(@PathVariable String taskId) {
+        Optional<KnowledgeTask> taskOpt = knowledgeTaskRepository.findById(taskId);
+        if (taskOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        KnowledgeTask task = taskOpt.get();
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", task.getId());
+        result.put("assetId", task.getAssetId());
+        result.put("assetType", task.getAssetType());
+        result.put("taskType", task.getTaskType());
+        result.put("status", task.getStatus());
+        result.put("statusDescription", task.getStatus().getDescription());
+        result.put("retryCount", task.getRetryCount());
+        result.put("maxRetries", task.getMaxRetries());
+        result.put("errorMessage", task.getErrorMessage());
+        result.put("startedAt", task.getStartedAt());
+        result.put("completedAt", task.getCompletedAt());
+        result.put("executionTimeMs", task.getExecutionTimeMs());
+        result.put("createdAt", task.getCreatedAt());
+        result.put("updatedAt", task.getUpdatedAt());
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "查询知识库的任务列表", description = "查询指定资产的所有任务")
+    @GetMapping("/tasks/asset/{assetId}")
+    public ResponseEntity<List<Map<String, Object>>> getTasksByAsset(
+            @PathVariable String assetId,
+            @RequestParam(required = false) String assetType) {
+        List<KnowledgeTask> tasks;
+        if (assetType != null && !assetType.isEmpty()) {
+            tasks = knowledgeTaskRepository.findByAssetIdAndAssetType(assetId, assetType);
+        } else {
+            tasks = knowledgeTaskRepository.findByAssetIdAndAssetType(assetId, null);
+        }
+
+        List<Map<String, Object>> result = tasks.stream().map(task -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", task.getId());
+            item.put("assetId", task.getAssetId());
+            item.put("assetType", task.getAssetType());
+            item.put("taskType", task.getTaskType());
+            item.put("status", task.getStatus());
+            item.put("statusDescription", task.getStatus().getDescription());
+            item.put("retryCount", task.getRetryCount());
+            item.put("errorMessage", task.getErrorMessage());
+            item.put("createdAt", task.getCreatedAt());
+            item.put("updatedAt", task.getUpdatedAt());
+            return item;
+        }).toList();
+
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "查询待处理的知识任务", description = "查询当前待处理的任务列表")
+    @GetMapping("/tasks/pending")
+    public ResponseEntity<List<Map<String, Object>>> getPendingTasks() {
+        List<KnowledgeTask> tasks = knowledgeTaskRepository.findByStatus(TaskStatus.PENDING);
+        List<Map<String, Object>> result = tasks.stream().map(task -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", task.getId());
+            item.put("assetId", task.getAssetId());
+            item.put("assetType", task.getAssetType());
+            item.put("taskType", task.getTaskType());
+            item.put("status", task.getStatus());
+            item.put("createdAt", task.getCreatedAt());
+            return item;
+        }).toList();
+        return ResponseEntity.ok(result);
     }
 }

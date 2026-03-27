@@ -265,7 +265,7 @@ const routes = [
                     {
                         path: 'graph',
                         name: 'KnowledgeGraph',
-                        component: () => import('@/views/Knowledge/KnowledgeGraphPlaceholder.vue'),
+                        component: () => import('@/views/Knowledge/KnowledgeGraphList.vue'),
                         meta: { title: '知识图谱', icon: 'Connection' }
                     },
                 ]

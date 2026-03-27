@@ -1,6 +1,8 @@
 package com.adlin.orin.modules.knowledge.parser;
 
+import com.adlin.orin.modules.multimodal.service.AsrService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
@@ -20,6 +22,9 @@ public class AudioParser implements DocumentParser {
     private static final Set<String> SUPPORTED_TYPES = Set.of(
             "mp3", "wav", "m4a", "aac", "ogg", "flac", "wma", "aiff"
     );
+
+    @Autowired
+    private AsrService asrService;
 
     @Override
     public Set<String> supportedMediaTypes() {
@@ -147,26 +152,37 @@ public class AudioParser implements DocumentParser {
     }
 
     /**
-     * 使用云服务 ASR
+     * 使用云服务 ASR（SiliconFlow ASR）
      */
     private AsrResult parseWithCloud(Path input, Map<String, String> config) {
-        String apiKey = config.get("asr_api_key");
+        try {
+            String model = config.getOrDefault("asr_model", "openai/whisper-large-v3-turbo");
+            String extractedText = asrService.transcribeWithSiliconFlowAsr(input.toString(), model);
 
-        if (apiKey == null || apiKey.isEmpty()) {
+            if (extractedText.startsWith("[ASR Error]")) {
+                log.warn("SiliconFlow ASR failed: {}", extractedText);
+                return new AsrResult(
+                        "[Cloud ASR Failed] " + extractedText,
+                        Map.of("provider", "siliconflow_asr", "error", extractedText)
+                );
+            }
+
+            if (extractedText.isEmpty()) {
+                return new AsrResult(
+                        "[No Speech Detected] The audio appears to contain no extractable speech.",
+                        Map.of("provider", "siliconflow_asr", "no_speech", true)
+                );
+            }
+
+            return new AsrResult(extractedText, Map.of("provider", "siliconflow_asr", "model", model));
+
+        } catch (Exception e) {
+            log.error("Cloud ASR failed: {}", e.getMessage(), e);
             return new AsrResult(
-                    "[ASR Configuration Error] Cloud ASR API key not configured",
-                    Map.of("error", "missing_api_key")
+                    "[ASR Error] " + e.getMessage(),
+                    Map.of("error", e.getMessage())
             );
         }
-
-        // TODO: 实现云服务 ASR 调用
-        // 可以接入阿里云、腾讯云、OpenAI Whisper API 等
-        log.info("Cloud ASR not implemented yet");
-
-        return new AsrResult(
-                "[Cloud ASR] Not implemented. Please configure local Whisper or implement cloud ASR.",
-                Map.of("provider", "cloud", "not_implemented", true)
-        );
     }
 
     @Override

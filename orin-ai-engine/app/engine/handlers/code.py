@@ -3,10 +3,13 @@ import sys
 import io
 import traceback
 import signal
-from typing import Any, Dict
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from functools import wraps
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
+
+if TYPE_CHECKING:
+    from app.engine.executor import GraphExecutor
 
 # RestrictedPython imports - v8.x compatible
 from RestrictedPython import safe_globals, safe_builtins
@@ -41,6 +44,9 @@ def timeout_handler(signum, frame):
 class CodeNodeHandler(BaseNodeHandler):
     # Maximum execution time in seconds
     TIMEOUT_SECONDS = 10
+
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
 
     def _get_safe_globals(self) -> Dict[str, Any]:
         """

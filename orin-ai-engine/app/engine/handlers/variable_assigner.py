@@ -1,7 +1,14 @@
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 
+if TYPE_CHECKING:
+    from app.engine.executor import GraphExecutor
+
 class VariableAssignerNodeHandler(BaseNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Assigns a value to a target variable in the execution context.

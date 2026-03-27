@@ -327,6 +327,9 @@
             >
               获取模型列表
             </el-button>
+            <el-tooltip content="从 SiliconFlow API 获取模型列表后批量导入" placement="right">
+              <span style="margin-left: 8px; color: var(--neutral-gray-400); font-size: 12px;">?</span>
+            </el-tooltip>
 
             <!-- 识别到的模型列表 -->
             <div v-if="detectedModels.length > 0" class="detected-models-section">

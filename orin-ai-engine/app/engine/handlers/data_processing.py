@@ -1,12 +1,20 @@
 import re
 import json
-from typing import Any, Dict, List, Optional
+import httpx
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from jinja2 import Template, Environment
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 from app.engine.handlers.llm import RealLLMNodeHandler
+from app.core.config import settings
+
+if TYPE_CHECKING:
+    from app.engine.executor import GraphExecutor
 
 class TemplateTransformNodeHandler(BaseNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Transforms input variables using a Jinja2 template.
@@ -32,6 +40,9 @@ class TemplateTransformNodeHandler(BaseNodeHandler):
             raise RuntimeError(f"Template Transform Error: {str(e)}")
 
 class ParameterExtractorNodeHandler(RealLLMNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Extracts structured parameters from text using LLM.
@@ -86,25 +97,101 @@ class ParameterExtractorNodeHandler(RealLLMNodeHandler):
         return curr
 
 class KnowledgeRetrievalNodeHandler(BaseNodeHandler):
+    """
+    Knowledge Retrieval node that queries the ORIN backend knowledge base.
+    Makes real API calls to the backend retrieval service.
+    """
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
-        Mock for knowledge retrieval. In a real system, this would query a vector store.
+        Retrieves relevant documents from the knowledge base via the ORIN backend API.
         """
         query_var = node.data.get("query_variable", "inputs.query")
         knowledge_id = node.data.get("knowledge_id")
-        
+        top_k = node.data.get("top_k", 5)
+        alpha = node.data.get("alpha", 0.7)  # Hybrid search weight for vector search
+
         query = self._resolve_variable(query_var, context) or ""
-        
-        # Mocking RAG result
-        mock_result = [
-            {"content": f"Information related to '{query}' found in knowledge base {knowledge_id}.", "score": 0.95},
-            {"content": "ORIN (Open Resource Intelligence Network) is an advanced AI agent platform.", "score": 0.88}
-        ]
-        
-        return NodeExecutionOutput(outputs={
-            "result": mock_result,
-            "text": "\n\n".join([r["content"] for r in mock_result])
-        })
+
+        if not query:
+            return NodeExecutionOutput(outputs={
+                "result": [],
+                "text": "",
+                "error": "Query is empty"
+            })
+
+        if not knowledge_id:
+            return NodeExecutionOutput(outputs={
+                "result": [],
+                "text": "",
+                "error": "knowledge_id is required for knowledge retrieval"
+            })
+
+        # Call the backend knowledge retrieval API
+        backend_url = settings.ORIN_BACKEND_URL.rstrip("/")
+        retrieve_url = f"{backend_url}/api/v1/knowledge/retrieve/test"
+
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+                response = await client.post(
+                    retrieve_url,
+                    json={
+                        "query": query,
+                        "kbId": knowledge_id,
+                        "topK": top_k,
+                        "alpha": alpha
+                    }
+                )
+
+                if response.status_code != 200:
+                    raise RuntimeError(f"Knowledge retrieval API returned status {response.status_code}: {response.text}")
+
+                result = response.json()
+
+                # Parse the retrieval results
+                # Backend returns {data: [...], records: [...]} or similar structure
+                retrieved_docs = []
+                if isinstance(result, dict):
+                    # Try common response structures
+                    data = result.get("data", result.get("records", result.get("result", [])))
+                    if isinstance(data, list):
+                        retrieved_docs = data
+                    elif isinstance(result, list):
+                        retrieved_docs = result
+                elif isinstance(result, list):
+                    retrieved_docs = result
+
+                # Format results
+                formatted_results = []
+                for doc in retrieved_docs:
+                    if isinstance(doc, dict):
+                        content = doc.get("content", doc.get("text", doc.get("chunk_content", str(doc))))
+                        score = doc.get("score", doc.get("similarity", 0.0))
+                        doc_id = doc.get("id", doc.get("doc_id", ""))
+                        formatted_results.append({
+                            "content": content,
+                            "score": float(score) if score else 0.0,
+                            "doc_id": doc_id
+                        })
+                    else:
+                        formatted_results.append({"content": str(doc), "score": 0.0, "doc_id": ""})
+
+                text_output = "\n\n".join([r["content"] for r in formatted_results])
+
+                return NodeExecutionOutput(outputs={
+                    "result": formatted_results,
+                    "text": text_output,
+                    "count": len(formatted_results),
+                    "query": query,
+                    "knowledge_id": knowledge_id
+                })
+
+        except httpx.TimeoutException:
+            raise RuntimeError(f"Knowledge retrieval timed out after 30 seconds")
+        except httpx.RequestError as e:
+            raise RuntimeError(f"Knowledge retrieval request failed: {str(e)}")
 
     def _resolve_variable(self, path: str, context: Dict[str, Any]) -> Any:
         parts = path.split(".")
@@ -117,6 +204,9 @@ class KnowledgeRetrievalNodeHandler(BaseNodeHandler):
         return curr
 
 class DocumentExtractorNodeHandler(BaseNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Extracts content from document/file variables.

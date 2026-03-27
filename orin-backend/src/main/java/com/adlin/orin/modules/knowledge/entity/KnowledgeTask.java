@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.entity;
 
+import com.adlin.orin.common.enums.TaskStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,7 +34,8 @@ public class KnowledgeTask {
     private String taskType; // CAPTIONING, EMBEDDING, INDEXING
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status; // PENDING, PROCESSING, COMPLETED, FAILED
+    @Enumerated(EnumType.STRING)
+    private TaskStatus status; // PENDING, RUNNING, SUCCESS, FAILED, RETRYING
 
     @Column(name = "retry_count", columnDefinition = "INT DEFAULT 0")
     private Integer retryCount;
@@ -43,6 +45,16 @@ public class KnowledgeTask {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    // Execution timing
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "execution_time_ms")
+    private Long executionTimeMs;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -57,7 +69,7 @@ public class KnowledgeTask {
         if (maxRetries == null)
             maxRetries = 3;
         if (status == null)
-            status = "PENDING";
+            status = TaskStatus.PENDING;
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }

@@ -1,11 +1,14 @@
 package com.adlin.orin.modules.knowledge.parser;
 
+import com.adlin.orin.modules.multimodal.service.OcrService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Set;
 
@@ -20,6 +23,9 @@ public class ImageParser implements DocumentParser {
     private static final Set<String> SUPPORTED_TYPES = Set.of(
             "jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif"
     );
+
+    @Autowired
+    private OcrService ocrService;
 
     @Override
     public Set<String> supportedMediaTypes() {
@@ -140,27 +146,46 @@ public class ImageParser implements DocumentParser {
     }
 
     /**
-     * 使用云服务 OCR
+     * 使用云服务 OCR（SiliconFlow VLM）
      */
     private OcrResult parseWithCloud(Path input, Map<String, String> config) {
-        String apiKey = config.get("ocr_api_key");
-        String endpoint = config.getOrDefault("ocr_endpoint", "");
+        try {
+            // 将图片转为 Base64 data URI
+            byte[] imageBytes = Files.readAllBytes(input);
+            String mimeType = Files.probeContentType(input);
+            if (mimeType == null) {
+                mimeType = "image/jpeg";
+            }
+            String base64Image = "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(imageBytes);
 
-        if (apiKey == null || apiKey.isEmpty()) {
+            // 调用 SiliconFlow VLM OCR
+            String model = config.getOrDefault("ocr_model", "Qwen/Qwen2-VL-7B-Instruct");
+            String extractedText = ocrService.ocrWithSiliconFlowVlm(base64Image, model);
+
+            if (extractedText.startsWith("[OCR Error]")) {
+                log.warn("SiliconFlow VLM OCR failed: {}", extractedText);
+                return new OcrResult(
+                        "[Cloud OCR Failed] " + extractedText,
+                        Map.of("provider", "siliconflow_vlm", "error", extractedText)
+                );
+            }
+
+            if (extractedText.isEmpty()) {
+                return new OcrResult(
+                        "[No Text Detected] The image appears to contain no extractable text.",
+                        Map.of("provider", "siliconflow_vlm", "no_text", true)
+                );
+            }
+
+            return new OcrResult(extractedText, Map.of("provider", "siliconflow_vlm", "model", model));
+
+        } catch (IOException e) {
+            log.error("Failed to read image file for OCR: {}", input, e);
             return new OcrResult(
-                    "[OCR Configuration Error] Cloud OCR API key not configured",
-                    Map.of("error", "missing_api_key")
+                    "[OCR IO Error] Could not read image file: " + e.getMessage(),
+                    Map.of("error", e.getMessage())
             );
         }
-
-        // TODO: 实现云服务 OCR 调用
-        // 可以接入阿里云、腾讯云、百度云等 OCR 服务
-        log.info("Cloud OCR not implemented yet, using placeholder");
-
-        return new OcrResult(
-                "[Cloud OCR] Not implemented. Please configure local Tesseract or implement cloud OCR.",
-                Map.of("provider", "cloud", "not_implemented", true)
-        );
     }
 
     @Override

@@ -40,6 +40,12 @@ public class AlertHistory {
     private String agentId;
 
     /**
+     * 追踪 ID，用于关联其他观测层（Audit、Langfuse）
+     */
+    @Column(name = "trace_id", length = 100)
+    private String traceId;
+
+    /**
      * 告警消息
      */
     @Column(name = "alert_message", columnDefinition = "TEXT")

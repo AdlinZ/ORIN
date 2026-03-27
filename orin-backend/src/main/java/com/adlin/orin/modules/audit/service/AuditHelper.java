@@ -2,6 +2,7 @@ package com.adlin.orin.modules.audit.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,15 @@ import org.springframework.stereotype.Component;
 public class AuditHelper {
 
     private final AuditLogService auditLogService;
+
+    private static final String TRACE_ID_MDC_KEY = "traceId";
+
+    /**
+     * 从MDC获取当前traceId，如果没有则返回null
+     */
+    private String getTraceId() {
+        return MDC.get(TRACE_ID_MDC_KEY);
+    }
 
     /**
      * 记录系统操作日志
@@ -47,7 +57,10 @@ public class AuditHelper {
                     success,
                     errorMsg,
                     null,
-                    null
+                    null,
+                    null,
+                    null,
+                    getTraceId()
             );
         } catch (Exception e) {
             log.error("记录审计日志失败: {}", e.getMessage());
@@ -119,6 +132,42 @@ public class AuditHelper {
         String fullDetail = String.format("工作流ID: %s, 操作: %s, 详情: %s",
                 workflowId, operation, detail);
         log(userId, "WORKFLOW_" + operation, "/workflow/" + operation.toLowerCase(),
+                fullDetail, success, errorMsg);
+    }
+
+    /**
+     * 记录智能体批量导出操作日志
+     */
+    @Async
+    public void logAgentBatchExport(String userId, String operation, int exportCount,
+                                     String detail, boolean success, String errorMsg) {
+        String fullDetail = String.format("操作: %s, 导出数量: %d, 详情: %s",
+                operation, exportCount, detail);
+        log(userId, "AGENT_BATCH_EXPORT", "/api/v1/agents/batch/export",
+                fullDetail, success, errorMsg);
+    }
+
+    /**
+     * 记录智能体批量导入操作日志
+     */
+    @Async
+    public void logAgentBatchImport(String userId, String operation, int importCount, int skippedCount,
+                                     String detail, boolean success, String errorMsg) {
+        String fullDetail = String.format("操作: %s, 导入数量: %d, 跳过数量: %d, 详情: %s",
+                operation, importCount, skippedCount, detail);
+        log(userId, "AGENT_BATCH_IMPORT", "/api/v1/agents/batch/import",
+                fullDetail, success, errorMsg);
+    }
+
+    /**
+     * 记录智能体元数据刷新操作日志
+     */
+    @Async
+    public void logAgentMetadataRefresh(String userId, int successCount, int failedCount,
+                                         String detail, boolean success, String errorMsg) {
+        String fullDetail = String.format("刷新结果: 成功 %d, 失败 %d, 详情: %s",
+                successCount, failedCount, detail);
+        log(userId, "AGENT_METADATA_REFRESH", "/api/v1/agents/refresh",
                 fullDetail, success, errorMsg);
     }
 }

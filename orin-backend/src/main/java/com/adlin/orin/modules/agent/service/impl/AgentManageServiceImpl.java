@@ -20,6 +20,7 @@ import java.util.HashMap;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.service.AuditLogService;
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
@@ -29,6 +30,7 @@ import com.adlin.orin.modules.model.service.OllamaIntegrationService;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
 import com.adlin.orin.modules.conversation.entity.ConversationLog;
 import com.adlin.orin.modules.conversation.service.ConversationLogService;
+import org.slf4j.MDC;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -58,6 +60,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final AgentHealthStatusRepository healthStatusRepository;
     private final com.adlin.orin.modules.agent.repository.AgentJobRepository agentJobRepository;
     private final AuditLogService auditLogService;
+    private final AuditHelper auditHelper;
     private final com.adlin.orin.modules.conversation.service.ConversationLogService conversationLogService;
     private final MultimodalFileService multimodalFileService;
     private final MetaKnowledgeService metaKnowledgeService;
@@ -81,6 +84,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             AgentMetadataRepository metadataRepository,
             AgentHealthStatusRepository healthStatusRepository,
             AuditLogService auditLogService,
+            AuditHelper auditHelper,
             com.adlin.orin.modules.conversation.service.ConversationLogService conversationLogService,
             MultimodalFileService multimodalFileService,
             MetaKnowledgeService metaKnowledgeService,
@@ -104,6 +108,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.healthStatusRepository = healthStatusRepository;
         this.agentJobRepository = agentJobRepository;
         this.auditLogService = auditLogService;
+        this.auditHelper = auditHelper;
         this.conversationLogService = conversationLogService;
         this.multimodalFileService = multimodalFileService;
         this.metaKnowledgeService = metaKnowledgeService;
@@ -1651,7 +1656,8 @@ public class AgentManageServiceImpl implements AgentManageService {
                             message, responseContentJson, statusCode, responseTime,
                             usage.get("prompt"), usage.get("completion"), 0.0, true, null, null, conversationId,
                             generatedFileId != null && !generatedFileId.isEmpty() ? generatedFileId : null,
-                            generatedDownloadUrl != null && !generatedDownloadUrl.isEmpty() ? generatedDownloadUrl : null);
+                            generatedDownloadUrl != null && !generatedDownloadUrl.isEmpty() ? generatedDownloadUrl : null,
+                            MDC.get("traceId"));
                 } catch (Exception e) {
                     log.warn("Failed to save audit log: {}", e.getMessage());
                 }
@@ -1679,7 +1685,8 @@ public class AgentManageServiceImpl implements AgentManageService {
                             "SYSTEM", null, agentId, providerType, endpoint, "POST",
                             metadata.getModelName(), null, "ORIN",
                             message, null, statusCode, responseTime,
-                            0, 0, 0.0, false, errorMessage, null, conversationId, null, null);
+                            0, 0, 0.0, false, errorMessage, null, conversationId, null, null,
+                            MDC.get("traceId"));
                 } catch (Exception e) {
                     log.warn("Failed to save audit log for error: {}", e.getMessage());
                 }
@@ -2126,6 +2133,11 @@ public class AgentManageServiceImpl implements AgentManageService {
             agentsToExport = metadataRepository.findAllById(agentIds);
         }
 
+        int exportCount = agentsToExport.size();
+        String detail = agentIds == null || agentIds.isEmpty()
+                ? "导出所有智能体"
+                : "导出指定 " + agentIds.size() + " 个智能体";
+
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.registerModule(new JavaTimeModule());
@@ -2158,10 +2170,16 @@ public class AgentManageServiceImpl implements AgentManageService {
             }).toList();
 
             String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(exportData);
+
+            // Audit logging for successful export
+            auditHelper.logAgentBatchExport("SYSTEM", "EXPORT", exportCount, detail, true, null);
+
             return json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
         } catch (Exception e) {
             log.error("Failed to export agents", e);
+            // Audit logging for failed export
+            auditHelper.logAgentBatchExport("SYSTEM", "EXPORT", 0, detail, false, e.getMessage());
             throw new RuntimeException("Failed to export agents: " + e.getMessage(), e);
         }
     }
@@ -2170,6 +2188,10 @@ public class AgentManageServiceImpl implements AgentManageService {
     public void batchImportAgents(MultipartFile file) {
         log.info("Starting batch import from file: {}", file.getOriginalFilename());
 
+        int importedCount = 0;
+        int skippedCount = 0;
+        String detail = "从文件 " + file.getOriginalFilename() + " 导入智能体";
+
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.registerModule(new JavaTimeModule());
@@ -2177,9 +2199,6 @@ public class AgentManageServiceImpl implements AgentManageService {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> importData = mapper.readValue(file.getInputStream(),
                     new TypeReference<List<Map<String, Object>>>() {});
-
-            int importedCount = 0;
-            int skippedCount = 0;
 
             for (Map<String, Object> data : importData) {
                 String agentId = (String) data.get("agentId");
@@ -2245,8 +2264,13 @@ public class AgentManageServiceImpl implements AgentManageService {
 
             log.info("Batch import completed: {} imported, {} skipped", importedCount, skippedCount);
 
+            // Audit logging for successful import
+            auditHelper.logAgentBatchImport("SYSTEM", "IMPORT", importedCount, skippedCount, detail, true, null);
+
         } catch (Exception e) {
             log.error("Failed to import agents", e);
+            // Audit logging for failed import
+            auditHelper.logAgentBatchImport("SYSTEM", "IMPORT", importedCount, skippedCount, detail, false, e.getMessage());
             throw new RuntimeException("Failed to import agents: " + e.getMessage(), e);
         }
     }
@@ -2339,6 +2363,11 @@ public class AgentManageServiceImpl implements AgentManageService {
         }
 
         log.info("Refresh completed: {} success, {} failed", successCount, failedCount);
+
+        // Audit logging for metadata refresh
+        String detail = "刷新所有智能体元数据";
+        boolean isSuccess = failedCount == 0;
+        auditHelper.logAgentMetadataRefresh("SYSTEM", successCount, failedCount, detail, isSuccess, null);
     }
 
     @Override

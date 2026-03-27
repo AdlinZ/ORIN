@@ -1,9 +1,15 @@
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 
+if TYPE_CHECKING:
+    from app.engine.executor import GraphExecutor
+
 class AnswerNodeHandler(BaseNodeHandler):
+    def __init__(self, executor: Optional["GraphExecutor"] = None):
+        super().__init__(executor)
+
     async def run(self, node: Node, context: Dict[str, Any]) -> NodeExecutionOutput:
         """
         Generates a final answer using a template and context variables.

@@ -20,4 +20,9 @@ public interface SyncRecordRepository extends JpaRepository<SyncRecord, Long> {
      * 获取 Agent 的同步历史
      */
     List<SyncRecord> findTopByAgentIdOrderByEndTimeDesc(String agentId, Pageable pageable);
+
+    /**
+     * 获取 Agent 的所有同步记录（按开始时间倒序）
+     */
+    List<SyncRecord> findByAgentIdOrderByStartTimeDesc(String agentId);
 }

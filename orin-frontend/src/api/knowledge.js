@@ -386,3 +386,41 @@ export const saveIntelligencePrompt = (template) => {
 export const deleteIntelligencePrompt = (id) => {
     return request.delete(`/intelligence/prompts/${id}`);
 };
+
+// ==================== 知识图谱管理 ====================
+
+export const getGraphList = () => {
+    return request.get('/knowledge/graphs');
+};
+
+export const getGraph = (graphId) => {
+    return request.get(`/knowledge/graphs/${graphId}`);
+};
+
+export const createGraph = (data) => {
+    return request.post('/knowledge/graphs', data);
+};
+
+export const updateGraph = (graphId, data) => {
+    return request.put(`/knowledge/graphs/${graphId}`, data);
+};
+
+export const deleteGraph = (graphId) => {
+    return request.delete(`/knowledge/graphs/${graphId}`);
+};
+
+export const buildGraph = (graphId) => {
+    return request.post(`/knowledge/graphs/${graphId}/build`);
+};
+
+export const getGraphEntities = (graphId, params) => {
+    return request.get(`/knowledge/graphs/${graphId}/entities`, { params });
+};
+
+export const getGraphRelations = (graphId, params) => {
+    return request.get(`/knowledge/graphs/${graphId}/relations`, { params });
+};
+
+export const searchGraphEntities = (graphId, keyword) => {
+    return request.get(`/knowledge/graphs/${graphId}/entities/search`, { params: { q: keyword } });
+};

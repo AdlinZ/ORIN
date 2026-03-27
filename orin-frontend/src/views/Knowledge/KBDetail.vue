@@ -52,7 +52,9 @@
               />
             </div>
             <div class="right-tools">
-              <el-button size="default">批量设置</el-button>
+              <el-tooltip content="批量设置功能开发中" placement="top">
+                <el-button size="default" disabled>批量设置</el-button>
+              </el-tooltip>
               <el-button type="primary" size="default" :icon="Plus">添加文件</el-button>
             </div>
           </div>

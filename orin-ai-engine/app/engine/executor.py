@@ -23,38 +23,38 @@ from app.core.tracing import tracing_client, Span
 
 class GraphExecutor:
     def __init__(self):
-        # Statless check: handlers should be stateless too
+        # 初始化 handlers，传递 executor 引用以便迭代/循环节点执行子图
         self.handlers: Dict[str, BaseNodeHandler] = {
             "start": StartNodeHandler(),
             "end": EndNodeHandler(),
-            "llm": RealLLMNodeHandler(),
-            "agent": RealLLMNodeHandler(),
-            "code": CodeNodeHandler(),
-            "variable_assigner": VariableAssignerNodeHandler(),
-            "if_else": IfElseNodeHandler(),
-            "question_classifier": QuestionClassifierNodeHandler(),
-            "variable_aggregator": VariableAggregatorNodeHandler(),
-            "iteration": IterationNodeHandler(),
-            "loop": LoopNodeHandler(),
-            "http_request": HTTPRequestNodeHandler(),
-            "list_operator": ListOperatorNodeHandler(),
-            "tool": ToolNodeHandler(),
-            "answer": AnswerNodeHandler(),
-            "knowledge_retrieval": KnowledgeRetrievalNodeHandler(),
-            "template_transform": TemplateTransformNodeHandler(),
-            "parameter_extractor": ParameterExtractorNodeHandler(),
-            "document_extractor": DocumentExtractorNodeHandler(),
+            "llm": RealLLMNodeHandler(executor=self),
+            "agent": RealLLMNodeHandler(executor=self),
+            "code": CodeNodeHandler(executor=self),
+            "variable_assigner": VariableAssignerNodeHandler(executor=self),
+            "if_else": IfElseNodeHandler(executor=self),
+            "question_classifier": QuestionClassifierNodeHandler(executor=self),
+            "variable_aggregator": VariableAggregatorNodeHandler(executor=self),
+            "iteration": IterationNodeHandler(executor=self),
+            "loop": LoopNodeHandler(executor=self),
+            "http_request": HTTPRequestNodeHandler(executor=self),
+            "list_operator": ListOperatorNodeHandler(executor=self),
+            "tool": ToolNodeHandler(executor=self),
+            "answer": AnswerNodeHandler(executor=self),
+            "knowledge_retrieval": KnowledgeRetrievalNodeHandler(executor=self),
+            "template_transform": TemplateTransformNodeHandler(executor=self),
+            "parameter_extractor": ParameterExtractorNodeHandler(executor=self),
+            "document_extractor": DocumentExtractorNodeHandler(executor=self),
             # DSL v2 协作节点
-            "planner": PlannerNodeHandler(),
-            "delegate": DelegateNodeHandler(),
-            "parallel_fork": ParallelForkNodeHandler(),
-            "consensus": ConsensusNodeHandler(),
-            "critic": CriticNodeHandler(),
-            "memory_read": MemoryReadNodeHandler(),
-            "memory_write": MemoryWriteNodeHandler(),
-            "event_emit": EventEmitNodeHandler(),
-            "event_listen": EventListenNodeHandler(),
-            "retry_policy": RetryPolicyNodeHandler(),
+            "planner": PlannerNodeHandler(executor=self),
+            "delegate": DelegateNodeHandler(executor=self),
+            "parallel_fork": ParallelForkNodeHandler(executor=self),
+            "consensus": ConsensusNodeHandler(executor=self),
+            "critic": CriticNodeHandler(executor=self),
+            "memory_read": MemoryReadNodeHandler(executor=self),
+            "memory_write": MemoryWriteNodeHandler(executor=self),
+            "event_emit": EventEmitNodeHandler(executor=self),
+            "event_listen": EventListenNodeHandler(executor=self),
+            "retry_policy": RetryPolicyNodeHandler(executor=self),
         }
 
     def _build_adjacency_list(self, dsl: WorkflowDSL) -> Dict[str, List[str]]:
@@ -78,6 +78,154 @@ class GraphExecutor:
                 in_degree[edge.target] += 1
         return in_degree
 
+    async def execute_subgraph(
+        self,
+        dsl: WorkflowDSL,
+        node_ids: List[str],
+        initial_context: Dict[str, Any],
+        parent_trace_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        执行子图（用于迭代/循环节点的 body 执行）
+
+        Args:
+            dsl: 完整的工作流 DSL
+            node_ids: 要执行的节点 ID 列表（按拓扑序排列）
+            initial_context: 初始上下文
+            parent_trace_id: 父级 trace ID
+
+        Returns:
+            子图执行结果，格式为 {node_id: output}
+        """
+        if not node_ids:
+            return {}
+
+        # 构建只包含指定节点的子图
+        sub_nodes = [n for n in dsl.nodes if n.id in node_ids]
+        sub_node_ids = set(node_ids)
+
+        # 筛选只涉及这些节点的边
+        sub_edges = [
+            e for e in dsl.edges
+            if e.source in sub_node_ids and e.target in sub_node_ids
+        ]
+
+        sub_dsl = WorkflowDSL(nodes=sub_nodes, edges=sub_edges, version=dsl.version)
+
+        # 构建反向边映射（用于识别入口节点）
+        in_degree = {node.id: 0 for node in sub_nodes}
+        for edge in sub_edges:
+            if edge.target in in_degree:
+                in_degree[edge.target] += 1
+
+        # 找出入口节点（in_degree == 0 的节点）
+        entry_nodes = [nid for nid, deg in in_degree.items() if deg == 0]
+
+        if not entry_nodes:
+            return {}
+
+        # 如果有多个入口节点，只保留第一个（通常 iteration body 只有一个入口）
+        entry_node_id = entry_nodes[0]
+
+        # 按拓扑序执行
+        context = initial_context.copy()
+        results = {}
+
+        # 拓扑排序执行
+        visited = set()
+        queue = [entry_node_id]
+
+        while queue:
+            node_id = queue.pop(0)
+            if node_id in visited:
+                continue
+
+            node = next((n for n in sub_nodes if n.id == node_id), None)
+            if not node:
+                continue
+
+            handler = self.handlers.get(node.type.lower())
+            if not handler:
+                continue
+
+            # 准备上下文（合并之前节点的输出）
+            exec_ctx = {**context, **results}
+
+            # 执行节点
+            try:
+                timeout = node.data.get("timeout", settings.NODE_DEFAULT_TIMEOUT) if node.data else settings.NODE_DEFAULT_TIMEOUT
+                output = await asyncio.wait_for(handler.run(node, exec_ctx), timeout=timeout)
+                if output and output.outputs:
+                    results[node_id] = output.outputs
+                    # 更新上下文以供后续节点使用
+                    context[node_id] = output.outputs
+            except Exception as e:
+                # 子图执行出错，记录错误但继续
+                results[node_id] = {"error": str(e), "_node_error": True}
+
+            visited.add(node_id)
+
+            # 找出后续节点（基于边）
+            for edge in sub_edges:
+                if edge.source == node_id and edge.target not in visited:
+                    # 检查目标节点的入度是否都满足
+                    target_in_deg = sum(1 for e in sub_edges if e.target == edge.target)
+                    target_visited = sum(1 for e in sub_edges if e.target == edge.target and e.source in visited)
+                    if target_visited >= target_in_deg:
+                        queue.append(edge.target)
+
+        return results
+
+    def get_body_nodes(self, dsl: WorkflowDSL, iteration_node_id: str, handle: str = "body") -> List[str]:
+        """
+        获取迭代/循环节点的 body 节点 ID 列表
+
+        通过 sourceHandle="body" 的边来确定哪些节点是 body 节点
+
+        Args:
+            dsl: 工作流 DSL
+            iteration_node_id: 迭代/循环节点的 ID
+            handle: 边的手柄名称，默认为 "body"
+
+        Returns:
+            body 节点 ID 列表（按拓扑序排列）
+        """
+        # 找出所有从该节点发出的 body 边
+        body_edges = [
+            e for e in dsl.edges
+            if e.source == iteration_node_id and e.sourceHandle == handle
+        ]
+
+        if not body_edges:
+            return []
+
+        body_node_ids = set(e.target for e in body_edges)
+
+        # 构建 body 子图的拓扑序
+        # 使用 Kahn 算法
+        in_degree = {node.id: 0 for node in dsl.nodes if node.id in body_node_ids}
+        for edge in dsl.edges:
+            if edge.target in body_node_ids and edge.source in body_node_ids:
+                in_degree[edge.target] += 1
+
+        result = []
+        queue = [nid for nid, deg in in_degree.items() if deg == 0]
+
+        while queue:
+            node_id = queue.pop(0)
+            result.append(node_id)
+            for edge in dsl.edges:
+                if edge.source == node_id and edge.target in body_node_ids:
+                    in_degree[edge.target] -= 1
+                    if in_degree[edge.target] == 0:
+                        queue.append(edge.target)
+
+        return result
+
+    # Supported DSL versions
+    SUPPORTED_VERSIONS = ["1.0", "1.1"]
+    CURRENT_VERSION = "1.0"
+
     async def execute(self, dsl: WorkflowDSL, initial_inputs: Dict[str, Any], trace_id: Optional[str] = None) -> ExecutionResult:
         """
         Executes the workflow graph using robust parallel implementation with branching support.
@@ -87,10 +235,18 @@ class GraphExecutor:
             initial_inputs: Initial inputs for the workflow
             trace_id: Optional trace ID for distributed tracing
         """
+        # DSL Version Check
+        dsl_version = getattr(dsl, 'version', None) or "1.0"
+        if dsl_version not in self.SUPPORTED_VERSIONS:
+            raise ValueError(
+                f"Unsupported DSL version: {dsl_version}. "
+                f"Supported versions: {', '.join(self.SUPPORTED_VERSIONS)}"
+            )
+
         # Initialize tracing
         if trace_id:
             tracing_client.clear()
-            tracing_client.start_trace(trace_id, f"workflow:{dsl.name or 'unnamed'}")
+            tracing_client.start_trace(trace_id, f"workflow:execute")
 
         # 1. Initialization
         nodes_map = {node.id: node for node in dsl.nodes}
@@ -195,8 +351,9 @@ class GraphExecutor:
                         if not h:
                             raise ValueError(f"No handler for type {n.type}")
 
-                        # Prepare context with upstream outputs
-                        exec_ctx = {**ctx, **node_outputs}
+                        # Prepare context with upstream outputs and DSL reference
+                        # DSL is needed by iteration/loop nodes to execute their body subgraphs
+                        exec_ctx = {**ctx, **node_outputs, "_dsl": dsl}
 
                         # Execute with Timeout
                         res: NodeExecutionOutput = await asyncio.wait_for(h.run(n, exec_ctx), timeout=t_out)

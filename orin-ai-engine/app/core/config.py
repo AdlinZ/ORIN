@@ -3,14 +3,20 @@ from typing import Optional
 
 class Settings(BaseSettings):
     NODE_DEFAULT_TIMEOUT: float = 60.0 # Seconds
-    
+
+    # Backend API URL for calling Java backend services
+    ORIN_BACKEND_URL: Optional[str] = "http://localhost:8080"
+
+    # Redis URL for shared memory storage (optional - falls back to context)
+    REDIS_URL: Optional[str] = None
+
     # LLM Settings
     OPENAI_API_KEY: Optional[str] = None
-    OPENAI_BASE_URL: Optional[str] = "https://api.openai.com/v1" 
-    
+    OPENAI_BASE_URL: Optional[str] = "https://api.openai.com/v1"
+
     class Config:
         env_prefix = "ORIN_"
         env_file = ".env"
-        extra = "ignore" 
+        extra = "ignore"
 
 settings = Settings()

@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,6 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 全局异常处理器
@@ -26,8 +26,18 @@ import java.util.UUID;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String TRACE_ID_MDC_KEY = "traceId";
+
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
+
+    /**
+     * Get traceId from MDC, or generate a new one if not present
+     */
+    private String getTraceId() {
+        String traceId = MDC.get(TRACE_ID_MDC_KEY);
+        return traceId != null ? traceId : java.util.UUID.randomUUID().toString();
+    }
 
     /**
      * 处理业务异常
@@ -36,7 +46,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleBusinessException(
             BusinessException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         log.warn("[TraceId: {}] Business exception: code={}, message={}",
                 traceId, ex.getErrorCode().getCode(), ex.getMessage());
 
@@ -61,7 +71,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleResourceNotFoundException(
             ResourceNotFoundException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         log.warn("[TraceId: {}] Resource not found: {}", traceId, ex.getMessage());
 
         Result<Object> response = Result.<Object>builder()
@@ -81,7 +91,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleValidationException(
             ValidationException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         log.warn("[TraceId: {}] Validation exception: {}", traceId, ex.getMessage());
 
         Result<Object> response = Result.<Object>builder()
@@ -102,7 +112,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleAuthenticationException(
             AuthenticationException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         log.warn("[TraceId: {}] Authentication failed: {}", traceId, ex.getMessage());
 
         Result<Object> response = Result.<Object>builder()
@@ -122,7 +132,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleAuthorizationException(
             AuthorizationException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         log.warn("[TraceId: {}] Authorization failed: {}", traceId, ex.getMessage());
 
         Result<Object> response = Result.<Object>builder()
@@ -142,7 +152,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         Map<String, String> fieldErrors = new HashMap<>();
 
         ex.getBindingResult().getAllErrors().forEach(error -> {
@@ -171,7 +181,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         Map<String, String> violations = new HashMap<>();
 
         for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
@@ -200,7 +210,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleTypeMismatch(
             MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         String message = String.format("参数 '%s' 的值 '%s' 类型不正确",
                 ex.getName(), ex.getValue());
 
@@ -223,7 +233,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleUnsupportedOperation(
             UnsupportedOperationException ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         log.warn("[TraceId: {}] Unsupported operation: {}", traceId, ex.getMessage());
 
         Result<Object> response = Result.<Object>builder()
@@ -244,7 +254,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleException(
             Exception ex, HttpServletRequest request) {
 
-        String traceId = UUID.randomUUID().toString();
+        String traceId = getTraceId();
         log.error("[TraceId: {}] Internal server error: ", traceId, ex);
 
         ErrorCode errorCode = ErrorCode.SYSTEM_ERROR;
