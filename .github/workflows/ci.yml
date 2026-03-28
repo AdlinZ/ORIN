@@ -117,17 +117,19 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: orin-ai-engine/requirements.txt
+          cache-dependency-path: orin-ai-engine/pyproject.toml
+
+      - name: Install Poetry
+        run: pip install poetry
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt --quiet
+        run: poetry install --no-root
 
       - name: Python syntax check
         run: python3 -m py_compile app/main.py
 
       - name: AI Engine tests
-        run: python3 -m pytest tests/ -v --tb=short
+        run: poetry run pytest tests/ -v --tb=short
 
       - name: Upload test reports
         if: failure()
