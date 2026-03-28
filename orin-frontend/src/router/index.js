@@ -115,6 +115,13 @@ const routes = [
                         component: () => import('@/views/Agent/ChatLogs.vue'),
                         meta: { title: '会话记录', icon: 'ChatDotRound' }
                     },
+                    // 智能体工作台
+                    {
+                        path: 'workspace',
+                        name: 'AgentWorkspace',
+                        component: () => import('@/views/Agent/AgentWorkspace.vue'),
+                        meta: { title: '智能体工作台', icon: 'Monitor' }
+                    },
                     // 协作任务
                     {
                         path: 'collaboration',

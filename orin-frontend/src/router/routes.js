@@ -23,6 +23,7 @@ export const ROUTES = {
         CONSOLE: '/dashboard/agents/console/:id',
         // 运行与交互（二级）
         CHAT_LOGS: '/dashboard/agents/chat-logs',
+        WORKSPACE: '/dashboard/agents/workspace',
         // 编排与协作（二级）
         COLLABORATION_DASHBOARD: '/dashboard/agents/collaboration/dashboard',
         COLLABORATION: '/dashboard/agents/collaboration',
@@ -254,6 +255,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: '/dashboard/agents/session',
                 children: [
                     { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS },
+                    { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE },
                     { title: '协作任务', path: ROUTES.AGENTS.COLLABORATION },
                 ]
             },
