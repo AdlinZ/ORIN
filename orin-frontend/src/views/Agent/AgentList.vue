@@ -15,8 +15,12 @@
         >
           批量注销 ({{ selectedRows.length }})
         </el-button>
-        <el-button type="primary" :icon="Plus" @click="$router.push(ROUTES.AGENTS.ONBOARD)">接入新智能体</el-button>
-        <el-button :icon="Refresh" @click="fetchData">刷新列表</el-button>
+        <el-button type="primary" :icon="Plus" @click="$router.push(ROUTES.AGENTS.ONBOARD)">
+          接入新智能体
+        </el-button>
+        <el-button :icon="Refresh" @click="fetchData">
+          刷新列表
+        </el-button>
       </template>
 
       <template #filters>
@@ -27,7 +31,12 @@
           clearable 
           class="search-input"
         />
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable class="filter-select">
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          class="filter-select"
+        >
           <el-option label="ACTIVE (运行中)" value="RUNNING" />
           <el-option label="IDLE (已停止)" value="STOPPED" />
           <el-option label="HIGH_LOAD (高负载)" value="HIGH_LOAD" />
@@ -38,26 +47,45 @@
     </PageHeader>
 
     <el-card shadow="never" class="table-card">
-      <el-table border 
+      <el-table
         v-loading="loading" 
+        border 
         :data="paginatedAgentList"
         style="width: 100%"
+        stripe
         @row-click="handleRowClick"
         @selection-change="handleSelectionChange"
-        stripe
       >
         <el-table-column type="selection" width="55" />
 
-        <el-table-column prop="agentName" label="智能体名称" min-width="180" sortable>
+        <el-table-column
+          prop="agentName"
+          label="智能体名称"
+          min-width="180"
+          sortable
+        >
           <template #default="{ row }">
             <div class="agent-name-info">
               <span class="name">{{ row.agentName }}</span>
-              <el-tag size="small" v-if="row.isNewlyAdded" type="success" effect="plain" class="new-tag">NEW</el-tag>
+              <el-tag
+                v-if="row.isNewlyAdded"
+                size="small"
+                type="success"
+                effect="plain"
+                class="new-tag"
+              >
+                NEW
+              </el-tag>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="providerType" label="服务商" width="120" sortable>
+        <el-table-column
+          prop="providerType"
+          label="服务商"
+          width="120"
+          sortable
+        >
           <template #default="{ row }">
             <div class="provider-tag" :class="(row.providerType || 'local').toLowerCase()">
               {{ row.providerType || 'Local' }}
@@ -65,21 +93,37 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="viewType" label="类型" width="150" sortable>
+        <el-table-column
+          prop="viewType"
+          label="类型"
+          width="150"
+          sortable
+        >
           <template #default="{ row }">
-             <el-tag 
-               size="small" 
-               :type="getViewTypeColor(row.viewType)" 
-               effect="plain"
-             >
-                {{ formatViewType(row) }}
-             </el-tag>
+            <el-tag 
+              size="small" 
+              :type="getViewTypeColor(row.viewType)" 
+              effect="plain"
+            >
+              {{ formatViewType(row) }}
+            </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="modelName" label="核心模型" width="220" sortable />
+        <el-table-column
+          prop="modelName"
+          label="核心模型"
+          width="220"
+          sortable
+        />
         
-        <el-table-column prop="status" label="状态" width="120" align="center" sortable>
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="120"
+          align="center"
+          sortable
+        >
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="light">
               {{ formatStatus(row.status) }}
@@ -87,13 +131,24 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="lastHeartbeat" label="最后活跃" width="180" align="center" sortable>
+        <el-table-column
+          prop="lastHeartbeat"
+          label="最后活跃"
+          width="180"
+          align="center"
+          sortable
+        >
           <template #default="{ row }">
             {{ formatTime(row.lastHeartbeat) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="进入" width="80" align="center" fixed="right">
+        <el-table-column
+          label="进入"
+          width="80"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click.stop="handleRowClick(row)">
               <el-icon><ArrowRight /></el-icon>

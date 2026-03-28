@@ -2,7 +2,9 @@
   <div class="server-monitor-page">
     <PageHeader title="服务器监控" icon="Monitor">
       <template #actions>
-        <el-button :icon="Refresh" @click="fetchAllData" :loading="loading">刷新</el-button>
+        <el-button :icon="Refresh" :loading="loading" @click="fetchAllData">
+          刷新
+        </el-button>
       </template>
     </PageHeader>
 
@@ -17,7 +19,9 @@
                 <span>Prometheus</span>
               </div>
               <el-tag :type="prometheusStatus.connected ? 'success' : 'danger'" effect="dark" size="small">
-                <el-icon style="margin-right: 4px;"><component :is="prometheusStatus.connected ? 'CircleCheck' : 'CircleClose'" /></el-icon>
+                <el-icon style="margin-right: 4px;">
+                  <component :is="prometheusStatus.connected ? 'CircleCheck' : 'CircleClose'" />
+                </el-icon>
                 {{ prometheusStatus.connected ? '已连接' : '未连接' }}
               </el-tag>
             </div>
@@ -26,18 +30,34 @@
                 <el-icon><Monitor /></el-icon>
                 <span>服务器状态</span>
               </div>
-              <el-tag v-if="serverOnline === null" type="info" effect="dark" size="small">
-                <el-icon style="margin-right: 4px;"><Loading /></el-icon>
+              <el-tag
+                v-if="serverOnline === null"
+                type="info"
+                effect="dark"
+                size="small"
+              >
+                <el-icon style="margin-right: 4px;">
+                  <Loading />
+                </el-icon>
                 加载中
               </el-tag>
               <el-tooltip v-else-if="!serverOnline && serverError" :content="serverError" placement="bottom">
                 <el-tag type="danger" effect="dark" size="small">
-                  <el-icon style="margin-right: 4px;"><CircleClose /></el-icon>
+                  <el-icon style="margin-right: 4px;">
+                    <CircleClose />
+                  </el-icon>
                   离线
                 </el-tag>
               </el-tooltip>
-              <el-tag v-else :type="serverOnline ? 'success' : 'danger'" effect="dark" size="small">
-                <el-icon style="margin-right: 4px;"><component :is="serverOnline ? 'CircleCheck' : 'CircleClose'" /></el-icon>
+              <el-tag
+                v-else
+                :type="serverOnline ? 'success' : 'danger'"
+                effect="dark"
+                size="small"
+              >
+                <el-icon style="margin-right: 4px;">
+                  <component :is="serverOnline ? 'CircleCheck' : 'CircleClose'" />
+                </el-icon>
                 {{ serverOnline ? '在线' : '离线' }}
               </el-tag>
             </div>
@@ -69,14 +89,23 @@
             <el-icon><Cpu /></el-icon>
             <span>CPU 使用率</span>
           </div>
-          <div class="metric-value">{{ cpuUsagePercent.toFixed(1) }}%</div>
+          <div class="metric-value">
+            {{ cpuUsagePercent.toFixed(1) }}%
+          </div>
           <div class="metric-sub">
             <span>核心数: {{ localServerInfo.cpuCores || 0 }}</span>
           </div>
           <div class="metric-gauge">
-            <el-progress :percentage="cpuUsagePercent" :stroke-width="6" :show-text="false" :color="getUsageColor(cpuUsagePercent)" />
+            <el-progress
+              :percentage="cpuUsagePercent"
+              :stroke-width="6"
+              :show-text="false"
+              :color="getUsageColor(cpuUsagePercent)"
+            />
           </div>
-          <div class="metric-label">型号: {{ localServerInfo.cpuModel || 'Unknown' }}</div>
+          <div class="metric-label">
+            型号: {{ localServerInfo.cpuModel || 'Unknown' }}
+          </div>
         </el-card>
       </el-col>
 
@@ -87,16 +116,25 @@
             <el-icon><Coin /></el-icon>
             <span>内存使用</span>
           </div>
-          <div class="metric-value">{{ formatBytes(memoryInfo.used) }}</div>
+          <div class="metric-value">
+            {{ formatBytes(memoryInfo.used) }}
+          </div>
           <div class="metric-sub">
             <span>已用</span>
             <span class="divider">/</span>
             <span>{{ formatBytes(memoryInfo.total) }}</span>
           </div>
           <div class="metric-gauge">
-            <el-progress :percentage="memoryInfo.percent" :stroke-width="6" :show-text="false" :color="getUsageColor(memoryInfo.percent)" />
+            <el-progress
+              :percentage="memoryInfo.percent"
+              :stroke-width="6"
+              :show-text="false"
+              :color="getUsageColor(memoryInfo.percent)"
+            />
           </div>
-          <div class="metric-label">可用: {{ formatBytes(memoryInfo.available) }} ({{ (100 - memoryInfo.percent).toFixed(1) }}%)</div>
+          <div class="metric-label">
+            可用: {{ formatBytes(memoryInfo.available) }} ({{ (100 - memoryInfo.percent).toFixed(1) }}%)
+          </div>
         </el-card>
       </el-col>
 
@@ -107,16 +145,25 @@
             <el-icon><Folder /></el-icon>
             <span>磁盘使用</span>
           </div>
-          <div class="metric-value">{{ formatBytes(diskInfo.used) }}</div>
+          <div class="metric-value">
+            {{ formatBytes(diskInfo.used) }}
+          </div>
           <div class="metric-sub">
             <span>已用</span>
             <span class="divider">/</span>
             <span>{{ formatBytes(diskInfo.total) }}</span>
           </div>
           <div class="metric-gauge">
-            <el-progress :percentage="diskInfo.percent" :stroke-width="6" :show-text="false" :color="getUsageColor(diskInfo.percent)" />
+            <el-progress
+              :percentage="diskInfo.percent"
+              :stroke-width="6"
+              :show-text="false"
+              :color="getUsageColor(diskInfo.percent)"
+            />
           </div>
-          <div class="metric-label">可用: {{ formatBytes(diskInfo.available) }}</div>
+          <div class="metric-label">
+            可用: {{ formatBytes(diskInfo.available) }}
+          </div>
         </el-card>
       </el-col>
 
@@ -127,16 +174,25 @@
             <el-icon><Star /></el-icon>
             <span>GPU 使用</span>
           </div>
-          <div class="metric-value">{{ gpuInfo.used || 0 }}%</div>
+          <div class="metric-value">
+            {{ gpuInfo.used || 0 }}%
+          </div>
           <div class="metric-sub">
             <span>显存: {{ formatBytes(gpuInfo.memoryUsed) }}</span>
             <span class="divider">/</span>
             <span>{{ formatBytes(gpuInfo.memoryTotal) }}</span>
           </div>
           <div class="metric-gauge">
-            <el-progress :percentage="gpuInfo.used || 0" :stroke-width="6" :show-text="false" :color="getUsageColor(gpuInfo.used)" />
+            <el-progress
+              :percentage="gpuInfo.used || 0"
+              :stroke-width="6"
+              :show-text="false"
+              :color="getUsageColor(gpuInfo.used)"
+            />
           </div>
-          <div class="metric-label">型号: {{ localServerInfo.gpuModel || 'N/A' }}</div>
+          <div class="metric-label">
+            型号: {{ localServerInfo.gpuModel || 'N/A' }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -200,7 +256,14 @@
             </div>
           </template>
           <div v-loading="loading" style="height: 280px;">
-            <LineChart v-if="trendData.length > 0" :data="trendData" title="" yAxisName="使用率 (%)" height="260px" :colors="['#667eea', '#11998e']" />
+            <LineChart
+              v-if="trendData.length > 0"
+              :data="trendData"
+              title=""
+              y-axis-name="使用率 (%)"
+              height="260px"
+              :colors="['#667eea', '#11998e']"
+            />
             <el-empty v-else description="暂无趋势数据" :image-size="80" />
           </div>
         </el-card>
@@ -211,7 +274,12 @@
             <div class="card-header">
               <el-icon><DataLine /></el-icon>
               <span>历史记录</span>
-              <el-select v-model="period" size="small" style="margin-left: auto; width: 100px;" @change="fetchTrendData">
+              <el-select
+                v-model="period"
+                size="small"
+                style="margin-left: auto; width: 100px;"
+                @change="fetchTrendData"
+              >
                 <el-option label="5分钟" value="5m" />
                 <el-option label="1小时" value="1h" />
                 <el-option label="24小时" value="24h" />
@@ -220,7 +288,14 @@
             </div>
           </template>
           <div v-loading="loading" style="height: 280px;">
-            <LineChart v-if="diskTrendData.length > 0" :data="diskTrendData" title="" yAxisName="使用率 (%)" height="260px" :colors="['#f39c12', '#e74c3c']" />
+            <LineChart
+              v-if="diskTrendData.length > 0"
+              :data="diskTrendData"
+              title=""
+              y-axis-name="使用率 (%)"
+              height="260px"
+              :colors="['#f39c12', '#e74c3c']"
+            />
             <el-empty v-else description="暂无磁盘数据" :image-size="80" />
           </div>
         </el-card>
@@ -234,14 +309,22 @@
           <el-icon><List /></el-icon>
           <span>采集历史记录</span>
           <span class="record-count">共 {{ historyTotal }} 条</span>
-          <el-button type="primary" size="small" style="margin-left: auto;" @click="collectNow" :loading="collecting">
-            <el-icon style="margin-right: 4px;"><Refresh /></el-icon>
+          <el-button
+            type="primary"
+            size="small"
+            style="margin-left: auto;"
+            :loading="collecting"
+            @click="collectNow"
+          >
+            <el-icon style="margin-right: 4px;">
+              <Refresh />
+            </el-icon>
             立即采集
           </el-button>
         </div>
       </template>
 
-      <el-table :data="historyData" v-loading="loading" style="width: 100%">
+      <el-table v-loading="loading" :data="historyData" style="width: 100%">
         <el-table-column label="时间" min-width="180" fixed>
           <template #default="{ row }">
             <div class="time-cell">
@@ -253,7 +336,12 @@
         <el-table-column label="CPU" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <el-progress :percentage="row.cpuUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.cpuUsage)" />
+              <el-progress
+                :percentage="row.cpuUsage || 0"
+                :stroke-width="8"
+                :show-text="false"
+                :color="getUsageColor(row.cpuUsage)"
+              />
               <span class="usage-text">{{ (row.cpuUsage || 0).toFixed(1) }}%</span>
             </div>
           </template>
@@ -261,7 +349,12 @@
         <el-table-column label="内存" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <el-progress :percentage="row.memoryUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.memoryUsage)" />
+              <el-progress
+                :percentage="row.memoryUsage || 0"
+                :stroke-width="8"
+                :show-text="false"
+                :color="getUsageColor(row.memoryUsage)"
+              />
               <span class="usage-text">{{ (row.memoryUsage || 0).toFixed(1) }}%</span>
             </div>
           </template>
@@ -269,7 +362,12 @@
         <el-table-column label="磁盘" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <el-progress :percentage="row.diskUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.diskUsage)" />
+              <el-progress
+                :percentage="row.diskUsage || 0"
+                :stroke-width="8"
+                :show-text="false"
+                :color="getUsageColor(row.diskUsage)"
+              />
               <span class="usage-text">{{ (row.diskUsage || 0).toFixed(1) }}%</span>
             </div>
           </template>
@@ -277,7 +375,12 @@
         <el-table-column label="GPU" min-width="140" align="center">
           <template #default="{ row }">
             <div class="usage-cell">
-              <el-progress :percentage="row.gpuUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.gpuUsage)" />
+              <el-progress
+                :percentage="row.gpuUsage || 0"
+                :stroke-width="8"
+                :show-text="false"
+                :color="getUsageColor(row.gpuUsage)"
+              />
               <span class="usage-text">{{ (row.gpuUsage || 0).toFixed(1) }}%</span>
             </div>
           </template>

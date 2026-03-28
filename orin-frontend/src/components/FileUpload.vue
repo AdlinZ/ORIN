@@ -14,7 +14,9 @@
       drag
     >
       <div class="upload-content">
-        <el-icon class="upload-icon"><UploadFilled /></el-icon>
+        <el-icon class="upload-icon">
+          <UploadFilled />
+        </el-icon>
         <div class="upload-text">
           将文件拖到此处，或<em>点击上传</em>
         </div>

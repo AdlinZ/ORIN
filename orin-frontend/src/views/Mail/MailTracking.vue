@@ -24,7 +24,12 @@
         </div>
 
         <div class="filters">
-          <el-select v-model="filters.status" placeholder="状态筛选" clearable style="width: 140px;">
+          <el-select
+            v-model="filters.status"
+            placeholder="状态筛选"
+            clearable
+            style="width: 140px;"
+          >
             <el-option label="全部" value="" />
             <el-option label="发送中" value="sending" />
             <el-option label="发送成功" value="success" />
@@ -107,8 +112,18 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="to" label="收件人" min-width="150" show-overflow-tooltip />
-          <el-table-column prop="subject" label="主题" min-width="180" show-overflow-tooltip />
+          <el-table-column
+            prop="to"
+            label="收件人"
+            min-width="150"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="subject"
+            label="主题"
+            min-width="180"
+            show-overflow-tooltip
+          />
           <el-table-column label="发送时间" width="170">
             <template #default="{ row }">
               {{ formatDate(row.sentAt) }}
@@ -123,7 +138,12 @@
           </el-table-column>
           <el-table-column v-if="filters.status === 'failed'" label="建议" width="120">
             <template #default="{ row }">
-              <el-button size="small" type="primary" text @click="showSuggestion(row)">
+              <el-button
+                size="small"
+                type="primary"
+                text
+                @click="showSuggestion(row)"
+              >
                 查看建议
               </el-button>
             </template>
@@ -176,7 +196,9 @@
                 </el-tag>
                 <span class="timeline-to">{{ log.to }}</span>
               </div>
-              <div class="timeline-subject">{{ log.subject }}</div>
+              <div class="timeline-subject">
+                {{ log.subject }}
+              </div>
               <div v-if="log.status === 'failed'" class="timeline-error">
                 {{ log.errorMessage }}
               </div>
@@ -184,7 +206,9 @@
                 <el-button v-if="log.status === 'failed'" size="small" @click="retrySingle(log)">
                   重试
                 </el-button>
-                <el-button size="small" @click="viewDetail(log)">详情</el-button>
+                <el-button size="small" @click="viewDetail(log)">
+                  详情
+                </el-button>
               </div>
             </div>
           </el-timeline-item>
@@ -213,15 +237,15 @@
             </div>
             <div class="aggregate-stats">
               <div class="agg-stat">
-                <span class="dot success"></span>
+                <span class="dot success" />
                 成功: {{ stats.success }}
               </div>
               <div class="agg-stat">
-                <span class="dot failed"></span>
+                <span class="dot failed" />
                 失败: {{ stats.failed }}
               </div>
               <div class="agg-stat">
-                <span class="dot sending"></span>
+                <span class="dot sending" />
                 发送中: {{ stats.sending }}
               </div>
             </div>
@@ -250,14 +274,20 @@
     <!-- 详情对话框 -->
     <el-dialog v-model="detailVisible" title="发送详情" width="600px">
       <el-descriptions v-if="currentLog" :column="1" border>
-        <el-descriptions-item label="收件人">{{ currentLog.to }}</el-descriptions-item>
-        <el-descriptions-item label="主题">{{ currentLog.subject }}</el-descriptions-item>
+        <el-descriptions-item label="收件人">
+          {{ currentLog.to }}
+        </el-descriptions-item>
+        <el-descriptions-item label="主题">
+          {{ currentLog.subject }}
+        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(currentLog.status)">
             {{ getStatusText(currentLog.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="发送时间">{{ formatDate(currentLog.sentAt) }}</el-descriptions-item>
+        <el-descriptions-item label="发送时间">
+          {{ formatDate(currentLog.sentAt) }}
+        </el-descriptions-item>
         <el-descriptions-item v-if="currentLog.status === 'failed'" label="失败原因">
           {{ currentLog.errorMessage }}
         </el-descriptions-item>
@@ -266,7 +296,9 @@
         </el-descriptions-item>
       </el-descriptions>
       <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button @click="detailVisible = false">
+          关闭
+        </el-button>
         <el-button
           v-if="currentLog?.status === 'failed'"
           type="primary"
@@ -291,7 +323,9 @@
           <el-button type="primary" @click="applySuggestion(currentLog)">
             立即修复
           </el-button>
-          <el-button @click="suggestionVisible = false">关闭</el-button>
+          <el-button @click="suggestionVisible = false">
+            关闭
+          </el-button>
         </div>
       </div>
     </el-dialog>

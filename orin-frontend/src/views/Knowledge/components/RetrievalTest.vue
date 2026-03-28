@@ -10,8 +10,8 @@
         <el-input
           v-model="query"
           placeholder="请输入测试问题，例如：如何接入 Dify？"
-          @keyup.enter="handleSearch"
           clearable
+          @keyup.enter="handleSearch"
         >
           <template #append>
             <el-button :loading="loading" @click="handleSearch">
@@ -21,7 +21,7 @@
         </el-input>
       </div>
 
-      <div class="result-area" v-loading="loading">
+      <div v-loading="loading" class="result-area">
         <div v-if="results.length > 0" class="result-list">
           <div class="result-header">
             找到 {{ results.length }} 个相关分片 (Top {{ topK }})
@@ -34,7 +34,7 @@
             <div class="result-content">
               {{ item.content }}
             </div>
-            <div class="result-meta" v-if="item.metadata && Object.keys(item.metadata).length > 0">
+            <div v-if="item.metadata && Object.keys(item.metadata).length > 0" class="result-meta">
               <span v-for="(val, key) in item.metadata" :key="key" class="meta-tag">
                 {{ key }}: {{ val }}
               </span>
@@ -43,24 +43,34 @@
         </div>
         
         <el-empty 
-            v-else-if="searched" 
-            description="未找到相关内容" 
-            :image-size="100"
+          v-else-if="searched" 
+          description="未找到相关内容" 
+          :image-size="100"
         />
         
         <div v-else class="placeholder">
-          <el-icon :size="48" color="#dcdfe6"><Search /></el-icon>
+          <el-icon :size="48" color="#dcdfe6">
+            <Search />
+          </el-icon>
           <p>输入问题开始测试检索效果</p>
         </div>
       </div>
     </div>
     
     <template #footer>
-        <div class="dialog-footer">
-            <span>Top K: </span>
-            <el-input-number v-model="topK" :min="1" :max="10" size="small" style="width: 100px; margin-right: 20px" />
-            <el-button @click="visible = false">关闭</el-button>
-        </div>
+      <div class="dialog-footer">
+        <span>Top K: </span>
+        <el-input-number
+          v-model="topK"
+          :min="1"
+          :max="10"
+          size="small"
+          style="width: 100px; margin-right: 20px"
+        />
+        <el-button @click="visible = false">
+          关闭
+        </el-button>
+      </div>
     </template>
   </el-dialog>
 </template>

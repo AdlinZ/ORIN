@@ -40,12 +40,14 @@
             <template #header>
               <div class="card-header">
                 <span>{{ activeCategory ? activeCategory : '全部文章' }}</span>
-                <el-tag v-if="totalCount > 0" type="info" size="small">{{ totalCount }} 篇</el-tag>
+                <el-tag v-if="totalCount > 0" type="info" size="small">
+                  {{ totalCount }} 篇
+                </el-tag>
               </div>
             </template>
 
             <div v-loading="loading">
-              <el-table :data="articles" v-if="articles.length > 0">
+              <el-table v-if="articles.length > 0" :data="articles">
                 <el-table-column label="标题" min-width="200">
                   <template #default="{ row }">
                     <el-link type="primary" @click="viewArticle(row)">
@@ -92,7 +94,9 @@
             <div class="article-content">
               <h1>{{ selectedArticle.title }}</h1>
               <div class="article-meta">
-                <el-tag size="small">{{ selectedArticle.category }}</el-tag>
+                <el-tag size="small">
+                  {{ selectedArticle.category }}
+                </el-tag>
                 <span class="meta-item">
                   <el-icon><View /></el-icon>
                   {{ selectedArticle.viewCount }} 次阅读
@@ -104,7 +108,7 @@
 
               <el-divider />
 
-              <div class="markdown-body" v-html="renderContent(selectedArticle.content)"></div>
+              <div class="markdown-body" v-html="renderContent(selectedArticle.content)" />
             </div>
           </el-card>
         </div>

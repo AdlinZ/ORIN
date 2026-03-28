@@ -7,14 +7,23 @@
       </el-badge>
     </div>
     
-    <div class="alerts-list" v-if="alerts.length > 0">
-      <div class="alert-item" v-for="alert in displayAlerts" :key="alert.id" :class="`severity-${alert.severity}`">
+    <div v-if="alerts.length > 0" class="alerts-list">
+      <div
+        v-for="alert in displayAlerts"
+        :key="alert.id"
+        class="alert-item"
+        :class="`severity-${alert.severity}`"
+      >
         <div class="alert-icon">
           <el-icon><WarningFilled /></el-icon>
         </div>
         <div class="alert-content">
-          <div class="alert-title">{{ alert.title }}</div>
-          <div class="alert-time">{{ alert.time }}</div>
+          <div class="alert-title">
+            {{ alert.title }}
+          </div>
+          <div class="alert-time">
+            {{ alert.time }}
+          </div>
         </div>
         <el-tag :type="getSeverityType(alert.severity)" size="small">
           {{ alert.severity }}

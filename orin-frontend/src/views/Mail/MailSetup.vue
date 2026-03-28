@@ -46,18 +46,30 @@
             <!-- 步骤指示器 -->
             <div class="config-steps">
               <div class="step-item" :class="{ active: configStep === 1, completed: configStep > 1 }">
-                <div class="step-number">1</div>
-                <div class="step-text">选择通道</div>
+                <div class="step-number">
+                  1
+                </div>
+                <div class="step-text">
+                  选择通道
+                </div>
               </div>
-              <div class="step-line" :class="{ active: configStep > 1 }"></div>
+              <div class="step-line" :class="{ active: configStep > 1 }" />
               <div class="step-item" :class="{ active: configStep === 2, completed: configStep > 2 }">
-                <div class="step-number">2</div>
-                <div class="step-text">填写凭据</div>
+                <div class="step-number">
+                  2
+                </div>
+                <div class="step-text">
+                  填写凭据
+                </div>
               </div>
-              <div class="step-line" :class="{ active: configStep > 2 }"></div>
+              <div class="step-line" :class="{ active: configStep > 2 }" />
               <div class="step-item" :class="{ active: configStep === 3 }">
-                <div class="step-number">3</div>
-                <div class="step-text">验证配置</div>
+                <div class="step-number">
+                  3
+                </div>
+                <div class="step-text">
+                  验证配置
+                </div>
               </div>
             </div>
 
@@ -71,14 +83,16 @@
                 >
                   <div class="mailer-icon mailersend-icon">
                     <svg viewBox="0 0 24 24" width="40" height="40">
-                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
                     </svg>
                   </div>
                   <div class="mailer-info">
                     <h4>MailerSend API</h4>
                     <p>推荐 · 更快速、更可靠</p>
                   </div>
-                  <el-icon v-if="mailConfigForm.mailerType === 'mailersend'" class="check-icon"><CircleCheck /></el-icon>
+                  <el-icon v-if="mailConfigForm.mailerType === 'mailersend'" class="check-icon">
+                    <CircleCheck />
+                  </el-icon>
                 </div>
 
                 <div
@@ -87,13 +101,17 @@
                   @click="selectMailer('smtp')"
                 >
                   <div class="mailer-icon smtp-icon">
-                    <el-icon :size="40"><MessageBox /></el-icon>
+                    <el-icon :size="40">
+                      <MessageBox />
+                    </el-icon>
                   </div>
                   <div class="mailer-info">
                     <h4>SMTP</h4>
                     <p>通用 · 兼容各种邮件服务</p>
                   </div>
-                  <el-icon v-if="mailConfigForm.mailerType === 'smtp'" class="check-icon"><CircleCheck /></el-icon>
+                  <el-icon v-if="mailConfigForm.mailerType === 'smtp'" class="check-icon">
+                    <CircleCheck />
+                  </el-icon>
                 </div>
 
                 <div
@@ -103,19 +121,21 @@
                 >
                   <div class="mailer-icon resend-icon">
                     <svg viewBox="0 0 24 24" width="40" height="40">
-                      <path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                      <path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                     </svg>
                   </div>
                   <div class="mailer-info">
                     <h4>Resend</h4>
                     <p>现代 · 开发者友好</p>
                   </div>
-                  <el-icon v-if="mailConfigForm.mailerType === 'resend'" class="check-icon"><CircleCheck /></el-icon>
+                  <el-icon v-if="mailConfigForm.mailerType === 'resend'" class="check-icon">
+                    <CircleCheck />
+                  </el-icon>
                 </div>
               </div>
 
               <div class="step-actions">
-                <el-button type="primary" @click="configStep = 2" :disabled="!mailConfigForm.mailerType">
+                <el-button type="primary" :disabled="!mailConfigForm.mailerType" @click="configStep = 2">
                   下一步 <el-icon><ArrowRight /></el-icon>
                 </el-button>
               </div>
@@ -183,7 +203,12 @@
                   </el-form-item>
 
                   <el-form-item label="密码">
-                    <el-input v-model="mailConfigForm.smtpPassword" type="password" show-password placeholder="密码">
+                    <el-input
+                      v-model="mailConfigForm.smtpPassword"
+                      type="password"
+                      show-password
+                      placeholder="密码"
+                    >
                       <template #prefix>
                         <el-icon><Lock /></el-icon>
                       </template>
@@ -216,7 +241,7 @@
                 <el-button @click="configStep = 1">
                   <el-icon><ArrowLeft /></el-icon> 上一步
                 </el-button>
-                <el-button type="primary" @click="configStep = 3" :disabled="!canProceedStep2">
+                <el-button type="primary" :disabled="!canProceedStep2" @click="configStep = 3">
                   下一步 <el-icon><ArrowRight /></el-icon>
                 </el-button>
               </div>
@@ -280,7 +305,7 @@
                 <el-button @click="configStep = 2">
                   <el-icon><ArrowLeft /></el-icon> 上一步
                 </el-button>
-                <el-button type="primary" @click="saveAndTest" :loading="testingConnection">
+                <el-button type="primary" :loading="testingConnection" @click="saveAndTest">
                   <el-icon><Check /></el-icon> 保存配置
                 </el-button>
               </div>
@@ -296,28 +321,40 @@
             </template>
             <div class="next-actions">
               <div class="next-action" @click="goToCompose">
-                <el-icon :size="32"><EditPen /></el-icon>
+                <el-icon :size="32">
+                  <EditPen />
+                </el-icon>
                 <div class="next-action-content">
                   <h4>发送邮件</h4>
                   <p>撰写并发送邮件</p>
                 </div>
-                <el-icon class="arrow"><ArrowRight /></el-icon>
+                <el-icon class="arrow">
+                  <ArrowRight />
+                </el-icon>
               </div>
               <div class="next-action" @click="goToTemplates">
-                <el-icon :size="32"><Document /></el-icon>
+                <el-icon :size="32">
+                  <Document />
+                </el-icon>
                 <div class="next-action-content">
                   <h4>管理模板</h4>
                   <p>创建和编辑邮件模板</p>
                 </div>
-                <el-icon class="arrow"><ArrowRight /></el-icon>
+                <el-icon class="arrow">
+                  <ArrowRight />
+                </el-icon>
               </div>
               <div class="next-action" @click="goToTracking">
-                <el-icon :size="32"><List /></el-icon>
+                <el-icon :size="32">
+                  <List />
+                </el-icon>
                 <div class="next-action-content">
                   <h4>查看发送日志</h4>
                   <p>追踪邮件发送状态</p>
                 </div>
-                <el-icon class="arrow"><ArrowRight /></el-icon>
+                <el-icon class="arrow">
+                  <ArrowRight />
+                </el-icon>
               </div>
             </div>
           </el-card>
@@ -328,7 +365,7 @@
           <NotificationChannelsPanel
             :mail-connected="mailConnected"
             :require-mail-connected-for-email-test="true"
-            mail-dependency-text='邮件通知依赖于"邮件服务"标签页中配置的 SMTP 服务器'
+            mail-dependency-text="邮件通知依赖于&quot;邮件服务&quot;标签页中配置的 SMTP 服务器"
           />
         </el-tab-pane>
       </el-tabs>
@@ -353,7 +390,9 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="testMailDialogVisible = false">取消</el-button>
+        <el-button @click="testMailDialogVisible = false">
+          取消
+        </el-button>
         <el-button type="primary" :loading="sendingTest" @click="sendTestMailFromDialog">
           发送
         </el-button>

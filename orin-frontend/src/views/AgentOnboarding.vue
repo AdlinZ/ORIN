@@ -16,13 +16,13 @@
           :class="{ 'active': currentStepIndex >= index }"
         >
           <div class="step-icon-wrapper">
-             <el-icon><component :is="step.icon" /></el-icon>
+            <el-icon><component :is="step.icon" /></el-icon>
           </div>
           <div class="step-text">
             <span class="step-label">Step 0{{ index + 1 }}</span>
             <span class="step-name">{{ step.title }}</span>
           </div>
-          <div v-if="index < guideSteps.length - 1" class="step-line"></div>
+          <div v-if="index < guideSteps.length - 1" class="step-line" />
         </div>
       </div>
 
@@ -53,8 +53,12 @@
                   <component :is="provider.icon" />
                 </el-icon>
                 <div class="provider-info">
-                  <div class="provider-label">{{ provider.label }}</div>
-                  <div class="provider-desc">{{ provider.description }}</div>
+                  <div class="provider-label">
+                    {{ provider.label }}
+                  </div>
+                  <div class="provider-desc">
+                    {{ provider.description }}
+                  </div>
                 </div>
               </div>
             </el-option>
@@ -562,7 +566,6 @@
               </template>
             </el-input>
           </el-form-item>
-
         </template>
 
         <template v-else-if="form.providerType === 'minimax'">
@@ -742,36 +745,40 @@
         <div v-if="form.providerType" class="action-bar" style="margin-top: var(--spacing-2xl); gap: var(--spacing-md);">
           <el-button 
             type="primary" 
-            @click="testConnection" 
-            :loading="testLoading"
+            :loading="testLoading" 
             size="large"
+            @click="testConnection"
           >
-            <el-icon v-if="!testLoading"><Connection /></el-icon>
+            <el-icon v-if="!testLoading">
+              <Connection />
+            </el-icon>
             {{ testLoading ? '测试连接中...' : '测试连接' }}
           </el-button>
           
           <el-button 
             type="success" 
-            @click="onSubmit" 
-            :loading="loading"
+            :loading="loading" 
             size="large"
+            @click="onSubmit"
           >
-            <el-icon v-if="!loading"><Check /></el-icon>
+            <el-icon v-if="!loading">
+              <Check />
+            </el-icon>
             立即接入
           </el-button>
           
-          <el-button @click="handleReset" size="large">
+          <el-button size="large" @click="handleReset">
             <el-icon><RefreshLeft /></el-icon>
             重置
           </el-button>
           
-          <el-button @click="$router.back()" size="large">
+          <el-button size="large" @click="$router.back()">
             取消
           </el-button>
         </div>
 
         <div v-else class="action-bar" style="margin-top: var(--spacing-2xl);">
-          <el-button @click="$router.back()" size="large">
+          <el-button size="large" @click="$router.back()">
             取消并返回列表
           </el-button>
         </div>

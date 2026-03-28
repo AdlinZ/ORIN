@@ -19,18 +19,20 @@
             </template>
           </el-input>
           <el-button-group>
-            <el-button @click="expandAll" title="展开全部">
+            <el-button title="展开全部" @click="expandAll">
               <el-icon><ArrowDown /></el-icon>
             </el-button>
-            <el-button @click="collapseAll" title="收起全部">
+            <el-button title="收起全部" @click="collapseAll">
               <el-icon><ArrowUp /></el-icon>
             </el-button>
           </el-button-group>
-          <el-button @click="loadDepartments" title="刷新">
+          <el-button title="刷新" @click="loadDepartments">
             <el-icon><Refresh /></el-icon>
           </el-button>
           <el-button type="primary" @click="handleCreateRoot">
-            <el-icon class="mr-1"><Plus /></el-icon>
+            <el-icon class="mr-1">
+              <Plus />
+            </el-icon>
             创建顶级部门
           </el-button>
         </div>
@@ -45,7 +47,7 @@
         </div>
 
         <!-- 统计胶囊 -->
-        <div class="stats-capsules" v-if="stats.total > 0">
+        <div v-if="stats.total > 0" class="stats-capsules">
           <div class="capsule">
             <span class="capsule-value">{{ stats.total }}</span>
             <span class="capsule-label">部门</span>
@@ -60,7 +62,7 @@
           </div>
         </div>
 
-        <div class="tree-content" v-loading="loading">
+        <div v-loading="loading" class="tree-content">
           <el-tree
             ref="treeRef"
             :data="filteredTreeData"
@@ -74,20 +76,30 @@
             <template #default="{ node, data }">
               <div class="tree-node" :class="{ 'is-selected': selectedDepartment?.departmentId === data.departmentId }">
                 <div class="node-info">
-                  <span class="status-dot" :class="data.status === 'ENABLED' ? 'enabled' : 'disabled'"></span>
+                  <span class="status-dot" :class="data.status === 'ENABLED' ? 'enabled' : 'disabled'" />
                   <span class="node-label">{{ data.departmentName }}</span>
-                  <span class="child-count" v-if="data.children && data.children.length > 0">
+                  <span v-if="data.children && data.children.length > 0" class="child-count">
                     {{ data.children.length }}
                   </span>
                 </div>
                 <div class="node-actions">
                   <el-tooltip content="新增子部门" placement="top">
-                    <el-button link type="primary" size="small" @click.stop="handleAddChild(data)">
+                    <el-button
+                      link
+                      type="primary"
+                      size="small"
+                      @click.stop="handleAddChild(data)"
+                    >
                       <el-icon><Plus /></el-icon>
                     </el-button>
                   </el-tooltip>
                   <el-tooltip content="编辑" placement="top">
-                    <el-button link type="primary" size="small" @click.stop="handleEdit(data)">
+                    <el-button
+                      link
+                      type="primary"
+                      size="small"
+                      @click.stop="handleEdit(data)"
+                    >
                       <el-icon><Edit /></el-icon>
                     </el-button>
                   </el-tooltip>
@@ -99,8 +111,8 @@
                       link
                       type="danger"
                       size="small"
-                      @click.stop="handleDelete(data)"
                       :disabled="data.children && data.children.length > 0"
+                      @click.stop="handleDelete(data)"
                     >
                       <el-icon><Delete /></el-icon>
                     </el-button>
@@ -115,7 +127,9 @@
               <div class="empty-tip">
                 <p>暂无部门组织</p>
                 <el-button type="primary" size="small" @click="handleCreateRoot">
-                  <el-icon class="mr-1"><Plus /></el-icon>
+                  <el-icon class="mr-1">
+                    <Plus />
+                  </el-icon>
                   创建第一个部门
                 </el-button>
               </div>
@@ -125,19 +139,23 @@
       </div>
 
       <!-- 右侧部门详情 -->
-      <div class="detail-panel premium-card" v-if="selectedDepartment">
+      <div v-if="selectedDepartment" class="detail-panel premium-card">
         <div class="panel-header">
           <div class="header-title">
-            <span class="status-dot large" :class="selectedDepartment.status === 'ENABLED' ? 'enabled' : 'disabled'"></span>
+            <span class="status-dot large" :class="selectedDepartment.status === 'ENABLED' ? 'enabled' : 'disabled'" />
             <span>{{ selectedDepartment.departmentName }}</span>
           </div>
           <div class="header-actions">
             <el-button type="primary" @click="handleAddChild(selectedDepartment)">
-              <el-icon class="mr-1"><Plus /></el-icon>
+              <el-icon class="mr-1">
+                <Plus />
+              </el-icon>
               新增子部门
             </el-button>
             <el-button @click="handleEdit(selectedDepartment)">
-              <el-icon class="mr-1"><Edit /></el-icon>
+              <el-icon class="mr-1">
+                <Edit />
+              </el-icon>
               编辑
             </el-button>
           </div>
@@ -147,14 +165,18 @@
           <!-- 概览卡片 -->
           <div class="overview-card">
             <div class="overview-item">
-              <el-icon class="overview-icon"><OfficeBuilding /></el-icon>
+              <el-icon class="overview-icon">
+                <OfficeBuilding />
+              </el-icon>
               <div class="overview-info">
                 <span class="overview-value">{{ selectedDepartment.departmentCode }}</span>
                 <span class="overview-label">部门编码</span>
               </div>
             </div>
             <div class="overview-item">
-              <el-icon class="overview-icon"><Clock /></el-icon>
+              <el-icon class="overview-icon">
+                <Clock />
+              </el-icon>
               <div class="overview-info">
                 <span class="overview-value">{{ formatDate(selectedDepartment.createTime) }}</span>
                 <span class="overview-label">创建时间</span>
@@ -170,7 +192,9 @@
 
           <!-- 基础信息 -->
           <div class="info-section">
-            <div class="section-title">基础信息</div>
+            <div class="section-title">
+              基础信息
+            </div>
             <div class="info-grid">
               <div class="info-item">
                 <span class="info-label">部门负责人</span>
@@ -192,27 +216,29 @@
           </div>
 
           <!-- 描述/元信息 -->
-          <div class="info-section" v-if="selectedDepartment.description">
-            <div class="section-title">部门描述</div>
+          <div v-if="selectedDepartment.description" class="info-section">
+            <div class="section-title">
+              部门描述
+            </div>
             <div class="description-content">
               {{ selectedDepartment.description }}
             </div>
           </div>
 
           <!-- 子部门信息 -->
-          <div class="info-section" v-if="selectedDepartment.children && selectedDepartment.children.length > 0">
+          <div v-if="selectedDepartment.children && selectedDepartment.children.length > 0" class="info-section">
             <div class="section-title">
               下级部门
               <span class="section-count">{{ selectedDepartment.children.length }}</span>
             </div>
             <div class="children-list">
               <div
-                class="child-item"
                 v-for="child in selectedDepartment.children"
                 :key="child.departmentId"
+                class="child-item"
                 @click="handleNodeClick(child)"
               >
-                <span class="status-dot small" :class="child.status === 'ENABLED' ? 'enabled' : 'disabled'"></span>
+                <span class="status-dot small" :class="child.status === 'ENABLED' ? 'enabled' : 'disabled'" />
                 <span class="child-name">{{ child.departmentName }}</span>
                 <el-tag size="small" :type="child.status === 'ENABLED' ? 'success' : 'danger'">
                   {{ child.status === 'ENABLED' ? '启用' : '禁用' }}
@@ -223,12 +249,16 @@
         </div>
       </div>
 
-      <div class="detail-panel premium-card empty" v-else>
+      <div v-else class="detail-panel premium-card empty">
         <el-empty>
           <template #description>
             <div class="empty-detail">
-              <p class="empty-title">请选择部门查看详情</p>
-              <p class="empty-tip">可从左侧选择部门，或创建顶级部门开始搭建组织结构</p>
+              <p class="empty-title">
+                请选择部门查看详情
+              </p>
+              <p class="empty-tip">
+                可从左侧选择部门，或创建顶级部门开始搭建组织结构
+              </p>
             </div>
           </template>
         </el-empty>
@@ -250,7 +280,7 @@
         label-position="top"
         class="custom-form"
       >
-        <el-form-item label="上级部门" v-if="!isRoot && !isEdit">
+        <el-form-item v-if="!isRoot && !isEdit" label="上级部门">
           <el-input :value="parentDepartmentName" disabled />
         </el-form-item>
 
@@ -266,7 +296,9 @@
             @input="handleCodeInput"
           >
             <template #prefix>
-              <el-tag size="small" type="info">自动转大写</el-tag>
+              <el-tag size="small" type="info">
+                自动转大写
+              </el-tag>
             </template>
           </el-input>
         </el-form-item>
@@ -304,8 +336,10 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button @click="dialogVisible = false">
+            取消
+          </el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">
             确认{{ isEdit ? '更新' : '创建' }}
           </el-button>
         </div>

@@ -10,7 +10,7 @@
 
     <div class="right-panel">
       <!-- Teleport target for page-specific actions -->
-      <div id="navbar-actions" class="navbar-actions"></div>
+      <div id="navbar-actions" class="navbar-actions" />
 
       <div class="action-items">
         <el-tooltip :content="isDark ? '切换亮色模式' : '切换暗黑模式'" placement="bottom">
@@ -21,7 +21,9 @@
         </el-tooltip>
 
         <el-tooltip content="全屏切换" placement="bottom">
-          <el-icon class="action-icon" @click="toggleFullScreen"><FullScreen /></el-icon>
+          <el-icon class="action-icon" @click="toggleFullScreen">
+            <FullScreen />
+          </el-icon>
         </el-tooltip>
 
         <el-tooltip content="刷新当前页面" placement="bottom">
@@ -30,123 +32,144 @@
           </el-icon>
         </el-tooltip>
 
-        <div class="divider"></div>
+        <div class="divider" />
 
         <el-tooltip content="系统 AI 评估 (System Evaluation)" placement="bottom">
-            <div class="system-ai-trigger" @click="showSystemEval = true">
-                <el-icon><DataAnalysis /></el-icon>
-                <span class="trigger-text">AI Eval</span>
-            </div>
+          <div class="system-ai-trigger" @click="showSystemEval = true">
+            <el-icon><DataAnalysis /></el-icon>
+            <span class="trigger-text">AI Eval</span>
+          </div>
         </el-tooltip>
       </div>
     </div>
     <!-- System AI Evaluation Dialog -->
     <el-dialog 
-        v-model="showSystemEval" 
-        :show-close="false"
-        :header="null"
-        width="900px" 
-        class="orin-core-dialog"
-        :close-on-click-modal="false"
-        append-to-body
-        @open="initSystemAI"
-        align-center
+      v-model="showSystemEval" 
+      :show-close="false"
+      :header="null"
+      width="900px" 
+      class="orin-core-dialog"
+      :close-on-click-modal="false"
+      append-to-body
+      align-center
+      @open="initSystemAI"
     >
-        <template #header="{ close, titleId, titleClass }">
-            <div class="core-header">
-                <div class="header-left">
-                    <div class="core-logo">
-                        <el-icon><Cpu /></el-icon>
-                    </div>
-                    <div class="core-title">ORIN CORE</div>
-                    <div class="header-tags">
-                        <div class="core-tag">SYSADMIN MODE</div>
-                        <div class="core-tag da">V.ALPHA</div>
-                    </div>
-                </div>
-                <div class="header-right">
-                    <div class="sys-status">
-                        <div class="status-dot"></div>
-                        <span>SYSTEM_OK</span>
-                    </div>
-                    <el-icon class="close-icon" @click="showSystemEval = false"><Close /></el-icon>
-                </div>
+      <template #header="{ close, titleId, titleClass }">
+        <div class="core-header">
+          <div class="header-left">
+            <div class="core-logo">
+              <el-icon><Cpu /></el-icon>
             </div>
-        </template>
-
-        <div class="orin-terminal-container">
-            <!-- Main Chat Area -->
-            <div class="terminal-body" ref="chatScrollRef">
-                
-                <!-- Welcome / AI Message Block -->
-                <div v-for="(msg, index) in systemMessages" :key="index" class="terminal-msg-row" :class="msg.role">
-                    <div class="t-avatar" v-if="msg.role === 'ai'">
-                        <el-icon><help-filled /></el-icon> <!-- Robot/Help icon -->
-                    </div>
-                    
-                    <div class="t-content-group">
-                        <div class="t-sender-name" v-if="msg.role === 'ai'">ORIN AI ASSISTANT</div>
-                        
-                        <div class="t-msg-card">
-                            <div class="marketing-text" v-if="msg.role === 'ai' && index === 0">
-                                系统初始化已完成。我是您的系统级 AI 管理助手。<br/><br/>
-                                您可以询问关于系统硬件、软件配置的问题，或者要求我执行脚本、清理日志等操作。
-                            </div>
-                            <div class="markdown-body" v-else v-html="renderMarkdown(msg.content)"></div>
-
-                            <!-- Quick Actions (Only for first message) -->
-                            <div class="quick-actions" v-if="msg.role === 'ai' && index === 0">
-                                <div class="q-btn" @click="quickCommand('查看系统资源占用')">
-                                    <el-icon><Odometer /></el-icon>
-                                    <span>查看系统资源占用</span>
-                                </div>
-                                <div class="q-btn" @click="quickCommand('分析最近的错误日志')">
-                                    <el-icon><DocumentChecked /></el-icon>
-                                    <span>分析最近的错误日志</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Loading Indicator -->
-                <div v-if="systemLoading" class="terminal-msg-row ai">
-                    <div class="t-avatar"><el-icon class="is-loading"><Loading /></el-icon></div>
-                    <div class="t-content-group">
-                        <div class="t-sender-name">ORIN AI ASSISTANT</div>
-                        <div class="t-msg-card typing">
-                            _COMPUTING...
-                        </div>
-                    </div>
-                </div>
-
+            <div class="core-title">
+              ORIN CORE
             </div>
-
-             <!-- Floating Input Command Bar -->
-             <div class="terminal-footer">
-                <div class="command-bar">
-                    <div class="cmd-prompt">$</div>
-                    <input 
-                        v-model="systemInput" 
-                        class="cmd-input"
-                        placeholder="输入管理指令或询问系统状态 ..." 
-                        @keyup.enter="sendSystemMessage"
-                        :disabled="systemLoading"
-                    />
-                    <div class="cmd-actions">
-                        <span class="cmd-hint">ENTER</span>
-                        <button class="run-btn" @click="sendSystemMessage" :disabled="systemLoading">
-                            RUN
-                        </button>
-                    </div>
-                </div>
-                <div class="cmd-statusbar">
-                    <span>READY_FOR_COMMAND</span>
-                    <span class="secure"><el-icon><Lock /></el-icon> ENCRYPTED</span>
-                    <span>ROOT_ACCESS</span>
-                </div>
-             </div>
+            <div class="header-tags">
+              <div class="core-tag">
+                SYSADMIN MODE
+              </div>
+              <div class="core-tag da">
+                V.ALPHA
+              </div>
+            </div>
+          </div>
+          <div class="header-right">
+            <div class="sys-status">
+              <div class="status-dot" />
+              <span>SYSTEM_OK</span>
+            </div>
+            <el-icon class="close-icon" @click="showSystemEval = false">
+              <Close />
+            </el-icon>
+          </div>
         </div>
+      </template>
+
+      <div class="orin-terminal-container">
+        <!-- Main Chat Area -->
+        <div ref="chatScrollRef" class="terminal-body">
+          <!-- Welcome / AI Message Block -->
+          <div
+            v-for="(msg, index) in systemMessages"
+            :key="index"
+            class="terminal-msg-row"
+            :class="msg.role"
+          >
+            <div v-if="msg.role === 'ai'" class="t-avatar">
+              <el-icon><help-filled /></el-icon> <!-- Robot/Help icon -->
+            </div>
+                    
+            <div class="t-content-group">
+              <div v-if="msg.role === 'ai'" class="t-sender-name">
+                ORIN AI ASSISTANT
+              </div>
+                        
+              <div class="t-msg-card">
+                <div v-if="msg.role === 'ai' && index === 0" class="marketing-text">
+                  系统初始化已完成。我是您的系统级 AI 管理助手。<br><br>
+                  您可以询问关于系统硬件、软件配置的问题，或者要求我执行脚本、清理日志等操作。
+                </div>
+                <div v-else class="markdown-body" v-html="renderMarkdown(msg.content)" />
+
+                <!-- Quick Actions (Only for first message) -->
+                <div v-if="msg.role === 'ai' && index === 0" class="quick-actions">
+                  <div class="q-btn" @click="quickCommand('查看系统资源占用')">
+                    <el-icon><Odometer /></el-icon>
+                    <span>查看系统资源占用</span>
+                  </div>
+                  <div class="q-btn" @click="quickCommand('分析最近的错误日志')">
+                    <el-icon><DocumentChecked /></el-icon>
+                    <span>分析最近的错误日志</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loading Indicator -->
+          <div v-if="systemLoading" class="terminal-msg-row ai">
+            <div class="t-avatar">
+              <el-icon class="is-loading">
+                <Loading />
+              </el-icon>
+            </div>
+            <div class="t-content-group">
+              <div class="t-sender-name">
+                ORIN AI ASSISTANT
+              </div>
+              <div class="t-msg-card typing">
+                _COMPUTING...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Input Command Bar -->
+        <div class="terminal-footer">
+          <div class="command-bar">
+            <div class="cmd-prompt">
+              $
+            </div>
+            <input 
+              v-model="systemInput" 
+              class="cmd-input"
+              placeholder="输入管理指令或询问系统状态 ..." 
+              :disabled="systemLoading"
+              @keyup.enter="sendSystemMessage"
+            >
+            <div class="cmd-actions">
+              <span class="cmd-hint">ENTER</span>
+              <button class="run-btn" :disabled="systemLoading" @click="sendSystemMessage">
+                RUN
+              </button>
+            </div>
+          </div>
+          <div class="cmd-statusbar">
+            <span>READY_FOR_COMMAND</span>
+            <span class="secure"><el-icon><Lock /></el-icon> ENCRYPTED</span>
+            <span>ROOT_ACCESS</span>
+          </div>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>

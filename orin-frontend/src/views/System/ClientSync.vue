@@ -13,7 +13,9 @@
           <template #header>
             <div class="card-header">
               <span>变更记录查询</span>
-              <el-button :icon="Refresh" @click="loadChanges" :loading="changesLoading">刷新</el-button>
+              <el-button :icon="Refresh" :loading="changesLoading" @click="loadChanges">
+                刷新
+              </el-button>
             </div>
           </template>
 
@@ -22,13 +24,25 @@
               <el-input v-model="agentIdInput" placeholder="输入 Agent ID" clearable />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="loadChanges">查询</el-button>
+              <el-button type="primary" @click="loadChanges">
+                查询
+              </el-button>
             </el-form-item>
           </el-form>
 
-          <el-table :data="changes" v-loading="changesLoading" stripe>
-            <el-table-column prop="documentId" label="文档ID" width="200" show-overflow-tooltip />
-            <el-table-column prop="knowledgeBaseId" label="知识库ID" width="150" show-overflow-tooltip />
+          <el-table v-loading="changesLoading" :data="changes" stripe>
+            <el-table-column
+              prop="documentId"
+              label="文档ID"
+              width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="knowledgeBaseId"
+              label="知识库ID"
+              width="150"
+              show-overflow-tooltip
+            />
             <el-table-column prop="changeType" label="变更类型" width="100">
               <template #default="{ row }">
                 <el-tag :type="getChangeTypeTag(row.changeType)" size="small">
@@ -37,7 +51,12 @@
               </template>
             </el-table-column>
             <el-table-column prop="version" label="版本" width="80" />
-            <el-table-column prop="contentHash" label="Hash" width="150" show-overflow-tooltip />
+            <el-table-column
+              prop="contentHash"
+              label="Hash"
+              width="150"
+              show-overflow-tooltip
+            />
             <el-table-column prop="changedAt" label="变更时间" width="180">
               <template #default="{ row }">
                 {{ formatDateTime(row.changedAt) }}
@@ -73,23 +92,39 @@
             <div class="card-header">
               <span>最近同步记录</span>
               <div>
-                <el-button type="primary" size="small" @click="handleFullSync" :loading="syncing">
+                <el-button
+                  type="primary"
+                  size="small"
+                  :loading="syncing"
+                  @click="handleFullSync"
+                >
                   全量同步
                 </el-button>
-                <el-button type="success" size="small" @click="handleIncrementalSync" :loading="syncing">
+                <el-button
+                  type="success"
+                  size="small"
+                  :loading="syncing"
+                  @click="handleIncrementalSync"
+                >
                   增量同步
                 </el-button>
               </div>
             </div>
           </template>
 
-          <el-descriptions :column="3" border v-if="checkpointData">
-            <el-descriptions-item label="Agent ID">{{ checkpointData.agentId }}</el-descriptions-item>
+          <el-descriptions v-if="checkpointData" :column="3" border>
+            <el-descriptions-item label="Agent ID">
+              {{ checkpointData.agentId }}
+            </el-descriptions-item>
             <el-descriptions-item label="最新检查点">
-              <el-tag type="success">{{ checkpointData.checkpoint || '暂无' }}</el-tag>
+              <el-tag type="success">
+                {{ checkpointData.checkpoint || '暂无' }}
+              </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="待同步变更">
-              <el-tag type="warning">{{ pendingCount }}</el-tag>
+              <el-tag type="warning">
+                {{ pendingCount }}
+              </el-tag>
             </el-descriptions-item>
           </el-descriptions>
 
@@ -124,15 +159,22 @@
           <template #header>
             <div class="card-header">
               <span>Webhook 配置</span>
-              <el-button type="primary" size="small" @click="showWebhookDialog = true">添加</el-button>
+              <el-button type="primary" size="small" @click="showWebhookDialog = true">
+                添加
+              </el-button>
             </div>
           </template>
 
-          <el-table :data="webhooks" v-loading="webhooksLoading">
+          <el-table v-loading="webhooksLoading" :data="webhooks">
             <el-table-column prop="webhookUrl" label="URL" show-overflow-tooltip />
             <el-table-column prop="eventTypes" label="事件类型" width="200">
               <template #default="{ row }">
-                <el-tag v-for="event in (row.eventTypes || '').split(',')" :key="event" size="small" class="event-tag">
+                <el-tag
+                  v-for="event in (row.eventTypes || '').split(',')"
+                  :key="event"
+                  size="small"
+                  class="event-tag"
+                >
                   {{ event }}
                 </el-tag>
               </template>
@@ -156,10 +198,23 @@
             </el-table-column>
             <el-table-column label="操作" width="180">
               <template #default="{ row }">
-                <el-button v-if="row.disabled" type="primary" size="small" text @click="handleReenableWebhook(row.id)">
+                <el-button
+                  v-if="row.disabled"
+                  type="primary"
+                  size="small"
+                  text
+                  @click="handleReenableWebhook(row.id)"
+                >
                   重新启用
                 </el-button>
-                <el-button type="danger" size="small" text @click="handleDeleteWebhook(row.id)">删除</el-button>
+                <el-button
+                  type="danger"
+                  size="small"
+                  text
+                  @click="handleDeleteWebhook(row.id)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -178,15 +233,25 @@
         </el-form-item>
         <el-form-item label="事件类型">
           <el-checkbox-group v-model="webhookForm.eventTypes">
-            <el-checkbox label="document_added">文档新增</el-checkbox>
-            <el-checkbox label="document_updated">文档更新</el-checkbox>
-            <el-checkbox label="document_deleted">文档删除</el-checkbox>
+            <el-checkbox label="document_added">
+              文档新增
+            </el-checkbox>
+            <el-checkbox label="document_updated">
+              文档更新
+            </el-checkbox>
+            <el-checkbox label="document_deleted">
+              文档删除
+            </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showWebhookDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveWebhook">保存</el-button>
+        <el-button @click="showWebhookDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="handleSaveWebhook">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

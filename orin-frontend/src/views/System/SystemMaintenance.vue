@@ -18,7 +18,9 @@
             <!-- 备份与恢复 -->
             <div class="operation-item" @click="openBackupDialog">
               <div class="operation-icon backup">
-                <el-icon size="24"><Folder /></el-icon>
+                <el-icon size="24">
+                  <Folder />
+                </el-icon>
               </div>
               <div class="operation-info">
                 <h4>数据备份</h4>
@@ -28,7 +30,9 @@
 
             <div class="operation-item" @click="openRestoreDialog">
               <div class="operation-icon restore">
-                <el-icon size="24"><Upload /></el-icon>
+                <el-icon size="24">
+                  <Upload />
+                </el-icon>
               </div>
               <div class="operation-info">
                 <h4>数据恢复</h4>
@@ -38,7 +42,9 @@
 
             <div class="operation-item" @click="openUpgradeDialog">
               <div class="operation-icon upgrade">
-                <el-icon size="24"><UploadFilled /></el-icon>
+                <el-icon size="24">
+                  <UploadFilled />
+                </el-icon>
               </div>
               <div class="operation-info">
                 <h4>系统升级</h4>
@@ -48,7 +54,9 @@
 
             <div class="operation-item" @click="openLogArchiveDialog">
               <div class="operation-icon log">
-                <el-icon size="24"><Document /></el-icon>
+                <el-icon size="24">
+                  <Document />
+                </el-icon>
               </div>
               <div class="operation-info">
                 <h4>日志归档</h4>
@@ -58,7 +66,9 @@
 
             <div class="operation-item" @click="openCacheDialog">
               <div class="operation-icon cache">
-                <el-icon size="24"><Delete /></el-icon>
+                <el-icon size="24">
+                  <Delete />
+                </el-icon>
               </div>
               <div class="operation-info">
                 <h4>缓存清理</h4>
@@ -68,7 +78,9 @@
 
             <div class="operation-item" @click="openHealthCheck">
               <div class="operation-icon health">
-                <el-icon size="24"><CircleCheck /></el-icon>
+                <el-icon size="24">
+                  <CircleCheck />
+                </el-icon>
               </div>
               <div class="operation-info">
                 <h4>健康检查</h4>
@@ -94,10 +106,18 @@
           </template>
 
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="系统版本">{{ systemInfo.version }}</el-descriptions-item>
-            <el-descriptions-item label="运行时间">{{ systemInfo.uptime }}</el-descriptions-item>
-            <el-descriptions-item label="数据库版本">{{ systemInfo.dbVersion }}</el-descriptions-item>
-            <el-descriptions-item label="最后备份">{{ systemInfo.lastBackup || '从未备份' }}</el-descriptions-item>
+            <el-descriptions-item label="系统版本">
+              {{ systemInfo.version }}
+            </el-descriptions-item>
+            <el-descriptions-item label="运行时间">
+              {{ systemInfo.uptime }}
+            </el-descriptions-item>
+            <el-descriptions-item label="数据库版本">
+              {{ systemInfo.dbVersion }}
+            </el-descriptions-item>
+            <el-descriptions-item label="最后备份">
+              {{ systemInfo.lastBackup || '从未备份' }}
+            </el-descriptions-item>
             <el-descriptions-item label="CPU 使用率">
               <el-progress :percentage="systemInfo.cpuUsage" :color="getProgressColor(systemInfo.cpuUsage)" />
             </el-descriptions-item>
@@ -115,7 +135,7 @@
             </div>
           </template>
 
-          <el-table :data="maintenanceLogs" v-loading="logsLoading" max-height="300">
+          <el-table v-loading="logsLoading" :data="maintenanceLogs" max-height="300">
             <el-table-column prop="operation" label="操作" width="120" />
             <el-table-column prop="status" label="状态" width="80">
               <template #default="{ row }">
@@ -141,8 +161,12 @@
       <el-form :model="backupForm" label-width="100px">
         <el-form-item label="备份类型">
           <el-radio-group v-model="backupForm.type">
-            <el-radio value="full">完整备份</el-radio>
-            <el-radio value="incremental">增量备份</el-radio>
+            <el-radio value="full">
+              完整备份
+            </el-radio>
+            <el-radio value="incremental">
+              增量备份
+            </el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="备份名称">
@@ -153,8 +177,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="backupDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="backingUp" @click="executeBackup">开始备份</el-button>
+        <el-button @click="backupDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="backingUp" @click="executeBackup">
+          开始备份
+        </el-button>
       </template>
     </el-dialog>
 
@@ -166,35 +194,63 @@
       <el-form :model="restoreForm" label-width="100px" style="margin-top: 20px;">
         <el-form-item label="选择备份">
           <el-select v-model="restoreForm.backupId" placeholder="请选择备份文件" style="width: 100%;">
-            <el-option v-for="b in backupList" :key="b.id" :label="b.name + ' (' + b.date + ')'" :value="b.id" />
+            <el-option
+              v-for="b in backupList"
+              :key="b.id"
+              :label="b.name + ' (' + b.date + ')'"
+              :value="b.id"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="恢复模式">
           <el-radio-group v-model="restoreForm.mode">
-            <el-radio value="override">覆盖恢复</el-radio>
-            <el-radio value="merge">合并恢复</el-radio>
+            <el-radio value="override">
+              覆盖恢复
+            </el-radio>
+            <el-radio value="merge">
+              合并恢复
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="restoreDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="restoring" @click="executeRestore">确认恢复</el-button>
+        <el-button @click="restoreDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="danger" :loading="restoring" @click="executeRestore">
+          确认恢复
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 升级对话框 -->
     <el-dialog v-model="upgradeDialogVisible" title="系统升级" width="500px">
       <el-descriptions :column="1" border>
-        <el-descriptions-item label="当前版本">{{ systemInfo.version }}</el-descriptions-item>
-        <el-descriptions-item label="最新版本">{{ upgradeInfo.latestVersion }}</el-descriptions-item>
-        <el-descriptions-item label="更新内容">{{ upgradeInfo.releaseNotes || '暂无' }}</el-descriptions-item>
+        <el-descriptions-item label="当前版本">
+          {{ systemInfo.version }}
+        </el-descriptions-item>
+        <el-descriptions-item label="最新版本">
+          {{ upgradeInfo.latestVersion }}
+        </el-descriptions-item>
+        <el-descriptions-item label="更新内容">
+          {{ upgradeInfo.releaseNotes || '暂无' }}
+        </el-descriptions-item>
       </el-descriptions>
       <template #footer>
-        <el-button @click="upgradeDialogVisible = false">取消</el-button>
-        <el-button v-if="upgradeInfo.hasUpdate" type="primary" :loading="upgrading" @click="executeUpgrade">
+        <el-button @click="upgradeDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          v-if="upgradeInfo.hasUpdate"
+          type="primary"
+          :loading="upgrading"
+          @click="executeUpgrade"
+        >
           立即升级
         </el-button>
-        <el-button v-else type="success" disabled>已是最新版本</el-button>
+        <el-button v-else type="success" disabled>
+          已是最新版本
+        </el-button>
       </template>
     </el-dialog>
 
@@ -203,9 +259,15 @@
       <el-form :model="logArchiveForm" label-width="100px">
         <el-form-item label="日志类型">
           <el-checkbox-group v-model="logArchiveForm.types">
-            <el-checkbox label="system">系统日志</el-checkbox>
-            <el-checkbox label="access">访问日志</el-checkbox>
-            <el-checkbox label="error">错误日志</el-checkbox>
+            <el-checkbox label="system">
+              系统日志
+            </el-checkbox>
+            <el-checkbox label="access">
+              访问日志
+            </el-checkbox>
+            <el-checkbox label="error">
+              错误日志
+            </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
         <el-form-item label="时间范围">
@@ -219,14 +281,22 @@
         </el-form-item>
         <el-form-item label="操作">
           <el-radio-group v-model="logArchiveForm.action">
-            <el-radio value="archive">归档压缩</el-radio>
-            <el-radio value="delete">直接删除</el-radio>
+            <el-radio value="archive">
+              归档压缩
+            </el-radio>
+            <el-radio value="delete">
+              直接删除
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="logArchiveDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="archiving" @click="executeArchive">执行</el-button>
+        <el-button @click="logArchiveDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="archiving" @click="executeArchive">
+          执行
+        </el-button>
       </template>
     </el-dialog>
 
@@ -235,16 +305,28 @@
       <el-form :model="cacheForm" label-width="100px">
         <el-form-item label="清理范围">
           <el-checkbox-group v-model="cacheForm.types">
-            <el-checkbox label="query">查询缓存</el-checkbox>
-            <el-checkbox label="session">会话缓存</el-checkbox>
-            <el-checkbox label="temp">临时文件</el-checkbox>
-            <el-checkbox label="token">Token 缓存</el-checkbox>
+            <el-checkbox label="query">
+              查询缓存
+            </el-checkbox>
+            <el-checkbox label="session">
+              会话缓存
+            </el-checkbox>
+            <el-checkbox label="temp">
+              临时文件
+            </el-checkbox>
+            <el-checkbox label="token">
+              Token 缓存
+            </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="cacheDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="cleaning" @click="executeClean">清理缓存</el-button>
+        <el-button @click="cacheDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="danger" :loading="cleaning" @click="executeClean">
+          清理缓存
+        </el-button>
       </template>
     </el-dialog>
   </div>

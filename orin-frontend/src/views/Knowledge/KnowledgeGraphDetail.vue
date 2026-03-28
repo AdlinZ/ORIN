@@ -6,8 +6,12 @@
       icon="Connection"
     >
       <template #actions>
-        <el-button :icon="Refresh" @click="fetchData">刷新</el-button>
-        <el-button type="primary" :icon="Back" @click="goBack">返回列表</el-button>
+        <el-button :icon="Refresh" @click="fetchData">
+          刷新
+        </el-button>
+        <el-button type="primary" :icon="Back" @click="goBack">
+          返回列表
+        </el-button>
       </template>
     </PageHeader>
 
@@ -16,7 +20,9 @@
       <el-row :gutter="20">
         <el-col :span="6">
           <div class="stat-item">
-            <div class="stat-label">状态</div>
+            <div class="stat-label">
+              状态
+            </div>
             <div class="stat-value">
               <el-tag :type="getStatusType(graph?.buildStatus)" size="small">
                 {{ getStatusText(graph?.buildStatus) }}
@@ -26,20 +32,32 @@
         </el-col>
         <el-col :span="6">
           <div class="stat-item">
-            <div class="stat-label">实体数量</div>
-            <div class="stat-value">{{ graph?.entityCount || 0 }}</div>
+            <div class="stat-label">
+              实体数量
+            </div>
+            <div class="stat-value">
+              {{ graph?.entityCount || 0 }}
+            </div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-item">
-            <div class="stat-label">关系数量</div>
-            <div class="stat-value">{{ graph?.relationCount || 0 }}</div>
+            <div class="stat-label">
+              关系数量
+            </div>
+            <div class="stat-value">
+              {{ graph?.relationCount || 0 }}
+            </div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-item">
-            <div class="stat-label">最后构建</div>
-            <div class="stat-value">{{ formatDate(graph?.lastBuildAt) }}</div>
+            <div class="stat-label">
+              最后构建
+            </div>
+            <div class="stat-value">
+              {{ formatDate(graph?.lastBuildAt) }}
+            </div>
           </div>
         </el-col>
       </el-row>
@@ -59,18 +77,24 @@
             @input="handleVizSearch"
           />
           <div class="viz-controls">
-            <el-button :icon="Refresh" @click="fetchVizData">刷新</el-button>
-            <el-button @click="resetVizZoom">重置视图</el-button>
+            <el-button :icon="Refresh" @click="fetchVizData">
+              刷新
+            </el-button>
+            <el-button @click="resetVizZoom">
+              重置视图
+            </el-button>
           </div>
         </div>
 
         <div v-loading="vizLoading" class="graph-chart-container">
           <div v-if="vizNodes.length === 0 && !vizLoading" class="empty-state">
             <el-empty description="暂无可视化数据，请先构建图谱">
-              <el-button type="primary" @click="$emit('build')">触发构建</el-button>
+              <el-button type="primary" @click="$emit('build')">
+                触发构建
+              </el-button>
             </el-empty>
           </div>
-          <div v-else ref="chartRef" class="chart-wrapper"></div>
+          <div v-else ref="chartRef" class="chart-wrapper" />
         </div>
       </el-tab-pane>
 
@@ -85,7 +109,9 @@
             style="width: 240px"
             @input="handleEntitySearch"
           />
-          <el-button :icon="Refresh" @click="fetchEntities">刷新</el-button>
+          <el-button :icon="Refresh" @click="fetchEntities">
+            刷新
+          </el-button>
         </div>
 
         <el-table
@@ -95,13 +121,25 @@
           style="width: 100%"
           max-height="400"
         >
-          <el-table-column prop="name" label="实体名称" min-width="150" show-overflow-tooltip />
+          <el-table-column
+            prop="name"
+            label="实体名称"
+            min-width="150"
+            show-overflow-tooltip
+          />
           <el-table-column prop="entityType" label="类型" width="120">
             <template #default="{ row }">
-              <el-tag size="small" effect="plain">{{ row.entityType || '未分类' }}</el-tag>
+              <el-tag size="small" effect="plain">
+                {{ row.entityType || '未分类' }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+          <el-table-column
+            prop="description"
+            label="描述"
+            min-width="200"
+            show-overflow-tooltip
+          />
           <el-table-column prop="createdAt" label="创建时间" width="160">
             <template #default="{ row }">
               {{ formatDate(row.createdAt) }}
@@ -131,7 +169,9 @@
             style="width: 240px"
             @input="handleRelationSearch"
           />
-          <el-button :icon="Refresh" @click="fetchRelations">刷新</el-button>
+          <el-button :icon="Refresh" @click="fetchRelations">
+            刷新
+          </el-button>
         </div>
 
         <el-table
@@ -141,22 +181,39 @@
           style="width: 100%"
           max-height="400"
         >
-          <el-table-column prop="sourceEntityId" label="源实体" width="150" show-overflow-tooltip>
+          <el-table-column
+            prop="sourceEntityId"
+            label="源实体"
+            width="150"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               {{ getEntityName(row.sourceEntityId) }}
             </template>
           </el-table-column>
           <el-table-column prop="relationType" label="关系类型" width="150">
             <template #default="{ row }">
-              <el-tag size="small" type="warning">{{ row.relationType }}</el-tag>
+              <el-tag size="small" type="warning">
+                {{ row.relationType }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="targetEntityId" label="目标实体" width="150" show-overflow-tooltip>
+          <el-table-column
+            prop="targetEntityId"
+            label="目标实体"
+            width="150"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               {{ getEntityName(row.targetEntityId) }}
             </template>
           </el-table-column>
-          <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+          <el-table-column
+            prop="description"
+            label="描述"
+            min-width="200"
+            show-overflow-tooltip
+          />
           <el-table-column prop="weight" label="权重" width="80">
             <template #default="{ row }">
               {{ row.weight?.toFixed(2) || '1.00' }}

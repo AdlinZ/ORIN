@@ -1,6 +1,6 @@
 <template>
   <div class="json-viewer-container" :class="{ 'dark-theme': dark }">
-    <div class="json-viewer-header" v-if="title || showCopy">
+    <div v-if="title || showCopy" class="json-viewer-header">
       <span class="json-title">{{ title }}</span>
       <el-button 
         v-if="showCopy" 

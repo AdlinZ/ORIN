@@ -5,7 +5,7 @@
       <span v-if="isExpandable" class="toggle-btn" @click="toggle">
         <el-icon :class="{ 'is-rotated': expanded }"><CaretRight /></el-icon>
       </span>
-      <span v-else class="toggle-placeholder"></span>
+      <span v-else class="toggle-placeholder" />
 
       <span v-if="name" class="json-key">"{{ name }}": </span>
 
@@ -34,7 +34,7 @@
         :expand-all="expandAll"
       />
       <div class="item-line" :style="{ paddingLeft: depth * 20 + 'px' }">
-        <span class="toggle-placeholder"></span>
+        <span class="toggle-placeholder" />
         <span class="json-bracket">{{ endBracket }}</span>{{ isLast ? '' : ',' }}
       </div>
     </div>

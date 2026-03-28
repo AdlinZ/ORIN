@@ -13,7 +13,9 @@
           <template #header>
             <div class="card-header">
               <div class="framework-info">
-                <el-icon size="24"><Connection /></el-icon>
+                <el-icon size="24">
+                  <Connection />
+                </el-icon>
                 <div>
                   <h3>Dify</h3>
                   <p>集成 Dify 工作流和应用</p>
@@ -28,17 +30,28 @@
           <el-form :model="difyConfig" label-width="120px">
             <el-form-item label="API 地址">
               <el-input v-model="difyConfig.apiUrl" placeholder="https://api.dify.ai/v1" />
-              <div class="form-tip">Dify API 服务地址</div>
+              <div class="form-tip">
+                Dify API 服务地址
+              </div>
             </el-form-item>
             <el-form-item label="API Key">
-              <el-input v-model="difyConfig.apiKey" type="password" show-password placeholder="Dify API Key" />
+              <el-input
+                v-model="difyConfig.apiKey"
+                type="password"
+                show-password
+                placeholder="Dify API Key"
+              />
             </el-form-item>
             <el-form-item label="启用状态">
               <el-switch v-model="difyConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="difyLoading" @click="handleSaveDifyConfig">保存配置</el-button>
-              <el-button @click="handleTestDifyConnection" :disabled="!difyConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="difyLoading" @click="handleSaveDifyConfig">
+                保存配置
+              </el-button>
+              <el-button :disabled="!difyConfig.enabled" @click="handleTestDifyConnection">
+                测试连接
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -50,7 +63,9 @@
           <template #header>
             <div class="card-header">
               <div class="framework-info">
-                <el-icon size="24"><Reading /></el-icon>
+                <el-icon size="24">
+                  <Reading />
+                </el-icon>
                 <div>
                   <h3>RAGFlow</h3>
                   <p>集成 RAGFlow 知识库检索</p>
@@ -65,17 +80,28 @@
           <el-form :model="ragflowConfig" label-width="120px">
             <el-form-item label="API 地址">
               <el-input v-model="ragflowConfig.apiUrl" placeholder="https://ragflow.example.com/api/v1" />
-              <div class="form-tip">RAGFlow API 服务地址</div>
+              <div class="form-tip">
+                RAGFlow API 服务地址
+              </div>
             </el-form-item>
             <el-form-item label="API Key">
-              <el-input v-model="ragflowConfig.apiKey" type="password" show-password placeholder="RAGFlow API Key" />
+              <el-input
+                v-model="ragflowConfig.apiKey"
+                type="password"
+                show-password
+                placeholder="RAGFlow API Key"
+              />
             </el-form-item>
             <el-form-item label="启用状态">
               <el-switch v-model="ragflowConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="ragflowLoading" @click="handleSaveRagflowConfig">保存配置</el-button>
-              <el-button @click="handleTestRagflowConnection" :disabled="!ragflowConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="ragflowLoading" @click="handleSaveRagflowConfig">
+                保存配置
+              </el-button>
+              <el-button :disabled="!ragflowConfig.enabled" @click="handleTestRagflowConnection">
+                测试连接
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -87,14 +113,18 @@
           <template #header>
             <div class="card-header">
               <div class="framework-info">
-                <el-icon size="24"><Cpu /></el-icon>
+                <el-icon size="24">
+                  <Cpu />
+                </el-icon>
                 <div>
                   <h3>AutoGen</h3>
                   <p>集成 Microsoft AutoGen 多智能体框架</p>
                 </div>
               </div>
               <div class="header-actions">
-                <el-tag type="warning">预留位</el-tag>
+                <el-tag type="warning">
+                  预留位
+                </el-tag>
                 <el-tag :type="autogenConfig.enabled ? 'success' : 'info'">
                   {{ autogenConfig.enabled ? '已启用' : '未启用' }}
                 </el-tag>
@@ -115,10 +145,17 @@
           <el-form :model="autogenConfig" label-width="120px">
             <el-form-item label="服务地址">
               <el-input v-model="autogenConfig.serviceUrl" placeholder="http://localhost:8001" />
-              <div class="form-tip">AutoGen Agent 服务地址</div>
+              <div class="form-tip">
+                AutoGen Agent 服务地址
+              </div>
             </el-form-item>
             <el-form-item label="API Key">
-              <el-input v-model="autogenConfig.apiKey" type="password" show-password placeholder="AutoGen API Key" />
+              <el-input
+                v-model="autogenConfig.apiKey"
+                type="password"
+                show-password
+                placeholder="AutoGen API Key"
+              />
             </el-form-item>
             <el-form-item label="最大并发">
               <el-input-number v-model="autogenConfig.maxConcurrency" :min="1" :max="10" />
@@ -127,8 +164,12 @@
               <el-switch v-model="autogenConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="autogenLoading" @click="handleSaveAutogenConfig">保存配置</el-button>
-              <el-button @click="handleTestAutogenConnection" :disabled="!autogenConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="autogenLoading" @click="handleSaveAutogenConfig">
+                保存配置
+              </el-button>
+              <el-button :disabled="!autogenConfig.enabled" @click="handleTestAutogenConnection">
+                测试连接
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -140,14 +181,18 @@
           <template #header>
             <div class="card-header">
               <div class="framework-info">
-                <el-icon size="24"><User /></el-icon>
+                <el-icon size="24">
+                  <User />
+                </el-icon>
                 <div>
                   <h3>CrewAI</h3>
                   <p>集成 CrewAI 多智能体协作框架</p>
                 </div>
               </div>
               <div class="header-actions">
-                <el-tag type="warning">预留位</el-tag>
+                <el-tag type="warning">
+                  预留位
+                </el-tag>
                 <el-tag :type="crewaiConfig.enabled ? 'success' : 'info'">
                   {{ crewaiConfig.enabled ? '已启用' : '未启用' }}
                 </el-tag>
@@ -168,10 +213,17 @@
           <el-form :model="crewaiConfig" label-width="120px">
             <el-form-item label="服务地址">
               <el-input v-model="crewaiConfig.serviceUrl" placeholder="http://localhost:8002" />
-              <div class="form-tip">CrewAI Agent 服务地址</div>
+              <div class="form-tip">
+                CrewAI Agent 服务地址
+              </div>
             </el-form-item>
             <el-form-item label="API Key">
-              <el-input v-model="crewaiConfig.apiKey" type="password" show-password placeholder="CrewAI API Key" />
+              <el-input
+                v-model="crewaiConfig.apiKey"
+                type="password"
+                show-password
+                placeholder="CrewAI API Key"
+              />
             </el-form-item>
             <el-form-item label="默认模型">
               <el-input v-model="crewaiConfig.defaultModel" placeholder="gpt-4" />
@@ -180,8 +232,12 @@
               <el-switch v-model="crewaiConfig.enabled" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="crewaiLoading" @click="handleSaveCrewaiConfig">保存配置</el-button>
-              <el-button @click="handleTestCrewaiConnection" :disabled="!crewaiConfig.enabled">测试连接</el-button>
+              <el-button type="primary" :loading="crewaiLoading" @click="handleSaveCrewaiConfig">
+                保存配置
+              </el-button>
+              <el-button :disabled="!crewaiConfig.enabled" @click="handleTestCrewaiConnection">
+                测试连接
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>

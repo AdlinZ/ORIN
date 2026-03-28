@@ -73,7 +73,9 @@
                     :value="tpl.id"
                   >
                     <span>{{ tpl.name }}</span>
-                    <el-tag size="small" style="margin-left: 8px;">{{ tpl.code }}</el-tag>
+                    <el-tag size="small" style="margin-left: 8px;">
+                      {{ tpl.code }}
+                    </el-tag>
                   </el-option>
                 </el-select>
                 <el-button :icon="Plus" @click="openTemplateDrawer">
@@ -96,7 +98,9 @@
                 </el-input>
               </div>
               <div v-else class="no-variables">
-                <el-text type="info">当前模板无变量</el-text>
+                <el-text type="info">
+                  当前模板无变量
+                </el-text>
               </div>
             </el-form-item>
 
@@ -155,7 +159,7 @@
               </div>
             </div>
             <el-divider />
-            <div class="preview-body" v-html="renderedContent"></div>
+            <div class="preview-body" v-html="renderedContent" />
           </div>
         </div>
       </div>
@@ -194,14 +198,23 @@
             >
               <div class="template-item-header">
                 <span class="template-name">{{ tpl.name }}</span>
-                <el-tag size="small">{{ tpl.code }}</el-tag>
+                <el-tag size="small">
+                  {{ tpl.code }}
+                </el-tag>
               </div>
-              <div class="template-subject">{{ tpl.subject }}</div>
+              <div class="template-subject">
+                {{ tpl.subject }}
+              </div>
               <div class="template-actions">
                 <el-button size="small" text @click.stop="openTemplateEditor(tpl)">
                   编辑
                 </el-button>
-                <el-button size="small" text type="danger" @click.stop="deleteTemplate(tpl.id)">
+                <el-button
+                  size="small"
+                  text
+                  type="danger"
+                  @click.stop="deleteTemplate(tpl.id)"
+                >
                   删除
                 </el-button>
               </div>
@@ -245,7 +258,9 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="templateEditorVisible = false">取消</el-button>
+        <el-button @click="templateEditorVisible = false">
+          取消
+        </el-button>
         <el-button type="primary" :loading="savingTemplate" @click="saveTemplate">
           保存
         </el-button>

@@ -3,72 +3,83 @@
     <!-- Header / Type Switcher -->
     <div class="view-header">
       <div class="header-title">
-        <el-icon class="mr-2"><component :is="activeTabIcon" /></el-icon>
+        <el-icon class="mr-2">
+          <component :is="activeTabIcon" />
+        </el-icon>
         <span>{{ activeTabTitle }}</span>
       </div>
       
       <div class="actions">
         <!-- Agent Selector -->
         <el-select v-model="selectedAgent" placeholder="Select Agent" style="width: 200px">
-           <el-option v-for="agent in agentList" :key="agent.agentId" :label="agent.name" :value="agent.agentId" />
+          <el-option
+            v-for="agent in agentList"
+            :key="agent.agentId"
+            :label="agent.name"
+            :value="agent.agentId"
+          />
         </el-select>
         
         <!-- Upload Button for Unstructured -->
         <el-upload
-            v-if="activeTab === 'UNSTRUCTURED'"
-            class="upload-demo"
-            action="#"
-            :show-file-list="false"
-            :http-request="customUpload"
+          v-if="activeTab === 'UNSTRUCTURED'"
+          class="upload-demo"
+          action="#"
+          :show-file-list="false"
+          :http-request="customUpload"
         >
-            <el-button type="primary">
-               <el-icon><Upload /></el-icon> 上传文档
-            </el-button>
+          <el-button type="primary">
+            <el-icon><Upload /></el-icon> 上传文档
+          </el-button>
         </el-upload>
       </div>
     </div>
 
     <!-- Content Area -->
-    <div class="view-content" v-loading="knowledgeStore.loading">
-      
+    <div v-loading="knowledgeStore.loading" class="view-content">
       <!-- 1. Unstructured View -->
       <div v-if="activeTab === 'UNSTRUCTURED'">
-          <!-- Async Upload Progress Bar (Amber) -->
-          <div v-for="[taskId, info] in knowledgeStore.uploadingMap" :key="taskId" class="upload-progress-item">
-               <div class="file-name">{{ info.fileName }}</div>
-               <div class="progress-bar-wrapper">
-                   <!-- Amber color for vectorizing -->
-                   <el-progress 
-                      :percentage="info.progress" 
-                      :color="getStatusColor(info.status)"
-                      :striped="info.status === 'VECTORIZING'"
-                      :striped-flow="info.status === 'VECTORIZING'"
-                   /> 
-               </div>
-               <div class="status-text">{{ getStatusText(info.status) }}</div>
+        <!-- Async Upload Progress Bar (Amber) -->
+        <div v-for="[taskId, info] in knowledgeStore.uploadingMap" :key="taskId" class="upload-progress-item">
+          <div class="file-name">
+            {{ info.fileName }}
           </div>
+          <div class="progress-bar-wrapper">
+            <!-- Amber color for vectorizing -->
+            <el-progress 
+              :percentage="info.progress" 
+              :color="getStatusColor(info.status)"
+              :striped="info.status === 'VECTORIZING'"
+              :striped-flow="info.status === 'VECTORIZING'"
+            /> 
+          </div>
+          <div class="status-text">
+            {{ getStatusText(info.status) }}
+          </div>
+        </div>
       
-          <knowledge-table type="default" :data="knowledgeStore.knowledgeList" />
+        <knowledge-table type="default" :data="knowledgeStore.knowledgeList" />
       </div>
 
       <!-- 2. Structured View -->
       <div v-if="activeTab === 'STRUCTURED'">
-          <knowledge-table type="structured" :data="knowledgeStore.knowledgeList" />
+        <knowledge-table type="structured" :data="knowledgeStore.knowledgeList" />
       </div>
 
       <!-- 3. Procedural View -->
       <div v-if="activeTab === 'PROCEDURAL'">
-          <div class="mb-4 flex justify-between">
-              <el-button type="primary" @click="$router.push(ROUTES.AGENTS.WORKFLOWS)">创建新技能</el-button>
-          </div>
-          <knowledge-table type="api" :data="knowledgeStore.knowledgeList" />
+        <div class="mb-4 flex justify-between">
+          <el-button type="primary" @click="$router.push(ROUTES.AGENTS.WORKFLOWS)">
+            创建新技能
+          </el-button>
+        </div>
+        <knowledge-table type="api" :data="knowledgeStore.knowledgeList" />
       </div>
 
       <!-- 4. Meta View -->
       <div v-if="activeTab === 'META'">
-          <knowledge-meta :agent-id="selectedAgent" />
+        <knowledge-meta :agent-id="selectedAgent" />
       </div>
-
     </div>
   </div>
 </template>

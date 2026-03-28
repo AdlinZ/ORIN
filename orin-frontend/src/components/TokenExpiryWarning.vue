@@ -9,7 +9,12 @@
       <template #default>
         <div class="warning-content">
           <span>{{ warningMessage }}</span>
-          <el-button type="warning" size="small" @click="handleRelogin" class="relogin-btn">
+          <el-button
+            type="warning"
+            size="small"
+            class="relogin-btn"
+            @click="handleRelogin"
+          >
             立即重新登录
           </el-button>
         </div>

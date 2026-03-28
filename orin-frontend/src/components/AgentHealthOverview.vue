@@ -2,32 +2,55 @@
   <div class="health-overview">
     <div class="overview-header">
       <h3>智能体健康状态</h3>
-      <el-button :icon="Refresh" size="small" @click="fetchHealthOverview" :loading="loading">刷新</el-button>
+      <el-button
+        :icon="Refresh"
+        size="small"
+        :loading="loading"
+        @click="fetchHealthOverview"
+      >
+        刷新
+      </el-button>
     </div>
     
     <el-row :gutter="16" class="stats-row">
       <el-col :span="6">
         <div class="stat-item">
-          <div class="stat-value">{{ overview.totalAgents || 0 }}</div>
-          <div class="stat-label">总数</div>
+          <div class="stat-value">
+            {{ overview.totalAgents || 0 }}
+          </div>
+          <div class="stat-label">
+            总数
+          </div>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-item healthy">
-          <div class="stat-value">{{ overview.healthyAgents || 0 }}</div>
-          <div class="stat-label">健康</div>
+          <div class="stat-value">
+            {{ overview.healthyAgents || 0 }}
+          </div>
+          <div class="stat-label">
+            健康
+          </div>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-item unhealthy">
-          <div class="stat-value">{{ overview.unhealthyAgents || 0 }}</div>
-          <div class="stat-label">异常</div>
+          <div class="stat-value">
+            {{ overview.unhealthyAgents || 0 }}
+          </div>
+          <div class="stat-label">
+            异常
+          </div>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-item offline">
-          <div class="stat-value">{{ overview.offlineAgents || 0 }}</div>
-          <div class="stat-label">离线</div>
+          <div class="stat-value">
+            {{ overview.offlineAgents || 0 }}
+          </div>
+          <div class="stat-label">
+            离线
+          </div>
         </div>
       </el-col>
     </el-row>
@@ -41,14 +64,16 @@
       />
     </div>
     
-    <div class="agents-by-status" v-if="overview.agentsByStatus">
+    <div v-if="overview.agentsByStatus" class="agents-by-status">
       <div 
         v-for="(agents, status) in overview.agentsByStatus" 
         :key="status" 
         class="status-group"
       >
         <div class="status-header">
-          <el-tag :type="getStatusType(status)" size="small">{{ status }}</el-tag>
+          <el-tag :type="getStatusType(status)" size="small">
+            {{ status }}
+          </el-tag>
           <span class="count">{{ agents.length }}</span>
         </div>
         <div class="agent-list">
@@ -58,7 +83,7 @@
             class="agent-item"
           >
             <span class="agent-name">{{ agent.agentName }}</span>
-            <span class="agent-metrics" v-if="agent.cpuUsage">
+            <span v-if="agent.cpuUsage" class="agent-metrics">
               CPU: {{ agent.cpuUsage }}% | MEM: {{ agent.memoryUsage }}%
             </span>
           </div>

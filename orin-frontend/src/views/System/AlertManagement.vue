@@ -14,7 +14,9 @@
               <div>
                 <el-icon><Bell /></el-icon>
                 <span>告警规则配置</span>
-                <el-tag size="small" type="info" class="ml-2">{{ rules.length }} 条规则</el-tag>
+                <el-tag size="small" type="info" class="ml-2">
+                  {{ rules.length }} 条规则
+                </el-tag>
               </div>
               <el-button type="primary" :icon="Plus" @click="showCreateDialog">
                 创建规则
@@ -22,11 +24,18 @@
             </div>
           </template>
 
-          <el-table border :data="rules" v-loading="loading" stripe>
+          <el-table
+            v-loading="loading"
+            border
+            :data="rules"
+            stripe
+          >
             <el-table-column prop="ruleName" label="规则名称" min-width="150" />
             <el-table-column prop="ruleType" label="类型" width="120">
               <template #default="{ row }">
-                <el-tag size="small">{{ getRuleTypeText(row.ruleType) }}</el-tag>
+                <el-tag size="small">
+                  {{ getRuleTypeText(row.ruleType) }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="severity" label="严重程度" width="100">
@@ -94,7 +103,12 @@
             </div>
           </template>
 
-          <el-table border :data="history" v-loading="loadingHistory" stripe>
+          <el-table
+            v-loading="loadingHistory"
+            border
+            :data="history"
+            stripe
+          >
             <el-table-column prop="alertMessage" label="告警消息" min-width="200" />
             <el-table-column prop="severity" label="严重程度" width="100">
               <template #default="{ row }">
@@ -134,9 +148,9 @@
             v-model:current-page="currentPage"
             v-model:page-size="pageSize"
             :total="totalHistory"
-            @current-change="loadHistory"
             layout="total, prev, pager, next"
             class="mt-4"
+            @current-change="loadHistory"
           />
         </el-card>
       </el-tab-pane>
@@ -178,9 +192,15 @@
         </el-form-item>
         <el-form-item label="通知渠道">
           <el-checkbox-group v-model="selectedChannels">
-            <el-checkbox label="EMAIL">邮件</el-checkbox>
-            <el-checkbox label="DINGTALK">钉钉</el-checkbox>
-            <el-checkbox label="WECHAT">企业微信</el-checkbox>
+            <el-checkbox label="EMAIL">
+              邮件
+            </el-checkbox>
+            <el-checkbox label="DINGTALK">
+              钉钉
+            </el-checkbox>
+            <el-checkbox label="WECHAT">
+              企业微信
+            </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
         <el-form-item label="接收人列表">
@@ -197,8 +217,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="ruleDialog = false">取消</el-button>
-        <el-button type="primary" @click="saveRule" :loading="saving">
+        <el-button @click="ruleDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="saving" @click="saveRule">
           保存
         </el-button>
       </template>

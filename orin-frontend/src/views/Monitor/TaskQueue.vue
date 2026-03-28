@@ -2,21 +2,29 @@
   <div class="page-container">
     <PageHeader title="任务队列管理" icon="Tickets">
       <template #actions>
-        <el-button :icon="Refresh" @click="fetchData" :loading="loading">刷新</el-button>
+        <el-button :icon="Refresh" :loading="loading" @click="fetchData">
+          刷新
+        </el-button>
       </template>
     </PageHeader>
 
     <!-- 任务统计概览 -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :span="6" v-for="(stat, index) in taskStats" :key="index">
+      <el-col v-for="(stat, index) in taskStats" :key="index" :span="6">
         <el-card shadow="hover" class="stat-card" :class="stat.class">
           <div class="stat-card-inner">
             <div class="stat-icon" :style="{ backgroundColor: stat.bgColor }">
-              <el-icon :style="{ color: stat.color }"><component :is="stat.icon" /></el-icon>
+              <el-icon :style="{ color: stat.color }">
+                <component :is="stat.icon" />
+              </el-icon>
             </div>
             <div class="stat-content">
-              <div class="stat-label">{{ stat.label }}</div>
-              <div class="stat-value">{{ stat.value }}</div>
+              <div class="stat-label">
+                {{ stat.label }}
+              </div>
+              <div class="stat-value">
+                {{ stat.value }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -31,9 +39,11 @@
         </div>
       </template>
       <el-row :gutter="20">
-        <el-col :span="8" v-for="(pstat, index) in priorityStats" :key="index">
+        <el-col v-for="(pstat, index) in priorityStats" :key="index" :span="8">
           <div class="priority-item">
-            <el-tag :type="pstat.type" size="large">{{ pstat.label }}</el-tag>
+            <el-tag :type="pstat.type" size="large">
+              {{ pstat.label }}
+            </el-tag>
             <span class="count">{{ pstat.count }}</span>
           </div>
         </el-col>
@@ -46,16 +56,29 @@
         <div class="card-header">
           <span>任务列表</span>
           <el-radio-group v-model="activeTab" size="small">
-            <el-radio-button label="queued">排队中</el-radio-button>
-            <el-radio-button label="running">执行中</el-radio-button>
-            <el-radio-button label="failed">失败</el-radio-button>
-            <el-radio-button label="dead">死信</el-radio-button>
+            <el-radio-button label="queued">
+              排队中
+            </el-radio-button>
+            <el-radio-button label="running">
+              执行中
+            </el-radio-button>
+            <el-radio-button label="failed">
+              失败
+            </el-radio-button>
+            <el-radio-button label="dead">
+              死信
+            </el-radio-button>
           </el-radio-group>
         </div>
       </template>
 
-      <el-table :data="taskList" v-loading="loading" stripe>
-        <el-table-column prop="taskId" label="任务ID" width="200" show-overflow-tooltip />
+      <el-table v-loading="loading" :data="taskList" stripe>
+        <el-table-column
+          prop="taskId"
+          label="任务ID"
+          width="200"
+          show-overflow-tooltip
+        />
         <el-table-column prop="workflowId" label="工作流ID" width="100" />
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
@@ -141,27 +164,59 @@
 
     <!-- 任务详情对话框 -->
     <el-dialog v-model="showDetailDialog" title="任务详情" width="700px">
-      <el-descriptions :column="2" border v-if="currentTask">
-        <el-descriptions-item label="任务ID">{{ currentTask.taskId }}</el-descriptions-item>
+      <el-descriptions v-if="currentTask" :column="2" border>
+        <el-descriptions-item label="任务ID">
+          {{ currentTask.taskId }}
+        </el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(currentTask.status)">{{ currentTask.status }}</el-tag>
+          <el-tag :type="getStatusType(currentTask.status)">
+            {{ currentTask.status }}
+          </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="工作流ID">{{ currentTask.workflowId }}</el-descriptions-item>
-        <el-descriptions-item label="工作流实例ID">{{ currentTask.workflowInstanceId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="工作流ID">
+          {{ currentTask.workflowId }}
+        </el-descriptions-item>
+        <el-descriptions-item label="工作流实例ID">
+          {{ currentTask.workflowInstanceId || '-' }}
+        </el-descriptions-item>
         <el-descriptions-item label="优先级">
-          <el-tag :type="getPriorityType(currentTask.priority)">{{ currentTask.priority }}</el-tag>
+          <el-tag :type="getPriorityType(currentTask.priority)">
+            {{ currentTask.priority }}
+          </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="触发来源">{{ currentTask.triggerSource || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="触发者">{{ currentTask.triggeredBy || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="重试次数">{{ currentTask.retryCount || 0 }} / {{ currentTask.maxRetries || 0 }}</el-descriptions-item>
-        <el-descriptions-item label="下次重试时间">{{ formatTime(currentTask.nextRetryAt) || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="耗时">{{ currentTask.durationMs ? currentTask.durationMs + 'ms' : '-' }}</el-descriptions-item>
-        <el-descriptions-item label="入队时间">{{ formatTime(currentTask.queuedAt) }}</el-descriptions-item>
-        <el-descriptions-item label="开始时间">{{ formatTime(currentTask.startedAt) || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="完成时间">{{ formatTime(currentTask.completedAt) || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatTime(currentTask.createdAt) }}</el-descriptions-item>
-        <el-descriptions-item label="错误信息" :span="2">{{ currentTask.errorMessage || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="死信原因" :span="2">{{ currentTask.deadLetterReason || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="触发来源">
+          {{ currentTask.triggerSource || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="触发者">
+          {{ currentTask.triggeredBy || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="重试次数">
+          {{ currentTask.retryCount || 0 }} / {{ currentTask.maxRetries || 0 }}
+        </el-descriptions-item>
+        <el-descriptions-item label="下次重试时间">
+          {{ formatTime(currentTask.nextRetryAt) || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="耗时">
+          {{ currentTask.durationMs ? currentTask.durationMs + 'ms' : '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="入队时间">
+          {{ formatTime(currentTask.queuedAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="开始时间">
+          {{ formatTime(currentTask.startedAt) || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="完成时间">
+          {{ formatTime(currentTask.completedAt) || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">
+          {{ formatTime(currentTask.createdAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="错误信息" :span="2">
+          {{ currentTask.errorMessage || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="死信原因" :span="2">
+          {{ currentTask.deadLetterReason || '-' }}
+        </el-descriptions-item>
         <el-descriptions-item label="输入数据" :span="2">
           <pre class="json-content">{{ JSON.stringify(currentTask.inputData, null, 2) || '-' }}</pre>
         </el-descriptions-item>

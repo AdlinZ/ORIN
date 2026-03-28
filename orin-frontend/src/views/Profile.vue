@@ -19,16 +19,20 @@
               <el-icon><Camera /></el-icon>
             </div>
             <input
-              type="file"
               ref="avatarInput"
+              type="file"
               style="display: none"
               accept="image/*"
               @change="onAvatarFileChange"
-            />
+            >
           </div>
           <div class="user-details">
-            <h1 class="user-name">{{ userInfo.nickname || userInfo.username }}</h1>
-            <p class="user-email">{{ userInfo.email }}</p>
+            <h1 class="user-name">
+              {{ userInfo.nickname || userInfo.username }}
+            </h1>
+            <p class="user-email">
+              {{ userInfo.email }}
+            </p>
             <div class="user-meta">
               <el-tag size="small" effect="plain" :type="isAdmin ? 'danger' : 'info'">
                 {{ roleDisplay }}
@@ -49,15 +53,19 @@
 
     <!-- Stats Cards -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :span="6" v-for="stat in stats" :key="stat.label">
+      <el-col v-for="stat in stats" :key="stat.label" :span="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-card-inner">
             <div class="stat-icon">
               <el-icon><component :is="stat.icon" /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ stat.value }}</div>
-              <div class="stat-label">{{ stat.label }}</div>
+              <div class="stat-value">
+                {{ stat.value }}
+              </div>
+              <div class="stat-label">
+                {{ stat.label }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -75,7 +83,7 @@
               <span><el-icon><TrendCharts /></el-icon> 最近7天活动</span>
             </div>
           </template>
-          <div class="activity-chart" v-if="activityData.length > 0">
+          <div v-if="activityData.length > 0" class="activity-chart">
             <div class="chart-bars">
               <div
                 v-for="(day, index) in activityData"
@@ -84,7 +92,7 @@
                 :style="{ height: day.value + '%' }"
                 :title="`${day.label}: ${day.count} 次活动`"
               >
-                <div class="bar-fill"></div>
+                <div class="bar-fill" />
               </div>
             </div>
             <div class="chart-labels">
@@ -101,15 +109,17 @@
               <span><el-icon><Clock /></el-icon> 最近动态</span>
             </div>
           </template>
-          <div class="activity-list" v-if="activityLogs.length > 0">
-            <div class="activity-item" v-for="(log, index) in activityLogs" :key="index">
-              <div class="activity-dot" :class="log.type"></div>
+          <div v-if="activityLogs.length > 0" class="activity-list">
+            <div v-for="(log, index) in activityLogs" :key="index" class="activity-item">
+              <div class="activity-dot" :class="log.type" />
               <div class="activity-content">
                 <div class="activity-header">
                   <span class="activity-action">{{ log.action }}</span>
                   <span class="activity-time">{{ log.time }}</span>
                 </div>
-                <div class="activity-detail">{{ log.detail }}</div>
+                <div class="activity-detail">
+                  {{ log.detail }}
+                </div>
               </div>
             </div>
           </div>
@@ -161,7 +171,7 @@
                   </el-input>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="handleSave" style="width: 100%;">
+                  <el-button type="primary" style="width: 100%;" @click="handleSave">
                     <el-icon><Check /></el-icon>
                     保存修改
                   </el-button>
@@ -185,7 +195,9 @@
                     <h4>登录密码</h4>
                     <p>定期更换密码可以提高账户安全性</p>
                   </div>
-                  <el-button type="primary" link size="small">修改</el-button>
+                  <el-button type="primary" link size="small">
+                    修改
+                  </el-button>
                 </div>
                 <div class="security-item">
                   <div class="security-icon phone">
@@ -195,7 +207,9 @@
                     <h4>手机绑定</h4>
                     <p>{{ userInfo.phone ? maskPhone(userInfo.phone) : '未绑定手机' }}</p>
                   </div>
-                  <el-button type="primary" link size="small">{{ userInfo.phone ? '修改' : '绑定' }}</el-button>
+                  <el-button type="primary" link size="small">
+                    {{ userInfo.phone ? '修改' : '绑定' }}
+                  </el-button>
                 </div>
               </div>
             </el-tab-pane>

@@ -11,12 +11,16 @@
           effect="plain"
           size="small"
         >
-          <el-icon style="margin-right: 4px;"><component :is="systemStatus.icon" /></el-icon>
+          <el-icon style="margin-right: 4px;">
+            <component :is="systemStatus.icon" />
+          </el-icon>
           {{ systemStatus.text }}
         </el-tag>
       </template>
       <template #actions>
-        <el-button :icon="Setting" @click="showCardConfig = true" class="action-button">自定义面板</el-button>
+        <el-button :icon="Setting" class="action-button" @click="showCardConfig = true">
+          自定义面板
+        </el-button>
         <el-divider direction="vertical" />
         <span class="text-secondary">自动刷新</span>
         <el-switch v-model="autoRefresh" active-color="var(--primary-color)" @change="handleRefreshToggle" />
@@ -25,21 +29,33 @@
 
     <!-- Card Configuration Drawer -->
     <DashboardCardConfig 
-      v-model="showCardConfig" 
+      ref="cardConfigRef" 
+      v-model="showCardConfig"
       @config-change="handleCardConfigChange"
-      ref="cardConfigRef"
     />
 
 
     <!-- Stats Row -->
-    <el-skeleton :loading="loading" animated :rows="2" v-if="['stat-agents', 'stat-requests', 'stat-tokens', 'stat-latency'].some(id => isCardEnabled(id))">
+    <el-skeleton
+      v-if="['stat-agents', 'stat-requests', 'stat-tokens', 'stat-latency'].some(id => isCardEnabled(id))"
+      :loading="loading"
+      animated
+      :rows="2"
+    >
       <template #template>
         <el-row :gutter="20" class="stats-row">
-           <el-col :span="6" v-for="i in 4" :key="i"><el-skeleton-item variant="rect" style="height: 110px; border-radius: var(--radius-base)" /></el-col>
+          <el-col v-for="i in 4" :key="i" :span="6">
+            <el-skeleton-item variant="rect" style="height: 110px; border-radius: var(--radius-base)" />
+          </el-col>
         </el-row>
       </template>
       <el-row :gutter="20" class="stats-row">
-        <el-col :span="6" v-for="(item, index) in statItems" :key="index" v-show="isCardEnabled(item.cardId)">
+        <el-col
+          v-for="(item, index) in statItems"
+          v-show="isCardEnabled(item.cardId)"
+          :key="index"
+          :span="6"
+        >
           <el-card 
             shadow="hover" 
             class="stat-card" 
@@ -49,12 +65,16 @@
           >
             <div class="stat-card-inner">
               <div class="stat-icon" :style="{ backgroundColor: item.bgColor || 'rgba(var(--orin-primary-rgb), 0.1)' }">
-                <el-icon :style="{ color: item.color || 'var(--orin-primary)' }"><component :is="item.icon" /></el-icon>
+                <el-icon :style="{ color: item.color || 'var(--orin-primary)' }">
+                  <component :is="item.icon" />
+                </el-icon>
               </div>
               <div class="stat-content">
-                <div class="text-secondary" style="margin-bottom: 8px; font-weight: 500;">{{ item.label }}</div>
+                <div class="text-secondary" style="margin-bottom: 8px; font-weight: 500;">
+                  {{ item.label }}
+                </div>
                 <div class="stat-value" style="font-family: var(--font-heading); font-size: 24px; font-weight: 700; color: var(--neutral-gray-900);">
-                   {{ summary[item.key] || item.defaultValue }}
+                  {{ summary[item.key] || item.defaultValue }}
                 </div>
               </div>
             </div>
@@ -63,7 +83,7 @@
       </el-row>
     </el-skeleton>
 
-        <!-- 链路追踪查询面板 -->
+    <!-- 链路追踪查询面板 -->
     <el-card class="trace-query-card" shadow="hover">
       <template #header>
         <div class="card-header">
@@ -96,23 +116,33 @@
           </div>
         </el-col>
         <el-col :span="8">
-          <div class="success-rate-display" v-if="successRateData">
+          <div v-if="successRateData" class="success-rate-display">
             <span class="label">调用成功率:</span>
             <span class="value" :class="successRateData.successRate >= 90 ? 'success' : successRateData.successRate >= 60 ? 'warning' : 'danger'">
               {{ successRateData.successRate?.toFixed(2) }}%
             </span>
             <span class="detail">({{ successRateData.successCalls }}/{{ successRateData.totalCalls }})</span>
           </div>
-          <div v-else class="placeholder-text">点击"刷新成功率"获取数据</div>
+          <div v-else class="placeholder-text">
+            点击"刷新成功率"获取数据
+          </div>
         </el-col>
         <el-col :span="8">
-          <div class="error-dist-display" v-if="errorDistributionData.length > 0">
+          <div v-if="errorDistributionData.length > 0" class="error-dist-display">
             <span class="label">错误分布:</span>
-            <el-tag v-for="item in errorDistributionData.slice(0, 3)" :key="item.errorMessage" size="small" type="danger" class="error-tag">
+            <el-tag
+              v-for="item in errorDistributionData.slice(0, 3)"
+              :key="item.errorMessage"
+              size="small"
+              type="danger"
+              class="error-tag"
+            >
               {{ item.errorMessage?.substring(0, 20) }}... ({{ item.count }})
             </el-tag>
           </div>
-          <div v-else class="placeholder-text">暂无错误</div>
+          <div v-else class="placeholder-text">
+            暂无错误
+          </div>
         </el-col>
       </el-row>
 
@@ -120,9 +150,15 @@
       <el-divider v-if="traceResult" />
       <div v-if="traceResult && traceResult.status === 'found'" class="trace-result">
         <el-descriptions :column="4" border>
-          <el-descriptions-item label="Trace ID">{{ traceResult.traceId }}</el-descriptions-item>
-          <el-descriptions-item label="总节点数">{{ traceResult.totalSpans }}</el-descriptions-item>
-          <el-descriptions-item label="总耗时">{{ traceResult.totalDurationMs }}ms</el-descriptions-item>
+          <el-descriptions-item label="Trace ID">
+            {{ traceResult.traceId }}
+          </el-descriptions-item>
+          <el-descriptions-item label="总节点数">
+            {{ traceResult.totalSpans }}
+          </el-descriptions-item>
+          <el-descriptions-item label="总耗时">
+            {{ traceResult.totalDurationMs }}ms
+          </el-descriptions-item>
           <el-descriptions-item label="成功率">
             <el-tag :type="traceResult.successRate >= 90 ? 'success' : traceResult.successRate >= 60 ? 'warning' : 'danger'">
               {{ traceResult.successRate?.toFixed(2) }}%
@@ -131,7 +167,12 @@
         </el-descriptions>
 
         <el-table :data="traceResult.spans" style="margin-top: 16px; width: 100%" max-height="300">
-          <el-table-column prop="nodeId" label="节点ID" width="150" show-overflow-tooltip />
+          <el-table-column
+            prop="nodeId"
+            label="节点ID"
+            width="150"
+            show-overflow-tooltip
+          />
           <el-table-column prop="nodeType" label="节点类型" width="120" />
           <el-table-column prop="endpoint" label="端点" show-overflow-tooltip />
           <el-table-column prop="model" label="模型" width="120" />
@@ -161,7 +202,7 @@
     </el-card>
 
     <!-- Langfuse 可观测性面板 -->
-    <el-card class="langfuse-card" shadow="hover" v-if="langfuseStatus.enabled || langfuseStatus.configured">
+    <el-card v-if="langfuseStatus.enabled || langfuseStatus.configured" class="langfuse-card" shadow="hover">
       <template #header>
         <div class="card-header">
           <span>
@@ -175,17 +216,23 @@
       </template>
       <div class="langfuse-content">
         <div v-if="langfuseStatus.enabled && langfuseStatus.link" class="langfuse-info">
-          <p class="text-secondary">Langfuse 已配置并启用，可查看 LLM 调用链路详情</p>
+          <p class="text-secondary">
+            Langfuse 已配置并启用，可查看 LLM 调用链路详情
+          </p>
           <el-button type="primary" @click="openLangfuse">
             <el-icon><Link /></el-icon>
             打开 Langfuse Dashboard
           </el-button>
         </div>
         <div v-else-if="langfuseStatus.configured && !langfuseStatus.enabled" class="langfuse-info">
-          <p class="text-secondary">Langfuse 已配置但未启用，请在配置文件中启用</p>
+          <p class="text-secondary">
+            Langfuse 已配置但未启用，请在配置文件中启用
+          </p>
         </div>
         <div v-else class="langfuse-info">
-          <p class="text-secondary">请配置 Langfuse 以启用 LLM 链路追踪</p>
+          <p class="text-secondary">
+            请配置 Langfuse 以启用 LLM 链路追踪
+          </p>
         </div>
       </div>
     </el-card>
@@ -193,21 +240,23 @@
     <!-- Main Content Area -->
     <el-row :gutter="24" class="content-row">
       <!-- Left: Agent Grid -->
-      <el-col :lg="getModuleSize('module-agents', 17)" :md="24" v-if="isCardEnabled('module-agents')">
+      <el-col v-if="isCardEnabled('module-agents')" :lg="getModuleSize('module-agents', 17)" :md="24">
         <el-card class="grid-card">
           <template #header>
             <div class="card-header">
               <span class="module-title" style="margin-bottom: 0;">智能体活跃实例</span>
-              <el-tag type="info" effect="plain" class="text-secondary">活跃数: {{ agents.length }}</el-tag>
+              <el-tag type="info" effect="plain" class="text-secondary">
+                活跃数: {{ agents.length }}
+              </el-tag>
             </div>
           </template>
           
           <el-skeleton :loading="loading" animated :count="3">
             <template #template>
-               <div style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                  <el-skeleton-item variant="rect" style="height: 120px; border-radius: var(--radius-lg)" />
-                  <el-skeleton-item variant="rect" style="height: 120px; border-radius: var(--radius-lg)" />
-               </div>
+              <div style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <el-skeleton-item variant="rect" style="height: 120px; border-radius: var(--radius-lg)" />
+                <el-skeleton-item variant="rect" style="height: 120px; border-radius: var(--radius-lg)" />
+              </div>
             </template>
             
             <div v-if="!agents.length" class="empty-placeholder">
@@ -225,16 +274,25 @@
                 <!-- Existing Item Content... -->
                 <div class="item-header">
                   <span class="agent-name">{{ agent.agentName }}</span>
-                  <el-tag size="small" :type="getStatusType(agent.status)" effect="plain">{{ agent.status }}</el-tag>
+                  <el-tag size="small" :type="getStatusType(agent.status)" effect="plain">
+                    {{ agent.status }}
+                  </el-tag>
                 </div>
                 <div class="item-body">
                   <div class="metric-mini">
                     <span>健康度</span>
-                    <el-progress :percentage="agent.healthScore" :show-text="false" :stroke-width="6" :status="getHealthStatus(agent.healthScore)" />
+                    <el-progress
+                      :percentage="agent.healthScore"
+                      :show-text="false"
+                      :stroke-width="6"
+                      :status="getHealthStatus(agent.healthScore)"
+                    />
                   </div>
                   <div class="item-footer">
                     <span class="time">{{ formatTime(agent.lastHeartbeat) }}</span>
-                    <el-icon class="arrow-right"><ArrowRight /></el-icon>
+                    <el-icon class="arrow-right">
+                      <ArrowRight />
+                    </el-icon>
                   </div>
                 </div>
               </div>
@@ -243,65 +301,76 @@
         </el-card>
 
         <!-- New: Distribution Analytics -->
-        <el-row :gutter="24" style="margin-top: 24px;" v-if="isCardEnabled('module-distribution')">
-           <el-col :span="getModuleSize('module-distribution', 24) === 24 ? 12 : 24">
-              <el-card shadow="never" class="grid-card">
-                <template #header><div class="module-title" style="margin-bottom: 0;">终端类型分布</div></template>
-                <div class="chart-container">
-                  <PieChart :data="typeDistribution" height="280px" />
+        <el-row v-if="isCardEnabled('module-distribution')" :gutter="24" style="margin-top: 24px;">
+          <el-col :span="getModuleSize('module-distribution', 24) === 24 ? 12 : 24">
+            <el-card shadow="never" class="grid-card">
+              <template #header>
+                <div class="module-title" style="margin-bottom: 0;">
+                  终端类型分布
                 </div>
-              </el-card>
-           </el-col>
-           <el-col :span="getModuleSize('module-distribution', 24) === 24 ? 12 : 24" :style="getModuleSize('module-distribution', 24) !== 24 ? 'margin-top: 24px' : ''">
-              <el-card shadow="never" class="grid-card">
-                <template #header><div class="module-title" style="margin-bottom: 0;">健康状态分布</div></template>
-                <div class="chart-container">
-                   <PieChart :data="statusDistribution" height="280px" />
+              </template>
+              <div class="chart-container">
+                <PieChart :data="typeDistribution" height="280px" />
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="getModuleSize('module-distribution', 24) === 24 ? 12 : 24" :style="getModuleSize('module-distribution', 24) !== 24 ? 'margin-top: 24px' : ''">
+            <el-card shadow="never" class="grid-card">
+              <template #header>
+                <div class="module-title" style="margin-bottom: 0;">
+                  健康状态分布
                 </div>
-              </el-card>
-           </el-col>
+              </template>
+              <div class="chart-container">
+                <PieChart :data="statusDistribution" height="280px" />
+              </div>
+            </el-card>
+          </el-col>
         </el-row>
 
         <!-- Server Hardware Monitoring -->
-        <div style="margin-top: 24px;" v-if="isCardEnabled('module-server')">
+        <div v-if="isCardEnabled('module-server')" style="margin-top: 24px;">
           <ServerHardwareCard />
         </div>
       </el-col>
 
       <!-- Right: Global Activity -->
-      <el-col :lg="getModuleSize('module-activity', 7)" :md="24" v-if="isCardEnabled('module-activity')">
+      <el-col v-if="isCardEnabled('module-activity')" :lg="getModuleSize('module-activity', 7)" :md="24">
         <el-card shadow="never" class="activity-card">
           <template #header>
             <div class="card-header">
-               <span class="module-title" style="margin-bottom: 0;">系统事件流水</span>
-               <el-tag size="small" type="success" effect="plain">实时</el-tag>
+              <span class="module-title" style="margin-bottom: 0;">系统事件流水</span>
+              <el-tag size="small" type="success" effect="plain">
+                实时
+              </el-tag>
             </div>
           </template>
           <div class="activity-list">
-             <el-skeleton :loading="loading" animated :count="10">
-                <template #template>
-                   <div style="display: flex; gap: 10px; margin-bottom: 15px">
-                      <el-skeleton-item variant="circle" style="width: 10px; height: 10px" />
-                      <el-skeleton-item variant="text" style="flex: 1" />
-                   </div>
-                </template>
-                <div v-for="(log, idx) in sortedLogs.slice(0, 15)" :key="idx" class="activity-item">
-                    <div class="activity-dot" :class="log.type.toLowerCase()"></div>
-                    <div class="activity-info">
-                      <div class="activity-text">{{ log.content }}</div>
-                      <div class="activity-time">
-                        <span class="agent-ref" v-if="log.agentName">@{{ log.agentName }}</span>
-                        {{ formatTime(log.timestamp) }}
-                      </div>
-                    </div>
+            <el-skeleton :loading="loading" animated :count="10">
+              <template #template>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px">
+                  <el-skeleton-item variant="circle" style="width: 10px; height: 10px" />
+                  <el-skeleton-item variant="text" style="flex: 1" />
                 </div>
-                <el-empty v-if="logs.length === 0" description="暂无动态" :image-size="60" />
-             </el-skeleton>
+              </template>
+              <div v-for="(log, idx) in sortedLogs.slice(0, 15)" :key="idx" class="activity-item">
+                <div class="activity-dot" :class="log.type.toLowerCase()" />
+                <div class="activity-info">
+                  <div class="activity-text">
+                    {{ log.content }}
+                  </div>
+                  <div class="activity-time">
+                    <span v-if="log.agentName" class="agent-ref">@{{ log.agentName }}</span>
+                    {{ formatTime(log.timestamp) }}
+                  </div>
+                </div>
+              </div>
+              <el-empty v-if="logs.length === 0" description="暂无动态" :image-size="60" />
+            </el-skeleton>
           </div>
         </el-card>
       </el-col>
     </el-row>
-
   </div>
 </template>
 

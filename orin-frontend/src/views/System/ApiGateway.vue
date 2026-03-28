@@ -12,20 +12,32 @@
         <el-row :gutter="20">
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-value">{{ gatewayStats.totalRequests }}</div>
-              <div class="stat-label">总请求数</div>
+              <div class="stat-value">
+                {{ gatewayStats.totalRequests }}
+              </div>
+              <div class="stat-label">
+                总请求数
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-value">{{ gatewayStats.qps }}</div>
-              <div class="stat-label">QPS</div>
+              <div class="stat-value">
+                {{ gatewayStats.qps }}
+              </div>
+              <div class="stat-label">
+                QPS
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-value">{{ gatewayStats.avgLatency }}ms</div>
-              <div class="stat-label">平均延迟</div>
+              <div class="stat-value">
+                {{ gatewayStats.avgLatency }}ms
+              </div>
+              <div class="stat-label">
+                平均延迟
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
@@ -33,7 +45,9 @@
               <div class="stat-value" :class="{ 'text-success': gatewayStats.errorRate < 1, 'text-danger': gatewayStats.errorRate >= 1 }">
                 {{ gatewayStats.errorRate }}%
               </div>
-              <div class="stat-label">错误率</div>
+              <div class="stat-label">
+                错误率
+              </div>
             </el-card>
           </el-col>
         </el-row>
@@ -42,7 +56,9 @@
           <template #header>
             <div class="card-header">
               <span>在线服务</span>
-              <el-tag type="success">正常运行</el-tag>
+              <el-tag type="success">
+                正常运行
+              </el-tag>
             </div>
           </template>
           <el-table :data="onlineServices">
@@ -50,7 +66,9 @@
             <el-table-column prop="host" label="地址" />
             <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag type="success">在线</el-tag>
+                <el-tag type="success">
+                  在线
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="qps" label="QPS" width="100" />
@@ -72,11 +90,13 @@
             </div>
           </template>
 
-          <el-table :data="routes" v-loading="routesLoading" stripe>
+          <el-table v-loading="routesLoading" :data="routes" stripe>
             <el-table-column prop="path" label="路由路径" min-width="180" />
             <el-table-column prop="method" label="方法" width="80">
               <template #default="{ row }">
-                <el-tag :type="getMethodType(row.method)" size="small">{{ row.method }}</el-tag>
+                <el-tag :type="getMethodType(row.method)" size="small">
+                  {{ row.method }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="service" label="目标服务" min-width="150" />
@@ -89,8 +109,22 @@
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="editRoute(row)">编辑</el-button>
-                <el-button type="danger" link size="small" @click="deleteRoute(row)">删除</el-button>
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="editRoute(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  @click="deleteRoute(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -110,7 +144,7 @@
             </div>
           </template>
 
-          <el-table :data="aclRules" v-loading="aclLoading" stripe>
+          <el-table v-loading="aclLoading" :data="aclRules" stripe>
             <el-table-column prop="name" label="规则名称" width="150" />
             <el-table-column prop="type" label="类型" width="100">
               <template #default="{ row }">
@@ -119,7 +153,12 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="ips" label="IP 地址" min-width="200" show-overflow-tooltip />
+            <el-table-column
+              prop="ips"
+              label="IP 地址"
+              min-width="200"
+              show-overflow-tooltip
+            />
             <el-table-column prop="description" label="描述" min-width="150" />
             <el-table-column prop="enabled" label="状态" width="80">
               <template #default="{ row }">
@@ -128,7 +167,14 @@
             </el-table-column>
             <el-table-column label="操作" width="120" fixed="right">
               <template #default="{ row }">
-                <el-button type="danger" link size="small" @click="deleteAcl(row)">删除</el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  @click="deleteAcl(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -165,8 +211,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="routeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveRoute">保存</el-button>
+        <el-button @click="routeDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveRoute">
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
@@ -178,12 +228,21 @@
         </el-form-item>
         <el-form-item label="规则类型">
           <el-radio-group v-model="aclForm.type">
-            <el-radio value="whitelist">白名单</el-radio>
-            <el-radio value="blacklist">黑名单</el-radio>
+            <el-radio value="whitelist">
+              白名单
+            </el-radio>
+            <el-radio value="blacklist">
+              黑名单
+            </el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="IP 地址" required>
-          <el-input v-model="aclForm.ips" type="textarea" :rows="3" placeholder="每行一个 IP，支持 CIDR" />
+          <el-input
+            v-model="aclForm.ips"
+            type="textarea"
+            :rows="3"
+            placeholder="每行一个 IP，支持 CIDR"
+          />
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="aclForm.description" placeholder="规则描述" />
@@ -193,8 +252,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="aclDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveAcl">保存</el-button>
+        <el-button @click="aclDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveAcl">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

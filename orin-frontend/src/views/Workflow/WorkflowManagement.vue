@@ -12,10 +12,20 @@
 
     <!-- 工作流列表 -->
     <el-card class="table-card">
-      <el-table border :data="workflows" v-loading="loading" stripe>
+      <el-table
+        v-loading="loading"
+        border
+        :data="workflows"
+        stripe
+      >
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="workflowName" label="工作流名称" min-width="180" />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="description"
+          label="描述"
+          min-width="200"
+          show-overflow-tooltip
+        />
         <el-table-column prop="workflowType" label="类型" width="120">
           <template #default="{ row }">
             <el-tag>{{ getTypeLabel(row.workflowType) }}</el-tag>
@@ -32,10 +42,18 @@
         <el-table-column prop="createdAt" label="创建时间" width="180" />
         <el-table-column label="操作" width="350" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="viewInstances(row)">执行记录</el-button>
-            <el-button size="small" type="success" @click="executeWorkflow(row)">执行</el-button>
-            <el-button size="small" type="primary" @click="editWorkflow(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteWorkflow(row)">删除</el-button>
+            <el-button size="small" @click="viewInstances(row)">
+              执行记录
+            </el-button>
+            <el-button size="small" type="success" @click="executeWorkflow(row)">
+              执行
+            </el-button>
+            <el-button size="small" type="primary" @click="editWorkflow(row)">
+              编辑
+            </el-button>
+            <el-button size="small" type="danger" @click="deleteWorkflow(row)">
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -68,8 +86,12 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">创建</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="submitForm">
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
@@ -81,20 +103,24 @@
             v-model="executeInputs"
             type="textarea"
             :rows="10"
-            placeholder='{"key": "value"}'
+            placeholder="{&quot;key&quot;: &quot;value&quot;}"
           />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="executeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmExecute">执行</el-button>
+        <el-button @click="executeDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="confirmExecute">
+          执行
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 执行实例列表对话框 -->
     <el-dialog v-model="instancesDialogVisible" title="执行记录" width="900px">
-      <el-table border :data="instances" v-loading="instancesLoading">
+      <el-table v-loading="instancesLoading" border :data="instances">
         <el-table-column prop="id" label="实例 ID" width="100" />
         <el-table-column prop="traceId" label="Trace ID" width="200" />
         <el-table-column prop="status" label="状态" width="100">
@@ -108,7 +134,9 @@
         <el-table-column prop="durationMs" label="耗时(ms)" width="120" />
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button size="small" @click="viewTrace(row)">查看追踪</el-button>
+            <el-button size="small" @click="viewTrace(row)">
+              查看追踪
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

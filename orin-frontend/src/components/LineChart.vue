@@ -1,6 +1,6 @@
 <template>
   <div class="chart-wrapper">
-    <div ref="chartRef" class="chart-container" :style="{ height: height }"></div>
+    <div ref="chartRef" class="chart-container" :style="{ height: height }" />
   </div>
 </template>
 

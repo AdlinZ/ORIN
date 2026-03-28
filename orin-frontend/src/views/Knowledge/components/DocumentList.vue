@@ -18,7 +18,9 @@
           :disabled="uploading"
           :accept="acceptTypes"
         >
-          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <el-icon class="el-icon--upload">
+            <upload-filled />
+          </el-icon>
           <div class="el-upload__text">
             将文件拖到此处，或 <em>点击上传</em>
           </div>
@@ -32,12 +34,14 @@
         <!-- Upload Progress -->
         <div v-if="uploading" class="upload-progress">
           <el-progress :percentage="uploadProgress" :status="uploadStatus" />
-          <div class="upload-info">正在上传并解析: {{ uploadingFileName }}</div>
+          <div class="upload-info">
+            正在上传并解析: {{ uploadingFileName }}
+          </div>
         </div>
       </div>
 
       <!-- Document List -->
-      <div class="document-list" v-loading="loading">
+      <div v-loading="loading" class="document-list">
         <div class="list-header">
           <span>文档列表 ({{ documents.length }})</span>
           <el-button link type="primary" @click="loadDocuments">
@@ -51,24 +55,40 @@
           <div v-for="doc in documents" :key="doc.id" class="doc-item">
             <!-- File Type Icon -->
             <div class="doc-icon">
-              <el-icon v-if="doc.mediaType === 'pdf'" :size="24" color="#F56C6C"><Document /></el-icon>
-              <el-icon v-else-if="doc.mediaType === 'image'" :size="24" color="#67C23A"><Picture /></el-icon>
-              <el-icon v-else-if="doc.mediaType === 'audio'" :size="24" color="#E6A23C"><Headset /></el-icon>
-              <el-icon v-else-if="doc.mediaType === 'video'" :size="24" color="#909399"><VideoCamera /></el-icon>
-              <el-icon v-else-if="['txt', 'md', 'text'].includes(doc.mediaType)" :size="24" color="var(--el-color-primary)"><Document /></el-icon>
-              <el-icon v-else :size="24"><Document /></el-icon>
+              <el-icon v-if="doc.mediaType === 'pdf'" :size="24" color="#F56C6C">
+                <Document />
+              </el-icon>
+              <el-icon v-else-if="doc.mediaType === 'image'" :size="24" color="#67C23A">
+                <Picture />
+              </el-icon>
+              <el-icon v-else-if="doc.mediaType === 'audio'" :size="24" color="#E6A23C">
+                <Headset />
+              </el-icon>
+              <el-icon v-else-if="doc.mediaType === 'video'" :size="24" color="#909399">
+                <VideoCamera />
+              </el-icon>
+              <el-icon v-else-if="['txt', 'md', 'text'].includes(doc.mediaType)" :size="24" color="var(--el-color-primary)">
+                <Document />
+              </el-icon>
+              <el-icon v-else :size="24">
+                <Document />
+              </el-icon>
             </div>
 
             <!-- Document Info -->
             <div class="doc-info">
-              <div class="doc-name">{{ doc.fileName || doc.originalFilename }}</div>
+              <div class="doc-name">
+                {{ doc.fileName || doc.originalFilename }}
+              </div>
               <div class="doc-meta">
-                <el-tag size="small" type="info">{{ getMediaTypeLabel(doc.mediaType) }}</el-tag>
+                <el-tag size="small" type="info">
+                  {{ getMediaTypeLabel(doc.mediaType) }}
+                </el-tag>
                 <el-divider direction="vertical" />
                 <span>{{ formatSize(doc.fileSize) }}</span>
                 <el-divider direction="vertical" />
                 <span>{{ formatTime(doc.uploadTime) }}</span>
-                <el-divider direction="vertical" v-if="doc.lastModified" />
+                <el-divider v-if="doc.lastModified" direction="vertical" />
                 <span v-if="doc.lastModified">更新: {{ formatTime(doc.lastModified) }}</span>
               </div>
             </div>
@@ -91,10 +111,23 @@
 
             <!-- Actions -->
             <div class="doc-actions">
-              <el-button link type="primary" size="small" @click="viewParsedContent(doc)" v-if="doc.parseStatus === 'SUCCESS'">
+              <el-button
+                v-if="doc.parseStatus === 'SUCCESS'"
+                link
+                type="primary"
+                size="small"
+                @click="viewParsedContent(doc)"
+              >
                 查看
               </el-button>
-              <el-button link type="danger" size="small" @click="handleDelete(doc)">删除</el-button>
+              <el-button
+                link
+                type="danger"
+                size="small"
+                @click="handleDelete(doc)"
+              >
+                删除
+              </el-button>
             </div>
           </div>
         </div>
@@ -102,10 +135,14 @@
 
       <!-- Parsed Content Dialog -->
       <el-dialog v-model="showParsedContent" title="解析内容" width="600px">
-        <div class="parsed-content" v-if="currentParsedContent">
+        <div v-if="currentParsedContent" class="parsed-content">
           <div class="parsed-meta">
-            <el-tag type="info">{{ currentParsedContent.fileName }}</el-tag>
-            <el-tag type="success">{{ currentParsedContent.charCount }} 字符</el-tag>
+            <el-tag type="info">
+              {{ currentParsedContent.fileName }}
+            </el-tag>
+            <el-tag type="success">
+              {{ currentParsedContent.charCount }} 字符
+            </el-tag>
           </div>
           <el-input
             v-model="currentParsedContent.text"
@@ -115,7 +152,9 @@
           />
         </div>
         <template #footer>
-          <el-button @click="showParsedContent = false">关闭</el-button>
+          <el-button @click="showParsedContent = false">
+            关闭
+          </el-button>
         </template>
       </el-dialog>
     </div>

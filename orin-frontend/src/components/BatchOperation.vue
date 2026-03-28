@@ -15,7 +15,7 @@
         </el-select>
       </el-form-item>
       
-      <el-form-item label="选择项" v-if="selectedItems.length > 0">
+      <el-form-item v-if="selectedItems.length > 0" label="选择项">
         <el-tag v-for="item in selectedItems.slice(0, 5)" :key="item.id" style="margin: 4px">
           {{ item.name || item.id }}
         </el-tag>
@@ -24,14 +24,16 @@
         </el-tag>
       </el-form-item>
       
-      <el-form-item label="目标位置" v-if="form.operation === 'move'">
+      <el-form-item v-if="form.operation === 'move'" label="目标位置">
         <el-input v-model="form.targetPath" placeholder="输入目标路径" />
       </el-form-item>
     </el-form>
     
     <template #footer>
-      <el-button @click="handleClose">取消</el-button>
-      <el-button type="primary" @click="handleConfirm" :loading="loading">
+      <el-button @click="handleClose">
+        取消
+      </el-button>
+      <el-button type="primary" :loading="loading" @click="handleConfirm">
         确认
       </el-button>
     </template>

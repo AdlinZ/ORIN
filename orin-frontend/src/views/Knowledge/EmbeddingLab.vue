@@ -12,16 +12,30 @@
         <div class="config-section">
           <h3>检索参数</h3>
           <el-form label-position="top">
-
             <el-form-item label="目标知识库">
               <el-select v-model="selectedKbId" placeholder="选择知识库" style="width:100%">
-                <el-option v-for="kb in knowledgeBases" :key="kb.id" :label="kb.name" :value="kb.id" />
+                <el-option
+                  v-for="kb in knowledgeBases"
+                  :key="kb.id"
+                  :label="kb.name"
+                  :value="kb.id"
+                />
               </el-select>
             </el-form-item>
 
             <el-form-item label="Embedding 模型">
-              <el-select v-model="config.embeddingModel" placeholder="默认模型" clearable style="width:100%">
-                <el-option v-for="m in embeddingModels" :key="m.modelId" :label="m.name" :value="m.modelId" />
+              <el-select
+                v-model="config.embeddingModel"
+                placeholder="默认模型"
+                clearable
+                style="width:100%"
+              >
+                <el-option
+                  v-for="m in embeddingModels"
+                  :key="m.modelId"
+                  :label="m.name"
+                  :value="m.modelId"
+                />
               </el-select>
             </el-form-item>
 
@@ -40,7 +54,12 @@
                 <span>Similarity Threshold</span>
                 <span class="value-badge">{{ config.threshold }}</span>
               </div>
-              <el-slider v-model="config.threshold" :min="0" :max="1" :step="0.05" />
+              <el-slider
+                v-model="config.threshold"
+                :min="0"
+                :max="1"
+                :step="0.05"
+              />
             </div>
 
             <div class="slider-group">
@@ -48,7 +67,12 @@
                 <span>语义权重 Alpha</span>
                 <span class="value-badge">{{ config.alpha }}</span>
               </div>
-              <el-slider v-model="config.alpha" :min="0" :max="1" :step="0.1" />
+              <el-slider
+                v-model="config.alpha"
+                :min="0"
+                :max="1"
+                :step="0.1"
+              />
               <div class="slider-hint">
                 {{ (config.alpha * 100).toFixed(0) }}% 向量语义 &nbsp;+&nbsp; {{ ((1 - config.alpha) * 100).toFixed(0) }}% 关键词
               </div>
@@ -63,15 +87,24 @@
                   :label="m.name"
                   :value="m.modelId"
                 />
-                <el-option v-if="rerankModels.length === 0" label="暂无可用 Rerank 模型" value="none" disabled />
+                <el-option
+                  v-if="rerankModels.length === 0"
+                  label="暂无可用 Rerank 模型"
+                  value="none"
+                  disabled
+                />
               </el-select>
             </el-form-item>
-
           </el-form>
         </div>
 
         <div class="sidebar-bottom">
-          <el-button type="primary" style="width:100%" :icon="Setting" @click="applyToAgent">
+          <el-button
+            type="primary"
+            style="width:100%"
+            :icon="Setting"
+            @click="applyToAgent"
+          >
             同步配置至 Agent
           </el-button>
         </div>
@@ -79,7 +112,6 @@
 
       <!-- ===== Main Content ===== -->
       <div class="lab-main">
-
         <!-- Search Bar -->
         <div class="search-hero">
           <el-input
@@ -91,16 +123,19 @@
             clearable
             @keyup.enter="handleSearch"
           >
-            <template #prefix><el-icon><Search /></el-icon></template>
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
             <template #append>
-              <el-button :loading="loading" type="primary" @click="handleSearch">混合检索</el-button>
+              <el-button :loading="loading" type="primary" @click="handleSearch">
+                混合检索
+              </el-button>
             </template>
           </el-input>
         </div>
 
         <!-- Results -->
-        <div class="results-container" v-loading="loading">
-
+        <div v-loading="loading" class="results-container">
           <!-- Stats Bar -->
           <div v-if="hasSearched && results.length > 0" class="stats-bar">
             <div class="stat-item">
@@ -115,24 +150,34 @@
               <el-icon><Search /></el-icon>
               <span>关键词召回 <strong>{{ keywordResults.length }}</strong></span>
             </div>
-            <div class="stat-item hybrid" v-if="hybridResults.length">
+            <div v-if="hybridResults.length" class="stat-item hybrid">
               <el-icon><Aim /></el-icon>
               <span>双路命中 <strong>{{ hybridResults.length }}</strong></span>
             </div>
-            <div class="stat-time">⏱ {{ executionTime }}ms</div>
+            <div class="stat-time">
+              ⏱ {{ executionTime }}ms
+            </div>
           </div>
 
           <!-- Split View: Vector | Keyword -->
           <div v-if="hasSearched && results.length > 0" class="split-view">
-
             <!-- Vector Column -->
             <div class="strategy-col">
               <div class="col-header vector-header">
                 <el-icon><Share /></el-icon>
                 语义匹配 (Vector Recall)
-                <el-tag size="small" type="success" effect="plain" style="margin-left:auto">{{ vectorResults.length }}</el-tag>
+                <el-tag
+                  size="small"
+                  type="success"
+                  effect="plain"
+                  style="margin-left:auto"
+                >
+                  {{ vectorResults.length }}
+                </el-tag>
               </div>
-              <div v-if="vectorResults.length === 0" class="col-empty">无向量召回结果</div>
+              <div v-if="vectorResults.length === 0" class="col-empty">
+                无向量召回结果
+              </div>
               <div
                 v-for="(item, idx) in vectorResults"
                 :key="'v-'+idx"
@@ -141,14 +186,20 @@
               >
                 <div class="score-bar-wrap">
                   <div class="bar-track">
-                    <div class="bar-fill vector-fill" :style="{ height: (item.score * 100) + '%' }"></div>
+                    <div class="bar-fill vector-fill" :style="{ height: (item.score * 100) + '%' }" />
                   </div>
-                  <div class="score-num">{{ item.score.toFixed(3) }}</div>
+                  <div class="score-num">
+                    {{ item.score.toFixed(3) }}
+                  </div>
                 </div>
                 <div class="card-body">
-                  <div class="content-text">{{ item.content }}</div>
+                  <div class="content-text">
+                    {{ item.content }}
+                  </div>
                   <div class="card-footer">
-                    <el-tag size="small" type="success" effect="plain">Vector</el-tag>
+                    <el-tag size="small" type="success" effect="plain">
+                      Vector
+                    </el-tag>
                     <span class="chunk-ref">{{ item.sourceDoc }} · {{ item.chunkIndex }}</span>
                   </div>
                 </div>
@@ -160,9 +211,18 @@
               <div class="col-header keyword-header">
                 <el-icon><Search /></el-icon>
                 关键词匹配 (Keyword Recall)
-                <el-tag size="small" type="warning" effect="plain" style="margin-left:auto">{{ keywordResults.length }}</el-tag>
+                <el-tag
+                  size="small"
+                  type="warning"
+                  effect="plain"
+                  style="margin-left:auto"
+                >
+                  {{ keywordResults.length }}
+                </el-tag>
               </div>
-              <div v-if="keywordResults.length === 0" class="col-empty">无关键词召回结果</div>
+              <div v-if="keywordResults.length === 0" class="col-empty">
+                无关键词召回结果
+              </div>
               <div
                 v-for="(item, idx) in keywordResults"
                 :key="'k-'+idx"
@@ -171,14 +231,20 @@
               >
                 <div class="score-bar-wrap">
                   <div class="bar-track">
-                    <div class="bar-fill keyword-fill" :style="{ height: (item.score * 100) + '%' }"></div>
+                    <div class="bar-fill keyword-fill" :style="{ height: (item.score * 100) + '%' }" />
                   </div>
-                  <div class="score-num">{{ item.score.toFixed(3) }}</div>
+                  <div class="score-num">
+                    {{ item.score.toFixed(3) }}
+                  </div>
                 </div>
                 <div class="card-body">
-                  <div class="content-text">{{ item.content }}</div>
+                  <div class="content-text">
+                    {{ item.content }}
+                  </div>
                   <div class="card-footer">
-                    <el-tag size="small" type="warning" effect="plain">Keyword</el-tag>
+                    <el-tag size="small" type="warning" effect="plain">
+                      Keyword
+                    </el-tag>
                     <span class="chunk-ref">{{ item.sourceDoc }} · {{ item.chunkIndex }}</span>
                   </div>
                 </div>
@@ -186,11 +252,13 @@
             </div>
 
             <!-- Hybrid Column (双路命中) -->
-            <div class="strategy-col" v-if="hybridResults.length > 0">
+            <div v-if="hybridResults.length > 0" class="strategy-col">
               <div class="col-header hybrid-header">
                 <el-icon><Aim /></el-icon>
                 双路命中 (Hybrid Match)
-                <el-tag size="small" effect="plain" style="margin-left:auto">{{ hybridResults.length }}</el-tag>
+                <el-tag size="small" effect="plain" style="margin-left:auto">
+                  {{ hybridResults.length }}
+                </el-tag>
               </div>
               <div
                 v-for="(item, idx) in hybridResults"
@@ -200,47 +268,64 @@
               >
                 <div class="score-bar-wrap">
                   <div class="bar-track">
-                    <div class="bar-fill hybrid-fill" :style="{ height: (item.score * 100) + '%' }"></div>
+                    <div class="bar-fill hybrid-fill" :style="{ height: (item.score * 100) + '%' }" />
                   </div>
-                  <div class="score-num">{{ item.score.toFixed(3) }}</div>
+                  <div class="score-num">
+                    {{ item.score.toFixed(3) }}
+                  </div>
                 </div>
                 <div class="card-body">
-                  <div class="content-text">{{ item.content }}</div>
+                  <div class="content-text">
+                    {{ item.content }}
+                  </div>
                   <div class="card-footer">
-                    <el-tag size="small" effect="plain">Hybrid</el-tag>
+                    <el-tag size="small" effect="plain">
+                      Hybrid
+                    </el-tag>
                     <span class="chunk-ref">{{ item.sourceDoc }} · {{ item.chunkIndex }}</span>
                   </div>
                 </div>
               </div>
             </div>
-
           </div>
 
           <!-- Empty States -->
           <el-empty v-else-if="hasSearched" description="未召回任何内容，尝试放宽 Threshold 或修改 Query">
             <template #image>
-              <el-icon :size="64" color="#C8C9CC"><Search /></el-icon>
+              <el-icon :size="64" color="#C8C9CC">
+                <Search />
+              </el-icon>
             </template>
             <div v-if="debugInfo" class="debug-info">
               <p>后端返回了 {{ debugInfo.totalResults }} 条结果</p>
               <p>向量检索: {{ debugInfo.vectorCount }} 条 | 关键词检索: {{ debugInfo.keywordCount }} 条</p>
-              <p v-if="debugInfo.vectorCount === 0" class="debug-warning">⚠️ 语义检索失败：可能是Embedding服务未配置或API Key无效</p>
+              <p v-if="debugInfo.vectorCount === 0" class="debug-warning">
+                ⚠️ 语义检索失败：可能是Embedding服务未配置或API Key无效
+              </p>
               <p>最高分: {{ debugInfo.maxScore }} | 最低分: {{ debugInfo.minScore }}</p>
-              <p class="debug-hint">提示：降低 Similarity Threshold 可查看更多结果</p>
+              <p class="debug-hint">
+                提示：降低 Similarity Threshold 可查看更多结果
+              </p>
             </div>
           </el-empty>
           <div v-else class="welcome-state">
-            <el-icon :size="64" color="#C8C9CC"><Aim /></el-icon>
+            <el-icon :size="64" color="#C8C9CC">
+              <Aim />
+            </el-icon>
             <h3>RAG 链路诊断中心</h3>
             <p>选择知识库，输入 Query，实时对比 Embedding 向量召回与关键词匹配结果</p>
           </div>
-
         </div>
       </div>
     </div>
 
     <!-- Trace Drawer -->
-    <el-drawer v-model="drawerVisible" title="Chunk 溯源分析" direction="rtl" size="38%">
+    <el-drawer
+      v-model="drawerVisible"
+      title="Chunk 溯源分析"
+      direction="rtl"
+      size="38%"
+    >
       <div v-if="selectedResult" class="trace-panel">
         <div class="trace-header">
           <el-icon><Document /></el-icon>
@@ -251,18 +336,28 @@
         </div>
         <div class="trace-score-row">
           <div class="trace-score-item">
-            <div class="trace-score-label">综合得分</div>
+            <div class="trace-score-label">
+              综合得分
+            </div>
             <div class="trace-score-value" :style="{ color: getScoreColor(selectedResult.score) }">
               {{ selectedResult.score.toFixed(4) }}
             </div>
           </div>
           <div class="trace-score-item">
-            <div class="trace-score-label">Chunk ID</div>
-            <div class="trace-score-value" style="font-size:12px; word-break:break-all">{{ selectedResult.chunkIndex }}</div>
+            <div class="trace-score-label">
+              Chunk ID
+            </div>
+            <div class="trace-score-value" style="font-size:12px; word-break:break-all">
+              {{ selectedResult.chunkIndex }}
+            </div>
           </div>
         </div>
-        <div class="trace-content-label">Chunk 内容</div>
-        <div class="trace-content-box">{{ selectedResult.content }}</div>
+        <div class="trace-content-label">
+          Chunk 内容
+        </div>
+        <div class="trace-content-box">
+          {{ selectedResult.content }}
+        </div>
       </div>
     </el-drawer>
   </div>

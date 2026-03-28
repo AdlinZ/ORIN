@@ -2,7 +2,9 @@
   <div class="workflow-runner">
     <div class="runner-header">
       <h4>Workflow Configuration</h4>
-      <p class="desc">Configure inputs and execute the workflow.</p>
+      <p class="desc">
+        Configure inputs and execute the workflow.
+      </p>
     </div>
 
     <div class="form-container">
@@ -46,11 +48,22 @@
           </el-form-item>
         </template>
         <div v-else class="no-inputs">
-           <el-alert title="No inputs required for this workflow." type="info" :closable="false" show-icon />
+          <el-alert
+            title="No inputs required for this workflow."
+            type="info"
+            :closable="false"
+            show-icon
+          />
         </div>
 
         <div class="actions">
-          <el-button type="primary" size="large" @click="runWorkflow" :loading="loading" class="run-btn">
+          <el-button
+            type="primary"
+            size="large"
+            :loading="loading"
+            class="run-btn"
+            @click="runWorkflow"
+          >
             <el-icon><VideoPlay /></el-icon> Run Workflow
           </el-button>
         </div>
@@ -58,11 +71,18 @@
     </div>
 
     <!-- Output Section -->
-    <div class="output-section" v-if="result || error">
-      <div class="output-header">Execution Result</div>
+    <div v-if="result || error" class="output-section">
+      <div class="output-header">
+        Execution Result
+      </div>
       
       <div v-if="error" class="error-box">
-        <el-alert :title="error" type="error" :closable="false" show-icon />
+        <el-alert
+          :title="error"
+          type="error"
+          :closable="false"
+          show-icon
+        />
       </div>
 
       <div v-if="result" class="result-box">

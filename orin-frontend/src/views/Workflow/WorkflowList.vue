@@ -39,7 +39,9 @@
             <span class="label">总工作流</span>
             <span class="value">{{ stats.total }}</span>
           </div>
-          <el-icon class="icon primary"><Connection /></el-icon>
+          <el-icon class="icon primary">
+            <Connection />
+          </el-icon>
         </div>
       </el-card>
 
@@ -49,7 +51,9 @@
             <span class="label">已发布</span>
             <span class="value">{{ stats.published }}</span>
           </div>
-          <el-icon class="icon success"><VideoPlay /></el-icon>
+          <el-icon class="icon success">
+            <VideoPlay />
+          </el-icon>
         </div>
       </el-card>
 
@@ -59,7 +63,9 @@
             <span class="label">草稿</span>
             <span class="value">{{ stats.draft }}</span>
           </div>
-          <el-icon class="icon warning"><Edit /></el-icon>
+          <el-icon class="icon warning">
+            <Edit />
+          </el-icon>
         </div>
       </el-card>
     </div>
@@ -72,11 +78,18 @@
         </div>
       </template>
 
-      <el-table border :data="filteredWorkflows" style="width: 100%" v-loading="loading">
+      <el-table
+        v-loading="loading"
+        border
+        :data="filteredWorkflows"
+        style="width: 100%"
+      >
         <el-table-column prop="name" label="工作流名称" min-width="180">
           <template #default="{ row }">
             <div class="workflow-name">
-              <el-icon class="flow-icon"><Connection /></el-icon>
+              <el-icon class="flow-icon">
+                <Connection />
+              </el-icon>
               <span>{{ row.workflowName }}</span>
             </div>
           </template>
@@ -91,19 +104,32 @@
         </el-table-column>
         
         <el-table-column prop="updatedAt" label="最后更新" width="180">
-           <template #default="{ row }">
+          <template #default="{ row }">
             {{ formatTime(row.updatedAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="description"
+          label="描述"
+          min-width="200"
+          show-overflow-tooltip
+        />
 
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编排</el-button>
-            <el-button link type="primary" @click="handleRun(row)">测试</el-button>
-            <el-button link type="success" @click="handleExport(row)">导出</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" @click="handleEdit(row)">
+              编排
+            </el-button>
+            <el-button link type="primary" @click="handleRun(row)">
+              测试
+            </el-button>
+            <el-button link type="success" @click="handleExport(row)">
+              导出
+            </el-button>
+            <el-button link type="danger" @click="handleDelete(row)">
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -130,7 +156,9 @@
             accept=".yml,.yaml"
           >
             <template #trigger>
-              <el-button type="primary">选择文件</el-button>
+              <el-button type="primary">
+                选择文件
+              </el-button>
             </template>
             <template #tip>
               <div class="el-upload__tip">
@@ -177,7 +205,12 @@
 
       <div v-if="difyWorkflows.length > 0" class="dify-workflows">
         <h4>Dify 工作流列表</h4>
-        <el-table :data="difyWorkflows" border style="width: 100%" max-height="300">
+        <el-table
+          :data="difyWorkflows"
+          border
+          style="width: 100%"
+          max-height="300"
+        >
           <el-table-column prop="name" label="名称" min-width="150" />
           <el-table-column prop="mode" label="模式" width="100">
             <template #default="{ row }">

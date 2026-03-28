@@ -6,30 +6,45 @@
       icon="Money"
     >
       <template #actions>
-        <el-button type="primary" :icon="Plus" @click="handleAdd">新增规则</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">
+          新增规则
+        </el-button>
       </template>
     </PageHeader>
 
     <el-card class="table-card" shadow="never">
-      <el-table border :data="tableData" v-loading="loading" style="width: 100%">
+      <el-table
+        v-loading="loading"
+        border
+        :data="tableData"
+        style="width: 100%"
+      >
         <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
         <el-table-column prop="tenantGroup" label="租户分组" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.tenantGroup === 'default' ? 'info' : 'success'">{{ row.tenantGroup }}</el-tag>
+            <el-tag :type="row.tenantGroup === 'default' ? 'info' : 'success'">
+              {{ row.tenantGroup }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="billingMode" label="计费模式" width="120">
           <template #default="{ row }">
-            <el-tag effect="plain">{{ row.billingMode }}</el-tag>
+            <el-tag effect="plain">
+              {{ row.billingMode }}
+            </el-tag>
           </template>
         </el-table-column>
         
         <el-table-column label="内部成本 (Cost)" align="center">
           <el-table-column prop="inputCostUnit" label="Input / 1k" width="120">
-            <template #default="{ row }">{{ formatPrice(row.inputCostUnit) }}</template>
+            <template #default="{ row }">
+              {{ formatPrice(row.inputCostUnit) }}
+            </template>
           </el-table-column>
           <el-table-column prop="outputCostUnit" label="Output / 1k" width="120">
-            <template #default="{ row }">{{ formatPrice(row.outputCostUnit) }}</template>
+            <template #default="{ row }">
+              {{ formatPrice(row.outputCostUnit) }}
+            </template>
           </el-table-column>
         </el-table-column>
 
@@ -48,16 +63,20 @@
 
         <el-table-column label="利润率 (Est)" width="100" align="center">
           <template #default="{ row }">
-             <span :class="calculateMargin(row) > 0 ? 'text-success' : 'text-danger'">
-               {{ calculateMargin(row) }}%
-             </span>
+            <span :class="calculateMargin(row) > 0 ? 'text-success' : 'text-danger'">
+              {{ calculateMargin(row) }}%
+            </span>
           </template>
         </el-table-column>
 
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" @click="handleEdit(row)">
+              编辑
+            </el-button>
+            <el-button link type="danger" @click="handleDelete(row)">
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,7 +88,12 @@
       :title="isEdit ? '编辑定价规则' : '新增定价规则'"
       width="600px"
     >
-      <el-form :model="form" label-width="100px" ref="formRef" :rules="rules">
+      <el-form
+        ref="formRef"
+        :model="form"
+        label-width="100px"
+        :rules="rules"
+      >
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="模型ID" prop="providerId">
@@ -78,7 +102,12 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="租户分组" prop="tenantGroup">
-              <el-select v-model="form.tenantGroup" allow-create filterable default-first-option>
+              <el-select
+                v-model="form.tenantGroup"
+                allow-create
+                filterable
+                default-first-option
+              >
                 <el-option label="Default" value="default" />
                 <el-option label="VIP" value="VIP" />
                 <el-option label="Internal" value="internal" />
@@ -89,41 +118,93 @@
         
         <el-form-item label="计费模式" prop="billingMode">
           <el-radio-group v-model="form.billingMode">
-            <el-radio-button label="PER_TOKEN">Token计费</el-radio-button>
-            <el-radio-button label="PER_REQUEST">按次计费</el-radio-button>
-            <el-radio-button label="PER_SECOND">按时计费</el-radio-button>
+            <el-radio-button label="PER_TOKEN">
+              Token计费
+            </el-radio-button>
+            <el-radio-button label="PER_REQUEST">
+              按次计费
+            </el-radio-button>
+            <el-radio-button label="PER_SECOND">
+              按时计费
+            </el-radio-button>
           </el-radio-group>
         </el-form-item>
 
-        <el-divider content-position="left">定价配置 (单位: USD)</el-divider>
+        <el-divider content-position="left">
+          定价配置 (单位: USD)
+        </el-divider>
 
         <!-- Markup Tool -->
         <div class="markup-tool">
           <span>快速定价 (加价率): </span>
-          <el-input-number v-model="markupRate" :step="10" size="small" style="width: 100px" /> %
-          <el-button type="primary" link size="small" @click="applyMarkup">应用加价</el-button>
+          <el-input-number
+            v-model="markupRate"
+            :step="10"
+            size="small"
+            style="width: 100px"
+          /> %
+          <el-button
+            type="primary"
+            link
+            size="small"
+            @click="applyMarkup"
+          >
+            应用加价
+          </el-button>
         </div>
 
         <div class="pricing-grid">
-          <div class="grid-header">成本 (Internal Cost)</div>
-          <div class="grid-header">报价 (External Price)</div>
+          <div class="grid-header">
+            成本 (Internal Cost)
+          </div>
+          <div class="grid-header">
+            报价 (External Price)
+          </div>
 
           <!-- Input Row -->
-          <div class="grid-label">Input / Unit</div>
+          <div class="grid-label">
+            Input / Unit
+          </div>
           <el-form-item prop="inputCostUnit" label-width="0">
-             <el-input-number v-model="form.inputCostUnit" :precision="6" :step="0.001" style="width: 100%" placeholder="0.000000" />
+            <el-input-number
+              v-model="form.inputCostUnit"
+              :precision="6"
+              :step="0.001"
+              style="width: 100%"
+              placeholder="0.000000"
+            />
           </el-form-item>
           <el-form-item prop="inputPriceUnit" label-width="0">
-             <el-input-number v-model="form.inputPriceUnit" :precision="6" :step="0.001" style="width: 100%" placeholder="0.000000" />
+            <el-input-number
+              v-model="form.inputPriceUnit"
+              :precision="6"
+              :step="0.001"
+              style="width: 100%"
+              placeholder="0.000000"
+            />
           </el-form-item>
 
           <!-- Output Row -->
-          <div class="grid-label">Output / Unit</div>
+          <div class="grid-label">
+            Output / Unit
+          </div>
           <el-form-item prop="outputCostUnit" label-width="0">
-             <el-input-number v-model="form.outputCostUnit" :precision="6" :step="0.001" style="width: 100%" placeholder="0.000000" />
+            <el-input-number
+              v-model="form.outputCostUnit"
+              :precision="6"
+              :step="0.001"
+              style="width: 100%"
+              placeholder="0.000000"
+            />
           </el-form-item>
           <el-form-item prop="outputPriceUnit" label-width="0">
-             <el-input-number v-model="form.outputPriceUnit" :precision="6" :step="0.001" style="width: 100%" placeholder="0.000000" />
+            <el-input-number
+              v-model="form.outputPriceUnit"
+              :precision="6"
+              :step="0.001"
+              style="width: 100%"
+              placeholder="0.000000"
+            />
           </el-form-item>
         </div>
       </el-form>

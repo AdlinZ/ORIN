@@ -2,7 +2,9 @@
   <div class="chat-app-container">
     <div class="chat-header">
       <div class="header-content">
-        <div class="app-icon">🤖</div>
+        <div class="app-icon">
+          🤖
+        </div>
         <div class="app-info">
           <h1>{{ workflowName || 'Workflow Chat' }}</h1>
           <span class="status-badge">Running</span>
@@ -10,17 +12,26 @@
       </div>
     </div>
 
-    <div class="chat-messages" ref="messagesContainer">
-      <div v-for="(msg, index) in messages" :key="index" class="message-row" :class="msg.role">
+    <div ref="messagesContainer" class="chat-messages">
+      <div
+        v-for="(msg, index) in messages"
+        :key="index"
+        class="message-row"
+        :class="msg.role"
+      >
         <div class="avatar">
           {{ msg.role === 'user' ? '👤' : '🤖' }}
         </div>
         <div class="message-bubble">
-          <div class="message-content">{{ msg.content }}</div>
+          <div class="message-content">
+            {{ msg.content }}
+          </div>
         </div>
       </div>
       <div v-if="loading" class="message-row assistant">
-        <div class="avatar">🤖</div>
+        <div class="avatar">
+          🤖
+        </div>
         <div class="message-bubble loading">
           <span>●</span><span>●</span><span>●</span>
         </div>
@@ -32,15 +43,23 @@
         <el-input 
           v-model="userInput" 
           placeholder="Send a message..." 
-          @keyup.enter="sendMessage"
           :disabled="loading"
+          @keyup.enter="sendMessage"
         >
           <template #suffix>
-            <el-button circle type="primary" :icon="Position" @click="sendMessage" :loading="loading" />
+            <el-button
+              circle
+              type="primary"
+              :icon="Position"
+              :loading="loading"
+              @click="sendMessage"
+            />
           </template>
         </el-input>
       </div>
-      <div class="footer-text">Powered by ORIN Workflow Engine</div>
+      <div class="footer-text">
+        Powered by ORIN Workflow Engine
+      </div>
     </div>
   </div>
 </template>
@@ -117,7 +136,7 @@ const sendMessage = async () => {
             if (status === 'SUCCESS') {
                 const outputs = instData.outputData || {};
                 // Try to find a meaningful output field
-                let reply = outputs.output || outputs.result || outputs.response || JSON.stringify(outputs);
+                const reply = outputs.output || outputs.result || outputs.response || JSON.stringify(outputs);
                 messages.value.push({ role: 'assistant', content: reply });
                 break;
             } else if (status === 'FAILED') {

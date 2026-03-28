@@ -21,28 +21,39 @@
         <el-col :span="6">
           <el-statistic title="图片" :value="stats.imageCount">
             <template #suffix>
-              <el-icon color="var(--primary-color)"><Picture /></el-icon>
+              <el-icon color="var(--primary-color)">
+                <Picture />
+              </el-icon>
             </template>
           </el-statistic>
         </el-col>
         <el-col :span="6">
           <el-statistic title="音频" :value="stats.audioCount">
             <template #suffix>
-              <el-icon color="var(--success-color)"><Headset /></el-icon>
+              <el-icon color="var(--success-color)">
+                <Headset />
+              </el-icon>
             </template>
           </el-statistic>
         </el-col>
         <el-col :span="6">
           <el-statistic title="视频" :value="stats.videoCount">
             <template #suffix>
-              <el-icon color="var(--warning-color)"><VideoCamera /></el-icon>
+              <el-icon color="var(--warning-color)">
+                <VideoCamera />
+              </el-icon>
             </template>
           </el-statistic>
         </el-col>
       </el-row>
 
       <!-- 文件类型筛选 -->
-      <el-segmented v-model="filterType" :options="filterTypeOptions" @change="loadFiles" class="filter-group" />
+      <el-segmented
+        v-model="filterType"
+        :options="filterTypeOptions"
+        class="filter-group"
+        @change="loadFiles"
+      />
 
       <!-- 文件网格 -->
       <div v-loading="loading" class="file-grid">
@@ -57,7 +68,7 @@
               v-if="file.fileType === 'IMAGE' && file.thumbnailPath"
               :src="`/api/v1/multimodal/files/${file.id}/thumbnail`"
               :alt="file.fileName"
-            />
+            >
             <el-icon v-else class="file-icon" :size="60">
               <Picture v-if="file.fileType === 'IMAGE'" />
               <Headset v-else-if="file.fileType === 'AUDIO'" />
@@ -66,9 +77,13 @@
             </el-icon>
           </div>
           <div class="file-info">
-            <div class="file-name" :title="file.fileName">{{ file.fileName }}</div>
+            <div class="file-name" :title="file.fileName">
+              {{ file.fileName }}
+            </div>
             <div class="file-meta">
-              <el-tag size="small">{{ file.fileType }}</el-tag>
+              <el-tag size="small">
+                {{ file.fileType }}
+              </el-tag>
               <span>{{ formatFileSize(file.fileSize) }}</span>
             </div>
           </div>
@@ -101,7 +116,9 @@
         drag
         accept="image/*,audio/*,video/*,.pdf,.doc,.docx"
       >
-        <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+        <el-icon class="el-icon--upload">
+          <UploadFilled />
+        </el-icon>
         <div class="el-upload__text">
           拖拽文件到此处或 <em>点击上传</em>
         </div>
@@ -112,12 +129,14 @@
         </template>
       </el-upload>
       <template #footer>
-        <el-button @click="uploadDialog = false">取消</el-button>
+        <el-button @click="uploadDialog = false">
+          取消
+        </el-button>
         <el-button
           type="primary"
-          @click="uploadFile"
           :loading="uploading"
           :disabled="!selectedFile"
+          @click="uploadFile"
         >
           上传
         </el-button>
@@ -133,7 +152,7 @@
             v-if="currentFile.fileType === 'IMAGE'"
             :src="`/api/v1/multimodal/files/${currentFile.id}/download`"
             style="max-width: 100%; border-radius: 8px;"
-          />
+          >
           <audio
             v-else-if="currentFile.fileType === 'AUDIO'"
             controls

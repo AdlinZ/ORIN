@@ -6,66 +6,92 @@
       icon="TrendCharts"
     >
       <template #actions>
-        <el-button :icon="RefreshRight" @click="handleGlobalRefresh">刷新数据</el-button>
+        <el-button :icon="RefreshRight" @click="handleGlobalRefresh">
+          刷新数据
+        </el-button>
       </template>
       <template #filters>
         <div class="metrics-filter-row">
-        <div class="status-badge" :style="healthStatusStyle">
-          <span class="dot"></span> {{ healthStatus }}
-        </div>
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          size="small"
-          class="metrics-date-range"
-          @change="handleDateRangeChange"
-        />
-        <div class="metrics-auto-refresh">
-          <el-icon><Monitor /></el-icon>
-          <span>自动刷新</span>
-          <el-switch
-            v-model="autoRefresh"
-            active-text=""
-            inactive-text=""
+          <div class="status-badge" :style="healthStatusStyle">
+            <span class="dot" /> {{ healthStatus }}
+          </div>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
             size="small"
-            @change="handleAutoRefreshChange"
+            class="metrics-date-range"
+            @change="handleDateRangeChange"
           />
+          <div class="metrics-auto-refresh">
+            <el-icon><Monitor /></el-icon>
+            <span>自动刷新</span>
+            <el-switch
+              v-model="autoRefresh"
+              active-text=""
+              inactive-text=""
+              size="small"
+              @change="handleAutoRefreshChange"
+            />
+          </div>
         </div>
-      </div>
       </template>
     </PageHeader>
 
     <!-- Quick Stats Cards -->
     <div class="quick-stats-grid">
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon tokens-icon"><el-icon><Coin /></el-icon></div>
+        <div class="stat-icon tokens-icon">
+          <el-icon><Coin /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">今日 Token</div>
-          <div class="stat-value">{{ formatNumber(totalTokens) }}</div>
+          <div class="stat-label">
+            今日 Token
+          </div>
+          <div class="stat-value">
+            {{ formatNumber(totalTokens) }}
+          </div>
         </div>
       </el-card>
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon latency-icon"><el-icon><Timer /></el-icon></div>
+        <div class="stat-icon latency-icon">
+          <el-icon><Timer /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">平均延迟</div>
-          <div class="stat-value">{{ latencyStats.avg }}ms</div>
+          <div class="stat-label">
+            平均延迟
+          </div>
+          <div class="stat-value">
+            {{ latencyStats.avg }}ms
+          </div>
         </div>
       </el-card>
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon cost-icon"><el-icon><Money /></el-icon></div>
+        <div class="stat-icon cost-icon">
+          <el-icon><Money /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">预估成本</div>
-          <div class="stat-value">¥{{ costStats.total }}</div>
+          <div class="stat-label">
+            预估成本
+          </div>
+          <div class="stat-value">
+            ¥{{ costStats.total }}
+          </div>
         </div>
       </el-card>
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon sessions-icon"><el-icon><ChatDotRound /></el-icon></div>
+        <div class="stat-icon sessions-icon">
+          <el-icon><ChatDotRound /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">会话数</div>
-          <div class="stat-value">{{ sessionStats.count }}</div>
+          <div class="stat-label">
+            会话数
+          </div>
+          <div class="stat-value">
+            {{ sessionStats.count }}
+          </div>
         </div>
       </el-card>
     </div>
@@ -74,18 +100,26 @@
     <el-card shadow="never" class="activity-card">
       <div class="card-header-flex">
         <div class="header-left">
-          <h3 class="card-title">按时间统计</h3>
-          <p class="card-subtitle">根据会话时间跨度估算（首次/最近活动时间）。时区：本地。</p>
+          <h3 class="card-title">
+            按时间统计
+          </h3>
+          <p class="card-subtitle">
+            根据会话时间跨度估算（首次/最近活动时间）。时区：本地。
+          </p>
         </div>
         <div class="header-right">
-          <div class="total-tokens">{{ formatNumber(totalTokens) }} tokens</div>
+          <div class="total-tokens">
+            {{ formatNumber(totalTokens) }} tokens
+          </div>
         </div>
       </div>
 
       <div class="activity-grid">
         <!-- Day of Week -->
         <div class="day-of-week-section">
-          <h4 class="section-title">星期分布</h4>
+          <h4 class="section-title">
+            星期分布
+          </h4>
           <div class="days-grid">
             <div 
               v-for="(item, index) in dayOfWeekData" 
@@ -93,8 +127,12 @@
               class="day-card"
               :style="{ backgroundColor: getHeatmapColor(item.value, maxDayValue) }"
             >
-              <div class="day-name" :style="{ color: item.value > maxDayValue * 0.5 ? '#fff' : 'inherit' }">{{ item.day }}</div>
-              <div class="day-value" :style="{ color: item.value > maxDayValue * 0.5 ? '#fff' : 'inherit' }">{{ formatToken(item.value) }}</div>
+              <div class="day-name" :style="{ color: item.value > maxDayValue * 0.5 ? '#fff' : 'inherit' }">
+                {{ item.day }}
+              </div>
+              <div class="day-value" :style="{ color: item.value > maxDayValue * 0.5 ? '#fff' : 'inherit' }">
+                {{ formatToken(item.value) }}
+              </div>
             </div>
           </div>
         </div>
@@ -102,7 +140,9 @@
         <!-- Hours Heatmap -->
         <div class="hours-section">
           <div class="hours-header">
-            <h4 class="section-title">小时分布</h4>
+            <h4 class="section-title">
+              小时分布
+            </h4>
             <span class="hours-range">0 → 23</span>
           </div>
           <div class="hours-heatmap">
@@ -111,7 +151,7 @@
               :key="idx" 
               class="hour-cell"
               :style="{ backgroundColor: getHeatmapColor(val, maxHourlyValue) }"
-            ></div>
+            />
           </div>
           <div class="hours-labels">
             <span>午夜</span>
@@ -122,7 +162,7 @@
             <span>20点</span>
           </div>
           <div class="legend">
-            <div class="legend-gradient"></div>
+            <div class="legend-gradient" />
             <span>低 → 高 Token 密度</span>
           </div>
         </div>
@@ -140,43 +180,53 @@
                 :type="chartType === 'total' ? 'primary' : ''"
                 :plain="chartType === 'total'"
                 @click="chartType = 'total'"
-              >总计</el-button>
+              >
+                总计
+              </el-button>
               <el-button
                 size="small"
                 :type="chartType === 'type' ? 'primary' : ''"
                 :plain="chartType === 'type'"
                 @click="chartType = 'type'"
-              >按类型</el-button>
+              >
+                按类型
+              </el-button>
             </div>
-            <h3 class="card-title centered-title">每日 Token 消耗</h3>
+            <h3 class="card-title centered-title">
+              每日 Token 消耗
+            </h3>
           </div>
           <div class="chart-container" style="height: 250px;">
-            <div ref="dailyChartRef" class="echarts-wrapper"></div>
+            <div ref="dailyChartRef" class="echarts-wrapper" />
           </div>
         </el-card>
 
         <el-card shadow="never" class="chart-card type-card">
-          <h3 class="card-title">Token 按类型</h3>
+          <h3 class="card-title">
+            Token 按类型
+          </h3>
           <div class="tokens-type-bar">
-            <div class="type-segment output" :style="{ width: tokenTypesPercent.output + '%' }"></div>
-            <div class="type-segment input" :style="{ width: tokenTypesPercent.input + '%' }"></div>
-            <div class="type-segment cache-read" :style="{ width: tokenTypesPercent.cacheRead + '%' }"></div>
+            <div class="type-segment output" :style="{ width: tokenTypesPercent.output + '%' }" />
+            <div class="type-segment input" :style="{ width: tokenTypesPercent.input + '%' }" />
+            <div class="type-segment cache-read" :style="{ width: tokenTypesPercent.cacheRead + '%' }" />
           </div>
           <div class="type-legend">
             <div class="legend-item">
-              <span class="dot output"></span> 输出 {{ formatToken(tokenTypes.output) }}
+              <span class="dot output" /> 输出 {{ formatToken(tokenTypes.output) }}
             </div>
             <div class="legend-item">
-              <span class="dot input"></span> 输入 {{ formatToken(tokenTypes.input) }}
+              <span class="dot input" /> 输入 {{ formatToken(tokenTypes.input) }}
             </div>
             <div class="legend-item">
-              <span class="dot cache-write"></span> 缓存写入 {{ formatToken(tokenTypes.cacheWrite) }}
+              <span class="dot cache-write" /> 缓存写入 {{ formatToken(tokenTypes.cacheWrite) }}
             </div>
             <div class="legend-item">
-              <span class="dot cache-read"></span> 缓存读取 {{ formatToken(tokenTypes.cacheRead) }}
+              <span class="dot cache-read" /> 缓存读取 {{ formatToken(tokenTypes.cacheRead) }}
             </div>
           </div>
-          <div class="total-type-label">总计: {{ formatToken(totalTokensType) }}</div>
+          <div class="total-type-label">
+            总计: {{ formatToken(totalTokensType) }}
+          </div>
         </el-card>
       </div>
 
@@ -184,7 +234,9 @@
       <div class="right-column">
         <el-card shadow="never" class="sessions-card">
           <div class="card-header-flex">
-            <h3 class="card-title">会话列表</h3>
+            <h3 class="card-title">
+              会话列表
+            </h3>
             <span class="sessions-count">共 {{ filteredSessions.length }} 条</span>
           </div>
           <div class="sessions-toolbar">
@@ -198,22 +250,37 @@
                   :type="sessionFilter === 'all' ? 'primary' : ''"
                   :plain="sessionFilter === 'all'"
                   @click="sessionFilter = 'all'"
-                >全部</el-button>
+                >
+                  全部
+                </el-button>
                 <el-button
                   :type="sessionFilter === 'viewed' ? 'primary' : ''"
                   :plain="sessionFilter === 'viewed'"
                   @click="sessionFilter = 'viewed'"
-                >最近查看</el-button>
+                >
+                  最近查看
+                </el-button>
               </el-button-group>
               <div class="sort-dropdown">
-                排序 <el-select v-model="sessionSort" size="small" style="width: 100px; margin-left: 8px;" @change="handleSortChange">
-                  <el-option label="最近" value="recent"></el-option>
-                  <el-option label="最多Token" value="tokens"></el-option>
-                  <el-option label="最多消息" value="msgs"></el-option>
-                  <el-option label="最少错误" value="errors"></el-option>
+                排序 <el-select
+                  v-model="sessionSort"
+                  size="small"
+                  style="width: 100px; margin-left: 8px;"
+                  @change="handleSortChange"
+                >
+                  <el-option label="最近" value="recent" />
+                  <el-option label="最多Token" value="tokens" />
+                  <el-option label="最多消息" value="msgs" />
+                  <el-option label="最少错误" value="errors" />
                 </el-select>
               </div>
-              <el-button size="small" :icon="Download" circle style="margin-left: 12px;" @click="handleExport"></el-button>
+              <el-button
+                size="small"
+                :icon="Download"
+                circle
+                style="margin-left: 12px;"
+                @click="handleExport"
+              />
             </div>
           </div>
 
@@ -226,30 +293,34 @@
                 :class="{ selected: selectedSession === session }"
                 @click="selectedSession = session"
               >
-              <div class="session-info">
-                <div class="session-title">{{ session.name }}</div>
-                <div class="session-meta">
-                  <span v-if="session.channel">channel:{{ session.channel }}</span>
-                  <span v-if="session.agent">agent:{{ session.agent }}</span>
-                  <span v-if="session.provider">provider:{{ session.provider }}</span>
-                  <span v-if="session.model">model:{{ session.model }}</span>
+                <div class="session-info">
+                  <div class="session-title">
+                    {{ session.name }}
+                  </div>
+                  <div class="session-meta">
+                    <span v-if="session.channel">channel:{{ session.channel }}</span>
+                    <span v-if="session.agent">agent:{{ session.agent }}</span>
+                    <span v-if="session.provider">provider:{{ session.provider }}</span>
+                    <span v-if="session.model">model:{{ session.model }}</span>
+                  </div>
+                  <div class="session-stats">
+                    <span>agent:main</span>
+                    <span>msgs:{{ session.msgs }}</span>
+                    <span v-if="session.tools">tools:{{ session.tools }}</span>
+                    <span>errors:{{ session.errors }}</span>
+                    <span>dur:{{ session.dur }}</span>
+                  </div>
                 </div>
-                <div class="session-stats">
-                  <span>agent:main</span>
-                  <span>msgs:{{ session.msgs }}</span>
-                  <span v-if="session.tools">tools:{{ session.tools }}</span>
-                  <span>errors:{{ session.errors }}</span>
-                  <span>dur:{{ session.dur }}</span>
+                <div class="session-actions">
+                  <el-button size="small" round @click.stop="handleCopySession(session)">
+                    复制
+                  </el-button>
+                  <span class="session-tokens">{{ formatToken(session.tokens) }}</span>
                 </div>
               </div>
-              <div class="session-actions">
-                <el-button size="small" round @click.stop="handleCopySession(session)">复制</el-button>
-                <span class="session-tokens">{{ formatToken(session.tokens) }}</span>
-              </div>
-            </div>
-            <el-empty v-if="filteredSessions.length === 0" description="暂无会话数据" :image-size="60" />
+              <el-empty v-if="filteredSessions.length === 0" description="暂无会话数据" :image-size="60" />
             </el-scrollbar>
-            <div class="pagination-wrapper" v-if="filteredSessions.length > pageSize">
+            <div v-if="filteredSessions.length > pageSize" class="pagination-wrapper">
               <el-pagination
                 v-model:current-page="currentPage"
                 :page-size="pageSize"

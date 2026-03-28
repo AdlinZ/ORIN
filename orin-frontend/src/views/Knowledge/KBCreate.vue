@@ -1,799 +1,1179 @@
 <template>
   <div class="kb-create-page">
-      <PageHeader
-         title="创建知识库"
-         description="按步骤完成数据源接入、解析与分段配置"
-         icon="Reading"
-      />
+    <PageHeader
+      title="创建知识库"
+      description="按步骤完成数据源接入、解析与分段配置"
+      icon="Reading"
+    />
     <!-- Header with Steps -->
     <div class="create-header">
       <div class="header-left" @click="$router.back()">
-         <el-icon class="back-icon"><ArrowLeft /></el-icon>
+        <el-icon class="back-icon">
+          <ArrowLeft />
+        </el-icon>
       </div>
       <div class="header-steps">
-         <div class="step-item" :class="{ active: currentStep === 1, done: currentStep > 1 }">
-            <div class="step-num">1</div>
-            <span class="step-title">选择数据源</span>
-         </div>
-         <div class="step-line"></div>
-         <div class="step-item" :class="{ active: currentStep === 2, done: currentStep > 2 }">
-            <div class="step-num">2</div>
-            <span class="step-title">内容解析</span>
-         </div>
-         <div class="step-line"></div>
-         <div class="step-item" :class="{ active: currentStep === 3, done: currentStep > 3 }">
-            <div class="step-num">3</div>
-            <span class="step-title">文本分段</span>
-         </div>
-         <div class="step-line"></div>
-         <div class="step-item" :class="{ active: currentStep === 4 }">
-            <div class="step-num">4</div>
-            <span class="step-title">完成</span>
-         </div>
+        <div class="step-item" :class="{ active: currentStep === 1, done: currentStep > 1 }">
+          <div class="step-num">
+            1
+          </div>
+          <span class="step-title">选择数据源</span>
+        </div>
+        <div class="step-line" />
+        <div class="step-item" :class="{ active: currentStep === 2, done: currentStep > 2 }">
+          <div class="step-num">
+            2
+          </div>
+          <span class="step-title">内容解析</span>
+        </div>
+        <div class="step-line" />
+        <div class="step-item" :class="{ active: currentStep === 3, done: currentStep > 3 }">
+          <div class="step-num">
+            3
+          </div>
+          <span class="step-title">文本分段</span>
+        </div>
+        <div class="step-line" />
+        <div class="step-item" :class="{ active: currentStep === 4 }">
+          <div class="step-num">
+            4
+          </div>
+          <span class="step-title">完成</span>
+        </div>
       </div>
     </div>
 
     <!-- Main Content -->
     <div class="create-container" :class="{ 'wide-container': currentStep === 2 || currentStep === 3, 'finish-container': currentStep === 4 }">
-
-       <!-- Step 1: Data Source Selection -->
-       <div v-if="currentStep === 1" class="step-content step-1">
-          <h2 class="section-title">选择数据源</h2>
-          <div class="source-cards">
-             <div class="source-card" :class="{ selected: selectedSource === 'file' }" @click="selectedSource = 'file'">
-                <el-icon class="source-icon blue"><Document /></el-icon>
-                <div class="source-info">
-                   <h3>导入已有文本</h3>
-                   <p>从本地导入 PDF、TXT、DOCX 等文本文件</p>
-                </div>
-                <div class="check-mark" v-if="selectedSource === 'file'"><el-icon><Check /></el-icon></div>
-             </div>
-             <div class="source-card" :class="{ selected: selectedSource === 'web' }" @click="selectedSource = 'web'">
-                <el-icon class="source-icon green"><Link /></el-icon>
-                <div class="source-info">
-                   <h3>同步自 Web 站点</h3>
-                   <p>抓取网页内容作为知识库源</p>
-                </div>
-                <div class="check-mark" v-if="selectedSource === 'web'"><el-icon><Check /></el-icon></div>
-             </div>
-             <div class="source-card" :class="{ selected: selectedSource === 'notion' }" @click="selectedSource = 'notion'">
-                <el-icon class="source-icon purple"><Notebook /></el-icon>
-                <div class="source-info">
-                   <h3>同步自 Notion</h3>
-                   <p>连接 Notion 数据源</p>
-                </div>
-                <div class="check-mark" v-if="selectedSource === 'notion'"><el-icon><Check /></el-icon></div>
-             </div>
-             <div class="source-card" :class="{ selected: selectedSource === 'database' }" @click="selectedSource = 'database'">
-                <el-icon class="source-icon orange"><Connection /></el-icon>
-                <div class="source-info">
-                   <h3>连接数据库</h3>
-                   <p>连接 MySQL、PostgreSQL 等数据库</p>
-                </div>
-                <div class="check-mark" v-if="selectedSource === 'database'"><el-icon><Check /></el-icon></div>
-             </div>
+      <!-- Step 1: Data Source Selection -->
+      <div v-if="currentStep === 1" class="step-content step-1">
+        <h2 class="section-title">
+          选择数据源
+        </h2>
+        <div class="source-cards">
+          <div class="source-card" :class="{ selected: selectedSource === 'file' }" @click="selectedSource = 'file'">
+            <el-icon class="source-icon blue">
+              <Document />
+            </el-icon>
+            <div class="source-info">
+              <h3>导入已有文本</h3>
+              <p>从本地导入 PDF、TXT、DOCX 等文本文件</p>
+            </div>
+            <div v-if="selectedSource === 'file'" class="check-mark">
+              <el-icon><Check /></el-icon>
+            </div>
           </div>
+          <div class="source-card" :class="{ selected: selectedSource === 'web' }" @click="selectedSource = 'web'">
+            <el-icon class="source-icon green">
+              <Link />
+            </el-icon>
+            <div class="source-info">
+              <h3>同步自 Web 站点</h3>
+              <p>抓取网页内容作为知识库源</p>
+            </div>
+            <div v-if="selectedSource === 'web'" class="check-mark">
+              <el-icon><Check /></el-icon>
+            </div>
+          </div>
+          <div class="source-card" :class="{ selected: selectedSource === 'notion' }" @click="selectedSource = 'notion'">
+            <el-icon class="source-icon purple">
+              <Notebook />
+            </el-icon>
+            <div class="source-info">
+              <h3>同步自 Notion</h3>
+              <p>连接 Notion 数据源</p>
+            </div>
+            <div v-if="selectedSource === 'notion'" class="check-mark">
+              <el-icon><Check /></el-icon>
+            </div>
+          </div>
+          <div class="source-card" :class="{ selected: selectedSource === 'database' }" @click="selectedSource = 'database'">
+            <el-icon class="source-icon orange">
+              <Connection />
+            </el-icon>
+            <div class="source-info">
+              <h3>连接数据库</h3>
+              <p>连接 MySQL、PostgreSQL 等数据库</p>
+            </div>
+            <div v-if="selectedSource === 'database'" class="check-mark">
+              <el-icon><Check /></el-icon>
+            </div>
+          </div>
+        </div>
 
-          <!-- Upload Zone (only for file source) -->
-          <div v-if="selectedSource === 'file'"
-             class="upload-zone"
-             :class="{ dragging: isDragging }"
-             @dragover.prevent="handleDragOver"
-             @dragleave.prevent="handleDragLeave"
-             @drop.prevent="handleDrop"
-             @click="triggerUpload"
+        <!-- Upload Zone (only for file source) -->
+        <div
+          v-if="selectedSource === 'file'"
+          class="upload-zone"
+          :class="{ dragging: isDragging }"
+          @dragover.prevent="handleDragOver"
+          @dragleave.prevent="handleDragLeave"
+          @drop.prevent="handleDrop"
+          @click="triggerUpload"
+        >
+          <input
+            ref="fileInput"
+            type="file"
+            style="display: none"
+            multiple
+            accept=".pdf,.txt,.doc,.docx,.md,.jpg,.jpeg,.png,.gif,.bmp,.webp,.mp3,.wav,.m4a,.ogg,.mp4,.avi,.mov,.mkv"
+            @change="handleFileChange"
           >
-             <input type="file" ref="fileInput" style="display: none" multiple accept=".pdf,.txt,.doc,.docx,.md,.jpg,.jpeg,.png,.gif,.bmp,.webp,.mp3,.wav,.m4a,.ogg,.mp4,.avi,.mov,.mkv" @change="handleFileChange" />
-             <div class="upload-area">
-                <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                <div class="upload-text">
-                   <span class="link">点击上传</span> 或将文件拖拽至此
-                </div>
-                <div class="upload-hint">支持 PDF、TXT、Word、图片、音频、视频等格式，每个文件不超过 15MB</div>
-             </div>
+          <div class="upload-area">
+            <el-icon class="upload-icon">
+              <UploadFilled />
+            </el-icon>
+            <div class="upload-text">
+              <span class="link">点击上传</span> 或将文件拖拽至此
+            </div>
+            <div class="upload-hint">
+              支持 PDF、TXT、Word、图片、音频、视频等格式，每个文件不超过 15MB
+            </div>
           </div>
+        </div>
 
-          <!-- Web Source Config -->
-          <div v-if="selectedSource === 'web'" class="source-config">
-             <h3 class="config-title">Web 站点配置</h3>
-             <div class="config-form">
-                <div class="form-item">
-                   <label>URL 列表 (每行一个)</label>
-                   <el-input
-                      v-model="webConfig.urlsText"
-                      type="textarea"
-                      :rows="5"
-                      placeholder="https://example.com/page1&#10;https://example.com/page2"
-                   />
-                </div>
-                <div class="form-item">
-                   <label>爬取深度</label>
-                   <el-input-number v-model="webConfig.maxDepth" :min="1" :max="5" />
-                </div>
-                <div class="form-actions">
-                   <el-button type="primary" @click="testWebUrl" :loading="testingWeb">测试连接</el-button>
-                </div>
-             </div>
+        <!-- Web Source Config -->
+        <div v-if="selectedSource === 'web'" class="source-config">
+          <h3 class="config-title">
+            Web 站点配置
+          </h3>
+          <div class="config-form">
+            <div class="form-item">
+              <label>URL 列表 (每行一个)</label>
+              <el-input
+                v-model="webConfig.urlsText"
+                type="textarea"
+                :rows="5"
+                placeholder="https://example.com/page1&#10;https://example.com/page2"
+              />
+            </div>
+            <div class="form-item">
+              <label>爬取深度</label>
+              <el-input-number v-model="webConfig.maxDepth" :min="1" :max="5" />
+            </div>
+            <div class="form-actions">
+              <el-button type="primary" :loading="testingWeb" @click="testWebUrl">
+                测试连接
+              </el-button>
+            </div>
           </div>
+        </div>
 
-          <!-- Notion Source Config -->
-          <div v-if="selectedSource === 'notion'" class="source-config">
-             <h3 class="config-title">Notion 配置</h3>
-             <div class="config-form">
-                <div class="form-item">
-                   <label>Integration Token</label>
-                   <el-input v-model="notionConfig.integrationToken" placeholder="secret_xxx" show-password />
-                   <div class="form-tip">在 Notion 中创建 Integration 后获取</div>
-                </div>
-                <div class="form-item">
-                   <label>数据库 ID</label>
-                   <el-input v-model="notionConfig.databaseId" placeholder="32位字符的数据库ID" />
-                </div>
-                <div class="form-actions">
-                   <el-button @click="testNotionConnection" :loading="testingNotion">测试连接</el-button>
-                   <el-button type="primary" @click="loadNotionDatabases" :loading="loadingNotionDatabases" :disabled="!notionConfig.integrationToken">
-                      获取数据库列表
-                   </el-button>
-                </div>
-                <div v-if="notionDatabases.length > 0" class="form-item">
-                   <label>选择数据库</label>
-                   <el-select v-model="notionConfig.databaseId" placeholder="选择 Notion 数据库">
-                      <el-option v-for="db in notionDatabases" :key="db.id" :label="db.title" :value="db.id" />
-                   </el-select>
-                </div>
-             </div>
+        <!-- Notion Source Config -->
+        <div v-if="selectedSource === 'notion'" class="source-config">
+          <h3 class="config-title">
+            Notion 配置
+          </h3>
+          <div class="config-form">
+            <div class="form-item">
+              <label>Integration Token</label>
+              <el-input v-model="notionConfig.integrationToken" placeholder="secret_xxx" show-password />
+              <div class="form-tip">
+                在 Notion 中创建 Integration 后获取
+              </div>
+            </div>
+            <div class="form-item">
+              <label>数据库 ID</label>
+              <el-input v-model="notionConfig.databaseId" placeholder="32位字符的数据库ID" />
+            </div>
+            <div class="form-actions">
+              <el-button :loading="testingNotion" @click="testNotionConnection">
+                测试连接
+              </el-button>
+              <el-button
+                type="primary"
+                :loading="loadingNotionDatabases"
+                :disabled="!notionConfig.integrationToken"
+                @click="loadNotionDatabases"
+              >
+                获取数据库列表
+              </el-button>
+            </div>
+            <div v-if="notionDatabases.length > 0" class="form-item">
+              <label>选择数据库</label>
+              <el-select v-model="notionConfig.databaseId" placeholder="选择 Notion 数据库">
+                <el-option
+                  v-for="db in notionDatabases"
+                  :key="db.id"
+                  :label="db.title"
+                  :value="db.id"
+                />
+              </el-select>
+            </div>
           </div>
+        </div>
 
-          <!-- Database Source Config -->
-          <div v-if="selectedSource === 'database'" class="source-config">
-             <h3 class="config-title">数据库连接</h3>
-             <div class="config-form">
-                <div class="form-item">
-                   <label>JDBC 连接 URL</label>
-                   <el-input v-model="dbConfig.connectionUrl" placeholder="jdbc:mysql://localhost:3306/mydb" />
-                   <div class="form-tip">例如: jdbc:mysql://localhost:3306/mydb 或 jdbc:postgresql://localhost:5432/mydb</div>
-                </div>
-                <div class="form-row">
-                   <div class="form-item">
-                      <label>用户名</label>
-                      <el-input v-model="dbConfig.username" placeholder="root" />
-                   </div>
-                   <div class="form-item">
-                      <label>密码</label>
-                      <el-input v-model="dbConfig.password" type="password" placeholder="密码" show-password />
-                   </div>
-                </div>
-                <div class="form-actions">
-                   <el-button @click="testDatabaseConnection" :loading="testingDb">测试连接</el-button>
-                </div>
-             </div>
+        <!-- Database Source Config -->
+        <div v-if="selectedSource === 'database'" class="source-config">
+          <h3 class="config-title">
+            数据库连接
+          </h3>
+          <div class="config-form">
+            <div class="form-item">
+              <label>JDBC 连接 URL</label>
+              <el-input v-model="dbConfig.connectionUrl" placeholder="jdbc:mysql://localhost:3306/mydb" />
+              <div class="form-tip">
+                例如: jdbc:mysql://localhost:3306/mydb 或 jdbc:postgresql://localhost:5432/mydb
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-item">
+                <label>用户名</label>
+                <el-input v-model="dbConfig.username" placeholder="root" />
+              </div>
+              <div class="form-item">
+                <label>密码</label>
+                <el-input
+                  v-model="dbConfig.password"
+                  type="password"
+                  placeholder="密码"
+                  show-password
+                />
+              </div>
+            </div>
+            <div class="form-actions">
+              <el-button :loading="testingDb" @click="testDatabaseConnection">
+                测试连接
+              </el-button>
+            </div>
           </div>
+        </div>
 
-          <!-- File List Preview -->
-          <TransitionGroup name="list" tag="div" v-if="fileList.length > 0" class="file-preview-list">
-             <div v-for="(file, index) in fileList" :key="file.name + index" class="file-item">
-                <div class="file-info">
-                   <el-icon class="file-icon"><Document /></el-icon>
-                   <span class="file-name text-ellipsis">{{ file.name }}</span>
-                   <span class="file-size">{{ file.size }}</span>
-                </div>
-                <el-icon class="remove-btn" @click="removeFile(index)"><Close /></el-icon>
-             </div>
-          </TransitionGroup>
+        <!-- File List Preview -->
+        <TransitionGroup
+          v-if="fileList.length > 0"
+          name="list"
+          tag="div"
+          class="file-preview-list"
+        >
+          <div v-for="(file, index) in fileList" :key="file.name + index" class="file-item">
+            <div class="file-info">
+              <el-icon class="file-icon">
+                <Document />
+              </el-icon>
+              <span class="file-name text-ellipsis">{{ file.name }}</span>
+              <span class="file-size">{{ file.size }}</span>
+            </div>
+            <el-icon class="remove-btn" @click="removeFile(index)">
+              <Close />
+            </el-icon>
+          </div>
+        </TransitionGroup>
           
-          <div class="empty-kb-link">
-             <el-button link type="primary" @click="createEmpty"><el-icon><FolderAdd /></el-icon> 创建一个空知识库</el-button>
-          </div>
-       </div>
+        <div class="empty-kb-link">
+          <el-button link type="primary" @click="createEmpty">
+            <el-icon><FolderAdd /></el-icon> 创建一个空知识库
+          </el-button>
+        </div>
+      </div>
 
-       <!-- Step 2: Content Parsing (Multimodal) -->
-       <div v-if="currentStep === 2" class="step-content step-2-layout">
-          <div class="step-2-config">
-             <!-- 1. Parsing Settings -->
-             <div class="config-section">
-                <div class="section-label">解析设置</div>
-                <el-alert title="多模态内容解析用于从图片、音频、视频中提取文本内容" type="info" :closable="false" style="margin-bottom: 16px" />
-                <div class="parsing-options">
-                   <div class="parsing-card" :class="{ active: form.parsingEnabled }" @click="form.parsingEnabled = true">
-                      <div class="parsing-header">
-                         <div class="parsing-icon"><el-icon><PictureFilled /></el-icon></div>
-                         <div class="parsing-info">
-                            <div class="parsing-title">启用多模态解析</div>
-                            <div class="parsing-desc">对图片、音频、视频进行 OCR 识别或语音转文字</div>
-                         </div>
-                         <div class="check-circle" v-if="form.parsingEnabled"><el-icon><Check /></el-icon></div>
-                      </div>
-                   </div>
-                   <div class="parsing-card" :class="{ active: !form.parsingEnabled }" @click="form.parsingEnabled = false">
-                      <div class="parsing-header">
-                         <div class="parsing-icon"><el-icon><Document /></el-icon></div>
-                         <div class="parsing-info">
-                            <div class="parsing-title">跳过解析</div>
-                            <div class="parsing-desc">直接对文本内容进行分段和向量化</div>
-                         </div>
-                         <div class="check-circle" v-if="!form.parsingEnabled"><el-icon><Check /></el-icon></div>
-                      </div>
-                   </div>
-                </div>
-             </div>
-
-             <!-- Parsing Configuration -->
-             <div v-if="form.parsingEnabled" class="config-section">
-                <div class="section-label">OCR 图片文字识别</div>
-                <div class="provider-cards">
-                   <div
-                      class="provider-card"
-                      :class="{ active: form.ocrProvider === 'local' }"
-                      @click="form.ocrProvider = 'local'; form.ocrModel = ''"
-                   >
-                      <div class="provider-icon"><el-icon><Monitor /></el-icon></div>
-                      <div class="provider-info">
-                         <div class="provider-name">本地 (Tesseract)</div>
-                         <div class="provider-desc">开源 OCR 引擎，无需联网</div>
-                      </div>
-                      <div class="check-circle" v-if="form.ocrProvider === 'local'"><el-icon><Check /></el-icon></div>
-                   </div>
-                   <div
-                      class="provider-card"
-                      :class="{ active: form.ocrProvider !== 'local' }"
-                      @click="form.ocrProvider = 'azure'"
-                   >
-                      <div class="provider-icon"><el-icon><Cloudy /></el-icon></div>
-                      <div class="provider-info">
-                         <div class="provider-name">云服务 API</div>
-                         <div class="provider-desc">Azure/Google/阿里云/腾讯云</div>
-                      </div>
-                      <div class="check-circle" v-if="form.ocrProvider !== 'local'"><el-icon><Check /></el-icon></div>
-                   </div>
-                </div>
-
-                <!-- OCR Model Selection (when cloud selected) -->
-                <div v-if="form.ocrProvider !== 'local'" class="cloud-config">
-                   <el-select v-model="form.ocrModel" placeholder="选择 OCR 模型" size="large" style="width: 100%">
-                      <el-option v-for="item in ocrModelOptions" :key="item.value" :label="item.label" :value="item.value">
-                         <span style="display: flex; align-items: center; gap: 8px;">
-                            <el-icon class="icon-blue"><Cpu /></el-icon> {{ item.label }}
-                         </span>
-                      </el-option>
-                   </el-select>
-                </div>
-
-                <div class="section-label" style="margin-top: 24px;">ASR 语音识别</div>
-                <div class="provider-cards">
-                   <div
-                      class="provider-card"
-                      :class="{ active: form.asrProvider === 'local' }"
-                      @click="form.asrProvider = 'local'; form.asrModel = ''"
-                   >
-                      <div class="provider-icon"><el-icon><Microphone /></el-icon></div>
-                      <div class="provider-info">
-                         <div class="provider-name">本地 (Whisper)</div>
-                         <div class="provider-desc">开源语音识别模型</div>
-                      </div>
-                      <div class="check-circle" v-if="form.asrProvider === 'local'"><el-icon><Check /></el-icon></div>
-                   </div>
-                   <div
-                      class="provider-card"
-                      :class="{ active: form.asrProvider !== 'local' }"
-                      @click="form.asrProvider = 'azure'"
-                   >
-                      <div class="provider-icon"><el-icon><Cloudy /></el-icon></div>
-                      <div class="provider-info">
-                         <div class="provider-name">云服务 API</div>
-                         <div class="provider-desc">Azure/Google/阿里云/腾讯云</div>
-                      </div>
-                      <div class="check-circle" v-if="form.asrProvider !== 'local'"><el-icon><Check /></el-icon></div>
-                   </div>
-                </div>
-
-                <!-- ASR Model Selection (when cloud selected) -->
-                <div v-if="form.asrProvider !== 'local'" class="cloud-config">
-                   <el-select v-model="form.asrModel" placeholder="选择 ASR 模型" size="large" style="width: 100%">
-                      <el-option v-for="item in asrModelOptions" :key="item.value" :label="item.label" :value="item.value">
-                         <span style="display: flex; align-items: center; gap: 8px;">
-                            <el-icon class="icon-blue"><Cpu /></el-icon> {{ item.label }}
-                         </span>
-                      </el-option>
-                   </el-select>
-                </div>
-
-                <!-- Rich Text Parsing Options -->
-                <div class="section-label" style="margin-top: 24px;">文档解析</div>
-                <el-alert title="解析文档时保留格式信息（标题层级、段落结构等），便于后续知识检索" type="info" :closable="false" style="margin-bottom: 16px" />
-                <div class="parsing-options">
-                   <div class="parsing-card" :class="{ active: form.richTextEnabled }" @click="form.richTextEnabled = true">
-                      <div class="parsing-header">
-                         <div class="parsing-icon"><el-icon><Document /></el-icon></div>
-                         <div class="parsing-info">
-                            <div class="parsing-title">富文本解析</div>
-                            <div class="parsing-desc">保留文档格式信息（标题、段落、列表等）</div>
-                         </div>
-                         <div class="check-circle" v-if="form.richTextEnabled"><el-icon><Check /></el-icon></div>
-                      </div>
-                   </div>
-                   <div class="parsing-card" :class="{ active: !form.richTextEnabled }" @click="form.richTextEnabled = false">
-                      <div class="parsing-header">
-                         <div class="parsing-icon"><el-icon><Document /></el-icon></div>
-                         <div class="parsing-info">
-                            <div class="parsing-title">纯文本解析</div>
-                            <div class="parsing-desc">仅提取文本内容，不保留格式</div>
-                         </div>
-                         <div class="check-circle" v-if="!form.richTextEnabled"><el-icon><Check /></el-icon></div>
-                      </div>
-                   </div>
-                </div>
-             </div>
-
-             <!-- File Type Preview -->
-             <div class="config-section">
-                <div class="section-label">待处理文件</div>
-                <div class="file-type-list" v-if="fileList.length > 0">
-                   <div class="file-type-item" v-for="(file, index) in fileList.slice(0, 5)" :key="index">
-                      <el-icon><Document /></el-icon>
-                      <span class="file-name">{{ file.name }}</span>
-                      <el-tag size="small" :type="getFileTypeTag(file.name)">{{ getFileType(file.name) }}</el-tag>
-                   </div>
-                   <div v-if="fileList.length > 5" class="more-files">
-                      还有 {{ fileList.length - 5 }} 个文件
-                   </div>
-                </div>
-                <div v-else class="no-files-tip">
-                   <el-icon><InfoFilled /></el-icon>
-                   <span>请在第一步选择数据源并上传文件</span>
-                </div>
-             </div>
-          </div>
-
-          <!-- Right Side: Parsing Result / Status -->
-          <div class="step-2-preview">
-             <div class="preview-header">
-                <el-icon class="doc-icon"><InfoFilled /></el-icon>
-                <span>{{ parsingComplete ? '解析结果' : '解析状态' }}</span>
-                <el-button v-if="parsingComplete && !parsingLoading" type="primary" link size="small" @click="reparseFiles" :disabled="parsingLoading">
-                  <el-icon><Refresh /></el-icon> 重新解析
-                </el-button>
-             </div>
-             <div class="preview-body">
-                <!-- Loading State -->
-                <div v-if="parsingLoading" class="parsing-loading">
-                   <el-icon class="loading-icon"><Loading /></el-icon>
-                   <div class="loading-text">正在解析文件...</div>
-                   <div class="loading-progress">
-                      <div v-for="(file, idx) in creatingFiles" :key="idx" class="file-progress-item">
-                         <span class="file-name">{{ file.name }}</span>
-                         <el-progress :percentage="file.progress" :status="file.status === 'error' ? 'exception' : undefined" :show-text="false" />
-                      </div>
-                   </div>
-                </div>
-
-                <!-- Parsed Content Display (after parsing complete) -->
-                <div v-else-if="parsingComplete && parsedContent.length > 0" class="parsed-content-list">
-                   <div v-for="(item, idx) in parsedContent" :key="idx" class="parsed-item">
-                      <div class="parsed-item-header">
-                         <el-icon><Document /></el-icon>
-                         <span class="parsed-filename">{{ item.fileName }}</span>
-                         <el-tag size="small" type="success">{{ item.text.length }} 字符</el-tag>
-                      </div>
-                      <div class="parsed-item-content">{{ item.text.substring(0, 500) }}{{ item.text.length > 500 ? '...' : '' }}</div>
-                   </div>
-                </div>
-
-                <!-- No Content or Failed -->
-                <div v-else-if="parsingComplete && parsedContent.length === 0" class="parsing-failed">
-                   <el-icon class="failed-icon"><WarningFilled /></el-icon>
-                   <div class="failed-text">解析失败或未能获取内容</div>
-                   <div class="failed-hint">请检查文件格式或配置后重试</div>
-                </div>
-
-                <!-- Initial State: Show parsing info -->
-                <div v-else class="parsing-info-list">
-                   <div class="info-item">
-                      <div class="info-icon"><el-icon><Picture /></el-icon></div>
-                      <div class="info-content">
-                         <div class="info-title">图片 (PNG, JPG, JPEG, BMP)</div>
-                         <div class="info-desc">使用 OCR 识别图片中的文字内容</div>
-                      </div>
-                   </div>
-                   <div class="info-item">
-                      <div class="info-icon"><el-icon><Microphone /></el-icon></div>
-                      <div class="info-content">
-                         <div class="info-title">音频 (MP3, WAV, M4A)</div>
-                         <div class="info-desc">使用 ASR 将语音转写为文字</div>
-                      </div>
-                   </div>
-                   <div class="info-item">
-                      <div class="info-icon"><el-icon><VideoCamera /></el-icon></div>
-                      <div class="info-content">
-                         <div class="info-title">视频 (MP4, AVI, MOV)</div>
-                         <div class="info-desc">提取音频并使用 ASR 转写</div>
-                      </div>
-                   </div>
-                   <div class="info-item">
-                      <div class="info-icon"><el-icon><Document /></el-icon></div>
-                      <div class="info-content">
-                         <div class="info-title">文档 (PDF, DOCX, TXT)</div>
-                         <div class="info-desc">直接提取文本，跳过解析步骤</div>
-                      </div>
-                   </div>
-                </div>
-             </div>
-          </div>
-       </div>
-
-       <!-- Step 3: Cleaning & Segmentation (Dify Style) -->
-       <div v-if="currentStep === 3" class="step-content step-2-layout">
-          <div class="step-2-config">
-             <!-- 1. Segmentation -->
-             <div class="config-section">
-                <div class="section-label">分段设置</div>
-                <div class="segment-mode-cards">
-                   <div class="mode-card" :class="{ active: form.segmentMode === 'general' }" @click="form.segmentMode = 'general'">
-                      <div class="mode-icon"><el-icon><Setting /></el-icon></div>
-                      <div class="mode-info">
-                         <div class="mode-title">通用</div>
-                         <div class="mode-desc">通用文本分块模式，检索和召回的块是相同的</div>
-                      </div>
-                      <div class="check-circle" v-if="form.segmentMode === 'general'"><el-icon><Check /></el-icon></div>
-                   </div>
-                   <div class="mode-card" :class="{ active: form.segmentMode === 'parent_child' }" @click="form.segmentMode = 'parent_child'">
-                      <div class="mode-icon"><el-icon><CopyDocument /></el-icon></div>
-                      <div class="mode-info">
-                         <div class="mode-title">父子分段</div>
-                         <div class="mode-desc">使用父子模式时，子块用于检索，父块用作上下文</div>
-                      </div>
-                       <div class="check-circle" v-if="form.segmentMode === 'parent_child'"><el-icon><Check /></el-icon></div>
-                   </div>
-                </div>
-                <!-- Parent-Child Params -->
-                <div v-if="form.segmentMode === 'parent_child'" class="parent-child-params">
-                   <div class="params-info">
-                      <el-alert title="使用 Parent-Child 分块策略" type="info" :closable="false">
-                        <template #default>
-                          <div>• 父分块 (Parent): ~1000 字符，表示完整语义段落</div>
-                          <div>• 子分块 (Child): ~200 字符，用于精确向量检索</div>
-                          <div>• 检索时返回父分块内容作为 LLM 上下文</div>
-                        </template>
-                      </el-alert>
-                   </div>
-                   <div class="preview-actions">
-                      <el-button class="start-preview-btn" :loading="previewLoading" @click="handlePreview">
-                         <el-icon style="margin-right: 4px;"><View /></el-icon> 预览分块
-                      </el-button>
-                      <el-button link type="info" @click="handleResetParams">重置</el-button>
-                   </div>
-                </div>
-             </div>
-             
-             <!-- 2. Index Method -->
-             <div class="config-section">
-                 <div class="section-label">索引方式</div>
-                 <div class="index-cards">
-                     <div class="index-card" :class="{ active: form.indexType === 'high_quality' }" @click="form.indexType = 'high_quality'">
-                        <div class="card-head">
-                           <h4>高质量</h4>
-                           <el-tag size="small" type="primary" effect="light">推荐</el-tag>
-                        </div>
-                        <p>调用嵌入模型处理文档以实现更精确的检索。</p>
-                        <div class="radio-circle">
-                           <div class="inner" v-if="form.indexType === 'high_quality'"></div>
-                        </div>
-                     </div>
-                     <div class="index-card" :class="{ active: form.indexType === 'economy' }" @click="form.indexType = 'economy'">
-                        <div class="card-head">
-                           <h4>经济</h4>
-                        </div>
-                        <p>使用关键词进行检索，降低精度以节省 Token。</p>
-                        <div class="radio-circle">
-                           <div class="inner" v-if="form.indexType === 'economy'"></div>
-                        </div>
-                     </div>
-                 </div>
-             </div>
-             
-             <!-- 3. Embedding Model -->
-             <div v-if="form.indexType === 'high_quality'" class="config-section">
-                 <div class="section-label">Embedding 模型</div>
-                 <el-select v-model="form.embeddingModel" class="w-full" size="large" placeholder="请选择 Embedding 模型">
-                    <el-option v-for="item in embeddingOptions" :key="item.value" :label="item.label" :value="item.value">
-                       <span style="display: flex; align-items: center; gap: 8px;">
-                          <el-icon class="icon-green"><Cpu /></el-icon> {{ item.label }}
-                       </span>
-                    </el-option>
-                 </el-select>
-             </div>
-             
-             <!-- 4. Retrieval Settings -->
-             <div class="config-section">
-                <div class="section-label">检索设置</div>
-                <div class="retrieval-box">
-                   <div class="retrieval-option active">
-                      <div class="option-header">
-                         <div class="icon-box"><el-icon><Operation /></el-icon></div>
-                         <span>向量检索</span>
-                      </div>
-                      <div class="option-desc">通过生成查询嵌入并查询与其向量表示最相似的文本分段</div>
-                      <div class="rerank-section">
-                         <div class="rerank-toggle">
-                            <el-switch v-model="form.enableRerank" /> <span>Rerank 模型</span>
-                            <el-tooltip content="重排序模型"><el-icon class="info-icon"><QuestionFilled /></el-icon></el-tooltip>
-                         </div>
-                         <div class="rerank-select" v-if="form.enableRerank">
-                            <el-select v-model="form.rerankModel" size="default" placeholder="Select Rerank Model">
-                               <el-option v-for="item in rerankOptions" :key="item.value" :label="item.label" :value="item.value" />
-                            </el-select>
-                         </div>
-                      </div>
-                      <div class="sliders-row">
-                         <div class="slider-item">
-                            <div class="slider-label">Top K <span>{{ form.topK }}</span></div>
-                            <el-slider v-model="form.topK" :max="10" :min="1" size="small" />
-                         </div>
-                         <div class="slider-item">
-                            <div class="slider-label">Score 阈值 <span>{{ form.scoreThreshold }}</span></div>
-                            <el-slider v-model="form.scoreThreshold" :max="1" :step="0.01" size="small" />
-                         </div>
-                      </div>
-                      <!-- 知识库级别检索配置覆盖 -->
-                      <div class="retrieval-config-section">
-                         <div class="section-header">
-                            <el-checkbox v-model="useCustomRetrievalConfig">覆盖默认检索配置</el-checkbox>
-                            <span class="section-tip">启用后该知识库将使用以下配置，而非系统默认配置</span>
-                         </div>
-                         <div v-if="useCustomRetrievalConfig" class="config-fields">
-                            <div class="config-row">
-                               <div class="config-item">
-                                  <label>Chunk 最大字符数</label>
-                                  <el-input-number v-model="form.chunkSize" :min="100" :max="2000" :step="100" size="small" />
-                               </div>
-                               <div class="config-item">
-                                  <label>Chunk 重叠字符数</label>
-                                  <el-input-number v-model="form.chunkOverlap" :min="0" :max="500" :step="50" size="small" />
-                               </div>
-                            </div>
-                            <div class="config-row">
-                               <div class="config-item">
-                                  <label>检索返回结果数 (Top K)</label>
-                                  <el-input-number v-model="form.topK" :min="1" :max="20" :step="1" size="small" />
-                               </div>
-                               <div class="config-item">
-                                  <label>相似度阈值</label>
-                                  <el-input-number v-model="form.similarityThreshold" :min="0" :max="1" :step="0.05" :precision="2" size="small" />
-                               </div>
-                               <div class="config-item">
-                                  <label>向量检索权重 (alpha)</label>
-                                  <el-input-number v-model="form.alpha" :min="0" :max="1" :step="0.1" :precision="2" size="small" />
-                               </div>
-                            </div>
-                            <!-- Rerank 配置 -->
-                            <div class="config-row">
-                               <div class="config-item" style="flex: 1;">
-                                  <label>启用 Rerank</label>
-                                  <el-switch v-model="form.enableRerank" />
-                               </div>
-                               <div class="config-item" style="flex: 2;" v-if="form.enableRerank">
-                                  <label>Rerank 模型</label>
-                                  <el-select v-model="form.rerankModel" placeholder="选择 Rerank 模型" size="small" style="width: 100%" filterable clearable>
-                                     <el-option
-                                        v-for="model in rerankModels"
-                                        :key="model.id"
-                                        :label="model.name"
-                                        :value="model.id"
-                                     />
-                                  </el-select>
-                               </div>
-                            </div>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-             </div>
-          </div>
-
-          <!-- Right Side: Preview -->
-          <div class="step-2-preview">
-             <div class="preview-header">
-                 <div class="header-content" v-if="fileList.length > 0">
-                    <el-icon class="doc-icon"><Document /></el-icon>
-                    <span class="doc-name text-ellipsis">{{ fileList[0].name }}</span>
-                    <el-tag v-if="showPreview" size="small" type="info">
-                    {{ previewChunks.length > maxPreviewChunks ? `${maxPreviewChunks}/${previewChunks.length}` : previewChunks.length }} 预估块
-                 </el-tag>
-                    <el-tag v-else size="small" type="info">0 预估块</el-tag>
-                 </div>
-                 <div v-else>预览</div>
-             </div>
-             <div class="preview-body" v-loading="previewLoading">
-                <div v-if="showPreview" class="chunk-list">
-                    <div v-for="chunk in displayChunks" :key="chunk.id" class="chunk-item">
-                       <div class="chunk-meta">
-                         <el-tag v-if="chunk.chunkType === 'child'" size="small" type="success">Child</el-tag>
-                         <el-tag v-else size="small">Chunk</el-tag>
-                         #{{chunk.id}} · {{ chunk.length }} characters
-                         <span v-if="chunk.parentIndex">(Parent {{ chunk.parentIndex }})</span>
-                         <el-button
-                           v-if="chunk.length > 150"
-                           link
-                           size="small"
-                           style="margin-left: auto; color: #2563EB;"
-                           @click="toggleChunk(chunk.id)"
-                         >
-                           {{ collapsedChunks.has(chunk.id) ? '展开' : '收起' }}
-                         </el-button>
-                       </div>
-                       <div class="chunk-content" :class="{ collapsed: collapsedChunks.has(chunk.id) }">
-                         {{ collapsedChunks.has(chunk.id) && chunk.length > 150 ? chunk.content.slice(0, 150) + '...' : chunk.content }}
-                       </div>
+      <!-- Step 2: Content Parsing (Multimodal) -->
+      <div v-if="currentStep === 2" class="step-content step-2-layout">
+        <div class="step-2-config">
+          <!-- 1. Parsing Settings -->
+          <div class="config-section">
+            <div class="section-label">
+              解析设置
+            </div>
+            <el-alert
+              title="多模态内容解析用于从图片、音频、视频中提取文本内容"
+              type="info"
+              :closable="false"
+              style="margin-bottom: 16px"
+            />
+            <div class="parsing-options">
+              <div class="parsing-card" :class="{ active: form.parsingEnabled }" @click="form.parsingEnabled = true">
+                <div class="parsing-header">
+                  <div class="parsing-icon">
+                    <el-icon><PictureFilled /></el-icon>
+                  </div>
+                  <div class="parsing-info">
+                    <div class="parsing-title">
+                      启用多模态解析
                     </div>
-                 </div>
-                 <div v-else class="empty-preview">
-                    <div class="empty-icon-wrapper"><el-icon><Search /></el-icon></div>
-                    <p>点击左侧的“预览块”按钮来加载预览</p>
-                 </div>
-             </div>
+                    <div class="parsing-desc">
+                      对图片、音频、视频进行 OCR 识别或语音转文字
+                    </div>
+                  </div>
+                  <div v-if="form.parsingEnabled" class="check-circle">
+                    <el-icon><Check /></el-icon>
+                  </div>
+                </div>
+              </div>
+              <div class="parsing-card" :class="{ active: !form.parsingEnabled }" @click="form.parsingEnabled = false">
+                <div class="parsing-header">
+                  <div class="parsing-icon">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <div class="parsing-info">
+                    <div class="parsing-title">
+                      跳过解析
+                    </div>
+                    <div class="parsing-desc">
+                      直接对文本内容进行分段和向量化
+                    </div>
+                  </div>
+                  <div v-if="!form.parsingEnabled" class="check-circle">
+                    <el-icon><Check /></el-icon>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-       </div>
 
-       <!-- Step 3: Finish & Processing -->
-       <div v-if="currentStep === 4" class="step-content step-3-layout">
-          <div class="step-3-main">
-             <!-- Success Header -->
-             <div class="success-header">
-                <div class="success-icon-wrap">
-                   <el-icon class="success-icon"><Check /></el-icon>
+          <!-- Parsing Configuration -->
+          <div v-if="form.parsingEnabled" class="config-section">
+            <div class="section-label">
+              OCR 图片文字识别
+            </div>
+            <div class="provider-cards">
+              <div
+                class="provider-card"
+                :class="{ active: form.ocrProvider === 'local' }"
+                @click="form.ocrProvider = 'local'; form.ocrModel = ''"
+              >
+                <div class="provider-icon">
+                  <el-icon><Monitor /></el-icon>
                 </div>
-                <div class="header-text">
-                   <h3>知识库已创建</h3>
-                   <p>我们自动为该知识库起了一个名称，您也可以随时修改</p>
+                <div class="provider-info">
+                  <div class="provider-name">
+                    本地 (Tesseract)
+                  </div>
+                  <div class="provider-desc">
+                    开源 OCR 引擎，无需联网
+                  </div>
                 </div>
-             </div>
+                <div v-if="form.ocrProvider === 'local'" class="check-circle">
+                  <el-icon><Check /></el-icon>
+                </div>
+              </div>
+              <div
+                class="provider-card"
+                :class="{ active: form.ocrProvider !== 'local' }"
+                @click="form.ocrProvider = 'azure'"
+              >
+                <div class="provider-icon">
+                  <el-icon><Cloudy /></el-icon>
+                </div>
+                <div class="provider-info">
+                  <div class="provider-name">
+                    云服务 API
+                  </div>
+                  <div class="provider-desc">
+                    Azure/Google/阿里云/腾讯云
+                  </div>
+                </div>
+                <div v-if="form.ocrProvider !== 'local'" class="check-circle">
+                  <el-icon><Check /></el-icon>
+                </div>
+              </div>
+            </div>
 
-             <!-- Main Cards Grid -->
-             <div class="cards-grid">
-                <!-- KB Name & Description -->
-                <div class="info-card kb-info-card">
-                   <div class="card-header">
-                      <el-icon><Notebook /></el-icon>
-                      <span>基本信息</span>
-                   </div>
-                   <div class="card-body">
-                      <div class="form-item">
-                         <div class="label-row">
-                            <label>知识库名称</label>
-                            <el-button
-                              type="primary"
-                              size="small"
-                              link
-                              :loading="generatingName"
-                              @click="generateName"
-                              :disabled="fileList.length === 0 && selectedSource !== 'file'"
-                            >
-                               <el-icon><MagicStick /></el-icon>
-                               AI生成
-                            </el-button>
-                         </div>
-                         <el-input v-model="kbName" placeholder="输入知识库名称" />
-                      </div>
-                      <div class="form-item">
-                         <div class="label-row">
-                            <label>知识库描述</label>
-                            <el-button
-                              type="primary"
-                              size="small"
-                              link
-                              :loading="generatingDesc"
-                              @click="generateDescription"
-                              :disabled="fileList.length === 0 && selectedSource !== 'file'"
-                            >
-                               <el-icon><MagicStick /></el-icon>
-                               AI生成
-                            </el-button>
-                         </div>
-                         <el-input
-                           v-model="kbDescription"
-                           type="textarea"
-                           :rows="2"
-                           placeholder="输入知识库描述（可选）"
-                         />
-                      </div>
-                   </div>
-                </div>
+            <!-- OCR Model Selection (when cloud selected) -->
+            <div v-if="form.ocrProvider !== 'local'" class="cloud-config">
+              <el-select
+                v-model="form.ocrModel"
+                placeholder="选择 OCR 模型"
+                size="large"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in ocrModelOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                >
+                  <span style="display: flex; align-items: center; gap: 8px;">
+                    <el-icon class="icon-blue"><Cpu /></el-icon> {{ item.label }}
+                  </span>
+                </el-option>
+              </el-select>
+            </div>
 
-                <!-- Processing Status -->
-                <div class="info-card process-card">
-                   <div class="card-header">
-                      <el-icon><Loading v-if="!isFinished" /><Check v-else /></el-icon>
-                      <span>{{ isFinished ? '嵌入已完成' : '嵌入处理中...' }}</span>
-                      <el-tag :type="isFinished ? 'success' : 'warning'" size="small">
-                         {{ isFinished ? '完成' : '处理中' }}
-                      </el-tag>
-                   </div>
-                   <div class="card-body">
-                      <div class="file-process-list">
-                         <div v-for="file in creatingFiles" :key="file.name" class="process-item">
-                            <div class="file-row">
-                               <div class="file-name">
-                                  <el-icon><Document /></el-icon> {{ file.name }}
-                               </div>
-                               <div class="process-status">{{ file.progress }}%</div>
-                            </div>
-                            <el-progress :percentage="file.progress" :show-text="false" :stroke-width="6" :status="file.progress === 100 ? 'success' : ''"/>
-                         </div>
-                         <div v-if="creatingFiles.length === 0" class="empty-process">
-                            <el-icon><Check /></el-icon>
-                            <span>暂无处理中的文件</span>
-                         </div>
-                      </div>
-                   </div>
+            <div class="section-label" style="margin-top: 24px;">
+              ASR 语音识别
+            </div>
+            <div class="provider-cards">
+              <div
+                class="provider-card"
+                :class="{ active: form.asrProvider === 'local' }"
+                @click="form.asrProvider = 'local'; form.asrModel = ''"
+              >
+                <div class="provider-icon">
+                  <el-icon><Microphone /></el-icon>
                 </div>
-
-                <!-- Config Summary -->
-                <div class="info-card config-card">
-                   <div class="card-header">
-                      <el-icon><Setting /></el-icon>
-                      <span>配置信息</span>
-                   </div>
-                   <div class="card-body">
-                      <div class="config-grid">
-                         <div class="config-item">
-                            <span class="config-label">多模态解析</span>
-                            <span class="config-value">{{ form.parsingEnabled ? '已启用' : '已禁用' }}</span>
-                         </div>
-                         <div class="config-item" v-if="form.parsingEnabled">
-                            <span class="config-label">OCR</span>
-                            <span class="config-value">{{ form.ocrProvider === 'local' ? '本地 (Tesseract)' : (form.ocrModel || '云服务') }}</span>
-                         </div>
-                         <div class="config-item" v-if="form.parsingEnabled">
-                            <span class="config-label">ASR</span>
-                            <span class="config-value">{{ form.asrProvider === 'local' ? '本地 (Whisper)' : (form.asrModel || '云服务') }}</span>
-                         </div>
-                         <div class="config-item">
-                            <span class="config-label">分段模式</span>
-                            <span class="config-value">{{ form.segmentMode === 'general' ? '通用' : '父子分段' }}</span>
-                         </div>
-                         <div class="config-item">
-                            <span class="config-label">最大分段长度</span>
-                            <span class="config-value">{{ form.maxTokens }}</span>
-                         </div>
-                         <div class="config-item">
-                            <span class="config-label">索引方式</span>
-                            <span class="config-value">
-                               <el-icon style="color: #f59e0b;"><Aim /></el-icon>
-                               {{ form.indexType === 'high_quality' ? '高质量' : '经济' }}
-                            </span>
-                         </div>
-                         <div class="config-item" v-if="form.embeddingModel">
-                            <span class="config-label">Embedding 模型</span>
-                            <span class="config-value">{{ embeddingOptions.find(o => o.value === form.embeddingModel)?.label || form.embeddingModel }}</span>
-                         </div>
-                         <div class="config-item full-width">
-                            <span class="config-label">文本预处理</span>
-                            <span class="config-value preprocess-tags">
-                               <el-tag v-if="form.cleanSpaces" size="small" type="info">去空格</el-tag>
-                               <el-tag v-if="form.cleanUrls" size="small" type="info">删URL</el-tag>
-                               <span v-if="!form.cleanSpaces && !form.cleanUrls" class="no-preprocess">无</span>
-                            </span>
-                         </div>
-                      </div>
-                   </div>
+                <div class="provider-info">
+                  <div class="provider-name">
+                    本地 (Whisper)
+                  </div>
+                  <div class="provider-desc">
+                    开源语音识别模型
+                  </div>
                 </div>
-             </div>
+                <div v-if="form.asrProvider === 'local'" class="check-circle">
+                  <el-icon><Check /></el-icon>
+                </div>
+              </div>
+              <div
+                class="provider-card"
+                :class="{ active: form.asrProvider !== 'local' }"
+                @click="form.asrProvider = 'azure'"
+              >
+                <div class="provider-icon">
+                  <el-icon><Cloudy /></el-icon>
+                </div>
+                <div class="provider-info">
+                  <div class="provider-name">
+                    云服务 API
+                  </div>
+                  <div class="provider-desc">
+                    Azure/Google/阿里云/腾讯云
+                  </div>
+                </div>
+                <div v-if="form.asrProvider !== 'local'" class="check-circle">
+                  <el-icon><Check /></el-icon>
+                </div>
+              </div>
+            </div>
 
-             <!-- Final Actions -->
-             <div class="step-3-actions">
-                <el-button class="api-btn" :icon="Connection">Access the API</el-button>
-                <el-button type="primary" class="go-btn" @click="handleGoToDocument" :loading="!isFinished">
-                   {{ isFinished ? '前往文档' : '处理中...' }}
-                   <el-icon class="el-icon--right"><Right /></el-icon>
+            <!-- ASR Model Selection (when cloud selected) -->
+            <div v-if="form.asrProvider !== 'local'" class="cloud-config">
+              <el-select
+                v-model="form.asrModel"
+                placeholder="选择 ASR 模型"
+                size="large"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in asrModelOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                >
+                  <span style="display: flex; align-items: center; gap: 8px;">
+                    <el-icon class="icon-blue"><Cpu /></el-icon> {{ item.label }}
+                  </span>
+                </el-option>
+              </el-select>
+            </div>
+
+            <!-- Rich Text Parsing Options -->
+            <div class="section-label" style="margin-top: 24px;">
+              文档解析
+            </div>
+            <el-alert
+              title="解析文档时保留格式信息（标题层级、段落结构等），便于后续知识检索"
+              type="info"
+              :closable="false"
+              style="margin-bottom: 16px"
+            />
+            <div class="parsing-options">
+              <div class="parsing-card" :class="{ active: form.richTextEnabled }" @click="form.richTextEnabled = true">
+                <div class="parsing-header">
+                  <div class="parsing-icon">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <div class="parsing-info">
+                    <div class="parsing-title">
+                      富文本解析
+                    </div>
+                    <div class="parsing-desc">
+                      保留文档格式信息（标题、段落、列表等）
+                    </div>
+                  </div>
+                  <div v-if="form.richTextEnabled" class="check-circle">
+                    <el-icon><Check /></el-icon>
+                  </div>
+                </div>
+              </div>
+              <div class="parsing-card" :class="{ active: !form.richTextEnabled }" @click="form.richTextEnabled = false">
+                <div class="parsing-header">
+                  <div class="parsing-icon">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <div class="parsing-info">
+                    <div class="parsing-title">
+                      纯文本解析
+                    </div>
+                    <div class="parsing-desc">
+                      仅提取文本内容，不保留格式
+                    </div>
+                  </div>
+                  <div v-if="!form.richTextEnabled" class="check-circle">
+                    <el-icon><Check /></el-icon>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- File Type Preview -->
+          <div class="config-section">
+            <div class="section-label">
+              待处理文件
+            </div>
+            <div v-if="fileList.length > 0" class="file-type-list">
+              <div v-for="(file, index) in fileList.slice(0, 5)" :key="index" class="file-type-item">
+                <el-icon><Document /></el-icon>
+                <span class="file-name">{{ file.name }}</span>
+                <el-tag size="small" :type="getFileTypeTag(file.name)">
+                  {{ getFileType(file.name) }}
+                </el-tag>
+              </div>
+              <div v-if="fileList.length > 5" class="more-files">
+                还有 {{ fileList.length - 5 }} 个文件
+              </div>
+            </div>
+            <div v-else class="no-files-tip">
+              <el-icon><InfoFilled /></el-icon>
+              <span>请在第一步选择数据源并上传文件</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Parsing Result / Status -->
+        <div class="step-2-preview">
+          <div class="preview-header">
+            <el-icon class="doc-icon">
+              <InfoFilled />
+            </el-icon>
+            <span>{{ parsingComplete ? '解析结果' : '解析状态' }}</span>
+            <el-button
+              v-if="parsingComplete && !parsingLoading"
+              type="primary"
+              link
+              size="small"
+              :disabled="parsingLoading"
+              @click="reparseFiles"
+            >
+              <el-icon><Refresh /></el-icon> 重新解析
+            </el-button>
+          </div>
+          <div class="preview-body">
+            <!-- Loading State -->
+            <div v-if="parsingLoading" class="parsing-loading">
+              <el-icon class="loading-icon">
+                <Loading />
+              </el-icon>
+              <div class="loading-text">
+                正在解析文件...
+              </div>
+              <div class="loading-progress">
+                <div v-for="(file, idx) in creatingFiles" :key="idx" class="file-progress-item">
+                  <span class="file-name">{{ file.name }}</span>
+                  <el-progress :percentage="file.progress" :status="file.status === 'error' ? 'exception' : undefined" :show-text="false" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Parsed Content Display (after parsing complete) -->
+            <div v-else-if="parsingComplete && parsedContent.length > 0" class="parsed-content-list">
+              <div v-for="(item, idx) in parsedContent" :key="idx" class="parsed-item">
+                <div class="parsed-item-header">
+                  <el-icon><Document /></el-icon>
+                  <span class="parsed-filename">{{ item.fileName }}</span>
+                  <el-tag size="small" type="success">
+                    {{ item.text.length }} 字符
+                  </el-tag>
+                </div>
+                <div class="parsed-item-content">
+                  {{ item.text.substring(0, 500) }}{{ item.text.length > 500 ? '...' : '' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- No Content or Failed -->
+            <div v-else-if="parsingComplete && parsedContent.length === 0" class="parsing-failed">
+              <el-icon class="failed-icon">
+                <WarningFilled />
+              </el-icon>
+              <div class="failed-text">
+                解析失败或未能获取内容
+              </div>
+              <div class="failed-hint">
+                请检查文件格式或配置后重试
+              </div>
+            </div>
+
+            <!-- Initial State: Show parsing info -->
+            <div v-else class="parsing-info-list">
+              <div class="info-item">
+                <div class="info-icon">
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">
+                    图片 (PNG, JPG, JPEG, BMP)
+                  </div>
+                  <div class="info-desc">
+                    使用 OCR 识别图片中的文字内容
+                  </div>
+                </div>
+              </div>
+              <div class="info-item">
+                <div class="info-icon">
+                  <el-icon><Microphone /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">
+                    音频 (MP3, WAV, M4A)
+                  </div>
+                  <div class="info-desc">
+                    使用 ASR 将语音转写为文字
+                  </div>
+                </div>
+              </div>
+              <div class="info-item">
+                <div class="info-icon">
+                  <el-icon><VideoCamera /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">
+                    视频 (MP4, AVI, MOV)
+                  </div>
+                  <div class="info-desc">
+                    提取音频并使用 ASR 转写
+                  </div>
+                </div>
+              </div>
+              <div class="info-item">
+                <div class="info-icon">
+                  <el-icon><Document /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">
+                    文档 (PDF, DOCX, TXT)
+                  </div>
+                  <div class="info-desc">
+                    直接提取文本，跳过解析步骤
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Cleaning & Segmentation (Dify Style) -->
+      <div v-if="currentStep === 3" class="step-content step-2-layout">
+        <div class="step-2-config">
+          <!-- 1. Segmentation -->
+          <div class="config-section">
+            <div class="section-label">
+              分段设置
+            </div>
+            <div class="segment-mode-cards">
+              <div class="mode-card" :class="{ active: form.segmentMode === 'general' }" @click="form.segmentMode = 'general'">
+                <div class="mode-icon">
+                  <el-icon><Setting /></el-icon>
+                </div>
+                <div class="mode-info">
+                  <div class="mode-title">
+                    通用
+                  </div>
+                  <div class="mode-desc">
+                    通用文本分块模式，检索和召回的块是相同的
+                  </div>
+                </div>
+                <div v-if="form.segmentMode === 'general'" class="check-circle">
+                  <el-icon><Check /></el-icon>
+                </div>
+              </div>
+              <div class="mode-card" :class="{ active: form.segmentMode === 'parent_child' }" @click="form.segmentMode = 'parent_child'">
+                <div class="mode-icon">
+                  <el-icon><CopyDocument /></el-icon>
+                </div>
+                <div class="mode-info">
+                  <div class="mode-title">
+                    父子分段
+                  </div>
+                  <div class="mode-desc">
+                    使用父子模式时，子块用于检索，父块用作上下文
+                  </div>
+                </div>
+                <div v-if="form.segmentMode === 'parent_child'" class="check-circle">
+                  <el-icon><Check /></el-icon>
+                </div>
+              </div>
+            </div>
+            <!-- Parent-Child Params -->
+            <div v-if="form.segmentMode === 'parent_child'" class="parent-child-params">
+              <div class="params-info">
+                <el-alert title="使用 Parent-Child 分块策略" type="info" :closable="false">
+                  <template #default>
+                    <div>• 父分块 (Parent): ~1000 字符，表示完整语义段落</div>
+                    <div>• 子分块 (Child): ~200 字符，用于精确向量检索</div>
+                    <div>• 检索时返回父分块内容作为 LLM 上下文</div>
+                  </template>
+                </el-alert>
+              </div>
+              <div class="preview-actions">
+                <el-button class="start-preview-btn" :loading="previewLoading" @click="handlePreview">
+                  <el-icon style="margin-right: 4px;">
+                    <View />
+                  </el-icon> 预览分块
                 </el-button>
-             </div>
+                <el-button link type="info" @click="handleResetParams">
+                  重置
+                </el-button>
+              </div>
+            </div>
           </div>
-       </div>
+             
+          <!-- 2. Index Method -->
+          <div class="config-section">
+            <div class="section-label">
+              索引方式
+            </div>
+            <div class="index-cards">
+              <div class="index-card" :class="{ active: form.indexType === 'high_quality' }" @click="form.indexType = 'high_quality'">
+                <div class="card-head">
+                  <h4>高质量</h4>
+                  <el-tag size="small" type="primary" effect="light">
+                    推荐
+                  </el-tag>
+                </div>
+                <p>调用嵌入模型处理文档以实现更精确的检索。</p>
+                <div class="radio-circle">
+                  <div v-if="form.indexType === 'high_quality'" class="inner" />
+                </div>
+              </div>
+              <div class="index-card" :class="{ active: form.indexType === 'economy' }" @click="form.indexType = 'economy'">
+                <div class="card-head">
+                  <h4>经济</h4>
+                </div>
+                <p>使用关键词进行检索，降低精度以节省 Token。</p>
+                <div class="radio-circle">
+                  <div v-if="form.indexType === 'economy'" class="inner" />
+                </div>
+              </div>
+            </div>
+          </div>
+             
+          <!-- 3. Embedding Model -->
+          <div v-if="form.indexType === 'high_quality'" class="config-section">
+            <div class="section-label">
+              Embedding 模型
+            </div>
+            <el-select
+              v-model="form.embeddingModel"
+              class="w-full"
+              size="large"
+              placeholder="请选择 Embedding 模型"
+            >
+              <el-option
+                v-for="item in embeddingOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+                <span style="display: flex; align-items: center; gap: 8px;">
+                  <el-icon class="icon-green"><Cpu /></el-icon> {{ item.label }}
+                </span>
+              </el-option>
+            </el-select>
+          </div>
+             
+          <!-- 4. Retrieval Settings -->
+          <div class="config-section">
+            <div class="section-label">
+              检索设置
+            </div>
+            <div class="retrieval-box">
+              <div class="retrieval-option active">
+                <div class="option-header">
+                  <div class="icon-box">
+                    <el-icon><Operation /></el-icon>
+                  </div>
+                  <span>向量检索</span>
+                </div>
+                <div class="option-desc">
+                  通过生成查询嵌入并查询与其向量表示最相似的文本分段
+                </div>
+                <div class="rerank-section">
+                  <div class="rerank-toggle">
+                    <el-switch v-model="form.enableRerank" /> <span>Rerank 模型</span>
+                    <el-tooltip content="重排序模型">
+                      <el-icon class="info-icon">
+                        <QuestionFilled />
+                      </el-icon>
+                    </el-tooltip>
+                  </div>
+                  <div v-if="form.enableRerank" class="rerank-select">
+                    <el-select v-model="form.rerankModel" size="default" placeholder="Select Rerank Model">
+                      <el-option
+                        v-for="item in rerankOptions"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value"
+                      />
+                    </el-select>
+                  </div>
+                </div>
+                <div class="sliders-row">
+                  <div class="slider-item">
+                    <div class="slider-label">
+                      Top K <span>{{ form.topK }}</span>
+                    </div>
+                    <el-slider
+                      v-model="form.topK"
+                      :max="10"
+                      :min="1"
+                      size="small"
+                    />
+                  </div>
+                  <div class="slider-item">
+                    <div class="slider-label">
+                      Score 阈值 <span>{{ form.scoreThreshold }}</span>
+                    </div>
+                    <el-slider
+                      v-model="form.scoreThreshold"
+                      :max="1"
+                      :step="0.01"
+                      size="small"
+                    />
+                  </div>
+                </div>
+                <!-- 知识库级别检索配置覆盖 -->
+                <div class="retrieval-config-section">
+                  <div class="section-header">
+                    <el-checkbox v-model="useCustomRetrievalConfig">
+                      覆盖默认检索配置
+                    </el-checkbox>
+                    <span class="section-tip">启用后该知识库将使用以下配置，而非系统默认配置</span>
+                  </div>
+                  <div v-if="useCustomRetrievalConfig" class="config-fields">
+                    <div class="config-row">
+                      <div class="config-item">
+                        <label>Chunk 最大字符数</label>
+                        <el-input-number
+                          v-model="form.chunkSize"
+                          :min="100"
+                          :max="2000"
+                          :step="100"
+                          size="small"
+                        />
+                      </div>
+                      <div class="config-item">
+                        <label>Chunk 重叠字符数</label>
+                        <el-input-number
+                          v-model="form.chunkOverlap"
+                          :min="0"
+                          :max="500"
+                          :step="50"
+                          size="small"
+                        />
+                      </div>
+                    </div>
+                    <div class="config-row">
+                      <div class="config-item">
+                        <label>检索返回结果数 (Top K)</label>
+                        <el-input-number
+                          v-model="form.topK"
+                          :min="1"
+                          :max="20"
+                          :step="1"
+                          size="small"
+                        />
+                      </div>
+                      <div class="config-item">
+                        <label>相似度阈值</label>
+                        <el-input-number
+                          v-model="form.similarityThreshold"
+                          :min="0"
+                          :max="1"
+                          :step="0.05"
+                          :precision="2"
+                          size="small"
+                        />
+                      </div>
+                      <div class="config-item">
+                        <label>向量检索权重 (alpha)</label>
+                        <el-input-number
+                          v-model="form.alpha"
+                          :min="0"
+                          :max="1"
+                          :step="0.1"
+                          :precision="2"
+                          size="small"
+                        />
+                      </div>
+                    </div>
+                    <!-- Rerank 配置 -->
+                    <div class="config-row">
+                      <div class="config-item" style="flex: 1;">
+                        <label>启用 Rerank</label>
+                        <el-switch v-model="form.enableRerank" />
+                      </div>
+                      <div v-if="form.enableRerank" class="config-item" style="flex: 2;">
+                        <label>Rerank 模型</label>
+                        <el-select
+                          v-model="form.rerankModel"
+                          placeholder="选择 Rerank 模型"
+                          size="small"
+                          style="width: 100%"
+                          filterable
+                          clearable
+                        >
+                          <el-option
+                            v-for="model in rerankModels"
+                            :key="model.id"
+                            :label="model.name"
+                            :value="model.id"
+                          />
+                        </el-select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Preview -->
+        <div class="step-2-preview">
+          <div class="preview-header">
+            <div v-if="fileList.length > 0" class="header-content">
+              <el-icon class="doc-icon">
+                <Document />
+              </el-icon>
+              <span class="doc-name text-ellipsis">{{ fileList[0].name }}</span>
+              <el-tag v-if="showPreview" size="small" type="info">
+                {{ previewChunks.length > maxPreviewChunks ? `${maxPreviewChunks}/${previewChunks.length}` : previewChunks.length }} 预估块
+              </el-tag>
+              <el-tag v-else size="small" type="info">
+                0 预估块
+              </el-tag>
+            </div>
+            <div v-else>
+              预览
+            </div>
+          </div>
+          <div v-loading="previewLoading" class="preview-body">
+            <div v-if="showPreview" class="chunk-list">
+              <div v-for="chunk in displayChunks" :key="chunk.id" class="chunk-item">
+                <div class="chunk-meta">
+                  <el-tag v-if="chunk.chunkType === 'child'" size="small" type="success">
+                    Child
+                  </el-tag>
+                  <el-tag v-else size="small">
+                    Chunk
+                  </el-tag>
+                  #{{ chunk.id }} · {{ chunk.length }} characters
+                  <span v-if="chunk.parentIndex">(Parent {{ chunk.parentIndex }})</span>
+                  <el-button
+                    v-if="chunk.length > 150"
+                    link
+                    size="small"
+                    style="margin-left: auto; color: #2563EB;"
+                    @click="toggleChunk(chunk.id)"
+                  >
+                    {{ collapsedChunks.has(chunk.id) ? '展开' : '收起' }}
+                  </el-button>
+                </div>
+                <div class="chunk-content" :class="{ collapsed: collapsedChunks.has(chunk.id) }">
+                  {{ collapsedChunks.has(chunk.id) && chunk.length > 150 ? chunk.content.slice(0, 150) + '...' : chunk.content }}
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-preview">
+              <div class="empty-icon-wrapper">
+                <el-icon><Search /></el-icon>
+              </div>
+              <p>点击左侧的“预览块”按钮来加载预览</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Finish & Processing -->
+      <div v-if="currentStep === 4" class="step-content step-3-layout">
+        <div class="step-3-main">
+          <!-- Success Header -->
+          <div class="success-header">
+            <div class="success-icon-wrap">
+              <el-icon class="success-icon">
+                <Check />
+              </el-icon>
+            </div>
+            <div class="header-text">
+              <h3>知识库已创建</h3>
+              <p>我们自动为该知识库起了一个名称，您也可以随时修改</p>
+            </div>
+          </div>
+
+          <!-- Main Cards Grid -->
+          <div class="cards-grid">
+            <!-- KB Name & Description -->
+            <div class="info-card kb-info-card">
+              <div class="card-header">
+                <el-icon><Notebook /></el-icon>
+                <span>基本信息</span>
+              </div>
+              <div class="card-body">
+                <div class="form-item">
+                  <div class="label-row">
+                    <label>知识库名称</label>
+                    <el-button
+                      type="primary"
+                      size="small"
+                      link
+                      :loading="generatingName"
+                      :disabled="fileList.length === 0 && selectedSource !== 'file'"
+                      @click="generateName"
+                    >
+                      <el-icon><MagicStick /></el-icon>
+                      AI生成
+                    </el-button>
+                  </div>
+                  <el-input v-model="kbName" placeholder="输入知识库名称" />
+                </div>
+                <div class="form-item">
+                  <div class="label-row">
+                    <label>知识库描述</label>
+                    <el-button
+                      type="primary"
+                      size="small"
+                      link
+                      :loading="generatingDesc"
+                      :disabled="fileList.length === 0 && selectedSource !== 'file'"
+                      @click="generateDescription"
+                    >
+                      <el-icon><MagicStick /></el-icon>
+                      AI生成
+                    </el-button>
+                  </div>
+                  <el-input
+                    v-model="kbDescription"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="输入知识库描述（可选）"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Processing Status -->
+            <div class="info-card process-card">
+              <div class="card-header">
+                <el-icon><Loading v-if="!isFinished" /><Check v-else /></el-icon>
+                <span>{{ isFinished ? '嵌入已完成' : '嵌入处理中...' }}</span>
+                <el-tag :type="isFinished ? 'success' : 'warning'" size="small">
+                  {{ isFinished ? '完成' : '处理中' }}
+                </el-tag>
+              </div>
+              <div class="card-body">
+                <div class="file-process-list">
+                  <div v-for="file in creatingFiles" :key="file.name" class="process-item">
+                    <div class="file-row">
+                      <div class="file-name">
+                        <el-icon><Document /></el-icon> {{ file.name }}
+                      </div>
+                      <div class="process-status">
+                        {{ file.progress }}%
+                      </div>
+                    </div>
+                    <el-progress
+                      :percentage="file.progress"
+                      :show-text="false"
+                      :stroke-width="6"
+                      :status="file.progress === 100 ? 'success' : ''"
+                    />
+                  </div>
+                  <div v-if="creatingFiles.length === 0" class="empty-process">
+                    <el-icon><Check /></el-icon>
+                    <span>暂无处理中的文件</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Config Summary -->
+            <div class="info-card config-card">
+              <div class="card-header">
+                <el-icon><Setting /></el-icon>
+                <span>配置信息</span>
+              </div>
+              <div class="card-body">
+                <div class="config-grid">
+                  <div class="config-item">
+                    <span class="config-label">多模态解析</span>
+                    <span class="config-value">{{ form.parsingEnabled ? '已启用' : '已禁用' }}</span>
+                  </div>
+                  <div v-if="form.parsingEnabled" class="config-item">
+                    <span class="config-label">OCR</span>
+                    <span class="config-value">{{ form.ocrProvider === 'local' ? '本地 (Tesseract)' : (form.ocrModel || '云服务') }}</span>
+                  </div>
+                  <div v-if="form.parsingEnabled" class="config-item">
+                    <span class="config-label">ASR</span>
+                    <span class="config-value">{{ form.asrProvider === 'local' ? '本地 (Whisper)' : (form.asrModel || '云服务') }}</span>
+                  </div>
+                  <div class="config-item">
+                    <span class="config-label">分段模式</span>
+                    <span class="config-value">{{ form.segmentMode === 'general' ? '通用' : '父子分段' }}</span>
+                  </div>
+                  <div class="config-item">
+                    <span class="config-label">最大分段长度</span>
+                    <span class="config-value">{{ form.maxTokens }}</span>
+                  </div>
+                  <div class="config-item">
+                    <span class="config-label">索引方式</span>
+                    <span class="config-value">
+                      <el-icon style="color: #f59e0b;"><Aim /></el-icon>
+                      {{ form.indexType === 'high_quality' ? '高质量' : '经济' }}
+                    </span>
+                  </div>
+                  <div v-if="form.embeddingModel" class="config-item">
+                    <span class="config-label">Embedding 模型</span>
+                    <span class="config-value">{{ embeddingOptions.find(o => o.value === form.embeddingModel)?.label || form.embeddingModel }}</span>
+                  </div>
+                  <div class="config-item full-width">
+                    <span class="config-label">文本预处理</span>
+                    <span class="config-value preprocess-tags">
+                      <el-tag v-if="form.cleanSpaces" size="small" type="info">去空格</el-tag>
+                      <el-tag v-if="form.cleanUrls" size="small" type="info">删URL</el-tag>
+                      <span v-if="!form.cleanSpaces && !form.cleanUrls" class="no-preprocess">无</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Final Actions -->
+          <div class="step-3-actions">
+            <el-button class="api-btn" :icon="Connection">
+              Access the API
+            </el-button>
+            <el-button
+              type="primary"
+              class="go-btn"
+              :loading="!isFinished"
+              @click="handleGoToDocument"
+            >
+              {{ isFinished ? '前往文档' : '处理中...' }}
+              <el-icon class="el-icon--right">
+                <Right />
+              </el-icon>
+            </el-button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Footer with Navigation Buttons -->
     <div class="create-footer">
-      <el-button v-if="currentStep > 1 && currentStep < 4" @click="currentStep--">上一步</el-button>
-      <el-button v-if="currentStep < 4" type="primary" @click="handleNext" :disabled="(currentStep === 1 && !canProceed) || (currentStep === 2 && (parsingLoading || (parsingComplete && parsingFailed)))" :loading="currentStep === 2 && parsingLoading">
+      <el-button v-if="currentStep > 1 && currentStep < 4" @click="currentStep--">
+        上一步
+      </el-button>
+      <el-button
+        v-if="currentStep < 4"
+        type="primary"
+        :disabled="(currentStep === 1 && !canProceed) || (currentStep === 2 && (parsingLoading || (parsingComplete && parsingFailed)))"
+        :loading="currentStep === 2 && parsingLoading"
+        @click="handleNext"
+      >
         {{ currentStep === 3 ? '完成创建' : '下一步' }}
       </el-button>
     </div>
@@ -917,8 +1297,6 @@ const form = reactive({
    chunkOverlap: null,     // null 表示使用系统默认
    similarityThreshold: null, // null 表示使用系统默认
    alpha: null,           // null 表示使用系统默认
-   enableRerank: null,    // null 表示使用系统默认
-   rerankModel: null      // null 表示使用系统默认
 });
 
 const embeddingOptions = computed(() => {
@@ -1384,7 +1762,7 @@ const recursiveSplit = (text, maxLength, overlap) => {
    const separators = ['\n', '.', '!', '?', '；', '。', ' ', ''];
    let chosenSep = '';
    let splitParts = [];
-   for (let sep of separators) {
+   for (const sep of separators) {
       if (text.includes(sep)) {
          chosenSep = sep;
          splitParts = text.split(sep);
@@ -1392,7 +1770,7 @@ const recursiveSplit = (text, maxLength, overlap) => {
          if (splitParts.length > 1) break;
       }
    }
-   let result = [];
+   const result = [];
    let current = '';
    for (let i = 0; i < splitParts.length; i++) {
       let part = splitParts[i];
@@ -1413,8 +1791,8 @@ const recursiveSplit = (text, maxLength, overlap) => {
 const chunkText = (text, maxLength, overlap, separator) => {
    const normSep = separator.replace(/\\n/g, '\n');
    const primaryChunks = text.split(normSep);
-   let finalChunks = [];
-   for (let chunk of primaryChunks) {
+   const finalChunks = [];
+   for (const chunk of primaryChunks) {
       if (!chunk.trim()) continue;
       if (chunk.length <= maxLength) finalChunks.push(chunk.trim());
       else {

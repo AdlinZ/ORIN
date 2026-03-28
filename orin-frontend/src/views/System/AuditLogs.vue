@@ -6,8 +6,21 @@
       icon="List"
     >
       <template #actions>
-        <el-button v-if="activeTab === 'logs'" :icon="Download" @click="handleExport" :disabled="logs.length === 0">导出审计报告</el-button>
-        <el-button v-if="activeTab !== 'logs'" type="primary" :loading="saving" :icon="Check" @click="saveAll">
+        <el-button
+          v-if="activeTab === 'logs'"
+          :icon="Download"
+          :disabled="logs.length === 0"
+          @click="handleExport"
+        >
+          导出审计报告
+        </el-button>
+        <el-button
+          v-if="activeTab !== 'logs'"
+          type="primary"
+          :loading="saving"
+          :icon="Check"
+          @click="saveAll"
+        >
           应用并保存配置
         </el-button>
       </template>
@@ -17,19 +30,35 @@
       <!-- 实时审计日志 Tab -->
       <el-tab-pane label="实时审计记录" name="logs">
         <el-card shadow="never" class="table-card premium-card">
-          <ResizableTable :data="logs" v-loading="loading">
+          <ResizableTable v-loading="loading" :data="logs">
             <el-table-column type="expand">
               <template #default="{ row }">
                 <div class="expand-content">
                   <el-descriptions title="详细请求参数" :column="2" border>
-                    <el-descriptions-item label="类型">{{ formatOperationType(row) }}</el-descriptions-item>
-                    <el-descriptions-item label="端点 (Endpoint)">{{ row.endpoint }}</el-descriptions-item>
-                    <el-descriptions-item label="Conversation ID">{{ row.conversationId || '-' }}</el-descriptions-item>
-                    <el-descriptions-item label="方法 (Method)">{{ row.method }}</el-descriptions-item>
-                    <el-descriptions-item label="请求 IP">{{ row.ipAddress }}</el-descriptions-item>
-                    <el-descriptions-item label="User Agent">{{ row.userAgent }}</el-descriptions-item>
-                    <el-descriptions-item label="响应状态">{{ row.statusCode }}</el-descriptions-item>
-                    <el-descriptions-item label="预估成本">¥{{ row.estimatedCost }}</el-descriptions-item>
+                    <el-descriptions-item label="类型">
+                      {{ formatOperationType(row) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="端点 (Endpoint)">
+                      {{ row.endpoint }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="Conversation ID">
+                      {{ row.conversationId || '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="方法 (Method)">
+                      {{ row.method }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="请求 IP">
+                      {{ row.ipAddress }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="User Agent">
+                      {{ row.userAgent }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="响应状态">
+                      {{ row.statusCode }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="预估成本">
+                      ¥{{ row.estimatedCost }}
+                    </el-descriptions-item>
                     <el-descriptions-item label="Tokens">
                       <span v-if="row.totalTokens && row.totalTokens > 0">
                         Prompt: {{ row.promptTokens || 0 }} | Completion: {{ row.completionTokens || 0 }} | Total: {{ row.totalTokens }}
@@ -50,7 +79,12 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="createdAt" label="时间" width="180" sortable>
+            <el-table-column
+              prop="createdAt"
+              label="时间"
+              width="180"
+              sortable
+            >
               <template #default="{ row }">
                 {{ formatDateTime(row.createdAt) }}
               </template>
@@ -64,9 +98,20 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="endpoint" label="动作/接口" min-width="200" show-overflow-tooltip />
+            <el-table-column
+              prop="endpoint"
+              label="动作/接口"
+              min-width="200"
+              show-overflow-tooltip
+            />
 
-            <el-table-column prop="responseTime" label="耗时" width="100" align="center" sortable>
+            <el-table-column
+              prop="responseTime"
+              label="耗时"
+              width="100"
+              align="center"
+              sortable
+            >
               <template #default="{ row }">
                 <el-tag v-bind="getLatencyTagConfig(row.responseTime)" size="small">
                   {{ row.responseTime }}ms
@@ -85,7 +130,12 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="success" label="状态" width="100" align="center">
+            <el-table-column
+              prop="success"
+              label="状态"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.success ? 'success' : 'danger'" size="small">
                   {{ row.success ? '成功' : '失败' }}
@@ -115,28 +165,46 @@
           <el-col :span="8">
             <el-card shadow="never" class="stat-mini-card">
               <div class="stat-content">
-                <div class="label text-secondary">已记录日志总量</div>
-                <div class="value">{{ stats.totalCount || 0 }} <small>条</small></div>
+                <div class="label text-secondary">
+                  已记录日志总量
+                </div>
+                <div class="value">
+                  {{ stats.totalCount || 0 }} <small>条</small>
+                </div>
               </div>
-              <el-icon class="icon" color="var(--primary-color)"><Document /></el-icon>
+              <el-icon class="icon" color="var(--primary-color)">
+                <Document />
+              </el-icon>
             </el-card>
           </el-col>
           <el-col :span="8">
             <el-card shadow="never" class="stat-mini-card">
               <div class="stat-content">
-                <div class="label text-secondary">预估占用空间</div>
-                <div class="value">{{ stats.estimatedSizeMb || 0 }} <small>MB</small></div>
+                <div class="label text-secondary">
+                  预估占用空间
+                </div>
+                <div class="value">
+                  {{ stats.estimatedSizeMb || 0 }} <small>MB</small>
+                </div>
               </div>
-              <el-icon class="icon" color="var(--success-color)"><Coin /></el-icon>
+              <el-icon class="icon" color="var(--success-color)">
+                <Coin />
+              </el-icon>
             </el-card>
           </el-col>
           <el-col :span="8">
             <el-card shadow="never" class="stat-mini-card">
               <div class="stat-content">
-                <div class="label text-secondary">最早日志记录</div>
-                <div class="value">{{ formatSimpleDate(stats.oldestLog) }}</div>
+                <div class="label text-secondary">
+                  最早日志记录
+                </div>
+                <div class="value">
+                  {{ formatSimpleDate(stats.oldestLog) }}
+                </div>
               </div>
-              <el-icon class="icon" color="var(--warning-color)"><Calendar /></el-icon>
+              <el-icon class="icon" color="var(--warning-color)">
+                <Calendar />
+              </el-icon>
             </el-card>
           </el-col>
         </el-row>
@@ -163,7 +231,9 @@
                       {{ config.auditEnabled ? '运行中' : '已停止' }}
                     </el-tag>
                   </div>
-                  <p class="form-tip">控制是否记录 API 调用轨迹，关闭后将停止所有审计数据落库。</p>
+                  <p class="form-tip">
+                    控制是否记录 API 调用轨迹，关闭后将停止所有审计数据落库。
+                  </p>
                 </el-form-item>
 
                 <el-divider border-style="dashed" />
@@ -174,7 +244,9 @@
                     <el-option label="标准审计 (AUDIT_ONLY) - 仅记录关键业务" value="AUDIT_ONLY" />
                     <el-option label="错误追溯 (ERROR_ONLY) - 仅记录异常请求" value="ERROR_ONLY" />
                   </el-select>
-                  <p class="form-tip">高负载环境下建议设置为 ERROR_ONLY 以节省空间。</p>
+                  <p class="form-tip">
+                    高负载环境下建议设置为 ERROR_ONLY 以节省空间。
+                  </p>
                 </el-form-item>
               </el-form>
             </el-card>
@@ -188,9 +260,16 @@
               </template>
               <el-form label-position="left" label-width="140px">
                 <el-form-item label="自动清理周期">
-                   <el-input-number v-model="config.retentionDays" :min="1" :max="365" controls-position="right" />
-                   <span class="unit-text">天</span>
-                   <p class="form-tip">系统将自动删除超过此保留期限的历史数据。目前每天凌晨 02:00 执行。</p>
+                  <el-input-number
+                    v-model="config.retentionDays"
+                    :min="1"
+                    :max="365"
+                    controls-position="right"
+                  />
+                  <span class="unit-text">天</span>
+                  <p class="form-tip">
+                    系统将自动删除超过此保留期限的历史数据。目前每天凌晨 02:00 执行。
+                  </p>
                 </el-form-item>
               </el-form>
             </el-card>
@@ -208,44 +287,66 @@
               
               <div class="op-item">
                 <div class="op-info">
-                  <div class="op-title">即时存储优化</div>
-                  <div class="op-desc">立即删除指定日期前的历史日志，释放数据库碎片。</div>
-                  <div class="op-hint" v-if="stats.oldestLog">
+                  <div class="op-title">
+                    即时存储优化
+                  </div>
+                  <div class="op-desc">
+                    立即删除指定日期前的历史日志，释放数据库碎片。
+                  </div>
+                  <div v-if="stats.oldestLog" class="op-hint">
                     <el-icon><InfoFilled /></el-icon>
                     <span>最早日志: {{ formatSimpleDate(stats.oldestLog) }}</span>
                   </div>
                 </div>
                 <div class="op-action">
-                  <el-popover placement="top" :width="280" trigger="click" v-model:visible="cleanupPopoverVisible">
+                  <el-popover
+                    v-model:visible="cleanupPopoverVisible"
+                    placement="top"
+                    :width="280"
+                    trigger="click"
+                  >
                     <template #reference>
-                      <el-button type="danger" plain class="w-100" :icon="Delete">手动清理</el-button>
+                      <el-button
+                        type="danger"
+                        plain
+                        class="w-100"
+                        :icon="Delete"
+                      >
+                        手动清理
+                      </el-button>
                     </template>
                     <div class="cleanup-popover">
-                       <p class="cleanup-title">清理历史日志</p>
-                       <el-form label-width="80px" size="small">
-                         <el-form-item label="清理范围">
-                           <el-input-number 
-                             v-model="cleanupDays" 
-                             :min="0" 
-                             :max="365" 
-                             controls-position="right"
-                             style="width: 100%"
-                           />
-                           <span class="unit-hint">天前</span>
-                         </el-form-item>
-                         <el-form-item>
-                           <el-alert 
-                             :title="`将删除 ${cleanupDays} 天前的所有日志`" 
-                             type="warning" 
-                             :closable="false"
-                             show-icon
-                           />
-                         </el-form-item>
-                       </el-form>
-                       <div class="cleanup-actions">
-                         <el-button size="small" @click="cleanupPopoverVisible = false">取消</el-button>
-                         <el-button size="small" @click="handleManualCleanup" type="danger">确认清理</el-button>
-                       </div>
+                      <p class="cleanup-title">
+                        清理历史日志
+                      </p>
+                      <el-form label-width="80px" size="small">
+                        <el-form-item label="清理范围">
+                          <el-input-number 
+                            v-model="cleanupDays" 
+                            :min="0" 
+                            :max="365" 
+                            controls-position="right"
+                            style="width: 100%"
+                          />
+                          <span class="unit-hint">天前</span>
+                        </el-form-item>
+                        <el-form-item>
+                          <el-alert 
+                            :title="`将删除 ${cleanupDays} 天前的所有日志`" 
+                            type="warning" 
+                            :closable="false"
+                            show-icon
+                          />
+                        </el-form-item>
+                      </el-form>
+                      <div class="cleanup-actions">
+                        <el-button size="small" @click="cleanupPopoverVisible = false">
+                          取消
+                        </el-button>
+                        <el-button size="small" type="danger" @click="handleManualCleanup">
+                          确认清理
+                        </el-button>
+                      </div>
                     </div>
                   </el-popover>
                 </div>
@@ -256,11 +357,17 @@
 
               <div class="op-item">
                 <div class="op-info">
-                  <div class="op-title">强制数据同步</div>
-                  <div class="op-desc">从配置中心强制同步最新的全局配置变量。</div>
+                  <div class="op-title">
+                    强制数据同步
+                  </div>
+                  <div class="op-desc">
+                    从配置中心强制同步最新的全局配置变量。
+                  </div>
                 </div>
                 <div class="op-action">
-                  <el-button class="w-100" @click="loadConfig" :icon="Refresh">重新加载</el-button>
+                  <el-button class="w-100" :icon="Refresh" @click="loadConfig">
+                    重新加载
+                  </el-button>
                 </div>
               </div>
             </el-card>
@@ -275,16 +382,32 @@
             <div class="card-header">
               <el-icon><DataLine /></el-icon>
               <span>运行时日志级别调整</span>
-              <el-tag size="small" type="success" class="ml-2">无需重启</el-tag>
+              <el-tag size="small" type="success" class="ml-2">
+                无需重启
+              </el-tag>
             </div>
             <div>
-              <el-button :icon="Refresh" @click="loadLoggers" size="small">刷新</el-button>
-              <el-button :icon="RefreshLeft" @click="resetAllLoggers" size="small" type="warning">全部重置</el-button>
+              <el-button :icon="Refresh" size="small" @click="loadLoggers">
+                刷新
+              </el-button>
+              <el-button
+                :icon="RefreshLeft"
+                size="small"
+                type="warning"
+                @click="resetAllLoggers"
+              >
+                全部重置
+              </el-button>
             </div>
           </template>
 
           <div class="logger-manager">
-            <el-table border :data="loggers" stripe v-loading="loadingLoggers">
+            <el-table
+              v-loading="loadingLoggers"
+              border
+              :data="loggers"
+              stripe
+            >
               <el-table-column label="Logger 名称" prop="name" min-width="200">
                 <template #default="{ row }">
                   <code class="logger-name">{{ row.name }}</code>

@@ -6,7 +6,9 @@
       icon="ChatLineRound"
     >
       <template #actions>
-        <el-button :icon="Download" @click="handleExport">导出报告</el-button>
+        <el-button :icon="Download" @click="handleExport">
+          导出报告
+        </el-button>
       </template>
       <template #filters>
         <el-input 
@@ -16,42 +18,95 @@
           clearable 
           style="width: 250px;"
         />
-        <el-select v-model="filterAgent" placeholder="筛选智能体" style="width: 200px;" clearable>
+        <el-select
+          v-model="filterAgent"
+          placeholder="筛选智能体"
+          style="width: 200px;"
+          clearable
+        >
           <el-option 
             v-for="agent in agents" 
             :key="agent.agentId" 
             :label="agent.agentName || agent.name" 
-            :value="agent.agentId" />
+            :value="agent.agentId"
+          />
         </el-select>
       </template>
     </PageHeader>
 
 
     <el-card shadow="never" class="table-card">
-      <el-table border :data="pagedLogs" style="width: 100%" v-loading="loading" stripe>
-        <el-table-column prop="sessionId" label="会话 ID" width="160" show-overflow-tooltip>
-           <template #default="{ row }">
-             <code class="session-id">{{ row.sessionId }}</code>
-           </template>
-        </el-table-column>
-        <el-table-column prop="agentName" label="智能体" width="150" sortable>
+      <el-table
+        v-loading="loading"
+        border
+        :data="pagedLogs"
+        style="width: 100%"
+        stripe
+      >
+        <el-table-column
+          prop="sessionId"
+          label="会话 ID"
+          width="160"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag size="small" effect="light" type="info">{{ row.agentName }}</el-tag>
+            <code class="session-id">{{ row.sessionId }}</code>
           </template>
         </el-table-column>
-        <el-table-column prop="lastQuery" label="最近对话" min-width="300" show-overflow-tooltip>
-           <template #default="{ row }">
-             <div class="last-msg-container">
-               <span class="text-main">{{ row.lastQuery }}</span>
-               <el-badge :value="row.messageCount" :max="99" class="msg-count-badge" type="info" />
-             </div>
-           </template>
-        </el-table-column>
-        <el-table-column prop="tokens" label="累计 Tokens" width="120" align="center" sortable />
-        <el-table-column prop="time" label="最后活跃" width="180" align="center" sortable />
-        <el-table-column label="操作" width="100" align="center" fixed="right">
+        <el-table-column
+          prop="agentName"
+          label="智能体"
+          width="150"
+          sortable
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row)">查看全景</el-button>
+            <el-tag size="small" effect="light" type="info">
+              {{ row.agentName }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="lastQuery"
+          label="最近对话"
+          min-width="300"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            <div class="last-msg-container">
+              <span class="text-main">{{ row.lastQuery }}</span>
+              <el-badge
+                :value="row.messageCount"
+                :max="99"
+                class="msg-count-badge"
+                type="info"
+              />
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="tokens"
+          label="累计 Tokens"
+          width="120"
+          align="center"
+          sortable
+        />
+        <el-table-column
+          prop="time"
+          label="最后活跃"
+          width="180"
+          align="center"
+          sortable
+        />
+        <el-table-column
+          label="操作"
+          width="100"
+          align="center"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button link type="primary" @click="viewDetail(row)">
+              查看全景
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -68,37 +123,56 @@
     </el-card>
 
     <!-- Chat Replay Drawer -->
-    <el-drawer v-model="drawerVisible" title="会话上下文详情" size="500px" class="chat-drawer" destroy-on-close>
-       <div class="chat-detail-header" v-if="selectedRow" style="padding: 0 20px 15px; border-bottom: 1px solid var(--neutral-gray-100); margin-bottom: 10px;">
-          <div style="font-size: 13px; color: var(--neutral-gray-600); margin-bottom: 4px;">
-            <b style="color: var(--neutral-gray-900);">会话ID:</b> {{ selectedRow.sessionId }}
+    <el-drawer
+      v-model="drawerVisible"
+      title="会话上下文详情"
+      size="500px"
+      class="chat-drawer"
+      destroy-on-close
+    >
+      <div v-if="selectedRow" class="chat-detail-header" style="padding: 0 20px 15px; border-bottom: 1px solid var(--neutral-gray-100); margin-bottom: 10px;">
+        <div style="font-size: 13px; color: var(--neutral-gray-600); margin-bottom: 4px;">
+          <b style="color: var(--neutral-gray-900);">会话ID:</b> {{ selectedRow.sessionId }}
+        </div>
+        <div style="display: flex; gap: 15px; font-size: 12px; color: var(--neutral-gray-500);">
+          <span>消耗: <b style="color: var(--success-color);">{{ selectedRow.tokens }}</b> tokens</span>
+          <span>响应: <b style="color: var(--warning-color);">{{ selectedRow.responseTime }}ms</b></span>
+          <span>时间: {{ selectedRow.time }}</span>
+        </div>
+      </div>
+      <div class="chat-history">
+        <div
+          v-for="(msg, i) in currentChat"
+          :key="i"
+          class="chat-bubble"
+          :class="msg.role"
+        >
+          <div class="role-icon">
+            <el-icon v-if="msg.role === 'user'">
+              <User />
+            </el-icon>
+            <el-icon v-else>
+              <Cpu />
+            </el-icon>
           </div>
-          <div style="display: flex; gap: 15px; font-size: 12px; color: var(--neutral-gray-500);">
-            <span>消耗: <b style="color: var(--success-color);">{{ selectedRow.tokens }}</b> tokens</span>
-            <span>响应: <b style="color: var(--warning-color);">{{ selectedRow.responseTime }}ms</b></span>
-            <span>时间: {{ selectedRow.time }}</span>
+          <div class="content">
+            <div v-if="msg.text && msg.text.includes('file_id=')" class="msg-text">
+              <div v-for="(part, idx) in formatFileLinks(msg.text)" :key="idx">
+                <span v-if="part.isLink" class="file-link" @click="downloadFile(part.url)">
+                  <el-icon><Download /></el-icon> 点击下载{{ part.fileType }}
+                </span>
+                <span v-else>{{ part.text }}</span>
+              </div>
+            </div>
+            <div v-else class="msg-text">
+              {{ msg.text }}
+            </div>
+            <div class="msg-meta">
+              {{ msg.time }}
+            </div>
           </div>
-       </div>
-       <div class="chat-history">
-          <div v-for="(msg, i) in currentChat" :key="i" class="chat-bubble" :class="msg.role">
-             <div class="role-icon">
-                <el-icon v-if="msg.role === 'user'"><User /></el-icon>
-                <el-icon v-else><Cpu /></el-icon>
-             </div>
-             <div class="content">
-                <div class="msg-text" v-if="msg.text && msg.text.includes('file_id=')">
-                  <div v-for="(part, idx) in formatFileLinks(msg.text)" :key="idx">
-                    <span v-if="part.isLink" class="file-link" @click="downloadFile(part.url)">
-                      <el-icon><Download /></el-icon> 点击下载{{ part.fileType }}
-                    </span>
-                    <span v-else>{{ part.text }}</span>
-                  </div>
-                </div>
-                <div class="msg-text" v-else>{{ msg.text }}</div>
-                <div class="msg-meta">{{ msg.time }}</div>
-             </div>
-          </div>
-       </div>
+        </div>
+      </div>
     </el-drawer>
   </div>
 </template>

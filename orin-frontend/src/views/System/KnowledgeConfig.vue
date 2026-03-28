@@ -6,7 +6,12 @@
       icon="Collection"
     >
       <template #actions>
-        <el-button type="primary" :loading="saving" :icon="Check" @click="saveConfig">
+        <el-button
+          type="primary"
+          :loading="saving"
+          :icon="Check"
+          @click="saveConfig"
+        >
           保存配置
         </el-button>
       </template>
@@ -31,21 +36,42 @@
               <el-form :model="config" label-position="top" class="config-form">
                 <el-form-item label="Milvus Host">
                   <el-input v-model="config.milvusHost" placeholder="例如: 192.168.1.107 或 localhost" />
-                  <p class="form-tip">Milvus 服务器 IP 地址，不需要包含 http:// 前缀</p>
+                  <p class="form-tip">
+                    Milvus 服务器 IP 地址，不需要包含 http:// 前缀
+                  </p>
                 </el-form-item>
 
                 <el-form-item label="Milvus Port">
-                  <el-input-number v-model="config.milvusPort" :min="1" :max="65535" style="width: 200px" />
-                  <p class="form-tip">默认端口: 19530</p>
+                  <el-input-number
+                    v-model="config.milvusPort"
+                    :min="1"
+                    :max="65535"
+                    style="width: 200px"
+                  />
+                  <p class="form-tip">
+                    默认端口: 19530
+                  </p>
                 </el-form-item>
 
                 <el-form-item label="Milvus Token (可选)">
-                  <el-input v-model="config.milvusToken" type="password" show-password placeholder="root:Milvus" />
-                  <p class="form-tip">本地开发环境通常不需要认证</p>
+                  <el-input
+                    v-model="config.milvusToken"
+                    type="password"
+                    show-password
+                    placeholder="root:Milvus"
+                  />
+                  <p class="form-tip">
+                    本地开发环境通常不需要认证
+                  </p>
                 </el-form-item>
 
                 <el-form-item>
-                  <el-button @click="testMilvusConnection" :loading="testingMilvus" type="success" plain>
+                  <el-button
+                    :loading="testingMilvus"
+                    type="success"
+                    plain
+                    @click="testMilvusConnection"
+                  >
                     测试连接
                   </el-button>
                 </el-form-item>
@@ -77,10 +103,22 @@
                 </el-descriptions>
 
                 <div style="margin-top: 16px">
-                  <el-button @click="loadCollectionInfo" :loading="loadingCollection" size="small" type="primary" plain>
+                  <el-button
+                    :loading="loadingCollection"
+                    size="small"
+                    type="primary"
+                    plain
+                    @click="loadCollectionInfo"
+                  >
                     刷新统计
                   </el-button>
-                  <el-button @click="recreateCollection" :loading="recreating" size="small" type="warning" plain>
+                  <el-button
+                    :loading="recreating"
+                    size="small"
+                    type="warning"
+                    plain
+                    @click="recreateCollection"
+                  >
                     重建 Collection
                   </el-button>
                 </div>
@@ -143,7 +181,14 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
             <div class="card-header">
               <el-icon><DataAnalysis /></el-icon>
               <span>Milvus 向量数据详情</span>
-              <el-button @click="loadCollectionDetail" :loading="loadingDetail" size="small" type="primary" plain style="margin-left: auto">
+              <el-button
+                :loading="loadingDetail"
+                size="small"
+                type="primary"
+                plain
+                style="margin-left: auto"
+                @click="loadCollectionDetail"
+              >
                 刷新数据
               </el-button>
             </div>
@@ -175,8 +220,15 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
 
             <!-- 知识库列表 -->
             <div v-if="collectionDetail.knowledgeBases && collectionDetail.knowledgeBases.length > 0" style="margin-top: 20px">
-              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">知识库详情</h4>
-              <el-table :data="collectionDetail.knowledgeBases" size="small" border stripe>
+              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">
+                知识库详情
+              </h4>
+              <el-table
+                :data="collectionDetail.knowledgeBases"
+                size="small"
+                border
+                stripe
+              >
                 <el-table-column prop="name" label="知识库名称">
                   <template #default="{ row }">
                     <el-button type="primary" link @click="viewKnowledgeBaseVectors(row)">
@@ -191,14 +243,27 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
 
             <!-- 分区列表 -->
             <div v-if="collectionDetail.partitions && collectionDetail.partitions.length > 0" style="margin-top: 20px">
-              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">分区信息</h4>
-              <el-table :data="collectionDetail.partitions" size="small" border stripe>
+              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">
+                分区信息
+              </h4>
+              <el-table
+                :data="collectionDetail.partitions"
+                size="small"
+                border
+                stripe
+              >
                 <el-table-column prop="name" label="分区名称" />
                 <el-table-column prop="vectorCount" label="向量数" width="100" />
               </el-table>
             </div>
 
-            <el-alert v-if="collectionDetail.note" :title="collectionDetail.note" type="info" style="margin-top: 16px" show-icon />
+            <el-alert
+              v-if="collectionDetail.note"
+              :title="collectionDetail.note"
+              type="info"
+              style="margin-top: 16px"
+              show-icon
+            />
           </div>
 
           <el-empty v-else description="Collection 不存在或未连接" :image-size="80" />
@@ -233,7 +298,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                       :value="provider.value"
                     />
                   </el-select>
-                  <p class="form-tip">选择用于文档向量化的嵌入服务提供商</p>
+                  <p class="form-tip">
+                    选择用于文档向量化的嵌入服务提供商
+                  </p>
                 </el-form-item>
 
                 <el-form-item label="API 密钥">
@@ -256,7 +323,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                   </el-select>
                   <p class="form-tip">
                     选择已在"API密钥管理"中配置的密钥
-                    <el-button type="primary" link @click="router.push('/system/api-keys')">去配置</el-button>
+                    <el-button type="primary" link @click="router.push('/system/api-keys')">
+                      去配置
+                    </el-button>
                   </p>
                 </el-form-item>
 
@@ -280,11 +349,18 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                       <span style="float: right; color: #8492a6; font-size: 12px">{{ model.name || '' }}</span>
                     </el-option>
                   </el-select>
-                  <p class="form-tip">用于将文档向量化，支持中文推荐 bge-base-zh-v1.5</p>
+                  <p class="form-tip">
+                    用于将文档向量化，支持中文推荐 bge-base-zh-v1.5
+                  </p>
                 </el-form-item>
 
                 <el-form-item>
-                  <el-button @click="testEmbeddingConnection" :loading="testingEmbedding" type="success" plain>
+                  <el-button
+                    :loading="testingEmbedding"
+                    type="success"
+                    plain
+                    @click="testEmbeddingConnection"
+                  >
                     测试连接
                   </el-button>
                 </el-form-item>
@@ -303,10 +379,12 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
               <el-form :model="config" label-position="top" class="config-form">
                 <el-form-item label="启用 Rerank">
                   <el-switch v-model="config.enableRerank" />
-                  <p class="form-tip">开启后先使用 Embedding 粗排，再用 Rerank 精排，提升检索准确率</p>
+                  <p class="form-tip">
+                    开启后先使用 Embedding 粗排，再用 Rerank 精排，提升检索准确率
+                  </p>
                 </el-form-item>
 
-                <el-form-item label="Rerank 模型" v-if="config.enableRerank">
+                <el-form-item v-if="config.enableRerank" label="Rerank 模型">
                   <el-select
                     v-model="config.rerankModel"
                     style="width: 100%"
@@ -357,7 +435,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                       <span style="float: right; color: #8492a6; font-size: 12px">{{ model.type || '' }}</span>
                     </el-option>
                   </el-select>
-                  <p class="form-tip">用于 AI 自动生成知识库描述，建议使用支持中文的对话模型</p>
+                  <p class="form-tip">
+                    用于 AI 自动生成知识库描述，建议使用支持中文的对话模型
+                  </p>
                 </el-form-item>
               </el-form>
             </el-card>
@@ -373,16 +453,28 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
               </template>
               <div class="model-list">
                 <div class="model-item">
-                  <div class="model-name">Embedding 模型</div>
-                  <div class="model-desc">将文本转换为向量，用于语义检索</div>
+                  <div class="model-name">
+                    Embedding 模型
+                  </div>
+                  <div class="model-desc">
+                    将文本转换为向量，用于语义检索
+                  </div>
                 </div>
                 <div class="model-item">
-                  <div class="model-name">Rerank 模型</div>
-                  <div class="model-desc">对初步检索结果进行重排，提升准确率（需要额外 API 消耗）</div>
+                  <div class="model-name">
+                    Rerank 模型
+                  </div>
+                  <div class="model-desc">
+                    对初步检索结果进行重排，提升准确率（需要额外 API 消耗）
+                  </div>
                 </div>
                 <div class="model-item">
-                  <div class="model-name">AI 描述生成</div>
-                  <div class="model-desc">自动生成知识库描述，提升管理效率</div>
+                  <div class="model-name">
+                    AI 描述生成
+                  </div>
+                  <div class="model-desc">
+                    自动生成知识库描述，提升管理效率
+                  </div>
                 </div>
               </div>
             </el-card>
@@ -405,27 +497,62 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
               <el-form :model="config" label-position="top" class="config-form">
                 <el-form-item label="默认 Collection 名称">
                   <el-input v-model="config.defaultCollection" placeholder="orin_knowledge_base" />
-                  <p class="form-tip">全局唯一的 Collection 名称，用于存储所有知识库的向量数据</p>
+                  <p class="form-tip">
+                    全局唯一的 Collection 名称，用于存储所有知识库的向量数据
+                  </p>
                 </el-form-item>
 
                 <el-form-item label="默认 Chunk 最大字符数">
-                  <el-input-number v-model="config.chunkSize" :min="100" :max="2000" :step="100" style="width: 200px" />
-                  <p class="form-tip">文档分块时每个 Chunk 的最大字符数，默认 500</p>
+                  <el-input-number
+                    v-model="config.chunkSize"
+                    :min="100"
+                    :max="2000"
+                    :step="100"
+                    style="width: 200px"
+                  />
+                  <p class="form-tip">
+                    文档分块时每个 Chunk 的最大字符数，默认 500
+                  </p>
                 </el-form-item>
 
                 <el-form-item label="默认 Chunk 重叠字符数">
-                  <el-input-number v-model="config.chunkOverlap" :min="0" :max="500" :step="50" style="width: 200px" />
-                  <p class="form-tip">相邻 Chunk 之间的重叠字符数，用于保持上下文连贯性，默认 50</p>
+                  <el-input-number
+                    v-model="config.chunkOverlap"
+                    :min="0"
+                    :max="500"
+                    :step="50"
+                    style="width: 200px"
+                  />
+                  <p class="form-tip">
+                    相邻 Chunk 之间的重叠字符数，用于保持上下文连贯性，默认 50
+                  </p>
                 </el-form-item>
 
                 <el-form-item label="默认检索返回结果数 (Top K)">
-                  <el-input-number v-model="config.defaultTopK" :min="1" :max="20" :step="1" style="width: 200px" />
-                  <p class="form-tip">向量相似度搜索返回的最大结果数，默认 5</p>
+                  <el-input-number
+                    v-model="config.defaultTopK"
+                    :min="1"
+                    :max="20"
+                    :step="1"
+                    style="width: 200px"
+                  />
+                  <p class="form-tip">
+                    向量相似度搜索返回的最大结果数，默认 5
+                  </p>
                 </el-form-item>
 
                 <el-form-item label="默认相似度阈值">
-                  <el-slider v-model="config.similarityThreshold" :min="0" :max="1" :step="0.05" show-stops :format-tooltip="(val) => (val * 100).toFixed(0) + '%'" />
-                  <p class="form-tip">只有相似度高于此阈值的文档才会被返回，默认 0.7</p>
+                  <el-slider
+                    v-model="config.similarityThreshold"
+                    :min="0"
+                    :max="1"
+                    :step="0.05"
+                    show-stops
+                    :format-tooltip="(val) => (val * 100).toFixed(0) + '%'"
+                  />
+                  <p class="form-tip">
+                    只有相似度高于此阈值的文档才会被返回，默认 0.7
+                  </p>
                 </el-form-item>
               </el-form>
             </el-card>
@@ -447,7 +574,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                         <el-option value="local" label="本地 (Tesseract)" />
                         <el-option value="cloud" label="云服务 API" />
                       </el-select>
-                      <p class="form-tip">图片文字识别服务，用于从图片中提取文本内容</p>
+                      <p class="form-tip">
+                        图片文字识别服务，用于从图片中提取文本内容
+                      </p>
                     </el-form-item>
                   </el-col>
                   <el-col :span="12">
@@ -456,7 +585,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                         <el-option value="local" label="本地 (Whisper)" />
                         <el-option value="cloud" label="云服务 API" />
                       </el-select>
-                      <p class="form-tip">语音识别服务，用于从音频/视频中提取文本内容</p>
+                      <p class="form-tip">
+                        语音识别服务，用于从音频/视频中提取文本内容
+                      </p>
                     </el-form-item>
                   </el-col>
                 </el-row>
@@ -465,7 +596,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                   <el-col :span="12">
                     <el-form-item label="OCR 模型 (云服务)">
                       <el-input v-model="config.ocrModel" placeholder="如: ocr-general-v1" />
-                      <p class="form-tip">云服务 OCR 模型名称</p>
+                      <p class="form-tip">
+                        云服务 OCR 模型名称
+                      </p>
                     </el-form-item>
                   </el-col>
                   <el-col :span="12">
@@ -477,7 +610,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                         <el-option value="medium" label="medium - 高精度" />
                         <el-option value="large" label="large - 最高精度" />
                       </el-select>
-                      <p class="form-tip">Whisper 模型大小，影响识别精度和速度</p>
+                      <p class="form-tip">
+                        Whisper 模型大小，影响识别精度和速度
+                      </p>
                     </el-form-item>
                   </el-col>
                 </el-row>
@@ -497,7 +632,12 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
               <div class="ai-generate-form">
                 <el-form label-position="top" size="small">
                   <el-form-item label="选择知识库">
-                    <el-select v-model="selectedKB" placeholder="选择知识库" style="width: 100%" filterable>
+                    <el-select
+                      v-model="selectedKB"
+                      placeholder="选择知识库"
+                      style="width: 100%"
+                      filterable
+                    >
                       <el-option
                         v-for="kb in knowledgeBases"
                         :key="kb.kbId"
@@ -510,7 +650,12 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                     </el-select>
                   </el-form-item>
                   <el-form-item label="选择 AI 模型">
-                    <el-select v-model="selectedKBModel" placeholder="选择模型" style="width: 100%" filterable>
+                    <el-select
+                      v-model="selectedKBModel"
+                      placeholder="选择模型"
+                      style="width: 100%"
+                      filterable
+                    >
                       <el-option
                         v-for="model in kbModels"
                         :key="model.id"
@@ -533,7 +678,9 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                   </el-button>
                 </el-form>
               </div>
-              <p class="form-tip" style="margin-top: 12px">AI 将根据知识库中的文档内容自动生成名称和描述</p>
+              <p class="form-tip" style="margin-top: 12px">
+                AI 将根据知识库中的文档内容自动生成名称和描述
+              </p>
             </el-card>
 
             <!-- 知识库统计 -->
@@ -546,19 +693,36 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
               </template>
               <div class="stats-list">
                 <div class="stat-item">
-                  <div class="stat-label">知识库总数</div>
-                  <div class="stat-value">{{ knowledgeStats.totalKBs }}</div>
+                  <div class="stat-label">
+                    知识库总数
+                  </div>
+                  <div class="stat-value">
+                    {{ knowledgeStats.totalKBs }}
+                  </div>
                 </div>
                 <div class="stat-item">
-                  <div class="stat-label">文档总数</div>
-                  <div class="stat-value">{{ knowledgeStats.totalDocs }}</div>
+                  <div class="stat-label">
+                    文档总数
+                  </div>
+                  <div class="stat-value">
+                    {{ knowledgeStats.totalDocs }}
+                  </div>
                 </div>
                 <div class="stat-item">
-                  <div class="stat-label">向量总数</div>
-                  <div class="stat-value">{{ knowledgeStats.totalVectors }}</div>
+                  <div class="stat-label">
+                    向量总数
+                  </div>
+                  <div class="stat-value">
+                    {{ knowledgeStats.totalVectors }}
+                  </div>
                 </div>
               </div>
-              <el-button @click="loadKnowledgeStats" :loading="loadingStats" size="small" style="width: 100%; margin-top: 16px">
+              <el-button
+                :loading="loadingStats"
+                size="small"
+                style="width: 100%; margin-top: 16px"
+                @click="loadKnowledgeStats"
+              >
                 刷新统计
               </el-button>
             </el-card>
@@ -583,13 +747,38 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
           style="margin-bottom: 16px"
         />
 
-        <el-table :data="vectorDialogData.chunks" size="small" border max-height="500">
-          <el-table-column prop="fileName" label="文件名" width="180" show-overflow-tooltip />
+        <el-table
+          :data="vectorDialogData.chunks"
+          size="small"
+          border
+          max-height="500"
+        >
+          <el-table-column
+            prop="fileName"
+            label="文件名"
+            width="180"
+            show-overflow-tooltip
+          />
           <el-table-column prop="chunkIndex" label="索引" width="60" />
-          <el-table-column prop="title" label="标题" width="150" show-overflow-tooltip />
-          <el-table-column prop="content" label="内容" min-width="250" show-overflow-tooltip />
+          <el-table-column
+            prop="title"
+            label="标题"
+            width="150"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="content"
+            label="内容"
+            min-width="250"
+            show-overflow-tooltip
+          />
           <el-table-column prop="charCount" label="字符数" width="80" />
-          <el-table-column prop="vectorId" label="Vector ID" width="100" show-overflow-tooltip />
+          <el-table-column
+            prop="vectorId"
+            label="Vector ID"
+            width="100"
+            show-overflow-tooltip
+          />
         </el-table>
 
         <div style="margin-top: 16px; text-align: center">
@@ -597,8 +786,8 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
             v-if="vectorDialogData.chunks.length < vectorDialogData.totalChunks"
             type="primary"
             link
-            @click="loadMoreVectors"
             :loading="vectorDialogData.loading"
+            @click="loadMoreVectors"
           >
             加载更多
           </el-button>

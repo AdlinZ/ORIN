@@ -11,7 +11,9 @@
       <div class="toolbar">
         <div class="left-tools">
           <el-button type="primary" class="create-btn" @click="handleCreate">
-            <el-icon class="mr-1"><Plus /></el-icon>
+            <el-icon class="mr-1">
+              <Plus />
+            </el-icon>
             创建用户
           </el-button>
         </div>
@@ -35,10 +37,11 @@
       </div>
 
       <!-- 用户列表 -->
-      <el-table border
+      <el-table
+        v-loading="loading"
+        border
         :data="filteredUsers"
         style="width: 100%"
-        v-loading="loading"
         class="premium-table"
         :header-cell-style="{ background: 'transparent', color: 'var(--el-text-color-secondary)' }"
         :row-class-name="tableRowClassName"
@@ -46,7 +49,9 @@
         <el-table-column prop="username" label="用户名" min-width="150">
           <template #default="{ row }">
             <div class="user-info">
-              <el-avatar :size="32" class="user-avatar" :src="row.avatar">{{ row.username.charAt(0).toUpperCase() }}</el-avatar>
+              <el-avatar :size="32" class="user-avatar" :src="row.avatar">
+                {{ row.username.charAt(0).toUpperCase() }}
+              </el-avatar>
               <span class="username">{{ row.username }}</span>
             </div>
           </template>
@@ -71,7 +76,7 @@
         <el-table-column label="状态" width="120">
           <template #default="{ row }">
             <div class="status-indicator">
-              <span :class="['status-dot', row.status === 'active' ? 'active' : 'inactive']"></span>
+              <span :class="['status-dot', row.status === 'active' ? 'active' : 'inactive']" />
               {{ row.status === 'active' ? '激活' : '禁用' }}
             </div>
           </template>
@@ -89,7 +94,12 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" fixed="right" width="180" align="center">
+        <el-table-column
+          label="操作"
+          fixed="right"
+          width="180"
+          align="center"
+        >
           <template #default="{ row }">
             <div class="action-buttons">
               <el-tooltip content="编辑" placement="top" :show-after="500">
@@ -104,8 +114,12 @@
                   :class="['action-btn', row.status === 'active' ? 'warning' : 'success']"
                   @click="handleToggleStatus(row)"
                 >
-                  <el-icon v-if="row.status === 'active'"><Lock /></el-icon>
-                  <el-icon v-else><Unlock /></el-icon>
+                  <el-icon v-if="row.status === 'active'">
+                    <Lock />
+                  </el-icon>
+                  <el-icon v-else>
+                    <Unlock />
+                  </el-icon>
                 </el-button>
               </el-tooltip>
               
@@ -127,10 +141,10 @@
           :page-sizes="[10, 20, 50]"
           :total="totalUsers"
           layout="total, ->, sizes, prev, pager, next"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
           background
           small
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
         />
       </div>
     </div>
@@ -158,7 +172,7 @@
           <el-input v-model="formData.email" placeholder="请输入邮箱" />
         </el-form-item>
         
-        <el-form-item label="密码" prop="password" v-if="!isEdit">
+        <el-form-item v-if="!isEdit" label="密码" prop="password">
           <el-input 
             v-model="formData.password" 
             type="password" 
@@ -189,21 +203,23 @@
 
         <el-form-item label="状态" prop="status">
           <div class="status-switch-wrapper">
-               <el-switch
-                v-model="formData.status"
-                active-value="active"
-                inactive-value="inactive"
-                style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
-              />
-              <span class="status-text">{{ formData.status === 'active' ? '已激活' : '已禁用' }}</span>
-            </div>
-          </el-form-item>
+            <el-switch
+              v-model="formData.status"
+              active-value="active"
+              inactive-value="inactive"
+              style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+            />
+            <span class="status-text">{{ formData.status === 'active' ? '已激活' : '已禁用' }}</span>
+          </div>
+        </el-form-item>
       </el-form>
       
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button @click="dialogVisible = false">
+            取消
+          </el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">
             确认{{ isEdit ? '更新' : '创建' }}
           </el-button>
         </div>

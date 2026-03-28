@@ -19,7 +19,9 @@
         </template>
       </el-alert>
 
-      <div class="section-title">统计卡片</div>
+      <div class="section-title">
+        统计卡片
+      </div>
       <div class="card-list">
         <div 
           v-for="card in availableCards.stats" 
@@ -29,10 +31,16 @@
           @click="toggleCard(card.id)"
         >
           <div class="card-info">
-            <el-icon :style="{ color: card.color }"><component :is="card.icon" /></el-icon>
+            <el-icon :style="{ color: card.color }">
+              <component :is="card.icon" />
+            </el-icon>
             <div class="card-text">
-              <div class="card-name">{{ card.name }}</div>
-              <div class="card-desc">{{ card.description }}</div>
+              <div class="card-name">
+                {{ card.name }}
+              </div>
+              <div class="card-desc">
+                {{ card.description }}
+              </div>
             </div>
           </div>
           <el-switch 
@@ -45,7 +53,9 @@
 
       <el-divider />
 
-      <div class="section-title">监控模块</div>
+      <div class="section-title">
+        监控模块
+      </div>
       <div class="card-list">
         <div 
           v-for="card in availableCards.modules" 
@@ -58,10 +68,16 @@
             @click="toggleCard(card.id)"
           >
             <div class="card-info">
-              <el-icon :style="{ color: card.color }"><component :is="card.icon" /></el-icon>
+              <el-icon :style="{ color: card.color }">
+                <component :is="card.icon" />
+              </el-icon>
               <div class="card-text">
-                <div class="card-name">{{ card.name }}</div>
-                <div class="card-desc">{{ card.description }}</div>
+                <div class="card-name">
+                  {{ card.name }}
+                </div>
+                <div class="card-desc">
+                  {{ card.description }}
+                </div>
               </div>
             </div>
             <el-switch 
@@ -78,7 +94,9 @@
               size="small"
               @change="(val) => updateCardSize(card.id, val)"
             >
-              <el-radio-button v-for="s in card.sizes" :key="s" :label="s">{{ s }}</el-radio-button>
+              <el-radio-button v-for="s in card.sizes" :key="s" :label="s">
+                {{ s }}
+              </el-radio-button>
             </el-radio-group>
           </div>
         </div>
@@ -87,8 +105,12 @@
       <el-divider />
 
       <div class="action-buttons">
-        <el-button @click="resetToDefault" :icon="RefreshLeft">恢复默认</el-button>
-        <el-button type="primary" @click="handleClose" :icon="Check">完成配置</el-button>
+        <el-button :icon="RefreshLeft" @click="resetToDefault">
+          恢复默认
+        </el-button>
+        <el-button type="primary" :icon="Check" @click="handleClose">
+          完成配置
+        </el-button>
       </div>
     </div>
   </el-drawer>

@@ -11,20 +11,33 @@
       <div class="channel-section">
         <div class="channel-header">
           <div class="channel-info">
-            <el-icon size="24"><Message /></el-icon>
+            <el-icon size="24">
+              <Message />
+            </el-icon>
             <div class="channel-text">
-              <div class="channel-title">邮件通知</div>
-              <div class="channel-desc">通过邮件发送告警通知</div>
+              <div class="channel-title">
+                邮件通知
+              </div>
+              <div class="channel-desc">
+                通过邮件发送告警通知
+              </div>
             </div>
           </div>
           <el-switch v-model="channels.email.enabled" />
         </div>
-        <el-form v-if="channels.email.enabled" :model="channels.email" label-width="100px" class="channel-form">
+        <el-form
+          v-if="channels.email.enabled"
+          :model="channels.email"
+          label-width="100px"
+          class="channel-form"
+        >
           <el-form-item label="收件人">
             <el-input v-model="channels.email.recipients" placeholder="多个邮箱用逗号分隔" />
           </el-form-item>
           <el-form-item>
-            <el-button size="small" @click="testChannel('email')">发送测试</el-button>
+            <el-button size="small" @click="testChannel('email')">
+              发送测试
+            </el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -35,20 +48,33 @@
       <div class="channel-section">
         <div class="channel-header">
           <div class="channel-info">
-            <el-icon size="24"><ChatDotRound /></el-icon>
+            <el-icon size="24">
+              <ChatDotRound />
+            </el-icon>
             <div class="channel-text">
-              <div class="channel-title">钉钉通知</div>
-              <div class="channel-desc">通过钉钉机器人发送告警消息</div>
+              <div class="channel-title">
+                钉钉通知
+              </div>
+              <div class="channel-desc">
+                通过钉钉机器人发送告警消息
+              </div>
             </div>
           </div>
           <el-switch v-model="channels.dingtalk.enabled" />
         </div>
-        <el-form v-if="channels.dingtalk.enabled" :model="channels.dingtalk" label-width="100px" class="channel-form">
+        <el-form
+          v-if="channels.dingtalk.enabled"
+          :model="channels.dingtalk"
+          label-width="100px"
+          class="channel-form"
+        >
           <el-form-item label="Webhook">
             <el-input v-model="channels.dingtalk.webhook" placeholder="钉钉机器人 Webhook 地址" />
           </el-form-item>
           <el-form-item>
-            <el-button size="small" @click="testChannel('dingtalk')">发送测试</el-button>
+            <el-button size="small" @click="testChannel('dingtalk')">
+              发送测试
+            </el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -59,20 +85,33 @@
       <div class="channel-section">
         <div class="channel-header">
           <div class="channel-info">
-            <el-icon size="24"><OfficeBuilding /></el-icon>
+            <el-icon size="24">
+              <OfficeBuilding />
+            </el-icon>
             <div class="channel-text">
-              <div class="channel-title">企业微信通知</div>
-              <div class="channel-desc">通过企业微信机器人发送告警消息</div>
+              <div class="channel-title">
+                企业微信通知
+              </div>
+              <div class="channel-desc">
+                通过企业微信机器人发送告警消息
+              </div>
             </div>
           </div>
           <el-switch v-model="channels.wechat.enabled" />
         </div>
-        <el-form v-if="channels.wechat.enabled" :model="channels.wechat" label-width="100px" class="channel-form">
+        <el-form
+          v-if="channels.wechat.enabled"
+          :model="channels.wechat"
+          label-width="100px"
+          class="channel-form"
+        >
           <el-form-item label="Webhook">
             <el-input v-model="channels.wechat.webhook" placeholder="企业微信机器人 Webhook 地址" />
           </el-form-item>
           <el-form-item>
-            <el-button size="small" @click="testChannel('wechat')">发送测试</el-button>
+            <el-button size="small" @click="testChannel('wechat')">
+              发送测试
+            </el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -89,21 +128,33 @@
       <el-form label-width="150px">
         <el-form-item label="仅关键告警">
           <el-switch v-model="preferences.criticalOnly" />
-          <div class="form-tip">开启后仅发送严重级别告警</div>
+          <div class="form-tip">
+            开启后仅发送严重级别告警
+          </div>
         </el-form-item>
         <el-form-item label="失败立即推送">
           <el-switch v-model="preferences.immediateFailure" />
-          <div class="form-tip">任务失败时立即推送通知</div>
+          <div class="form-tip">
+            任务失败时立即推送通知
+          </div>
         </el-form-item>
         <el-form-item label="低优先级合并">
           <el-switch v-model="preferences.mergeLowPriority" />
-          <div class="form-tip">低优先级告警合并发送</div>
+          <div class="form-tip">
+            低优先级告警合并发送
+          </div>
         </el-form-item>
         <el-form-item label="通知方式">
           <el-checkbox-group v-model="preferences.notificationTypes">
-            <el-checkbox label="站内">站内消息</el-checkbox>
-            <el-checkbox label="桌面">桌面推送</el-checkbox>
-            <el-checkbox label="邮件">邮件</el-checkbox>
+            <el-checkbox label="站内">
+              站内消息
+            </el-checkbox>
+            <el-checkbox label="桌面">
+              桌面推送
+            </el-checkbox>
+            <el-checkbox label="邮件">
+              邮件
+            </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
       </el-form>
@@ -114,7 +165,9 @@
       <el-button type="primary" :loading="saving" @click="handleSave">
         保存配置
       </el-button>
-      <el-button @click="handleReset">重置</el-button>
+      <el-button @click="handleReset">
+        重置
+      </el-button>
     </div>
   </div>
 </template>

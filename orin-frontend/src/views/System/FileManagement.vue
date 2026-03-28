@@ -6,7 +6,9 @@
       icon="Folder"
     >
       <template #actions>
-        <el-button :icon="Refresh" @click="fetchFiles" :loading="loading">刷新</el-button>
+        <el-button :icon="Refresh" :loading="loading" @click="fetchFiles">
+          刷新
+        </el-button>
       </template>
     </PageHeader>
 
@@ -18,8 +20,12 @@
             <el-icon><Files /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.totalFiles }}</div>
-            <div class="stat-label">总文件数</div>
+            <div class="stat-value">
+              {{ stats.totalFiles }}
+            </div>
+            <div class="stat-label">
+              总文件数
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -29,8 +35,12 @@
             <el-icon><Picture /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.imageCount }}</div>
-            <div class="stat-label">图片</div>
+            <div class="stat-value">
+              {{ stats.imageCount }}
+            </div>
+            <div class="stat-label">
+              图片
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -40,8 +50,12 @@
             <el-icon><VideoCamera /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.videoCount }}</div>
-            <div class="stat-label">视频</div>
+            <div class="stat-value">
+              {{ stats.videoCount }}
+            </div>
+            <div class="stat-label">
+              视频
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -51,8 +65,12 @@
             <el-icon><Microphone /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.audioCount }}</div>
-            <div class="stat-label">音频</div>
+            <div class="stat-value">
+              {{ stats.audioCount }}
+            </div>
+            <div class="stat-label">
+              音频
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -79,7 +97,7 @@
 
     <!-- 文件列表 -->
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredFiles" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="filteredFiles" stripe>
         <el-table-column label="预览" width="80" align="center">
           <template #default="{ row }">
             <div class="file-preview">
@@ -90,48 +108,102 @@
                 fit="cover"
                 class="preview-img"
               />
-              <el-icon v-else-if="row.fileType === 'IMAGE'" :size="24" class="file-icon"><Picture /></el-icon>
-              <el-icon v-else-if="row.fileType === 'VIDEO'" :size="24" class="file-icon"><VideoCamera /></el-icon>
-              <el-icon v-else-if="row.fileType === 'AUDIO'" :size="24" class="file-icon"><Microphone /></el-icon>
-              <el-icon v-else :size="24" class="file-icon"><Document /></el-icon>
+              <el-icon v-else-if="row.fileType === 'IMAGE'" :size="24" class="file-icon">
+                <Picture />
+              </el-icon>
+              <el-icon v-else-if="row.fileType === 'VIDEO'" :size="24" class="file-icon">
+                <VideoCamera />
+              </el-icon>
+              <el-icon v-else-if="row.fileType === 'AUDIO'" :size="24" class="file-icon">
+                <Microphone />
+              </el-icon>
+              <el-icon v-else :size="24" class="file-icon">
+                <Document />
+              </el-icon>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="fileName"
+          label="文件名"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <span class="file-name">{{ row.fileName }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="fileType" label="类型" width="100" align="center">
+        <el-table-column
+          prop="fileType"
+          label="类型"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="getFileTypeTag(row.fileType)" size="small">{{ getFileTypeLabel(row.fileType) }}</el-tag>
+            <el-tag :type="getFileTypeTag(row.fileType)" size="small">
+              {{ getFileTypeLabel(row.fileType) }}
+            </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="fileSize" label="大小" width="120" align="center">
+        <el-table-column
+          prop="fileSize"
+          label="大小"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             {{ formatFileSize(row.fileSize) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="uploadedBy" label="上传者" width="100" align="center">
+        <el-table-column
+          prop="uploadedBy"
+          label="上传者"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
             {{ row.uploadedBy || 'system' }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="uploadedAt" label="上传时间" width="180" sortable>
+        <el-table-column
+          prop="uploadedAt"
+          label="上传时间"
+          width="180"
+          sortable
+        >
           <template #default="{ row }">
             {{ formatDateTime(row.uploadedAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="150" align="center" fixed="right">
+        <el-table-column
+          label="操作"
+          width="150"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button type="primary" link :icon="Download" @click="downloadFile(row)">下载</el-button>
-            <el-button type="danger" link :icon="Delete" @click="confirmDelete(row)">删除</el-button>
+            <el-button
+              type="primary"
+              link
+              :icon="Download"
+              @click="downloadFile(row)"
+            >
+              下载
+            </el-button>
+            <el-button
+              type="danger"
+              link
+              :icon="Delete"
+              @click="confirmDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -142,18 +214,24 @@
         :page-size="pageSize"
         :total="totalFiles"
         layout="total, prev, pager, next"
-        @current-change="handlePageChange"
         class="pagination"
+        @current-change="handlePageChange"
       />
     </el-card>
 
     <!-- 删除确认对话框 -->
     <el-dialog v-model="deleteDialogVisible" title="确认删除" width="400px">
       <p>确定要删除文件 <strong>{{ currentFile?.fileName }}</strong> 吗？</p>
-      <p class="text-danger">此操作不可恢复</p>
+      <p class="text-danger">
+        此操作不可恢复
+      </p>
       <template #footer>
-        <el-button @click="deleteDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="deleting" @click="deleteFile">删除</el-button>
+        <el-button @click="deleteDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="danger" :loading="deleting" @click="deleteFile">
+          删除
+        </el-button>
       </template>
     </el-dialog>
   </div>

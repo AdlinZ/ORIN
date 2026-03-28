@@ -1,9 +1,11 @@
 <template>
   <div class="workflow-history">
-    <el-table :data="instances" v-loading="loading" border>
+    <el-table v-loading="loading" :data="instances" border>
       <el-table-column prop="id" label="实例ID" width="120">
         <template #default="{ row }">
-          <el-tag size="small">{{ row.id?.substring(0, 8) }}...</el-tag>
+          <el-tag size="small">
+            {{ row.id?.substring(0, 8) }}...
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100">
@@ -53,8 +55,8 @@
       v-model:page-size="pageSize"
       :total="total"
       layout="total, prev, pager, next"
-      @current-change="loadInstances"
       style="margin-top: 16px; justify-content: flex-end"
+      @current-change="loadInstances"
     />
   </div>
 </template>

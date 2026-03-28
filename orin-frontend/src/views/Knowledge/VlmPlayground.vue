@@ -11,146 +11,208 @@
       <el-main class="material-stream">
         <!-- Input & Config Header -->
         <div class="stream-header-card">
-           <div class="input-row">
-               <el-select v-model="selectedVlmModel" placeholder="选择 VLM 模型" style="width: 240px" size="large">
-                  <el-option v-for="m in vlmModels" :key="m.modelId" :label="m.name" :value="m.modelId" />
-               </el-select>
+          <div class="input-row">
+            <el-select
+              v-model="selectedVlmModel"
+              placeholder="选择 VLM 模型"
+              style="width: 240px"
+              size="large"
+            >
+              <el-option
+                v-for="m in vlmModels"
+                :key="m.modelId"
+                :label="m.name"
+                :value="m.modelId"
+              />
+            </el-select>
 
-               <el-input 
-                  v-model="imageUrl" 
-                  placeholder="请输入图片 URL" 
-                  class="search-input"
-                  size="large"
-                  clearable
-                  @keyup.enter="handleTest"
-                >
-                   <template #prefix><el-icon><Picture /></el-icon></template>
-                </el-input>
+            <el-input 
+              v-model="imageUrl" 
+              placeholder="请输入图片 URL" 
+              class="search-input"
+              size="large"
+              clearable
+              @keyup.enter="handleTest"
+            >
+              <template #prefix>
+                <el-icon><Picture /></el-icon>
+              </template>
+            </el-input>
                 
-                <el-upload
-                  class="local-upload"
-                  action="#"
-                  :auto-upload="false"
-                  :show-file-list="false"
-                  :on-change="handleFileUpload"
-                  accept="image/*"
-                >
-                  <el-button size="large" :icon="UploadFilledIcon">本地</el-button>
-                </el-upload>
+            <el-upload
+              class="local-upload"
+              action="#"
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="handleFileUpload"
+              accept="image/*"
+            >
+              <el-button size="large" :icon="UploadFilledIcon">
+                本地
+              </el-button>
+            </el-upload>
 
-                <el-button type="primary" size="large" :loading="loading" @click="handleTest">开始解析</el-button>
-           </div>
+            <el-button
+              type="primary"
+              size="large"
+              :loading="loading"
+              @click="handleTest"
+            >
+              开始解析
+            </el-button>
+          </div>
         </div>
 
         <!-- Cards Grid -->
         <div class="cards-grid">
-            <div 
-                v-for="task in historyList" 
-                :key="task.id" 
-                class="task-card"
-                :class="{ 'active': currentViewTask?.id === task.id }"
-                @click="viewTask(task)"
-            >
-                <div class="card-image-box">
-                    <el-image 
-                        :src="task.targetUrl" 
-                        fit="cover" 
-                        class="card-img" 
-                        lazy
-                    >
-                        <template #placeholder>
-                            <div class="image-slot-loading">
-                                <el-icon class="is-loading"><Loading /></el-icon>
-                            </div>
-                        </template>
-                        <template #error>
-                            <div class="image-slot-error">
-                                <el-icon><Picture /></el-icon>
-                            </div>
-                        </template>
-                    </el-image>
+          <div 
+            v-for="task in historyList" 
+            :key="task.id" 
+            class="task-card"
+            :class="{ 'active': currentViewTask?.id === task.id }"
+            @click="viewTask(task)"
+          >
+            <div class="card-image-box">
+              <el-image 
+                :src="task.targetUrl" 
+                fit="cover" 
+                class="card-img" 
+                lazy
+              >
+                <template #placeholder>
+                  <div class="image-slot-loading">
+                    <el-icon class="is-loading">
+                      <Loading />
+                    </el-icon>
+                  </div>
+                </template>
+                <template #error>
+                  <div class="image-slot-error">
+                    <el-icon><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
 
-                    <!-- Amber Processing Overlay -->
-                    <div v-if="task.status === 'RUNNING'" class="processing-overlay">
-                        <div class="amber-flow"></div>
-                        <span class="processing-text">AI 正在思考...</span>
-                    </div>
+              <!-- Amber Processing Overlay -->
+              <div v-if="task.status === 'RUNNING'" class="processing-overlay">
+                <div class="amber-flow" />
+                <span class="processing-text">AI 正在思考...</span>
+              </div>
 
-                    <div class="card-badges">
-                        <el-tag size="small" :type="getStatusType(task.status)" effect="dark" class="status-badge">
-                            {{ task.status }}
-                        </el-tag>
-                    </div>
-                </div>
-                
-                <div class="card-footer">
-                    <div class="model-name" :title="task.modelName">{{ task.modelName }}</div>
-                    <div class="time-info">{{ formatTime(task.createdAt) }}</div>
-                </div>
+              <div class="card-badges">
+                <el-tag
+                  size="small"
+                  :type="getStatusType(task.status)"
+                  effect="dark"
+                  class="status-badge"
+                >
+                  {{ task.status }}
+                </el-tag>
+              </div>
             </div>
+                
+            <div class="card-footer">
+              <div class="model-name" :title="task.modelName">
+                {{ task.modelName }}
+              </div>
+              <div class="time-info">
+                {{ formatTime(task.createdAt) }}
+              </div>
+            </div>
+          </div>
         </div>
       </el-main>
 
       <!-- Right Aside: Detail Dashboard -->
       <el-aside width="400px" class="detail-dashboard">
         <div v-if="currentViewTask" class="dashboard-content">
-            <!-- Top: Image Preview -->
-            <div class="detail-section image-preview-section">
-                <div class="large-preview">
-                    <el-image 
-                        :src="currentViewTask.targetUrl" 
-                        fit="contain" 
-                        :preview-src-list="[currentViewTask.targetUrl]"
-                        class="detail-img"
-                    />
-                </div>
-                <div class="action-bar">
-                    <el-button type="primary" plain size="small" :icon="Refresh" @click="reanalyzeTask">重新解析</el-button>
-                    <el-button type="info" plain size="small" :icon="CopyDocument" @click="copyDescription">复制结果</el-button>
-                </div>
+          <!-- Top: Image Preview -->
+          <div class="detail-section image-preview-section">
+            <div class="large-preview">
+              <el-image 
+                :src="currentViewTask.targetUrl" 
+                fit="contain" 
+                :preview-src-list="[currentViewTask.targetUrl]"
+                class="detail-img"
+              />
             </div>
+            <div class="action-bar">
+              <el-button
+                type="primary"
+                plain
+                size="small"
+                :icon="Refresh"
+                @click="reanalyzeTask"
+              >
+                重新解析
+              </el-button>
+              <el-button
+                type="info"
+                plain
+                size="small"
+                :icon="CopyDocument"
+                @click="copyDescription"
+              >
+                复制结果
+              </el-button>
+            </div>
+          </div>
 
-            <!-- Middle: AI Summary -->
-            <div class="detail-section summary-section">
-                <div class="section-title">
-                    <el-icon><Cpu /></el-icon> AI 视觉分析
-                    <el-tag v-if="isValidExecTime(currentViewTask.executionTime)" :type="getLatencyType(currentViewTask.executionTime)" effect="light" size="small" class="exec-time-tag">
-                        {{ (currentViewTask.executionTime / 1000).toFixed(1) }}s
-                    </el-tag>
-                </div>
-                <div class="summary-editor-box">
-                    <el-input
-                        v-model="currentViewTask.result"
-                        type="textarea"
-                        :autosize="{ minRows: 6, maxRows: 15 }"
-                        placeholder="等待分析结果..."
-                        class="borderless-textarea"
-                        :readonly="false" 
-                    />
-                </div>
+          <!-- Middle: AI Summary -->
+          <div class="detail-section summary-section">
+            <div class="section-title">
+              <el-icon><Cpu /></el-icon> AI 视觉分析
+              <el-tag
+                v-if="isValidExecTime(currentViewTask.executionTime)"
+                :type="getLatencyType(currentViewTask.executionTime)"
+                effect="light"
+                size="small"
+                class="exec-time-tag"
+              >
+                {{ (currentViewTask.executionTime / 1000).toFixed(1) }}s
+              </el-tag>
             </div>
+            <div class="summary-editor-box">
+              <el-input
+                v-model="currentViewTask.result"
+                type="textarea"
+                :autosize="{ minRows: 6, maxRows: 15 }"
+                placeholder="等待分析结果..."
+                class="borderless-textarea"
+                :readonly="false" 
+              />
+            </div>
+          </div>
 
-            <!-- Bottom: Related Meta -->
-            <div class="detail-section meta-section">
-                <div class="section-title"><el-icon><Connection /></el-icon> 关联上下文</div>
-                <div class="tags-group">
-                    <div class="tag-row">
-                        <span class="label">Agents:</span>
-                        <el-tag size="small" type="info">暂无关联</el-tag>
-                    </div>
-                    <div class="tag-row">
-                        <span class="label">知识库:</span>
-                        <div class="kb-tags">
-                             <el-tag size="small" effect="plain">多模态素材库</el-tag>
-                             <el-tag size="small" effect="plain" type="success">默认集合</el-tag>
-                        </div>
-                    </div>
-                </div>
+          <!-- Bottom: Related Meta -->
+          <div class="detail-section meta-section">
+            <div class="section-title">
+              <el-icon><Connection /></el-icon> 关联上下文
             </div>
+            <div class="tags-group">
+              <div class="tag-row">
+                <span class="label">Agents:</span>
+                <el-tag size="small" type="info">
+                  暂无关联
+                </el-tag>
+              </div>
+              <div class="tag-row">
+                <span class="label">知识库:</span>
+                <div class="kb-tags">
+                  <el-tag size="small" effect="plain">
+                    多模态素材库
+                  </el-tag>
+                  <el-tag size="small" effect="plain" type="success">
+                    默认集合
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div v-else class="empty-dashboard">
-            <el-empty description="请选择左侧任务查看详情" />
+          <el-empty description="请选择左侧任务查看详情" />
         </div>
       </el-aside>
     </el-container>

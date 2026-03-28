@@ -2,13 +2,13 @@
   <div class="resizable-table-wrapper">
     <el-table
       v-bind="$attrs"
+      ref="tableRef"
       :data="data"
       :class="['resizable-table', tableClass]"
       :header-cell-style="mergedHeaderCellStyle"
       :cell-style="cellStyle"
       :stripe="stripe"
       :border="border"
-      ref="tableRef"
       @header-dragend="handleHeaderDragend"
     >
       <slot />

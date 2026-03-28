@@ -1,58 +1,64 @@
 <template>
   <div class="page-container">
-        <PageHeader
-            title="数据流追踪"
-            :description="`Trace ID: ${traceId}`"
-            icon="Share"
-        />
+    <PageHeader
+      title="数据流追踪"
+      :description="`Trace ID: ${traceId}`"
+      icon="Share"
+    />
     <div class="action-bar">
       <div>
         <span class="text-muted">Trace ID: {{ traceId }}</span>
       </div>
       <div>
-        <el-button @click="goBack">返回日志</el-button>
-        <el-button type="primary" @click="loadTrace">刷新</el-button>
+        <el-button @click="goBack">
+          返回日志
+        </el-button>
+        <el-button type="primary" @click="loadTrace">
+          刷新
+        </el-button>
       </div>
     </div>
 
     <!-- Trace Visualization -->
-    <el-card class="box-card" v-loading="loading">
-       <div v-if="traceData" class="trace-container">
-           <div class="trace-summary">
-               <el-descriptions border>
-                   <el-descriptions-item label="状态">
-                       <el-tag :type="traceData.status === 'SUCCESS' ? 'success' : 'danger'">
-                           {{ traceData.status }}
-                       </el-tag>
-                   </el-descriptions-item>
-                   <el-descriptions-item label="总耗时">{{ traceData.totalDurationMs }} ms</el-descriptions-item>
-                   <el-descriptions-item label="开始时间">
-                        {{ traceData.stages && traceData.stages.length > 0 ? formatTime(traceData.stages[0].timestamp) : '-' }}
-                   </el-descriptions-item>
-               </el-descriptions>
-           </div>
+    <el-card v-loading="loading" class="box-card">
+      <div v-if="traceData" class="trace-container">
+        <div class="trace-summary">
+          <el-descriptions border>
+            <el-descriptions-item label="状态">
+              <el-tag :type="traceData.status === 'SUCCESS' ? 'success' : 'danger'">
+                {{ traceData.status }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="总耗时">
+              {{ traceData.totalDurationMs }} ms
+            </el-descriptions-item>
+            <el-descriptions-item label="开始时间">
+              {{ traceData.stages && traceData.stages.length > 0 ? formatTime(traceData.stages[0].timestamp) : '-' }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
            
-           <br><br>
+        <br><br>
 
-           <el-timeline>
-               <el-timeline-item
-                 v-for="(stage, index) in traceData.stages"
-                 :key="index"
-                 :timestamp="formatTime(stage.timestamp)"
-                 :type="stage.status === 'SUCCESS' ? 'primary' : 'danger'"
-                 :hollow="stage.status === 'SUCCESS'"
-                 placement="top"
-               >
-                 <el-card class="stage-card">
-                   <h4>{{ stage.name }}</h4>
-                   <p>{{ stage.details }}</p>
-                 </el-card>
-               </el-timeline-item>
-           </el-timeline>
-       </div>
-       <div v-else class="empty-state">
-           <el-empty description="无法找到该链路的追踪数据" />
-       </div>
+        <el-timeline>
+          <el-timeline-item
+            v-for="(stage, index) in traceData.stages"
+            :key="index"
+            :timestamp="formatTime(stage.timestamp)"
+            :type="stage.status === 'SUCCESS' ? 'primary' : 'danger'"
+            :hollow="stage.status === 'SUCCESS'"
+            placement="top"
+          >
+            <el-card class="stage-card">
+              <h4>{{ stage.name }}</h4>
+              <p>{{ stage.details }}</p>
+            </el-card>
+          </el-timeline-item>
+        </el-timeline>
+      </div>
+      <div v-else class="empty-state">
+        <el-empty description="无法找到该链路的追踪数据" />
+      </div>
     </el-card>
   </div>
 </template>

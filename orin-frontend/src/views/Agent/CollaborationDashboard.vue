@@ -9,7 +9,9 @@
               <span class="label">进行中任务</span>
               <span class="value">{{ stats.executing }}</span>
             </div>
-            <el-icon class="icon warning"><Loading /></el-icon>
+            <el-icon class="icon warning">
+              <Loading />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -20,7 +22,9 @@
               <span class="label">已完成</span>
               <span class="value">{{ stats.completed }}</span>
             </div>
-            <el-icon class="icon success"><CircleCheck /></el-icon>
+            <el-icon class="icon success">
+              <CircleCheck />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -31,7 +35,9 @@
               <span class="label">活跃 Agent</span>
               <span class="value">{{ stats.activeAgents }}</span>
             </div>
-            <el-icon class="icon primary"><User /></el-icon>
+            <el-icon class="icon primary">
+              <User />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -42,7 +48,9 @@
               <span class="label">今日 Token</span>
               <span class="value">{{ formatNumber(stats.todayTokens) }}</span>
             </div>
-            <el-icon class="icon info"><Coin /></el-icon>
+            <el-icon class="icon info">
+              <Coin />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -53,7 +61,9 @@
               <span class="label">平均延迟</span>
               <span class="value">{{ stats.avgLatency }}ms</span>
             </div>
-            <el-icon class="icon"><Timer /></el-icon>
+            <el-icon class="icon">
+              <Timer />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -64,7 +74,9 @@
               <span class="label">成功率</span>
               <span class="value">{{ stats.successRate }}%</span>
             </div>
-            <el-icon class="icon success"><DataLine /></el-icon>
+            <el-icon class="icon success">
+              <DataLine />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -85,7 +97,13 @@
 
           <!-- 筛选器 -->
           <div class="filter-bar">
-            <el-select v-model="filters.status" placeholder="状态" clearable style="width: 120px" @change="loadPackages">
+            <el-select
+              v-model="filters.status"
+              placeholder="状态"
+              clearable
+              style="width: 120px"
+              @change="loadPackages"
+            >
               <el-option value="PLANNING" label="规划中" />
               <el-option value="DECOMPOSING" label="分解中" />
               <el-option value="EXECUTING" label="执行中" />
@@ -94,13 +112,25 @@
               <el-option value="FAILED" label="失败" />
               <el-option value="FALLBACK" label="回退中" />
             </el-select>
-            <el-select v-model="filters.priority" placeholder="优先级" clearable style="width: 120px" @change="loadPackages">
+            <el-select
+              v-model="filters.priority"
+              placeholder="优先级"
+              clearable
+              style="width: 120px"
+              @change="loadPackages"
+            >
               <el-option value="LOW" label="低" />
               <el-option value="NORMAL" label="普通" />
               <el-option value="HIGH" label="高" />
               <el-option value="URGENT" label="紧急" />
             </el-select>
-            <el-select v-model="filters.category" placeholder="类别" clearable style="width: 120px" @change="loadPackages">
+            <el-select
+              v-model="filters.category"
+              placeholder="类别"
+              clearable
+              style="width: 120px"
+              @change="loadPackages"
+            >
               <el-option value="ANALYSIS" label="分析" />
               <el-option value="GENERATION" label="生成" />
               <el-option value="REVIEW" label="审查" />
@@ -108,10 +138,12 @@
               <el-option value="CODING" label="编码" />
               <el-option value="TESTING" label="测试" />
             </el-select>
-            <el-button :icon="Refresh" @click="resetFilters">重置</el-button>
+            <el-button :icon="Refresh" @click="resetFilters">
+              重置
+            </el-button>
           </div>
 
-          <el-table :data="packages" v-loading="loading" stripe>
+          <el-table v-loading="loading" :data="packages" stripe>
             <el-table-column prop="packageId" label="任务包ID" width="200">
               <template #default="{ row }">
                 <el-link type="primary" @click="showDetail(row)">
@@ -119,7 +151,12 @@
                 </el-link>
               </template>
             </el-table-column>
-            <el-table-column prop="intent" label="任务意图" min-width="200" show-overflow-tooltip />
+            <el-table-column
+              prop="intent"
+              label="任务意图"
+              min-width="200"
+              show-overflow-tooltip
+            />
             <el-table-column prop="status" label="状态" width="120">
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.status)" size="small">
@@ -129,12 +166,16 @@
             </el-table-column>
             <el-table-column prop="collaborationMode" label="协作模式" width="120">
               <template #default="{ row }">
-                <el-tag type="info" size="small">{{ row.collaborationMode }}</el-tag>
+                <el-tag type="info" size="small">
+                  {{ row.collaborationMode }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="intentCategory" label="类别" width="100">
               <template #default="{ row }">
-                <el-tag size="small">{{ row.intentCategory || '-' }}</el-tag>
+                <el-tag size="small">
+                  {{ row.intentCategory || '-' }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="createdAt" label="创建时间" width="180">
@@ -161,8 +202,12 @@
     <el-dialog v-model="showCreateDialog" title="创建协作任务包" width="600px">
       <el-form :model="createForm" label-width="100px">
         <el-form-item label="任务意图">
-          <el-input v-model="createForm.intent" type="textarea" :rows="3"
-            placeholder="请描述您希望完成的任务" />
+          <el-input
+            v-model="createForm.intent"
+            type="textarea"
+            :rows="3"
+            placeholder="请描述您希望完成的任务"
+          />
         </el-form-item>
         <el-form-item label="任务类别">
           <el-select v-model="createForm.category" style="width: 100%">
@@ -200,8 +245,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="createPackage" :loading="creating">创建</el-button>
+        <el-button @click="showCreateDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="creating" @click="createPackage">
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
@@ -209,7 +258,9 @@
     <el-dialog v-model="showTopologyDialog" title="协作任务拓扑" width="800px">
       <div class="topology-container">
         <div class="topology-header">
-          <el-tag type="info">任务包: {{ currentPackage?.packageId?.substring(0, 16) }}</el-tag>
+          <el-tag type="info">
+            任务包: {{ currentPackage?.packageId?.substring(0, 16) }}
+          </el-tag>
           <el-tag :type="getStatusType(currentPackage?.status)">
             {{ getStatusName(currentPackage?.status) }}
           </el-tag>
@@ -233,14 +284,22 @@
                   </div>
                 </template>
                 <div class="subtask-content">
-                  <p class="subtask-desc">{{ subtask.description }}</p>
+                  <p class="subtask-desc">
+                    {{ subtask.description }}
+                  </p>
                   <div class="subtask-meta">
                     <span>角色: {{ subtask.expectedRole }}</span>
                     <span v-if="subtask.executedBy">执行者: {{ subtask.executedBy }}</span>
                   </div>
-                  <div class="subtask-result" v-if="subtask.result">
+                  <div v-if="subtask.result" class="subtask-result">
                     <span class="result-label">结果:</span>
-                    <el-input v-model="subtask.result" type="textarea" :rows="2" size="small" placeholder="执行结果" />
+                    <el-input
+                      v-model="subtask.result"
+                      type="textarea"
+                      :rows="2"
+                      size="small"
+                      placeholder="执行结果"
+                    />
                   </div>
                   <div class="subtask-actions">
                     <el-button
@@ -288,10 +347,12 @@
           >
             <el-card class="event-card">
               <div class="event-header">
-                <el-tag size="small">{{ event.eventType }}</el-tag>
-                <span class="event-agent" v-if="event.agentId">Agent: {{ event.agentId }}</span>
+                <el-tag size="small">
+                  {{ event.eventType }}
+                </el-tag>
+                <span v-if="event.agentId" class="event-agent">Agent: {{ event.agentId }}</span>
               </div>
-              <div class="event-data" v-if="event.eventData">
+              <div v-if="event.eventData" class="event-data">
                 {{ JSON.stringify(event.eventData, null, 2) }}
               </div>
             </el-card>

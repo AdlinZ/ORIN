@@ -6,25 +6,33 @@
         <!-- Result Placeholder / History Watermark -->
         <div v-if="!result && !isProcessing" class="empty-canvas">
           <div class="orin-watermark">
-            <img src="/logo.svg" alt="ORIN" class="watermark-logo" />
-            <div class="watermark-text">ORIN Studio</div>
+            <img src="/logo.svg" alt="ORIN" class="watermark-logo">
+            <div class="watermark-text">
+              ORIN Studio
+            </div>
           </div>
-          <div class="empty-hint">在下方输入视觉灵感，开始创作</div>
+          <div class="empty-hint">
+            在下方输入视觉灵感，开始创作
+          </div>
         </div>
 
         <!-- Generation Progress -->
         <div v-if="isProcessing" class="canvas-loading">
           <div class="loading-animation">
             <div class="pulse-container">
-              <div class="pulse-ring"></div>
-              <el-icon class="is-loading brand-icon"><Picture /></el-icon>
+              <div class="pulse-ring" />
+              <el-icon class="is-loading brand-icon">
+                <Picture />
+              </el-icon>
             </div>
-            <p class="loading-text">正在捕捉视觉粒子...</p>
+            <p class="loading-text">
+              正在捕捉视觉粒子...
+            </p>
           </div>
         </div>
 
         <!-- Result Canvas -->
-        <div class="result-canvas" v-if="result && !isProcessing">
+        <div v-if="result && !isProcessing" class="result-canvas">
           <el-image 
             :src="imageUrl" 
             fit="contain" 
@@ -33,15 +41,26 @@
           >
             <template #error>
               <div class="image-error">
-                <el-icon :size="48"><Warning /></el-icon>
+                <el-icon :size="48">
+                  <Warning />
+                </el-icon>
                 <span>图像资源加载失败</span>
               </div>
             </template>
           </el-image>
           
           <div class="canvas-actions">
-            <el-button type="default" size="small" @click="downloadImage" :icon="Download">保存图像</el-button>
-            <el-button type="default" size="small" :icon="Share">分享</el-button>
+            <el-button
+              type="default"
+              size="small"
+              :icon="Download"
+              @click="downloadImage"
+            >
+              保存图像
+            </el-button>
+            <el-button type="default" size="small" :icon="Share">
+              分享
+            </el-button>
           </div>
         </div>
       </div>
@@ -50,16 +69,18 @@
     <!-- Floating Input Area -->
     <div class="input-framer">
       <!-- Prompt Suggestion Tags -->
-      <div class="prompt-tags" v-if="!prompt">
+      <div v-if="!prompt" class="prompt-tags">
         <span class="tag-title">常用风格:</span>
         <el-tag 
           v-for="tag in styleTags" 
           :key="tag" 
           class="clickable-tag"
-          @click="prompt = tag"
           effect="plain"
           size="small"
-        >{{ tag }}</el-tag>
+          @click="prompt = tag"
+        >
+          {{ tag }}
+        </el-tag>
       </div>
 
       <div class="input-card">
@@ -73,18 +94,24 @@
         />
         <div class="input-footer">
           <div class="footer-left">
-            <el-button link class="tool-btn"><el-icon><Operation /></el-icon></el-button>
-            <el-button link class="tool-btn"><el-icon><MagicStick /></el-icon></el-button>
+            <el-button link class="tool-btn">
+              <el-icon><Operation /></el-icon>
+            </el-button>
+            <el-button link class="tool-btn">
+              <el-icon><MagicStick /></el-icon>
+            </el-button>
           </div>
           <div class="footer-right">
             <el-button 
               type="primary" 
               class="generate-btn"
-              @click="handleGenerate"
               :loading="isProcessing"
               :disabled="!prompt"
+              @click="handleGenerate"
             >
-              <el-icon style="margin-right: 6px;"><MagicStick /></el-icon>
+              <el-icon style="margin-right: 6px;">
+                <MagicStick />
+              </el-icon>
               立即生成
             </el-button>
           </div>
@@ -92,7 +119,9 @@
       </div>
     </div>
 
-    <div v-if="error" class="error-toast">{{ error }}</div>
+    <div v-if="error" class="error-toast">
+      {{ error }}
+    </div>
   </div>
 </template>
 

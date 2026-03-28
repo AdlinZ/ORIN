@@ -1,25 +1,31 @@
 <template>
   <div class="page-container">
-
-
     <PageHeader 
       title="模型列表" 
       description="连接并调度第三方 API (OpenAI, Claude, Dify等) 及本地部署的模型资源"
       icon="Box"
     >
       <template #actions>
-        <el-button type="primary" :icon="Plus" @click="handleAdd">添加模型资源</el-button>
-        <el-button :icon="Key" @click="openKeyManagement">API 密钥管理</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">
+          添加模型资源
+        </el-button>
+        <el-button :icon="Key" @click="openKeyManagement">
+          API 密钥管理
+        </el-button>
       </template>
     </PageHeader>
 
 
     <!-- Stats Row -->
     <el-row :gutter="24" class="model-stats" style="margin-bottom: 24px;">
-      <el-col :span="6" v-for="stat in stats" :key="stat.label">
+      <el-col v-for="stat in stats" :key="stat.label" :span="6">
         <el-card shadow="hover" :body-style="{ padding: '20px' }">
-          <div class="text-secondary" style="margin-bottom: 8px;">{{ stat.label }}</div>
-          <div class="page-title" style="margin-bottom: 0;">{{ stat.value }}</div>
+          <div class="text-secondary" style="margin-bottom: 8px;">
+            {{ stat.label }}
+          </div>
+          <div class="page-title" style="margin-bottom: 0;">
+            {{ stat.value }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -27,56 +33,63 @@
     <!-- Table Section -->
     <el-card shadow="never" class="table-card">
       <div class="table-toolbar" style="margin-bottom: 24px;">
-         <div class="header-left">
-           <el-select 
-             v-model="typeFilter" 
-             @change="handleTabChange" 
-             placeholder="模型类型筛选" 
-             clearable 
-             style="width: 200px"
-           >
-             <el-option label="全部类型" value="ALL" />
-             <!-- options -->
-             <el-option label="对话 (Chat)" value="CHAT" />
-             <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
-             <el-option label="结果重排 (Reranker)" value="RERANKER" />
-             <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
-             <el-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
-             <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
-             <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
-           </el-select>
-         </div>
-         <div class="action-bar">
-           <el-tooltip content="从 SiliconFlow 后台复制定价数据批量导入" placement="top">
-             <el-button @click="handleImportPricing" :icon="Money" style="margin-right: 12px;">导入定价(JSON)</el-button>
-           </el-tooltip>
-           <el-input 
-             v-model="searchQuery" 
-             placeholder="搜索名称或供应商..." 
-             :prefix-icon="Search" 
-             clearable 
-             class="search-input"
-             style="width: 280px"
-           />
-           <el-button 
-             v-if="selectedIds.length > 0" 
-             type="danger" 
-             plain 
-             :icon="Delete" 
-             style="margin-left: 12px"
-             @click="handleBatchDelete"
-           >
-             批量删除 ({{ selectedIds.length }})
-           </el-button>
-         </div>
+        <div class="header-left">
+          <el-select 
+            v-model="typeFilter" 
+            placeholder="模型类型筛选" 
+            clearable 
+            style="width: 200px" 
+            @change="handleTabChange"
+          >
+            <el-option label="全部类型" value="ALL" />
+            <!-- options -->
+            <el-option label="对话 (Chat)" value="CHAT" />
+            <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
+            <el-option label="结果重排 (Reranker)" value="RERANKER" />
+            <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
+            <el-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
+            <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
+            <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
+          </el-select>
+        </div>
+        <div class="action-bar">
+          <el-tooltip content="从 SiliconFlow 后台复制定价数据批量导入" placement="top">
+            <el-button :icon="Money" style="margin-right: 12px;" @click="handleImportPricing">
+              导入定价(JSON)
+            </el-button>
+          </el-tooltip>
+          <el-input 
+            v-model="searchQuery" 
+            placeholder="搜索名称或供应商..." 
+            :prefix-icon="Search" 
+            clearable 
+            class="search-input"
+            style="width: 280px"
+          />
+          <el-button 
+            v-if="selectedIds.length > 0" 
+            type="danger" 
+            plain 
+            :icon="Delete" 
+            style="margin-left: 12px"
+            @click="handleBatchDelete"
+          >
+            批量删除 ({{ selectedIds.length }})
+          </el-button>
+        </div>
       </div>
 
-     <el-dialog v-model="pricingImportVisible" title="批量导入定价 (从 SiliconFlow 后台)" width="700px" :close-on-click-modal="false">
+      <el-dialog
+        v-model="pricingImportVisible"
+        title="批量导入定价 (从 SiliconFlow 后台)"
+        width="700px"
+        :close-on-click-modal="false"
+      >
         <el-alert 
-            type="info" 
-            :closable="false" 
-            show-icon
-            style="margin-bottom: 20px;"
+          type="info" 
+          :closable="false" 
+          show-icon
+          style="margin-bottom: 20px;"
         >
           <template #title>
             由于定价信息包含 Session 验证，无法自动抓取。请选择以下方式：
@@ -85,54 +98,99 @@
 
         <el-tabs v-model="importModeTab" type="border-card" class="import-help-tabs">
           <el-tab-pane label="官方预设 (推荐)" name="preset">
-             <div class="help-content">
-               <p>ORIN 已内置常见模型在 SiliconFlow 上的参考价格。</p>
-               <el-select v-model="selectedPreset" placeholder="请选择预设配置" style="width: 100%; margin: 10px 0;">
-                 <el-option v-for="p in PRESET_PRICING" :key="p.name" :label="p.name" :value="p.name" />
-               </el-select>
-               <el-alert title="注意：预设价格可能随时变动，建议仅作参考。" type="warning" :closable="false" show-icon />
-             </div>
+            <div class="help-content">
+              <p>ORIN 已内置常见模型在 SiliconFlow 上的参考价格。</p>
+              <el-select v-model="selectedPreset" placeholder="请选择预设配置" style="width: 100%; margin: 10px 0;">
+                <el-option
+                  v-for="p in PRESET_PRICING"
+                  :key="p.name"
+                  :label="p.name"
+                  :value="p.name"
+                />
+              </el-select>
+              <el-alert
+                title="注意：预设价格可能随时变动，建议仅作参考。"
+                type="warning"
+                :closable="false"
+                show-icon
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane label="从浏览器 Network 复制" name="manual">
             <div class="help-content step-guide">
-               <!-- Steps same as before -->
-               <div class="step-item"><div class="step-num">1</div><div class="step-text">登录 <a href="https://cloud.siliconflow.cn/models" target="_blank">SiliconFlow 后台</a>。</div></div>
-               <div class="step-item"><div class="step-num">2</div><div class="step-text">按 <kbd>F12</kbd> 打开 Network，刷新页面。</div></div>
-               <div class="step-item"><div class="step-num">3</div><div class="step-text">筛选 <code>models</code> 请求 (GET)。</div></div>
-               <div class="step-item"><div class="step-num">4</div><div class="step-text">选中 Response，全选复制 JSON，粘贴至下方。</div></div>
+              <!-- Steps same as before -->
+              <div class="step-item">
+                <div class="step-num">
+                  1
+                </div><div class="step-text">
+                  登录 <a href="https://cloud.siliconflow.cn/models" target="_blank">SiliconFlow 后台</a>。
+                </div>
+              </div>
+              <div class="step-item">
+                <div class="step-num">
+                  2
+                </div><div class="step-text">
+                  按 <kbd>F12</kbd> 打开 Network，刷新页面。
+                </div>
+              </div>
+              <div class="step-item">
+                <div class="step-num">
+                  3
+                </div><div class="step-text">
+                  筛选 <code>models</code> 请求 (GET)。
+                </div>
+              </div>
+              <div class="step-item">
+                <div class="step-num">
+                  4
+                </div><div class="step-text">
+                  选中 Response，全选复制 JSON，粘贴至下方。
+                </div>
+              </div>
             </div>
             <el-input 
-                v-model="pricingJson" 
-                type="textarea" 
-                :rows="6" 
-                placeholder="在此处粘贴 JSON 内容..." 
-                style="margin-top: 10px;"
+              v-model="pricingJson" 
+              type="textarea" 
+              :rows="6" 
+              placeholder="在此处粘贴 JSON 内容..." 
+              style="margin-top: 10px;"
             />
           </el-tab-pane>
         </el-tabs>
         
         <template #footer>
-            <div class="dialog-footer">
-               <span class="tip-text" v-if="importModeTab === 'manual'">已粘贴 {{ pricingJson.length }} 字符</span>
-               <span class="tip-text" v-else>将导入 {{ selectedPreset ? PRESET_PRICING.find(p => p.name === selectedPreset).data.length : 0 }} 条规则</span>
-               <div>
-                  <el-button @click="pricingImportVisible = false">取消</el-button>
-                  <el-button type="primary" :loading="importLoading" @click="() => { importMode = importModeTab; submitPricingImport(); }">确认导入</el-button>
-               </div>
+          <div class="dialog-footer">
+            <span v-if="importModeTab === 'manual'" class="tip-text">已粘贴 {{ pricingJson.length }} 字符</span>
+            <span v-else class="tip-text">将导入 {{ selectedPreset ? PRESET_PRICING.find(p => p.name === selectedPreset).data.length : 0 }} 条规则</span>
+            <div>
+              <el-button @click="pricingImportVisible = false">
+                取消
+              </el-button>
+              <el-button type="primary" :loading="importLoading" @click="() => { importMode = importModeTab; submitPricingImport(); }">
+                确认导入
+              </el-button>
             </div>
+          </div>
         </template>
-     </el-dialog>
+      </el-dialog>
 
       <ResizableTable v-loading="loading" :data="filteredList" @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" align="center" fixed="left" />
+        <el-table-column
+          type="selection"
+          width="55"
+          align="center"
+          fixed="left"
+        />
         <el-table-column label="模型名称" min-width="220">
           <template #default="{ row }">
             <div class="model-info">
               <el-icon class="text-secondary">
                 <component :is="row.type === 'LLM' ? ChatDotRound : Connection" />
               </el-icon>
-              <div class="provider-tag" :class="row.provider.toLowerCase()">{{ row.provider }}</div>
+              <div class="provider-tag" :class="row.provider.toLowerCase()">
+                {{ row.provider }}
+              </div>
               <span class="name">{{ row.name }}</span>
             </div>
           </template>
@@ -140,7 +198,12 @@
         
         <el-table-column prop="modelId" label="模型标识 (Model ID)" width="180" />
         
-        <el-table-column prop="type" label="类型" width="120" align="center">
+        <el-table-column
+          prop="type"
+          label="类型"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <el-tag :type="getModelTypeTag(row.type)" effect="plain">
               {{ formatModelType(row.type) }}
@@ -148,7 +211,12 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="status" label="运行状态" width="120" align="center">
+        <el-table-column
+          prop="status"
+          label="运行状态"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <el-tag 
               :type="row.status === 'ENABLED' ? 'success' : 'info'" 
@@ -160,17 +228,48 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="createTime" label="创建时间" width="160" align="center">
-           <template #default="{ row }">
-             {{ formatTime(row.createTime) }}
-           </template>
+        <el-table-column
+          prop="createTime"
+          label="创建时间"
+          width="160"
+          align="center"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.createTime) }}
+          </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="220" align="center" fixed="right">
+        <el-table-column
+          label="操作"
+          width="220"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
-             <el-button link type="primary" :icon="Cpu" @click="handleTestModel(row)">测试</el-button>
-             <el-button link type="primary" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-             <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              :icon="Cpu"
+              @click="handleTestModel(row)"
+            >
+              测试
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              :icon="Edit"
+              @click="handleEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              :icon="Delete"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </ResizableTable>
@@ -201,7 +300,7 @@
             <span class="step-label">Step 0{{ index + 1 }}</span>
             <span class="step-name">{{ step.title }}</span>
           </div>
-          <div v-if="index < wizardSteps.length - 1" class="step-line"></div>
+          <div v-if="index < wizardSteps.length - 1" class="step-line" />
         </div>
       </div>
 
@@ -227,8 +326,12 @@
                   <component :is="provider.icon" />
                 </el-icon>
                 <div class="provider-info">
-                  <div class="provider-label">{{ provider.label }}</div>
-                  <div class="provider-desc">{{ provider.description }}</div>
+                  <div class="provider-label">
+                    {{ provider.label }}
+                  </div>
+                  <div class="provider-desc">
+                    {{ provider.description }}
+                  </div>
                 </div>
               </div>
             </el-option>
@@ -236,7 +339,12 @@
         </el-form-item>
 
         <el-form-item label="模型类型" prop="type">
-          <el-select v-model="form.type" placeholder="请选择模型类型" size="large" style="width: 100%">
+          <el-select
+            v-model="form.type"
+            placeholder="请选择模型类型"
+            size="large"
+            style="width: 100%"
+          >
             <el-option label="对话 (Chat/LLM)" value="CHAT" />
             <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
             <el-option label="结果重排 (Reranker)" value="RERANKER" />
@@ -291,7 +399,12 @@
             show-icon
             style="margin-bottom: 16px;"
           />
-          <el-button type="primary" plain @click="keyDialogVisible = true; fetchExternalKeys()" :icon="Link">
+          <el-button
+            type="primary"
+            plain
+            :icon="Link"
+            @click="keyDialogVisible = true; fetchExternalKeys()"
+          >
             前往添加 API 密钥
           </el-button>
           <el-divider>或直接手动输入</el-divider>
@@ -336,7 +449,7 @@
               <el-icon><Cpu /></el-icon>
             </template>
             <template #append>
-              <el-button @click="handleFetchFromApi" :loading="isFetchingModels">
+              <el-button :loading="isFetchingModels" @click="handleFetchFromApi">
                 从 API 获取
               </el-button>
             </template>
@@ -374,36 +487,70 @@
       </div>
 
       <!-- 定价配置 (可选，任何步骤都可访问) -->
-      <div class="pricing-section" v-if="showPricing">
+      <div v-if="showPricing" class="pricing-section">
         <el-divider />
         <el-collapse v-model="pricingCollapse">
           <el-collapse-item title="高级配置：定价策略 (可选)" name="pricing">
-            <el-alert title="此处只配置默认租户组的价格，高级配置请前往系统设置。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-alert
+              title="此处只配置默认租户组的价格，高级配置请前往系统设置。"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 16px;"
+            />
 
             <el-form-item label="计费模式">
               <el-radio-group v-model="pricingForm.billingMode">
-                <el-radio-button label="PER_TOKEN">Token计费</el-radio-button>
-                <el-radio-button label="PER_REQUEST">按次计费</el-radio-button>
+                <el-radio-button label="PER_TOKEN">
+                  Token计费
+                </el-radio-button>
+                <el-radio-button label="PER_REQUEST">
+                  按次计费
+                </el-radio-button>
               </el-radio-group>
             </el-form-item>
 
             <el-row :gutter="20">
               <el-col :span="12">
-                <div class="pricing-header">成本 (Internal Cost)</div>
+                <div class="pricing-header">
+                  成本 (Internal Cost)
+                </div>
                 <el-form-item label="Input / 1k">
-                  <el-input-number v-model="pricingForm.inputCostUnit" :precision="6" :step="0.001" style="width: 100%" />
+                  <el-input-number
+                    v-model="pricingForm.inputCostUnit"
+                    :precision="6"
+                    :step="0.001"
+                    style="width: 100%"
+                  />
                 </el-form-item>
                 <el-form-item label="Output / 1k">
-                  <el-input-number v-model="pricingForm.outputCostUnit" :precision="6" :step="0.001" style="width: 100%" />
+                  <el-input-number
+                    v-model="pricingForm.outputCostUnit"
+                    :precision="6"
+                    :step="0.001"
+                    style="width: 100%"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <div class="pricing-header">报价 (External Price)</div>
+                <div class="pricing-header">
+                  报价 (External Price)
+                </div>
                 <el-form-item label="Input / 1k">
-                  <el-input-number v-model="pricingForm.inputPriceUnit" :precision="6" :step="0.001" style="width: 100%" />
+                  <el-input-number
+                    v-model="pricingForm.inputPriceUnit"
+                    :precision="6"
+                    :step="0.001"
+                    style="width: 100%"
+                  />
                 </el-form-item>
                 <el-form-item label="Output / 1k">
-                  <el-input-number v-model="pricingForm.outputPriceUnit" :precision="6" :step="0.001" style="width: 100%" />
+                  <el-input-number
+                    v-model="pricingForm.outputPriceUnit"
+                    :precision="6"
+                    :step="0.001"
+                    style="width: 100%"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -413,10 +560,23 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="wizardStep > 0" @click="wizardStep--">上一步</el-button>
-          <el-button v-if="wizardStep < 2" type="primary" @click="nextStep">下一步</el-button>
-          <el-button v-if="wizardStep === 2" type="primary" :loading="submitting" @click="handleSubmit">确认保存</el-button>
+          <el-button @click="dialogVisible = false">
+            取消
+          </el-button>
+          <el-button v-if="wizardStep > 0" @click="wizardStep--">
+            上一步
+          </el-button>
+          <el-button v-if="wizardStep < 2" type="primary" @click="nextStep">
+            下一步
+          </el-button>
+          <el-button
+            v-if="wizardStep === 2"
+            type="primary"
+            :loading="submitting"
+            @click="handleSubmit"
+          >
+            确认保存
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -426,7 +586,9 @@
       <div v-if="testResult" class="test-result-body">
         <div class="result-item">
           <span class="label">测试结果:</span>
-          <el-tag :type="testResult.success ? 'success' : 'danger'">{{ testResult.success ? '成功' : '失败' }}</el-tag>
+          <el-tag :type="testResult.success ? 'success' : 'danger'">
+            {{ testResult.success ? '成功' : '失败' }}
+          </el-tag>
         </div>
         <div class="result-item">
           <span class="label">响应耗时:</span>
@@ -442,12 +604,19 @@
         </div>
       </div>
       <template #footer>
-        <el-button type="primary" @click="testResultVisible = false">完成</el-button>
+        <el-button type="primary" @click="testResultVisible = false">
+          完成
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- API 密钥管理 Dialog -->
-    <el-dialog v-model="keyDialogVisible" title="API 密钥管理" width="800px" top="5vh">
+    <el-dialog
+      v-model="keyDialogVisible"
+      title="API 密钥管理"
+      width="800px"
+      top="5vh"
+    >
       <div class="key-management-header" style="margin-bottom: 20px;">
         <p style="color: var(--neutral-gray-500); margin: 0;">
           管理外部AI服务提供商的 API 密钥，用于调用模型时进行身份验证
@@ -455,14 +624,23 @@
       </div>
 
       <div style="margin-bottom: 16px;">
-        <el-button type="primary" :icon="Plus" @click="openKeyForm()">添加 API 密钥</el-button>
+        <el-button type="primary" :icon="Plus" @click="openKeyForm()">
+          添加 API 密钥
+        </el-button>
       </div>
 
-      <el-table :data="externalKeys" v-loading="keyLoading" border stripe>
+      <el-table
+        v-loading="keyLoading"
+        :data="externalKeys"
+        border
+        stripe
+      >
         <el-table-column prop="name" label="密钥名称" min-width="150" />
         <el-table-column prop="provider" label="供应商" width="120">
           <template #default="{ row }">
-            <el-tag size="small">{{ row.provider }}</el-tag>
+            <el-tag size="small">
+              {{ row.provider }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="API密钥" min-width="180">
@@ -473,28 +651,54 @@
             <el-button link :icon="isKeyVisible(row.id) ? Hide : View" @click="toggleKeyVisibility(row.id)" />
           </template>
         </el-table-column>
-        <el-table-column prop="baseUrl" label="端点地址" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="enabled" label="状态" width="80" align="center">
+        <el-table-column
+          prop="baseUrl"
+          label="端点地址"
+          min-width="150"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="enabled"
+          label="状态"
+          width="80"
+          align="center"
+        >
           <template #default="{ row }">
             <el-switch v-model="row.enabled" @change="toggleKeyStatus(row)" />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="openKeyForm(row)">编辑</el-button>
-            <el-button size="small" type="danger" link @click="deleteKey(row)">删除</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              link
+              @click="openKeyForm(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              link
+              @click="deleteKey(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <template #footer>
-        <el-button @click="keyDialogVisible = false">关闭</el-button>
+        <el-button @click="keyDialogVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- API 密钥编辑表单 Dialog -->
     <el-dialog v-model="keyFormVisible" :title="keyFormData.id ? '编辑 API 密钥' : '添加 API 密钥'" width="500px">
-      <el-form :model="keyFormData" ref="keyFormRef" label-position="top">
+      <el-form ref="keyFormRef" :model="keyFormData" label-position="top">
         <el-form-item label="密钥名称" prop="name">
           <el-input v-model="keyFormData.name" placeholder="例如: 我的 OpenAI 主密钥" />
         </el-form-item>
@@ -523,15 +727,24 @@
           </el-col>
         </el-row>
         <el-form-item label="API Key" prop="apiKey">
-          <el-input v-model="keyFormData.apiKey" type="password" show-password placeholder="sk-..." />
+          <el-input
+            v-model="keyFormData.apiKey"
+            type="password"
+            show-password
+            placeholder="sk-..."
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="keyFormData.description" type="textarea" :rows="2" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="keyFormVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveKey">保存</el-button>
+        <el-button @click="keyFormVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveKey">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -11,7 +11,9 @@
       <div class="toolbar">
         <div class="left-tools">
           <el-button type="primary" class="create-btn" @click="handleCreate">
-            <el-icon class="mr-1"><Plus /></el-icon>
+            <el-icon class="mr-1">
+              <Plus />
+            </el-icon>
             创建角色
           </el-button>
         </div>
@@ -35,10 +37,11 @@
       </div>
 
       <!-- 角色列表 -->
-      <el-table border
+      <el-table
+        v-loading="loading"
+        border
         :data="filteredRoles"
         style="width: 100%"
-        v-loading="loading"
         class="premium-table"
         :header-cell-style="{ background: 'transparent', color: 'var(--el-text-color-secondary)' }"
       >
@@ -64,7 +67,12 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" fixed="right" width="150" align="center">
+        <el-table-column
+          label="操作"
+          fixed="right"
+          width="150"
+          align="center"
+        >
           <template #default="{ row }">
             <div class="action-buttons">
               <el-tooltip content="编辑" placement="top" :show-after="500">
@@ -96,10 +104,10 @@
           :page-sizes="[10, 20, 50]"
           :total="totalRoles"
           layout="total, ->, sizes, prev, pager, next"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
           background
           small
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
         />
       </div>
     </div>
@@ -147,8 +155,10 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button @click="dialogVisible = false">
+            取消
+          </el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">
             确认{{ isEdit ? '更新' : '创建' }}
           </el-button>
         </div>

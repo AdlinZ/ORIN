@@ -11,32 +11,48 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-label">总步骤数</div>
-            <div class="stat-value">{{ stats.totalSteps || 0 }}</div>
+            <div class="stat-label">
+              总步骤数
+            </div>
+            <div class="stat-value">
+              {{ stats.totalSteps || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card success">
           <div class="stat-content">
-            <div class="stat-label">成功</div>
-            <div class="stat-value">{{ stats.successCount || 0 }}</div>
+            <div class="stat-label">
+              成功
+            </div>
+            <div class="stat-value">
+              {{ stats.successCount || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card failed">
           <div class="stat-content">
-            <div class="stat-label">失败</div>
-            <div class="stat-value">{{ stats.failedCount || 0 }}</div>
+            <div class="stat-label">
+              失败
+            </div>
+            <div class="stat-value">
+              {{ stats.failedCount || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-label">总耗时 (ms)</div>
-            <div class="stat-value">{{ stats.totalDuration || 0 }}</div>
+            <div class="stat-label">
+              总耗时 (ms)
+            </div>
+            <div class="stat-value">
+              {{ stats.totalDuration || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -45,7 +61,7 @@
     <!-- 时序图 -->
     <el-card class="chart-card">
       <h3>执行时序图</h3>
-      <div ref="timelineChart" class="chart-container"></div>
+      <div ref="timelineChart" class="chart-container" />
     </el-card>
 
     <!-- 性能指标图 -->
@@ -53,13 +69,13 @@
       <el-col :span="12">
         <el-card class="chart-card">
           <h3>CPU 使用率</h3>
-          <div ref="cpuChart" class="chart-container-small"></div>
+          <div ref="cpuChart" class="chart-container-small" />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card class="chart-card">
           <h3>内存使用</h3>
-          <div ref="memoryChart" class="chart-container-small"></div>
+          <div ref="memoryChart" class="chart-container-small" />
         </el-card>
       </el-col>
     </el-row>
@@ -87,7 +103,9 @@
         </el-table-column>
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button size="small" @click="viewDetail(row)">查看详情</el-button>
+            <el-button size="small" @click="viewDetail(row)">
+              查看详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -97,15 +115,23 @@
     <el-dialog v-model="detailDialogVisible" title="步骤详情" width="800px">
       <div v-if="currentTrace">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="步骤名称">{{ currentTrace.stepName }}</el-descriptions-item>
-          <el-descriptions-item label="技能名称">{{ currentTrace.skillName }}</el-descriptions-item>
+          <el-descriptions-item label="步骤名称">
+            {{ currentTrace.stepName }}
+          </el-descriptions-item>
+          <el-descriptions-item label="技能名称">
+            {{ currentTrace.skillName }}
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="getStatusTagType(currentTrace.status)">
               {{ currentTrace.status }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="耗时">{{ currentTrace.durationMs }} ms</el-descriptions-item>
-          <el-descriptions-item label="CPU 使用率">{{ currentTrace.cpuUsage }}%</el-descriptions-item>
+          <el-descriptions-item label="耗时">
+            {{ currentTrace.durationMs }} ms
+          </el-descriptions-item>
+          <el-descriptions-item label="CPU 使用率">
+            {{ currentTrace.cpuUsage }}%
+          </el-descriptions-item>
           <el-descriptions-item label="内存使用">
             {{ currentTrace.memoryUsage ? (currentTrace.memoryUsage / 1024 / 1024).toFixed(2) + ' MB' : '-' }}
           </el-descriptions-item>

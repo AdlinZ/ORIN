@@ -6,25 +6,55 @@
       icon="Key"
     >
       <template #actions>
-        <el-button v-if="activeTab === 'platform'" @click="showCreateDialog" type="success" :icon="Plus">创建平台密钥</el-button>
-        <el-button v-else @click="showExternalCreate" type="primary" :icon="Plus">添加供应商密钥</el-button>
+        <el-button
+          v-if="activeTab === 'platform'"
+          type="success"
+          :icon="Plus"
+          @click="showCreateDialog"
+        >
+          创建平台密钥
+        </el-button>
+        <el-button
+          v-else
+          type="primary"
+          :icon="Plus"
+          @click="showExternalCreate"
+        >
+          添加供应商密钥
+        </el-button>
       </template>
     </PageHeader>
 
     <el-tabs v-model="activeTab" class="api-key-tabs">
       <el-tab-pane label="平台访问密钥" name="platform">
         <el-card shadow="never" class="table-card premium-card">
-          <el-table border :data="apiKeys" style="width: 100%" v-loading="loading" stripe>
+          <el-table
+            v-loading="loading"
+            border
+            :data="apiKeys"
+            style="width: 100%"
+            stripe
+          >
             <!-- ... existing platform table columns (truncated for brevity in ReplacementContent but will be kept in full file) ... -->
             <el-table-column type="expand">
               <template #default="{ row }">
                 <div class="expand-content">
                   <el-descriptions title="密钥详情" :column="2" border>
-                    <el-descriptions-item label="密钥ID">{{ row.id }}</el-descriptions-item>
-                    <el-descriptions-item label="密钥前缀">{{ row.keyPrefix }}</el-descriptions-item>
-                    <el-descriptions-item label="创建时间">{{ formatDateTime(row.createdAt) }}</el-descriptions-item>
-                    <el-descriptions-item label="最后使用">{{ formatDateTime(row.lastUsedAt) || '从未使用' }}</el-descriptions-item>
-                    <el-descriptions-item label="过期时间">{{ formatDateTime(row.expiresAt) || '永不过期' }}</el-descriptions-item>
+                    <el-descriptions-item label="密钥ID">
+                      {{ row.id }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="密钥前缀">
+                      {{ row.keyPrefix }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="创建时间">
+                      {{ formatDateTime(row.createdAt) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="最后使用">
+                      {{ formatDateTime(row.lastUsedAt) || '从未使用' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="过期时间">
+                      {{ formatDateTime(row.expiresAt) || '永不过期' }}
+                    </el-descriptions-item>
                     <el-descriptions-item label="状态">
                       <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
                         {{ row.enabled ? '启用' : '禁用' }}
@@ -45,7 +75,12 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="name" label="名称" width="140" show-overflow-tooltip />
+            <el-table-column
+              prop="name"
+              label="名称"
+              width="140"
+              show-overflow-tooltip
+            />
 
             <el-table-column prop="keyPrefix" label="密钥前缀" width="160">
               <template #default="{ row }">
@@ -53,7 +88,12 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="enabled" label="状态" width="80" align="center">
+            <el-table-column
+              prop="enabled"
+              label="状态"
+              width="80"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
                   {{ row.enabled ? '启用' : '禁用' }}
@@ -76,7 +116,12 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="rateLimitPerMinute" label="限流" width="90" align="center">
+            <el-table-column
+              prop="rateLimitPerMinute"
+              label="限流"
+              width="90"
+              align="center"
+            >
               <template #default="{ row }">
                 {{ row.rateLimitPerMinute }}/分
               </template>
@@ -87,15 +132,27 @@
                 <el-button 
                   size="small" 
                   :type="row.enabled ? 'warning' : 'success'" 
-                  @click="toggleApiKey(row)"
                   link
+                  @click="toggleApiKey(row)"
                 >
                   {{ row.enabled ? '禁用' : '启用' }}
                 </el-button>
-                <el-button size="small" type="primary" @click="handleResetQuota(row)" link>
+                <el-button
+                  size="small"
+                  type="primary"
+                  link
+                  @click="handleResetQuota(row)"
+                >
                   重置配额
                 </el-button>
-                <el-button size="small" type="danger" @click="handleDelete(row)" link>删除</el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  link
+                  @click="handleDelete(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -104,11 +161,19 @@
 
       <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
         <el-card shadow="never" class="table-card premium-card">
-          <el-table border :data="externalKeys" style="width: 100%" v-loading="loading" stripe>
+          <el-table
+            v-loading="loading"
+            border
+            :data="externalKeys"
+            style="width: 100%"
+            stripe
+          >
             <el-table-column prop="name" label="密钥名称" min-width="150" />
             <el-table-column prop="provider" label="供应商" width="150">
               <template #default="{ row }">
-                <el-tag size="small" effect="plain">{{ row.provider }}</el-tag>
+                <el-tag size="small" effect="plain">
+                  {{ row.provider }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column label="API密钥" min-width="200">
@@ -119,16 +184,40 @@
                 <el-button link :icon="isKeyVisible(row.id) ? Hide : View" @click="toggleKeyVisibility(row.id)" />
               </template>
             </el-table-column>
-            <el-table-column prop="baseUrl" label="端点地址" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="enabled" label="状态" width="100" align="center">
+            <el-table-column
+              prop="baseUrl"
+              label="端点地址"
+              min-width="180"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="enabled"
+              label="状态"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-switch v-model="row.enabled" @change="handleToggleExternal(row)" />
               </template>
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button size="small" type="primary" @click="handleEditExternal(row)" link>编辑</el-button>
-                <el-button size="small" type="danger" @click="handleDeleteExternal(row)" link>删除</el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  link
+                  @click="handleEditExternal(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  link
+                  @click="handleDeleteExternal(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -144,7 +233,12 @@
       :title="externalFormData.id ? '编辑供应商密钥' : '添加供应商密钥'"
       width="550px"
     >
-      <el-form :model="externalFormData" :rules="externalRules" ref="externalFormRef" label-position="top">
+      <el-form
+        ref="externalFormRef"
+        :model="externalFormData"
+        :rules="externalRules"
+        label-position="top"
+      >
         <el-form-item label="密钥名称" prop="name">
           <el-input v-model="externalFormData.name" placeholder="例如: 我的 OpenAI 主密钥" />
         </el-form-item>
@@ -162,21 +256,30 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-             <el-form-item label="Base URL (可选)">
+            <el-form-item label="Base URL (可选)">
               <el-input v-model="externalFormData.baseUrl" placeholder="默认官方地址" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="API Key" prop="apiKey">
-          <el-input v-model="externalFormData.apiKey" type="password" show-password placeholder="sk-..." />
+          <el-input
+            v-model="externalFormData.apiKey"
+            type="password"
+            show-password
+            placeholder="sk-..."
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="externalFormData.description" type="textarea" :rows="2" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="externalDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveExternal" :loading="submitting">保存</el-button>
+        <el-button @click="externalDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSaveExternal">
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
@@ -186,12 +289,22 @@
       title="创建API密钥"
       width="600px"
     >
-      <el-form :model="formData" :rules="rules" ref="formRef" label-width="140px">
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-width="140px"
+      >
         <el-form-item label="密钥名称" prop="name">
           <el-input v-model="formData.name" placeholder="为密钥取一个名称" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="密钥用途描述" />
+          <el-input
+            v-model="formData.description"
+            type="textarea"
+            :rows="3"
+            placeholder="密钥用途描述"
+          />
         </el-form-item>
         <el-form-item label="速率限制(分钟)">
           <el-input-number v-model="formData.rateLimitPerMinute" :min="1" :max="10000" />
@@ -200,7 +313,12 @@
           <el-input-number v-model="formData.rateLimitPerDay" :min="1" :max="1000000" />
         </el-form-item>
         <el-form-item label="月度Token配额">
-          <el-input-number v-model="formData.monthlyTokenQuota" :min="1000" :max="100000000" :step="10000" />
+          <el-input-number
+            v-model="formData.monthlyTokenQuota"
+            :min="1000"
+            :max="100000000"
+            :step="10000"
+          />
         </el-form-item>
         <el-form-item label="过期时间">
           <el-date-picker
@@ -212,8 +330,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreate" :loading="submitting">创建</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="submitting" @click="handleCreate">
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
@@ -233,21 +355,25 @@
         show-icon
       />
       <div class="secret-key-container">
-        <div class="secret-key-label">API密钥:</div>
+        <div class="secret-key-label">
+          API密钥:
+        </div>
         <div class="secret-key-value">
           <code>{{ createdSecretKey }}</code>
           <el-button 
             type="primary" 
             size="small" 
-            @click="copyToClipboard(createdSecretKey)"
             :icon="CopyDocument"
+            @click="copyToClipboard(createdSecretKey)"
           >
             复制
           </el-button>
         </div>
       </div>
       <template #footer>
-        <el-button type="primary" @click="secretDialogVisible = false">我已保存密钥</el-button>
+        <el-button type="primary" @click="secretDialogVisible = false">
+          我已保存密钥
+        </el-button>
       </template>
     </el-dialog>
   </div>

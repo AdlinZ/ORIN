@@ -37,7 +37,9 @@
                     <component :is="getIconComponent(child.icon)" />
                   </el-icon>
                   <span>{{ child.title }}</span>
-                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                  <el-icon class="submenu-arrow">
+                    <ArrowRight />
+                  </el-icon>
                 </div>
                 <div class="dropdown-submenu-items">
                   <router-link
@@ -75,11 +77,16 @@
     <!-- 右侧操作区 -->
     <div class="navbar-actions">
       <!-- 动态插槽容器 (Teleport 目标) -->
-      <div id="navbar-actions" class="navbar-page-actions"></div>
+      <div id="navbar-actions" class="navbar-page-actions" />
       <!-- 刷新按钮 -->
       <div class="action-item">
         <el-tooltip content="刷新页面" placement="bottom">
-          <el-button text :icon="Refresh" @click="handleRefresh" class="action-btn" />
+          <el-button
+            text
+            :icon="Refresh"
+            class="action-btn"
+            @click="handleRefresh"
+          />
         </el-tooltip>
       </div>
 
@@ -89,8 +96,8 @@
           <el-button 
             text 
             :icon="isDarkMode ? Sunny : Moon" 
-            @click="toggleTheme" 
             class="action-btn" 
+            @click="toggleTheme" 
           />
         </el-tooltip>
       </div>
@@ -99,13 +106,18 @@
       <div class="action-item">
         <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notification-badge">
           <el-tooltip content="通知中心" placement="bottom">
-            <el-button text :icon="Bell" @click="showNotifications" class="action-btn" />
+            <el-button
+              text
+              :icon="Bell"
+              class="action-btn"
+              @click="showNotifications"
+            />
           </el-tooltip>
         </el-badge>
       </div>
 
       <!-- 分隔线 -->
-      <div class="action-divider"></div>
+      <div class="action-divider" />
 
       <!-- 系统 AI 按钮 -->
       <el-tooltip content="系统 AI 助手" placement="bottom">
@@ -122,7 +134,9 @@
             {{ userInfo.name?.charAt(0) }}
           </el-avatar>
           <span class="user-name">{{ userInfo.name }}</span>
-          <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
+          <el-icon class="dropdown-icon">
+            <ArrowDown />
+          </el-icon>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
@@ -163,7 +177,7 @@
   <!-- 通知中心抽屉 -->
   <NotificationCenter 
     v-model="showNotificationCenter" 
-    @update:unreadCount="handleUnreadCountUpdate"
+    @update:unread-count="handleUnreadCountUpdate"
   />
 
   <!-- 开发者传送门百宝箱 -->
@@ -191,7 +205,9 @@
         <template v-for="child in menu.children.filter(c => !c.divider)" :key="child.path">
           <!-- 有三级菜单的二级菜单项 -->
           <div v-if="child.children && child.children.length > 0" class="mobile-submenu-group">
-            <div class="mobile-submenu-title">{{ child.title }}</div>
+            <div class="mobile-submenu-title">
+              {{ child.title }}
+            </div>
             <router-link
               v-for="subChild in child.children.filter(c => !c.divider)"
               :key="subChild.path"
@@ -218,104 +234,123 @@
 
   <!-- System AI Assistant Dialog (ORIN CORE) -->
   <el-dialog
-      v-model="showSystemEval"
-      :show-close="false"
-      :header="null"
-      width="1000px"
-      class="orin-core-dialog"
-      :close-on-click-modal="false"
-      append-to-body
-      @open="handleSystemDialogOpen"
-      align-center
+    v-model="showSystemEval"
+    :show-close="false"
+    :header="null"
+    width="1000px"
+    class="orin-core-dialog"
+    :close-on-click-modal="false"
+    append-to-body
+    align-center
+    @open="handleSystemDialogOpen"
   >
-      <template #header>
-          <div class="core-header">
-              <div class="header-left">
-                  <div class="core-logo">
-                      <el-icon><Cpu /></el-icon>
-                  </div>
-                  <div class="core-title">ORIN CORE</div>
-                  <div class="header-tabs">
-                      <div class="core-tab-btn" :class="{ active: currentDialogTab === 'ai' }" @click="currentDialogTab = 'ai'">
-                          <el-icon><MagicStick /></el-icon>
-                          <span>AI 助手</span>
-                      </div>
-                  </div>
-              </div>
-              <div class="header-right">
-                  <div class="sys-status">
-                      <div class="status-dot"></div>
-                      <span>SYSTEM_OK</span>
-                  </div>
-                  <el-icon class="close-icon" @click="showSystemEval = false"><Close /></el-icon>
-              </div>
+    <template #header>
+      <div class="core-header">
+        <div class="header-left">
+          <div class="core-logo">
+            <el-icon><Cpu /></el-icon>
           </div>
-      </template>
-
-      <div class="orin-terminal-container">
-          <!-- AI Assistant Tab -->
-          <template v-if="currentDialogTab === 'ai'">
-              <div class="terminal-body" ref="chatScrollRef">
-                  <div v-for="(msg, index) in systemMessages" :key="index" class="terminal-msg-row" :class="msg.role">
-                      <div class="t-avatar" v-if="msg.role === 'ai'">
-                          <el-icon><HelpFilled /></el-icon>
-                      </div>
-                      <div class="t-content-group">
-                          <div class="t-sender-name" v-if="msg.role === 'ai'">ORIN AI ASSISTANT</div>
-                          <div class="t-msg-card">
-                              <div class="marketing-text" v-if="msg.role === 'ai' && index === 0">
-                                  系统初始化已完成。我是您的系统级 AI 管理助手。<br/><br/>
-                                  您可以询问关于系统硬件、软件配置的问题，或者要求我执行脚本、清理日志等操作。
-                              </div>
-                              <div class="markdown-body" v-else v-html="renderMarkdown(msg.content)"></div>
-                              <div class="quick-actions" v-if="msg.role === 'ai' && index === 0">
-                                  <div class="q-btn" @click="quickCommand('查看系统资源占用')">
-                                      <el-icon><Odometer /></el-icon>
-                                      <span>查看系统资源占用</span>
-                                  </div>
-                                  <div class="q-btn" @click="quickCommand('分析最近的错误日志')">
-                                      <el-icon><DocumentChecked /></el-icon>
-                                      <span>分析最近的错误日志</span>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-                  <div v-if="systemLoading" class="terminal-msg-row ai">
-                      <div class="t-avatar"><el-icon class="is-loading"><Loading /></el-icon></div>
-                      <div class="t-content-group">
-                          <div class="t-sender-name">ORIN AI ASSISTANT</div>
-                          <div class="t-msg-card typing">
-                              _COMPUTING...
-                          </div>
-                      </div>
-                  </div>
-              </div>
-              <div class="terminal-footer">
-                  <div class="command-bar">
-                      <div class="cmd-prompt">$</div>
-                      <input
-                          v-model="systemInput"
-                          class="cmd-input"
-                          placeholder="输入管理指令或询问系统状态 ..."
-                      @keyup.enter="sendSystemMessage"
-                      :disabled="systemLoading"
-                      />
-                      <div class="cmd-actions">
-                          <span class="cmd-hint">ENTER</span>
-                          <button class="run-btn" @click="sendSystemMessage" :disabled="systemLoading">
-                              RUN
-                          </button>
-                      </div>
-                  </div>
-                  <div class="cmd-statusbar">
-                      <span>READY_FOR_COMMAND</span>
-                      <span class="secure"><el-icon><Lock /></el-icon> ENCRYPTED</span>
-                      <span>ROOT_ACCESS</span>
-                  </div>
-              </div>
-          </template>
+          <div class="core-title">
+            ORIN CORE
+          </div>
+          <div class="header-tabs">
+            <div class="core-tab-btn" :class="{ active: currentDialogTab === 'ai' }" @click="currentDialogTab = 'ai'">
+              <el-icon><MagicStick /></el-icon>
+              <span>AI 助手</span>
+            </div>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="sys-status">
+            <div class="status-dot" />
+            <span>SYSTEM_OK</span>
+          </div>
+          <el-icon class="close-icon" @click="showSystemEval = false">
+            <Close />
+          </el-icon>
+        </div>
       </div>
+    </template>
+
+    <div class="orin-terminal-container">
+      <!-- AI Assistant Tab -->
+      <template v-if="currentDialogTab === 'ai'">
+        <div ref="chatScrollRef" class="terminal-body">
+          <div
+            v-for="(msg, index) in systemMessages"
+            :key="index"
+            class="terminal-msg-row"
+            :class="msg.role"
+          >
+            <div v-if="msg.role === 'ai'" class="t-avatar">
+              <el-icon><HelpFilled /></el-icon>
+            </div>
+            <div class="t-content-group">
+              <div v-if="msg.role === 'ai'" class="t-sender-name">
+                ORIN AI ASSISTANT
+              </div>
+              <div class="t-msg-card">
+                <div v-if="msg.role === 'ai' && index === 0" class="marketing-text">
+                  系统初始化已完成。我是您的系统级 AI 管理助手。<br><br>
+                  您可以询问关于系统硬件、软件配置的问题，或者要求我执行脚本、清理日志等操作。
+                </div>
+                <div v-else class="markdown-body" v-html="renderMarkdown(msg.content)" />
+                <div v-if="msg.role === 'ai' && index === 0" class="quick-actions">
+                  <div class="q-btn" @click="quickCommand('查看系统资源占用')">
+                    <el-icon><Odometer /></el-icon>
+                    <span>查看系统资源占用</span>
+                  </div>
+                  <div class="q-btn" @click="quickCommand('分析最近的错误日志')">
+                    <el-icon><DocumentChecked /></el-icon>
+                    <span>分析最近的错误日志</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="systemLoading" class="terminal-msg-row ai">
+            <div class="t-avatar">
+              <el-icon class="is-loading">
+                <Loading />
+              </el-icon>
+            </div>
+            <div class="t-content-group">
+              <div class="t-sender-name">
+                ORIN AI ASSISTANT
+              </div>
+              <div class="t-msg-card typing">
+                _COMPUTING...
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="terminal-footer">
+          <div class="command-bar">
+            <div class="cmd-prompt">
+              $
+            </div>
+            <input
+              v-model="systemInput"
+              class="cmd-input"
+              placeholder="输入管理指令或询问系统状态 ..."
+              :disabled="systemLoading"
+              @keyup.enter="sendSystemMessage"
+            >
+            <div class="cmd-actions">
+              <span class="cmd-hint">ENTER</span>
+              <button class="run-btn" :disabled="systemLoading" @click="sendSystemMessage">
+                RUN
+              </button>
+            </div>
+          </div>
+          <div class="cmd-statusbar">
+            <span>READY_FOR_COMMAND</span>
+            <span class="secure"><el-icon><Lock /></el-icon> ENCRYPTED</span>
+            <span>ROOT_ACCESS</span>
+          </div>
+        </div>
+      </template>
+    </div>
   </el-dialog>
 </template>
 

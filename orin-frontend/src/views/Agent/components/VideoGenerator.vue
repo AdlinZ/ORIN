@@ -6,28 +6,36 @@
         <!-- Result Placeholder / History Watermark -->
         <div v-if="!videoUrl && !isProcessing" class="empty-canvas">
           <div class="orin-watermark">
-            <img src="/logo.svg" alt="ORIN" class="watermark-logo" />
-            <div class="watermark-text">ORIN Motion</div>
+            <img src="/logo.svg" alt="ORIN" class="watermark-logo">
+            <div class="watermark-text">
+              ORIN Motion
+            </div>
           </div>
-          <div class="empty-hint">输入场景描述或上传首帧参考图，开始导演之旅</div>
+          <div class="empty-hint">
+            输入场景描述或上传首帧参考图，开始导演之旅
+          </div>
         </div>
 
         <!-- Generation Progress -->
         <div v-if="isProcessing" class="canvas-loading">
           <div class="loading-animation">
             <div class="pulse-container">
-              <div class="pulse-ring"></div>
-              <el-icon class="is-loading brand-icon"><VideoCamera /></el-icon>
+              <div class="pulse-ring" />
+              <el-icon class="is-loading brand-icon">
+                <VideoCamera />
+              </el-icon>
             </div>
-            <p class="loading-text">{{ statusTip }}</p>
+            <p class="loading-text">
+              {{ statusTip }}
+            </p>
             <div class="wave-loader">
-              <span></span><span></span><span></span><span></span><span></span>
+              <span /><span /><span /><span /><span />
             </div>
           </div>
         </div>
 
         <!-- Result Canvas -->
-        <div class="result-canvas" v-if="videoUrl && !isProcessing">
+        <div v-if="videoUrl && !isProcessing" class="result-canvas">
           <video 
             ref="videoPlayer"
             :src="videoUrl" 
@@ -35,11 +43,25 @@
             autoplay
             loop
             class="main-generated-video"
-          ></video>
+          />
           
           <div class="canvas-actions">
-            <el-button type="default" size="small" @click="downloadVideo" :icon="Download">保存视频</el-button>
-            <el-button type="default" size="small" @click="shareVideo" :icon="Share">分享</el-button>
+            <el-button
+              type="default"
+              size="small"
+              :icon="Download"
+              @click="downloadVideo"
+            >
+              保存视频
+            </el-button>
+            <el-button
+              type="default"
+              size="small"
+              :icon="Share"
+              @click="shareVideo"
+            >
+              分享
+            </el-button>
           </div>
         </div>
       </div>
@@ -58,14 +80,16 @@
             :before-upload="beforeUpload"
           >
             <div v-if="referenceImage" class="ref-img-container">
-              <img :src="referenceImage" class="ref-preview" />
+              <img :src="referenceImage" class="ref-preview">
               <div class="ref-overlay">
                 <el-icon><Refresh /></el-icon>
                 <span>更换图片</span>
               </div>
             </div>
             <div v-else class="upload-placeholder">
-              <el-icon class="uploader-icon"><Plus /></el-icon>
+              <el-icon class="uploader-icon">
+                <Plus />
+              </el-icon>
               <span>待上传视频首帧</span>
             </div>
           </el-upload>
@@ -74,22 +98,28 @@
           </div>
         </div>
         <div class="upload-info">
-          <div class="upload-title">参考图 (Image Reference)</div>
-          <div class="upload-desc">上传一张图片作为视频的第一帧或参考风格。Wan-I2V 模型必备。</div>
+          <div class="upload-title">
+            参考图 (Image Reference)
+          </div>
+          <div class="upload-desc">
+            上传一张图片作为视频的第一帧或参考风格。Wan-I2V 模型必备。
+          </div>
         </div>
       </div>
 
       <!-- Prompt Suggestion Tags -->
-      <div class="prompt-tags" v-if="!prompt">
+      <div v-if="!prompt" class="prompt-tags">
         <span class="tag-title">常用创意:</span>
         <el-tag 
           v-for="s in filteredSuggestions" 
           :key="s" 
           class="clickable-tag"
-          @click="prompt = s"
           effect="plain"
           size="small"
-        >{{ s }}</el-tag>
+          @click="prompt = s"
+        >
+          {{ s }}
+        </el-tag>
       </div>
 
       <div class="input-card">
@@ -103,18 +133,24 @@
         />
         <div class="input-footer">
           <div class="footer-left">
-            <el-button link class="tool-btn"><el-icon><Operation /></el-icon></el-button>
-            <el-button link class="tool-btn"><el-icon><MagicStick /></el-icon></el-button>
+            <el-button link class="tool-btn">
+              <el-icon><Operation /></el-icon>
+            </el-button>
+            <el-button link class="tool-btn">
+              <el-icon><MagicStick /></el-icon>
+            </el-button>
           </div>
           <div class="footer-right">
             <el-button 
               type="primary" 
               class="generate-btn"
-              @click="handleGenerate"
               :loading="isProcessing"
               :disabled="!prompt || (isI2V && !referenceImage)"
+              @click="handleGenerate"
             >
-              <el-icon style="margin-right: 6px;"><VideoCamera /></el-icon>
+              <el-icon style="margin-right: 6px;">
+                <VideoCamera />
+              </el-icon>
               开始生成视频
             </el-button>
           </div>
@@ -122,7 +158,9 @@
       </div>
     </div>
 
-    <div v-if="error" class="error-toast">{{ error }}</div>
+    <div v-if="error" class="error-toast">
+      {{ error }}
+    </div>
   </div>
 </template>
 

@@ -2,33 +2,48 @@
   <div class="completion-runner">
     <div class="runner-header">
       <h4>Text Generation</h4>
-      <p class="desc">Enter a prompt to generate text.</p>
+      <p class="desc">
+        Enter a prompt to generate text.
+      </p>
     </div>
 
     <div class="main-area">
-        <div class="input-area">
-             <el-input 
-               v-model="prompt" 
-               type="textarea" 
-               :rows="6" 
-               placeholder="Enter your prompt here..."
-               resize="none"
-             />
-             <div class="actions">
-                <el-button type="primary" @click="generate" :loading="loading" class="gen-btn">
-                   Generate
-                </el-button>
-             </div>
+      <div class="input-area">
+        <el-input 
+          v-model="prompt" 
+          type="textarea" 
+          :rows="6" 
+          placeholder="Enter your prompt here..."
+          resize="none"
+        />
+        <div class="actions">
+          <el-button
+            type="primary"
+            :loading="loading"
+            class="gen-btn"
+            @click="generate"
+          >
+            Generate
+          </el-button>
         </div>
+      </div>
 
-        <div class="output-area">
-            <div class="output-label">Result</div>
-            <div class="output-content" v-loading="loading">
-                <div v-if="result" class="markdown-body">{{ result }}</div>
-                <div v-else class="placeholder">Generated text will appear here...</div>
-            </div>
-            <div v-if="error" class="error-msg">{{ error }}</div>
+      <div class="output-area">
+        <div class="output-label">
+          Result
         </div>
+        <div v-loading="loading" class="output-content">
+          <div v-if="result" class="markdown-body">
+            {{ result }}
+          </div>
+          <div v-else class="placeholder">
+            Generated text will appear here...
+          </div>
+        </div>
+        <div v-if="error" class="error-msg">
+          {{ error }}
+        </div>
+      </div>
     </div>
   </div>
 </template>

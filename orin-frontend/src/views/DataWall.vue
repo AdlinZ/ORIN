@@ -2,7 +2,7 @@
   <div class="light-datawall">
     <!-- Background -->
     <div class="wall-bg">
-      <div class="bg-pattern"></div>
+      <div class="bg-pattern" />
     </div>
 
     <!-- Header Bar -->
@@ -16,14 +16,18 @@
       </div>
       <div class="header-center">
         <div class="status-badge" :class="systemOnline ? 'online' : 'offline'">
-          <span class="dot"></span>
+          <span class="dot" />
           <span>{{ systemStatusText }}</span>
         </div>
       </div>
       <div class="header-right">
         <div class="datetime-display">
-          <div class="time">{{ currentTime }}</div>
-          <div class="date">{{ currentDate }}</div>
+          <div class="time">
+            {{ currentTime }}
+          </div>
+          <div class="date">
+            {{ currentDate }}
+          </div>
         </div>
       </div>
     </header>
@@ -34,25 +38,40 @@
       <div class="left-column">
         <!-- Top Stats -->
         <div class="panel mini-stats">
-          <div class="mini-stat" v-for="stat in miniStats" :key="stat.key">
-            <div class="mini-label">{{ stat.label }}</div>
+          <div v-for="stat in miniStats" :key="stat.key" class="mini-stat">
+            <div class="mini-label">
+              {{ stat.label }}
+            </div>
             <div class="mini-value" :style="{ color: stat.color }">
               <AnimatedNumber :value="stat.value" />{{ stat.unit }}
             </div>
-            <div class="mini-change" :class="stat.trend">{{ stat.change }}%</div>
+            <div class="mini-change" :class="stat.trend">
+              {{ stat.change }}%
+            </div>
           </div>
         </div>
 
         <!-- System Performance -->
         <div class="panel perf-panel">
-          <div class="panel-title">系统性能监控</div>
+          <div class="panel-title">
+            系统性能监控
+          </div>
           <div class="perf-grid">
-            <div class="perf-gauge" v-for="perf in performanceMetrics" :key="perf.key">
+            <div v-for="perf in performanceMetrics" :key="perf.key" class="perf-gauge">
               <div class="gauge-ring">
                 <svg viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" stroke-width="8" />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="#e5e7eb"
+                    stroke-width="8"
+                  />
                   <circle 
-                    cx="50" cy="50" r="40" 
+                    cx="50"
+                    cy="50"
+                    r="40" 
                     fill="none" 
                     :stroke="perf.color"
                     stroke-width="8"
@@ -63,8 +82,12 @@
                   />
                 </svg>
                 <div class="gauge-text">
-                  <div class="gauge-val"><AnimatedNumber :value="perf.value" />%</div>
-                  <div class="gauge-lbl">{{ perf.label }}</div>
+                  <div class="gauge-val">
+                    <AnimatedNumber :value="perf.value" />%
+                  </div>
+                  <div class="gauge-lbl">
+                    {{ perf.label }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -73,12 +96,14 @@
 
         <!-- Agent Distribution -->
         <div class="panel dist-panel">
-          <div class="panel-title">智能体类型分布</div>
+          <div class="panel-title">
+            智能体类型分布
+          </div>
           <div class="dist-list">
-            <div class="dist-row" v-for="(dist, idx) in agentDistribution" :key="idx">
+            <div v-for="(dist, idx) in agentDistribution" :key="idx" class="dist-row">
               <span class="dist-label">{{ dist.name }}</span>
               <div class="dist-bar-bg">
-                <div class="dist-bar-fill" :style="{ width: dist.percent + '%', background: dist.color }"></div>
+                <div class="dist-bar-fill" :style="{ width: dist.percent + '%', background: dist.color }" />
               </div>
               <span class="dist-val">{{ dist.value }}</span>
             </div>
@@ -90,12 +115,14 @@
       <div class="center-column">
         <!-- Big Stats -->
         <div class="big-stats">
-          <div class="big-stat" v-for="stat in bigStats" :key="stat.key">
+          <div v-for="stat in bigStats" :key="stat.key" class="big-stat">
             <div class="big-icon" :style="{ background: stat.gradient }">
               <el-icon><component :is="stat.icon" /></el-icon>
             </div>
             <div class="big-content">
-              <div class="big-label">{{ stat.label }}</div>
+              <div class="big-label">
+                {{ stat.label }}
+              </div>
               <div class="big-value">
                 <AnimatedNumber :value="stat.value" />
                 <span class="big-unit">{{ stat.unit }}</span>
@@ -103,7 +130,12 @@
             </div>
             <div class="big-sparkline">
               <svg viewBox="0 0 80 30" preserveAspectRatio="none">
-                <path :d="generateLine(stat.history)" :stroke="stat.color" fill="none" stroke-width="2" />
+                <path
+                  :d="generateLine(stat.history)"
+                  :stroke="stat.color"
+                  fill="none"
+                  stroke-width="2"
+                />
               </svg>
             </div>
           </div>
@@ -113,23 +145,39 @@
         <div class="panel main-chart">
           <div class="panel-title">
             <span>请求趋势分析</span>
-            <el-tag size="small">24H</el-tag>
+            <el-tag size="small">
+              24H
+            </el-tag>
           </div>
           <div class="chart-wrapper">
-            <LineChart :data="requestTrend" height="100%" color="#3b82f6" yAxisName="" />
+            <LineChart
+              :data="requestTrend"
+              height="100%"
+              color="#3b82f6"
+              y-axis-name=""
+            />
           </div>
         </div>
 
         <!-- Secondary Charts -->
         <div class="secondary-charts">
           <div class="panel chart-small">
-            <div class="panel-title">Token 消耗趋势</div>
+            <div class="panel-title">
+              Token 消耗趋势
+            </div>
             <div class="chart-wrapper">
-              <LineChart :data="tokenTrend" height="100%" color="#8b5cf6" yAxisName="" />
+              <LineChart
+                :data="tokenTrend"
+                height="100%"
+                color="#8b5cf6"
+                y-axis-name=""
+              />
             </div>
           </div>
           <div class="panel chart-small">
-            <div class="panel-title">智能体分布</div>
+            <div class="panel-title">
+              智能体分布
+            </div>
             <div class="chart-wrapper">
               <BarChart :data="agentTypeChart" height="100%" color="#10b981" />
             </div>
@@ -143,16 +191,27 @@
         <div class="panel agents-panel">
           <div class="panel-title">
             <span>运行中的智能体</span>
-            <el-tag size="small" type="success">{{ runningAgents }}</el-tag>
+            <el-tag size="small" type="success">
+              {{ runningAgents }}
+            </el-tag>
           </div>
           <div class="agents-list">
-            <div class="agent-row" v-for="agent in agents.slice(0, 10)" :key="agent.agentId" @click="navigateToAgent(agent.agentId)">
-              <div class="agent-dot" :style="{ background: getAgentColor(agent.status) }"></div>
-              <div class="agent-name">{{ agent.agentName }}</div>
-              <el-tag :type="getStatusType(agent.status)" size="small">{{ agent.status }}</el-tag>
+            <div
+              v-for="agent in agents.slice(0, 10)"
+              :key="agent.agentId"
+              class="agent-row"
+              @click="navigateToAgent(agent.agentId)"
+            >
+              <div class="agent-dot" :style="{ background: getAgentColor(agent.status) }" />
+              <div class="agent-name">
+                {{ agent.agentName }}
+              </div>
+              <el-tag :type="getStatusType(agent.status)" size="small">
+                {{ agent.status }}
+              </el-tag>
               <div class="agent-health">
                 <div class="health-bar">
-                  <div class="health-fill" :style="{ width: agent.healthScore + '%', background: getHealthColor(agent.healthScore) }"></div>
+                  <div class="health-fill" :style="{ width: agent.healthScore + '%', background: getHealthColor(agent.healthScore) }" />
                 </div>
                 <span class="health-num">{{ agent.healthScore }}%</span>
               </div>

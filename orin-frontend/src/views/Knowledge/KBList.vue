@@ -7,7 +7,9 @@
     >
       <template #actions>
         <el-tooltip content="刷新知识库列表显示（不会同步外部数据源）" placement="bottom">
-          <el-button :icon="Refresh" @click="fetchData">同步数据</el-button>
+          <el-button :icon="Refresh" @click="fetchData">
+            同步数据
+          </el-button>
         </el-tooltip>
       </template>
     </PageHeader>
@@ -15,7 +17,6 @@
     <div v-loading="loading" class="knowledge-grid-container">
       <!-- Uniform Grid Layout (Dify Style) -->
       <div class="kb-grid">
-        
         <!-- 1. Create Knowledge Card (hide when empty) -->
         <div v-if="allKBs.length > 0" class="kb-grid-item create-card" @click="handleAdd">
           <div class="create-content">
@@ -40,47 +41,60 @@
                 <el-icon><component :is="getIcon(kb.type)" /></el-icon>
               </div>
               <div class="kb-info">
-                 <h3 class="kb-name text-ellipsis">{{ kb.name }}</h3>
+                <h3 class="kb-name text-ellipsis">
+                  {{ kb.name }}
+                </h3>
               </div>
               <div class="kb-more" @click.stop>
                 <el-dropdown trigger="click">
-                   <el-icon class="more-btn"><MoreFilled /></el-icon>
-                   <template #dropdown>
-                      <el-dropdown-menu>
-                         <el-dropdown-item @click="handleEdit(kb)">设置</el-dropdown-item>
-                         <el-dropdown-item @click="handleDelete(kb)" divided class="text-danger">删除</el-dropdown-item>
-                      </el-dropdown-menu>
-                   </template>
+                  <el-icon class="more-btn">
+                    <MoreFilled />
+                  </el-icon>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click="handleEdit(kb)">
+                        设置
+                      </el-dropdown-item>
+                      <el-dropdown-item divided class="text-danger" @click="handleDelete(kb)">
+                        删除
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
                 </el-dropdown>
               </div>
             </div>
 
             <!-- Body: Description -->
             <div class="kb-body">
-               <p class="kb-desc">{{ kb.description || '暂无描述' }}</p>
+              <p class="kb-desc">
+                {{ kb.description || '暂无描述' }}
+              </p>
             </div>
 
             <!-- Footer: Meta Info -->
             <div class="kb-footer">
-               <div class="kb-tags">
-                  <el-tag size="small" effect="plain" class="type-tag">{{ getTypeName(kb.type) }}</el-tag>
-               </div>
-               <div class="kb-stats">
-                  <span v-if="kb.type === 'UNSTRUCTURED'">{{ kb.stats.documentCount || 0 }} 文档</span>
-                  <span v-else-if="kb.type === 'STRUCTURED'">{{ kb.stats.tableCount || 0 }} 表</span>
-                  <span v-else-if="kb.type === 'PROCEDURAL'">{{ kb.stats.skillCount || 0 }} 技能</span>
-                  <span v-else>{{ kb.stats.memoryEntryCount || 0 }} 条记忆</span>
-               </div>
+              <div class="kb-tags">
+                <el-tag size="small" effect="plain" class="type-tag">
+                  {{ getTypeName(kb.type) }}
+                </el-tag>
+              </div>
+              <div class="kb-stats">
+                <span v-if="kb.type === 'UNSTRUCTURED'">{{ kb.stats.documentCount || 0 }} 文档</span>
+                <span v-else-if="kb.type === 'STRUCTURED'">{{ kb.stats.tableCount || 0 }} 表</span>
+                <span v-else-if="kb.type === 'PROCEDURAL'">{{ kb.stats.skillCount || 0 }} 技能</span>
+                <span v-else>{{ kb.stats.memoryEntryCount || 0 }} 条记忆</span>
+              </div>
             </div>
           </el-card>
         </div>
-
       </div>
 
       <!-- Empty State -->
       <div v-if="!loading && allKBs.length === 0" class="empty-state-container">
         <el-empty description="暂无知识库">
-          <el-button type="primary" @click="handleAdd">创建第一个知识库</el-button>
+          <el-button type="primary" @click="handleAdd">
+            创建第一个知识库
+          </el-button>
         </el-empty>
       </div>
     </div>
@@ -88,29 +102,34 @@
     <!-- Inspector / Drawer (Detailed View) -->
     <Transition name="slide-fade">
       <div v-if="inspectorVisible" class="knowledge-inspector">
-        <div class="inspector-mask" @click="closeInspector"></div>
+        <div class="inspector-mask" @click="closeInspector" />
         <div class="inspector-content">
           <div class="inspector-header">
             <div class="header-breadcrumb">
-               <span class="back-link" @click="closeInspector">知识库列表</span>
-               <span class="separator">/</span>
-               <span class="current">{{ selectedKB.name }}</span>
+              <span class="back-link" @click="closeInspector">知识库列表</span>
+              <span class="separator">/</span>
+              <span class="current">{{ selectedKB.name }}</span>
             </div>
             <div class="header-actions">
-              <el-button circle :icon="Close" @click="closeInspector" class="close-btn-simple" />
+              <el-button
+                circle
+                :icon="Close"
+                class="close-btn-simple"
+                @click="closeInspector"
+              />
             </div>
           </div>
 
           <div class="inspector-body">
-             <div class="kb-detail-intro">
-                <div class="icon-big" :class="getIconClass(selectedKB.type)">
-                  <el-icon><component :is="getIcon(selectedKB.type)" /></el-icon>
-                </div>
-                <div class="intro-text">
-                   <h2>{{ selectedKB.name }}</h2>
-                   <p>{{ selectedKB.description }}</p>
-                </div>
-             </div>
+            <div class="kb-detail-intro">
+              <div class="icon-big" :class="getIconClass(selectedKB.type)">
+                <el-icon><component :is="getIcon(selectedKB.type)" /></el-icon>
+              </div>
+              <div class="intro-text">
+                <h2>{{ selectedKB.name }}</h2>
+                <p>{{ selectedKB.description }}</p>
+              </div>
+            </div>
 
             <el-tabs v-model="activeTab" class="inspector-tabs Dify-tabs">
               <!-- Unstructured Detail (Document Table) -->
@@ -118,144 +137,183 @@
                 <div class="doc-manager">
                   <div class="tool-bar">
                     <div class="left-tools">
-                       <el-dropdown>
-                          <el-button size="default">
-                            全部 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                          </el-button>
-                          <template #dropdown>
-                            <el-dropdown-menu>
-                              <el-dropdown-item>全部</el-dropdown-item>
-                            </el-dropdown-menu>
-                          </template>
-                        </el-dropdown>
+                      <el-dropdown>
+                        <el-button size="default">
+                          全部 <el-icon class="el-icon--right">
+                            <ArrowDown />
+                          </el-icon>
+                        </el-button>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item>全部</el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
                        
-                        <el-input 
-                          v-model="searchKeyword"
-                          placeholder="搜索" 
-                          :prefix-icon="Search" 
-                          class="search-input"
-                          clearable 
-                        />
+                      <el-input 
+                        v-model="searchKeyword"
+                        placeholder="搜索" 
+                        :prefix-icon="Search" 
+                        class="search-input"
+                        clearable 
+                      />
                     </div>
                     <div class="right-tools">
-                       <el-tooltip content="批量设置功能开发中" placement="top">
-                         <el-button size="default" disabled>批量设置</el-button>
-                       </el-tooltip>
-                       <el-button type="primary" size="default" :icon="Plus">添加文件</el-button>
+                      <el-tooltip content="批量设置功能开发中" placement="top">
+                        <el-button size="default" disabled>
+                          批量设置
+                        </el-button>
+                      </el-tooltip>
+                      <el-button type="primary" size="default" :icon="Plus">
+                        添加文件
+                      </el-button>
                     </div>
                   </div>
 
                   <!-- Dify-like Table -->
-                  <el-table border :data="mockDocs" style="width: 100%" class="dify-table">
-                     <el-table-column type="selection" width="40" />
-                     <el-table-column label="#" width="60">
-                        <template #default="scope">{{ scope.$index + 1 }}</template>
-                     </el-table-column>
-                     <el-table-column label="名称" min-width="250">
-                        <template #default="{ row }">
-                           <div class="doc-name-cell">
-                              <el-icon class="file-icon"><Document /></el-icon>
-                              <span class="name text-ellipsis" :title="row.name">{{ row.name }}</span>
-                           </div>
-                        </template>
-                     </el-table-column>
-                     <el-table-column label="分段模式" width="100">
-                        <template #default="{ row }">
-                           <el-tag size="small" type="info" effect="plain">{{ row.mode }}</el-tag>
-                        </template>
-                     </el-table-column>
-                     <el-table-column label="字符数" width="100" prop="wordCount">
-                        <template #default="{ row }">{{ (row.wordCount / 1000).toFixed(1) }}k</template>
-                     </el-table-column>
-                     <el-table-column label="召回次数" width="100" prop="hitCount" />
-                     <el-table-column label="上传时间" width="180" prop="uploadTime" />
-                     <el-table-column label="状态" width="100">
-                        <template #default="{ row }">
-                           <div class="status-dot">
-                              <span class="dot accepted"></span>
-                              <span>可用</span>
-                           </div>
-                        </template>
-                     </el-table-column>
-                     <el-table-column label="操作" width="120" fixed="right">
-                        <template #default="{ row }">
-                           <el-switch v-model="row.enabled" size="small" />
-                           <el-button link type="primary" size="small" style="margin-left: 12px;"><el-icon><Setting /></el-icon></el-button>
-                           <el-button link type="danger" size="small"><el-icon><Delete /></el-icon></el-button>
-                        </template>
-                     </el-table-column>
+                  <el-table
+                    border
+                    :data="mockDocs"
+                    style="width: 100%"
+                    class="dify-table"
+                  >
+                    <el-table-column type="selection" width="40" />
+                    <el-table-column label="#" width="60">
+                      <template #default="scope">
+                        {{ scope.$index + 1 }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="名称" min-width="250">
+                      <template #default="{ row }">
+                        <div class="doc-name-cell">
+                          <el-icon class="file-icon">
+                            <Document />
+                          </el-icon>
+                          <span class="name text-ellipsis" :title="row.name">{{ row.name }}</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="分段模式" width="100">
+                      <template #default="{ row }">
+                        <el-tag size="small" type="info" effect="plain">
+                          {{ row.mode }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="字符数" width="100" prop="wordCount">
+                      <template #default="{ row }">
+                        {{ (row.wordCount / 1000).toFixed(1) }}k
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="召回次数" width="100" prop="hitCount" />
+                    <el-table-column label="上传时间" width="180" prop="uploadTime" />
+                    <el-table-column label="状态" width="100">
+                      <template #default="{ row }">
+                        <div class="status-dot">
+                          <span class="dot accepted" />
+                          <span>可用</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="120" fixed="right">
+                      <template #default="{ row }">
+                        <el-switch v-model="row.enabled" size="small" />
+                        <el-button
+                          link
+                          type="primary"
+                          size="small"
+                          style="margin-left: 12px;"
+                        >
+                          <el-icon><Setting /></el-icon>
+                        </el-button>
+                        <el-button link type="danger" size="small">
+                          <el-icon><Delete /></el-icon>
+                        </el-button>
+                      </template>
+                    </el-table-column>
                   </el-table>
                   
                   <div class="table-pagination">
-                     <el-pagination layout="prev, pager, next" :total="50" background small />
+                    <el-pagination
+                      layout="prev, pager, next"
+                      :total="50"
+                      background
+                      small
+                    />
                   </div>
                 </div>
               </el-tab-pane>
 
               <!-- Structured Detail -->
               <el-tab-pane v-if="selectedKB.type === 'STRUCTURED'" label="SQL & 表结构" name="sql">
-                 <div class="sql-preview">
-                    <div class="schema-tree">
-                       <div v-for="i in 3" :key="i" class="table-node">
-                         <el-icon><Grid /></el-icon>
-                         <span>user_behavior_logs_{{ i }}</span>
-                       </div>
+                <div class="sql-preview">
+                  <div class="schema-tree">
+                    <div v-for="i in 3" :key="i" class="table-node">
+                      <el-icon><Grid /></el-icon>
+                      <span>user_behavior_logs_{{ i }}</span>
                     </div>
-                    <div class="query-box">
-                       <el-input type="textarea" :rows="4" placeholder="SELECT * FROM table..." />
-                       <el-button type="primary" size="small" style="margin-top: 10px;">执行预览</el-button>
-                    </div>
-                 </div>
+                  </div>
+                  <div class="query-box">
+                    <el-input type="textarea" :rows="4" placeholder="SELECT * FROM table..." />
+                    <el-button type="primary" size="small" style="margin-top: 10px;">
+                      执行预览
+                    </el-button>
+                  </div>
+                </div>
               </el-tab-pane>
 
               <!-- Procedural Detail -->
               <el-tab-pane v-if="selectedKB.type === 'PROCEDURAL'" label="技能/编排" name="workflow">
-                 <div class="workflow-mini">
-                    <el-empty description="工作流编辑器加载中..." :image-size="40" />
-                 </div>
+                <div class="workflow-mini">
+                  <el-empty description="工作流编辑器加载中..." :image-size="40" />
+                </div>
               </el-tab-pane>
 
               <!-- Meta Detail -->
               <el-tab-pane v-if="selectedKB.type === 'META_MEMORY'" label="记忆时间轴" name="memory">
-                 <div class="memory-timeline">
-                    <el-timeline>
-                      <el-timeline-item
-                        v-for="(m, index) in 5"
-                        :key="index"
-                        timestamp="2026-01-26 10:20"
-                        color="var(--orin-amber)"
-                      >
-                        用户偏好: 偏好使用深色模式琥珀视觉
-                      </el-timeline-item>
-                    </el-timeline>
-                 </div>
+                <div class="memory-timeline">
+                  <el-timeline>
+                    <el-timeline-item
+                      v-for="(m, index) in 5"
+                      :key="index"
+                      timestamp="2026-01-26 10:20"
+                      color="var(--orin-amber)"
+                    >
+                      用户偏好: 偏好使用深色模式琥珀视觉
+                    </el-timeline-item>
+                  </el-timeline>
+                </div>
               </el-tab-pane>
 
               <el-tab-pane label="检索参数" name="retrieval">
-                 <el-form label-position="top" style="max-width: 400px; margin-top: 20px;">
-                    <el-form-item label="Top K">
-                      <el-slider v-model="retrievalParams.topK" :max="20" />
-                    </el-form-item>
-                    <el-form-item label="语义权重">
-                      <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" />
-                    </el-form-item>
-                 </el-form>
+                <el-form label-position="top" style="max-width: 400px; margin-top: 20px;">
+                  <el-form-item label="Top K">
+                    <el-slider v-model="retrievalParams.topK" :max="20" />
+                  </el-form-item>
+                  <el-form-item label="语义权重">
+                    <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" />
+                  </el-form-item>
+                </el-form>
               </el-tab-pane>
               
               <el-tab-pane label="设置" name="settings">
-                  <div class="settings-panel" style="padding: 20px 0; max-width: 500px;">
-                     <el-form label-position="top">
-                        <el-form-item label="知识库名称">
-                           <el-input v-model="form.name" />
-                        </el-form-item>
-                        <el-form-item label="描述">
-                           <el-input v-model="form.remark" type="textarea" :rows="3" />
-                        </el-form-item>
-                        <el-button type="primary" :loading="submitting" @click="onSubmit">保存更改</el-button>
-                        <el-divider />
-                        <el-button type="danger" plain @click="handleDelete(selectedKB)">删除知识库</el-button>
-                     </el-form>
-                  </div>
+                <div class="settings-panel" style="padding: 20px 0; max-width: 500px;">
+                  <el-form label-position="top">
+                    <el-form-item label="知识库名称">
+                      <el-input v-model="form.name" />
+                    </el-form-item>
+                    <el-form-item label="描述">
+                      <el-input v-model="form.remark" type="textarea" :rows="3" />
+                    </el-form-item>
+                    <el-button type="primary" :loading="submitting" @click="onSubmit">
+                      保存更改
+                    </el-button>
+                    <el-divider />
+                    <el-button type="danger" plain @click="handleDelete(selectedKB)">
+                      删除知识库
+                    </el-button>
+                  </el-form>
+                </div>
               </el-tab-pane>
             </el-tabs>
           </div>
@@ -274,8 +332,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="onSubmit" :loading="submitting">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="submitting" @click="onSubmit">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

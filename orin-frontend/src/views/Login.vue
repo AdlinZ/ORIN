@@ -7,18 +7,33 @@
           <h1>Platform</h1>
           <p>智能体管理与全链路监控系统</p>
           <div class="feature-list">
-            <div class="feature-item"><el-icon><CircleCheckFilled /></el-icon> 实时性能反馈</div>
-            <div class="feature-item"><el-icon><CircleCheckFilled /></el-icon> 分布式知识库同步</div>
-            <div class="feature-item"><el-icon><CircleCheckFilled /></el-icon> 自动化运维审计</div>
+            <div class="feature-item">
+              <el-icon><CircleCheckFilled /></el-icon> 实时性能反馈
+            </div>
+            <div class="feature-item">
+              <el-icon><CircleCheckFilled /></el-icon> 分布式知识库同步
+            </div>
+            <div class="feature-item">
+              <el-icon><CircleCheckFilled /></el-icon> 自动化运维审计
+            </div>
           </div>
         </div>
       </div>
       <div class="login-right">
         <div class="login-form-wrapper">
-          <h2 class="form-title">用户登录</h2>
-          <p class="form-subtitle">欢迎回来,请使用您的账号登录</p>
+          <h2 class="form-title">
+            用户登录
+          </h2>
+          <p class="form-subtitle">
+            欢迎回来,请使用您的账号登录
+          </p>
 
-          <el-form ref="formRef" :model="loginForm" :rules="loginRules" label-position="top">
+          <el-form
+            ref="formRef"
+            :model="loginForm"
+            :rules="loginRules"
+            label-position="top"
+          >
             <el-form-item label="用户名" prop="username">
               <el-input
                 v-model="loginForm.username"
@@ -38,27 +53,37 @@
             </el-form-item>
             
             <div class="extra-actions">
-              <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-              <el-button link type="primary">忘记密码?</el-button>
+              <el-checkbox v-model="rememberMe">
+                记住我
+              </el-checkbox>
+              <el-button link type="primary">
+                忘记密码?
+              </el-button>
             </div>
 
             <!-- Custom Slide Verify -->
             <div class="slide-verify-wrapper">
               <div 
-                class="slide-track" 
-                ref="trackRef"
+                ref="trackRef" 
+                class="slide-track"
                 :class="{ 'is-success': isVerified }"
               >
-                <div class="slide-bg" :style="{ width: slideWidth + 'px' }"></div>
-                <div class="slide-text">{{ verifyText }}</div>
+                <div class="slide-bg" :style="{ width: slideWidth + 'px' }" />
+                <div class="slide-text">
+                  {{ verifyText }}
+                </div>
                 <div 
                   class="slide-handler" 
                   :style="{ left: slideWidth + 'px' }"
                   @mousedown="startDrag"
                   @touchstart="startDrag"
                 >
-                  <el-icon v-if="isVerified"><Check /></el-icon>
-                  <el-icon v-else><ArrowRight /></el-icon>
+                  <el-icon v-if="isVerified">
+                    <Check />
+                  </el-icon>
+                  <el-icon v-else>
+                    <ArrowRight />
+                  </el-icon>
                 </div>
               </div>
             </div>
@@ -76,11 +101,15 @@
           </el-form>
 
           <div class="social-login">
-             <el-divider><span class="divider-text">其他登录方式</span></el-divider>
-             <div class="icons">
-                <el-button circle><el-icon><Share /></el-icon></el-button>
-                <el-button circle><el-icon><Link /></el-icon></el-button>
-             </div>
+            <el-divider><span class="divider-text">其他登录方式</span></el-divider>
+            <div class="icons">
+              <el-button circle>
+                <el-icon><Share /></el-icon>
+              </el-button>
+              <el-button circle>
+                <el-icon><Link /></el-icon>
+              </el-button>
+            </div>
           </div>
         </div>
       </div>

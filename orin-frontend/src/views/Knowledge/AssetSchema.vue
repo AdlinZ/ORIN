@@ -7,150 +7,203 @@
     />
 
     <div class="schema-layout">
-        <!-- Pipeline Config Area -->
-        <div class="pipeline-area">
-            <div class="pipeline-header">
-                <h3>处理流水线 (ETL Pipeline)</h3>
-                <el-button type="primary" size="small" @click="savePipeline">保存配置</el-button>
-            </div>
+      <!-- Pipeline Config Area -->
+      <div class="pipeline-area">
+        <div class="pipeline-header">
+          <h3>处理流水线 (ETL Pipeline)</h3>
+          <el-button type="primary" size="small" @click="savePipeline">
+            保存配置
+          </el-button>
+        </div>
             
-            <div class="visual-pipeline">
-                <!-- Node 1: Source -->
-                <div class="pipe-node source" :class="{ active: selectedNode === 'source' }" @click="selectNode('source')">
-                    <div class="node-icon"><el-icon><Document /></el-icon></div>
-                    <div class="node-label">数据源</div>
-                    <div class="node-sub">支持 PDF, DOCX, IMG</div>
-                </div>
-
-                <div class="pipe-arrow"><el-icon><Right /></el-icon></div>
-
-                <!-- Node 2: Parsing -->
-                <div class="pipe-node parsing" :class="{ active: selectedNode === 'parsing' }" @click="selectNode('parsing')">
-                    <div class="node-icon"><el-icon><View /></el-icon></div>
-                    <div class="node-label">解析 (Parsing)</div>
-                    <div class="node-sub">{{ config.parsingMode }}</div>
-                </div>
-
-                <div class="pipe-arrow"><el-icon><Right /></el-icon></div>
-
-                <!-- Node 3: Chunking -->
-                <div class="pipe-node chunking" :class="{ active: selectedNode === 'chunking' }" @click="selectNode('chunking')">
-                    <div class="node-icon"><el-icon><Scissor /></el-icon></div>
-                    <div class="node-label">分段 (Chunking)</div>
-                    <div class="node-sub">{{ config.chunkSize }} tokens</div>
-                </div>
-
-                <div class="pipe-arrow"><el-icon><Right /></el-icon></div>
-
-                <!-- Node 4: Embedding -->
-                <div class="pipe-node embedding" :class="{ active: selectedNode === 'embedding' }" @click="selectNode('embedding')">
-                    <div class="node-icon"><el-icon><Coin /></el-icon></div>
-                    <div class="node-label">向量化 (Embedding)</div>
-                    <div class="node-sub">{{ config.embeddingModel }}</div>
-                </div>
+        <div class="visual-pipeline">
+          <!-- Node 1: Source -->
+          <div class="pipe-node source" :class="{ active: selectedNode === 'source' }" @click="selectNode('source')">
+            <div class="node-icon">
+              <el-icon><Document /></el-icon>
             </div>
+            <div class="node-label">
+              数据源
+            </div>
+            <div class="node-sub">
+              支持 PDF, DOCX, IMG
+            </div>
+          </div>
 
-            <!-- Configuration Panel for Selected Node -->
-            <transition name="fade">
-                <div class="node-config-panel" v-if="selectedNode">
-                    <h4>Step Config: {{ getNodeTitle(selectedNode) }}</h4>
+          <div class="pipe-arrow">
+            <el-icon><Right /></el-icon>
+          </div>
+
+          <!-- Node 2: Parsing -->
+          <div class="pipe-node parsing" :class="{ active: selectedNode === 'parsing' }" @click="selectNode('parsing')">
+            <div class="node-icon">
+              <el-icon><View /></el-icon>
+            </div>
+            <div class="node-label">
+              解析 (Parsing)
+            </div>
+            <div class="node-sub">
+              {{ config.parsingMode }}
+            </div>
+          </div>
+
+          <div class="pipe-arrow">
+            <el-icon><Right /></el-icon>
+          </div>
+
+          <!-- Node 3: Chunking -->
+          <div class="pipe-node chunking" :class="{ active: selectedNode === 'chunking' }" @click="selectNode('chunking')">
+            <div class="node-icon">
+              <el-icon><Scissor /></el-icon>
+            </div>
+            <div class="node-label">
+              分段 (Chunking)
+            </div>
+            <div class="node-sub">
+              {{ config.chunkSize }} tokens
+            </div>
+          </div>
+
+          <div class="pipe-arrow">
+            <el-icon><Right /></el-icon>
+          </div>
+
+          <!-- Node 4: Embedding -->
+          <div class="pipe-node embedding" :class="{ active: selectedNode === 'embedding' }" @click="selectNode('embedding')">
+            <div class="node-icon">
+              <el-icon><Coin /></el-icon>
+            </div>
+            <div class="node-label">
+              向量化 (Embedding)
+            </div>
+            <div class="node-sub">
+              {{ config.embeddingModel }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration Panel for Selected Node -->
+        <transition name="fade">
+          <div v-if="selectedNode" class="node-config-panel">
+            <h4>Step Config: {{ getNodeTitle(selectedNode) }}</h4>
                     
-                    <el-form label-position="left" label-width="120px" v-if="selectedNode === 'source'">
-                        <el-form-item label="允许格式">
-                             <el-checkbox-group v-model="config.allowedFormats">
-                                <el-checkbox label="PDF" />
-                                <el-checkbox label="DOCX" />
-                                <el-checkbox label="TXT" />
-                                <el-checkbox label="Images (OCR)" />
-                             </el-checkbox-group>
-                        </el-form-item>
-                    </el-form>
+            <el-form v-if="selectedNode === 'source'" label-position="left" label-width="120px">
+              <el-form-item label="允许格式">
+                <el-checkbox-group v-model="config.allowedFormats">
+                  <el-checkbox label="PDF" />
+                  <el-checkbox label="DOCX" />
+                  <el-checkbox label="TXT" />
+                  <el-checkbox label="Images (OCR)" />
+                </el-checkbox-group>
+              </el-form-item>
+            </el-form>
 
-                    <el-form label-position="left" label-width="120px" v-if="selectedNode === 'parsing'">
-                         <el-form-item label="解析模式">
-                             <el-select v-model="config.parsingMode">
-                                 <el-option label="General (通用)" value="GENERAL" />
-                                 <el-option label="Layout Analysis (版面分析)" value="LAYOUT" />
-                                 <el-option label="OCR Only" value="OCR" />
-                             </el-select>
-                         </el-form-item>
-                         <el-form-item label="VLM 加强">
-                             <el-switch v-model="config.vlmEnhanced" active-text="启用多模态图片描述" />
-                         </el-form-item>
-                    </el-form>
+            <el-form v-if="selectedNode === 'parsing'" label-position="left" label-width="120px">
+              <el-form-item label="解析模式">
+                <el-select v-model="config.parsingMode">
+                  <el-option label="General (通用)" value="GENERAL" />
+                  <el-option label="Layout Analysis (版面分析)" value="LAYOUT" />
+                  <el-option label="OCR Only" value="OCR" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="VLM 加强">
+                <el-switch v-model="config.vlmEnhanced" active-text="启用多模态图片描述" />
+              </el-form-item>
+            </el-form>
 
-                    <el-form label-position="left" label-width="120px" v-if="selectedNode === 'chunking'">
-                         <el-form-item label="分段方法">
-                             <el-select v-model="config.chunkMethod">
-                                 <el-option label="Fixed Size (固定大小)" value="FIXED" />
-                                 <el-option label="Recursive (递归字符)" value="RECURSIVE" />
-                                 <el-option label="Semantic (语义分割)" value="SEMANTIC" />
-                             </el-select>
-                         </el-form-item>
-                         <el-form-item label="块大小 (Tokens)">
-                             <el-input-number v-model="config.chunkSize" :min="100" :max="2000" :step="100" />
-                         </el-form-item>
-                         <el-form-item label="重叠 (Overlap)">
-                             <el-input-number v-model="config.chunkOverlap" :min="0" :max="500" :step="50" />
-                         </el-form-item>
-                    </el-form>
+            <el-form v-if="selectedNode === 'chunking'" label-position="left" label-width="120px">
+              <el-form-item label="分段方法">
+                <el-select v-model="config.chunkMethod">
+                  <el-option label="Fixed Size (固定大小)" value="FIXED" />
+                  <el-option label="Recursive (递归字符)" value="RECURSIVE" />
+                  <el-option label="Semantic (语义分割)" value="SEMANTIC" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="块大小 (Tokens)">
+                <el-input-number
+                  v-model="config.chunkSize"
+                  :min="100"
+                  :max="2000"
+                  :step="100"
+                />
+              </el-form-item>
+              <el-form-item label="重叠 (Overlap)">
+                <el-input-number
+                  v-model="config.chunkOverlap"
+                  :min="0"
+                  :max="500"
+                  :step="50"
+                />
+              </el-form-item>
+            </el-form>
 
-                    <el-form label-position="left" label-width="120px" v-if="selectedNode === 'embedding'">
-                         <el-form-item label="模型提供商">
-                             <el-select v-model="config.embeddingProvider">
-                                 <el-option label="SiliconFlow" value="siliconflow" />
-                                 <el-option label="OpenAI" value="openai" />
-                                 <el-option label="Local (Ollama)" value="local" />
-                             </el-select>
-                         </el-form-item>
-                         <el-form-item label="模型名称">
-                             <el-input v-model="config.embeddingModel" placeholder="e.g. text-embedding-3-small" />
-                         </el-form-item>
-                    </el-form>
+            <el-form v-if="selectedNode === 'embedding'" label-position="left" label-width="120px">
+              <el-form-item label="模型提供商">
+                <el-select v-model="config.embeddingProvider">
+                  <el-option label="SiliconFlow" value="siliconflow" />
+                  <el-option label="OpenAI" value="openai" />
+                  <el-option label="Local (Ollama)" value="local" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="模型名称">
+                <el-input v-model="config.embeddingModel" placeholder="e.g. text-embedding-3-small" />
+              </el-form-item>
+            </el-form>
+          </div>
+        </transition>
+      </div>
 
-                </div>
-            </transition>
+      <!-- Preview Area -->
+      <div class="preview-area">
+        <div class="area-header">
+          实时解析预览 (Real-time Preview)
         </div>
-
-        <!-- Preview Area -->
-        <div class="preview-area">
-            <div class="area-header">实时解析预览 (Real-time Preview)</div>
             
-            <div class="upload-zone" v-show="!previewFile">
-                <el-upload
-                    drag
-                    action="#"
-                    :auto-upload="false"
-                    :on-change="handlePreviewFile"
-                    :show-file-list="false"
-                >
-                    <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-                    <div class="el-upload__text">拖拽样本文件至此测试解析效果</div>
-                </el-upload>
+        <div v-show="!previewFile" class="upload-zone">
+          <el-upload
+            drag
+            action="#"
+            :auto-upload="false"
+            :on-change="handlePreviewFile"
+            :show-file-list="false"
+          >
+            <el-icon class="el-icon--upload">
+              <upload-filled />
+            </el-icon>
+            <div class="el-upload__text">
+              拖拽样本文件至此测试解析效果
             </div>
-
-            <div class="preview-content" v-if="previewFile">
-                <div class="file-status-bar">
-                    <span><el-icon><Document /></el-icon> {{ previewFile.name }}</span>
-                    <el-button link type="danger" @click="clearPreview">清除</el-button>
-                </div>
-
-                <div class="chunks-visualizer" v-loading="previewLoading">
-                    <div v-if="previewChunks.length > 0">
-                        <div class="chunk-stats">
-                            生成 {{ previewChunks.length }} 个切片 | 耗时 {{ previewTime }}ms
-                        </div>
-                        <div class="chunk-list">
-                            <div v-for="(chunk, idx) in previewChunks" :key="idx" class="chunk-item">
-                                <div class="chunk-idx">#{{ idx + 1 }} [{{ chunk.length }} chars]</div>
-                                <div class="chunk-text">{{ chunk }}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <el-empty v-else description="点击上方节点调整参数以查看预期效果" />
-                </div>
-            </div>
+          </el-upload>
         </div>
+
+        <div v-if="previewFile" class="preview-content">
+          <div class="file-status-bar">
+            <span><el-icon><Document /></el-icon> {{ previewFile.name }}</span>
+            <el-button link type="danger" @click="clearPreview">
+              清除
+            </el-button>
+          </div>
+
+          <div v-loading="previewLoading" class="chunks-visualizer">
+            <div v-if="previewChunks.length > 0">
+              <div class="chunk-stats">
+                生成 {{ previewChunks.length }} 个切片 | 耗时 {{ previewTime }}ms
+              </div>
+              <div class="chunk-list">
+                <div v-for="(chunk, idx) in previewChunks" :key="idx" class="chunk-item">
+                  <div class="chunk-idx">
+                    #{{ idx + 1 }} [{{ chunk.length }} chars]
+                  </div>
+                  <div class="chunk-text">
+                    {{ chunk }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <el-empty v-else description="点击上方节点调整参数以查看预期效果" />
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>

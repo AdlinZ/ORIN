@@ -11,22 +11,36 @@
     <div class="dify-sub-header">
       <div class="sub-left">
         <div class="breadcrumb">
-          <el-icon class="app-icon"><TrendCharts /></el-icon>
+          <el-icon class="app-icon">
+            <TrendCharts />
+          </el-icon>
           <div v-if="isEditingName" class="name-edit-wrapper">
             <el-input 
+              ref="nameInput" 
               v-model="workflowName" 
-              size="small" 
-              ref="nameInput"
+              size="small"
               @blur="isEditingName = false"
               @keyup.enter="isEditingName = false"
             />
           </div>
           <span v-else class="app-name" @click="startEditName">{{ workflowName || '未命名工作流' }}</span>
-          <el-icon class="edit-icon" @click="startEditName"><Edit /></el-icon>
+          <el-icon class="edit-icon" @click="startEditName">
+            <Edit />
+          </el-icon>
         </div>
         <nav class="sub-nav">
-          <a href="#" class="sub-nav-item" :class="{ active: activeTab === 'orchestrate' }" @click.prevent="activeTab = 'orchestrate'">编排</a>
-          <a href="#" class="sub-nav-item" :class="{ active: activeTab === 'api' }" @click.prevent="activeTab = 'api'">访问 API</a>
+          <a
+            href="#"
+            class="sub-nav-item"
+            :class="{ active: activeTab === 'orchestrate' }"
+            @click.prevent="activeTab = 'orchestrate'"
+          >编排</a>
+          <a
+            href="#"
+            class="sub-nav-item"
+            :class="{ active: activeTab === 'api' }"
+            @click.prevent="activeTab = 'api'"
+          >访问 API</a>
           <a href="#" class="sub-nav-item">日志与标注</a>
           <a href="#" class="sub-nav-item">监测</a>
         </nav>
@@ -34,126 +48,230 @@
 
       <div class="sub-right">
         <div class="save-status">
-          <span class="status-dot"></span>
+          <span class="status-dot" />
           自动保存 {{ lastSavedTime }}
         </div>
         
         <div class="dify-button-group-wrapper">
           <!-- Divider -->
-          <div class="dify-divider"></div>
+          <div class="dify-divider" />
 
           <!-- Main Actions (Preview, etc) -->
           <div class="dify-action-bar">
             <!-- Preview Button -->
             <div class="dify-bar-item preview-btn" @click="handlePreview">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"><path d="M8 18.3915V5.60846L18.2264 12L8 18.3915ZM6 3.80421V20.1957C6 20.9812 6.86395 21.46 7.53 21.0437L20.6432 12.848C21.2699 12.4563 21.2699 11.5436 20.6432 11.152L7.53 2.95621C6.86395 2.53993 6 3.01878 6 3.80421Z"></path></svg>
+              <svg
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+              ><path d="M8 18.3915V5.60846L18.2264 12L8 18.3915ZM6 3.80421V20.1957C6 20.9812 6.86395 21.46 7.53 21.0437L20.6432 12.848C21.2699 12.4563 21.2699 11.5436 20.6432 11.152L7.53 2.95621C6.86395 2.53993 6 3.01878 6 3.80421Z" /></svg>
               <span>预览</span>
             </div>
-            
-
           </div>
 
 
 
           <!-- Feature & Publish -->
           <button class="dify-features-btn" @click="showAIDialog = true">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="mr-1"><path d="M2.5 7C2.5 9.48528 4.51472 11.5 7 11.5C9.48528 11.5 11.5 9.48528 11.5 7C11.5 4.51472 9.48528 2.5 7 2.5C4.51472 2.5 2.5 4.51472 2.5 7ZM2.5 17C2.5 19.4853 4.51472 21.5 7 21.5C9.48528 21.5 11.5 19.4853 11.5 17C11.5 14.5147 9.48528 12.5 7 12.5C4.51472 12.5 2.5 14.5147 2.5 17ZM12.5 17C12.5 19.4853 14.5147 21.5 17 21.5C19.4853 21.5 21.5 19.4853 21.5 17C21.5 14.5147 19.4853 12.5 17 12.5C14.5147 12.5 12.5 14.5147 12.5 17ZM9.5 7C9.5 8.38071 8.38071 9.5 7 9.5C5.61929 9.5 4.5 8.38071 4.5 7C4.5 5.61929 5.61929 4.5 7 4.5C8.38071 4.5 9.5 5.61929 9.5 7ZM9.5 17C9.5 18.3807 8.38071 19.5 7 19.5C5.61929 19.5 4.5 18.3807 4.5 17C4.5 15.6193 5.61929 14.5 7 14.5C8.38071 14.5 9.5 15.6193 9.5 17ZM19.5 17C19.5 18.3807 18.3807 19.5 17 19.5C15.6193 19.5 14.5 18.3807 14.5 17C14.5 15.6193 15.6193 14.5 17 14.5C18.3807 14.5 19.5 15.6193 19.5 17ZM16 11V8H13V6H16V3H18V6H21V8H18V11H16Z"></path></svg>
+            <svg
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="mr-1"
+            ><path d="M2.5 7C2.5 9.48528 4.51472 11.5 7 11.5C9.48528 11.5 11.5 9.48528 11.5 7C11.5 4.51472 9.48528 2.5 7 2.5C4.51472 2.5 2.5 4.51472 2.5 7ZM2.5 17C2.5 19.4853 4.51472 21.5 7 21.5C9.48528 21.5 11.5 19.4853 11.5 17C11.5 14.5147 9.48528 12.5 7 12.5C4.51472 12.5 2.5 14.5147 2.5 17ZM12.5 17C12.5 19.4853 14.5147 21.5 17 21.5C19.4853 21.5 21.5 19.4853 21.5 17C21.5 14.5147 19.4853 12.5 17 12.5C14.5147 12.5 12.5 14.5147 12.5 17ZM9.5 7C9.5 8.38071 8.38071 9.5 7 9.5C5.61929 9.5 4.5 8.38071 4.5 7C4.5 5.61929 5.61929 4.5 7 4.5C8.38071 4.5 9.5 5.61929 9.5 7ZM9.5 17C9.5 18.3807 8.38071 19.5 7 19.5C5.61929 19.5 4.5 18.3807 4.5 17C4.5 15.6193 5.61929 14.5 7 14.5C8.38071 14.5 9.5 15.6193 9.5 17ZM19.5 17C19.5 18.3807 18.3807 19.5 17 19.5C15.6193 19.5 14.5 18.3807 14.5 17C14.5 15.6193 15.6193 14.5 17 14.5C18.3807 14.5 19.5 15.6193 19.5 17ZM16 11V8H13V6H16V3H18V6H21V8H18V11H16Z" /></svg>
             功能
           </button>
           
-          <button class="dify-publish-btn" @click="handleSave()" :disabled="saving">
+          <button class="dify-publish-btn" :disabled="saving" @click="handleSave()">
             发布
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="ml-1"><path d="M11.9999 13.1714L16.9497 8.22168L18.3639 9.63589L11.9999 15.9999L5.63599 9.63589L7.0502 8.22168L11.9999 13.1714Z"></path></svg>
+            <svg
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="ml-1"
+            ><path d="M11.9999 13.1714L16.9497 8.22168L18.3639 9.63589L11.9999 15.9999L5.63599 9.63589L7.0502 8.22168L11.9999 13.1714Z" /></svg>
           </button>
-
-
         </div>
       </div>
     </div>
 
     <WorkflowApiAccess v-if="activeTab === 'api'" />
 
-    <div class="editor-container" v-show="activeTab === 'orchestrate'">
+    <div v-show="activeTab === 'orchestrate'" class="editor-container">
       <!-- Left Toolbar Rail (Floating Style) -->
       <div class="tool-rail">
-         <!-- Add Node -->
-         <el-tooltip content="添加节点" placement="right" effect="light">
-           <div class="tool-item add-node" @click="showPalette = !showPalette">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-               <circle cx="12" cy="12" r="10" fill="#64748b"/>
-               <path d="M12 8V16M8 12H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
-             </svg>
-           </div>
-         </el-tooltip>
+        <!-- Add Node -->
+        <el-tooltip content="添加节点" placement="right" effect="light">
+          <div class="tool-item add-node" @click="showPalette = !showPalette">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                fill="#64748b"
+              />
+              <path
+                d="M12 8V16M8 12H16"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+        </el-tooltip>
 
-         <!-- Add Note -->
-         <el-tooltip content="添加注释" placement="right" effect="light">
-           <div class="tool-item" @click="onAddNote">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-               <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-             </svg>
-           </div>
-         </el-tooltip>
+        <!-- Add Note -->
+        <el-tooltip content="添加注释" placement="right" effect="light">
+          <div class="tool-item" @click="onAddNote">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748b"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line
+                x1="12"
+                y1="18"
+                x2="12"
+                y2="12"
+              /><line
+                x1="9"
+                y1="15"
+                x2="15"
+                y2="15"
+              />
+            </svg>
+          </div>
+        </el-tooltip>
 
-         <el-divider />
+        <el-divider />
 
-         <!-- Pointer Mode -->
-         <el-tooltip content="指针模式 (V)" placement="right" effect="light">
-           <div class="tool-item pointer-btn" :class="{ active: interactionMode === 'pointer' }" @click="interactionMode = 'pointer'">
-             <svg width="20" height="20" viewBox="0 0 24 24" :fill="interactionMode === 'pointer' ? '#155eef' : 'none'" :stroke="interactionMode === 'pointer' ? '#155eef' : '#64748b'" stroke-width="2">
-               <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
-               <path d="m13 13 6 6"/>
-             </svg>
-           </div>
-         </el-tooltip>
+        <!-- Pointer Mode -->
+        <el-tooltip content="指针模式 (V)" placement="right" effect="light">
+          <div class="tool-item pointer-btn" :class="{ active: interactionMode === 'pointer' }" @click="interactionMode = 'pointer'">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              :fill="interactionMode === 'pointer' ? '#155eef' : 'none'"
+              :stroke="interactionMode === 'pointer' ? '#155eef' : '#64748b'"
+              stroke-width="2"
+            >
+              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+              <path d="m13 13 6 6" />
+            </svg>
+          </div>
+        </el-tooltip>
 
-         <!-- Hand Mode -->
-         <el-tooltip content="手模式 (H)" placement="right" effect="light">
-           <div class="tool-item" :class="{ active: interactionMode === 'hand' }" @click="interactionMode = 'hand'">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-               <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-1.2-5-4.5L4.5 12a2 2 0 1 1 2.8-2.8L10 12"/>
-             </svg>
-           </div>
-         </el-tooltip>
+        <!-- Hand Mode -->
+        <el-tooltip content="手模式 (H)" placement="right" effect="light">
+          <div class="tool-item" :class="{ active: interactionMode === 'hand' }" @click="interactionMode = 'hand'">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748b"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" /><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" /><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-1.2-5-4.5L4.5 12a2 2 0 1 1 2.8-2.8L10 12" />
+            </svg>
+          </div>
+        </el-tooltip>
 
-         <el-divider />
+        <el-divider />
 
-         <!-- Organize Nodes -->
-         <el-tooltip content="整理节点" placement="right" effect="light">
-           <div class="tool-item">
-             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 17.5h7M17.5 14v7"/>
-             </svg>
-           </div>
-         </el-tooltip>
+        <!-- Organize Nodes -->
+        <el-tooltip content="整理节点" placement="right" effect="light">
+          <div class="tool-item">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748b"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect
+                x="3"
+                y="3"
+                width="7"
+                height="7"
+              /><rect
+                x="14"
+                y="3"
+                width="7"
+                height="7"
+              /><rect
+                x="3"
+                y="14"
+                width="7"
+                height="7"
+              /><path d="M14 17.5h7M17.5 14v7" />
+            </svg>
+          </div>
+        </el-tooltip>
 
-         <!-- Maximize / Fit View -->
-         <el-tooltip content="最大化画布" placement="right" effect="light">
-           <div class="tool-item" @click="onFitView">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-              </svg>
-           </div>
-         </el-tooltip>
+        <!-- Maximize / Fit View -->
+        <el-tooltip content="最大化画布" placement="right" effect="light">
+          <div class="tool-item" @click="onFitView">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748b"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+          </div>
+        </el-tooltip>
 
-         <!-- More Actions -->
-         <el-tooltip content="更多操作" placement="right" effect="light">
-           <div class="tool-item">
-             <el-icon><MoreFilled /></el-icon>
-           </div>
-         </el-tooltip>
+        <!-- More Actions -->
+        <el-tooltip content="更多操作" placement="right" effect="light">
+          <div class="tool-item">
+            <el-icon><MoreFilled /></el-icon>
+          </div>
+        </el-tooltip>
       </div>
 
       <!-- Node Palette (Collapsible) -->
       <transition name="slide-fade">
-        <div class="node-palette" v-if="showPalette">
+        <div v-if="showPalette" class="node-palette">
           <div class="palette-header">
             <h3>节点库</h3>
-            <el-icon class="close-btn" @click="showPalette = false"><Close /></el-icon>
+            <el-icon class="close-btn" @click="showPalette = false">
+              <Close />
+            </el-icon>
           </div>
           <div class="palette-content">
-            <div class="palette-group" v-for="(group, gIdx) in nodeGroups" :key="gIdx">
-              <div class="group-title">{{ group.title }}</div>
+            <div v-for="(group, gIdx) in nodeGroups" :key="gIdx" class="palette-group">
+              <div class="group-title">
+                {{ group.title }}
+              </div>
               <div class="group-items">
                 <div 
                   v-for="node in group.items" 
@@ -174,7 +292,12 @@
       </transition>
 
       <!-- Center: Canvas Area -->
-      <div class="canvas-area" :class="interactionMode" @drop="onDrop" @dragover.prevent>
+      <div
+        class="canvas-area"
+        :class="interactionMode"
+        @drop="onDrop"
+        @dragover.prevent
+      >
         <VueFlow
           v-model="elements"
           :default-zoom="1"
@@ -182,11 +305,11 @@
           :max-zoom="4"
           :pan-on-drag="interactionMode === 'hand'"
           :selection-key="interactionMode === 'pointer' ? null : 'Shift'"
+          tabindex="0"
           @node-click="onNodeClick"
           @pane-click="onPaneClick"
           @connect="onConnect"
           @keydown="onKeyDown"
-          tabindex="0"
         >
           <!-- 自定义边模板 - 带数据流动效果 -->
           <template #edge-default="{ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected }">
@@ -218,11 +341,15 @@
           <template #node-start="{ data }">
             <div class="dify-node start" :class="{ selected: selectedNode?.id === data.id }">
               <div class="node-header">
-                <el-icon class="header-icon"><VideoPlay /></el-icon>
+                <el-icon class="header-icon">
+                  <VideoPlay />
+                </el-icon>
                 <span class="title">开始</span>
               </div>
               <div class="node-body">
-                <div class="body-text">输入变量与触发条件</div>
+                <div class="body-text">
+                  输入变量与触发条件
+                </div>
               </div>
               <Handle type="source" position="right" />
             </div>
@@ -231,11 +358,15 @@
           <template #node-end="{ data }">
             <div class="dify-node end">
               <div class="node-header">
-                <el-icon class="header-icon"><CircleCheck /></el-icon>
+                <el-icon class="header-icon">
+                  <CircleCheck />
+                </el-icon>
                 <span class="title">结束</span>
               </div>
               <div class="node-body">
-                <div class="body-text">输出结果</div>
+                <div class="body-text">
+                  输出结果
+                </div>
               </div>
               <Handle type="target" position="left" />
             </div>
@@ -244,21 +375,29 @@
           <template #node-llm="{ data }">
             <div class="dify-node llm">
               <div class="node-header">
-                <el-icon class="header-icon"><Cpu /></el-icon>
+                <el-icon class="header-icon">
+                  <Cpu />
+                </el-icon>
                 <span class="title">{{ data.label || 'LLM' }}</span>
-                <el-icon class="more-icon"><MoreFilled /></el-icon>
+                <el-icon class="more-icon">
+                  <MoreFilled />
+                </el-icon>
               </div>
               <div class="node-body">
                 <div class="model-badge">
-                    {{ (typeof data.model === 'object' ? data.model.name : data.model) || '选择模型' }}
+                  {{ (typeof data.model === 'object' ? data.model.name : data.model) || '选择模型' }}
                 </div>
-                <div class="body-text">{{ getSystemPrompt(data).slice(0, 40) + (getSystemPrompt(data).length > 40 ? '...' : '') || '配置 Prompt 指令...' }}</div>
+                <div class="body-text">
+                  {{ getSystemPrompt(data).slice(0, 40) + (getSystemPrompt(data).length > 40 ? '...' : '') || '配置 Prompt 指令...' }}
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
               <!-- Status Progress -->
-              <div class="run-status" v-if="data.status === 'running'">
-                <el-icon class="is-loading"><Loading /></el-icon>
+              <div v-if="data.status === 'running'" class="run-status">
+                <el-icon class="is-loading">
+                  <Loading />
+                </el-icon>
               </div>
             </div>
           </template>
@@ -266,11 +405,15 @@
           <template #node-agent="{ data }">
             <div class="dify-node agent">
               <div class="node-header">
-                <el-icon class="header-icon"><User /></el-icon>
+                <el-icon class="header-icon">
+                  <User />
+                </el-icon>
                 <span class="title">{{ data.label || '智能体' }}</span>
               </div>
               <div class="node-body">
-                <div class="agent-ref">关联: {{ data.agentName || '选择智能体' }}</div>
+                <div class="agent-ref">
+                  关联: {{ data.agentName || '选择智能体' }}
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -280,42 +423,66 @@
           <template #node-if_else="{ data }">
             <div class="dify-node logic">
               <div class="node-header">
-                <el-icon class="header-icon"><Share /></el-icon>
+                <el-icon class="header-icon">
+                  <Share />
+                </el-icon>
                 <span class="title">条件分支</span>
               </div>
               <div class="node-body">
                 <div class="condition-list">
-                  <div class="cond-item">IF 包含 "查询" <el-icon><Right /></el-icon></div>
-                  <div class="cond-item">ELSE <el-icon><Right /></el-icon></div>
+                  <div class="cond-item">
+                    IF 包含 "查询" <el-icon><Right /></el-icon>
+                  </div>
+                  <div class="cond-item">
+                    ELSE <el-icon><Right /></el-icon>
+                  </div>
                 </div>
               </div>
               <Handle type="target" position="left" />
-              <Handle type="source" position="right" id="if" style="top: 40%" />
-              <Handle type="source" position="right" id="else" style="top: 70%" />
+              <Handle
+                id="if"
+                type="source"
+                position="right"
+                style="top: 40%"
+              />
+              <Handle
+                id="else"
+                type="source"
+                position="right"
+                style="top: 70%"
+              />
             </div>
           </template>
 
           <template #node-answer="{ data }">
             <div class="dify-node answer" :class="{ selected: selectedNode?.id === data.id }">
-                <div class="node-header">
-                    <el-icon class="header-icon"><ChatDotSquare /></el-icon>
-                    <span class="title">直接回复</span>
+              <div class="node-header">
+                <el-icon class="header-icon">
+                  <ChatDotSquare />
+                </el-icon>
+                <span class="title">直接回复</span>
+              </div>
+              <div class="node-body">
+                <div class="body-text">
+                  向用户输出最终答案
                 </div>
-                <div class="node-body">
-                    <div class="body-text">向用户输出最终答案</div>
-                </div>
-                <Handle type="target" position="left" />
+              </div>
+              <Handle type="target" position="left" />
             </div>
           </template>
 
           <template #node-knowledge_retrieval="{ data }">
             <div class="dify-node knowledge" :class="{ selected: selectedNode?.id === data.id }">
               <div class="node-header">
-                <el-icon class="header-icon"><Collection /></el-icon>
+                <el-icon class="header-icon">
+                  <Collection />
+                </el-icon>
                 <span class="title">知识检索</span>
               </div>
               <div class="node-body">
-                <div class="body-text">从现有知识库召回相关内容</div>
+                <div class="body-text">
+                  从现有知识库召回相关内容
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -325,11 +492,15 @@
           <template #node-question_classifier="{ data }">
             <div class="dify-node classifier" :class="{ selected: selectedNode?.id === data.id }">
               <div class="node-header">
-                <el-icon class="header-icon"><Connection /></el-icon>
+                <el-icon class="header-icon">
+                  <Connection />
+                </el-icon>
                 <span class="title">问题分类器</span>
               </div>
               <div class="node-body">
-                <div class="body-text">对输入问题进行意图分类</div>
+                <div class="body-text">
+                  对输入问题进行意图分类
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -339,11 +510,15 @@
           <template #node-question_understanding="{ data }">
             <div class="dify-node understanding" :class="{ selected: selectedNode?.id === data.id }">
               <div class="node-header">
-                <el-icon class="header-icon"><Sunny /></el-icon>
+                <el-icon class="header-icon">
+                  <Sunny />
+                </el-icon>
                 <span class="title">问题理解</span>
               </div>
               <div class="node-body">
-                <div class="body-text">解析查询参数并提取实体</div>
+                <div class="body-text">
+                  解析查询参数并提取实体
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -353,13 +528,13 @@
           <!-- Custom Note Node -->
           <template #node-note="{ data }">
             <div class="dify-node note" :style="{ backgroundColor: data.theme === 'yellow' ? '#fef08a' : '#bfdbfe' }">
-               <div class="note-header" v-if="data.showAuthor">
-                 <span class="author">Dify</span>
-                 <span class="date">{{ new Date().toLocaleDateString() }}</span>
-               </div>
-               <div class="note-content">
-                 {{ getNoteText(data.text).slice(0, 100) + (getNoteText(data.text).length > 100 ? '...' : '') }}
-               </div>
+              <div v-if="data.showAuthor" class="note-header">
+                <span class="author">Dify</span>
+                <span class="date">{{ new Date().toLocaleDateString() }}</span>
+              </div>
+              <div class="note-content">
+                {{ getNoteText(data.text).slice(0, 100) + (getNoteText(data.text).length > 100 ? '...' : '') }}
+              </div>
             </div>
           </template>
 
@@ -367,15 +542,21 @@
           <template #node-code="{ data }">
             <div class="dify-node code" :class="{ selected: selectedNode?.id === data.id }">
               <div class="node-header">
-                <el-icon class="header-icon"><Monitor /></el-icon>
+                <el-icon class="header-icon">
+                  <Monitor />
+                </el-icon>
                 <span class="title">{{ data.label || '代码执行' }}</span>
-                <el-tag size="small" type="info" class="lang-tag">{{ data.code_language || 'python3' }}</el-tag>
+                <el-tag size="small" type="info" class="lang-tag">
+                  {{ data.code_language || 'python3' }}
+                </el-tag>
               </div>
               <div class="node-body">
-                <div class="code-preview" v-if="data.code">
+                <div v-if="data.code" class="code-preview">
                   {{ data.code.split('\n')[0] }}...
                 </div>
-                <div class="body-text" v-else>输入变量 -> 代码逻辑 -> 输出变量</div>
+                <div v-else class="body-text">
+                  输入变量 -> 代码逻辑 -> 输出变量
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -384,31 +565,37 @@
         
           <!-- Variable Assigner Node -->
           <template #node-variable_assigner="{ data }">
-             <div class="dify-node assigner" :class="{ selected: selectedNode?.id === data.id }">
-                <div class="node-header">
-                   <el-icon class="header-icon"><EditPen /></el-icon>
-                   <span class="title">{{ data.label || '变量赋值' }}</span>
+            <div class="dify-node assigner" :class="{ selected: selectedNode?.id === data.id }">
+              <div class="node-header">
+                <el-icon class="header-icon">
+                  <EditPen />
+                </el-icon>
+                <span class="title">{{ data.label || '变量赋值' }}</span>
+              </div>
+              <div class="node-body">
+                <div class="assign-operation">
+                  <span class="op-mode">{{ data.write_mode === 'append' ? '追加到' : '写入' }}</span>
+                  <span class="target-var">{{ data.assigned_variable_selector ? data.assigned_variable_selector.join('.') : 'conversation.var' }}</span>
                 </div>
-                <div class="node-body">
-                   <div class="assign-operation">
-                      <span class="op-mode">{{ data.write_mode === 'append' ? '追加到' : '写入' }}</span>
-                      <span class="target-var">{{ data.assigned_variable_selector ? data.assigned_variable_selector.join('.') : 'conversation.var' }}</span>
-                   </div>
-                </div>
-                <Handle type="target" position="left" />
-                <Handle type="source" position="right" />
-             </div>
+              </div>
+              <Handle type="target" position="left" />
+              <Handle type="source" position="right" />
+            </div>
           </template>
           
           <!-- Transformation Group Nodes (Excluding code/assigner which are custom now) -->
           <template v-for="type in ['template_transform', 'variable_aggregator', 'document_extractor', 'parameter_extractor']" :key="type" #[`node-${type}`]="{ data }">
             <div class="dify-node transform" :class="[type, { selected: selectedNode?.id === data.id }]">
               <div class="node-header">
-                <el-icon class="header-icon"><component :is="getNodeIcon(type)" /></el-icon>
+                <el-icon class="header-icon">
+                  <component :is="getNodeIcon(type)" />
+                </el-icon>
                 <span class="title">{{ getDefaultLabel(type) }}</span>
               </div>
               <div class="node-body">
-                <div class="body-text">执行{{ getDefaultLabel(type) }}逻辑...</div>
+                <div class="body-text">
+                  执行{{ getDefaultLabel(type) }}逻辑...
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -419,11 +606,15 @@
           <template v-for="type in ['http_request', 'list_operator']" :key="type" #[`node-${type}`]="{ data }">
             <div class="dify-node tool" :class="[type, { selected: selectedNode?.id === data.id }]">
               <div class="node-header">
-                <el-icon class="header-icon"><component :is="getNodeIcon(type)" /></el-icon>
+                <el-icon class="header-icon">
+                  <component :is="getNodeIcon(type)" />
+                </el-icon>
                 <span class="title">{{ getDefaultLabel(type) }}</span>
               </div>
               <div class="node-body">
-                <div class="body-text">调用外部{{ getDefaultLabel(type) }}...</div>
+                <div class="body-text">
+                  调用外部{{ getDefaultLabel(type) }}...
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -434,11 +625,15 @@
           <template v-for="type in ['iteration', 'loop']" :key="type" #[`node-${type}`]="{ data }">
             <div class="dify-node logic" :class="[type, { selected: selectedNode?.id === data.id }]">
               <div class="node-header">
-                <el-icon class="header-icon"><component :is="getNodeIcon(type)" /></el-icon>
+                <el-icon class="header-icon">
+                  <component :is="getNodeIcon(type)" />
+                </el-icon>
                 <span class="title">{{ getDefaultLabel(type) }}</span>
               </div>
               <div class="node-body">
-                <div class="body-text">对列表进行{{ getDefaultLabel(type) }}处理...</div>
+                <div class="body-text">
+                  对列表进行{{ getDefaultLabel(type) }}处理...
+                </div>
               </div>
               <Handle type="target" position="left" />
               <Handle type="source" position="right" />
@@ -448,15 +643,19 @@
           <!-- Standard Fallback for other node types -->
           <template #node-generic="{ type, data }">
             <div class="dify-node generic" :class="type">
-               <div class="node-header">
-                  <el-icon class="header-icon"><Grid /></el-icon>
-                  <span class="title">{{ data.label || type }}</span>
-               </div>
-               <div class="node-body">
-                  <div class="body-text">配置节点参数...</div>
-               </div>
-               <Handle type="target" position="left" />
-               <Handle type="source" position="right" />
+              <div class="node-header">
+                <el-icon class="header-icon">
+                  <Grid />
+                </el-icon>
+                <span class="title">{{ data.label || type }}</span>
+              </div>
+              <div class="node-body">
+                <div class="body-text">
+                  配置节点参数...
+                </div>
+              </div>
+              <Handle type="target" position="left" />
+              <Handle type="source" position="right" />
             </div>
           </template>
         </VueFlow>
@@ -464,7 +663,7 @@
 
       <!-- Right Sidebar: Properties Panel (Dify Style) -->
       <transition name="slide-left">
-        <div class="properties-panel" v-if="selectedNode">
+        <div v-if="selectedNode" class="properties-panel">
           <div class="panel-header">
             <div class="title-with-icon">
               <el-icon :style="{ color: getNodeColor(selectedNode.type) }">
@@ -474,15 +673,19 @@
             </div>
             <div class="panel-header-actions">
               <el-tooltip content="删除节点" placement="top">
-                <el-icon class="delete-node-btn" @click="deleteNode"><Delete /></el-icon>
+                <el-icon class="delete-node-btn" @click="deleteNode">
+                  <Delete />
+                </el-icon>
               </el-tooltip>
-              <el-icon class="close-btn" @click="selectedNode = null"><Close /></el-icon>
+              <el-icon class="close-btn" @click="selectedNode = null">
+                <Close />
+              </el-icon>
             </div>
           </div>
           
           <div class="panel-content">
             <el-form label-position="top">
-              <el-form-item label="名称" v-if="selectedNode.type !== 'note'">
+              <el-form-item v-if="selectedNode.type !== 'note'" label="名称">
                 <el-input v-model="selectedNode.data.label" placeholder="设置节点名称" @change="updateNode" />
               </el-form-item>
 
@@ -493,62 +696,96 @@
                 <el-form-item label="模型设置">
                   <el-select v-model="selectedNode.data.model" style="width: 100%">
                     <el-option 
-                        v-for="m in availableModels" 
-                        :key="m.value" 
-                        :label="m.label" 
-                        :value="m.value" 
+                      v-for="m in availableModels" 
+                      :key="m.value" 
+                      :label="m.label" 
+                      :value="m.value" 
                     />
                   </el-select>
                 </el-form-item>
 
                 <el-form-item label="上下文 (CONTEXT)">
-                   <div class="context-selector">
-                      <div class="context-list">
-                         <div v-for="(ctx, idx) in (selectedNode.data.context?.variable_selector || [])" :key="idx" class="context-tag">
-                            <span class="ctx-name">{{ ctx }}</span>
-                            <el-icon class="remove-ctx" @click="removeContextVar(idx)"><Close /></el-icon>
-                         </div>
+                  <div class="context-selector">
+                    <div class="context-list">
+                      <div v-for="(ctx, idx) in (selectedNode.data.context?.variable_selector || [])" :key="idx" class="context-tag">
+                        <span class="ctx-name">{{ ctx }}</span>
+                        <el-icon class="remove-ctx" @click="removeContextVar(idx)">
+                          <Close />
+                        </el-icon>
                       </div>
+                    </div>
 
-                      <el-dropdown trigger="click" @command="addContextVar" style="width: 100%">
-                        <div class="add-context-input">
-                           <el-icon><Plus /></el-icon> 添加上下文变量...
-                        </div>
-                        <template #dropdown>
-                          <el-dropdown-menu class="var-dropdown-menu">
-                             <div class="dropdown-group-title">开始</div>
-                             <el-dropdown-item command="query"><span class="var-option">{x} query</span></el-dropdown-item>
-                             <el-dropdown-item command="files"><span class="var-option">{x} files</span></el-dropdown-item>
+                    <el-dropdown trigger="click" style="width: 100%" @command="addContextVar">
+                      <div class="add-context-input">
+                        <el-icon><Plus /></el-icon> 添加上下文变量...
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu class="var-dropdown-menu">
+                          <div class="dropdown-group-title">
+                            开始
+                          </div>
+                          <el-dropdown-item command="query">
+                            <span class="var-option">{x} query</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item command="files">
+                            <span class="var-option">{x} files</span>
+                          </el-dropdown-item>
                              
-                             <div class="dropdown-group-title">会话 (CONVERSATION)</div>
-                             <el-dropdown-item command="memory"><span class="var-option"><el-icon><ChatDotSquare /></el-icon> memory</span></el-dropdown-item>
+                          <div class="dropdown-group-title">
+                            会话 (CONVERSATION)
+                          </div>
+                          <el-dropdown-item command="memory">
+                            <span class="var-option"><el-icon><ChatDotSquare /></el-icon> memory</span>
+                          </el-dropdown-item>
                              
-                             <div class="dropdown-group-title">系统 (SYSTEM)</div>
-                             <el-dropdown-item command="sys.dialogue_count"><span class="var-option">sys.dialogue_count</span></el-dropdown-item>
-                             <el-dropdown-item command="sys.conversation_id"><span class="var-option">sys.conversation_id</span></el-dropdown-item>
-                             <el-dropdown-item command="sys.user_id"><span class="var-option">sys.user_id</span></el-dropdown-item>
-                          </el-dropdown-menu>
-                        </template>
-                      </el-dropdown>
-                   </div>
+                          <div class="dropdown-group-title">
+                            系统 (SYSTEM)
+                          </div>
+                          <el-dropdown-item command="sys.dialogue_count">
+                            <span class="var-option">sys.dialogue_count</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item command="sys.conversation_id">
+                            <span class="var-option">sys.conversation_id</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item command="sys.user_id">
+                            <span class="var-option">sys.user_id</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
                 </el-form-item>
 
                 <el-form-item label="系统提示词 (SYSTEM PROMPT)">
                   <el-input 
                     type="textarea" 
                     :model-value="getSystemPrompt(selectedNode.data)"
+                    :rows="6"
+                    placeholder="请输入模型指令..." 
                     @input="updateSystemPrompt"
-                    :rows="6" 
-                    placeholder="请输入模型指令..."
                   />
                   <!-- Variable inserter helper for Prompt -->
                   <div class="prompt-var-helper" style="margin-top: 8px; display: flex; gap: 8px;">
-                     <el-tooltip content="插入变量" placement="top">
-                        <el-tag size="small" type="info" class="cursor-pointer" @click="insertVarToPrompt('{x} query')">{x} query</el-tag>
-                     </el-tooltip>
-                     <el-tooltip content="插入变量" placement="top">
-                        <el-tag size="small" type="info" class="cursor-pointer" @click="insertVarToPrompt('{{#memory#}}')">memory</el-tag>
-                     </el-tooltip>
+                    <el-tooltip content="插入变量" placement="top">
+                      <el-tag
+                        size="small"
+                        type="info"
+                        class="cursor-pointer"
+                        @click="insertVarToPrompt('{x} query')"
+                      >
+                        {x} query
+                      </el-tag>
+                    </el-tooltip>
+                    <el-tooltip content="插入变量" placement="top">
+                      <el-tag
+                        size="small"
+                        type="info"
+                        class="cursor-pointer"
+                        @click="insertVarToPrompt('{{#memory#}}')"
+                      >
+                        memory
+                      </el-tag>
+                    </el-tooltip>
                   </div>
                 </el-form-item>
               </template>
@@ -570,71 +807,98 @@
               <!-- Specific Code Form -->
               <template v-if="selectedNode.type === 'code'">
                 <el-form-item label="代码语言">
-                   <el-select v-model="selectedNode.data.code_language" style="width: 100%">
-                     <el-option label="Python 3" value="python3" />
-                     <el-option label="JavaScript" value="javascript" />
-                   </el-select>
+                  <el-select v-model="selectedNode.data.code_language" style="width: 100%">
+                    <el-option label="Python 3" value="python3" />
+                    <el-option label="JavaScript" value="javascript" />
+                  </el-select>
                 </el-form-item>
                 <el-form-item label="代码逻辑">
-                   <el-input 
-                     type="textarea" 
-                     v-model="selectedNode.data.code" 
-                     :rows="10" 
-                     placeholder="def main(arg1): ..." 
-                     style="font-family: monospace;"
-                   />
+                  <el-input 
+                    v-model="selectedNode.data.code" 
+                    type="textarea" 
+                    :rows="10" 
+                    placeholder="def main(arg1): ..." 
+                    style="font-family: monospace;"
+                  />
                 </el-form-item>
               </template>
 
               <!-- Specific Assigner Form -->
               <template v-if="selectedNode.type === 'variable_assigner'">
-                 <el-form-item label="写入模式">
-                   <el-radio-group v-model="selectedNode.data.write_mode" size="small">
-                     <el-radio-button label="overwrite">覆盖</el-radio-button>
-                     <el-radio-button label="append">追加</el-radio-button>
-                   </el-radio-group>
-                 </el-form-item>
-                 <el-form-item label="目标变量">
-                    <el-input v-model="selectedNode.data.target_variable" placeholder="例如: conversation.memory" />
-                 </el-form-item>
+                <el-form-item label="写入模式">
+                  <el-radio-group v-model="selectedNode.data.write_mode" size="small">
+                    <el-radio-button label="overwrite">
+                      覆盖
+                    </el-radio-button>
+                    <el-radio-button label="append">
+                      追加
+                    </el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="目标变量">
+                  <el-input v-model="selectedNode.data.target_variable" placeholder="例如: conversation.memory" />
+                </el-form-item>
               </template>
 
               <!-- Specific Note Form -->
               <template v-if="selectedNode.type === 'note'">
-                 <el-form-item label="注释内容">
-                   <el-input type="textarea" v-model="selectedNode.data.text" :rows="6" />
-                 </el-form-item>
-                 <el-form-item label="主题颜色">
-                    <el-radio-group v-model="selectedNode.data.theme" size="small">
-                       <el-radio-button label="blue">蓝</el-radio-button>
-                       <el-radio-button label="yellow">黄</el-radio-button>
-                    </el-radio-group>
-                 </el-form-item>
+                <el-form-item label="注释内容">
+                  <el-input v-model="selectedNode.data.text" type="textarea" :rows="6" />
+                </el-form-item>
+                <el-form-item label="主题颜色">
+                  <el-radio-group v-model="selectedNode.data.theme" size="small">
+                    <el-radio-button label="blue">
+                      蓝
+                    </el-radio-button>
+                    <el-radio-button label="yellow">
+                      黄
+                    </el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
               </template>
 
               <!-- Generic Input Settings -->
-              <el-form-item label="输入变量" v-if="['start', 'llm', 'code', 'if_else', 'agent'].includes(selectedNode.type)">
+              <el-form-item v-if="['start', 'llm', 'code', 'if_else', 'agent'].includes(selectedNode.type)" label="输入变量">
                 <div class="variable-list">
                   <div class="var-item">
-                     <span class="var-name">{{ `{` + `{` }} sys.query {{ `}` + `}` }}</span>
-                     <span class="var-type">String</span>
+                    <span class="var-name">{{ `{` + `{` }} sys.query {{ `}` + `}` }}</span>
+                    <span class="var-type">String</span>
                   </div>
-                  <el-button link type="primary" :icon="Plus" size="small">添加变量</el-button>
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="Plus"
+                    size="small"
+                  >
+                    添加变量
+                  </el-button>
                 </div>
               </el-form-item>
             </el-form>
           </div>
 
           <div class="panel-footer">
-            <el-button link type="danger" :icon="Delete" @click="deleteNode">删除此节点</el-button>
+            <el-button
+              link
+              type="danger"
+              :icon="Delete"
+              @click="deleteNode"
+            >
+              删除此节点
+            </el-button>
           </div>
         </div>
       </transition>
     </div>
 
     <!-- Mini Map Toggle Button -->
-    <div class="mini-map-container" v-show="activeTab === 'orchestrate'" @click="toggleMiniMap" :class="{ active: showMiniMap }">
-        <el-icon><MapLocation /></el-icon>
+    <div
+      v-show="activeTab === 'orchestrate'"
+      class="mini-map-container"
+      :class="{ active: showMiniMap }"
+      @click="toggleMiniMap"
+    >
+      <el-icon><MapLocation /></el-icon>
     </div>
     
 
@@ -652,7 +916,9 @@
         <!-- Main Chat/Result Area -->
         <div class="chat-messages-area">
           <div v-if="executionLoading" class="loading-state">
-            <el-icon class="is-loading"><Loading /></el-icon> 正在思考中...
+            <el-icon class="is-loading">
+              <Loading />
+            </el-icon> 正在思考中...
           </div>
           
           <div v-else-if="executionResult" class="result-display">
@@ -662,59 +928,78 @@
                 {{ finalOutputText || '执行完成 (无主要文本输出)' }}
               </div>
               <el-collapse class="parsed-raw-collapse" style="margin-bottom: 20px;">
-                 <el-collapse-item title="原始输出 (Raw Data)" name="raw_outputs">
-                    <JsonViewer :data="finalOutputs" :expand-all="true" :dark="isDark" />
-                 </el-collapse-item>
+                <el-collapse-item title="原始输出 (Raw Data)" name="raw_outputs">
+                  <JsonViewer :data="finalOutputs" :expand-all="true" :dark="isDark" />
+                </el-collapse-item>
               </el-collapse>
             </div>
 
             <el-collapse v-if="executionResult" class="trace-collapse">
-               <el-collapse-item title="运行详情 (Trace)" name="trace">
-                 <!-- Trace Timeline -->
-                 <div class="trace-list" v-if="executionResult.trace">
-                    <div v-for="item in executionResult.trace" :key="item.node_id" class="trace-item" :class="item.status">
-                      <div class="trace-item-header">
-                         <div class="node-info">
-                            <span class="node-id-badge">{{ item.node_id }}</span>
-                            <span class="node-type-label">{{ getNodeLabelById(item.node_id) }}</span>
-                         </div>
-                         <div class="node-status-badge">
-                            <el-icon v-if="item.status === 'completed'"><CircleCheck /></el-icon>
-                            <el-icon v-else-if="item.status === 'failed'"><CircleClose /></el-icon>
-                            <el-icon v-else-if="item.status === 'skipped'"><Remove /></el-icon>
-                            {{ formatStatus(item.status) }}
-                         </div>
+              <el-collapse-item title="运行详情 (Trace)" name="trace">
+                <!-- Trace Timeline -->
+                <div v-if="executionResult.trace" class="trace-list">
+                  <div
+                    v-for="item in executionResult.trace"
+                    :key="item.node_id"
+                    class="trace-item"
+                    :class="item.status"
+                  >
+                    <div class="trace-item-header">
+                      <div class="node-info">
+                        <span class="node-id-badge">{{ item.node_id }}</span>
+                        <span class="node-type-label">{{ getNodeLabelById(item.node_id) }}</span>
                       </div>
-                      
-                      <div class="trace-item-content" v-if="item.outputs || item.error">
-                         <div v-if="getNodeTypeById(item.node_id) === 'code'" class="code-execution-section">
-                            <div class="sub-section-title">执行代码</div>
-                            <pre class="code-preview">{{ getCodePayload(item.node_id) }}</pre>
-                         </div>
-                         <div v-if="item.outputs" class="outputs-section">
-                            <div class="sub-section-title">节点输出</div>
-                            <JsonViewer :data="item.outputs" :dark="isDark" />
-                         </div>
-                         <div v-if="item.error" class="error-msg">{{ item.error }}</div>
-                      </div>
-                      
-                      <div class="trace-item-footer">
-                         <span class="duration">{{ (item.duration || 0).toFixed(3) }}s</span>
-                         <span class="usage" v-if="item.outputs?.tokens_used">
-                            {{ item.outputs.tokens_used }} tokens
-                         </span>
+                      <div class="node-status-badge">
+                        <el-icon v-if="item.status === 'completed'">
+                          <CircleCheck />
+                        </el-icon>
+                        <el-icon v-else-if="item.status === 'failed'">
+                          <CircleClose />
+                        </el-icon>
+                        <el-icon v-else-if="item.status === 'skipped'">
+                          <Remove />
+                        </el-icon>
+                        {{ formatStatus(item.status) }}
                       </div>
                     </div>
-                 </div>
-                 <div class="raw-response-section" style="margin-top: 10px;">
-                   <JsonViewer :data="lastExecutionDsl" title="Workflow DSL" :dark="isDark" />
-                 </div>
-               </el-collapse-item>
+                      
+                    <div v-if="item.outputs || item.error" class="trace-item-content">
+                      <div v-if="getNodeTypeById(item.node_id) === 'code'" class="code-execution-section">
+                        <div class="sub-section-title">
+                          执行代码
+                        </div>
+                        <pre class="code-preview">{{ getCodePayload(item.node_id) }}</pre>
+                      </div>
+                      <div v-if="item.outputs" class="outputs-section">
+                        <div class="sub-section-title">
+                          节点输出
+                        </div>
+                        <JsonViewer :data="item.outputs" :dark="isDark" />
+                      </div>
+                      <div v-if="item.error" class="error-msg">
+                        {{ item.error }}
+                      </div>
+                    </div>
+                      
+                    <div class="trace-item-footer">
+                      <span class="duration">{{ (item.duration || 0).toFixed(3) }}s</span>
+                      <span v-if="item.outputs?.tokens_used" class="usage">
+                        {{ item.outputs.tokens_used }} tokens
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div class="raw-response-section" style="margin-top: 10px;">
+                  <JsonViewer :data="lastExecutionDsl" title="Workflow DSL" :dark="isDark" />
+                </div>
+              </el-collapse-item>
             </el-collapse>
           </div>
 
           <div v-else class="empty-chat-state">
-            <el-icon size="48" color="#dcdfe6"><ChatDotSquare /></el-icon>
+            <el-icon size="48" color="#dcdfe6">
+              <ChatDotSquare />
+            </el-icon>
             <p>在下面的查询框中输入内容开始调试工作流</p>
           </div>
         </div>
@@ -722,33 +1007,33 @@
         <!-- Chat Input Area (查询框) -->
         <div class="chat-input-area">
           <!-- Extra Inputs if there are other variables besides query -->
-          <div class="extra-inputs" v-if="previewInputs.length > 1">
-             <el-form label-position="left" inline size="small">
-                <el-form-item v-for="input in previewInputs.filter(i => i.name !== 'query')" :key="input.name" :label="input.label || input.name">
-                   <el-input v-model="input.value" :placeholder="`输入 ${input.name}`" />
-                </el-form-item>
-             </el-form>
+          <div v-if="previewInputs.length > 1" class="extra-inputs">
+            <el-form label-position="left" inline size="small">
+              <el-form-item v-for="input in previewInputs.filter(i => i.name !== 'query')" :key="input.name" :label="input.label || input.name">
+                <el-input v-model="input.value" :placeholder="`输入 ${input.name}`" />
+              </el-form-item>
+            </el-form>
           </div>
           
           <div class="query-box-wrapper">
-             <el-input 
-                v-model="(previewInputs.find(i => i.name === 'query') || {value: ''}).value" 
-                type="textarea"
-                :rows="2"
-                resize="none"
-                placeholder="查询框 (Type your query here...)" 
-                class="query-input"
-                @keydown.enter.prevent="runWorkflow"
-                :disabled="executionLoading"
-             />
-             <el-button 
-                type="primary" 
-                :icon="Promotion" 
-                class="send-btn" 
-                circle 
-                :loading="executionLoading" 
-                @click="runWorkflow"
-             ></el-button>
+            <el-input 
+              v-model="(previewInputs.find(i => i.name === 'query') || {value: ''}).value" 
+              type="textarea"
+              :rows="2"
+              resize="none"
+              placeholder="查询框 (Type your query here...)" 
+              class="query-input"
+              :disabled="executionLoading"
+              @keydown.enter.prevent="runWorkflow"
+            />
+            <el-button 
+              type="primary" 
+              :icon="Promotion" 
+              class="send-btn" 
+              circle 
+              :loading="executionLoading" 
+              @click="runWorkflow"
+            />
           </div>
         </div>
       </div>
@@ -759,21 +1044,22 @@
       <el-form label-position="top">
         <el-form-item label="描述您想要的工作流需求">
           <el-input 
-            type="textarea" 
             v-model="aiPrompt" 
+            type="textarea" 
             :rows="4" 
             placeholder="例如：创建一个翻译流程，接收中文输入，使用 LLM 翻译成英文，然后直接回复。"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showAIDialog = false">取消</el-button>
+        <el-button @click="showAIDialog = false">
+          取消
+        </el-button>
         <el-button type="primary" :loading="aiGenerating" @click="onGenerateAIWorkflow">
           开始生成
         </el-button>
       </template>
     </el-dialog>
-
   </div>
 </template>
 

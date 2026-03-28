@@ -6,35 +6,47 @@
       icon="Picture"
     >
       <template #actions>
-        <el-button type="primary" :icon="Upload" @click="uploadDialog = true">上传素材</el-button>
-        <el-button :icon="Refresh" @click="loadFiles">刷新</el-button>
+        <el-button type="primary" :icon="Upload" @click="uploadDialog = true">
+          上传素材
+        </el-button>
+        <el-button :icon="Refresh" @click="loadFiles">
+          刷新
+        </el-button>
       </template>
-            <template #filters>
-                <div class="media-filter-row">
-                    <el-radio-group v-model="filterType" @change="loadFiles" size="small">
-                        <el-radio-button value="">全部</el-radio-button>
-                        <el-radio-button value="IMAGE">图像</el-radio-button>
-                        <el-radio-button value="VIDEO">视频</el-radio-button>
-                        <el-radio-button value="AUDIO">音频</el-radio-button>
-                    </el-radio-group>
+      <template #filters>
+        <div class="media-filter-row">
+          <el-radio-group v-model="filterType" size="small" @change="loadFiles">
+            <el-radio-button value="">
+              全部
+            </el-radio-button>
+            <el-radio-button value="IMAGE">
+              图像
+            </el-radio-button>
+            <el-radio-button value="VIDEO">
+              视频
+            </el-radio-button>
+            <el-radio-button value="AUDIO">
+              音频
+            </el-radio-button>
+          </el-radio-group>
 
-                    <el-input 
-                        v-model="searchKeyword" 
-                        placeholder="搜索素材名或AI摘要..." 
-                        :prefix-icon="Search"
-                        clearable
-                        class="media-search"
-                        @input="filterFiles"
-                    />
-                </div>
-            </template>
+          <el-input 
+            v-model="searchKeyword" 
+            placeholder="搜索素材名或AI摘要..." 
+            :prefix-icon="Search"
+            clearable
+            class="media-search"
+            @input="filterFiles"
+          />
+        </div>
+      </template>
     </PageHeader>
 
     <div class="hub-layout">
       <!-- Main Content: File Grid -->
-      <div class="hub-main" v-loading="loading">
+      <div v-loading="loading" class="hub-main">
         <!-- Grid -->
-        <div class="file-grid" v-if="displayFiles.length > 0">
+        <div v-if="displayFiles.length > 0" class="file-grid">
           <div 
             v-for="file in displayFiles" 
             :key="file.id" 
@@ -45,7 +57,7 @@
             <!-- Card Image/Preview -->
             <div class="media-preview">
               <div v-if="file.embeddingStatus === 'PROCESSING'" class="processing-overlay">
-                <div class="amber-loader"></div>
+                <div class="amber-loader" />
                 <span>AI 解析中...</span>
               </div>
               
@@ -53,10 +65,14 @@
                 v-if="file.fileType === 'IMAGE'" 
                 :src="file.thumbnailUrl || getMockThumbnail(file)" 
                 loading="lazy" 
-              />
+              >
               <div v-else class="generic-icon">
-                <el-icon v-if="file.fileType === 'AUDIO'" :size="48"><Headset /></el-icon>
-                <el-icon v-if="file.fileType === 'VIDEO'" :size="48"><VideoCamera /></el-icon>
+                <el-icon v-if="file.fileType === 'AUDIO'" :size="48">
+                  <Headset />
+                </el-icon>
+                <el-icon v-if="file.fileType === 'VIDEO'" :size="48">
+                  <VideoCamera />
+                </el-icon>
               </div>
             </div>
 
@@ -67,55 +83,68 @@
                 
                 <!-- Enhanced Status Badge with Hover Steps -->
                 <el-tooltip 
-                    v-if="file.embeddingStatus === 'PROCESSING'"
-                    placement="top" 
-                    effect="light"
-                    popper-class="status-steps-popper"
+                  v-if="file.embeddingStatus === 'PROCESSING'"
+                  placement="top" 
+                  effect="light"
+                  popper-class="status-steps-popper"
                 >
-                    <template #content>
-                        <div class="status-steps">
-                            <div class="step active"><el-icon><Connection /></el-icon> 连接云端解析中...</div>
-                            <div class="step pending"><el-icon><Cpu /></el-icon> VLM 语义生成...</div>
-                            <div class="step pending"><el-icon><Coin /></el-icon> 向量索引构建...</div>
-                        </div>
-                    </template>
-                    <el-tag size="small" type="warning" class="status-tag">
-                        <span class="processing-text">Processing</span>
-                    </el-tag>
+                  <template #content>
+                    <div class="status-steps">
+                      <div class="step active">
+                        <el-icon><Connection /></el-icon> 连接云端解析中...
+                      </div>
+                      <div class="step pending">
+                        <el-icon><Cpu /></el-icon> VLM 语义生成...
+                      </div>
+                      <div class="step pending">
+                        <el-icon><Coin /></el-icon> 向量索引构建...
+                      </div>
+                    </div>
+                  </template>
+                  <el-tag size="small" type="warning" class="status-tag">
+                    <span class="processing-text">Processing</span>
+                  </el-tag>
                 </el-tooltip>
-                <el-tag v-else size="small" :type="getStatusType(file.embeddingStatus)" effect="plain">
+                <el-tag
+                  v-else
+                  size="small"
+                  :type="getStatusType(file.embeddingStatus)"
+                  effect="plain"
+                >
                   {{ file.embeddingStatus === 'SUCCESS' ? 'Ready' : file.embeddingStatus }}
                 </el-tag>
               </div>
 
               <!-- Inline Editable Summary -->
               <div class="summary-container" @click.stop>
+                <div 
+                  v-if="editingId === file.id" 
+                  class="summary-edit-inline"
+                >
+                  <el-input 
+                    ref="inlineInputRef" 
+                    v-model="tempSummary" 
+                    type="textarea" 
+                    :rows="2"
+                    size="small"
+                    @blur="saveInlineSummary(file)"
+                    @keyup.enter.stop="saveInlineSummary(file)"
+                  />
+                </div>
+                <div 
+                  v-else 
+                  class="summary-preview truncate-2" 
+                  :class="{ 'editable': file.embeddingStatus !== 'PROCESSING' }"
+                  title="点击修改 AI 摘要"
+                  @click="enableInlineEdit(file)"
+                >
                   <div 
-                    v-if="editingId === file.id" 
-                    class="summary-edit-inline"
-                  >
-                      <el-input 
-                        v-model="tempSummary" 
-                        type="textarea" 
-                        :rows="2" 
-                        size="small"
-                        ref="inlineInputRef"
-                        @blur="saveInlineSummary(file)"
-                        @keyup.enter.stop="saveInlineSummary(file)"
-                      />
-                  </div>
-                  <div 
-                    v-else 
-                    class="summary-preview truncate-2" 
-                    :class="{ 'editable': file.embeddingStatus !== 'PROCESSING' }"
-                    @click="enableInlineEdit(file)"
-                    title="点击修改 AI 摘要"
-                  >
-                    <div 
-                      v-html="renderMarkdown(file.aiSummary || '等待 AI 生成摘要...')"
-                    ></div>
-                    <el-icon v-if="file.embeddingStatus !== 'PROCESSING'" class="edit-icon"><EditPen /></el-icon>
-                  </div>
+                    v-html="renderMarkdown(file.aiSummary || '等待 AI 生成摘要...')"
+                  />
+                  <el-icon v-if="file.embeddingStatus !== 'PROCESSING'" class="edit-icon">
+                    <EditPen />
+                  </el-icon>
+                </div>
               </div>
             </div>
           </div>
@@ -128,82 +157,116 @@
         <div v-if="selectedFile" class="hub-sidebar">
           <div class="sidebar-header">
             <h3>素材详情</h3>
-            <el-button circle :icon="Close" size="small" @click="selectedFile = null" />
+            <el-button
+              circle
+              :icon="Close"
+              size="small"
+              @click="selectedFile = null"
+            />
           </div>
           
           <div class="sidebar-content">
             <!-- Asset Preview (Large) -->
             <div class="asset-large-preview">
-                <img v-if="selectedFile.fileType === 'IMAGE'" :src="selectedFile.url || getMockThumbnail(selectedFile)" />
-                <!-- Placeholder for video/audio player -->
-                <div v-else class="media-placeholder">
-                   {{ selectedFile.fileType }} PREVIEW
-                </div>
+              <img v-if="selectedFile.fileType === 'IMAGE'" :src="selectedFile.url || getMockThumbnail(selectedFile)">
+              <!-- Placeholder for video/audio player -->
+              <div v-else class="media-placeholder">
+                {{ selectedFile.fileType }} PREVIEW
+              </div>
             </div>
 
-            <el-divider content-position="left">AI 语义摘要</el-divider>
+            <el-divider content-position="left">
+              AI 语义摘要
+            </el-divider>
             
             <div class="ai-summary-section">
-                <!-- Read Mode -->
-                <div v-if="!isEditingSummary" class="summary-read">
-                    <div class="summary-markdown" v-html="renderMarkdown(selectedFile.aiSummary)"></div>
-                    <div class="actions">
-                        <el-button link type="primary" :icon="Edit" @click="startEditSummary">人工校准</el-button>
-                        <el-button link :icon="RefreshRight" @click="reanalyze">重新生成</el-button>
-                    </div>
+              <!-- Read Mode -->
+              <div v-if="!isEditingSummary" class="summary-read">
+                <div class="summary-markdown" v-html="renderMarkdown(selectedFile.aiSummary)" />
+                <div class="actions">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="Edit"
+                    @click="startEditSummary"
+                  >
+                    人工校准
+                  </el-button>
+                  <el-button link :icon="RefreshRight" @click="reanalyze">
+                    重新生成
+                  </el-button>
                 </div>
-                <!-- Edit Mode -->
-                <div v-else class="summary-edit">
-                    <el-input 
-                        v-model="editingSummaryText" 
-                        type="textarea" 
-                        :rows="6" 
-                        placeholder="输入更准确的描述..." 
-                    />
-                    <div class="edit-actions">
-                        <el-button size="small" @click="cancelEditSummary">取消</el-button>
-                        <el-button size="small" type="primary" @click="saveSummary">保存并更新向量</el-button>
-                    </div>
+              </div>
+              <!-- Edit Mode -->
+              <div v-else class="summary-edit">
+                <el-input 
+                  v-model="editingSummaryText" 
+                  type="textarea" 
+                  :rows="6" 
+                  placeholder="输入更准确的描述..." 
+                />
+                <div class="edit-actions">
+                  <el-button size="small" @click="cancelEditSummary">
+                    取消
+                  </el-button>
+                  <el-button size="small" type="primary" @click="saveSummary">
+                    保存并更新向量
+                  </el-button>
                 </div>
+              </div>
             </div>
 
-            <el-divider content-position="left">依赖追踪 (Dependency)</el-divider>
+            <el-divider content-position="left">
+              依赖追踪 (Dependency)
+            </el-divider>
             
             <div class="dependency-list">
-                <div v-if="selectedFile.dependencies && selectedFile.dependencies.length">
-                    <div v-for="dep in selectedFile.dependencies" :key="dep.id" class="dep-item">
-                        <el-icon><Connection /></el-icon>
-                        <div class="dep-info">
-                            <div class="dep-name">{{ dep.name }}</div>
-                            <div class="dep-type">{{ dep.type }}</div>
-                        </div>
-                        <el-tag size="small">引用中</el-tag>
+              <div v-if="selectedFile.dependencies && selectedFile.dependencies.length">
+                <div v-for="dep in selectedFile.dependencies" :key="dep.id" class="dep-item">
+                  <el-icon><Connection /></el-icon>
+                  <div class="dep-info">
+                    <div class="dep-name">
+                      {{ dep.name }}
                     </div>
+                    <div class="dep-type">
+                      {{ dep.type }}
+                    </div>
+                  </div>
+                  <el-tag size="small">
+                    引用中
+                  </el-tag>
                 </div>
-                <div v-else class="empty-dep">
-                    暂无 Agent 或知识库引用此素材
-                </div>
+              </div>
+              <div v-else class="empty-dep">
+                暂无 Agent 或知识库引用此素材
+              </div>
             </div>
 
             <div class="metadata-grid">
-               <div class="meta-item">
-                  <label>大小</label>
-                  <span>{{ formatSize(selectedFile.fileSize) }}</span>
-               </div>
-               <div class="meta-item">
-                  <label>上传者</label>
-                  <span>{{ selectedFile.uploadedBy || 'Admin' }}</span>
-               </div>
-               <div class="meta-item">
-                  <label>时间</label>
-                  <span>{{ formatDate(selectedFile.uploadedAt) }}</span>
-               </div>
+              <div class="meta-item">
+                <label>大小</label>
+                <span>{{ formatSize(selectedFile.fileSize) }}</span>
+              </div>
+              <div class="meta-item">
+                <label>上传者</label>
+                <span>{{ selectedFile.uploadedBy || 'Admin' }}</span>
+              </div>
+              <div class="meta-item">
+                <label>时间</label>
+                <span>{{ formatDate(selectedFile.uploadedAt) }}</span>
+              </div>
             </div>
-
           </div>
           
           <div class="sidebar-footer">
-             <el-button type="danger" plain style="width: 100%" @click="deleteSelected">删除素材</el-button>
+            <el-button
+              type="danger"
+              plain
+              style="width: 100%"
+              @click="deleteSelected"
+            >
+              删除素材
+            </el-button>
           </div>
         </div>
       </transition>
@@ -219,7 +282,9 @@
         :http-request="customUpload"
         multiple
       >
-        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <el-icon class="el-icon--upload">
+          <upload-filled />
+        </el-icon>
         <div class="el-upload__text">
           拖拽文件到这里或 <em>点击上传</em>
         </div>
@@ -393,7 +458,7 @@ const reanalyze = () => {
 };
 
 const customUpload = async (option) => {
-    let formData = new FormData();
+    const formData = new FormData();
     formData.append('file', option.file);
     formData.append('uploadedBy', 'Admin'); // Should get from user store
 

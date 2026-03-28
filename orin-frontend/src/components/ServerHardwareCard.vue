@@ -3,7 +3,9 @@
     <template #header>
       <div class="card-header">
         <div class="header-left">
-          <el-icon class="header-icon"><Cpu /></el-icon>
+          <el-icon class="header-icon">
+            <Cpu />
+          </el-icon>
           <span class="module-title">服务器硬件监控</span>
         </div>
         <div class="header-right">
@@ -53,35 +55,49 @@
     <el-skeleton :loading="loading" animated :rows="3">
       <div v-if="!serverInfo.online && !loading" class="offline-placeholder">
         <el-empty description="Prometheus 未配置或无法连接">
-           <p v-if="serverInfo.error" class="error-text">{{ serverInfo.error }}</p>
-           <el-button type="primary" @click="openConfig">去配置</el-button>
+          <p v-if="serverInfo.error" class="error-text">
+            {{ serverInfo.error }}
+          </p>
+          <el-button type="primary" @click="openConfig">
+            去配置
+          </el-button>
         </el-empty>
       </div>
       <div v-else class="hardware-grid">
         <!-- CPU Usage -->
         <div class="hardware-item">
           <div class="item-header">
-            <el-icon class="item-icon" color="var(--orin-primary)"><Cpu /></el-icon>
+            <el-icon class="item-icon" color="var(--orin-primary)">
+              <Cpu />
+            </el-icon>
             <span class="item-label">CPU 使用率</span>
           </div>
-          <div class="item-value">{{ serverInfo.cpuUsage }}%</div>
+          <div class="item-value">
+            {{ serverInfo.cpuUsage }}%
+          </div>
           <el-progress 
             :percentage="serverInfo.cpuUsage" 
             :stroke-width="8"
             :status="getProgressStatus(serverInfo.cpuUsage)"
             :show-text="false"
           />
-          <div class="item-detail">{{ serverInfo.cpuCores }} 核心 @ {{ serverInfo.cpuModel || 'N/A' }}</div>
+          <div class="item-detail">
+            {{ serverInfo.cpuCores }} 核心 @ {{ serverInfo.cpuModel || 'N/A' }}
+          </div>
         </div>
 
         <!-- GPU Usage (Optional) -->
         <!-- GPU Usage -->
         <div class="hardware-item">
           <div class="item-header">
-            <el-icon class="item-icon" color="#7B1FA2"><VideoPlay /></el-icon>
+            <el-icon class="item-icon" color="#7B1FA2">
+              <VideoPlay />
+            </el-icon>
             <span class="item-label">GPU 使用率</span>
           </div>
-          <div class="item-value">{{ serverInfo.gpuUsage }}%</div>
+          <div class="item-value">
+            {{ serverInfo.gpuUsage }}%
+          </div>
           <el-progress
             :percentage="serverInfo.gpuUsage"
             :stroke-width="8"
@@ -90,46 +106,62 @@
           />
           <div class="item-detail">
             <div>{{ (serverInfo.gpuModel && serverInfo.gpuModel !== 'N/A' && serverInfo.gpuModel !== 'Unknown') ? serverInfo.gpuModel : '无 GPU 数据' }}</div>
-            <div v-if="serverInfo.gpuMemory && serverInfo.gpuMemory !== 'N/A'">{{ serverInfo.gpuMemory }}</div>
+            <div v-if="serverInfo.gpuMemory && serverInfo.gpuMemory !== 'N/A'">
+              {{ serverInfo.gpuMemory }}
+            </div>
           </div>
         </div>
 
         <!-- Memory Usage -->
         <div class="hardware-item">
           <div class="item-header">
-            <el-icon class="item-icon" color="#67C23A"><Memo /></el-icon>
+            <el-icon class="item-icon" color="#67C23A">
+              <Memo />
+            </el-icon>
             <span class="item-label">内存使用</span>
           </div>
-          <div class="item-value">{{ serverInfo.memoryUsage }}%</div>
+          <div class="item-value">
+            {{ serverInfo.memoryUsage }}%
+          </div>
           <el-progress 
             :percentage="serverInfo.memoryUsage" 
             :stroke-width="8"
             :status="getProgressStatus(serverInfo.memoryUsage)"
             :show-text="false"
           />
-          <div class="item-detail">{{ serverInfo.memoryUsed || '0' }} / {{ serverInfo.memoryTotal || '0' }}</div>
+          <div class="item-detail">
+            {{ serverInfo.memoryUsed || '0' }} / {{ serverInfo.memoryTotal || '0' }}
+          </div>
         </div>
 
         <!-- Disk Usage -->
         <div class="hardware-item">
           <div class="item-header">
-            <el-icon class="item-icon" color="#E6A23C"><FolderOpened /></el-icon>
+            <el-icon class="item-icon" color="#E6A23C">
+              <FolderOpened />
+            </el-icon>
             <span class="item-label">磁盘占用</span>
           </div>
-          <div class="item-value">{{ serverInfo.diskUsage }}%</div>
+          <div class="item-value">
+            {{ serverInfo.diskUsage }}%
+          </div>
           <el-progress 
             :percentage="serverInfo.diskUsage" 
             :stroke-width="8"
             :status="getProgressStatus(serverInfo.diskUsage)"
             :show-text="false"
           />
-          <div class="item-detail">{{ serverInfo.diskUsed || '0' }} / {{ serverInfo.diskTotal || '0' }}</div>
+          <div class="item-detail">
+            {{ serverInfo.diskUsed || '0' }} / {{ serverInfo.diskTotal || '0' }}
+          </div>
         </div>
 
         <!-- Network Traffic -->
         <div class="hardware-item">
           <div class="item-header">
-            <el-icon class="item-icon" color="#909399"><Connection /></el-icon>
+            <el-icon class="item-icon" color="#909399">
+              <Connection />
+            </el-icon>
             <span class="item-label">网络流量</span>
           </div>
           <div class="item-value-small">
@@ -142,7 +174,9 @@
               <span>{{ serverInfo.networkDownload || '0 KB/s' }}</span>
             </div>
           </div>
-          <div class="item-detail">实时速率</div>
+          <div class="item-detail">
+            实时速率
+          </div>
         </div>
 
         <!-- System Info -->
@@ -162,7 +196,6 @@
         </div>
       </div>
     </el-skeleton>
-
   </el-card>
 </template>
 

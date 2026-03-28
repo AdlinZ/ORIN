@@ -5,7 +5,7 @@
       <div class="logo-box">
         <BrandingLogo :height="appStore.isCollapse ? 28 : 32" class="logo" />
       </div>
-      <span class="title" v-if="!appStore.isCollapse"><span class="highlight">Monitor</span></span>
+      <span v-if="!appStore.isCollapse" class="title"><span class="highlight">Monitor</span></span>
     </div>
 
     <!-- Menu Section (scrollable) -->
@@ -20,7 +20,9 @@
         <!-- 首页 -->
         <el-menu-item index="/dashboard/home">
           <el-icon><House /></el-icon>
-          <template #title>首页</template>
+          <template #title>
+            首页
+          </template>
         </el-menu-item>
 
         <!-- 动态渲染四大模块 -->
@@ -53,7 +55,15 @@
                     <component :is="getIconComponent(subChild.icon)" />
                   </el-icon>
                   <span>{{ subChild.title }}</span>
-                  <el-tag v-if="subChild.status === 'placeholder'" size="small" type="info" effect="plain" class="menu-status-tag">占位</el-tag>
+                  <el-tag
+                    v-if="subChild.status === 'placeholder'"
+                    size="small"
+                    type="info"
+                    effect="plain"
+                    class="menu-status-tag"
+                  >
+                    占位
+                  </el-tag>
                 </el-menu-item>
               </el-sub-menu>
               <!-- 无三级菜单的二级菜单 -->
@@ -62,7 +72,15 @@
                   <component :is="getIconComponent(child.icon)" />
                 </el-icon>
                 <span>{{ child.title }}</span>
-                <el-tag v-if="child.status === 'placeholder'" size="small" type="info" effect="plain" class="menu-status-tag">占位</el-tag>
+                <el-tag
+                  v-if="child.status === 'placeholder'"
+                  size="small"
+                  type="info"
+                  effect="plain"
+                  class="menu-status-tag"
+                >
+                  占位
+                </el-tag>
               </el-menu-item>
             </template>
           </el-sub-menu>
@@ -72,31 +90,36 @@
 
     <!-- User Section (fixed at bottom) -->
     <div class="user-section">
-      <el-dropdown trigger="click" @command="handleCommand" placement="top-start">
+      <el-dropdown trigger="click" placement="top-start" @command="handleCommand">
         <div class="user-wrapper">
           <el-avatar
             :size="appStore.isCollapse ? 36 : 40"
             :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'"
             class="user-avatar"
           />
-          <div class="user-info" v-if="!appStore.isCollapse">
+          <div v-if="!appStore.isCollapse" class="user-info">
             <span class="user-name">{{ userInfo.name || '游客' }}</span>
-            <span class="user-role" v-if="userInfo.role">{{ userInfo.role }}</span>
+            <span v-if="userInfo.role" class="user-role">{{ userInfo.role }}</span>
           </div>
         </div>
         <template #dropdown>
           <el-dropdown-menu class="user-dropdown">
-            <el-dropdown-item command="profile" v-if="userInfo.name">
+            <el-dropdown-item v-if="userInfo.name" command="profile">
               <el-icon><User /></el-icon>个人中心
             </el-dropdown-item>
             <el-dropdown-item divided command="toggle_menu_mode">
               <el-icon><Expand /></el-icon>
               <span>切换到顶栏模式</span>
             </el-dropdown-item>
-            <el-dropdown-item command="login" v-if="!userInfo.name">
+            <el-dropdown-item v-if="!userInfo.name" command="login">
               <el-icon><User /></el-icon>登录
             </el-dropdown-item>
-            <el-dropdown-item divided command="logout" class="logout-item" v-if="userInfo.name">
+            <el-dropdown-item
+              v-if="userInfo.name"
+              divided
+              command="logout"
+              class="logout-item"
+            >
               <el-icon><SwitchButton /></el-icon>退出登录
             </el-dropdown-item>
           </el-dropdown-menu>
@@ -104,15 +127,30 @@
       </el-dropdown>
 
       <!-- Bottom Actions -->
-      <div class="bottom-actions" v-if="!appStore.isCollapse">
+      <div v-if="!appStore.isCollapse" class="bottom-actions">
         <el-tooltip content="刷新页面" placement="right">
-          <el-button text :icon="Refresh" @click="handleRefresh" class="action-btn" />
+          <el-button
+            text
+            :icon="Refresh"
+            class="action-btn"
+            @click="handleRefresh"
+          />
         </el-tooltip>
         <el-tooltip :content="isDarkMode ? '浅色模式' : '深色模式'" placement="right">
-          <el-button text :icon="isDarkMode ? Sunny : Moon" @click="toggleTheme" class="action-btn" />
+          <el-button
+            text
+            :icon="isDarkMode ? Sunny : Moon"
+            class="action-btn"
+            @click="toggleTheme"
+          />
         </el-tooltip>
         <el-tooltip content="通知中心" placement="right">
-          <el-button text :icon="Bell" @click="showNotifications" class="action-btn" />
+          <el-button
+            text
+            :icon="Bell"
+            class="action-btn"
+            @click="showNotifications"
+          />
         </el-tooltip>
       </div>
     </div>

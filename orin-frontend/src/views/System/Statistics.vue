@@ -38,8 +38,12 @@
               <el-icon><User /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-label">活跃用户</div>
-              <div class="stat-value">{{ overview.totalActiveUsers || 0 }}</div>
+              <div class="stat-label">
+                活跃用户
+              </div>
+              <div class="stat-value">
+                {{ overview.totalActiveUsers || 0 }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -51,8 +55,12 @@
               <el-icon><ChatLineRound /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-label">API 调用</div>
-              <div class="stat-value">{{ overview.totalApiCalls || 0 }}</div>
+              <div class="stat-label">
+                API 调用
+              </div>
+              <div class="stat-value">
+                {{ overview.totalApiCalls || 0 }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -64,8 +72,12 @@
               <el-icon><Coin /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-label">Token 消耗</div>
-              <div class="stat-value">{{ formatNumber(overview.totalTokens) }}</div>
+              <div class="stat-label">
+                Token 消耗
+              </div>
+              <div class="stat-value">
+                {{ formatNumber(overview.totalTokens) }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -77,8 +89,12 @@
               <el-icon><Grid /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-label">任务执行</div>
-              <div class="stat-value">{{ overview.totalTasks || 0 }}</div>
+              <div class="stat-label">
+                任务执行
+              </div>
+              <div class="stat-value">
+                {{ overview.totalTasks || 0 }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -93,7 +109,7 @@
             <span>每日 API 调用趋势</span>
           </template>
           <div v-loading="loading">
-            <div ref="apiChartRef" style="height: 300px"></div>
+            <div ref="apiChartRef" style="height: 300px" />
           </div>
         </el-card>
       </el-col>
@@ -103,7 +119,7 @@
             <span>Token 消耗趋势</span>
           </template>
           <div v-loading="loading">
-            <div ref="tokenChartRef" style="height: 300px"></div>
+            <div ref="tokenChartRef" style="height: 300px" />
           </div>
         </el-card>
       </el-col>
@@ -116,7 +132,7 @@
           <template #header>
             <span>任务状态分布</span>
           </template>
-          <el-table :data="taskStats" v-loading="loading">
+          <el-table v-loading="loading" :data="taskStats">
             <el-table-column prop="status" label="状态">
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.status)">
@@ -138,7 +154,7 @@
           <template #header>
             <span>Top 10 智能体调用</span>
           </template>
-          <el-table :data="agentStats" v-loading="loading">
+          <el-table v-loading="loading" :data="agentStats">
             <el-table-column prop="agent" label="智能体" />
             <el-table-column prop="count" label="调用次数" />
           </el-table>

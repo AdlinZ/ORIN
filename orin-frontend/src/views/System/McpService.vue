@@ -38,14 +38,19 @@
             </el-button>
           </div>
 
-          <el-table :data="mcpServices" v-loading="loading" stripe>
+          <el-table v-loading="loading" :data="mcpServices" stripe>
             <el-table-column prop="name" label="服务名称" min-width="150" />
             <el-table-column prop="type" label="类型" width="100">
               <template #default="{ row }">
                 <el-tag>{{ getTypeText(row.type) }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="command" label="命令/URL" min-width="200" show-overflow-tooltip>
+            <el-table-column
+              prop="command"
+              label="命令/URL"
+              min-width="200"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 {{ row.type === 'STDIO' ? row.command : row.url }}
               </template>
@@ -71,13 +76,29 @@
             </el-table-column>
             <el-table-column label="操作" width="200" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="testConnection(row)" :loading="testingId === row.id">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  :loading="testingId === row.id"
+                  @click="testConnection(row)"
+                >
                   测试
                 </el-button>
-                <el-button type="primary" link size="small" @click="editService(row)">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="editService(row)"
+                >
                   编辑
                 </el-button>
-                <el-button type="danger" link size="small" @click="deleteService(row)">
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  @click="deleteService(row)"
+                >
                   删除
                 </el-button>
               </template>
@@ -85,16 +106,16 @@
           </el-table>
 
           <!-- 分页 -->
-          <div class="pagination-wrapper" v-if="totalServices > 0">
+          <div v-if="totalServices > 0" class="pagination-wrapper">
             <el-pagination
               v-model:current-page="currentPage"
               v-model:page-size="pageSize"
               :page-sizes="[10, 20, 50]"
               :total="totalServices"
               layout="total, ->, sizes, prev, pager, next"
+              small
               @size-change="handleSizeChange"
               @current-change="handlePageChange"
-              small
             />
           </div>
         </el-card>
@@ -106,7 +127,7 @@
           <template #header>
             <div class="card-header">
               <span>MCP 工具市场</span>
-              <el-button @click="refreshTools" :loading="toolsLoading">
+              <el-button :loading="toolsLoading" @click="refreshTools">
                 <el-icon><Refresh /></el-icon>
                 刷新
               </el-button>
@@ -117,7 +138,12 @@
             <el-empty v-if="availableTools.length === 0" description="暂无可用工具" />
 
             <div v-else class="tools-grid">
-              <el-card v-for="tool in availableTools" :key="tool.id" class="tool-card" shadow="hover">
+              <el-card
+                v-for="tool in availableTools"
+                :key="tool.id"
+                class="tool-card"
+                shadow="hover"
+              >
                 <template #header>
                   <div class="tool-header">
                     <span class="tool-name">{{ tool.name }}</span>
@@ -126,9 +152,13 @@
                     </el-tag>
                   </div>
                 </template>
-                <p class="tool-desc">{{ tool.description || '暂无描述' }}</p>
+                <p class="tool-desc">
+                  {{ tool.description || '暂无描述' }}
+                </p>
                 <div class="tool-actions">
-                  <el-button size="small" @click="viewToolDetail(tool)">详情</el-button>
+                  <el-button size="small" @click="viewToolDetail(tool)">
+                    详情
+                  </el-button>
                 </div>
               </el-card>
             </div>
@@ -151,28 +181,50 @@
         </el-form-item>
         <el-form-item label="服务类型" prop="type">
           <el-radio-group v-model="serviceForm.type">
-            <el-radio value="STDIO">Stdio</el-radio>
-            <el-radio value="SSE">SSE</el-radio>
+            <el-radio value="STDIO">
+              Stdio
+            </el-radio>
+            <el-radio value="SSE">
+              SSE
+            </el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="命令" prop="command" v-if="serviceForm.type === 'STDIO'">
+        <el-form-item v-if="serviceForm.type === 'STDIO'" label="命令" prop="command">
           <el-input v-model="serviceForm.command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" />
-          <div class="form-tip">Stdio 类型需要提供启动命令</div>
+          <div class="form-tip">
+            Stdio 类型需要提供启动命令
+          </div>
         </el-form-item>
-        <el-form-item label="URL" prop="url" v-if="serviceForm.type === 'SSE'">
+        <el-form-item v-if="serviceForm.type === 'SSE'" label="URL" prop="url">
           <el-input v-model="serviceForm.url" placeholder="http://localhost:3000/sse" />
         </el-form-item>
         <el-form-item label="环境变量" prop="envVars">
-          <el-input v-model="serviceForm.envVars" type="textarea" :rows="3" placeholder="KEY=VALUE, 每行一个" />
-          <div class="form-tip">每行一个环境变量，格式: KEY=VALUE</div>
+          <el-input
+            v-model="serviceForm.envVars"
+            type="textarea"
+            :rows="3"
+            placeholder="KEY=VALUE, 每行一个"
+          />
+          <div class="form-tip">
+            每行一个环境变量，格式: KEY=VALUE
+          </div>
         </el-form-item>
         <el-form-item label="描述" prop="description">
-          <el-input v-model="serviceForm.description" type="textarea" :rows="2" placeholder="服务描述" />
+          <el-input
+            v-model="serviceForm.description"
+            type="textarea"
+            :rows="2"
+            placeholder="服务描述"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveService" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="saving" @click="saveService">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

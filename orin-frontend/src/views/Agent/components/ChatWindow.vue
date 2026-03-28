@@ -11,12 +11,19 @@
       <div class="header-right">
         <el-popover placement="bottom-end" width="350" trigger="click">
           <template #reference>
-            <el-button link class="logs-btn"><el-icon><Tickets /></el-icon><span style="margin-left: 4px; font-size: 12px;">运行时日志</span></el-button>
+            <el-button link class="logs-btn">
+              <el-icon><Tickets /></el-icon><span style="margin-left: 4px; font-size: 12px;">运行时日志</span>
+            </el-button>
           </template>
           <div class="log-stream-popover">
             <div class="popover-header">
               <span class="title">运行时日志</span>
-              <el-button link size="small" :icon="Refresh" @click="$emit('refresh-logs')" />
+              <el-button
+                link
+                size="small"
+                :icon="Refresh"
+                @click="$emit('refresh-logs')"
+              />
             </div>
             <div class="log-content">
               <template v-for="(log, index) in logs" :key="index">
@@ -29,39 +36,65 @@
                   <span class="log-msg"><span class="prefix res">RES:</span> {{ log.response }}</span>
                 </div>
               </template>
-              <div v-if="(!logs || logs.length === 0)" class="empty-logs">暂无运行日志</div>
+              <div v-if="(!logs || logs.length === 0)" class="empty-logs">
+                暂无运行日志
+              </div>
             </div>
           </div>
         </el-popover>
 
-        <el-button link class="more-btn"><el-icon><MoreFilled /></el-icon></el-button>
-        <el-button link type="danger" class="clear-btn" @click="clearHistory">清空对话</el-button>
+        <el-button link class="more-btn">
+          <el-icon><MoreFilled /></el-icon>
+        </el-button>
+        <el-button
+          link
+          type="danger"
+          class="clear-btn"
+          @click="clearHistory"
+        >
+          清空对话
+        </el-button>
       </div>
     </div>
 
     <!-- Message List Section -->
-    <div class="messages-container" ref="messagesContainer">
+    <div ref="messagesContainer" class="messages-container">
       <div v-if="chatMessages.length === 0" class="empty-stage">
         <el-empty :image-size="200" description=" ">
           <template #image>
             <div class="orin-watermark">
-              <img src="/logo.svg" alt="ORIN" class="watermark-logo" />
-              <div class="watermark-text">ORIN Playground</div>
+              <img src="/logo.svg" alt="ORIN" class="watermark-logo">
+              <div class="watermark-text">
+                ORIN Playground
+              </div>
             </div>
           </template>
-          <div class="empty-hint">在下方输入指令，开始与智能体交互</div>
+          <div class="empty-hint">
+            在下方输入指令，开始与智能体交互
+          </div>
         </el-empty>
       </div>
 
-      <div v-else v-for="(msg, i) in chatMessages" :key="i" class="message-card-wrapper">
+      <div
+        v-for="(msg, i) in chatMessages"
+        v-else
+        :key="i"
+        class="message-card-wrapper"
+      >
         <div :class="['message-card', msg.role]">
           <div class="card-header">
             <div class="header-info">
-              <span class="status-dot"></span>
+              <span class="status-dot" />
               <span class="role-text">{{ getRoleLabel(msg.role) }}</span>
             </div>
             <div class="header-actions">
-              <el-button link :icon="Delete" size="small" class="delete-msg-btn" @click="removeMessage(i)" />
+              <el-button
+                link
+                :icon="Delete"
+                size="small"
+                class="delete-msg-btn"
+                @click="removeMessage(i)"
+              />
             </div>
           </div>
           
@@ -69,11 +102,15 @@
             <!-- Thinking Animation/Content -->
             <div v-if="msg.thinking && parameters.enableThinking" class="thinking-module">
               <div class="thinking-toggle" @click="msg.showThinking = !msg.showThinking">
-                <el-icon :class="{ 'is-active': msg.showThinking }"><ArrowRight /></el-icon>
+                <el-icon :class="{ 'is-active': msg.showThinking }">
+                  <ArrowRight />
+                </el-icon>
                 <span>思考过程</span>
               </div>
               <el-collapse-transition>
-                <div v-show="msg.showThinking" class="thinking-inner">{{ msg.thinking }}</div>
+                <div v-show="msg.showThinking" class="thinking-inner">
+                  {{ msg.thinking }}
+                </div>
               </el-collapse-transition>
             </div>
 
@@ -81,24 +118,41 @@
               <div class="diagnostic-header" :class="msg.content.severity?.toLowerCase()">
                 <el-icon><Cpu /></el-icon>
                 <span>{{ msg.content.title || '系统诊断报告' }}</span>
-                <el-tag :type="getSeverityTag(msg.content.severity)" size="small" effect="dark">{{ msg.content.severity }}</el-tag>
+                <el-tag :type="getSeverityTag(msg.content.severity)" size="small" effect="dark">
+                  {{ msg.content.severity }}
+                </el-tag>
               </div>
               <div class="diagnostic-body">
                 <div class="diag-section">
-                  <div class="diag-label">分析摘要</div>
-                  <div class="diag-value markdown-body" v-html="renderMarkdown(msg.content.summary)"></div>
+                  <div class="diag-label">
+                    分析摘要
+                  </div>
+                  <div class="diag-value markdown-body" v-html="renderMarkdown(msg.content.summary)" />
                 </div>
-                <div class="diag-section" v-if="msg.content.rootCause">
-                  <div class="diag-label">根本原因 (Root Cause)</div>
-                  <div class="diag-value error-text">{{ msg.content.rootCause }}</div>
+                <div v-if="msg.content.rootCause" class="diag-section">
+                  <div class="diag-label">
+                    根本原因 (Root Cause)
+                  </div>
+                  <div class="diag-value error-text">
+                    {{ msg.content.rootCause }}
+                  </div>
                 </div>
-                <div class="diag-section highlights" v-if="msg.content.recommendations">
-                  <div class="diag-label">修复建议</div>
-                  <div class="diag-value success-text markdown-body" v-html="renderMarkdown(msg.content.recommendations)"></div>
+                <div v-if="msg.content.recommendations" class="diag-section highlights">
+                  <div class="diag-label">
+                    修复建议
+                  </div>
+                  <div class="diag-value success-text markdown-body" v-html="renderMarkdown(msg.content.recommendations)" />
                 </div>
               </div>
               <div class="diagnostic-footer">
-                <el-button type="primary" size="small" plain @click="executeQuickFix(msg.content)">执行自动修复 (Self-Healing)</el-button>
+                <el-button
+                  type="primary"
+                  size="small"
+                  plain
+                  @click="executeQuickFix(msg.content)"
+                >
+                  执行自动修复 (Self-Healing)
+                </el-button>
               </div>
             </div>
 
@@ -113,21 +167,27 @@
                 >
                   <template #error>
                     <div class="image-load-failed">
-                      <el-icon :size="32"><Warning /></el-icon>
+                      <el-icon :size="32">
+                        <Warning />
+                      </el-icon>
                       <span>图像加载失败</span>
                     </div>
                   </template>
                 </el-image>
               </div>
-              <div class="image-actions" v-if="msg.content.image_url || msg.content.url">
+              <div v-if="msg.content.image_url || msg.content.url" class="image-actions">
                 <el-button type="primary" size="small" @click="downloadImage(msg.content.image_url || msg.content.url)">
-                  <el-icon style="margin-right: 4px;"><Download /></el-icon>保存图像
+                  <el-icon style="margin-right: 4px;">
+                    <Download />
+                  </el-icon>保存图像
                 </el-button>
               </div>
             </div>
 
-            <div v-else-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
-            <div v-else class="user-content">{{ msg.content }}</div>
+            <div v-else-if="msg.role === 'assistant'" class="markdown-body" v-html="renderMarkdown(msg.content)" />
+            <div v-else class="user-content">
+              {{ msg.content }}
+            </div>
           </div>
         </div>
       </div>
@@ -137,13 +197,13 @@
         <div class="message-card assistant loading">
           <div class="card-header">
             <div class="header-info">
-              <span class="status-dot pulse"></span>
+              <span class="status-dot pulse" />
               <span class="role-text">Assistant</span>
             </div>
           </div>
           <div class="card-content">
             <div class="typing-loader">
-              <span></span><span></span><span></span>
+              <span /><span /><span />
             </div>
           </div>
         </div>
@@ -159,15 +219,21 @@
           :autosize="{ minRows: 2, maxRows: 10 }"
           placeholder="给智能体发送指令..."
           class="chat-textarea"
-          @keydown.enter="handleKeyEnter"
           resize="none"
+          @keydown.enter="handleKeyEnter"
         />
         <div class="input-footer">
           <div class="footer-left">
-            <el-button link class="tool-btn"><el-icon><Operation /></el-icon></el-button>
-            <el-button link class="tool-btn"><el-icon><Search /></el-icon></el-button>
+            <el-button link class="tool-btn">
+              <el-icon><Operation /></el-icon>
+            </el-button>
+            <el-button link class="tool-btn">
+              <el-icon><Search /></el-icon>
+            </el-button>
             <el-divider direction="vertical" />
-            <el-button link class="tool-btn"><el-icon><Paperclip /></el-icon></el-button>
+            <el-button link class="tool-btn">
+              <el-icon><Paperclip /></el-icon>
+            </el-button>
           </div>
           <div class="footer-right">
             <span class="keyboard-hint">按 <b>Enter</b> 发送，<b>Shift + Enter</b> 换行</span>
@@ -175,9 +241,9 @@
               type="primary" 
               circle
               class="send-circle-btn"
-              @click="sendMessage"
               :loading="chatLoading"
               :icon="Position"
+              @click="sendMessage"
             />
           </div>
         </div>

@@ -6,8 +6,12 @@
       icon="Warning"
     >
       <template #actions>
-        <el-button :icon="Download" @click="handleExport">导出报告</el-button>
-        <el-button :icon="RefreshRight" @click="fetchErrorData">刷新数据</el-button>
+        <el-button :icon="Download" @click="handleExport">
+          导出报告
+        </el-button>
+        <el-button :icon="RefreshRight" @click="fetchErrorData">
+          刷新数据
+        </el-button>
       </template>
       <template #filters>
         <div class="filters-row">
@@ -38,34 +42,58 @@
 
     <div class="stats-grid">
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon total-icon"><el-icon><Warning /></el-icon></div>
+        <div class="stat-icon total-icon">
+          <el-icon><Warning /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">失败调用数</div>
-          <div class="stat-value">{{ formatNumber(successRate.failedCalls) }}</div>
+          <div class="stat-label">
+            失败调用数
+          </div>
+          <div class="stat-value">
+            {{ formatNumber(successRate.failedCalls) }}
+          </div>
         </div>
       </el-card>
 
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon rate-icon"><el-icon><CircleCloseFilled /></el-icon></div>
+        <div class="stat-icon rate-icon">
+          <el-icon><CircleCloseFilled /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">错误率</div>
-          <div class="stat-value">{{ failureRateText }}</div>
+          <div class="stat-label">
+            错误率
+          </div>
+          <div class="stat-value">
+            {{ failureRateText }}
+          </div>
         </div>
       </el-card>
 
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon category-icon"><el-icon><Tickets /></el-icon></div>
+        <div class="stat-icon category-icon">
+          <el-icon><Tickets /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">错误类型数</div>
-          <div class="stat-value">{{ formatNumber(errorDistribution.length) }}</div>
+          <div class="stat-label">
+            错误类型数
+          </div>
+          <div class="stat-value">
+            {{ formatNumber(errorDistribution.length) }}
+          </div>
         </div>
       </el-card>
 
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon provider-icon"><el-icon><DataAnalysis /></el-icon></div>
+        <div class="stat-icon provider-icon">
+          <el-icon><DataAnalysis /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">受影响供应商</div>
-          <div class="stat-value">{{ formatNumber(providerDistribution.length) }}</div>
+          <div class="stat-label">
+            受影响供应商
+          </div>
+          <div class="stat-value">
+            {{ formatNumber(providerDistribution.length) }}
+          </div>
         </div>
       </el-card>
     </div>
@@ -75,14 +103,20 @@
         <template #header>
           <div class="card-header">
             <div>
-              <h3 class="card-title">高频错误 Top 8</h3>
-              <p class="card-subtitle">按错误消息聚合，可快速看出最主要的失败来源</p>
+              <h3 class="card-title">
+                高频错误 Top 8
+              </h3>
+              <p class="card-subtitle">
+                按错误消息聚合，可快速看出最主要的失败来源
+              </p>
             </div>
-            <div class="header-total">{{ formatNumber(totalErrorCount) }} 次失败</div>
+            <div class="header-total">
+              {{ formatNumber(totalErrorCount) }} 次失败
+            </div>
           </div>
         </template>
-        <div class="chart-wrap" v-loading="loading">
-          <div v-if="topErrors.length > 0" ref="barChartRef" class="chart"></div>
+        <div v-loading="loading" class="chart-wrap">
+          <div v-if="topErrors.length > 0" ref="barChartRef" class="chart" />
           <el-empty v-else description="当前时间范围内暂无错误数据" :image-size="72" />
         </div>
       </el-card>
@@ -91,13 +125,17 @@
         <template #header>
           <div class="card-header">
             <div>
-              <h3 class="card-title">供应商错误分布</h3>
-              <p class="card-subtitle">帮助判断问题是否集中在某个模型供应商</p>
+              <h3 class="card-title">
+                供应商错误分布
+              </h3>
+              <p class="card-subtitle">
+                帮助判断问题是否集中在某个模型供应商
+              </p>
             </div>
           </div>
         </template>
-        <div class="chart-wrap" v-loading="loading">
-          <div v-if="providerDistribution.length > 0" ref="pieChartRef" class="chart"></div>
+        <div v-loading="loading" class="chart-wrap">
+          <div v-if="providerDistribution.length > 0" ref="pieChartRef" class="chart" />
           <el-empty v-else description="暂无供应商错误分布" :image-size="72" />
         </div>
       </el-card>
@@ -108,20 +146,50 @@
         <template #header>
           <div class="card-header">
             <div>
-              <h3 class="card-title">错误明细排行</h3>
-              <p class="card-subtitle">当前按供应商 + 错误消息聚合展示</p>
+              <h3 class="card-title">
+                错误明细排行
+              </h3>
+              <p class="card-subtitle">
+                当前按供应商 + 错误消息聚合展示
+              </p>
             </div>
           </div>
         </template>
-        <el-table :data="errorDistribution" border stripe v-loading="loading" style="width: 100%">
-          <el-table-column type="index" label="#" width="60" align="center" />
-          <el-table-column prop="providerId" label="供应商" min-width="120" show-overflow-tooltip>
+        <el-table
+          v-loading="loading"
+          :data="errorDistribution"
+          border
+          stripe
+          style="width: 100%"
+        >
+          <el-table-column
+            type="index"
+            label="#"
+            width="60"
+            align="center"
+          />
+          <el-table-column
+            prop="providerId"
+            label="供应商"
+            min-width="120"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               {{ normalizeProvider(row.providerId) }}
             </template>
           </el-table-column>
-          <el-table-column prop="errorMessage" label="错误消息" min-width="320" show-overflow-tooltip />
-          <el-table-column prop="count" label="次数" min-width="100" align="right">
+          <el-table-column
+            prop="errorMessage"
+            label="错误消息"
+            min-width="320"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="count"
+            label="次数"
+            min-width="100"
+            align="right"
+          >
             <template #default="{ row }">
               {{ formatNumber(row.count) }}
             </template>
@@ -138,36 +206,83 @@
         <template #header>
           <div class="card-header">
             <div>
-              <h3 class="card-title">最近异常会话</h3>
-              <p class="card-subtitle">基于最近会话列表筛出包含错误的会话</p>
+              <h3 class="card-title">
+                最近异常会话
+              </h3>
+              <p class="card-subtitle">
+                基于最近会话列表筛出包含错误的会话
+              </p>
             </div>
-            <el-tag type="danger" effect="light">{{ errorSessions.length }} 个异常会话</el-tag>
+            <el-tag type="danger" effect="light">
+              {{ errorSessions.length }} 个异常会话
+            </el-tag>
           </div>
         </template>
-        <el-table :data="errorSessions" border stripe v-loading="loading" style="width: 100%">
-          <el-table-column prop="name" label="会话" min-width="220" show-overflow-tooltip />
-          <el-table-column prop="provider" label="供应商" min-width="120" show-overflow-tooltip>
+        <el-table
+          v-loading="loading"
+          :data="errorSessions"
+          border
+          stripe
+          style="width: 100%"
+        >
+          <el-table-column
+            prop="name"
+            label="会话"
+            min-width="220"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="provider"
+            label="供应商"
+            min-width="120"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               {{ normalizeProvider(row.provider) }}
             </template>
           </el-table-column>
-          <el-table-column prop="model" label="模型" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="msgs" label="消息数" min-width="90" align="right">
+          <el-table-column
+            prop="model"
+            label="模型"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="msgs"
+            label="消息数"
+            min-width="90"
+            align="right"
+          >
             <template #default="{ row }">
               {{ formatNumber(row.msgs) }}
             </template>
           </el-table-column>
-          <el-table-column prop="errors" label="错误数" min-width="90" align="right">
+          <el-table-column
+            prop="errors"
+            label="错误数"
+            min-width="90"
+            align="right"
+          >
             <template #default="{ row }">
               <span class="error-count">{{ formatNumber(row.errors) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="tokens" label="Token" min-width="120" align="right">
+          <el-table-column
+            prop="tokens"
+            label="Token"
+            min-width="120"
+            align="right"
+          >
             <template #default="{ row }">
               {{ formatNumber(row.tokens) }}
             </template>
           </el-table-column>
-          <el-table-column prop="dur" label="持续时间" min-width="100" align="center" />
+          <el-table-column
+            prop="dur"
+            label="持续时间"
+            min-width="100"
+            align="center"
+          />
         </el-table>
       </el-card>
     </div>

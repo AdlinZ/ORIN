@@ -9,15 +9,20 @@ module.exports = {
         'eslint:recommended',
         'plugin:vue/vue3-recommended'
     ],
+    parser: 'vue-eslint-parser',
     parserOptions: {
         ecmaVersion: 'latest',
-        sourceType: 'module'
+        sourceType: 'module',
+        parser: '@typescript-eslint/parser'
     },
     rules: {
-        // Vue 相关
+        // 允许 TypeScript 类型语法和未使用变量
+        'no-undef': 'off',
+        'no-unused-vars': 'off',
+        'vue/no-unused-vars': 'off',
         'vue/multi-word-component-names': 'off',
-        'vue/no-v-html': 'off',
         'vue/require-default-prop': 'off',
+        'vue/no-v-html': 'off',
         'vue/max-attributes-per-line': ['warn', {
             singleline: 3,
             multiline: 1

@@ -24,14 +24,20 @@
                 </el-icon>
               </div>
               <div class="notification-content">
-                <div class="notification-title">{{ notification.title }}</div>
-                <div class="notification-message">{{ notification.message }}</div>
-                <div class="notification-time">{{ formatTime(notification.time) }}</div>
+                <div class="notification-title">
+                  {{ notification.title }}
+                </div>
+                <div class="notification-message">
+                  {{ notification.message }}
+                </div>
+                <div class="notification-time">
+                  {{ formatTime(notification.time) }}
+                </div>
               </div>
               <div 
                 v-if="!notification.read" 
                 class="unread-dot"
-              ></div>
+              />
             </div>
             
             <el-empty 
@@ -56,11 +62,17 @@
                 </el-icon>
               </div>
               <div class="notification-content">
-                <div class="notification-title">{{ notification.title }}</div>
-                <div class="notification-message">{{ notification.message }}</div>
-                <div class="notification-time">{{ formatTime(notification.time) }}</div>
+                <div class="notification-title">
+                  {{ notification.title }}
+                </div>
+                <div class="notification-message">
+                  {{ notification.message }}
+                </div>
+                <div class="notification-time">
+                  {{ formatTime(notification.time) }}
+                </div>
               </div>
-              <div class="unread-dot"></div>
+              <div class="unread-dot" />
             </div>
             
             <el-empty 
@@ -74,8 +86,12 @@
       
       <!-- 操作按钮 -->
       <div class="notification-actions">
-        <el-button size="small" @click="markAllAsReadHandler">全部标记为已读</el-button>
-        <el-button size="small" @click="clearAll">清空全部</el-button>
+        <el-button size="small" @click="markAllAsReadHandler">
+          全部标记为已读
+        </el-button>
+        <el-button size="small" @click="clearAll">
+          清空全部
+        </el-button>
       </div>
     </div>
   </el-drawer>

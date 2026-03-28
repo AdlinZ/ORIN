@@ -48,7 +48,9 @@
             </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="loadSkills">查询</el-button>
+            <el-button type="primary" @click="loadSkills">
+              查询
+            </el-button>
           </el-form-item>
         </el-form>
       </template>
@@ -56,8 +58,18 @@
 
     <!-- 技能列表 -->
     <el-card class="table-card">
-      <el-table :data="skills" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="ID" width="70" align="center" />
+      <el-table
+        v-loading="loading"
+        :data="skills"
+        stripe
+        border
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="70"
+          align="center"
+        />
         <el-table-column prop="skillName" label="技能名称" min-width="150" />
         <el-table-column prop="skillType" label="类型" width="120">
           <template #default="{ row }">
@@ -66,7 +78,12 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="description"
+          label="描述"
+          min-width="200"
+          show-overflow-tooltip
+        />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)">
@@ -74,7 +91,12 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="version" label="版本" width="90" align="center" />
+        <el-table-column
+          prop="version"
+          label="版本"
+          width="90"
+          align="center"
+        />
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
@@ -87,9 +109,15 @@
                 <el-icon><VideoPlay /></el-icon>
               </el-button>
             </el-tooltip>
-            <el-button size="small" @click="viewSkillMd(row)">SKILL.md</el-button>
-            <el-button size="small" type="primary" @click="editSkill(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteSkill(row)">删除</el-button>
+            <el-button size="small" @click="viewSkillMd(row)">
+              SKILL.md
+            </el-button>
+            <el-button size="small" type="primary" @click="editSkill(row)">
+              编辑
+            </el-button>
+            <el-button size="small" type="danger" @click="deleteSkill(row)">
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -145,12 +173,24 @@
               </el-form-item>
               <el-form-item label="请求头">
                 <div v-for="(val, key) in form.apiHeaders" :key="key" class="header-row mb-2">
-                  <el-input v-model="tempHeaders[key]" placeholder="Value" size="small" class="mr-2" />
-                  <el-button type="danger" circle size="small" @click="removeHeader(key)">
+                  <el-input
+                    v-model="tempHeaders[key]"
+                    placeholder="Value"
+                    size="small"
+                    class="mr-2"
+                  />
+                  <el-button
+                    type="danger"
+                    circle
+                    size="small"
+                    @click="removeHeader(key)"
+                  >
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <el-button type="dashed" size="small" @click="addHeader">添加 Header</el-button>
+                <el-button type="dashed" size="small" @click="addHeader">
+                  添加 Header
+                </el-button>
               </el-form-item>
             </template>
 
@@ -159,7 +199,9 @@
               <el-form-item label="知识库 ID" required>
                 <el-input-number v-model="form.knowledgeConfigId" :min="1" class="w-full" />
               </el-form-item>
-              <div class="tip-info">此项将绑定指定的 Milvus 集合进行语义检索。</div>
+              <div class="tip-info">
+                此项将绑定指定的 Milvus 集合进行语义检索。
+              </div>
             </template>
 
             <!-- Shell 类型配置 -->
@@ -172,7 +214,9 @@
                   placeholder="例如: ls -la ${path}"
                 />
               </el-form-item>
-              <div class="tip-info">支持变量替换，例如 ${path} 将从执行输入中读取。</div>
+              <div class="tip-info">
+                支持变量替换，例如 ${path} 将从执行输入中读取。
+              </div>
             </template>
 
             <!-- 复合类型配置 -->
@@ -199,7 +243,7 @@
                 v-model="inputSchemaStr"
                 type="textarea"
                 :rows="6"
-                placeholder='JSON 格式，例如: {"path": "string"}'
+                placeholder="JSON 格式，例如: {&quot;path&quot;: &quot;string&quot;}"
               />
             </el-form-item>
             <el-form-item label="输出 Schema">
@@ -207,7 +251,7 @@
                 v-model="outputSchemaStr"
                 type="textarea"
                 :rows="6"
-                placeholder='JSON 格式'
+                placeholder="JSON 格式"
               />
             </el-form-item>
           </el-tab-pane>
@@ -215,8 +259,12 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">保存技能</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="submitForm">
+          保存技能
+        </el-button>
       </template>
     </el-dialog>
 
@@ -228,7 +276,7 @@
             v-model="executeInputs"
             type="textarea"
             :rows="6"
-            placeholder='{"param1": "value1"}'
+            placeholder="{&quot;param1&quot;: &quot;value1&quot;}"
           />
         </el-form-item>
       </el-form>
@@ -244,7 +292,9 @@
       </div>
 
       <template #footer>
-        <el-button @click="executeDialogVisible = false">关闭</el-button>
+        <el-button @click="executeDialogVisible = false">
+          关闭
+        </el-button>
         <el-button type="success" :loading="executing" @click="runExecute">
           运行测试
         </el-button>
@@ -269,17 +319,23 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="importDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitImport">开始导入</el-button>
+        <el-button @click="importDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="submitImport">
+          开始导入
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- SKILL.md 预览对话框 -->
     <el-dialog v-model="mdDialogVisible" title="SKILL.md 规范预览" width="850px">
       <div v-if="mdLoading" class="p-10 text-center">
-        <el-icon class="is-loading"><Loading /></el-icon> 加载中...
+        <el-icon class="is-loading">
+          <Loading />
+        </el-icon> 加载中...
       </div>
-      <div v-else class="markdown-preview" v-html="renderedMd"></div>
+      <div v-else class="markdown-preview" v-html="renderedMd" />
     </el-dialog>
   </div>
 </template>

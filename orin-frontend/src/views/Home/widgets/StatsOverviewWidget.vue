@@ -2,18 +2,27 @@
   <div class="stats-widget">
     <div class="widget-header">
       <h3>系统统计</h3>
-      <el-button text :icon="Refresh" @click="loadStats" :loading="loading" />
+      <el-button
+        text
+        :icon="Refresh"
+        :loading="loading"
+        @click="loadStats"
+      />
     </div>
     
     <div class="stats-grid">
-      <div class="stat-card" v-for="stat in stats" :key="stat.key">
+      <div v-for="stat in stats" :key="stat.key" class="stat-card">
         <div class="stat-icon" :style="{ background: stat.color + '15', color: stat.color }">
           <el-icon><component :is="stat.icon" /></el-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.label }}</div>
-          <div class="stat-trend" :class="stat.trend > 0 ? 'up' : 'down'" v-if="stat.trend !== undefined">
+          <div class="stat-value">
+            {{ stat.value }}
+          </div>
+          <div class="stat-label">
+            {{ stat.label }}
+          </div>
+          <div v-if="stat.trend !== undefined" class="stat-trend" :class="stat.trend > 0 ? 'up' : 'down'">
             <el-icon><component :is="stat.trend > 0 ? CaretTop : CaretBottom" /></el-icon>
             {{ Math.abs(stat.trend) }}%
           </div>

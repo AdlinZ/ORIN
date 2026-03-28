@@ -6,13 +6,18 @@
       icon="Lightning"
     >
       <template #actions>
-        <el-button type="primary" :loading="saving" :icon="Check" @click="saveConfig">
+        <el-button
+          type="primary"
+          :loading="saving"
+          :icon="Check"
+          @click="saveConfig"
+        >
           保存配置
         </el-button>
       </template>
     </PageHeader>
 
-    <el-card class="premium-card" v-loading="loading">
+    <el-card v-loading="loading" class="premium-card">
       <template #header>
         <div class="card-header">
           <el-icon><Lightning /></el-icon>
@@ -25,7 +30,9 @@
         <el-form-item label="启用限流">
           <div class="flex-between w-100">
             <div class="form-info">
-              <div class="form-label-desc">开启后，系统将对 API 请求进行限流控制。</div>
+              <div class="form-label-desc">
+                开启后，系统将对 API 请求进行限流控制。
+              </div>
             </div>
             <el-switch v-model="config.enabled" />
           </div>
@@ -38,14 +45,22 @@
           <el-radio-group v-model="config.algorithm">
             <el-radio value="TOKEN_BUCKET">
               <div class="algorithm-option">
-                <div class="algorithm-title">令牌桶算法</div>
-                <div class="algorithm-desc">支持突发流量，允许一定程度的突发请求</div>
+                <div class="algorithm-title">
+                  令牌桶算法
+                </div>
+                <div class="algorithm-desc">
+                  支持突发流量，允许一定程度的突发请求
+                </div>
               </div>
             </el-radio>
             <el-radio value="SLIDING_WINDOW">
               <div class="algorithm-option">
-                <div class="algorithm-title">滑动窗口算法</div>
-                <div class="algorithm-desc">限流更平滑，避免突发流量</div>
+                <div class="algorithm-title">
+                  滑动窗口算法
+                </div>
+                <div class="algorithm-desc">
+                  限流更平滑，避免突发流量
+                </div>
               </div>
             </el-radio>
           </el-radio-group>
@@ -64,7 +79,9 @@
                 :step="10"
                 style="width: 100%"
               />
-              <p class="form-tip">单个用户/API Key 在一分钟内的最大请求数</p>
+              <p class="form-tip">
+                单个用户/API Key 在一分钟内的最大请求数
+              </p>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -76,7 +93,9 @@
                 :step="100"
                 style="width: 100%"
               />
-              <p class="form-tip">单个用户/API Key 在一天内的最大请求数</p>
+              <p class="form-tip">
+                单个用户/API Key 在一天内的最大请求数
+              </p>
             </el-form-item>
           </el-col>
         </el-row>
@@ -91,7 +110,9 @@
                 :step="5"
                 style="width: 100%"
               />
-              <p class="form-tip">令牌桶最大容量（仅 TOKEN_BUCKET 算法生效）</p>
+              <p class="form-tip">
+                令牌桶最大容量（仅 TOKEN_BUCKET 算法生效）
+              </p>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -104,7 +125,9 @@
                 :precision="1"
                 style="width: 100%"
               />
-              <p class="form-tip">每秒钟补充的令牌数（仅 TOKEN_BUCKET 算法生效）</p>
+              <p class="form-tip">
+                每秒钟补充的令牌数（仅 TOKEN_BUCKET 算法生效）
+              </p>
             </el-form-item>
           </el-col>
         </el-row>
@@ -117,22 +140,34 @@
             <div class="dimension-item">
               <el-switch v-model="config.enableUserLimit" />
               <div class="dimension-info">
-                <div class="dimension-title">用户级别限流</div>
-                <div class="dimension-desc">按用户 ID 进行限流</div>
+                <div class="dimension-title">
+                  用户级别限流
+                </div>
+                <div class="dimension-desc">
+                  按用户 ID 进行限流
+                </div>
               </div>
             </div>
             <div class="dimension-item">
               <el-switch v-model="config.enableApiKeyLimit" />
               <div class="dimension-info">
-                <div class="dimension-title">API Key 级别限流</div>
-                <div class="dimension-desc">按 API Key 进行限流</div>
+                <div class="dimension-title">
+                  API Key 级别限流
+                </div>
+                <div class="dimension-desc">
+                  按 API Key 进行限流
+                </div>
               </div>
             </div>
             <div class="dimension-item">
               <el-switch v-model="config.enableAgentLimit" />
               <div class="dimension-info">
-                <div class="dimension-title">Agent 级别限流</div>
-                <div class="dimension-desc">按 Agent ID 进行限流</div>
+                <div class="dimension-title">
+                  Agent 级别限流
+                </div>
+                <div class="dimension-desc">
+                  按 Agent ID 进行限流
+                </div>
               </div>
             </div>
           </div>
@@ -153,7 +188,7 @@
     </el-card>
 
     <!-- 当前限流状态 -->
-    <el-card class="premium-card margin-top-lg" v-if="config.enabled">
+    <el-card v-if="config.enabled" class="premium-card margin-top-lg">
       <template #header>
         <div class="card-header">
           <el-icon><InfoFilled /></el-icon>
@@ -165,20 +200,32 @@
         <el-row :gutter="24">
           <el-col :span="8">
             <div class="info-item">
-              <div class="info-value">{{ config.requestsPerMinute || 0 }}</div>
-              <div class="info-label">每分钟限制</div>
+              <div class="info-value">
+                {{ config.requestsPerMinute || 0 }}
+              </div>
+              <div class="info-label">
+                每分钟限制
+              </div>
             </div>
           </el-col>
           <el-col :span="8">
             <div class="info-item">
-              <div class="info-value">{{ config.requestsPerDay || 0 }}</div>
-              <div class="info-label">每天限制</div>
+              <div class="info-value">
+                {{ config.requestsPerDay || 0 }}
+              </div>
+              <div class="info-label">
+                每天限制
+              </div>
             </div>
           </el-col>
           <el-col :span="8">
             <div class="info-item">
-              <div class="info-value">{{ config.algorithm }}</div>
-              <div class="info-label">算法</div>
+              <div class="info-value">
+                {{ config.algorithm }}
+              </div>
+              <div class="info-label">
+                算法
+              </div>
             </div>
           </el-col>
         </el-row>

@@ -7,21 +7,31 @@
             <div v-if="icon" class="header-icon">
               <el-icon><component :is="icon" /></el-icon>
             </div>
-            <h1 class="page-title">{{ title }}</h1>
-            <el-tag v-if="tagText" :type="tagType" effect="plain" round class="header-tag">
+            <h1 class="page-title">
+              {{ title }}
+            </h1>
+            <el-tag
+              v-if="tagText"
+              :type="tagType"
+              effect="plain"
+              round
+              class="header-tag"
+            >
               <slot name="tag-content">
                 {{ tagText }}
               </slot>
             </el-tag>
           </div>
-          <p v-if="description" class="header-description">{{ description }}</p>
+          <p v-if="description" class="header-description">
+            {{ description }}
+          </p>
         </div>
         <div class="header-actions">
-          <slot name="actions"></slot>
+          <slot name="actions" />
         </div>
       </div>
       <div v-if="$slots.filters" class="header-filters">
-        <slot name="filters"></slot>
+        <slot name="filters" />
       </div>
     </div>
   </div>

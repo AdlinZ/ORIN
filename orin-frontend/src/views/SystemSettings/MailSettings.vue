@@ -16,25 +16,41 @@
           <el-form :model="mailConfig" label-width="120px">
             <el-form-item label="邮件类型">
               <el-radio-group v-model="mailConfig.mailerType">
-                <el-radio value="smtp">SMTP</el-radio>
-                <el-radio value="mailersend">MailerSend API</el-radio>
+                <el-radio value="smtp">
+                  SMTP
+                </el-radio>
+                <el-radio value="mailersend">
+                  MailerSend API
+                </el-radio>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="API Key" v-if="mailConfig.mailerType === 'mailersend'">
-              <el-input v-model="mailConfig.apiKey" type="password" show-password placeholder="MailerSend API Token" />
-              <div class="form-tip">在 MailerSend 后台获取 API Token</div>
+            <el-form-item v-if="mailConfig.mailerType === 'mailersend'" label="API Key">
+              <el-input
+                v-model="mailConfig.apiKey"
+                type="password"
+                show-password
+                placeholder="MailerSend API Token"
+              />
+              <div class="form-tip">
+                在 MailerSend 后台获取 API Token
+              </div>
             </el-form-item>
-            <el-form-item label="SMTP 服务器" v-if="mailConfig.mailerType === 'smtp'">
+            <el-form-item v-if="mailConfig.mailerType === 'smtp'" label="SMTP 服务器">
               <el-input v-model="mailConfig.host" placeholder="smtp.mailersend.net" />
             </el-form-item>
-            <el-form-item label="端口" v-if="mailConfig.mailerType === 'smtp'">
+            <el-form-item v-if="mailConfig.mailerType === 'smtp'" label="端口">
               <el-input-number v-model="mailConfig.port" :min="1" :max="65535" />
             </el-form-item>
-            <el-form-item label="SMTP 用户名" v-if="mailConfig.mailerType === 'smtp'">
+            <el-form-item v-if="mailConfig.mailerType === 'smtp'" label="SMTP 用户名">
               <el-input v-model="mailConfig.username" placeholder="username" />
             </el-form-item>
-            <el-form-item label="SMTP 密码" v-if="mailConfig.mailerType === 'smtp'">
-              <el-input v-model="mailConfig.password" type="password" show-password placeholder="SMTP 密码" />
+            <el-form-item v-if="mailConfig.mailerType === 'smtp'" label="SMTP 密码">
+              <el-input
+                v-model="mailConfig.password"
+                type="password"
+                show-password
+                placeholder="SMTP 密码"
+              />
             </el-form-item>
             <el-form-item label="发件人邮箱">
               <el-input v-model="mailConfig.fromEmail" placeholder="your-domain@trial-xxxxx.mailersend.com" />
@@ -42,7 +58,7 @@
             <el-form-item label="发件人名称">
               <el-input v-model="mailConfig.fromName" placeholder="ORIN 系统" />
             </el-form-item>
-            <el-form-item label="启用 SSL" v-if="mailConfig.mailerType === 'smtp'">
+            <el-form-item v-if="mailConfig.mailerType === 'smtp'" label="启用 SSL">
               <el-switch v-model="mailConfig.ssl" />
             </el-form-item>
             <el-form-item>
@@ -69,10 +85,15 @@
             </div>
           </template>
 
-          <el-table :data="mailTemplates" v-loading="templatesLoading" stripe>
+          <el-table v-loading="templatesLoading" :data="mailTemplates" stripe>
             <el-table-column prop="name" label="模板名称" width="150" />
             <el-table-column prop="code" label="模板代码" width="120" />
-            <el-table-column prop="subject" label="邮件主题" min-width="200" show-overflow-tooltip />
+            <el-table-column
+              prop="subject"
+              label="邮件主题"
+              min-width="200"
+              show-overflow-tooltip
+            />
             <el-table-column prop="isDefault" label="默认" width="60">
               <template #default="{ row }">
                 <el-tag :type="row.isDefault ? 'success' : 'info'" size="small">
@@ -89,10 +110,20 @@
             </el-table-column>
             <el-table-column label="操作" width="180" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="openTemplateDialog(row)">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="openTemplateDialog(row)"
+                >
                   编辑
                 </el-button>
-                <el-button type="danger" link size="small" @click="deleteTemplate(row)">
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  @click="deleteTemplate(row)"
+                >
                   删除
                 </el-button>
               </template>
@@ -115,7 +146,12 @@
           <el-input v-model="templateForm.subject" placeholder="如：您的 ORIN 账号已激活" />
         </el-form-item>
         <el-form-item label="邮件内容">
-          <el-input v-model="templateForm.content" type="textarea" :rows="8" placeholder="支持 HTML，使用 {{variable}} 占位变量" />
+          <el-input
+            v-model="templateForm.content"
+            type="textarea"
+            :rows="8"
+            placeholder="支持 HTML，使用 {{variable}} 占位变量"
+          />
         </el-form-item>
         <el-form-item label="设为默认">
           <el-switch v-model="templateForm.isDefault" />
@@ -125,8 +161,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="templateDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveTemplate">保存</el-button>
+        <el-button @click="templateDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveTemplate">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

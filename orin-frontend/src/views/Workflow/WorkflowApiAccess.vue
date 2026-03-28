@@ -11,7 +11,7 @@
         </div>
         <div class="header-right">
           <span class="status-indicator">
-            <span class="dot running"></span>
+            <span class="dot running" />
             <span class="text">运行中</span>
           </span>
           <el-switch v-model="webAppActive" />
@@ -24,9 +24,15 @@
           <el-input v-model="webAppUrl" readonly class="custom-input">
             <template #suffix>
               <div class="suffix-actions">
-                <el-icon class="action-icon" @click="copyToClipboard(webAppUrl)"><CopyDocument /></el-icon>
-                <el-icon class="action-icon"><FullScreen /></el-icon>
-                <el-icon class="action-icon"><Refresh /></el-icon>
+                <el-icon class="action-icon" @click="copyToClipboard(webAppUrl)">
+                  <CopyDocument />
+                </el-icon>
+                <el-icon class="action-icon">
+                  <FullScreen />
+                </el-icon>
+                <el-icon class="action-icon">
+                  <Refresh />
+                </el-icon>
               </div>
             </template>
           </el-input>
@@ -34,10 +40,18 @@
       </div>
 
       <div class="card-footer">
-        <el-button link class="footer-btn" @click="openWebApp"><el-icon><TopRight /></el-icon> 启动</el-button>
-        <el-button link class="footer-btn"><el-icon><Postcard /></el-icon> 嵌入</el-button>
-        <el-button link class="footer-btn"><el-icon><Operation /></el-icon> 定制化</el-button>
-        <el-button link class="footer-btn"><el-icon><Setting /></el-icon> 设置</el-button>
+        <el-button link class="footer-btn" @click="openWebApp">
+          <el-icon><TopRight /></el-icon> 启动
+        </el-button>
+        <el-button link class="footer-btn">
+          <el-icon><Postcard /></el-icon> 嵌入
+        </el-button>
+        <el-button link class="footer-btn">
+          <el-icon><Operation /></el-icon> 定制化
+        </el-button>
+        <el-button link class="footer-btn">
+          <el-icon><Setting /></el-icon> 设置
+        </el-button>
       </div>
     </div>
 
@@ -52,7 +66,7 @@
         </div>
         <div class="header-right">
           <span class="status-indicator">
-            <span class="dot running"></span>
+            <span class="dot running" />
             <span class="text">运行中</span>
           </span>
           <el-switch v-model="apiActive" />
@@ -65,7 +79,9 @@
           <el-input v-model="apiUrl" readonly class="custom-input">
             <template #suffix>
               <div class="suffix-actions">
-                <el-icon class="action-icon" @click="copyToClipboard(apiUrl)"><CopyDocument /></el-icon>
+                <el-icon class="action-icon" @click="copyToClipboard(apiUrl)">
+                  <CopyDocument />
+                </el-icon>
               </div>
             </template>
           </el-input>
@@ -73,8 +89,12 @@
       </div>
 
       <div class="card-footer">
-        <el-button link class="footer-btn"><el-icon><Key /></el-icon> API 密钥</el-button>
-        <el-button link class="footer-btn" @click="openApiDocs"><el-icon><Document /></el-icon> 查阅 API 文档</el-button>
+        <el-button link class="footer-btn">
+          <el-icon><Key /></el-icon> API 密钥
+        </el-button>
+        <el-button link class="footer-btn" @click="openApiDocs">
+          <el-icon><Document /></el-icon> 查阅 API 文档
+        </el-button>
       </div>
     </div>
 
@@ -89,14 +109,13 @@
         </div>
         <div class="header-right">
           <span class="status-indicator">
-            <span class="dot stopped"></span>
+            <span class="dot stopped" />
             <span class="text stopped">已停用</span>
           </span>
           <el-switch v-model="mcpActive" />
         </div>
       </div>
     </div>
-
   </div>
 </template>
 

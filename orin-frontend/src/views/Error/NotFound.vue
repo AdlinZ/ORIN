@@ -1,25 +1,84 @@
 <template>
   <div class="bsod-container">
     <div class="bsod-content">
-      <div class="sad-face">:(</div>
+      <div class="sad-face">
+        :(
+      </div>
       <div class="message-section">
-        <h2 class="main-msg">您的页面遇到问题，需要重新寻找。</h2>
-        <p class="secondary-msg">我们只收集一些错误信息，然后您可以尝试返回首页。 (已经完成 404%)</p>
+        <h2 class="main-msg">
+          您的页面遇到问题，需要重新寻找。
+        </h2>
+        <p class="secondary-msg">
+          我们只收集一些错误信息，然后您可以尝试返回首页。 (已经完成 404%)
+        </p>
       </div>
 
       <div class="qr-section">
         <div class="qr-placeholder">
           <!-- Simplified QR SVG for aesthetic -->
-          <svg width="120" height="120" viewBox="0 0 100 100" fill="currentColor">
-            <rect x="0" y="0" width="30" height="30" />
-            <rect x="70" y="0" width="30" height="30" />
-            <rect x="0" y="70" width="30" height="30" />
-            <rect x="10" y="10" width="10" height="10" fill="white" />
-            <rect x="80" y="10" width="10" height="10" fill="white" />
-            <rect x="10" y="80" width="10" height="10" fill="white" />
-            <rect x="40" y="40" width="20" height="20" />
-            <rect x="70" y="70" width="10" height="10" />
-            <rect x="90" y="90" width="10" height="10" />
+          <svg
+            width="120"
+            height="120"
+            viewBox="0 0 100 100"
+            fill="currentColor"
+          >
+            <rect
+              x="0"
+              y="0"
+              width="30"
+              height="30"
+            />
+            <rect
+              x="70"
+              y="0"
+              width="30"
+              height="30"
+            />
+            <rect
+              x="0"
+              y="70"
+              width="30"
+              height="30"
+            />
+            <rect
+              x="10"
+              y="10"
+              width="10"
+              height="10"
+              fill="white"
+            />
+            <rect
+              x="80"
+              y="10"
+              width="10"
+              height="10"
+              fill="white"
+            />
+            <rect
+              x="10"
+              y="80"
+              width="10"
+              height="10"
+              fill="white"
+            />
+            <rect
+              x="40"
+              y="40"
+              width="20"
+              height="20"
+            />
+            <rect
+              x="70"
+              y="70"
+              width="10"
+              height="10"
+            />
+            <rect
+              x="90"
+              y="90"
+              width="10"
+              height="10"
+            />
           </svg>
         </div>
         <div class="info-details">
@@ -33,10 +92,10 @@
       </div>
 
       <div class="actions">
-        <el-button @click="$router.go(-1)" size="large" class="bsod-btn">
+        <el-button size="large" class="bsod-btn" @click="$router.go(-1)">
           返回上一页
         </el-button>
-        <el-button @click="$router.push('/')" size="large" class="bsod-btn">
+        <el-button size="large" class="bsod-btn" @click="$router.push('/')">
           回到现实首页
         </el-button>
       </div>

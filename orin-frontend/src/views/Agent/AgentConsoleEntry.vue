@@ -1,7 +1,7 @@
 <template>
   <div class="console-entry-page">
-    <div class="ambient ambient-left"></div>
-    <div class="ambient ambient-right"></div>
+    <div class="ambient ambient-left" />
+    <div class="ambient ambient-right" />
 
     <div class="entry-container">
       <section class="hero-panel">
@@ -63,7 +63,9 @@
       <section v-if="recentAgents.length > 0" class="panel-section">
         <div class="section-header">
           <div>
-            <div class="section-kicker">继续工作</div>
+            <div class="section-kicker">
+              继续工作
+            </div>
             <h2>最近访问</h2>
           </div>
           <span class="section-note">保留最近打开过的智能体入口</span>
@@ -83,15 +85,21 @@
             <div class="recent-body">
               <div class="recent-title-row">
                 <span class="recent-title">{{ agent.name }}</span>
-                <el-tag size="small" effect="plain">{{ formatAgentType(agent.viewType) }}</el-tag>
+                <el-tag size="small" effect="plain">
+                  {{ formatAgentType(agent.viewType) }}
+                </el-tag>
               </div>
-              <div class="recent-desc">{{ agent.description || '已准备好继续当前会话或执行流程。' }}</div>
+              <div class="recent-desc">
+                {{ agent.description || '已准备好继续当前会话或执行流程。' }}
+              </div>
               <div class="recent-meta">
                 <span>{{ agent.model || '未配置模型' }}</span>
                 <span>{{ formatTime(agent.lastAccess) }}</span>
               </div>
             </div>
-            <el-icon class="recent-arrow"><ArrowRight /></el-icon>
+            <el-icon class="recent-arrow">
+              <ArrowRight />
+            </el-icon>
           </button>
         </div>
       </section>
@@ -99,14 +107,16 @@
       <section class="panel-section">
         <div class="section-header">
           <div>
-            <div class="section-kicker">全量入口</div>
+            <div class="section-kicker">
+              全量入口
+            </div>
             <h2>全部智能体</h2>
           </div>
           <span class="section-note">点击卡片直接进入对应控制台</span>
         </div>
 
         <div v-if="loading" class="skeleton-grid">
-          <div v-for="n in 6" :key="n" class="skeleton-card"></div>
+          <div v-for="n in 6" :key="n" class="skeleton-card" />
         </div>
 
         <div v-else-if="filteredAgents.length === 0" class="empty-state">
@@ -129,7 +139,9 @@
               <div class="card-badge" :style="{ background: getAgentAccent(agent).soft, color: getAgentAccent(agent).strong }">
                 <el-icon><component :is="getAgentIcon(agent.viewType)" /></el-icon>
               </div>
-              <el-tag size="small" effect="plain">{{ formatAgentType(agent.viewType) }}</el-tag>
+              <el-tag size="small" effect="plain">
+                {{ formatAgentType(agent.viewType) }}
+              </el-tag>
             </div>
 
             <div class="card-main">

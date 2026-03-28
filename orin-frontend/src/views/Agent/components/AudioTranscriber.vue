@@ -10,7 +10,9 @@
         :limit="1"
         accept="audio/*"
       >
-        <el-icon class="el-icon--upload"><microphone /></el-icon>
+        <el-icon class="el-icon--upload">
+          <microphone />
+        </el-icon>
         <div class="el-upload__text">
           Drop audio file here or <em>click to upload</em>
         </div>
@@ -22,25 +24,34 @@
       </el-upload>
       
       <div class="action-bar">
-        <el-button type="primary" :loading="isProcessing" @click="handleTranscribe" :disabled="!selectedFile">
+        <el-button
+          type="primary"
+          :loading="isProcessing"
+          :disabled="!selectedFile"
+          @click="handleTranscribe"
+        >
           Start Transcription
         </el-button>
       </div>
     </div>
 
-    <div class="result-section" v-if="result || isProcessing">
-        <div class="section-title">Transcription Result</div>
-        <el-input
-            v-if="!isProcessing"
-            v-model="resultText"
-            type="textarea"
-            :rows="10"
-            readonly
-        />
-        <div v-else class="processing-placeholder">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            <span>Processing audio...</span>
-        </div>
+    <div v-if="result || isProcessing" class="result-section">
+      <div class="section-title">
+        Transcription Result
+      </div>
+      <el-input
+        v-if="!isProcessing"
+        v-model="resultText"
+        type="textarea"
+        :rows="10"
+        readonly
+      />
+      <div v-else class="processing-placeholder">
+        <el-icon class="is-loading">
+          <Loading />
+        </el-icon>
+        <span>Processing audio...</span>
+      </div>
     </div>
   </div>
 </template>

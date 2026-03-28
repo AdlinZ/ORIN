@@ -22,7 +22,7 @@
             <span class="step-label">Step 0{{ index + 1 }}</span>
             <span class="step-name">{{ step.title }}</span>
           </div>
-          <div v-if="index < guideSteps.length - 1" class="step-line"></div>
+          <div v-if="index < guideSteps.length - 1" class="step-line" />
         </div>
       </div>
 
@@ -54,8 +54,12 @@
                   <component :is="provider.icon" />
                 </el-icon>
                 <div class="provider-info">
-                  <div class="provider-label">{{ provider.label }}</div>
-                  <div class="provider-desc">{{ provider.description }}</div>
+                  <div class="provider-label">
+                    {{ provider.label }}
+                  </div>
+                  <div class="provider-desc">
+                    {{ provider.description }}
+                  </div>
                 </div>
               </div>
             </el-option>
@@ -321,9 +325,9 @@
             <el-button
               type="primary"
               :loading="isBatchImporting"
-              @click="handleSiliconFlowBatchImport"
               :icon="Refresh"
               size="large"
+              @click="handleSiliconFlowBatchImport"
             >
               获取模型列表
             </el-button>
@@ -333,7 +337,9 @@
 
             <!-- 识别到的模型列表 -->
             <div v-if="detectedModels.length > 0" class="detected-models-section">
-              <el-divider content-position="left" style="margin: 16px 0;">识别到的模型（共 {{ detectedModels.length }} 个）</el-divider>
+              <el-divider content-position="left" style="margin: 16px 0;">
+                识别到的模型（共 {{ detectedModels.length }} 个）
+              </el-divider>
               <el-table :data="detectedModels" max-height="300" style="width: 100%">
                 <el-table-column prop="id" label="模型标识符" min-width="1000" />
                 <el-table-column prop="_sub_type" label="子类型" width="200" />
@@ -342,8 +348,8 @@
                     <el-button
                       type="primary"
                       size="small"
-                      @click="importSingleModel(scope.row)"
                       :icon="Plus"
+                      @click="importSingleModel(scope.row)"
                     >
                       导入
                     </el-button>
@@ -353,13 +359,13 @@
               <div class="batch-actions">
                 <el-button
                   type="success"
-                  @click="importAllModels"
                   :icon="Check"
                   size="large"
+                  @click="importAllModels"
                 >
                   全部导入
                 </el-button>
-                <el-button @click="detectedModels = []" size="large">
+                <el-button size="large" @click="detectedModels = []">
                   清除列表
                 </el-button>
               </div>
@@ -628,7 +634,12 @@
 
         <!-- 模型类型 -->
         <el-form-item v-if="form.providerType !== 'siliconflow'" label="模型类型" prop="modelType">
-          <el-select v-model="form.modelType" placeholder="请选择模型类型" size="large" style="width: 100%">
+          <el-select
+            v-model="form.modelType"
+            placeholder="请选择模型类型"
+            size="large"
+            style="width: 100%"
+          >
             <el-option label="对话 (Chat/LLM)" value="CHAT" />
             <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
             <el-option label="结果重排 (Reranker)" value="RERANKER" />
@@ -665,8 +676,15 @@
 
       <!-- 底部按钮 -->
       <div class="form-actions">
-        <el-button @click="goBack" size="large">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting" size="large">
+        <el-button size="large" @click="goBack">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          size="large"
+          @click="handleSubmit"
+        >
           确认添加
         </el-button>
       </div>

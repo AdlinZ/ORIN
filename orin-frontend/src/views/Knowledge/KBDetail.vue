@@ -34,7 +34,9 @@
             <div class="left-tools">
               <el-dropdown>
                 <el-button size="default">
-                  全部 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  全部 <el-icon class="el-icon--right">
+                    <ArrowDown />
+                  </el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -53,40 +55,57 @@
             </div>
             <div class="right-tools">
               <el-tooltip content="批量设置功能开发中" placement="top">
-                <el-button size="default" disabled>批量设置</el-button>
+                <el-button size="default" disabled>
+                  批量设置
+                </el-button>
               </el-tooltip>
-              <el-button type="primary" size="default" :icon="Plus">添加文件</el-button>
+              <el-button type="primary" size="default" :icon="Plus">
+                添加文件
+              </el-button>
             </div>
           </div>
 
           <!-- Document Table -->
-          <el-table border :data="documents" style="width: 100%" class="dify-table">
+          <el-table
+            border
+            :data="documents"
+            style="width: 100%"
+            class="dify-table"
+          >
             <el-table-column type="selection" width="40" />
             <el-table-column label="#" width="60">
-              <template #default="scope">{{ scope.$index + 1 }}</template>
+              <template #default="scope">
+                {{ scope.$index + 1 }}
+              </template>
             </el-table-column>
             <el-table-column label="名称" min-width="250">
               <template #default="{ row }">
                 <div class="doc-name-cell" @click="openDocument(row)">
-                  <el-icon class="file-icon"><Document /></el-icon>
+                  <el-icon class="file-icon">
+                    <Document />
+                  </el-icon>
                   <span class="name text-ellipsis clickable" :title="row.name">{{ row.name }}</span>
                 </div>
               </template>
             </el-table-column>
             <el-table-column label="分段模式" width="100">
               <template #default="{ row }">
-                <el-tag size="small" type="info" effect="plain">{{ row.mode }}</el-tag>
+                <el-tag size="small" type="info" effect="plain">
+                  {{ row.mode }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column label="字符数" width="100" prop="wordCount">
-              <template #default="{ row }">{{ (row.wordCount / 1000).toFixed(1) }}k</template>
+              <template #default="{ row }">
+                {{ (row.wordCount / 1000).toFixed(1) }}k
+              </template>
             </el-table-column>
             <el-table-column label="召回次数" width="100" prop="hitCount" />
             <el-table-column label="上传时间" width="180" prop="uploadTime" />
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
                 <div class="status-dot">
-                  <span class="dot" :class="row.status === 'SUCCESS' ? 'accepted' : (row.status === 'FAILED' ? 'rejected' : 'waiting')"></span>
+                  <span class="dot" :class="row.status === 'SUCCESS' ? 'accepted' : (row.status === 'FAILED' ? 'rejected' : 'waiting')" />
                   <span>{{ row.status === 'SUCCESS' ? '可用' : (row.status === 'FAILED' ? '失败' : '处理中') }}</span>
                 </div>
               </template>
@@ -95,24 +114,39 @@
               <template #default="{ row }">
                 <el-switch v-model="row.enabled" size="small" />
                 <el-tooltip content="触发向量化" placement="top">
-                    <el-button 
-                        v-if="row.status !== 'SUCCESS'"
-                        link type="primary" 
-                        size="small" 
-                        style="margin-left: 12px;"
-                        @click="handleVectorize(row)"
-                    >
-                        <el-icon><Cpu /></el-icon>
-                    </el-button>
+                  <el-button 
+                    v-if="row.status !== 'SUCCESS'"
+                    link
+                    type="primary" 
+                    size="small" 
+                    style="margin-left: 12px;"
+                    @click="handleVectorize(row)"
+                  >
+                    <el-icon><Cpu /></el-icon>
+                  </el-button>
                 </el-tooltip>
-                <el-button link type="primary" size="small" style="margin-left: 12px;"><el-icon><Setting /></el-icon></el-button>
-                <el-button link type="danger" size="small"><el-icon><Delete /></el-icon></el-button>
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  style="margin-left: 12px;"
+                >
+                  <el-icon><Setting /></el-icon>
+                </el-button>
+                <el-button link type="danger" size="small">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
           
           <div class="table-pagination">
-            <el-pagination layout="prev, pager, next" :total="50" background small />
+            <el-pagination
+              layout="prev, pager, next"
+              :total="50"
+              background
+              small
+            />
           </div>
         </div>
       </el-tab-pane>
@@ -121,7 +155,12 @@
       <el-tab-pane label="设置" name="settings">
         <div class="settings-page-container">
           <div class="settings-top-actions">
-            <el-button type="primary" :loading="submitting" :icon="Check" @click="onSubmit">
+            <el-button
+              type="primary"
+              :loading="submitting"
+              :icon="Check"
+              @click="onSubmit"
+            >
               保存更改
             </el-button>
           </div>
@@ -139,11 +178,21 @@
                 <el-form label-position="top" class="config-form">
                   <el-form-item label="名称">
                     <el-input v-model="form.name" placeholder="请输入知识库名称" />
-                    <p class="form-tip">用于标识此知识库的公开名称</p>
+                    <p class="form-tip">
+                      用于标识此知识库的公开名称
+                    </p>
                   </el-form-item>
                   <el-form-item label="描述">
-                    <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入描述" resize="none" />
-                    <p class="form-tip">详细说明该知识库主要包含的内容和用途</p>
+                    <el-input
+                      v-model="form.remark"
+                      type="textarea"
+                      :rows="3"
+                      placeholder="请输入描述"
+                      resize="none"
+                    />
+                    <p class="form-tip">
+                      详细说明该知识库主要包含的内容和用途
+                    </p>
                   </el-form-item>
                 </el-form>
               </el-card>
@@ -158,12 +207,26 @@
 
                 <el-form label-position="top" class="config-form">
                   <el-form-item label="Top K">
-                    <el-slider v-model="retrievalParams.topK" :max="20" :min="1" show-input />
-                    <p class="form-tip">召回的片段数量，数量越多可能包含更多信息，但也容易引入噪声</p>
+                    <el-slider
+                      v-model="retrievalParams.topK"
+                      :max="20"
+                      :min="1"
+                      show-input
+                    />
+                    <p class="form-tip">
+                      召回的片段数量，数量越多可能包含更多信息，但也容易引入噪声
+                    </p>
                   </el-form-item>
                   <el-form-item label="语义权重">
-                    <el-slider v-model="retrievalParams.weight" :max="1" :step="0.1" show-input />
-                    <p class="form-tip">混合检索权重分配：1 表示完全依赖向量语义检索，0 表示完全依赖关键词全文检索</p>
+                    <el-slider
+                      v-model="retrievalParams.weight"
+                      :max="1"
+                      :step="0.1"
+                      show-input
+                    />
+                    <p class="form-tip">
+                      混合检索权重分配：1 表示完全依赖向量语义检索，0 表示完全依赖关键词全文检索
+                    </p>
                   </el-form-item>
                 </el-form>
               </el-card>
@@ -186,7 +249,9 @@
                       <el-option value="SiliconFlow" label="SiliconFlow" />
                       <el-option value="Ollama" label="Ollama (本地)" />
                     </el-select>
-                    <p class="form-tip">选择用于文档向量化的嵌入服务提供商</p>
+                    <p class="form-tip">
+                      选择用于文档向量化的嵌入服务提供商
+                    </p>
                   </el-form-item>
 
                   <el-form-item label="API 密钥">
@@ -199,7 +264,9 @@
                     </el-select>
                     <p class="form-tip">
                       选择已在"API密钥管理"中配置的密钥
-                      <el-button type="primary" link @click="router.push('/system/api-keys')">去配置</el-button>
+                      <el-button type="primary" link @click="router.push('/system/api-keys')">
+                        去配置
+                      </el-button>
                     </p>
                   </el-form-item>
 
@@ -214,11 +281,18 @@
                     >
                       <el-option value="Qwen/Qwen3-Embedding-8B" label="Qwen/Qwen3-Embedding-8B" />
                     </el-select>
-                    <p class="form-tip">用于将文档向量化，支持中文推荐 bge-base-zh-v1.5</p>
+                    <p class="form-tip">
+                      用于将文档向量化，支持中文推荐 bge-base-zh-v1.5
+                    </p>
                   </el-form-item>
 
                   <el-form-item>
-                    <el-button type="success" plain :loading="testingEmbedding" @click="testEmbeddingConnection">
+                    <el-button
+                      type="success"
+                      plain
+                      :loading="testingEmbedding"
+                      @click="testEmbeddingConnection"
+                    >
                       测试连接
                     </el-button>
                   </el-form-item>
@@ -234,10 +308,16 @@
                 </template>
                 <div class="danger-zone-content">
                   <div>
-                    <div class="danger-title">删除知识库</div>
-                    <p class="form-tip" style="margin: 0">彻底删除此知识库及其所有关联的文档。此操作无法恢复。</p>
+                    <div class="danger-title">
+                      删除知识库
+                    </div>
+                    <p class="form-tip" style="margin: 0">
+                      彻底删除此知识库及其所有关联的文档。此操作无法恢复。
+                    </p>
                   </div>
-                  <el-button type="danger" plain @click="handleDelete">删除知识库</el-button>
+                  <el-button type="danger" plain @click="handleDelete">
+                    删除知识库
+                  </el-button>
                 </div>
               </el-card>
             </el-col>
@@ -252,16 +332,28 @@
                 </template>
                 <div class="model-list">
                   <div class="model-item">
-                    <div class="model-name">Top K</div>
-                    <div class="model-desc">检索时返回最相关的文档分段数量。设置过低可能导致大模型回答时缺乏信息，设置过高可能超出大模型的上下文窗口。</div>
+                    <div class="model-name">
+                      Top K
+                    </div>
+                    <div class="model-desc">
+                      检索时返回最相关的文档分段数量。设置过低可能导致大模型回答时缺乏信息，设置过高可能超出大模型的上下文窗口。
+                    </div>
                   </div>
                   <div class="model-item">
-                    <div class="model-name">语义权重 (Hybrid Search)</div>
-                    <div class="model-desc">在混合检索（语义检索 + 全文检索）时调整各自的比重。推荐的默认值是 0.7，兼顾语义理解与精准匹配。</div>
+                    <div class="model-name">
+                      语义权重 (Hybrid Search)
+                    </div>
+                    <div class="model-desc">
+                      在混合检索（语义检索 + 全文检索）时调整各自的比重。推荐的默认值是 0.7，兼顾语义理解与精准匹配。
+                    </div>
                   </div>
                   <div class="model-item">
-                    <div class="model-name">Embedding 模型</div>
-                    <div class="model-desc">将文本转换为向量，用于语义检索。每个知识库可单独指定用于向量化的模型。</div>
+                    <div class="model-name">
+                      Embedding 模型
+                    </div>
+                    <div class="model-desc">
+                      将文本转换为向量，用于语义检索。每个知识库可单独指定用于向量化的模型。
+                    </div>
                   </div>
                 </div>
               </el-card>
@@ -418,7 +510,7 @@ const handleVectorize = async (row) => {
     try {
         await request.post(`/knowledge/documents/${row.id}/vectorize`);
         ElMessage.success('已启动任务');
-        loadKBDetail(); // Refresh
+        loadKBData(); // Refresh
     } catch (e) {
         ElMessage.error('触发失败: ' + e.message);
     }

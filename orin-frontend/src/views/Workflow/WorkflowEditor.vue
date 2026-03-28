@@ -13,7 +13,9 @@
           </span>
         </template>
         <template #extra>
-          <el-button @click="goBack">取消</el-button>
+          <el-button @click="goBack">
+            取消
+          </el-button>
           <el-button type="primary" :loading="submitting" @click="handleSubmit">
             保存
           </el-button>
@@ -22,14 +24,19 @@
     </div>
 
     <div class="content">
-      <el-form :model="form" label-width="120px" ref="formRef" :rules="rules">
+      <el-form
+        ref="formRef"
+        :model="form"
+        label-width="120px"
+        :rules="rules"
+      >
         <!-- Basic Info -->
         <el-card class="box-card mb-4" header="基本信息">
           <el-form-item label="工作流名称" prop="workflowName">
             <el-input v-model="form.workflowName" placeholder="例如：智能研报生成助手" />
           </el-form-item>
           <el-form-item label="描述" prop="description">
-            <el-input type="textarea" v-model="form.description" :rows="3" />
+            <el-input v-model="form.description" type="textarea" :rows="3" />
           </el-form-item>
           <el-form-item label="超时时间(秒)" prop="timeoutSeconds">
             <el-input-number v-model="form.timeoutSeconds" :min="1" />
@@ -61,7 +68,9 @@
                 <div class="step-title">
                   <span class="step-index">步骤 {{ index + 1 }}</span>
                   <span class="step-name">{{ step.stepName || '未命名步骤' }}</span>
-                  <el-tag size="small" :type="getStepTypeTag(step.stepType)">{{ step.stepType }}</el-tag>
+                  <el-tag size="small" :type="getStepTypeTag(step.stepType)">
+                    {{ step.stepType }}
+                  </el-tag>
                   <el-button 
                     type="danger" 
                     link 
@@ -85,9 +94,15 @@
 
                 <el-form-item label="类型" required>
                   <el-radio-group v-model="step.stepType">
-                    <el-radio-button label="AGENT">智能体 (Agent)</el-radio-button>
-                    <el-radio-button label="SKILL">技能 (Skill)</el-radio-button>
-                    <el-radio-button label="LOGIC">逻辑控制</el-radio-button>
+                    <el-radio-button label="AGENT">
+                      智能体 (Agent)
+                    </el-radio-button>
+                    <el-radio-button label="SKILL">
+                      技能 (Skill)
+                    </el-radio-button>
+                    <el-radio-button label="LOGIC">
+                      逻辑控制
+                    </el-radio-button>
                   </el-radio-group>
                 </el-form-item>
 
@@ -109,7 +124,7 @@
                 </el-form-item>
 
                 <!-- Skill Selection -->
-                 <el-form-item 
+                <el-form-item 
                   v-if="step.stepType === 'SKILL'" 
                   label="选择技能" 
                   :prop="'steps.' + index + '.skillId'"
@@ -120,9 +135,9 @@
 
                 <el-form-item label="输入映射 (JSON)">
                   <el-input 
-                    type="textarea" 
                     v-model="step.inputMappingStr" 
-                    placeholder='{"query": "${previous_step.output}"}' 
+                    type="textarea" 
+                    placeholder="{&quot;query&quot;: &quot;${previous_step.output}&quot;}" 
                     :rows="3"
                   />
                 </el-form-item>

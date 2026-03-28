@@ -1,5 +1,5 @@
 <template>
-  <div ref="chartRef" class="bar-chart" :style="{ height: height }"></div>
+  <div ref="chartRef" class="bar-chart" :style="{ height: height }" />
 </template>
 
 <script setup>

@@ -8,23 +8,50 @@
             <div class="card-header">
               <span class="title">提示词模板管理</span>
               <div class="header-actions">
-                <el-button link type="primary" :icon="Refresh" @click="loadMeta">刷新</el-button>
-                <el-button type="primary" size="small" :icon="Plus" @click="openPromptDialog">新建模板</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  :icon="Refresh"
+                  @click="loadMeta"
+                >
+                  刷新
+                </el-button>
+                <el-button
+                  type="primary"
+                  size="small"
+                  :icon="Plus"
+                  @click="openPromptDialog"
+                >
+                  新建模板
+                </el-button>
               </div>
             </div>
           </template>
-          <el-table border :data="prompts" style="width: 100%" v-loading="loading">
+          <el-table
+            v-loading="loading"
+            border
+            :data="prompts"
+            style="width: 100%"
+          >
             <el-table-column prop="name" label="模板名称" />
             <el-table-column prop="type" label="类型" width="120">
               <template #default="{ row }">
-                <el-tag size="small">{{ row.type }}</el-tag>
+                <el-tag size="small">
+                  {{ row.type }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="200" align="right">
               <template #default="{ row }">
-                <el-button link @click="viewContent(row)">查看</el-button>
-                <el-button link type="primary" @click="handleEditPrompt(row)">编辑</el-button>
-                <el-button link type="danger" @click="deletePrompt(row)">删除</el-button>
+                <el-button link @click="viewContent(row)">
+                  查看
+                </el-button>
+                <el-button link type="primary" @click="handleEditPrompt(row)">
+                  编辑
+                </el-button>
+                <el-button link type="danger" @click="deletePrompt(row)">
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -38,13 +65,40 @@
             <div class="card-header">
               <span class="title">结构化长期记忆</span>
               <div class="header-actions">
-                <el-button link type="primary" :icon="Plus" @click="openExtractDialog">AI 记忆提取</el-button>
-                <el-button link type="danger" :icon="Delete" @click="clearMemory" :disabled="memory.length === 0">清空全部</el-button>
-                <el-button link type="primary" :icon="Refresh" @click="loadMeta">刷新</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  :icon="Plus"
+                  @click="openExtractDialog"
+                >
+                  AI 记忆提取
+                </el-button>
+                <el-button
+                  link
+                  type="danger"
+                  :icon="Delete"
+                  :disabled="memory.length === 0"
+                  @click="clearMemory"
+                >
+                  清空全部
+                </el-button>
+                <el-button
+                  link
+                  type="primary"
+                  :icon="Refresh"
+                  @click="loadMeta"
+                >
+                  刷新
+                </el-button>
               </div>
             </div>
           </template>
-          <el-table border :data="memory" style="width: 100%" v-loading="loading">
+          <el-table
+            v-loading="loading"
+            border
+            :data="memory"
+            style="width: 100%"
+          >
             <el-table-column prop="key" label="键 (Key)" width="180" />
             <el-table-column prop="value" label="内容 (Value)" show-overflow-tooltip />
             <el-table-column prop="updatedAt" label="最后更新" width="160">
@@ -54,7 +108,9 @@
             </el-table-column>
             <el-table-column label="操作" width="100" align="right">
               <template #default="{ row }">
-                <el-button link type="danger" @click="deleteMemoryItem(row)">删除</el-button>
+                <el-button link type="danger" @click="deleteMemoryItem(row)">
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -72,10 +128,15 @@
               <template #header>
                 <div class="card-header">
                   <span>活跃会话列表</span>
-                  <el-button link type="primary" :icon="Refresh" @click="loadSessions"></el-button>
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="Refresh"
+                    @click="loadSessions"
+                  />
                 </div>
               </template>
-              <div class="session-list" v-loading="sessionLoading">
+              <div v-loading="sessionLoading" class="session-list">
                 <div 
                   v-for="session in sessions" 
                   :key="session" 
@@ -93,7 +154,9 @@
                     @click.stop="handleClearSession(session)"
                   />
                 </div>
-                <div v-if="sessions.length === 0" class="empty-logs">暂无活跃会话</div>
+                <div v-if="sessions.length === 0" class="empty-logs">
+                  暂无活跃会话
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -104,17 +167,28 @@
                   <span>会话上下文：{{ selectedSession || '未选择' }}</span>
                 </div>
               </template>
-              <div class="memory-stream" v-if="selectedSession" v-loading="contextLoading">
-                <div v-for="(msg, idx) in stMemory" :key="idx" class="memory-msg" :class="msg.role">
+              <div v-if="selectedSession" v-loading="contextLoading" class="memory-stream">
+                <div
+                  v-for="(msg, idx) in stMemory"
+                  :key="idx"
+                  class="memory-msg"
+                  :class="msg.role"
+                >
                   <div class="msg-header">
                     <span class="role-tag">{{ msg.role.toUpperCase() }}</span>
                     <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
                   </div>
-                  <div class="msg-content">{{ msg.content }}</div>
+                  <div class="msg-content">
+                    {{ msg.content }}
+                  </div>
                 </div>
-                <div v-if="stMemory.length === 0" class="empty-logs">会话已清空或无内容</div>
+                <div v-if="stMemory.length === 0" class="empty-logs">
+                  会话已清空或无内容
+                </div>
               </div>
-              <div v-else class="select-hint">请从左侧选择一个会话以查看详情</div>
+              <div v-else class="select-hint">
+                请从左侧选择一个会话以查看详情
+              </div>
             </el-card>
           </el-col>
         </el-row>

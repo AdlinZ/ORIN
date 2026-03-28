@@ -12,26 +12,42 @@
         <el-row :gutter="20">
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-value">{{ lockStats.totalLocks }}</div>
-              <div class="stat-label">总锁数量</div>
+              <div class="stat-value">
+                {{ lockStats.totalLocks }}
+              </div>
+              <div class="stat-label">
+                总锁数量
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-value">{{ lockStats.activeLocks }}</div>
-              <div class="stat-label">当前持有</div>
+              <div class="stat-value">
+                {{ lockStats.activeLocks }}
+              </div>
+              <div class="stat-label">
+                当前持有
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-value">{{ lockStats.waiting }}</div>
-              <div class="stat-label">等待队列</div>
+              <div class="stat-value">
+                {{ lockStats.waiting }}
+              </div>
+              <div class="stat-label">
+                等待队列
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-value">{{ lockStats.released }}</div>
-              <div class="stat-label">今日释放</div>
+              <div class="stat-value">
+                {{ lockStats.released }}
+              </div>
+              <div class="stat-label">
+                今日释放
+              </div>
             </el-card>
           </el-col>
         </el-row>
@@ -40,9 +56,14 @@
           <template #header>
             <span>活跃锁列表</span>
           </template>
-          <el-table :data="activeLocks" v-loading="loading">
+          <el-table v-loading="loading" :data="activeLocks">
             <el-table-column prop="name" label="锁名称" />
-            <el-table-column prop="key" label="锁 Key" min-width="200" show-overflow-tooltip />
+            <el-table-column
+              prop="key"
+              label="锁 Key"
+              min-width="200"
+              show-overflow-tooltip
+            />
             <el-table-column prop="owner" label="持有者" width="120" />
             <el-table-column prop="acquireTime" label="获取时间" width="180">
               <template #default="{ row }">
@@ -56,7 +77,14 @@
             </el-table-column>
             <el-table-column label="操作" width="100">
               <template #default="{ row }">
-                <el-button type="danger" link size="small" @click="forceRelease(row)">强制释放</el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  @click="forceRelease(row)"
+                >
+                  强制释放
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -76,9 +104,14 @@
             </div>
           </template>
 
-          <el-table :data="lockConfigs" v-loading="configLoading">
+          <el-table v-loading="configLoading" :data="lockConfigs">
             <el-table-column prop="name" label="锁名称" width="150" />
-            <el-table-column prop="keyPattern" label="Key 模式" min-width="200" show-overflow-tooltip />
+            <el-table-column
+              prop="keyPattern"
+              label="Key 模式"
+              min-width="200"
+              show-overflow-tooltip
+            />
             <el-table-column prop="timeout" label="默认超时" width="100" />
             <el-table-column prop="retryTimes" label="重试次数" width="100" />
             <el-table-column prop="retryInterval" label="重试间隔" width="100" />
@@ -89,8 +122,22 @@
             </el-table-column>
             <el-table-column label="操作" width="120" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="editConfig(row)">编辑</el-button>
-                <el-button type="danger" link size="small" @click="deleteConfig(row)">删除</el-button>
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="editConfig(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  @click="deleteConfig(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -106,7 +153,9 @@
         </el-form-item>
         <el-form-item label="Key 模式" required>
           <el-input v-model="configForm.keyPattern" placeholder="lock:knowledge:{id}" />
-          <div class="form-tip">支持占位符，如 {id}</div>
+          <div class="form-tip">
+            支持占位符，如 {id}
+          </div>
         </el-form-item>
         <el-form-item label="默认超时(秒)">
           <el-input-number v-model="configForm.timeout" :min="1" :max="3600" />
@@ -115,15 +164,24 @@
           <el-input-number v-model="configForm.retryTimes" :min="0" :max="10" />
         </el-form-item>
         <el-form-item label="重试间隔(毫秒)">
-          <el-input-number v-model="configForm.retryInterval" :min="10" :max="5000" :step="10" />
+          <el-input-number
+            v-model="configForm.retryInterval"
+            :min="10"
+            :max="5000"
+            :step="10"
+          />
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="configForm.enabled" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="configDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveConfig">保存</el-button>
+        <el-button @click="configDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveConfig">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

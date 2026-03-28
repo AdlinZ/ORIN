@@ -6,7 +6,9 @@
       icon="Money"
     >
       <template #actions>
-        <el-button :icon="RefreshRight" @click="fetchCostData">刷新数据</el-button>
+        <el-button :icon="RefreshRight" @click="fetchCostData">
+          刷新数据
+        </el-button>
       </template>
       <template #filters>
         <div class="filters-row">
@@ -37,34 +39,58 @@
 
     <div class="stats-grid">
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon today-icon"><el-icon><Calendar /></el-icon></div>
+        <div class="stat-icon today-icon">
+          <el-icon><Calendar /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">今日成本</div>
-          <div class="stat-value">{{ formatCurrency(costSummary.daily) }}</div>
+          <div class="stat-label">
+            今日成本
+          </div>
+          <div class="stat-value">
+            {{ formatCurrency(costSummary.daily) }}
+          </div>
         </div>
       </el-card>
 
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon week-icon"><el-icon><Histogram /></el-icon></div>
+        <div class="stat-icon week-icon">
+          <el-icon><Histogram /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">本周成本</div>
-          <div class="stat-value">{{ formatCurrency(costSummary.weekly) }}</div>
+          <div class="stat-label">
+            本周成本
+          </div>
+          <div class="stat-value">
+            {{ formatCurrency(costSummary.weekly) }}
+          </div>
         </div>
       </el-card>
 
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon month-icon"><el-icon><DataAnalysis /></el-icon></div>
+        <div class="stat-icon month-icon">
+          <el-icon><DataAnalysis /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">本月成本</div>
-          <div class="stat-value">{{ formatCurrency(costSummary.monthly) }}</div>
+          <div class="stat-label">
+            本月成本
+          </div>
+          <div class="stat-value">
+            {{ formatCurrency(costSummary.monthly) }}
+          </div>
         </div>
       </el-card>
 
       <el-card shadow="never" class="stat-card">
-        <div class="stat-icon total-icon"><el-icon><Money /></el-icon></div>
+        <div class="stat-icon total-icon">
+          <el-icon><Money /></el-icon>
+        </div>
         <div class="stat-content">
-          <div class="stat-label">累计成本</div>
-          <div class="stat-value">{{ formatCurrency(costSummary.total) }}</div>
+          <div class="stat-label">
+            累计成本
+          </div>
+          <div class="stat-value">
+            {{ formatCurrency(costSummary.total) }}
+          </div>
         </div>
       </el-card>
     </div>
@@ -74,14 +100,20 @@
         <template #header>
           <div class="card-header">
             <div>
-              <h3 class="card-title">供应商成本分布</h3>
-              <p class="card-subtitle">按模型供应商汇总最近时间范围内的成本消耗</p>
+              <h3 class="card-title">
+                供应商成本分布
+              </h3>
+              <p class="card-subtitle">
+                按模型供应商汇总最近时间范围内的成本消耗
+              </p>
             </div>
-            <div class="header-total">{{ formatCurrency(distributionTotal) }}</div>
+            <div class="header-total">
+              {{ formatCurrency(distributionTotal) }}
+            </div>
           </div>
         </template>
-        <div class="chart-wrap" v-loading="loading">
-          <div v-if="distributionData.length > 0" ref="pieChartRef" class="chart"></div>
+        <div v-loading="loading" class="chart-wrap">
+          <div v-if="distributionData.length > 0" ref="pieChartRef" class="chart" />
           <el-empty v-else description="暂无成本数据" :image-size="72" />
         </div>
       </el-card>
@@ -90,25 +122,37 @@
         <template #header>
           <div class="card-header">
             <div>
-              <h3 class="card-title">成本排行</h3>
-              <p class="card-subtitle">便于快速看出主要成本来源</p>
+              <h3 class="card-title">
+                成本排行
+              </h3>
+              <p class="card-subtitle">
+                便于快速看出主要成本来源
+              </p>
             </div>
           </div>
         </template>
-        <div class="ranking-list" v-loading="loading">
+        <div v-loading="loading" class="ranking-list">
           <div
             v-for="(item, index) in distributionData"
             :key="`${item.name}-${index}`"
             class="ranking-item"
           >
             <div class="ranking-main">
-              <div class="ranking-index">{{ index + 1 }}</div>
+              <div class="ranking-index">
+                {{ index + 1 }}
+              </div>
               <div class="ranking-info">
-                <div class="ranking-name">{{ item.name || '未知供应商' }}</div>
-                <div class="ranking-share">占比 {{ formatPercent(item.share) }}</div>
+                <div class="ranking-name">
+                  {{ item.name || '未知供应商' }}
+                </div>
+                <div class="ranking-share">
+                  占比 {{ formatPercent(item.share) }}
+                </div>
               </div>
             </div>
-            <div class="ranking-value">{{ formatCurrency(item.value) }}</div>
+            <div class="ranking-value">
+              {{ formatCurrency(item.value) }}
+            </div>
           </div>
           <el-empty v-if="distributionData.length === 0" description="暂无排行数据" :image-size="72" />
         </div>
@@ -119,14 +163,34 @@
       <template #header>
         <div class="card-header">
           <div>
-            <h3 class="card-title">成本明细</h3>
-            <p class="card-subtitle">当前仅按供应商聚合，后续如需要我也可以再帮你补模型级明细</p>
+            <h3 class="card-title">
+              成本明细
+            </h3>
+            <p class="card-subtitle">
+              当前仅按供应商聚合，后续如需要我也可以再帮你补模型级明细
+            </p>
           </div>
         </div>
       </template>
-      <el-table :data="distributionData" border stripe v-loading="loading" style="width: 100%">
-        <el-table-column type="index" label="#" width="60" align="center" />
-        <el-table-column prop="name" label="供应商" min-width="220" show-overflow-tooltip />
+      <el-table
+        v-loading="loading"
+        :data="distributionData"
+        border
+        stripe
+        style="width: 100%"
+      >
+        <el-table-column
+          type="index"
+          label="#"
+          width="60"
+          align="center"
+        />
+        <el-table-column
+          prop="name"
+          label="供应商"
+          min-width="220"
+          show-overflow-tooltip
+        />
         <el-table-column label="成本" min-width="160" align="right">
           <template #default="{ row }">
             {{ formatCurrency(row.value) }}

@@ -13,159 +13,225 @@
           <h3>检索策略配置</h3>
           
           <el-form label-position="top">
-             <el-form-item label="测试知识库">
-               <el-select v-model="selectedKbId" placeholder="选择目标知识库">
-                 <el-option v-for="kb in knowledgeBases" :key="kb.id" :label="kb.name" :value="kb.id" />
-               </el-select>
-             </el-form-item>
+            <el-form-item label="测试知识库">
+              <el-select v-model="selectedKbId" placeholder="选择目标知识库">
+                <el-option
+                  v-for="kb in knowledgeBases"
+                  :key="kb.id"
+                  :label="kb.name"
+                  :value="kb.id"
+                />
+              </el-select>
+            </el-form-item>
 
-             <el-form-item label="Embedding Model">
-                <el-select v-model="config.embeddingModel" placeholder="默认模型" clearable>
-                  <el-option v-for="m in embeddingModels" :key="m.modelId" :label="m.name" :value="m.modelId" />
-                </el-select>
-             </el-form-item>
+            <el-form-item label="Embedding Model">
+              <el-select v-model="config.embeddingModel" placeholder="默认模型" clearable>
+                <el-option
+                  v-for="m in embeddingModels"
+                  :key="m.modelId"
+                  :label="m.name"
+                  :value="m.modelId"
+                />
+              </el-select>
+            </el-form-item>
 
             <el-divider />
 
             <div class="slider-group">
-                <div class="slider-label">
-                    <span>Recall Limit (Top-K)</span>
-                    <span class="value">{{ config.topK }}</span>
-                </div>
-                <el-slider v-model="config.topK" :min="1" :max="20" />
+              <div class="slider-label">
+                <span>Recall Limit (Top-K)</span>
+                <span class="value">{{ config.topK }}</span>
+              </div>
+              <el-slider v-model="config.topK" :min="1" :max="20" />
             </div>
 
             <div class="slider-group">
-                <div class="slider-label">
-                    <span>Similarity Threshold</span>
-                    <span class="value">{{ config.threshold }}</span>
-                </div>
-                <el-slider v-model="config.threshold" :min="0" :max="1" :step="0.05" />
+              <div class="slider-label">
+                <span>Similarity Threshold</span>
+                <span class="value">{{ config.threshold }}</span>
+              </div>
+              <el-slider
+                v-model="config.threshold"
+                :min="0"
+                :max="1"
+                :step="0.05"
+              />
             </div>
 
             <div class="slider-group">
-                <div class="slider-label">
-                    <span>Semantic Weight (Alpha)</span>
-                    <span class="value">{{ config.alpha }}</span>
-                </div>
-                <el-slider v-model="config.alpha" :min="0" :max="1" :step="0.1" />
-                <div class="slider-hint">
-                    {{ (config.alpha * 100).toFixed(0) }}% 向量语义 + {{ ((1-config.alpha) * 100).toFixed(0) }}% 关键词匹配
-                </div>
+              <div class="slider-label">
+                <span>Semantic Weight (Alpha)</span>
+                <span class="value">{{ config.alpha }}</span>
+              </div>
+              <el-slider
+                v-model="config.alpha"
+                :min="0"
+                :max="1"
+                :step="0.1"
+              />
+              <div class="slider-hint">
+                {{ (config.alpha * 100).toFixed(0) }}% 向量语义 + {{ ((1-config.alpha) * 100).toFixed(0) }}% 关键词匹配
+              </div>
             </div>
             
             <el-form-item label="Reranking Model" style="margin-top: 20px;">
-               <el-select v-model="config.rerankModel">
-                 <el-option label="None (High Performance)" value="none" />
-                 <el-option label="BGE-Reranker-v2" value="bge-v2" />
-                 <el-option label="Cohere-Rerank-v3" value="cohere-v3" />
-               </el-select>
+              <el-select v-model="config.rerankModel">
+                <el-option label="None (High Performance)" value="none" />
+                <el-option label="BGE-Reranker-v2" value="bge-v2" />
+                <el-option label="Cohere-Rerank-v3" value="cohere-v3" />
+              </el-select>
             </el-form-item>
           </el-form>
         </div>
 
         <div class="sidebar-action">
-             <el-button type="primary" block :icon="Setting" @click="applyToAgent">同步配置至生产环境</el-button>
+          <el-button
+            type="primary"
+            block
+            :icon="Setting"
+            @click="applyToAgent"
+          >
+            同步配置至生产环境
+          </el-button>
         </div>
       </div>
 
       <!-- Main Content: Search & Results -->
       <div class="lab-main">
-         <div class="search-hero">
-            <el-input 
-              v-model="query" 
-              placeholder="输入测试问题，分析混合检索召回逻辑..." 
-              class="search-input"
-              size="large"
-              clearable
-              @keyup.enter="handleSearch"
-            >
-               <template #prefix><el-icon><Search /></el-icon></template>
-               <template #append>
-                 <el-button :loading="loading" @click="handleSearch">混合检索</el-button>
-               </template>
-            </el-input>
-          </div>
+        <div class="search-hero">
+          <el-input 
+            v-model="query" 
+            placeholder="输入测试问题，分析混合检索召回逻辑..." 
+            class="search-input"
+            size="large"
+            clearable
+            @keyup.enter="handleSearch"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+            <template #append>
+              <el-button :loading="loading" @click="handleSearch">
+                混合检索
+              </el-button>
+            </template>
+          </el-input>
+        </div>
 
-          <div class="results-container" v-loading="loading">
-             <div v-if="hasSearched && results.length > 0">
-                  <div class="results-header">
-                      <h3><el-icon><DataAnalysis /></el-icon> 召回逻辑诊断 (Recall Diagnosis)</h3>
-                      <span class="meta-info">Total: {{ results.length }} | Time: {{ executionTime }}ms</span>
-                  </div>
+        <div v-loading="loading" class="results-container">
+          <div v-if="hasSearched && results.length > 0">
+            <div class="results-header">
+              <h3><el-icon><DataAnalysis /></el-icon> 召回逻辑诊断 (Recall Diagnosis)</h3>
+              <span class="meta-info">Total: {{ results.length }} | Time: {{ executionTime }}ms</span>
+            </div>
 
-                  <!-- Split View for Strategy Comparison -->
-                  <div class="strategy-split-view">
-                      <!-- Vector Column -->
-                      <div class="strategy-col vector-col">
-                          <div class="col-header"><el-icon><Share /></el-icon> 语义匹配召回 (Vector Recall)</div>
-                          <div class="col-list">
-                              <div v-for="(item, index) in vectorResults" :key="'v-'+index" class="result-card" @click="openTraceDrawer(item)">
-                                  <div class="vertical-score-bar">
-                                      <div class="bar-track">
-                                          <div class="bar-fill" :style="{ height: (item.score * 100) + '%', backgroundColor: getScoreColor(item.score) }"></div>
-                                      </div>
-                                      <div class="score-num" :style="{ color: getScoreColor(item.score) }">{{ item.score.toFixed(2) }}</div>
-                                  </div>
-                                  <div class="result-body">
-                                      <div class="content-preview">{{ item.content }}</div>
-                                      <div class="result-footer">
-                                         <el-tag size="small" type="success" effect="plain">Vector</el-tag>
-                                         <span class="source-ref">{{ item.sourceDoc }} #{{ item.chunkIndex }}</span>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
+            <!-- Split View for Strategy Comparison -->
+            <div class="strategy-split-view">
+              <!-- Vector Column -->
+              <div class="strategy-col vector-col">
+                <div class="col-header">
+                  <el-icon><Share /></el-icon> 语义匹配召回 (Vector Recall)
+                </div>
+                <div class="col-list">
+                  <div
+                    v-for="(item, index) in vectorResults"
+                    :key="'v-'+index"
+                    class="result-card"
+                    @click="openTraceDrawer(item)"
+                  >
+                    <div class="vertical-score-bar">
+                      <div class="bar-track">
+                        <div class="bar-fill" :style="{ height: (item.score * 100) + '%', backgroundColor: getScoreColor(item.score) }" />
                       </div>
-
-                      <!-- Keyword Column -->
-                      <div class="strategy-col keyword-col">
-                          <div class="col-header"><el-icon><Search /></el-icon> 关键词匹配召回 (Keyword Search)</div>
-                          <div class="col-list">
-                              <div v-for="(item, index) in keywordResults" :key="'k-'+index" class="result-card" @click="openTraceDrawer(item)">
-                                  <div class="vertical-score-bar">
-                                      <div class="bar-track">
-                                          <div class="bar-fill" :style="{ height: (item.score * 100) + '%', backgroundColor: getScoreColor(item.score) }"></div>
-                                      </div>
-                                      <div class="score-num" :style="{ color: getScoreColor(item.score) }">{{ item.score.toFixed(2) }}</div>
-                                  </div>
-                                  <div class="result-body">
-                                      <div class="content-preview">{{ item.content }}</div>
-                                      <div class="result-footer">
-                                         <el-tag size="small" type="warning" effect="plain">Keyword</el-tag>
-                                         <span class="source-ref">{{ item.sourceDoc }} #{{ item.chunkIndex }}</span>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
+                      <div class="score-num" :style="{ color: getScoreColor(item.score) }">
+                        {{ item.score.toFixed(2) }}
                       </div>
+                    </div>
+                    <div class="result-body">
+                      <div class="content-preview">
+                        {{ item.content }}
+                      </div>
+                      <div class="result-footer">
+                        <el-tag size="small" type="success" effect="plain">
+                          Vector
+                        </el-tag>
+                        <span class="source-ref">{{ item.sourceDoc }} #{{ item.chunkIndex }}</span>
+                      </div>
+                    </div>
                   </div>
+                </div>
               </div>
+
+              <!-- Keyword Column -->
+              <div class="strategy-col keyword-col">
+                <div class="col-header">
+                  <el-icon><Search /></el-icon> 关键词匹配召回 (Keyword Search)
+                </div>
+                <div class="col-list">
+                  <div
+                    v-for="(item, index) in keywordResults"
+                    :key="'k-'+index"
+                    class="result-card"
+                    @click="openTraceDrawer(item)"
+                  >
+                    <div class="vertical-score-bar">
+                      <div class="bar-track">
+                        <div class="bar-fill" :style="{ height: (item.score * 100) + '%', backgroundColor: getScoreColor(item.score) }" />
+                      </div>
+                      <div class="score-num" :style="{ color: getScoreColor(item.score) }">
+                        {{ item.score.toFixed(2) }}
+                      </div>
+                    </div>
+                    <div class="result-body">
+                      <div class="content-preview">
+                        {{ item.content }}
+                      </div>
+                      <div class="result-footer">
+                        <el-tag size="small" type="warning" effect="plain">
+                          Keyword
+                        </el-tag>
+                        <span class="source-ref">{{ item.sourceDoc }} #{{ item.chunkIndex }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
               
-              <el-empty v-else-if="hasSearched" description="未召回任何内容" />
-              <div v-else class="empty-state">
-                  <el-icon :size="60" color="#E4E7ED"><Aim /></el-icon>
-                  <p>输入问题开始混合检索逻辑诊断</p>
-              </div>
+          <el-empty v-else-if="hasSearched" description="未召回任何内容" />
+          <div v-else class="empty-state">
+            <el-icon :size="60" color="#E4E7ED">
+              <Aim />
+            </el-icon>
+            <p>输入问题开始混合检索逻辑诊断</p>
           </div>
+        </div>
       </div>
     </div>
 
     <!-- Traceability Drawer -->
-    <el-drawer v-model="drawerVisible" title="溯源分析" direction="rtl" size="40%">
-        <div v-if="selectedResult" class="trace-context">
-            <div class="doc-header">
-                <el-icon><Document /></el-icon> <span>{{ selectedResult.sourceDoc }}</span>
-            </div>
-            <div class="context-viewer">
-                <div class="context-block target">{{ selectedResult.content }}</div>
-            </div>
-            <div class="meta-panel">
-                <h4>检索详情</h4>
-                <p><strong>Score:</strong> {{ selectedResult.score }}</p>
-                <p><strong>Match Type:</strong> {{ selectedResult.matchType }}</p>
-            </div>
+    <el-drawer
+      v-model="drawerVisible"
+      title="溯源分析"
+      direction="rtl"
+      size="40%"
+    >
+      <div v-if="selectedResult" class="trace-context">
+        <div class="doc-header">
+          <el-icon><Document /></el-icon> <span>{{ selectedResult.sourceDoc }}</span>
         </div>
+        <div class="context-viewer">
+          <div class="context-block target">
+            {{ selectedResult.content }}
+          </div>
+        </div>
+        <div class="meta-panel">
+          <h4>检索详情</h4>
+          <p><strong>Score:</strong> {{ selectedResult.score }}</p>
+          <p><strong>Match Type:</strong> {{ selectedResult.matchType }}</p>
+        </div>
+      </div>
     </el-drawer>
   </div>
 </template>
@@ -208,7 +274,7 @@ onMounted(async () => {
             request.get('/knowledge/list')
         ]);
         embeddingModels.value = (modelsRes || []).filter(m => m.type?.toUpperCase() === 'EMBEDDING');
-        let kbs = (kbRes || []).filter(kb => kb.status === 'ENABLED');
+        const kbs = (kbRes || []).filter(kb => kb.status === 'ENABLED');
         knowledgeBases.value = [
             { id: 'all', name: '全生态全局检索 (Global Search)' },
             ...kbs

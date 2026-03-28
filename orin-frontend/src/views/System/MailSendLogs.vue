@@ -10,23 +10,42 @@
       <!-- 筛选 -->
       <el-form :inline="true" class="filter-form">
         <el-form-item label="状态">
-          <el-select v-model="filters.status" placeholder="全部" clearable @change="loadLogs">
+          <el-select
+            v-model="filters.status"
+            placeholder="全部"
+            clearable
+            @change="loadLogs"
+          >
             <el-option label="成功" value="SUCCESS" />
             <el-option label="失败" value="FAILED" />
             <el-option label="待发送" value="PENDING" />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="loadLogs">查询</el-button>
-          <el-button @click="resetFilters">重置</el-button>
+          <el-button type="primary" @click="loadLogs">
+            查询
+          </el-button>
+          <el-button @click="resetFilters">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
 
       <!-- 日志列表 -->
-      <el-table :data="logs" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="logs" stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="subject" label="主题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="recipients" label="收件人" min-width="150" show-overflow-tooltip />
+        <el-table-column
+          prop="subject"
+          label="主题"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="recipients"
+          label="收件人"
+          min-width="150"
+          show-overflow-tooltip
+        />
         <el-table-column prop="mailerType" label="发送方式" width="100">
           <template #default="{ row }">
             <el-tag :type="row.mailerType === 'mailersend' ? 'primary' : 'info'">
@@ -41,7 +60,12 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="errorMessage" label="错误信息" min-width="150" show-overflow-tooltip>
+        <el-table-column
+          prop="errorMessage"
+          label="错误信息"
+          min-width="150"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <span v-if="row.errorMessage" class="error-text">{{ row.errorMessage }}</span>
             <span v-else class="placeholder">-</span>

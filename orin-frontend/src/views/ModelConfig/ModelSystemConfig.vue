@@ -7,7 +7,7 @@
     >
       <template #actions>
         <div class="status-badge" :class="{ 'connected': !testLoading && lastTestSuccess }">
-          <span class="dot"></span>
+          <span class="dot" />
           {{ testLoading ? '检测中...' : (lastTestSuccess ? '服务端连接正常' : '等待检测') }}
         </div>
       </template>
@@ -32,7 +32,12 @@
                   <el-icon><Connection /></el-icon>
                   <span>网络与认证</span>
                 </div>
-                <el-button type="primary" link :loading="testLoading" @click="onTestConnection">
+                <el-button
+                  type="primary"
+                  link
+                  :loading="testLoading"
+                  @click="onTestConnection"
+                >
                   测试连接性
                 </el-button>
               </div>
@@ -42,29 +47,42 @@
               <el-col :span="24">
                 <el-form-item label="上游服务访问网址 (Base URL)" prop="baseUrl">
                   <el-input v-model.trim="form.baseUrl" placeholder="https://api.example.com">
-                    <template #prefix><el-icon><Link /></el-icon></template>
+                    <template #prefix>
+                      <el-icon><Link /></el-icon>
+                    </template>
                   </el-input>
-                  <p class="input-desc">指定模型服务中枢的访问地址，系统通过此 URL 进行模型调度</p>
+                  <p class="input-desc">
+                    指定模型服务中枢的访问地址，系统通过此 URL 进行模型调度
+                  </p>
                 </el-form-item>
               </el-col>
 
               <el-col :span="12">
                 <el-form-item label="接口路径" prop="apiPath">
                   <el-input v-model.trim="form.apiPath" placeholder="/api/v1">
-                    <template #prefix><el-icon><Place /></el-icon></template>
+                    <template #prefix>
+                      <el-icon><Place /></el-icon>
+                    </template>
                   </el-input>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="响应超时 (ms)" prop="timeout">
-                  <el-input-number v-model="form.timeout" :min="1000" :max="120000" style="width: 100%" />
+                  <el-input-number
+                    v-model="form.timeout"
+                    :min="1000"
+                    :max="120000"
+                    style="width: 100%"
+                  />
                 </el-form-item>
               </el-col>
 
               <el-col :span="12">
                 <el-form-item label="访问账号" prop="username">
                   <el-input v-model.trim="form.username" placeholder="Username">
-                    <template #prefix><el-icon><User /></el-icon></template>
+                    <template #prefix>
+                      <el-icon><User /></el-icon>
+                    </template>
                   </el-input>
                 </el-form-item>
               </el-col>
@@ -76,7 +94,9 @@
                     show-password 
                     placeholder="不修改请留空"
                   >
-                    <template #prefix><el-icon><Lock /></el-icon></template>
+                    <template #prefix>
+                      <el-icon><Lock /></el-icon>
+                    </template>
                   </el-input>
                 </el-form-item>
               </el-col>
@@ -91,7 +111,12 @@
                   <el-icon><Connection /></el-icon>
                   <span>Dify 集成配置</span>
                 </div>
-                <el-button type="primary" link :loading="difyTestLoading" @click="onTestDifyConnection">
+                <el-button
+                  type="primary"
+                  link
+                  :loading="difyTestLoading"
+                  @click="onTestDifyConnection"
+                >
                   测试 Dify 连接
                 </el-button>
               </div>
@@ -101,9 +126,13 @@
               <el-col :span="24">
                 <el-form-item label="Dify API 端点" prop="difyEndpoint">
                   <el-input v-model.trim="form.difyEndpoint" placeholder="http://localhost:3000/v1">
-                    <template #prefix><el-icon><Link /></el-icon></template>
+                    <template #prefix>
+                      <el-icon><Link /></el-icon>
+                    </template>
                   </el-input>
-                  <p class="input-desc">Dify 服务的 API 端点地址，用于智能体管理与监控</p>
+                  <p class="input-desc">
+                    Dify 服务的 API 端点地址，用于智能体管理与监控
+                  </p>
                 </el-form-item>
               </el-col>
 
@@ -115,86 +144,119 @@
                     show-password 
                     placeholder="Dify API Key"
                   >
-                    <template #prefix><el-icon><Key /></el-icon></template>
+                    <template #prefix>
+                      <el-icon><Key /></el-icon>
+                    </template>
                   </el-input>
                 </el-form-item>
               </el-col>
             </el-row>
           </el-card>
 
-            <!-- SiliconFlow Scheduling Core Configuration -->
-            <el-card shadow="never" class="premium-card vendor-card" style="margin-top: 24px;">
-              <template #header>
-                <div class="card-header">
-                  <div class="header-left">
-                    <el-icon><Connection /></el-icon>
-                    <span>SiliconFlow 调度中枢配置</span>
-                  </div>
-                  <el-button type="primary" link @click="onTestSFConnection" :loading="sfTestLoading">
-                    测试连接
-                  </el-button>
+          <!-- SiliconFlow Scheduling Core Configuration -->
+          <el-card shadow="never" class="premium-card vendor-card" style="margin-top: 24px;">
+            <template #header>
+              <div class="card-header">
+                <div class="header-left">
+                  <el-icon><Connection /></el-icon>
+                  <span>SiliconFlow 调度中枢配置</span>
                 </div>
-              </template>
+                <el-button
+                  type="primary"
+                  link
+                  :loading="sfTestLoading"
+                  @click="onTestSFConnection"
+                >
+                  测试连接
+                </el-button>
+              </div>
+            </template>
               
-              <el-row :gutter="20">
-                <el-col :span="24">
-                  <el-form-item label="API Endpoint" prop="siliconFlowEndpoint">
-                    <el-input v-model.trim="form.siliconFlowEndpoint" placeholder="https://api.siliconflow.cn/v1">
-                      <template #prefix><el-icon><Link /></el-icon></template>
-                    </el-input>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="24">
-                  <el-form-item label="API Key" prop="siliconFlowApiKey">
-                    <el-input v-model.trim="form.siliconFlowApiKey" type="password" show-password placeholder="sk-...">
-                      <template #prefix><el-icon><Key /></el-icon></template>
-                    </el-input>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="24">
-                   <el-form-item label="默认调度模型" prop="siliconFlowModel">
-                    <el-input v-model.trim="form.siliconFlowModel" placeholder="Qwen/Qwen2-7B-Instruct">
-                      <template #prefix><el-icon><Service /></el-icon></template>
-                    </el-input>
-                    <p class="input-desc">全局默认使用的 LLM 模型标识</p>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-card>
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="API Endpoint" prop="siliconFlowEndpoint">
+                  <el-input v-model.trim="form.siliconFlowEndpoint" placeholder="https://api.siliconflow.cn/v1">
+                    <template #prefix>
+                      <el-icon><Link /></el-icon>
+                    </template>
+                  </el-input>
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                <el-form-item label="API Key" prop="siliconFlowApiKey">
+                  <el-input
+                    v-model.trim="form.siliconFlowApiKey"
+                    type="password"
+                    show-password
+                    placeholder="sk-..."
+                  >
+                    <template #prefix>
+                      <el-icon><Key /></el-icon>
+                    </template>
+                  </el-input>
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                <el-form-item label="默认调度模型" prop="siliconFlowModel">
+                  <el-input v-model.trim="form.siliconFlowModel" placeholder="Qwen/Qwen2-7B-Instruct">
+                    <template #prefix>
+                      <el-icon><Service /></el-icon>
+                    </template>
+                  </el-input>
+                  <p class="input-desc">
+                    全局默认使用的 LLM 模型标识
+                  </p>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-card>
             
-            <!-- Ollama Local Model Configuration -->
-            <el-card shadow="never" class="premium-card local-card" style="margin-top: 24px;">
-              <template #header>
-                <div class="card-header">
-                  <div class="header-left">
-                    <el-icon><Monitor /></el-icon>
-                    <span>Ollama 本地模型配置</span>
-                  </div>
-                  <el-button type="primary" link @click="onTestOllamaConnection" :loading="ollamaTestLoading">
-                    测试连接
-                  </el-button>
+          <!-- Ollama Local Model Configuration -->
+          <el-card shadow="never" class="premium-card local-card" style="margin-top: 24px;">
+            <template #header>
+              <div class="card-header">
+                <div class="header-left">
+                  <el-icon><Monitor /></el-icon>
+                  <span>Ollama 本地模型配置</span>
                 </div>
-              </template>
+                <el-button
+                  type="primary"
+                  link
+                  :loading="ollamaTestLoading"
+                  @click="onTestOllamaConnection"
+                >
+                  测试连接
+                </el-button>
+              </div>
+            </template>
               
-              <el-row :gutter="20">
-                <el-col :span="24">
-                  <el-form-item label="Ollama API Endpoint" prop="ollamaEndpoint">
-                    <el-input v-model.trim="form.ollamaEndpoint" placeholder="http://localhost:11434">
-                      <template #prefix><el-icon><Link /></el-icon></template>
-                    </el-input>
-                    <p class="input-desc">本地 Ollama 服务的访问地址</p>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="24">
-                   <el-form-item label="默认本地模型" prop="ollamaModel">
-                    <el-input v-model.trim="form.ollamaModel" placeholder="llama3">
-                      <template #prefix><el-icon><Service /></el-icon></template>
-                    </el-input>
-                    <p class="input-desc">本地环境默认调度的模型名称</p>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-card>
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="Ollama API Endpoint" prop="ollamaEndpoint">
+                  <el-input v-model.trim="form.ollamaEndpoint" placeholder="http://localhost:11434">
+                    <template #prefix>
+                      <el-icon><Link /></el-icon>
+                    </template>
+                  </el-input>
+                  <p class="input-desc">
+                    本地 Ollama 服务的访问地址
+                  </p>
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                <el-form-item label="默认本地模型" prop="ollamaModel">
+                  <el-input v-model.trim="form.ollamaModel" placeholder="llama3">
+                    <template #prefix>
+                      <el-icon><Service /></el-icon>
+                    </template>
+                  </el-input>
+                  <p class="input-desc">
+                    本地环境默认调度的模型名称
+                  </p>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-card>
 
           <!-- Multimodal Configuration Card -->
           <el-card shadow="never" class="premium-card multimodal-card" style="margin-top: 24px;">
@@ -218,17 +280,19 @@
                     @visible-change="loadModels"
                   >
                     <el-option
-                        v-for="item in vlmOptions"
-                        :key="item.id"
-                        :label="item.name || item.id"
-                        :value="item.id"
+                      v-for="item in vlmOptions"
+                      :key="item.id"
+                      :label="item.name || item.id"
+                      :value="item.id"
                     />
                   </el-select>
-                  <p class="input-desc">用于生成图片、视频的语义描述，推荐使用 Qwen-VL-Max 或 Yi-Vision</p>
+                  <p class="input-desc">
+                    用于生成图片、视频的语义描述，推荐使用 Qwen-VL-Max 或 Yi-Vision
+                  </p>
                 </el-form-item>
               </el-col>
               <el-col :span="24">
-                 <el-form-item label="Embedding Model (向量模型)" prop="embeddingModel">
+                <el-form-item label="Embedding Model (向量模型)" prop="embeddingModel">
                   <el-select 
                     v-model="form.embeddingModel" 
                     placeholder="选择用于知识库构建的向量模型" 
@@ -237,19 +301,21 @@
                     :loading="modelsLoading"
                     @visible-change="loadModels"
                   >
-                     <el-option
-                        v-for="item in embedOptions"
-                        :key="item.id"
-                        :label="item.name || item.id"
-                        :value="item.id"
+                    <el-option
+                      v-for="item in embedOptions"
+                      :key="item.id"
+                      :label="item.name || item.id"
+                      :value="item.id"
                     />
                   </el-select>
-                   <p class="input-desc">用于将文本转化为向量（Embedding），推荐 BGE-M3 (支持多语言)</p>
+                  <p class="input-desc">
+                    用于将文本转化为向量（Embedding），推荐 BGE-M3 (支持多语言)
+                  </p>
                 </el-form-item>
               </el-col>
 
-               <el-col :span="24">
-                 <el-form-item label="System AI Model (系统评估模型)" prop="systemModel">
+              <el-col :span="24">
+                <el-form-item label="System AI Model (系统评估模型)" prop="systemModel">
                   <el-select 
                     v-model="form.systemModel" 
                     placeholder="选择用于 System AI 评估的后台模型" 
@@ -259,18 +325,20 @@
                     :loading="modelsLoading"
                     @visible-change="loadModels"
                   >
-                     <el-option
-                        v-for="item in chatModelOptions"
-                        :key="item.id"
-                        :label="item.name || item.id"
-                        :value="item.id"
+                    <el-option
+                      v-for="item in chatModelOptions"
+                      :key="item.id"
+                      :label="item.name || item.id"
+                      :value="item.id"
                     />
                   </el-select>
-                   <p class="input-desc">指定 System AI (右上角入口) 所使用的底层模型，留空则默认自动选择。</p>
+                  <p class="input-desc">
+                    指定 System AI (右上角入口) 所使用的底层模型，留空则默认自动选择。
+                  </p>
                 </el-form-item>
               </el-col>
 
-               <el-col :span="24">
+              <el-col :span="24">
                 <el-form-item label="自动化策略" prop="autoAnalysisEnabled">
                   <el-switch 
                     v-model="form.autoAnalysisEnabled" 
@@ -317,21 +385,29 @@
 
             <el-form-item label="Llama-factory 部署路径" prop="llamaFactoryPath">
               <el-input v-model.trim="form.llamaFactoryPath" placeholder="/root/llama-factory">
-                <template #prefix><el-icon><Cpu /></el-icon></template>
+                <template #prefix>
+                  <el-icon><Cpu /></el-icon>
+                </template>
               </el-input>
             </el-form-item>
 
             <el-form-item label="WebUI 访问地址" prop="llamaFactoryWebUI">
               <el-input v-model.trim="form.llamaFactoryWebUI" placeholder="http://127.0.0.1:7860">
-                <template #prefix><el-icon><Monitor /></el-icon></template>
+                <template #prefix>
+                  <el-icon><Monitor /></el-icon>
+                </template>
               </el-input>
             </el-form-item>
 
             <el-form-item label="训练模型保存根目录" prop="modelSavePath">
               <el-input v-model.trim="form.modelSavePath" placeholder="/data/models/outputs">
-                <template #prefix><el-icon><Folder /></el-icon></template>
+                <template #prefix>
+                  <el-icon><Folder /></el-icon>
+                </template>
               </el-input>
-              <p class="input-desc">所有通过本平台微调出的 Checkpoints 将存放在此路径下</p>
+              <p class="input-desc">
+                所有通过本平台微调出的 Checkpoints 将存放在此路径下
+              </p>
             </el-form-item>
           </el-card>
 
@@ -349,10 +425,21 @@
           </el-card>
 
           <div class="sticky-actions">
-            <el-button type="primary" size="large" :loading="loading" @click="onSubmit" class="submit-btn">
+            <el-button
+              type="primary"
+              size="large"
+              :loading="loading"
+              class="submit-btn"
+              @click="onSubmit"
+            >
               保存系统全局配置
             </el-button>
-            <el-button size="large" :icon="RefreshLeft" @click="onReset" plain>
+            <el-button
+              size="large"
+              :icon="RefreshLeft"
+              plain
+              @click="onReset"
+            >
               撤销所有更改
             </el-button>
           </div>

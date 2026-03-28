@@ -6,7 +6,9 @@
           <div>
             <el-icon><Clock /></el-icon>
             <span>版本历史</span>
-            <el-tag size="small" type="info" class="ml-2">{{ versions.length }} 个版本</el-tag>
+            <el-tag size="small" type="info" class="ml-2">
+              {{ versions.length }} 个版本
+            </el-tag>
           </div>
           <el-button type="primary" :icon="Plus" @click="createVersionDialog = true">
             创建新版本
@@ -28,14 +30,21 @@
               <div class="version-info">
                 <h4>
                   版本 {{ version.versionNumber }}
-                  <el-tag v-if="version.isActive" type="success" size="small" class="ml-2">
+                  <el-tag
+                    v-if="version.isActive"
+                    type="success"
+                    size="small"
+                    class="ml-2"
+                  >
                     当前版本
                   </el-tag>
                   <el-tag v-if="version.versionTag" size="small" class="ml-2">
                     {{ version.versionTag }}
                   </el-tag>
                 </h4>
-                <p class="description">{{ version.changeDescription || '无变更说明' }}</p>
+                <p class="description">
+                  {{ version.changeDescription || '无变更说明' }}
+                </p>
                 <p class="meta">
                   <el-icon><User /></el-icon>
                   {{ version.createdBy }} · {{ formatTime(version.createdAt) }}
@@ -93,8 +102,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createVersionDialog = false">取消</el-button>
-        <el-button type="primary" @click="createVersion" :loading="creating">
+        <el-button @click="createVersionDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="creating" @click="createVersion">
           创建版本
         </el-button>
       </template>
@@ -121,7 +132,9 @@
           </el-descriptions-item>
         </el-descriptions>
 
-        <h4 style="margin-top: 20px">配置快照</h4>
+        <h4 style="margin-top: 20px">
+          配置快照
+        </h4>
         <pre class="config-snapshot">{{ formatConfig(selectedVersion.configSnapshot) }}</pre>
       </div>
     </el-dialog>
@@ -150,7 +163,9 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="compareVersions">对比</el-button>
+          <el-button type="primary" @click="compareVersions">
+            对比
+          </el-button>
         </el-form-item>
       </el-form>
 

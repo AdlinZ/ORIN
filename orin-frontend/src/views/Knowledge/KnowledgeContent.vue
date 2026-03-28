@@ -2,7 +2,9 @@
   <div class="page-container">
     <div class="action-bar">
       <div>
-        <h2 class="page-title" style="margin-bottom: 0;">{{ pageTitle }}</h2>
+        <h2 class="page-title" style="margin-bottom: 0;">
+          {{ pageTitle }}
+        </h2>
         <span class="text-muted">{{ pageSubtitle }}</span>
       </div>
       <div class="header-actions">
@@ -15,49 +17,75 @@
           />
         </el-select>
         
-        <el-button type="primary" :loading="syncLoading" @click="handleSync" v-if="activeType === 'DOCUMENT'">
-          <el-icon class="el-icon--left"><Refresh /></el-icon>
+        <el-button
+          v-if="activeType === 'DOCUMENT'"
+          type="primary"
+          :loading="syncLoading"
+          @click="handleSync"
+        >
+          <el-icon class="el-icon--left">
+            <Refresh />
+          </el-icon>
           同步 Dify
         </el-button>
         
-        <el-dropdown v-if="activeType === 'META'" split-button type="success" @click="handleCreateAction" @command="handleMetaCommand">
+        <el-dropdown
+          v-if="activeType === 'META'"
+          split-button
+          type="success"
+          @click="handleCreateAction"
+          @command="handleMetaCommand"
+        >
           <span style="display: flex; align-items: center;">
-             <el-icon class="el-icon--left" style="margin-right: 5px"><Plus /></el-icon>
-             新建 Prompt
+            <el-icon class="el-icon--left" style="margin-right: 5px"><Plus /></el-icon>
+            新建 Prompt
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="prompt">新建 Prompt</el-dropdown-item>
-              <el-dropdown-item command="memory_extract">提取记忆 (测试)</el-dropdown-item>
+              <el-dropdown-item command="prompt">
+                新建 Prompt
+              </el-dropdown-item>
+              <el-dropdown-item command="memory_extract">
+                提取记忆 (测试)
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
 
         <el-button v-else type="success" @click="handleCreateAction">
-          <el-icon class="el-icon--left"><Plus /></el-icon>
+          <el-icon class="el-icon--left">
+            <Plus />
+          </el-icon>
           新建{{ resourceName }}
         </el-button>
       </div>
     </div>
 
     <!-- Content Area -->
-    <div class="content-wrapper" v-loading="loading">
-       <el-alert v-if="description" :title="description" type="info" show-icon style="margin-bottom: 20px;" :closable="false" />
+    <div v-loading="loading" class="content-wrapper">
+      <el-alert
+        v-if="description"
+        :title="description"
+        type="info"
+        show-icon
+        style="margin-bottom: 20px;"
+        :closable="false"
+      />
        
-       <knowledge-table 
-          v-if="activeType !== 'META'"
-          :data="filteredData" 
-          @status-change="handleStatusChange" 
-          @view-chunks="viewDocuments"
-          @test-retrieve="testRetrieve" 
-          :type="tableType"
-        />
+      <knowledge-table 
+        v-if="activeType !== 'META'"
+        :data="filteredData" 
+        :type="tableType" 
+        @status-change="handleStatusChange"
+        @view-chunks="viewDocuments" 
+        @test-retrieve="testRetrieve"
+      />
 
-        <knowledge-meta
-            v-else
-            ref="knowledgeMetaRef"
-            :agent-id="selectedAgentId"
-        />
+      <knowledge-meta
+        v-else
+        ref="knowledgeMetaRef"
+        :agent-id="selectedAgentId"
+      />
     </div>
 
     <!-- Create Dialog -->
@@ -69,12 +97,17 @@
         
         <!-- Hidden Type Selection because it's determined by page -->
         
-        <el-form-item label="配置" v-if="activeType === 'STRUCTURED' || activeType === 'SQL'">
+        <el-form-item v-if="activeType === 'STRUCTURED' || activeType === 'SQL'" label="配置">
           <el-input v-model="createForm.configuration" type="textarea" placeholder="JDBC Connection String or Graph API Endpoint..." />
         </el-form-item>
         
-         <el-form-item label="定义" v-if="activeType === 'API'">
-          <el-input v-model="createForm.configuration" type="textarea" rows="4" placeholder="OpenAPI Spec JSON/YAML..." />
+        <el-form-item v-if="activeType === 'API'" label="定义">
+          <el-input
+            v-model="createForm.configuration"
+            type="textarea"
+            rows="4"
+            placeholder="OpenAPI Spec JSON/YAML..."
+          />
         </el-form-item>
 
         <el-form-item label="描述">
@@ -91,15 +124,15 @@
     
     <!-- Document Manager Drawer -->
     <document-list 
-        v-model="documentDrawerVisible" 
-        :kb-id="currentKbId" 
-        @change="loadKnowledge"
+      v-model="documentDrawerVisible" 
+      :kb-id="currentKbId" 
+      @change="loadKnowledge"
     />
     
     <!-- Retrieval Test Dialog -->
     <retrieval-test 
-        v-model="retrievalTestVisible" 
-        :kb-id="currentKbId"
+      v-model="retrievalTestVisible" 
+      :kb-id="currentKbId"
     />
   </div>
 </template>

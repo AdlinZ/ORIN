@@ -14,8 +14,12 @@
         <div class="shortcut-icon" :style="{ background: shortcut.color + '15', color: shortcut.color }">
           <el-icon><component :is="shortcut.icon" /></el-icon>
         </div>
-        <div class="shortcut-title">{{ shortcut.title }}</div>
-        <div class="shortcut-desc">{{ shortcut.description }}</div>
+        <div class="shortcut-title">
+          {{ shortcut.title }}
+        </div>
+        <div class="shortcut-desc">
+          {{ shortcut.description }}
+        </div>
       </router-link>
     </div>
   </div>

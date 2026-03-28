@@ -4,7 +4,12 @@
       <template #header>
         <div class="card-header">
           <span>模型默认参数配置</span>
-          <el-button type="primary" size="small" :loading="saving" @click="handleSave">
+          <el-button
+            type="primary"
+            size="small"
+            :loading="saving"
+            @click="handleSave"
+          >
             保存配置
           </el-button>
         </div>
@@ -21,10 +26,14 @@
               :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
-              <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
+              <el-tag size="small" type="info" style="margin-left: 8px">
+                {{ model.provider }}
+              </el-tag>
             </el-option>
           </el-select>
-          <div class="form-tip">新会话默认使用的对话模型</div>
+          <div class="form-tip">
+            新会话默认使用的对话模型
+          </div>
         </el-form-item>
 
         <el-form-item label="默认 Embedding 模型">
@@ -36,10 +45,14 @@
               :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
-              <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
+              <el-tag size="small" type="info" style="margin-left: 8px">
+                {{ model.provider }}
+              </el-tag>
             </el-option>
           </el-select>
-          <div class="form-tip">知识库 embedding 默认使用的模型</div>
+          <div class="form-tip">
+            知识库 embedding 默认使用的模型
+          </div>
         </el-form-item>
 
         <el-form-item label="默认 VLM 模型">
@@ -51,10 +64,14 @@
               :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
-              <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
+              <el-tag size="small" type="info" style="margin-left: 8px">
+                {{ model.provider }}
+              </el-tag>
             </el-option>
           </el-select>
-          <div class="form-tip">多模态理解默认使用的模型</div>
+          <div class="form-tip">
+            多模态理解默认使用的模型
+          </div>
         </el-form-item>
 
         <el-form-item label="默认评估模型">
@@ -66,30 +83,58 @@
               :value="model.modelId || model.identifier"
             >
               <span>{{ model.name }}</span>
-              <el-tag size="small" type="info" style="margin-left: 8px">{{ model.provider }}</el-tag>
+              <el-tag size="small" type="info" style="margin-left: 8px">
+                {{ model.provider }}
+              </el-tag>
             </el-option>
           </el-select>
-          <div class="form-tip">系统评估默认使用的模型</div>
+          <div class="form-tip">
+            系统评估默认使用的模型
+          </div>
         </el-form-item>
 
         <el-divider />
 
         <!-- 模型参数默认值 -->
-        <h4 class="section-subtitle">默认参数</h4>
+        <h4 class="section-subtitle">
+          默认参数
+        </h4>
 
         <el-form-item label="默认 Temperature">
-          <el-slider v-model="form.defaultTemperature" :min="0" :max="2" :step="0.1" show-stops />
-          <div class="form-tip">控制生成随机性，0 为确定性输出，2 为高度随机</div>
+          <el-slider
+            v-model="form.defaultTemperature"
+            :min="0"
+            :max="2"
+            :step="0.1"
+            show-stops
+          />
+          <div class="form-tip">
+            控制生成随机性，0 为确定性输出，2 为高度随机
+          </div>
         </el-form-item>
 
         <el-form-item label="默认 Max Tokens">
-          <el-input-number v-model="form.defaultMaxTokens" :min="100" :max="128000" :step="100" />
-          <div class="form-tip">单次回复最大 token 数</div>
+          <el-input-number
+            v-model="form.defaultMaxTokens"
+            :min="100"
+            :max="128000"
+            :step="100"
+          />
+          <div class="form-tip">
+            单次回复最大 token 数
+          </div>
         </el-form-item>
 
         <el-form-item label="默认 Top P">
-          <el-slider v-model="form.defaultTopP" :min="0" :max="1" :step="0.05" />
-          <div class="form-tip">核采样参数</div>
+          <el-slider
+            v-model="form.defaultTopP"
+            :min="0"
+            :max="1"
+            :step="0.05"
+          />
+          <div class="form-tip">
+            核采样参数
+          </div>
         </el-form-item>
       </el-form>
     </el-card>

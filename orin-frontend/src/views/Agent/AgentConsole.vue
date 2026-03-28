@@ -1,7 +1,7 @@
 <template>
   <div class="page-shell">
-    <div class="page-ambient ambient-one"></div>
-    <div class="page-ambient ambient-two"></div>
+    <div class="page-ambient ambient-one" />
+    <div class="page-ambient ambient-two" />
 
     <div class="dashboard-layout">
       <aside class="config-sidebar">
@@ -11,8 +11,8 @@
               <el-button
                 link
                 :icon="ArrowLeft"
-                @click="$router.push(ROUTES.AGENTS.LIST)"
                 class="back-btn"
+                @click="$router.push(ROUTES.AGENTS.LIST)"
               >
                 返回智能体列表
               </el-button>
@@ -89,10 +89,19 @@
 
           <div v-if="settingsVisible" class="sidebar-body">
             <div class="settings-panel-head">
-              <div class="settings-title">智能体信息与设置</div>
+              <div class="settings-title">
+                智能体信息与设置
+              </div>
               <div class="settings-actions">
-                <el-button size="small" @click="settingsVisible = false">关闭</el-button>
-                <el-button type="primary" size="small" @click="saveConfig" :loading="saveLoading">
+                <el-button size="small" @click="settingsVisible = false">
+                  关闭
+                </el-button>
+                <el-button
+                  type="primary"
+                  size="small"
+                  :loading="saveLoading"
+                  @click="saveConfig"
+                >
                   保存
                 </el-button>
               </div>
@@ -114,7 +123,7 @@
                 </div>
               </div>
 
-              <div class="config-section" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
+              <div v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent" class="config-section">
                 <div class="section-title">
                   <el-icon><Operation /></el-icon>
                   <span>推理参数</span>
@@ -128,7 +137,12 @@
                       </div>
                       <span class="value-badge">{{ editForm.temperature }}</span>
                     </div>
-                    <el-slider v-model="editForm.temperature" :min="0" :max="2" :step="0.1" />
+                    <el-slider
+                      v-model="editForm.temperature"
+                      :min="0"
+                      :max="2"
+                      :step="0.1"
+                    />
                   </div>
 
                   <div class="param-group">
@@ -139,14 +153,23 @@
                       </div>
                       <span class="value-badge">{{ editForm.topP }}</span>
                     </div>
-                    <el-slider v-model="editForm.topP" :min="0" :max="1" :step="0.1" />
+                    <el-slider
+                      v-model="editForm.topP"
+                      :min="0"
+                      :max="1"
+                      :step="0.1"
+                    />
                   </div>
 
                   <div class="thinking-card">
                     <div class="thinking-main">
                       <div>
-                        <div class="thinking-title">深度思考</div>
-                        <div class="thinking-desc">启用推理链输出与预算控制</div>
+                        <div class="thinking-title">
+                          深度思考
+                        </div>
+                        <div class="thinking-desc">
+                          启用推理链输出与预算控制
+                        </div>
                       </div>
                       <el-switch v-model="editForm.enableThinking" />
                     </div>
@@ -164,7 +187,7 @@
                 </div>
               </div>
 
-              <div class="config-section" v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent">
+              <div v-if="!isImageGenerationAgent && !isTTSAgent && !isTTVAgent" class="config-section">
                 <div class="section-title">
                   <el-icon><ChatDotRound /></el-icon>
                   <span>人设指令</span>
@@ -196,7 +219,7 @@
                 </div>
               </div>
 
-              <div class="config-section" v-if="isImageGenerationAgent">
+              <div v-if="isImageGenerationAgent" class="config-section">
                 <div class="section-title">
                   <el-icon><Picture /></el-icon>
                   <span>图像生成参数</span>
@@ -230,7 +253,12 @@
                       </div>
                       <span class="value-badge">{{ editForm.guidanceScale || 7.5 }}</span>
                     </div>
-                    <el-slider v-model="editForm.guidanceScale" :min="1" :max="20" :step="0.5" />
+                    <el-slider
+                      v-model="editForm.guidanceScale"
+                      :min="1"
+                      :max="20"
+                      :step="0.5"
+                    />
                   </div>
 
                   <div class="param-group">
@@ -241,7 +269,12 @@
                       </div>
                       <span class="value-badge">{{ editForm.inferenceSteps || 20 }}</span>
                     </div>
-                    <el-slider v-model="editForm.inferenceSteps" :min="1" :max="50" :step="1" />
+                    <el-slider
+                      v-model="editForm.inferenceSteps"
+                      :min="1"
+                      :max="50"
+                      :step="1"
+                    />
                   </div>
 
                   <el-form-item label="反向提示词 (Negative Prompt)">
@@ -255,13 +288,13 @@
                 </div>
               </div>
 
-              <div class="config-section" v-if="isTTVAgent">
+              <div v-if="isTTVAgent" class="config-section">
                 <div class="section-title">
                   <el-icon><VideoCamera /></el-icon>
                   <span>视频生成参数</span>
                 </div>
                 <div class="section-panel">
-                  <el-form-item label="视频比例 (Aspect Ratio)" v-if="!editForm.model?.includes('I2V')">
+                  <el-form-item v-if="!editForm.model?.includes('I2V')" label="视频比例 (Aspect Ratio)">
                     <el-radio-group v-model="editForm.videoSize" size="small">
                       <el-radio-button value="16:9" label="16:9" />
                       <el-radio-button value="9:16" label="9:16" />
@@ -288,14 +321,20 @@
                 </div>
               </div>
 
-              <div class="config-section" v-if="isTTSAgent">
+              <div v-if="isTTSAgent" class="config-section">
                 <div class="section-title">
                   <el-icon><Microphone /></el-icon>
                   <span>语音合成配置</span>
                 </div>
                 <div class="section-panel">
                   <el-form-item label="音色 (Voice)">
-                    <el-select v-model="editForm.voice" placeholder="请选择音色" filterable allow-create clearable>
+                    <el-select
+                      v-model="editForm.voice"
+                      placeholder="请选择音色"
+                      filterable
+                      allow-create
+                      clearable
+                    >
                       <el-option label="Alex" value="alex" />
                       <el-option label="Anna" value="anna" />
                       <el-option label="Bella" value="bella" />
@@ -303,7 +342,9 @@
                       <el-option label="Charles" value="charles" />
                       <el-option label="David" value="david" />
                     </el-select>
-                    <div class="helper-text">具体可用音色取决于所选模型能力</div>
+                    <div class="helper-text">
+                      具体可用音色取决于所选模型能力
+                    </div>
                   </el-form-item>
 
                   <div class="param-group">
@@ -314,7 +355,12 @@
                       </div>
                       <span class="value-badge">{{ editForm.speed || 1.0 }}x</span>
                     </div>
-                    <el-slider v-model="editForm.speed" :min="0.5" :max="2.0" :step="0.1" />
+                    <el-slider
+                      v-model="editForm.speed"
+                      :min="0.5"
+                      :max="2.0"
+                      :step="0.1"
+                    />
                   </div>
 
                   <div class="param-group">
@@ -325,7 +371,12 @@
                       </div>
                       <span class="value-badge">{{ editForm.gain || 0 }} dB</span>
                     </div>
-                    <el-slider v-model="editForm.gain" :min="-10" :max="10" :step="1" />
+                    <el-slider
+                      v-model="editForm.gain"
+                      :min="-10"
+                      :max="10"
+                      :step="1"
+                    />
                   </div>
                 </div>
               </div>
@@ -352,14 +403,20 @@
         <div class="history-card">
           <div class="history-header">
             <div>
-              <div class="history-kicker">Timeline</div>
+              <div class="history-kicker">
+                Timeline
+              </div>
               <h3>执行历史</h3>
             </div>
-            <el-button link :icon="Refresh" @click="fetchLogs">刷新</el-button>
+            <el-button link :icon="Refresh" @click="fetchLogs">
+              刷新
+            </el-button>
           </div>
 
           <div class="history-content">
-            <div v-if="loading" class="history-empty">正在加载历史记录...</div>
+            <div v-if="loading" class="history-empty">
+              正在加载历史记录...
+            </div>
             <div v-else-if="!logs || logs.length === 0" class="history-empty">
               暂无历史记录，发起一次对话或生成任务后这里会出现时间线。
             </div>
@@ -372,9 +429,13 @@
             >
               <div class="history-item-top">
                 <span class="history-time">{{ formatTime(log.timestamp) }}</span>
-                <el-tag size="small" effect="plain" class="history-tag">{{ log.type || 'LOG' }}</el-tag>
+                <el-tag size="small" effect="plain" class="history-tag">
+                  {{ log.type || 'LOG' }}
+                </el-tag>
               </div>
-              <div class="history-preview">{{ log.content || (log.response ? '[' + log.status + '] ' + log.response?.substring(0, 80) : (log.sessionId ? '会话: ' + log.sessionId : (log.duration ? '耗时: ' + log.duration + 'ms' : '无内容'))) }}</div>
+              <div class="history-preview">
+                {{ log.content || (log.response ? '[' + log.status + '] ' + log.response?.substring(0, 80) : (log.sessionId ? '会话: ' + log.sessionId : (log.duration ? '耗时: ' + log.duration + 'ms' : '无内容'))) }}
+              </div>
             </button>
           </div>
         </div>

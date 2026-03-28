@@ -2,21 +2,31 @@
   <div class="page-container">
     <!-- Teleport actions to Navbar -->
     <Teleport to="#navbar-actions" :disabled="false" defer>
-      <el-button :icon="Download" @click="handleExport">导出报告</el-button>
+      <el-button :icon="Download" @click="handleExport">
+        导出报告
+      </el-button>
     </Teleport>
 
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :span="6" v-for="(item, index) in statsCards" :key="index">
+      <el-col v-for="(item, index) in statsCards" :key="index" :span="6">
         <el-card shadow="hover" class="stat-card" :body-style="{ padding: '24px' }">
           <div class="stat-card-inner">
             <div class="stat-icon" :style="{ backgroundColor: item.bgColor }">
-              <el-icon :style="{ color: item.color }"><component :is="item.icon" /></el-icon>
+              <el-icon :style="{ color: item.color }">
+                <component :is="item.icon" />
+              </el-icon>
             </div>
             <div class="stat-content">
-              <div class="stat-label">{{ item.label }}</div>
-              <div class="stat-value">{{ formatNumber(latencyStats[item.key]) }}</div>
-              <div class="stat-unit">{{ item.unit }}</div>
+              <div class="stat-label">
+                {{ item.label }}
+              </div>
+              <div class="stat-value">
+                {{ formatNumber(latencyStats[item.key]) }}
+              </div>
+              <div class="stat-unit">
+                {{ item.unit }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -30,11 +40,16 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">平均延迟趋势</span>
-              <el-segmented v-model="trendPeriod" :options="trendPeriodOptions" size="small" @change="fetchTrendData" />
+              <el-segmented
+                v-model="trendPeriod"
+                :options="trendPeriodOptions"
+                size="small"
+                @change="fetchTrendData"
+              />
             </div>
           </template>
           <div v-loading="trendLoading" style="height: 400px;">
-            <div ref="trendChart" style="width: 100%; height: 100%;"></div>
+            <div ref="trendChart" style="width: 100%; height: 100%;" />
           </div>
         </el-card>
       </el-col>
@@ -44,7 +59,7 @@
             <span class="card-title">延迟分布 (当前页)</span>
           </template>
           <div v-loading="distributionLoading" style="height: 400px;">
-            <div ref="distributionChart" style="width: 100%; height: 100%;"></div>
+            <div ref="distributionChart" style="width: 100%; height: 100%;" />
           </div>
         </el-card>
       </el-col>
@@ -66,29 +81,59 @@
           />
         </div>
       </template>
-      <el-table border :data="historyData" v-loading="historyLoading" stripe style="width: 100%">
+      <el-table
+        v-loading="historyLoading"
+        border
+        :data="historyData"
+        stripe
+        style="width: 100%"
+      >
         <el-table-column prop="createdAt" label="时间" min-width="180">
-            <template #default="{ row }">
-                {{ formatDateTime(row.createdAt) }}
-            </template>
+          <template #default="{ row }">
+            {{ formatDateTime(row.createdAt) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="providerId" label="Agent ID/Name" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="responseTime" label="响应耗时" min-width="150" align="right">
+        <el-table-column
+          prop="providerId"
+          label="Agent ID/Name"
+          min-width="220"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="responseTime"
+          label="响应耗时"
+          min-width="150"
+          align="right"
+        >
           <template #default="{ row }">
             <span :class="getLatencyClass(row.responseTime)">{{ formatNumber(row.responseTime) }} ms</span>
           </template>
         </el-table-column>
-        <el-table-column prop="totalTokens" label="Total Tokens" min-width="150" align="right">
+        <el-table-column
+          prop="totalTokens"
+          label="Total Tokens"
+          min-width="150"
+          align="right"
+        >
           <template #default="{ row }">
             {{ formatNumber(row.totalTokens) }}
           </template>
         </el-table-column>
-         <el-table-column prop="success" label="状态" width="120" align="center">
-              <template #default="{ row }">
-                 <el-tag v-if="row.success" type="success" size="small">成功</el-tag>
-                 <el-tag v-else type="danger" size="small">失败</el-tag>
-              </template>
-         </el-table-column>
+        <el-table-column
+          prop="success"
+          label="状态"
+          width="120"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag v-if="row.success" type="success" size="small">
+              成功
+            </el-tag>
+            <el-tag v-else type="danger" size="small">
+              失败
+            </el-tag>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination-container">

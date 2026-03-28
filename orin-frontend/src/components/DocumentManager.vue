@@ -12,14 +12,18 @@
       <el-col :span="12">
         <el-card shadow="never" class="stat-card">
           <el-statistic title="文档总数" :value="stats.documentCount">
-            <template #suffix>个</template>
+            <template #suffix>
+              个
+            </template>
           </el-statistic>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="never" class="stat-card">
           <el-statistic title="总字符数" :value="stats.totalCharCount">
-            <template #suffix>字符</template>
+            <template #suffix>
+              字符
+            </template>
           </el-statistic>
         </el-card>
       </el-col>
@@ -27,7 +31,12 @@
 
     <!-- 文档列表 -->
     <el-card class="premium-card">
-      <el-table border :data="documents" v-loading="loading" stripe>
+      <el-table
+        v-loading="loading"
+        border
+        :data="documents"
+        stripe
+      >
         <el-table-column prop="fileName" label="文件名" min-width="200">
           <template #default="{ row }">
             <div class="file-info">
@@ -38,7 +47,9 @@
         </el-table-column>
         <el-table-column prop="fileType" label="类型" width="100">
           <template #default="{ row }">
-            <el-tag size="small">{{ row.fileType }}</el-tag>
+            <el-tag size="small">
+              {{ row.fileType }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="fileSize" label="大小" width="120">
@@ -101,7 +112,9 @@
         :limit="1"
         drag
       >
-        <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+        <el-icon class="el-icon--upload">
+          <UploadFilled />
+        </el-icon>
         <div class="el-upload__text">
           拖拽文件到此处或 <em>点击上传</em>
         </div>
@@ -112,12 +125,14 @@
         </template>
       </el-upload>
       <template #footer>
-        <el-button @click="uploadDialog = false">取消</el-button>
+        <el-button @click="uploadDialog = false">
+          取消
+        </el-button>
         <el-button
           type="primary"
-          @click="uploadDocument"
           :loading="uploading"
           :disabled="!selectedFile"
+          @click="uploadDocument"
         >
           上传
         </el-button>

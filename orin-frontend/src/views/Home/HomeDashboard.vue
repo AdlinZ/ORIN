@@ -3,7 +3,7 @@
     <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay">
       <div class="loading-spinner">
-        <div class="spinner-ring"></div>
+        <div class="spinner-ring" />
         <span class="loading-text">正在加载监控数据...</span>
       </div>
     </div>
@@ -11,22 +11,26 @@
     <!-- TOP BAR: Readable & High-End -->
     <header class="cc-header-glass">
       <div class="h-brand">
-        <h1 class="logo-text">ORIN<span class="logo-dot">.</span>COMMAND</h1>
+        <h1 class="logo-text">
+          ORIN<span class="logo-dot">.</span>COMMAND
+        </h1>
         <div class="status-indicator" :class="{ 'is-load': summary.highLoadAgents > 0 }">
-          <span class="dot"></span>
+          <span class="dot" />
           <span class="txt">{{ summary.highLoadAgents > 0 ? '负载过高' : '运行正常' }}</span>
         </div>
       </div>
       
       <div class="h-utility">
         <div class="uptime-orb">
-          <el-icon class="orb-icon"><Timer /></el-icon>
+          <el-icon class="orb-icon">
+            <Timer />
+          </el-icon>
           <div class="orb-content">
-            <span class="orb-val" v-html="formattedUptime"></span>
+            <span class="orb-val" v-html="formattedUptime" />
             <span class="orb-lbl">稳定运行时长</span>
           </div>
         </div>
-        <div class="h-divider"></div>
+        <div class="h-divider" />
         <div class="h-clock">
           <span class="c-time">{{ currentTime }}</span>
           <span class="c-date">{{ currentDate }}</span>
@@ -39,24 +43,32 @@
       <aside class="col-telemetry">
         <!-- Assets -->
         <div class="premium-card">
-          <div class="card-glow"></div>
-          <h3 class="card-head clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">资产中枢<span class="head-line"></span></h3>
+          <div class="card-glow" />
+          <h3 class="card-head clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">
+            资产中枢<span class="head-line" />
+          </h3>
           <div class="asset-bubbles">
             <div class="bubble-item clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">
               <el-icon><Collection /></el-icon>
-              <div class="b-text"><span class="b-num">{{ summary.total_knowledge || 0 }}</span><span class="b-lbl">知识库数量</span></div>
+              <div class="b-text">
+                <span class="b-num">{{ summary.total_knowledge || 0 }}</span><span class="b-lbl">知识库数量</span>
+              </div>
             </div>
             <div class="bubble-item">
               <el-icon><Connection /></el-icon>
-              <div class="b-text"><span class="b-num">{{ summary.total_documents || 0 }}</span><span class="b-lbl">文档总数</span></div>
+              <div class="b-text">
+                <span class="b-num">{{ summary.total_documents || 0 }}</span><span class="b-lbl">文档总数</span>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Resources -->
         <div class="premium-card clickable" @click="goToPage(ROUTES.MONITOR.TOKENS)">
-          <div class="card-glow"></div>
-          <h3 class="card-head">资源矩阵<span class="head-line"></span></h3>
+          <div class="card-glow" />
+          <h3 class="card-head">
+            资源矩阵<span class="head-line" />
+          </h3>
           <div class="matrix-grid">
             <div class="m-box">
               <span class="m-lbl">今日消耗 TOKEN</span>
@@ -81,24 +93,42 @@
 
         <!-- Load -->
         <div class="premium-card flex-grow shadow-soft clickable" @click="goToPage(ROUTES.MONITOR.SERVER)">
-          <div class="card-glow"></div>
-          <h3 class="card-head">物理负载<span class="head-line"></span></h3>
+          <div class="card-glow" />
+          <h3 class="card-head">
+            物理负载<span class="head-line" />
+          </h3>
           <div class="load-bars">
             <div class="l-item">
-              <div class="l-info"><span>CPU 负载</span><span class="l-val">{{ (hardware.cpuUsage || 0).toFixed(1) }}%</span></div>
-              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.cpuUsage + '%', background: getBarColor(hardware.cpuUsage) }"></div></div>
+              <div class="l-info">
+                <span>CPU 负载</span><span class="l-val">{{ (hardware.cpuUsage || 0).toFixed(1) }}%</span>
+              </div>
+              <div class="l-rail">
+                <div class="l-fill" :style="{ width: hardware.cpuUsage + '%', background: getBarColor(hardware.cpuUsage) }" />
+              </div>
             </div>
             <div class="l-item">
-              <div class="l-info"><span>GPU 负载</span><span class="l-val">{{ (hardware.gpuUsage || 0).toFixed(1) }}%</span></div>
-              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.gpuUsage + '%', background: getBarColor(hardware.gpuUsage) }"></div></div>
+              <div class="l-info">
+                <span>GPU 负载</span><span class="l-val">{{ (hardware.gpuUsage || 0).toFixed(1) }}%</span>
+              </div>
+              <div class="l-rail">
+                <div class="l-fill" :style="{ width: hardware.gpuUsage + '%', background: getBarColor(hardware.gpuUsage) }" />
+              </div>
             </div>
             <div class="l-item">
-              <div class="l-info"><span>内存 负载</span><span class="l-val">{{ (hardware.memoryUsage || 0).toFixed(1) }}%</span></div>
-              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.memoryUsage + '%', background: getBarColor(hardware.memoryUsage) }"></div></div>
+              <div class="l-info">
+                <span>内存 负载</span><span class="l-val">{{ (hardware.memoryUsage || 0).toFixed(1) }}%</span>
+              </div>
+              <div class="l-rail">
+                <div class="l-fill" :style="{ width: hardware.memoryUsage + '%', background: getBarColor(hardware.memoryUsage) }" />
+              </div>
             </div>
             <div class="l-item">
-              <div class="l-info"><span>磁盘 负载</span><span class="l-val">{{ (hardware.diskUsage || 0).toFixed(1) }}%</span></div>
-              <div class="l-rail"><div class="l-fill" :style="{ width: hardware.diskUsage + '%', background: getBarColor(hardware.diskUsage) }"></div></div>
+              <div class="l-info">
+                <span>磁盘 负载</span><span class="l-val">{{ (hardware.diskUsage || 0).toFixed(1) }}%</span>
+              </div>
+              <div class="l-rail">
+                <div class="l-fill" :style="{ width: hardware.diskUsage + '%', background: getBarColor(hardware.diskUsage) }" />
+              </div>
             </div>
           </div>
         </div>
@@ -111,22 +141,40 @@
           <div class="hub-visual-panel">
             <div class="panel-top">
               <div class="p-meta">
-                <div class="pm-item"><span class="p-lbl">今日请求</span><span class="p-val accent-blue">{{ summary.daily_requests || 0 }}</span></div>
-                <div class="pm-item"><span class="p-lbl">平均延时</span><span class="p-val accent-green">{{ summary.avg_latency || '0ms' }}</span></div>
+                <div class="pm-item">
+                  <span class="p-lbl">今日请求</span><span class="p-val accent-blue">{{ summary.daily_requests || 0 }}</span>
+                </div>
+                <div class="pm-item">
+                  <span class="p-lbl">平均延时</span><span class="p-val accent-green">{{ summary.avg_latency || '0ms' }}</span>
+                </div>
               </div>
               <div class="p-chart-controls">
                 <div class="ctrl-group main-tabs">
-                  <button :class="{ active: chartType === 'tokens' }" @click="chartType = 'tokens'">令牌</button>
-                  <button :class="{ active: chartType === 'latency' }" @click="chartType = 'latency'">延时</button>
-                  <button :class="{ active: chartType === 'hardware' }" @click="chartType = 'hardware'">硬件</button>
+                  <button :class="{ active: chartType === 'tokens' }" @click="chartType = 'tokens'">
+                    令牌
+                  </button>
+                  <button :class="{ active: chartType === 'latency' }" @click="chartType = 'latency'">
+                    延时
+                  </button>
+                  <button :class="{ active: chartType === 'hardware' }" @click="chartType = 'hardware'">
+                    硬件
+                  </button>
                 </div>
-                <div class="ctrl-group sub-tabs" v-if="chartType === 'hardware'">
-                  <button :class="{ active: hardwareMetric === 'cpuUsage' }" @click="hardwareMetric = 'cpuUsage'">CPU</button>
-                  <button :class="{ active: hardwareMetric === 'memoryUsage' }" @click="hardwareMetric = 'memoryUsage'">内存</button>
-                  <button :class="{ active: hardwareMetric === 'diskUsage' }" @click="hardwareMetric = 'diskUsage'">磁盘</button>
-                  <button :class="{ active: hardwareMetric === 'gpuUsage' }" @click="hardwareMetric = 'gpuUsage'">GPU</button>
+                <div v-if="chartType === 'hardware'" class="ctrl-group sub-tabs">
+                  <button :class="{ active: hardwareMetric === 'cpuUsage' }" @click="hardwareMetric = 'cpuUsage'">
+                    CPU
+                  </button>
+                  <button :class="{ active: hardwareMetric === 'memoryUsage' }" @click="hardwareMetric = 'memoryUsage'">
+                    内存
+                  </button>
+                  <button :class="{ active: hardwareMetric === 'diskUsage' }" @click="hardwareMetric = 'diskUsage'">
+                    磁盘
+                  </button>
+                  <button :class="{ active: hardwareMetric === 'gpuUsage' }" @click="hardwareMetric = 'gpuUsage'">
+                    GPU
+                  </button>
                 </div>
-                <div class="ctrl-group time-range" v-else>
+                <div v-else class="ctrl-group time-range">
                   <span
                     v-for="r in ranges"
                     :key="r"
@@ -140,11 +188,11 @@
               </div>
             </div>
             <div class="p-chart-wrap">
-                <LineChart
+              <LineChart
                 :data="trendData"
                 :title="chartType === 'tokens' ? 'Token 消耗趋势' : chartType === 'latency' ? '响应延时趋势' : getHardwareTitle()"
-                :yAxisName="chartType === 'tokens' ? 'Tokens' : chartType === 'latency' ? 'ms' : '%'"
-                :maxPoints="30"
+                :y-axis-name="chartType === 'tokens' ? 'Tokens' : chartType === 'latency' ? 'ms' : '%'"
+                :max-points="30"
                 height="100%"
                 :color="isDark ? '#26FFDF' : '#00BFA5'"
               />
@@ -160,30 +208,30 @@
             <div class="semantic-world">
               <div class="tags-container">
                 <div
-                v-for="(tag, idx) in intentTags"
-                :key="tag.label + keywordPage"
-                class="s-tag-v4"
-                :style="{
-                  '--f-size': (tag.size + 2) + 'px',
-                  '--op': tag.opacity,
-                  '--c': tag.color,
-                  'animation-delay': tag.delay + 's'
-                }"
-              >
-                #{{ tag.label }}
-              </div>
+                  v-for="(tag, idx) in intentTags"
+                  :key="tag.label + keywordPage"
+                  class="s-tag-v4"
+                  :style="{
+                    '--f-size': (tag.size + 2) + 'px',
+                    '--op': tag.opacity,
+                    '--c': tag.color,
+                    'animation-delay': tag.delay + 's'
+                  }"
+                >
+                  #{{ tag.label }}
+                </div>
               </div>
             </div>
           </div>
 
           <footer class="hub-footer">
-             <div class="f-left">
-                <span class="f-status-dot"></span>
-                <span class="f-tag">映射引擎 // 系统监控开启</span>
-             </div>
-             <div class="f-right">
-                <span class="f-code-tag">BUILD: {{ buildDate }}</span>
-             </div>
+            <div class="f-left">
+              <span class="f-status-dot" />
+              <span class="f-tag">映射引擎 // 系统监控开启</span>
+            </div>
+            <div class="f-right">
+              <span class="f-code-tag">BUILD: {{ buildDate }}</span>
+            </div>
           </footer>
         </div>
       </article>
@@ -192,48 +240,54 @@
       <aside class="col-battle">
         <!-- Top KPIs -->
         <div class="premium-card clickable" @click="goToPage(ROUTES.MONITOR.DASHBOARD)">
-          <div class="card-glow"></div>
+          <div class="card-glow" />
           <div class="mini-kpi-grid">
-             <div class="mk-box">
-                <span class="mk-lbl">活跃智能体数</span>
-                <span class="mk-val blue">{{ summary.online_agents || 0 }}<small>智能体</small></span>
-             </div>
-             <div class="mk-box">
-                <span class="mk-lbl">运行健康评分</span>
-                <span class="mk-val green">{{ summary.averageHealthScore || 0 }}<small>%</small></span>
-             </div>
+            <div class="mk-box">
+              <span class="mk-lbl">活跃智能体数</span>
+              <span class="mk-val blue">{{ summary.online_agents || 0 }}<small>智能体</small></span>
+            </div>
+            <div class="mk-box">
+              <span class="mk-lbl">运行健康评分</span>
+              <span class="mk-val green">{{ summary.averageHealthScore || 0 }}<small>%</small></span>
+            </div>
           </div>
         </div>
 
         <!-- Rank List -->
         <div class="premium-card flex-grow battle-card clickable" @click="goToPage(ROUTES.MONITOR.TOKENS)">
-          <div class="card-glow"></div>
+          <div class="card-glow" />
           <div class="battle-header">
-            <h3 class="b-title">资源分布（按智能体）</h3>
+            <h3 class="b-title">
+              资源分布（按智能体）
+            </h3>
             <span class="b-count">{{ distribution.length }} 活跃</span>
           </div>
 
           <div class="rank-list-v4">
-            <div class="rk-item" v-for="(item, idx) in topAgents" :key="item.name">
+            <div v-for="(item, idx) in topAgents" :key="item.name" class="rk-item">
               <div class="rk-top">
                 <span class="rk-idx">0{{ idx+1 }}</span>
                 <span class="rk-name" :title="item.name">{{ item.name }}</span>
                 <span class="rk-num">{{ formatK(item.value) }}</span>
               </div>
-              <div class="rk-bar-bg"><div class="rk-bar-fill" :style="{ width: getRkWidth(item.value) + '%' }"></div></div>
+              <div class="rk-bar-bg">
+                <div class="rk-bar-fill" :style="{ width: getRkWidth(item.value) + '%' }" />
+              </div>
             </div>
           </div>
 
           <div class="recent-events-v3">
-            <h4 class="re-title">实时审计日志</h4>
+            <h4 class="re-title">
+              实时审计日志
+            </h4>
             <div class="re-list">
-              <div class="re-node" v-for="(ev, idx) in recentLogs.slice(0, 3)" :key="idx">
-                <div class="re-line" :class="ev.status"></div>
+              <div v-for="(ev, idx) in recentLogs.slice(0, 3)" :key="idx" class="re-node">
+                <div class="re-line" :class="ev.status" />
                 <div class="re-body">
                   <span class="re-txt">{{ ev.text }}</span>
                   <div class="re-tm-row">
                     <span class="re-tm">{{ ev.time }}</span>
-                    <span class="re-status-dot" :class="ev.status"></span>
+                    <span class="re-status-dot" :class="ev.status" />
                   </div>
                 </div>
               </div>

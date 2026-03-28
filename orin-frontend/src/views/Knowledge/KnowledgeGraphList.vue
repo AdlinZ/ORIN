@@ -6,8 +6,12 @@
       icon="Connection"
     >
       <template #actions>
-        <el-button :icon="Refresh" @click="fetchGraphs">刷新</el-button>
-        <el-button type="primary" :icon="Plus" @click="handleCreate">创建图谱</el-button>
+        <el-button :icon="Refresh" @click="fetchGraphs">
+          刷新
+        </el-button>
+        <el-button type="primary" :icon="Plus" @click="handleCreate">
+          创建图谱
+        </el-button>
       </template>
     </PageHeader>
 
@@ -37,16 +41,26 @@
                 <el-icon><Connection /></el-icon>
               </div>
               <div class="graph-info">
-                <h3 class="graph-name text-ellipsis">{{ graph.name }}</h3>
+                <h3 class="graph-name text-ellipsis">
+                  {{ graph.name }}
+                </h3>
               </div>
               <div class="graph-more" @click.stop>
                 <el-dropdown trigger="click">
-                  <el-icon class="more-btn"><MoreFilled /></el-icon>
+                  <el-icon class="more-btn">
+                    <MoreFilled />
+                  </el-icon>
                   <template #dropdown>
                     <el-dropdown-menu>
-                      <el-dropdown-item @click="handleBuild(graph)">构建</el-dropdown-item>
-                      <el-dropdown-item @click="handleEdit(graph)">编辑</el-dropdown-item>
-                      <el-dropdown-item @click="handleDelete(graph)" divided class="text-danger">删除</el-dropdown-item>
+                      <el-dropdown-item @click="handleBuild(graph)">
+                        构建
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="handleEdit(graph)">
+                        编辑
+                      </el-dropdown-item>
+                      <el-dropdown-item divided class="text-danger" @click="handleDelete(graph)">
+                        删除
+                      </el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
@@ -54,7 +68,9 @@
             </div>
 
             <div class="graph-body">
-              <p class="graph-desc">{{ graph.description || '暂无描述' }}</p>
+              <p class="graph-desc">
+                {{ graph.description || '暂无描述' }}
+              </p>
             </div>
 
             <div class="graph-footer">
@@ -76,7 +92,9 @@
       <!-- 空状态 -->
       <div v-if="!loading && graphs.length === 0" class="empty-state-container">
         <el-empty description="暂无图谱">
-          <el-button type="primary" @click="handleCreate">创建第一个图谱</el-button>
+          <el-button type="primary" @click="handleCreate">
+            创建第一个图谱
+          </el-button>
         </el-empty>
       </div>
     </div>
@@ -87,7 +105,12 @@
       :title="dialogMode === 'create' ? '创建图谱' : '编辑图谱'"
       width="500px"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="80px"
+      >
         <el-form-item label="图谱名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入图谱名称" />
         </el-form-item>
@@ -101,8 +124,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="handleSubmit">
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -21,7 +21,12 @@
 
           <el-form :inline="true" class="filter-form">
             <el-form-item label="Agent">
-              <el-select v-model="selectedAgentId" placeholder="选择 Agent" clearable style="width: 200px">
+              <el-select
+                v-model="selectedAgentId"
+                placeholder="选择 Agent"
+                clearable
+                style="width: 200px"
+              >
                 <el-option
                   v-for="agent in agentList"
                   :key="agent.agentId"
@@ -31,12 +36,19 @@
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="loadMemories" :icon="Search">查询</el-button>
+              <el-button type="primary" :icon="Search" @click="loadMemories">
+                查询
+              </el-button>
             </el-form-item>
           </el-form>
 
-          <el-table :data="memories" v-loading="memoriesLoading" stripe>
-            <el-table-column prop="id" label="ID" width="180" show-overflow-tooltip />
+          <el-table v-loading="memoriesLoading" :data="memories" stripe>
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="180"
+              show-overflow-tooltip
+            />
             <el-table-column prop="key" label="Key" width="150" />
             <el-table-column prop="value" label="Value" show-overflow-tooltip />
             <el-table-column prop="createdAt" label="创建时间" width="180">
@@ -46,7 +58,9 @@
             </el-table-column>
             <el-table-column label="操作" width="120" fixed="right">
               <template #default="{ row }">
-                <el-button link type="danger" @click="deleteMemory(row.id)">删除</el-button>
+                <el-button link type="danger" @click="deleteMemory(row.id)">
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -67,7 +81,12 @@
 
           <el-form :inline="true" class="filter-form">
             <el-form-item label="Agent">
-              <el-select v-model="selectedAgentId" placeholder="选择 Agent" clearable style="width: 200px">
+              <el-select
+                v-model="selectedAgentId"
+                placeholder="选择 Agent"
+                clearable
+                style="width: 200px"
+              >
                 <el-option
                   v-for="agent in agentList"
                   :key="agent.agentId"
@@ -77,12 +96,19 @@
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="loadSkills" :icon="Search">查询</el-button>
+              <el-button type="primary" :icon="Search" @click="loadSkills">
+                查询
+              </el-button>
             </el-form-item>
           </el-form>
 
-          <el-table :data="skills" v-loading="skillsLoading" stripe>
-            <el-table-column prop="id" label="ID" width="180" show-overflow-tooltip />
+          <el-table v-loading="skillsLoading" :data="skills" stripe>
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="180"
+              show-overflow-tooltip
+            />
             <el-table-column prop="triggerName" label="触发词" width="150" />
             <el-table-column prop="definition" label="定义" show-overflow-tooltip />
             <el-table-column prop="createdAt" label="创建时间" width="180">
@@ -92,8 +118,12 @@
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openSkillDialog(row)">编辑</el-button>
-                <el-button link type="danger" @click="deleteSkill(row.id)">删除</el-button>
+                <el-button link type="primary" @click="openSkillDialog(row)">
+                  编辑
+                </el-button>
+                <el-button link type="danger" @click="deleteSkill(row.id)">
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -114,7 +144,12 @@
 
           <el-form :inline="true" class="filter-form">
             <el-form-item label="Agent">
-              <el-select v-model="selectedAgentId" placeholder="选择 Agent" clearable style="width: 200px">
+              <el-select
+                v-model="selectedAgentId"
+                placeholder="选择 Agent"
+                clearable
+                style="width: 200px"
+              >
                 <el-option
                   v-for="agent in agentList"
                   :key="agent.agentId"
@@ -124,19 +159,30 @@
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="loadPrompts" :icon="Search">查询</el-button>
+              <el-button type="primary" :icon="Search" @click="loadPrompts">
+                查询
+              </el-button>
             </el-form-item>
           </el-form>
 
-          <el-table :data="prompts" v-loading="promptsLoading" stripe>
-            <el-table-column prop="id" label="ID" width="180" show-overflow-tooltip />
+          <el-table v-loading="promptsLoading" :data="prompts" stripe>
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="180"
+              show-overflow-tooltip
+            />
             <el-table-column prop="name" label="名称" width="150" />
             <el-table-column prop="template" label="模板内容" show-overflow-tooltip />
             <el-table-column prop="description" label="描述" show-overflow-tooltip />
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openPromptDialog(row)">编辑</el-button>
-                <el-button link type="danger" @click="deletePrompt(row.id)">删除</el-button>
+                <el-button link type="primary" @click="openPromptDialog(row)">
+                  编辑
+                </el-button>
+                <el-button link type="danger" @click="deletePrompt(row.id)">
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -161,12 +207,21 @@
           <el-input v-model="memoryForm.key" placeholder="记忆的 Key" />
         </el-form-item>
         <el-form-item label="Value">
-          <el-input v-model="memoryForm.value" type="textarea" :rows="3" placeholder="记忆的内容" />
+          <el-input
+            v-model="memoryForm.value"
+            type="textarea"
+            :rows="3"
+            placeholder="记忆的内容"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showMemoryDialog = false">取消</el-button>
-        <el-button type="primary" @click="saveMemory">保存</el-button>
+        <el-button @click="showMemoryDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveMemory">
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
@@ -187,12 +242,21 @@
           <el-input v-model="skillForm.triggerName" placeholder="触发技能的名称" />
         </el-form-item>
         <el-form-item label="定义">
-          <el-input v-model="skillForm.definition" type="textarea" :rows="4" placeholder="技能的定义描述" />
+          <el-input
+            v-model="skillForm.definition"
+            type="textarea"
+            :rows="4"
+            placeholder="技能的定义描述"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showSkillDialog = false">取消</el-button>
-        <el-button type="primary" @click="saveSkill">保存</el-button>
+        <el-button @click="showSkillDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveSkill">
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
@@ -213,15 +277,29 @@
           <el-input v-model="promptForm.name" placeholder="模板名称" />
         </el-form-item>
         <el-form-item label="模板内容">
-          <el-input v-model="promptForm.template" type="textarea" :rows="6" placeholder="Prompt 模板内容，支持变量如 {{variable}}" />
+          <el-input
+            v-model="promptForm.template"
+            type="textarea"
+            :rows="6"
+            placeholder="Prompt 模板内容，支持变量如 {{variable}}"
+          />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="promptForm.description" type="textarea" :rows="2" placeholder="模板描述" />
+          <el-input
+            v-model="promptForm.description"
+            type="textarea"
+            :rows="2"
+            placeholder="模板描述"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showPromptDialog = false">取消</el-button>
-        <el-button type="primary" @click="savePrompt">保存</el-button>
+        <el-button @click="showPromptDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="savePrompt">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

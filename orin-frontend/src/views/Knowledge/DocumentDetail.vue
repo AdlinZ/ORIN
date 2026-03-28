@@ -37,9 +37,20 @@
           type="primary" 
           :loading="vectorizing"
           @click="handleVectorize"
-        >立即向量化</el-button>
-        <el-button :icon="Setting">设置</el-button>
-        <el-button type="danger" plain :icon="Delete" @click="handleDelete">删除</el-button>
+        >
+          立即向量化
+        </el-button>
+        <el-button :icon="Setting">
+          设置
+        </el-button>
+        <el-button
+          type="danger"
+          plain
+          :icon="Delete"
+          @click="handleDelete"
+        >
+          删除
+        </el-button>
       </div>
     </div>
 
@@ -47,7 +58,7 @@
     <el-tabs v-model="activeTab" class="doc-tabs">
       <!-- Original Content Tab -->
       <el-tab-pane label="原文内容" name="original">
-        <div class="original-content-container" v-loading="originalLoading">
+        <div v-loading="originalLoading" class="original-content-container">
           <!-- Text Content -->
           <div v-if="originalContentInfo.mediaType === 'text' || originalContentInfo.mediaType === 'pdf'" class="original-text">
             <pre v-if="originalContentInfo.text">{{ originalContentInfo.text }}</pre>
@@ -64,26 +75,27 @@
                 icon="error"
                 title="加载失败"
                 sub-title="无法加载图片，请检查文件是否正确上传"
-              >
-              </el-result>
+              />
             </template>
             <template v-else>
               <el-image
                 :src="imageBlobUrl"
                 fit="contain"
                 :preview-src-list="imageBlobUrl ? [imageBlobUrl] : []"
+                class="preview-image"
                 @load="onImageLoad"
                 @error="onImageError"
-                class="preview-image"
               >
                 <template #error>
                   <div class="image-error-placeholder">
-                    <el-icon :size="48"><Picture /></el-icon>
+                    <el-icon :size="48">
+                      <Picture />
+                    </el-icon>
                     <span>图片加载失败</span>
                   </div>
                 </template>
               </el-image>
-              <div class="image-actions" v-if="imageBlobUrl">
+              <div v-if="imageBlobUrl" class="image-actions">
                 <el-button type="primary" link @click="downloadOriginalFile">
                   <el-icon><Download /></el-icon>
                   下载原图
@@ -95,17 +107,23 @@
           <!-- Audio Content -->
           <div v-else-if="originalContentInfo.mediaType === 'audio'" class="original-media-preview">
             <div class="audio-player-wrapper">
-              <el-icon :size="64" class="media-icon"><Headset /></el-icon>
-              <audio controls :src="mediaBlobUrl" class="media-player"></audio>
-              <div class="file-name">{{ originalContentInfo.fileName }}</div>
+              <el-icon :size="64" class="media-icon">
+                <Headset />
+              </el-icon>
+              <audio controls :src="mediaBlobUrl" class="media-player" />
+              <div class="file-name">
+                {{ originalContentInfo.fileName }}
+              </div>
             </div>
           </div>
 
           <!-- Video Content -->
           <div v-else-if="originalContentInfo.mediaType === 'video'" class="original-media-preview">
             <div class="video-player-wrapper">
-              <video controls :src="mediaBlobUrl" class="media-player video-player"></video>
-              <div class="file-name">{{ originalContentInfo.fileName }}</div>
+              <video controls :src="mediaBlobUrl" class="media-player video-player" />
+              <div class="file-name">
+                {{ originalContentInfo.fileName }}
+              </div>
             </div>
           </div>
 
@@ -115,24 +133,44 @@
 
       <!-- Index File Tab -->
       <el-tab-pane label="索引文件" name="indexfile">
-        <div class="index-file-container" v-loading="retrievalLoading">
+        <div v-loading="retrievalLoading" class="index-file-container">
           <template v-if="retrievalInfo && retrievalInfo.fullContent">
             <div class="index-file-header">
               <div class="index-status">
                 <el-tag :type="retrievalInfo.parseStatus === 'PARSED' ? 'success' : (retrievalInfo.parseStatus === 'PARSING' ? 'warning' : 'info')" size="small">
                   {{ retrievalInfo.parseStatus === 'PARSED' ? '已解析' : (retrievalInfo.parseStatus === 'PARSING' ? '解析中' : '待处理') }}
                 </el-tag>
-                <el-tag v-if="retrievalInfo.vectorStatus" :type="retrievalInfo.vectorStatus === 'SUCCESS' ? 'success' : (retrievalInfo.vectorStatus === 'INDEXING' ? 'warning' : 'info')" size="small" style="margin-left: 8px;">
+                <el-tag
+                  v-if="retrievalInfo.vectorStatus"
+                  :type="retrievalInfo.vectorStatus === 'SUCCESS' ? 'success' : (retrievalInfo.vectorStatus === 'INDEXING' ? 'warning' : 'info')"
+                  size="small"
+                  style="margin-left: 8px;"
+                >
                   {{ retrievalInfo.vectorStatus === 'SUCCESS' ? '已向量化' : (retrievalInfo.vectorStatus === 'INDEXING' ? '向量化中' : '待向量化') }}
                 </el-tag>
                 <span class="index-char-count">索引文件共 {{ retrievalInfo.indexCharCount || 0 }} 字符</span>
               </div>
               <div class="index-actions">
-                <el-button v-if="retrievalInfo.parseStatus === 'PARSED' && retrievalInfo.vectorStatus !== 'SUCCESS'" type="primary" size="small" @click="handleVectorize" :loading="vectorizing">
+                <el-button
+                  v-if="retrievalInfo.parseStatus === 'PARSED' && retrievalInfo.vectorStatus !== 'SUCCESS'"
+                  type="primary"
+                  size="small"
+                  :loading="vectorizing"
+                  @click="handleVectorize"
+                >
                   立即向量化
                 </el-button>
-                <el-button :icon="Refresh" @click="loadRetrievalInfo" size="small">刷新</el-button>
-                <el-button type="primary" :icon="DocumentCopy" @click="copyIndexContent" size="small">复制全文</el-button>
+                <el-button :icon="Refresh" size="small" @click="loadRetrievalInfo">
+                  刷新
+                </el-button>
+                <el-button
+                  type="primary"
+                  :icon="DocumentCopy"
+                  size="small"
+                  @click="copyIndexContent"
+                >
+                  复制全文
+                </el-button>
               </div>
             </div>
 
@@ -157,13 +195,15 @@
           <template v-else-if="!retrievalLoading">
             <div class="index-empty">
               <template v-if="retrievalInfo?.parseStatus === 'PARSING'">
-                <el-icon class="is-loading" :size="48"><Loading /></el-icon>
+                <el-icon class="is-loading" :size="48">
+                  <Loading />
+                </el-icon>
                 <p>正在解析文档...</p>
               </template>
               <template v-else-if="!retrievalInfo?.parseStatus || retrievalInfo?.parseStatus === 'PENDING' || retrievalInfo?.parseStatus === 'FAILED'">
                 <el-result icon="info" title="暂无索引内容">
                   <template #extra>
-                    <el-button type="primary" @click="handleParse" :loading="parsing">
+                    <el-button type="primary" :loading="parsing" @click="handleParse">
                       立即解析
                     </el-button>
                   </template>
@@ -175,7 +215,7 @@
                     <p>文档已解析完成，共 {{ retrievalInfo.indexCharCount || 0 }} 字符</p>
                   </template>
                   <template #extra>
-                    <el-button type="primary" @click="handleVectorize" :loading="vectorizing">
+                    <el-button type="primary" :loading="vectorizing" @click="handleVectorize">
                       立即向量化
                     </el-button>
                   </template>
@@ -184,7 +224,9 @@
               <template v-else>
                 <el-result icon="warning" title="状态未知">
                   <template #extra>
-                    <el-button @click="loadRetrievalInfo">刷新状态</el-button>
+                    <el-button @click="loadRetrievalInfo">
+                      刷新状态
+                    </el-button>
                   </template>
                 </el-result>
               </template>
@@ -207,23 +249,29 @@
               />
             </div>
             <div class="right-tools">
-              <el-button :icon="Refresh" @click="loadSegments">刷新</el-button>
-              <el-button type="primary" :icon="Plus">添加分段</el-button>
+              <el-button :icon="Refresh" @click="loadSegments">
+                刷新
+              </el-button>
+              <el-button type="primary" :icon="Plus">
+                添加分段
+              </el-button>
             </div>
           </div>
 
           <!-- Segments List -->
-          <div class="segments-list" v-loading="loading">
+          <div v-loading="loading" class="segments-list">
             <template v-if="filteredSegments.length > 0">
               <div 
                 v-for="(segment, index) in filteredSegments" 
                 :key="segment.id"
                 class="segment-card"
-                @click="selectSegment(segment)"
                 :class="{ 'selected': selectedSegment?.id === segment.id }"
+                @click="selectSegment(segment)"
               >
                 <div class="segment-header">
-                  <div class="segment-number">分段 {{ index + 1 }}</div>
+                  <div class="segment-number">
+                    分段 {{ index + 1 }}
+                  </div>
                   <div class="segment-meta">
                     <span>{{ segment.wordCount }} 字符</span>
                     <span class="separator">·</span>
@@ -237,17 +285,38 @@
                   <el-tag size="small" :type="segment.status === 'indexed' ? 'success' : 'info'" effect="plain">
                     {{ segment.status === 'indexed' ? '已索引' : '待处理' }}
                   </el-tag>
-                  <el-tag v-if="segment.chunkType" size="small" type="warning" effect="plain">
+                  <el-tag
+                    v-if="segment.chunkType"
+                    size="small"
+                    type="warning"
+                    effect="plain"
+                  >
                     {{ segment.chunkType === 'parent' ? 'Parent' : 'Child' }}
                   </el-tag>
                   <div class="segment-actions">
-                    <el-button v-if="segment.chunkType !== 'parent'" link type="success" size="small" @click.stop="loadChunkVector(segment.id)">
+                    <el-button
+                      v-if="segment.chunkType !== 'parent'"
+                      link
+                      type="success"
+                      size="small"
+                      @click.stop="loadChunkVector(segment.id)"
+                    >
                       <el-icon><DataLine /></el-icon>
                     </el-button>
-                    <el-button link type="primary" size="small" @click.stop="editSegment(segment)">
+                    <el-button
+                      link
+                      type="primary"
+                      size="small"
+                      @click.stop="editSegment(segment)"
+                    >
                       <el-icon><Edit /></el-icon>
                     </el-button>
-                    <el-button link type="danger" size="small" @click.stop="deleteSegment(segment)">
+                    <el-button
+                      link
+                      type="danger"
+                      size="small"
+                      @click.stop="deleteSegment(segment)"
+                    >
                       <el-icon><Delete /></el-icon>
                     </el-button>
                   </div>
@@ -256,7 +325,7 @@
             </template>
             <div v-else class="empty-segments">
               <el-empty description="该文档尚未进行分段向量化">
-                <el-button type="primary" @click="handleVectorize" :loading="vectorizing">
+                <el-button type="primary" :loading="vectorizing" @click="handleVectorize">
                   点击开始向量化
                 </el-button>
               </el-empty>
@@ -285,7 +354,9 @@
 
             <!-- Parent-Child 分块信息 -->
             <el-form-item label="分块模式">
-              <el-tag type="success">{{ chunkStats.chunkingMode || 'PARENT_CHILD' }}</el-tag>
+              <el-tag type="success">
+                {{ chunkStats.chunkingMode || 'PARENT_CHILD' }}
+              </el-tag>
             </el-form-item>
             <el-form-item label="分块统计">
               <div class="chunk-stats-display">
@@ -301,20 +372,34 @@
                 <el-option label="手动" value="manual" />
                 <el-option label="智能" value="smart" />
               </el-select>
-              <div class="form-tip">当前使用 Parent-Child 分块策略，配置已固定</div>
+              <div class="form-tip">
+                当前使用 Parent-Child 分块策略，配置已固定
+              </div>
             </el-form-item>
             <el-form-item label="分段长度" style="display: none;">
-              <el-slider v-model="form.chunkSize" :min="100" :max="2000" :step="100" />
+              <el-slider
+                v-model="form.chunkSize"
+                :min="100"
+                :max="2000"
+                :step="100"
+              />
               <span class="slider-value">{{ form.chunkSize }} 字符</span>
             </el-form-item>
             <el-form-item label="分段重叠" style="display: none;">
-              <el-slider v-model="form.chunkOverlap" :min="0" :max="500" :step="10" />
+              <el-slider
+                v-model="form.chunkOverlap"
+                :min="0"
+                :max="500"
+                :step="10"
+              />
               <span class="slider-value">{{ form.chunkOverlap }} 字符</span>
             </el-form-item>
             <el-form-item label="启用状态">
               <el-switch v-model="form.enabled" />
             </el-form-item>
-            <el-button type="primary" :loading="submitting" @click="onSubmit">保存更改</el-button>
+            <el-button type="primary" :loading="submitting" @click="onSubmit">
+              保存更改
+            </el-button>
           </el-form>
         </div>
       </el-tab-pane>
@@ -349,25 +434,44 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveSegment">保存</el-button>
+        <el-button @click="editDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="saveSegment">
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 向量数据展示对话框 -->
-    <el-dialog v-model="vectorDialogVisible" title="向量数据" width="800px" v-loading="vectorLoading">
+    <el-dialog
+      v-model="vectorDialogVisible"
+      v-loading="vectorLoading"
+      title="向量数据"
+      width="800px"
+    >
       <div v-if="vectorData" class="vector-info">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="Chunk ID">{{ vectorData.chunkId }}</el-descriptions-item>
-          <el-descriptions-item label="Doc ID">{{ vectorData.docId }}</el-descriptions-item>
-          <el-descriptions-item label="Chunk Type">{{ vectorData.chunkType }}</el-descriptions-item>
-          <el-descriptions-item label="向量维度">{{ vectorData.embeddingDimension }}</el-descriptions-item>
+          <el-descriptions-item label="Chunk ID">
+            {{ vectorData.chunkId }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Doc ID">
+            {{ vectorData.docId }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Chunk Type">
+            {{ vectorData.chunkType }}
+          </el-descriptions-item>
+          <el-descriptions-item label="向量维度">
+            {{ vectorData.embeddingDimension }}
+          </el-descriptions-item>
           <el-descriptions-item label="内容" :span="2">
-            <div class="vector-content">{{ vectorData.content }}</div>
+            <div class="vector-content">
+              {{ vectorData.content }}
+            </div>
           </el-descriptions-item>
         </el-descriptions>
 
-        <div class="vector-array-section" v-if="vectorData.embedding">
+        <div v-if="vectorData.embedding" class="vector-array-section">
           <h4>向量数据 (前20维预览)</h4>
           <div class="vector-array">
             {{ vectorData.embedding.slice(0, 20).map(v => v.toFixed(4)).join(', ') }}

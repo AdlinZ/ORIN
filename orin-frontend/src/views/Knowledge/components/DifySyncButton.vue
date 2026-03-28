@@ -29,7 +29,7 @@
 
     <!-- 同步历史对话框 -->
     <el-dialog v-model="showHistoryDialog" title="同步历史" width="600px">
-      <el-table :data="syncHistory" v-loading="historyLoading">
+      <el-table v-loading="historyLoading" :data="syncHistory">
         <el-table-column prop="syncType" label="类型" width="100">
           <template #default="{ row }">
             <el-tag :type="row.syncType === 'FULL' ? 'danger' : 'info'">

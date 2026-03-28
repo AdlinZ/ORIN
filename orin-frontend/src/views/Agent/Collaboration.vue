@@ -21,7 +21,9 @@
               <span class="label">总任务数</span>
               <span class="value">{{ stats.total }}</span>
             </div>
-            <el-icon class="icon primary"><Connection /></el-icon>
+            <el-icon class="icon primary">
+              <Connection />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -32,7 +34,9 @@
               <span class="label">进行中</span>
               <span class="value">{{ stats.running }}</span>
             </div>
-            <el-icon class="icon warning"><Loading /></el-icon>
+            <el-icon class="icon warning">
+              <Loading />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -43,7 +47,9 @@
               <span class="label">已完成</span>
               <span class="value">{{ stats.completed }}</span>
             </div>
-            <el-icon class="icon success"><CircleCheck /></el-icon>
+            <el-icon class="icon success">
+              <CircleCheck />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -54,7 +60,9 @@
               <span class="label">已失败</span>
               <span class="value">{{ stats.failed }}</span>
             </div>
-            <el-icon class="icon danger"><CircleClose /></el-icon>
+            <el-icon class="icon danger">
+              <CircleClose />
+            </el-icon>
           </div>
         </el-card>
       </el-col>
@@ -62,10 +70,20 @@
 
     <!-- 任务列表 -->
     <el-card class="task-card" shadow="never">
-      <el-table :data="tasks" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="tasks" stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="任务名称" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="name"
+          label="任务名称"
+          min-width="150"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="description"
+          label="描述"
+          min-width="200"
+          show-overflow-tooltip
+        />
         <el-table-column prop="taskType" label="任务类型" width="120">
           <template #default="{ row }">
             <el-tag :type="getTaskTypeTag(row.taskType)" size="small">
@@ -82,7 +100,12 @@
         </el-table-column>
         <el-table-column prop="agentIds" label="参与 Agent" min-width="150">
           <template #default="{ row }">
-            <el-tag v-for="agent in row.agentIds" :key="agent" size="small" style="margin-right: 4px">
+            <el-tag
+              v-for="agent in row.agentIds"
+              :key="agent"
+              size="small"
+              style="margin-right: 4px"
+            >
               {{ agent }}
             </el-tag>
           </template>
@@ -94,13 +117,28 @@
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.status === 'PENDING'" type="primary" size="small" @click="startTask(row.id)">
+            <el-button
+              v-if="row.status === 'PENDING'"
+              type="primary"
+              size="small"
+              @click="startTask(row.id)"
+            >
               开始
             </el-button>
-            <el-button v-if="row.status === 'RUNNING'" type="warning" size="small" @click="executeNext(row.id)">
+            <el-button
+              v-if="row.status === 'RUNNING'"
+              type="warning"
+              size="small"
+              @click="executeNext(row.id)"
+            >
               执行下一步
             </el-button>
-            <el-button v-if="row.status === 'RUNNING'" type="success" size="small" @click="completeTask(row.id)">
+            <el-button
+              v-if="row.status === 'RUNNING'"
+              type="success"
+              size="small"
+              @click="completeTask(row.id)"
+            >
               完成
             </el-button>
             <el-button type="danger" size="small" @click="deleteTask(row.id)">
@@ -118,7 +156,12 @@
           <el-input v-model="form.name" placeholder="请输入任务名称" />
         </el-form-item>
         <el-form-item label="任务描述">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入任务描述" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入任务描述"
+          />
         </el-form-item>
         <el-form-item label="任务类型">
           <el-select v-model="form.taskType" style="width: 100%">
@@ -145,8 +188,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="createTask">创建</el-button>
+        <el-button @click="showCreateDialog = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="createTask">
+          创建
+        </el-button>
       </template>
     </el-dialog>
   </div>

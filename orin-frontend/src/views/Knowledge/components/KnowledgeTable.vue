@@ -4,35 +4,62 @@
       <el-table-column prop="name" label="名称" min-width="180">
         <template #default="scope">
           <span style="font-weight: 600">{{ scope.row.fileName || scope.row.name || scope.row.tableName }}</span>
-          <div style="font-size: 12px; color: #999;">ID: {{ scope.row.id }}</div>
+          <div style="font-size: 12px; color: #999;">
+            ID: {{ scope.row.id }}
+          </div>
         </template>
       </el-table-column>
       
-      <el-table-column prop="type" label="类型" width="120" v-if="props.type === 'structured'">
-         <template #default="{ row }">
-             <el-tag effect="plain">{{ row.type }}</el-tag>
-         </template>
+      <el-table-column
+        v-if="props.type === 'structured'"
+        prop="type"
+        label="类型"
+        width="120"
+      >
+        <template #default="{ row }">
+          <el-tag effect="plain">
+            {{ row.type }}
+          </el-tag>
+        </template>
       </el-table-column>
 
-      <el-table-column prop="docCount" label="资源数量" width="120" align="center" v-if="props.type !== 'api'">
+      <el-table-column
+        v-if="props.type !== 'api'"
+        prop="docCount"
+        label="资源数量"
+        width="120"
+        align="center"
+      >
         <template #default="scope">
-          <el-tag size="small" type="info">{{ scope.row.docCount ?? 0 }} items</el-tag>
+          <el-tag size="small" type="info">
+            {{ scope.row.docCount ?? 0 }} items
+          </el-tag>
         </template>
       </el-table-column>
       
-      <el-table-column prop="triggerName" label="触发名称" width="150" v-if="props.type === 'api'">
-         <template #default="{ row }">
-             <code>{{ row.triggerName }}</code>
-         </template>
+      <el-table-column
+        v-if="props.type === 'api'"
+        prop="triggerName"
+        label="触发名称"
+        width="150"
+      >
+        <template #default="{ row }">
+          <code>{{ row.triggerName }}</code>
+        </template>
       </el-table-column>
       
       <el-table-column prop="syncTime" label="最后更新" width="180">
-          <template #default="scope">
-              {{ formatTime(scope.row.syncTime || scope.row.updatedAt) }}
-          </template>
+        <template #default="scope">
+          {{ formatTime(scope.row.syncTime || scope.row.updatedAt) }}
+        </template>
       </el-table-column>
       
-      <el-table-column prop="status" label="状态" width="100" align="center">
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="100"
+        align="center"
+      >
         <template #default="scope">
           <el-tag :type="scope.row.status === 'ENABLED' ? 'success' : 'info'" effect="dark">
             {{ scope.row.status === 'ENABLED' ? '已启用' : '已禁用' }}
@@ -42,10 +69,20 @@
       
       <el-table-column label="操作" width="250" fixed="right">
         <template #default="scope">
-          <el-button link type="primary" @click="$emit('view-chunks', scope.row)" v-if="props.type !== 'api'">
+          <el-button
+            v-if="props.type !== 'api'"
+            link
+            type="primary"
+            @click="$emit('view-chunks', scope.row)"
+          >
             管理
           </el-button>
-           <el-button link type="warning" @click="$emit('test-retrieve', scope.row)" v-if="props.type === 'default'">
+          <el-button
+            v-if="props.type === 'default'"
+            link
+            type="warning"
+            @click="$emit('test-retrieve', scope.row)"
+          >
             检索测试
           </el-button>
           
@@ -56,8 +93,8 @@
             inline-prompt
             active-text="ON"
             inactive-text="OFF"
-            @change="(val) => $emit('status-change', scope.row, val)"
             style="margin-left: 10px;"
+            @change="(val) => $emit('status-change', scope.row, val)"
           />
         </template>
       </el-table-column>
