@@ -40,7 +40,7 @@ jobs:
           cache: 'maven'
 
       - name: Cache Maven packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -60,7 +60,7 @@ jobs:
 
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: backend-test-reports
           path: orin-backend/target/surefire-reports/*.txt
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload lint reports
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-lint-reports
           path: orin-frontend/eslint-reports/*.html
@@ -131,7 +131,7 @@ jobs:
 
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ai-engine-test-reports
           path: orin-ai-engine/.pytest_cache
