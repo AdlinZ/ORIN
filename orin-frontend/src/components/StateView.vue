@@ -7,7 +7,9 @@
           <Loading />
         </el-icon>
       </div>
-      <p v-if="loadingText" class="state-text">{{ loadingText }}</p>
+      <p v-if="loadingText" class="state-text">
+        {{ loadingText }}
+      </p>
       <el-skeleton v-if="showSkeleton" :rows="skeletonRows" animated />
     </div>
 
@@ -18,10 +20,14 @@
           <component :is="emptyIcon" />
         </el-icon>
       </div>
-      <p class="state-title">{{ emptyTitle }}</p>
-      <p v-if="emptyDescription" class="state-description">{{ emptyDescription }}</p>
+      <p class="state-title">
+        {{ emptyTitle }}
+      </p>
+      <p v-if="emptyDescription" class="state-description">
+        {{ emptyDescription }}
+      </p>
       <div v-if="$slots.emptyAction" class="state-action">
-        <slot name="emptyAction"></slot>
+        <slot name="emptyAction" />
       </div>
     </div>
 
@@ -32,8 +38,12 @@
           <CircleCloseFilled />
         </el-icon>
       </div>
-      <p class="state-title">{{ errorTitle }}</p>
-      <p v-if="errorDescription" class="state-description">{{ errorDescription }}</p>
+      <p class="state-title">
+        {{ errorTitle }}
+      </p>
+      <p v-if="errorDescription" class="state-description">
+        {{ errorDescription }}
+      </p>
       <div v-if="showErrorAction" class="state-action">
         <el-button type="primary" :icon="RefreshRight" @click="handleRetry">
           重试
@@ -51,10 +61,14 @@
           <Lock />
         </el-icon>
       </div>
-      <p class="state-title">{{ forbiddenTitle }}</p>
-      <p v-if="forbiddenDescription" class="state-description">{{ forbiddenDescription }}</p>
+      <p class="state-title">
+        {{ forbiddenTitle }}
+      </p>
+      <p v-if="forbiddenDescription" class="state-description">
+        {{ forbiddenDescription }}
+      </p>
       <div v-if="$slots.forbiddenAction" class="state-action">
-        <slot name="forbiddenAction"></slot>
+        <slot name="forbiddenAction" />
       </div>
     </div>
 
@@ -65,14 +79,16 @@
           <CircleCheckFilled />
         </el-icon>
       </div>
-      <p v-if="successMessage" class="state-title">{{ successMessage }}</p>
+      <p v-if="successMessage" class="state-title">
+        {{ successMessage }}
+      </p>
       <div v-if="$slots.successAction" class="state-action">
-        <slot name="successAction"></slot>
+        <slot name="successAction" />
       </div>
     </div>
 
     <!-- 自定义内容插槽 -->
-    <slot v-else></slot>
+    <slot v-else />
   </div>
 </template>
 

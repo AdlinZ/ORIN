@@ -80,4 +80,11 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
     @org.springframework.data.jpa.repository.Modifying
     @Query("UPDATE KnowledgeDocument d SET d.parseStatus = :status, d.lastModified = CURRENT_TIMESTAMP WHERE d.id = :id")
     void updateParseStatus(@Param("id") String id, @Param("status") String status);
+
+    /**
+     * 更新分块数量
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE KnowledgeDocument d SET d.chunkCount = :count, d.lastModified = CURRENT_TIMESTAMP WHERE d.id = :id")
+    void updateChunkCount(@Param("id") String id, @Param("count") Integer count);
 }

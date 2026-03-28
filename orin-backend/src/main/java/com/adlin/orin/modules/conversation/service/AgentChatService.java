@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.conversation.service;
 
-import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.conversation.dto.*;
 import com.adlin.orin.modules.conversation.entity.AgentChatSession;
@@ -16,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -131,8 +131,8 @@ public class AgentChatService {
                     
                     for (VectorStoreProvider.SearchResult r : results) {
                         RetrievedChunk chunk = new RetrievedChunk();
-                        chunk.setSource(r.getMetadata() != null ? 
-                                r.getMetadata().getOrDefault("source", "未知来源") : "未知来源");
+                        chunk.setSource(r.getMetadata() != null ?
+                                (String) r.getMetadata().getOrDefault("source", "未知来源") : "未知来源");
                         chunk.setContent(r.getContent());
                         chunk.setScore(r.getScore());
                         retrievedChunks.add(chunk);
@@ -146,14 +146,15 @@ public class AgentChatService {
         }
         
         // 调用智能体
-        String aiResponse = callAgent(session.getAgentId(), request.getMessage(), context, messages);
-        
+        Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, messages);
+        String aiResponse = (String) agentResult.get("content");
+
         // 添加 AI 响应
         Map<String, String> assistantMsg = new HashMap<>();
         assistantMsg.put("role", "assistant");
         assistantMsg.put("content", aiResponse);
         messages.add(assistantMsg);
-        
+
         // 保存历史
         try {
             session.setHistory(objectMapper.writeValueAsString(messages));
@@ -161,43 +162,69 @@ public class AgentChatService {
             log.error("序列化消息历史失败", e);
         }
         sessionRepository.save(session);
-        
+
         // 返回响应
         ChatMessageResponse response = new ChatMessageResponse();
         response.setContent(aiResponse);
         response.setRetrievedChunks(retrievedChunks);
-        
+        response.setPromptTokens((Integer) agentResult.getOrDefault("promptTokens", 0));
+        response.setCompletionTokens((Integer) agentResult.getOrDefault("completionTokens", 0));
+        response.setModel((String) agentResult.getOrDefault("model", ""));
+        response.setProvider((String) agentResult.getOrDefault("provider", ""));
+        response.setCreatedAt(java.time.LocalDateTime.now().toString());
+
         return response;
     }
 
     /**
-     * 调用智能体（需要集成实际的 agent runtime）
+     * 调用智能体，返回内容和usage信息
      */
-    private String callAgent(String agentId, String userMessage, String context, 
+    private Map<String, Object> callAgent(String agentId, String userMessage, String context,
                              List<Map<String, String>> history) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("content", "");
+        result.put("promptTokens", 0);
+        result.put("completionTokens", 0);
+        result.put("model", "");
+        result.put("provider", "");
+
         try {
-            AgentMetadata agent = agentManageService.getAgentById(agentId);
-            
-            // 构建 prompt
-            StringBuilder prompt = new StringBuilder();
+            // 构建完整的消息，包含知识库上下文
+            String fullMessage = userMessage;
             if (context != null && !context.isEmpty()) {
-                prompt.append("参考知识库内容:\n").append(context).append("\n\n");
+                fullMessage = "参考知识库内容:\n" + context + "\n\n用户: " + userMessage;
             }
-            prompt.append("用户: ").append(userMessage);
-            
-            // TODO: 实际调用 agent runtime
-            // 这里先返回模拟响应
-            log.info("调用智能体 {}: {}", agentId, prompt.substring(0, Math.min(100, prompt.length())));
-            
-            return "这是智能体 " + (agent != null ? agent.getName() : agentId) 
-                    + " 的响应。\n\n知识库上下文: " 
-                    + (context.isEmpty() ? "未附加" : "已参考")
-                    + "\n\n实际调用需集成 Agent Runtime。";
-                    
+
+            log.info("调用智能体 {}，消息长度: {}", agentId, fullMessage.length());
+
+            // 调用 AgentManageService 的 chat 方法
+            Optional<Object> response = agentManageService.chat(agentId, fullMessage, (String) null);
+
+            if (response.isPresent()) {
+                Object resp = response.get();
+                if (resp instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> respMap = (Map<String, Object>) resp;
+                    result.put("content", respMap.getOrDefault("content", ""));
+                    result.put("promptTokens", respMap.getOrDefault("promptTokens", 0));
+                    result.put("completionTokens", respMap.getOrDefault("completionTokens", 0));
+                    result.put("model", respMap.getOrDefault("model", ""));
+                    result.put("provider", respMap.getOrDefault("provider", ""));
+                } else if (resp instanceof String) {
+                    result.put("content", (String) resp);
+                } else {
+                    result.put("content", resp.toString());
+                }
+            } else {
+                result.put("content", "智能体返回为空");
+            }
+
         } catch (Exception e) {
             log.error("调用智能体失败", e);
-            return "智能体调用失败: " + e.getMessage();
+            result.put("content", "智能体调用失败: " + e.getMessage());
         }
+
+        return result;
     }
 
     /**

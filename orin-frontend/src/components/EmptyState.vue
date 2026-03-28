@@ -1,13 +1,19 @@
 <template>
   <div class="empty-state" :class="{ 'is-circle': circle }">
     <div class="empty-icon">
-      <el-icon :size="iconSize"><component :is="icon" /></el-icon>
+      <el-icon :size="iconSize">
+        <component :is="icon" />
+      </el-icon>
     </div>
     <div class="empty-content">
-      <p v-if="title" class="empty-title">{{ title }}</p>
-      <p v-if="description" class="empty-description">{{ description }}</p>
+      <p v-if="title" class="empty-title">
+        {{ title }}
+      </p>
+      <p v-if="description" class="empty-description">
+        {{ description }}
+      </p>
       <div v-if="$slots.action" class="empty-action">
-        <slot name="action"></slot>
+        <slot name="action" />
       </div>
     </div>
   </div>

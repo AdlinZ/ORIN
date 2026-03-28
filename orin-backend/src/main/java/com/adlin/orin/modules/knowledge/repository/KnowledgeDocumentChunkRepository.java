@@ -45,14 +45,16 @@ public interface KnowledgeDocumentChunkRepository extends JpaRepository<Knowledg
      * 关键词检索 - 支持多个关键词（任意匹配）
      */
     @Query("SELECT c FROM KnowledgeDocumentChunk c WHERE c.documentId IN " +
-            "(SELECT d.id FROM KnowledgeDocument d WHERE d.knowledgeBaseId = :kbId) " +
+            "(SELECT d.id FROM KnowledgeDocument d WHERE d.knowledgeBaseId = :kbId AND d.deletedFlag = false) " +
             "AND (LOWER(c.content) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<KnowledgeDocumentChunk> searchByKeyword(@Param("kbId") String kbId, @Param("keyword") String keyword);
 
     /**
      * 全局关键词检索 (跨所有知识库) - 支持多个关键词（任意匹配）
      */
-    @Query("SELECT c FROM KnowledgeDocumentChunk c WHERE LOWER(c.content) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    @Query("SELECT c FROM KnowledgeDocumentChunk c WHERE c.documentId IN " +
+            "(SELECT d.id FROM KnowledgeDocument d WHERE d.deletedFlag = false) " +
+            "AND (LOWER(c.content) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<KnowledgeDocumentChunk> searchAllByKeyword(@Param("keyword") String keyword);
 
     /**

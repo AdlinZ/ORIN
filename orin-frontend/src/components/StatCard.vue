@@ -1,10 +1,14 @@
 <template>
   <div class="stat-card" :class="[variant, { clickable }]" @click="handleClick">
     <div class="stat-icon" :style="{ background: iconBg }">
-      <el-icon :size="24"><component :is="icon" /></el-icon>
+      <el-icon :size="24">
+        <component :is="icon" />
+      </el-icon>
     </div>
     <div class="stat-content">
-      <div class="stat-label">{{ label }}</div>
+      <div class="stat-label">
+        {{ label }}
+      </div>
       <div class="stat-value">
         <span class="value">{{ displayValue }}</span>
         <span v-if="suffix" class="suffix">{{ suffix }}</span>

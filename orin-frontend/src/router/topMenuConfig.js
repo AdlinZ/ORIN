@@ -50,6 +50,11 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Monitor'
                     },
                     {
+                        title: '知识库对话',
+                        path: ROUTES.AGENTS.WORKSPACE,
+                        icon: 'ChatLineRound'
+                    },
+                    {
                         title: '会话记录',
                         path: ROUTES.AGENTS.CHAT_LOGS,
                         icon: 'ChatDotRound'

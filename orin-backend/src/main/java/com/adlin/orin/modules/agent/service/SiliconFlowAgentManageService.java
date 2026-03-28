@@ -305,31 +305,49 @@ public class SiliconFlowAgentManageService implements AgentManageService {
         }
 
         long startTime = System.currentTimeMillis();
-        Optional<Object> result = siliconFlowIntegrationService.sendMessageWithFullParams(
+        SiliconFlowIntegrationService.ChatResult chatResult = siliconFlowIntegrationService.sendMessageWithFullParamsAndGetUsage(
                 profile.getEndpointUrl() + "/chat/completions",
                 profile.getApiKey(),
                 metadata.getModelName(),
                 messages,
                 temperature,
                 topP,
-                maxTokens);
+                maxTokens,
+                null, null);
         long duration = System.currentTimeMillis() - startTime;
 
         // Record audit log after API call
         try {
-            String responseText = result.isPresent() ? result.get().toString() : null;
-            int statusCode = result.isPresent() ? 200 : 500;
-            Map<String, Integer> usage = extractUsageFromResponse(result.orElse(null));
+            String responseText = chatResult != null ? chatResult.content : null;
+            int statusCode = chatResult != null ? 200 : 500;
+            Map<String, Integer> usage = new HashMap<>();
+            usage.put("prompt", chatResult != null && chatResult.promptTokens != null ? chatResult.promptTokens : 0);
+            usage.put("completion", chatResult != null && chatResult.completionTokens != null ? chatResult.completionTokens : 0);
             auditLogService.logApiCall(
                     "SYSTEM", null, agentId, "SiliconFlow", externalEndpoint, "POST",
                     metadata.getModelName(), null, "ORIN", requestParamsJson,
                     responseText, Integer.valueOf(statusCode), duration,
-                    usage.get("prompt"), usage.get("completion"), Double.valueOf(0.0), result.isPresent(), null);
+                    usage.get("prompt"), usage.get("completion"), Double.valueOf(0.0), chatResult != null, null);
         } catch (Exception e) {
             log.warn("Failed to log audit for SiliconFlow: {}", e.getMessage());
         }
 
-        return result;
+        // Return Map with content and usage info
+        Map<String, Object> resultMap = new HashMap<>();
+        if (chatResult != null) {
+            resultMap.put("content", chatResult.content != null ? chatResult.content : "");
+            resultMap.put("promptTokens", chatResult.promptTokens != null ? chatResult.promptTokens : 0);
+            resultMap.put("completionTokens", chatResult.completionTokens != null ? chatResult.completionTokens : 0);
+            resultMap.put("model", chatResult.model != null ? chatResult.model : metadata.getModelName());
+        } else {
+            resultMap.put("content", "智能体返回为空");
+            resultMap.put("promptTokens", 0);
+            resultMap.put("completionTokens", 0);
+            resultMap.put("model", metadata.getModelName());
+        }
+        resultMap.put("provider", "SiliconFlow");
+
+        return Optional.of(resultMap);
     }
 
     @Override

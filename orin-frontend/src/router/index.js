@@ -226,6 +226,12 @@ const routes = [
                         component: () => import('@/views/Knowledge/KBDetail.vue'),
                         meta: { title: '知识库详情', hidden: true }
                     },
+                    {
+                        path: ':kbId/document/:docId',
+                        name: 'DocumentDetail',
+                        component: () => import('@/views/Knowledge/DocumentDetail.vue'),
+                        meta: { title: '文档详情', hidden: true }
+                    },
                     // 素材管理
                     {
                         path: 'media',

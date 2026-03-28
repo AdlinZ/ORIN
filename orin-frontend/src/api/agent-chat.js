@@ -2,7 +2,7 @@ import request from '@/utils/request';
 
 export function listAgents(params) {
   return request({
-    url: '/api/v1/agents',
+    url: '/agents',
     method: 'get',
     params,
   });
@@ -10,7 +10,7 @@ export function listAgents(params) {
 
 export function getAgentDetail(agentId) {
   return request({
-    url: `/api/v1/agents/${agentId}`,
+    url: `/agents/${agentId}`,
     method: 'get',
   });
 }
@@ -18,7 +18,7 @@ export function getAgentDetail(agentId) {
 // 获取知识库列表（用于智能体对话时附加）
 export function listKnowledgeBases(params) {
   return request({
-    url: '/api/v1/knowledge/bases',
+    url: '/knowledge/list',
     method: 'get',
     params,
   });
@@ -27,7 +27,7 @@ export function listKnowledgeBases(params) {
 // 智能体对话会话管理
 export function listChatSessions(params) {
   return request({
-    url: '/api/v1/agents/chat/sessions',
+    url: '/agents/chat/sessions',
     method: 'get',
     params,
   });
@@ -35,7 +35,7 @@ export function listChatSessions(params) {
 
 export function createChatSession(data) {
   return request({
-    url: '/api/v1/agents/chat/sessions',
+    url: '/agents/chat/sessions',
     method: 'post',
     data,
   });
@@ -43,14 +43,14 @@ export function createChatSession(data) {
 
 export function deleteChatSession(sessionId) {
   return request({
-    url: `/api/v1/agents/chat/sessions/${sessionId}`,
+    url: `/agents/chat/sessions/${sessionId}`,
     method: 'delete',
   });
 }
 
 export function getChatSession(sessionId) {
   return request({
-    url: `/api/v1/agents/chat/sessions/${sessionId}`,
+    url: `/agents/chat/sessions/${sessionId}`,
     method: 'get',
   });
 }
@@ -58,7 +58,7 @@ export function getChatSession(sessionId) {
 // 发送对话消息（支持知识库检索）
 export function sendChatMessage(sessionId, data) {
   return request({
-    url: `/api/v1/agents/chat/sessions/${sessionId}/messages`,
+    url: `/agents/chat/sessions/${sessionId}/messages`,
     method: 'post',
     data,
   });
@@ -67,7 +67,7 @@ export function sendChatMessage(sessionId, data) {
 // 为会话附加/解绑知识库
 export function attachKnowledgeBase(sessionId, kbId) {
   return request({
-    url: `/api/v1/agents/chat/sessions/${sessionId}/attach-kb`,
+    url: `/agents/chat/sessions/${sessionId}/attach-kb`,
     method: 'post',
     data: { kbId },
   });
@@ -75,7 +75,7 @@ export function attachKnowledgeBase(sessionId, kbId) {
 
 export function detachKnowledgeBase(sessionId, kbId) {
   return request({
-    url: `/api/v1/agents/chat/sessions/${sessionId}/detach-kb`,
+    url: `/agents/chat/sessions/${sessionId}/detach-kb`,
     method: 'post',
     data: { kbId },
   });
@@ -84,7 +84,7 @@ export function detachKnowledgeBase(sessionId, kbId) {
 // 获取会话已附加的知识库
 export function getAttachedKnowledgeBases(sessionId) {
   return request({
-    url: `/api/v1/agents/chat/sessions/${sessionId}/kbs`,
+    url: `/agents/chat/sessions/${sessionId}/kbs`,
     method: 'get',
   });
 }

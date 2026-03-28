@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.VectorizationException;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import io.milvus.client.MilvusServiceClient;
@@ -450,6 +451,7 @@ public class MilvusVectorService implements VectorStoreProvider {
 
         } catch (Exception e) {
             log.error("Milvus chunks insert error: {}", e.getMessage(), e);
+            throw new VectorizationException("Failed to insert chunks into Milvus: " + e.getMessage(), e);
         } finally {
             if (client != null)
                 client.close();
@@ -475,6 +477,16 @@ public class MilvusVectorService implements VectorStoreProvider {
         } finally {
             if (client != null)
                 client.close();
+        }
+
+        // Update document metadata after vector deletion
+        try {
+            for (String docId : docIds) {
+                documentRepository.updateVectorStatus(docId, "PENDING");
+                documentRepository.updateChunkCount(docId, 0);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update document metadata after vector deletion: {}", e.getMessage());
         }
     }
 

@@ -23,6 +23,21 @@ public class SiliconFlowIntegrationService {
     private final RestTemplate difyRestTemplate;
 
     /**
+     * Chat result with content and usage info
+     */
+    public static class ChatResult {
+        public String content;
+        public Integer promptTokens;
+        public Integer completionTokens;
+        public Integer totalTokens;
+        public String model;
+    }
+
+    /**
+     * 测试硅基流动API连接性
+     */
+
+    /**
      * 测试硅基流动API连接性
      */
     @CircuitBreaker(name = "siliconFlow")
@@ -211,7 +226,26 @@ public class SiliconFlowIntegrationService {
                     });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return Optional.of(response.getBody());
+                Map<String, Object> body = response.getBody();
+                Object choicesObj = body.get("choices");
+                if (choicesObj instanceof List) {
+                    List<?> choices = (List<?>) choicesObj;
+                    if (!choices.isEmpty()) {
+                        Object choice = choices.get(0);
+                        if (choice instanceof Map) {
+                            Map<?, ?> choiceMap = (Map<?, ?>) choice;
+                            Object msgObj = choiceMap.get("message");
+                            if (msgObj instanceof Map) {
+                                Map<?, ?> messageMap = (Map<?, ?>) msgObj;
+                                Object content = messageMap.get("content");
+                                if (content != null) {
+                                    return Optional.of(content.toString());
+                                }
+                            }
+                        }
+                    }
+                }
+                return Optional.of(body);
             }
         } catch (Exception e) {
             log.error("Failed to send message to SiliconFlow: ", e);
@@ -307,12 +341,111 @@ public class SiliconFlowIntegrationService {
                     });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return Optional.of(response.getBody());
+                Map<String, Object> body = response.getBody();
+                // Extract content from choices[0].message.content
+                Object choicesObj = body.get("choices");
+                if (choicesObj instanceof List) {
+                    List<?> choices = (List<?>) choicesObj;
+                    if (!choices.isEmpty()) {
+                        Object choice = choices.get(0);
+                        if (choice instanceof Map) {
+                            Map<?, ?> choiceMap = (Map<?, ?>) choice;
+                            Object msgObj = choiceMap.get("message");
+                            if (msgObj instanceof Map) {
+                                Map<?, ?> messageMap = (Map<?, ?>) msgObj;
+                                Object content = messageMap.get("content");
+                                if (content != null) {
+                                    return Optional.of(content.toString());
+                                }
+                            }
+                        }
+                    }
+                }
+                // Fallback: return full response if extraction fails
+                return Optional.of(body);
             }
         } catch (Exception e) {
             log.error("Failed to send message to SiliconFlow with params: ", e);
         }
         return Optional.empty();
+    }
+
+    /**
+     * 使用完整参数向硅基流动API发送消息，返回内容和usage信息
+     */
+    public ChatResult sendMessageWithFullParamsAndGetUsage(String url, String apiKey, String model,
+            List<Map<String, Object>> messages,
+            double temperature, double topP, int maxTokens,
+            Boolean enableThinking, Integer thinkingBudget) {
+        ChatResult result = new ChatResult();
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", model);
+            requestBody.put("messages", messages);
+            requestBody.put("temperature", temperature);
+            requestBody.put("top_p", topP);
+            requestBody.put("max_tokens", maxTokens);
+
+            if (enableThinking != null && enableThinking) {
+                requestBody.put("enable_thinking", true);
+                if (thinkingBudget != null && thinkingBudget > 0) {
+                    requestBody.put("thinking_budget", thinkingBudget);
+                }
+            }
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.POST, entity, new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> body = response.getBody();
+
+                // Extract content
+                Object choicesObj = body.get("choices");
+                if (choicesObj instanceof List) {
+                    List<?> choices = (List<?>) choicesObj;
+                    if (!choices.isEmpty()) {
+                        Object choice = choices.get(0);
+                        if (choice instanceof Map) {
+                            Map<?, ?> choiceMap = (Map<?, ?>) choice;
+                            Object msgObj = choiceMap.get("message");
+                            if (msgObj instanceof Map) {
+                                Map<?, ?> messageMap = (Map<?, ?>) msgObj;
+                                Object content = messageMap.get("content");
+                                if (content != null) {
+                                    result.content = content.toString();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Extract usage
+                Object usageObj = body.get("usage");
+                if (usageObj instanceof Map) {
+                    Map<?, ?> usageMap = (Map<?, ?>) usageObj;
+                    Object promptTokens = usageMap.get("prompt_tokens");
+                    Object completionTokens = usageMap.get("completion_tokens");
+                    Object totalTokens = usageMap.get("total_tokens");
+                    result.promptTokens = promptTokens instanceof Number ? ((Number) promptTokens).intValue() : 0;
+                    result.completionTokens = completionTokens instanceof Number ? ((Number) completionTokens).intValue() : 0;
+                    result.totalTokens = totalTokens instanceof Number ? ((Number) totalTokens).intValue() : 0;
+                }
+
+                // Extract model
+                Object modelObj = body.get("model");
+                result.model = modelObj != null ? modelObj.toString() : model;
+            }
+        } catch (Exception e) {
+            log.error("Failed to send message to SiliconFlow with params: ", e);
+        }
+        return result;
     }
 
     /**

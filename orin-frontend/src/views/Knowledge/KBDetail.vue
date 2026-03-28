@@ -517,7 +517,7 @@ const handleVectorize = async (row) => {
 };
 
 const openDocument = (doc) => {
-  router.push(`/dashboard/resources/knowledge/${kbId.value}/document/${doc.id}`);
+  router.push(`/dashboard/knowledge/${kbId.value}/document/${doc.id}`);
 };
 
 onMounted(() => {
