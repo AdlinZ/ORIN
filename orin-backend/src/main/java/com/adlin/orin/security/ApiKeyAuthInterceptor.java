@@ -1,7 +1,10 @@
 package com.adlin.orin.security;
 
+import com.adlin.orin.common.dto.Result;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.apikey.entity.ApiKey;
 import com.adlin.orin.modules.apikey.service.ApiKeyService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * API密钥验证拦截器
@@ -21,6 +25,7 @@ import java.util.Optional;
 public class ApiKeyAuthInterceptor implements HandlerInterceptor {
 
     private final ApiKeyService apiKeyService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
@@ -52,7 +57,7 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
 
         if (apiKey == null || apiKey.isEmpty()) {
             log.warn("Missing API key for request: {} {}", request.getMethod(), path);
-            sendUnauthorizedResponse(response, "Missing API key");
+            sendUnauthorizedResponse(request, response, "Missing API key");
             return false;
         }
 
@@ -61,7 +66,7 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
 
         if (validatedKey.isEmpty()) {
             log.warn("Invalid API key for request: {} {}", request.getMethod(), path);
-            sendUnauthorizedResponse(response, "Invalid API key");
+            sendUnauthorizedResponse(request, response, "Invalid API key");
             return false;
         }
 
@@ -96,17 +101,20 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 发送未授权响应
+     * 发送未授权响应（统一错误码格式）
      */
-    private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws Exception {
+    private void sendUnauthorizedResponse(HttpServletRequest request, HttpServletResponse response, String message) throws Exception {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
-        String jsonResponse = String.format(
-                "{\"error\":{\"message\":\"%s\",\"type\":\"invalid_request_error\",\"code\":\"invalid_api_key\"}}",
-                message);
+        Result<?> result = Result.<Void>builder()
+                .code(ErrorCode.AUTH_API_KEY_INVALID.getCode())
+                .message(message)
+                .traceId(UUID.randomUUID().toString())
+                .path(request.getRequestURI())
+                .build();
 
-        response.getWriter().write(jsonResponse);
+        response.getWriter().write(objectMapper.writeValueAsString(result));
     }
 }

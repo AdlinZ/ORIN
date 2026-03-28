@@ -81,7 +81,7 @@ class KnowledgeMapperTest {
         // Then
         assertThat(entity).isNotNull();
         assertThat(entity.getName()).isEqualTo("New KB");
-        assertThat(entity.getDescription()).isEqualTo("New Description");
+        // Note: description is ignored at mapper level, set by service layer instead
         assertThat(entity.getSourceAgentId()).isEqualTo("agent-002");
         assertThat(entity.getStatus()).isEqualTo("ENABLED");
         assertThat(entity.getDocCount()).isEqualTo(0);

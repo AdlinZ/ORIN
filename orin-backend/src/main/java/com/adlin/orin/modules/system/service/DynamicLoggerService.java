@@ -91,7 +91,7 @@ public class DynamicLoggerService {
 
         // 获取设置后的有效级别并记录日志
         var config = loggingSystem.getLoggerConfiguration(loggerName);
-        LogLevel effectiveLevel = config.getEffectiveLevel();
+        LogLevel effectiveLevel = config != null ? config.getEffectiveLevel() : null;
 
         log.warn("⚠️ [日志级别变更] Logger='{}', 设置级别='{}', 有效级别='{}' (仅本次运行有效，重启后恢复默认)",
                 loggerName, level, effectiveLevel != null ? effectiveLevel.name() : "DEFAULT");
@@ -103,7 +103,7 @@ public class DynamicLoggerService {
     public void resetLogger(String loggerName) {
         loggingSystem.setLogLevel(loggerName, null);
         var config = loggingSystem.getLoggerConfiguration(loggerName);
-        LogLevel effectiveLevel = config.getEffectiveLevel();
+        LogLevel effectiveLevel = config != null ? config.getEffectiveLevel() : null;
         log.warn("⚠️ [日志级别重置] Logger='{}' 已重置为默认级别, 当前有效级别='{}'", loggerName,
                 effectiveLevel != null ? effectiveLevel.name() : "DEFAULT");
     }
@@ -152,7 +152,7 @@ public class DynamicLoggerService {
      */
     public void temporarySetLogLevel(String loggerName, String level, int durationSeconds) {
         var originalConfig = loggingSystem.getLoggerConfiguration(loggerName);
-        LogLevel originalLevel = originalConfig.getConfiguredLevel();
+        LogLevel originalLevel = originalConfig != null ? originalConfig.getConfiguredLevel() : null;
 
         // 设置临时级别
         setLogLevel(loggerName, level);

@@ -61,15 +61,18 @@ class DocumentManageServiceTest {
     void testTriggerVectorization() {
         KnowledgeDocument doc = KnowledgeDocument.builder()
                 .id("doc-1")
+                .knowledgeBaseId("kb-1")
+                .parseStatus("PARSED")
+                .parsedTextPath("/path/to/parsed.txt")
                 .vectorStatus("PENDING")
                 .build();
 
         when(documentRepository.findById("doc-1")).thenReturn(Optional.of(doc));
-        when(documentRepository.save(any(KnowledgeDocument.class))).thenReturn(doc);
+        when(documentRepository.save(any(KnowledgeDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         KnowledgeDocument result = documentManageService.triggerVectorization("doc-1");
 
         assertEquals("INDEXING", result.getVectorStatus());
-        verify(documentRepository).save(doc);
+        verify(documentRepository).save(any(KnowledgeDocument.class));
     }
 }

@@ -16,7 +16,10 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -609,31 +612,104 @@ public class ExternalSyncServiceImpl implements ExternalSyncService {
         String ragflowKbId = config.get("ragflowKbId");
 
         Map<String, Object> result = new HashMap<>();
+        int added = 0, updated = 0, deleted = 0;
+
         try {
-            // Get knowledge base details from RAGFlow
-            Map<String, Object> kbDetails = ragflowIntegrationService.getKnowledgeBase(endpointUrl, apiKey, ragflowKbId);
-
-            // List documents from RAGFlow
-            List<Map<String, Object>> documents = ragflowIntegrationService.listDocuments(endpointUrl, apiKey, ragflowKbId);
-
-            // Update ORIN knowledge base configuration
+            // Ensure ORIN knowledge base exists and is configured as RAGFLOW type
             Optional<KnowledgeBase> kbOpt = knowledgeBaseRepository.findById(kbId);
+            KnowledgeBase kb;
             if (kbOpt.isPresent()) {
-                KnowledgeBase kb = kbOpt.get();
+                kb = kbOpt.get();
                 kb.setType(KnowledgeType.RAGFLOW);
-                // Store RAGFlow config in configuration field
                 Map<String, Object> kbConfig = new HashMap<>();
                 kbConfig.put("endpointUrl", endpointUrl);
                 kbConfig.put("apiKey", apiKey);
                 kbConfig.put("ragflowKbId", ragflowKbId);
                 kb.setConfiguration(objectMapper.writeValueAsString(kbConfig));
                 knowledgeBaseRepository.save(kb);
+            } else {
+                log.warn("Knowledge base {} not found, skipping RAGFlow sync", kbId);
+                result.put("success", false);
+                result.put("message", "Knowledge base not found: " + kbId);
+                return result;
+            }
+
+            // List documents from RAGFlow
+            List<Map<String, Object>> documents = ragflowIntegrationService.listDocuments(endpointUrl, apiKey, ragflowKbId);
+            Set<String> currentDocIds = new HashSet<>();
+
+            for (Map<String, Object> docInfo : documents) {
+                String docId = String.valueOf(docInfo.get("id"));
+                String docName = String.valueOf(docInfo.get("name") != null ? docInfo.get("name") : "unknown");
+                String docType = String.valueOf(docInfo.get("type") != null ? docInfo.get("type") : "text");
+                currentDocIds.add(docId);
+
+                // Download document content
+                String content = ragflowIntegrationService.downloadDocument(endpointUrl, apiKey, docId);
+                if (content == null || content.isEmpty()) {
+                    log.warn("Skipping empty document: {} ({})", docName, docId);
+                    continue;
+                }
+
+                String contentHash = generateContentHash(content);
+
+                Optional<KnowledgeDocument> existingDoc = documentRepository.findById(docId);
+                if (existingDoc.isPresent()) {
+                    // Incremental update check
+                    KnowledgeDocument doc = existingDoc.get();
+                    if (!contentHash.equals(doc.getContentHash())) {
+                        doc.setFileName(docName);
+                        doc.setFileSize((long) content.length());
+                        doc.setContentHash(contentHash);
+                        doc.setVersion(doc.getVersion() != null ? doc.getVersion() + 1 : 1);
+                        doc.setLastModified(LocalDateTime.now());
+                        doc.setDeletedFlag(false);
+                        documentRepository.save(doc);
+                        updated++;
+                        log.debug("Updated document: {} (v{})", docName, doc.getVersion());
+                    }
+                } else {
+                    // Create new document
+                    KnowledgeDocument doc = KnowledgeDocument.builder()
+                            .id(docId)
+                            .knowledgeBaseId(kbId)
+                            .fileName(docName)
+                            .fileType(docType.toLowerCase())
+                            .fileSize((long) content.length())
+                            .contentPreview(content.length() > 500 ? content.substring(0, 500) : content)
+                            .contentHash(contentHash)
+                            .version(1)
+                            .deletedFlag(false)
+                            .vectorStatus("PENDING")
+                            .chunkCount(0)
+                            .uploadTime(LocalDateTime.now())
+                            .lastModified(LocalDateTime.now())
+                            .build();
+                    documentRepository.save(doc);
+                    added++;
+                    log.debug("Added document: {} ({} bytes)", docName, content.length());
+                }
+            }
+
+            // Soft-delete documents removed from RAGFlow
+            List<KnowledgeDocument> allDocs = documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(kbId);
+            for (KnowledgeDocument doc : allDocs) {
+                if (!currentDocIds.contains(doc.getId()) && !Boolean.TRUE.equals(doc.getDeletedFlag())) {
+                    doc.setDeletedFlag(true);
+                    doc.setVersion(doc.getVersion() != null ? doc.getVersion() + 1 : 1);
+                    doc.setLastModified(LocalDateTime.now());
+                    documentRepository.save(doc);
+                    deleted++;
+                    log.debug("Soft-deleted document: {}", doc.getFileName());
+                }
             }
 
             result.put("success", true);
-            result.put("message", "Successfully synced from RAGFlow");
-            result.put("documentCount", documents.size());
-            result.put("knowledgeBaseDetails", kbDetails);
+            result.put("message", "RAGFlow sync completed");
+            result.put("added", added);
+            result.put("updated", updated);
+            result.put("deleted", deleted);
+            result.put("total", documents.size());
 
         } catch (Exception e) {
             log.error("Failed to sync from RAGFlow", e);
@@ -641,6 +717,22 @@ public class ExternalSyncServiceImpl implements ExternalSyncService {
             result.put("message", e.getMessage());
         }
         return result;
+    }
+
+    private String generateContentHash(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            return UUID.randomUUID().toString();
+        }
     }
 
     @Override

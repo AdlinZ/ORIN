@@ -93,4 +93,13 @@ public interface RAGFlowIntegrationService {
      */
     List<Map<String, Object>> retrievalTest(String endpointUrl, String apiKey, String kbId,
                                             String query, int topK);
+
+    /**
+     * 下载文档内容（纯文本）
+     * @param endpointUrl RAGFlow 端点
+     * @param apiKey API Key
+     * @param docId 文档 ID
+     * @return 文档文本内容
+     */
+    String downloadDocument(String endpointUrl, String apiKey, String docId);
 }

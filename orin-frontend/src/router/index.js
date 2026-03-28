@@ -265,8 +265,22 @@ const routes = [
                     {
                         path: 'graph',
                         name: 'KnowledgeGraph',
-                        component: () => import('@/views/Knowledge/KnowledgeGraphList.vue'),
-                        meta: { title: '知识图谱', icon: 'Connection' }
+                        redirect: ROUTES.KNOWLEDGE.GRAPH,
+                        meta: { title: '知识图谱', icon: 'Connection' },
+                        children: [
+                            {
+                                path: '',
+                                name: 'KnowledgeGraphList',
+                                component: () => import('@/views/Knowledge/KnowledgeGraphList.vue'),
+                                meta: { title: '图谱列表' }
+                            },
+                            {
+                                path: ':id',
+                                name: 'KnowledgeGraphDetail',
+                                component: () => import('@/views/Knowledge/KnowledgeGraphDetail.vue'),
+                                meta: { title: '图谱详情', hidden: true }
+                            }
+                        ]
                     },
                 ]
             },

@@ -309,4 +309,44 @@ public class RAGFlowIntegrationServiceImpl implements RAGFlowIntegrationService 
             return Collections.emptyList();
         }
     }
+
+    @Override
+    public String downloadDocument(String endpointUrl, String apiKey, String docId) {
+        try {
+            String url = buildUrl(endpointUrl, "/document/download");
+
+            HttpHeaders headers = createHeaders(apiKey);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("doc_id", docId);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map<String, Object>> response = ragflowRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> result = response.getBody();
+                Map<String, Object> data = (Map<String, Object>) result.get("data");
+                if (data != null) {
+                    // RAGFlow returns raw text under "text" or "$pdf2txt" key
+                    Object text = data.get("text");
+                    if (text != null) {
+                        return text.toString();
+                    }
+                    Object pdfText = data.get("$pdf2txt");
+                    if (pdfText != null) {
+                        return pdfText.toString();
+                    }
+                }
+            }
+            return "";
+        } catch (Exception e) {
+            log.error("Failed to download document from RAGFlow: {}", e.getMessage(), e);
+            return "";
+        }
+    }
 }

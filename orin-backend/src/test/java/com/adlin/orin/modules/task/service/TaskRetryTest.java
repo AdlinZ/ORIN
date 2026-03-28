@@ -132,6 +132,7 @@ public class TaskRetryTest {
         TaskEntity task1 = TaskEntity.builder()
                 .taskId("task-dead-001")
                 .workflowId(1L)
+                .priority(TaskPriority.NORMAL)
                 .status(TaskStatus.DEAD)
                 .deadLetterReason("死信任务1")
                 .build();
@@ -140,6 +141,7 @@ public class TaskRetryTest {
         TaskEntity task2 = TaskEntity.builder()
                 .taskId("task-dead-002")
                 .workflowId(2L)
+                .priority(TaskPriority.NORMAL)
                 .status(TaskStatus.DEAD)
                 .deadLetterReason("死信任务2")
                 .build();
@@ -157,6 +159,7 @@ public class TaskRetryTest {
         TaskEntity task = TaskEntity.builder()
                 .taskId("task-failed-001")
                 .workflowId(1L)
+                .priority(TaskPriority.NORMAL)
                 .status(TaskStatus.FAILED)
                 .errorMessage("执行失败")
                 .build();

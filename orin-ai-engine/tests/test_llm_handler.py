@@ -28,11 +28,11 @@ async def test_llm_handler_success():
             context = {"inputs": {"query": "World"}}
             
             result = await handler.run(node, context)
-            
-            # Verify
-            assert result["text"] == "Mocked Answer"
-            assert result["tokens_used"] == 42
-            assert result["model"] == "gpt-4"
+
+            # Verify - run() returns NodeExecutionOutput with .outputs dict
+            assert result.outputs["text"] == "Mocked Answer"
+            assert result.outputs["tokens_used"] == 42
+            assert result.outputs["model"] == "gpt-4"
             
             # Verify Prompt Replacement
             call_args = mock_instance.chat.completions.create.call_args
@@ -62,7 +62,7 @@ async def test_llm_handler_missing_key():
              handler = RealLLMNodeHandler()
              node = Node(id="1", type="llm", data={"prompt": "hi"})
              
-             with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+             with pytest.raises(ValueError, match="API Key is missing"):
                  await handler.run(node, {})
 
 

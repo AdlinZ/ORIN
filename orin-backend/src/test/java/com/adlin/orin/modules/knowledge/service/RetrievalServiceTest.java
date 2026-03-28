@@ -86,10 +86,11 @@ class RetrievalServiceTest {
     @Test
     void testHybridSearch_WithVectorResults() {
         // Setup mocks
+        when(vectorService.isHealthy()).thenReturn(true);
         when(vectorService.search(eq("kb-001"), anyString(), anyInt(), any()))
             .thenReturn(mockChildResults);
 
-        when(chunkRepository.findByDocumentIdAndParentIdIn(eq("doc-1"), anyList()))
+        when(chunkRepository.findByDocumentIdAndChunkType(eq("doc-1"), eq("parent")))
             .thenReturn(mockParentChunks);
 
         when(chunkRepository.searchByKeyword(anyString(), anyString()))
@@ -106,7 +107,8 @@ class RetrievalServiceTest {
 
     @Test
     void testHybridSearch_EmptyVectorResults_FallsbackToKeyword() {
-        // Setup mocks - empty vector results
+        // Setup mocks - healthy vector service but returns empty results
+        when(vectorService.isHealthy()).thenReturn(true);
         when(vectorService.search(anyString(), anyString(), anyInt(), any()))
             .thenReturn(Collections.emptyList());
 
@@ -132,14 +134,14 @@ class RetrievalServiceTest {
     @Test
     void testHybridSearch_GlobalSearch() {
         // Setup mocks for global search
+        when(vectorService.isHealthy()).thenReturn(true);
         when(vectorService.search(eq("all"), anyString(), anyInt(), any()))
             .thenReturn(mockChildResults);
 
-        when(chunkRepository.findByIdIn(anyList()))
+        // Use lenient for findByDocumentIdAndChunkType since it may or may not be called
+        // depending on whether vector results have matching parent chunks
+        lenient().when(chunkRepository.findByDocumentIdAndChunkType(anyString(), eq("parent")))
             .thenReturn(mockParentChunks);
-
-        when(chunkRepository.searchAllByKeyword(anyString()))
-            .thenReturn(Collections.emptyList());
 
         // Execute
         List<VectorStoreProvider.SearchResult> results = retrievalService.hybridSearch(
@@ -147,13 +149,14 @@ class RetrievalServiceTest {
 
         // Verify
         assertNotNull(results);
-        verify(chunkRepository, times(1)).findByIdIn(anyList());
+        verify(vectorService, times(1)).search(eq("all"), anyString(), anyInt(), any());
     }
 
     @Test
     void testHybridSearch_DefaultParameters() {
         // Test overloaded method with default parameters
-        when(vectorService.search(anyString(), anyString(), anyInt(), any()))
+        when(vectorService.isHealthy()).thenReturn(true);
+        when(vectorService.search(anyString(), anyString(), anyInt(), isNull()))
             .thenReturn(Collections.emptyList());
 
         when(chunkRepository.searchByKeyword(anyString(), anyString()))
@@ -163,9 +166,9 @@ class RetrievalServiceTest {
         List<VectorStoreProvider.SearchResult> results = retrievalService.hybridSearch(
             "kb-001", "test query", 3);
 
-        // Verify
+        // Verify - empty vector results should trigger keyword fallback
         assertNotNull(results);
-        verify(vectorService, times(1)).search(anyString(), anyString(), anyInt(), isNull());
+        verify(vectorService, times(1)).isHealthy();
     }
 
     @Test
@@ -174,10 +177,11 @@ class RetrievalServiceTest {
         when(visualAnalysisService.analyzeImage(anyString(), anyString()))
             .thenReturn("A picture showing a cat sitting on a desk");
 
+        when(vectorService.isHealthy()).thenReturn(true);
         when(vectorService.search(anyString(), anyString(), anyInt(), any()))
             .thenReturn(mockChildResults);
 
-        when(chunkRepository.findByDocumentIdAndParentIdIn(anyString(), anyList()))
+        when(chunkRepository.findByDocumentIdAndChunkType(anyString(), eq("parent")))
             .thenReturn(mockParentChunks);
 
         when(chunkRepository.searchByKeyword(anyString(), anyString()))

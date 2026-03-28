@@ -110,9 +110,12 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Close, MoreFilled, Connection } from '@element-plus/icons-vue'
 import { getGraphList, createGraph, updateGraph, deleteGraph, buildGraph } from '@/api/knowledge'
+
+const router = useRouter()
 
 const loading = ref(false)
 const graphs = ref([])
@@ -157,9 +160,7 @@ const getStatusText = (status) => {
 const fetchGraphs = async () => {
   loading.value = true
   try {
-    // TODO: 替换为真实的 API 调用
-    // graphs.value = await getGraphList()
-    graphs.value = []
+    graphs.value = await getGraphList()
   } catch (error) {
     console.error('获取图谱列表失败:', error)
     ElMessage.error('获取图谱列表失败')
@@ -169,9 +170,7 @@ const fetchGraphs = async () => {
 }
 
 const openGraphDetail = (graph) => {
-  // TODO: 导航到图谱详情页
-  console.log('打开图谱详情:', graph)
-  ElMessage.info('图谱详情功能开发中')
+  router.push(`/dashboard/knowledge/graph/${graph.id}`)
 }
 
 const handleCreate = () => {
@@ -196,8 +195,7 @@ const handleBuild = async (graph) => {
       cancelButtonText: '取消',
       type: 'info'
     })
-    // TODO: 调用构建 API
-    // await buildGraph(graph.id)
+    await buildGraph(graph.id)
     ElMessage.success('图谱构建任务已触发')
     fetchGraphs()
   } catch (error) {
@@ -215,8 +213,7 @@ const handleDelete = async (graph) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    // TODO: 调用删除 API
-    // await deleteGraph(graph.id)
+    await deleteGraph(graph.id)
     ElMessage.success('图谱已删除')
     fetchGraphs()
   } catch (error) {
@@ -234,12 +231,10 @@ const handleSubmit = async () => {
     await formRef.value.validate()
 
     if (dialogMode.value === 'create') {
-      // TODO: 调用创建 API
-      // await createGraph(form)
+      await createGraph(form)
       ElMessage.success('图谱创建成功')
     } else {
-      // TODO: 调用更新 API
-      // await updateGraph(selectedGraph.value.id, form)
+      await updateGraph(selectedGraph.value.id, form)
       ElMessage.success('图谱更新成功')
     }
 

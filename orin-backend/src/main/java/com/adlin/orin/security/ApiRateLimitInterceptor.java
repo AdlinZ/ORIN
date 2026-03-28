@@ -1,7 +1,10 @@
 package com.adlin.orin.security;
 
+import com.adlin.orin.common.dto.Result;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.monitor.entity.RateLimitConfig;
 import com.adlin.orin.modules.monitor.service.MonitorService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * API速率限制拦截器
@@ -26,6 +30,7 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
 
     private final StringRedisTemplate redisTemplate;
     private final MonitorService monitorService;
+    private final ObjectMapper objectMapper;
 
     // Redis 令牌桶 Lua 脚本
     // 返回值: [是否允许, 剩余令牌数, 重置时间(秒)]
@@ -195,7 +200,7 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
             long retryAfter = result.resetTime - now;
             if (retryAfter < 1) retryAfter = 60;
 
-            sendRateLimitResponse(response, "Rate limit exceeded", retryAfter);
+            sendRateLimitResponse(request, response, "Rate limit exceeded", retryAfter);
             return false;
         }
 
@@ -263,20 +268,24 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 发送速率限制响应
+     * 发送速率限制响应（统一错误码格式）
      */
-    private void sendRateLimitResponse(HttpServletResponse response, String message, long retryAfter)
+    private void sendRateLimitResponse(HttpServletRequest request, HttpServletResponse response, String message, long retryAfter)
             throws Exception {
         response.setStatus(429); // Too Many Requests
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Retry-After", String.valueOf(retryAfter));
 
-        String jsonResponse = String.format(
-                "{\"error\":{\"message\":\"%s\",\"type\":\"rate_limit_error\",\"code\":\"rate_limit_exceeded\",\"retry_after\":%d}}",
-                message, retryAfter);
+        Result<?> result = Result.<Void>builder()
+                .code(ErrorCode.TOO_MANY_REQUESTS.getCode())
+                .message(message)
+                .traceId(UUID.randomUUID().toString())
+                .path(request.getRequestURI())
+                .metadata(java.util.Map.of("retry_after", retryAfter))
+                .build();
 
-        response.getWriter().write(jsonResponse);
+        response.getWriter().write(objectMapper.writeValueAsString(result));
     }
 
     /**
