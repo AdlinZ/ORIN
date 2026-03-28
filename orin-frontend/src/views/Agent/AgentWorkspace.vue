@@ -269,10 +269,28 @@
                     class="context-item"
                   >
                     <div class="chunk-source">
-                      {{ chunk.source || '未知来源' }}
+                      {{ chunk.docName || chunk.source || '未知来源' }}
                     </div>
                     <div class="chunk-text">
                       {{ chunk.content?.substring(0, 160) }}{{ chunk.content?.length > 160 ? '...' : '' }}
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="msg.toolTraces?.length" class="tool-traces">
+                  <div
+                    v-for="(trace, traceIdx) in msg.toolTraces"
+                    :key="`${index}-trace-${traceIdx}`"
+                    :class="['trace-card', 'trace-' + (trace.status || 'pending')]"
+                  >
+                    <div class="trace-header">
+                      <el-icon class="trace-icon">{{ traceIcon(trace.type) }}</el-icon>
+                      <span class="trace-type">{{ trace.type }}</span>
+                      <span class="trace-duration">{{ trace.durationMs }}ms</span>
+                    </div>
+                    <div class="trace-message">{{ trace.message }}</div>
+                    <div v-if="trace.detail" class="trace-detail">
+                      <pre>{{ typeof trace.detail === 'object' ? JSON.stringify(trace.detail, null, 2) : trace.detail }}</pre>
                     </div>
                   </div>
                 </div>
@@ -302,6 +320,7 @@
             <div class="input-actions">
               <div class="input-hint">
                 模式：{{ currentInteractionLabel }} · 已附加知识库 {{ attachedKbIds.length }} 个
+                <span v-if="totalFilteredDocs > 0"> · 文档过滤 {{ totalFilteredDocs }} 个</span>
               </div>
               <el-button
                 type="primary"
@@ -439,13 +458,43 @@
                 </span>
               </div>
               <div class="selection-list">
-                <label v-for="kb in filteredKnowledgeBases" :key="kb.id" class="selection-item">
-                  <div class="selection-info">
-                    <div class="selection-name">{{ kb.name }}</div>
-                    <div class="selection-meta">{{ kb.documentCount || 0 }} 文档</div>
+                <div v-for="kb in filteredKnowledgeBases" :key="kb.id" class="kb-item-wrapper">
+                  <label class="selection-item">
+                    <div class="selection-info">
+                      <div class="selection-name">{{ kb.name }}</div>
+                      <div class="selection-meta">{{ kb.documentCount || 0 }} 文档</div>
+                    </div>
+                    <el-checkbox :model-value="isKbAttached(kb.id)" @change="toggleKb(kb.id)" />
+                  </label>
+                  <!-- Document filter expand button (only for attached KBs) -->
+                  <div v-if="isKbAttached(kb.id)" class="doc-filter-section">
+                    <div class="doc-filter-header" @click="toggleKbExpand(kb.id)">
+                      <span class="doc-filter-label">
+                        <el-icon><component :is="isKbExpanded(kb.id) ? ArrowUp : ArrowDown" /></el-icon>
+                        {{ isKbExpanded(kb.id) ? '收起' : '按文档过滤' }}
+                        <span v-if="kbDocFilters[kb.id]?.length" class="doc-filter-count">
+                          ({{ kbDocFilters[kb.id].length }})
+                        </span>
+                      </span>
+                    </div>
+                    <div v-if="isKbExpanded(kb.id)" class="doc-filter-list">
+                      <div v-if="!kbDocuments[kb.id]?.length" class="doc-filter-loading">
+                        加载中...
+                      </div>
+                      <label
+                        v-for="doc in kbDocuments[kb.id]"
+                        :key="doc.id"
+                        class="doc-filter-item"
+                      >
+                        <el-checkbox
+                          :model-value="isDocSelected(kb.id, doc.id)"
+                          @change="toggleDocFilter(kb.id, doc.id)"
+                        />
+                        <span class="doc-filter-name">{{ doc.name || doc.fileName || doc.id }}</span>
+                      </label>
+                    </div>
                   </div>
-                  <el-checkbox :model-value="isKbAttached(kb.id)" @change="toggleKb(kb.id)" />
-                </label>
+                </div>
               </div>
             </section>
 
@@ -580,8 +629,10 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   Close,
   Cpu,
   Delete,
@@ -606,8 +657,10 @@ import {
   listAgents,
   listChatSessions,
   listKnowledgeBases,
-  sendChatMessage
+  sendChatMessage,
+  updateKbDocFilters
 } from '@/api/agent-chat';
+import { getDocuments } from '@/api/knowledge';
 import { getSkillList } from '@/api/skill';
 import { getMcpServices } from '@/api/mcp';
 
@@ -654,6 +707,9 @@ const skills = ref([]);
 const mcpServices = ref([]);
 const messages = ref([]);
 const attachedKbIds = ref([]);
+const kbDocFilters = reactive({});  // {[kbId]: string[]}
+const kbDocuments = ref({});        // {[kbId]: documents[]}
+const expandedKbIds = ref(new Set());
 const currentAgentId = ref('');
 const currentAgent = ref(null);
 const currentSessionId = ref('');
@@ -708,6 +764,10 @@ const currentSessionTitle = computed(() => {
 
 const currentInteractionLabel = computed(() => {
   return interactionModes.find((mode) => mode.value === interactionMode.value)?.label || '智能助手';
+});
+
+const totalFilteredDocs = computed(() => {
+  return Object.values(kbDocFilters).reduce((sum, docs) => sum + (docs?.length || 0), 0);
 });
 
 const normalizeAgent = (agent) => ({
@@ -939,6 +999,23 @@ const loadAttachedKbs = async (sessionId) => {
   }
 };
 
+const loadKbDocFilters = async (sessionId) => {
+  if (!sessionId) {
+    Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
+    return;
+  }
+
+  try {
+    const res = await getChatSession(sessionId);
+    const data = res?.data || res || {};
+    const filters = data.kbDocFilters || {};
+    Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
+    Object.assign(kbDocFilters, filters);
+  } catch (error) {
+    Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
+  }
+};
+
 const selectSession = async (session) => {
   if (!session?.id) return;
 
@@ -952,6 +1029,7 @@ const selectSession = async (session) => {
       retrievedChunks: currentConfig.showRetrievedContext ? message.retrievedChunks || [] : []
     }));
     await loadAttachedKbs(session.id);
+    await loadKbDocFilters(session.id);
     scrollToBottom();
   } catch (error) {
     ElMessage.error('加载会话失败');
@@ -969,6 +1047,7 @@ const createSessionForAgent = async (agentId) => {
   currentSessionId.value = session.id;
   messages.value = [];
   attachedKbIds.value = [];
+  Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
   return session;
 };
 
@@ -1020,6 +1099,7 @@ const removeSession = async (session) => {
         messages.value = [];
         currentSessionId.value = '';
         attachedKbIds.value = [];
+        Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
       }
     }
 
@@ -1056,6 +1136,9 @@ const detachKb = async (kbId) => {
   try {
     await detachKnowledgeBase(currentSessionId.value, kbId);
     attachedKbIds.value = attachedKbIds.value.filter((id) => id !== kbId);
+    if (kbDocFilters[kbId]) {
+      delete kbDocFilters[kbId];
+    }
     ElMessage.success('已移除知识库');
   } catch (error) {
     ElMessage.error('移除知识库失败');
@@ -1067,6 +1150,55 @@ const toggleConfigItem = (field, itemId) => {
   currentConfig[field] = exists
     ? currentConfig[field].filter((id) => id !== itemId)
     : [...currentConfig[field], itemId];
+};
+
+const loadKbDocuments = async (kbId) => {
+  if (kbDocuments.value[kbId]) return;
+  try {
+    const res = await getDocuments(kbId);
+    const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+    kbDocuments.value = { ...kbDocuments.value, [kbId]: list };
+  } catch (error) {
+    kbDocuments.value = { ...kbDocuments.value, [kbId]: [] };
+  }
+};
+
+const toggleKbExpand = async (kbId) => {
+  if (expandedKbIds.value.has(kbId)) {
+    expandedKbIds.value.delete(kbId);
+  } else {
+    expandedKbIds.value.add(kbId);
+    if (!kbDocuments.value[kbId]) {
+      await loadKbDocuments(kbId);
+    }
+  }
+};
+
+const isKbExpanded = (kbId) => expandedKbIds.value.has(kbId);
+
+const isDocSelected = (kbId, docId) => {
+  return kbDocFilters[kbId]?.includes(docId) || false;
+};
+
+const toggleDocFilter = async (kbId, docId) => {
+  if (!kbDocFilters[kbId]) {
+    kbDocFilters[kbId] = [];
+  }
+  const idx = kbDocFilters[kbId].indexOf(docId);
+  if (idx >= 0) {
+    kbDocFilters[kbId].splice(idx, 1);
+  } else {
+    kbDocFilters[kbId].push(docId);
+  }
+  if (currentSessionId.value) {
+    await updateKbDocFilters(currentSessionId.value, kbDocFilters);
+  }
+};
+
+const syncKbDocFilters = async () => {
+  if (currentSessionId.value) {
+    await updateKbDocFilters(currentSessionId.value, kbDocFilters);
+  }
 };
 
 const scrollToBottom = () => {
@@ -1092,7 +1224,8 @@ const sendMessage = async () => {
   try {
     const res = await sendChatMessage(currentSessionId.value, {
       message: content,
-      kbIds: attachedKbIds.value
+      kbIds: attachedKbIds.value,
+      kbDocFilters: kbDocFilters
     });
 
     const data = res?.data || res || {};
@@ -1120,6 +1253,15 @@ const handleEnter = (event) => {
     event.preventDefault();
     sendMessage();
   }
+};
+
+const traceIcon = (type) => {
+  const iconMap = {
+    'KB_STRUCTURE': 'Folder',
+    'KB_SEARCH': 'Search',
+    'KB_RETRIEVE': 'Document'
+  };
+  return iconMap[type] || 'Setting';
 };
 
 const renderMarkdown = (text) => {
@@ -1696,6 +1838,75 @@ watch(
   line-height: 1.6;
 }
 
+.tool-traces {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trace-card {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8f9fb;
+  border-left: 3px solid #d1d5db;
+  font-size: 12px;
+}
+
+.trace-card.trace-success {
+  border-left-color: #10b981;
+}
+
+.trace-card.trace-error {
+  border-left-color: #ef4444;
+}
+
+.trace-card.trace-pending {
+  border-left-color: #9ca3af;
+}
+
+.trace-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.trace-icon {
+  font-size: 14px;
+  color: #5e6878;
+}
+
+.trace-type {
+  font-weight: 600;
+  color: #2c3443;
+}
+
+.trace-duration {
+  margin-left: auto;
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.trace-message {
+  color: #475569;
+  line-height: 1.5;
+}
+
+.trace-detail {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.trace-detail pre {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
 .loading-indicator {
   display: flex;
   align-items: center;
@@ -1915,6 +2126,79 @@ watch(
   background: #e8eef5;
   border-color: #cfd7e2;
   color: #2f3645;
+}
+
+.kb-item-wrapper {
+  margin-bottom: 4px;
+}
+
+.doc-filter-section {
+  margin-top: 6px;
+  margin-left: 8px;
+  padding-left: 12px;
+  border-left: 2px solid #dbe1ea;
+}
+
+.doc-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: #5e6878;
+}
+
+.doc-filter-header:hover {
+  color: #2f3745;
+}
+
+.doc-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.doc-filter-count {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.doc-filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  padding-right: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.doc-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #475569;
+}
+
+.doc-filter-item:hover {
+  background: #f0f2f5;
+}
+
+.doc-filter-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-filter-loading {
+  font-size: 12px;
+  color: #9ca3af;
+  padding: 4px 0;
 }
 
 .selection-list {

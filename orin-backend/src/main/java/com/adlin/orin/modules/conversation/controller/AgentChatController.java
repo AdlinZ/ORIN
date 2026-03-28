@@ -83,4 +83,15 @@ public class AgentChatController {
         result.put("success", true);
         return ResponseEntity.ok(result);
     }
+
+    @Operation(summary = "更新知识库文档过滤配置")
+    @PutMapping("/sessions/{sessionId}/kb-doc-filters")
+    public ResponseEntity<Map<String, Object>> updateKbDocFilters(
+            @PathVariable String sessionId,
+            @RequestBody Map<String, List<String>> kbDocFilters) {
+        agentChatService.updateKbDocFilters(sessionId, kbDocFilters);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        return ResponseEntity.ok(result);
+    }
 }

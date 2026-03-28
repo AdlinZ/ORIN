@@ -4,29 +4,52 @@ import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.conversation.dto.*;
 import com.adlin.orin.modules.conversation.entity.AgentChatSession;
 import com.adlin.orin.modules.conversation.repository.AgentChatSessionRepository;
+import com.adlin.orin.modules.conversation.tool.*;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
-import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class AgentChatService {
 
     private final AgentChatSessionRepository sessionRepository;
     private final AgentManageService agentManageService;
     private final RetrievalService retrievalService;
+    private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final KnowledgeDocumentRepository documentRepository;
     private final ObjectMapper objectMapper;
+
+    private KbStructureTool kbStructureTool;
+    private KbSearchTool kbSearchTool;
+    private KbRetrieveTool kbRetrieveTool;
+
+    public AgentChatService(
+            AgentChatSessionRepository sessionRepository,
+            AgentManageService agentManageService,
+            RetrievalService retrievalService,
+            KnowledgeBaseRepository knowledgeBaseRepository,
+            KnowledgeDocumentRepository documentRepository,
+            ObjectMapper objectMapper) {
+        this.sessionRepository = sessionRepository;
+        this.agentManageService = agentManageService;
+        this.retrievalService = retrievalService;
+        this.knowledgeBaseRepository = knowledgeBaseRepository;
+        this.documentRepository = documentRepository;
+        this.objectMapper = objectMapper;
+        // Initialize tools
+        this.kbStructureTool = new KbStructureTool(knowledgeBaseRepository, documentRepository);
+        this.kbSearchTool = new KbSearchTool(retrievalService);
+        this.kbRetrieveTool = new KbRetrieveTool();
+    }
 
     /**
      * 创建新会话
@@ -92,7 +115,8 @@ public class AgentChatService {
         
         // 获取附加的知识库
         result.put("attachedKbs", session.getAttachedKbIds());
-        
+        result.put("kbDocFilters", session.getKbDocFilters());
+
         return result;
     }
 
@@ -118,33 +142,47 @@ public class AgentChatService {
         userMsg.put("role", "user");
         userMsg.put("content", request.getMessage());
         messages.add(userMsg);
-        
-        // 知识库检索
-        List<RetrievedChunk> retrievedChunks = new ArrayList<>();
-        String context = "";
-        
+
+        // 构建工具执行上下文
+        ToolExecutionContext toolCtx = ToolExecutionContext.builder()
+                .sessionId(sessionId)
+                .query(request.getMessage())
+                .kbIds(request.getKbIds())
+                .kbDocFilters(request.getKbDocFilters())
+                .traces(new ArrayList<>())
+                .sharedState(new HashMap<>())
+                .retrievedChunks(new ArrayList<>())
+                .build();
+
+        // 执行工具链
         if (request.getKbIds() != null && !request.getKbIds().isEmpty()) {
             try {
-                for (String kbId : request.getKbIds()) {
-                    List<VectorStoreProvider.SearchResult> results = 
-                            retrievalService.hybridSearch(kbId, request.getMessage(), 5);
-                    
-                    for (VectorStoreProvider.SearchResult r : results) {
-                        RetrievedChunk chunk = new RetrievedChunk();
-                        chunk.setSource(r.getMetadata() != null ?
-                                (String) r.getMetadata().getOrDefault("source", "未知来源") : "未知来源");
-                        chunk.setContent(r.getContent());
-                        chunk.setScore(r.getScore());
-                        retrievedChunks.add(chunk);
-                        
-                        context += "\n\n" + r.getContent();
-                    }
-                }
+                kbStructureTool.execute(toolCtx);
+                kbSearchTool.execute(toolCtx);
+                kbRetrieveTool.execute(toolCtx);
             } catch (Exception e) {
-                log.warn("知识库检索失败: {}", e.getMessage());
+                log.warn("工具链执行失败: {}", e.getMessage());
             }
         }
-        
+
+        // 从工具上下文构建检索结果
+        List<RetrievedChunk> retrievedChunks = new ArrayList<>();
+        String context = "";
+        for (Object chunkObj : toolCtx.getRetrievedChunks()) {
+            if (chunkObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> chunkMap = (Map<String, Object>) chunkObj;
+                RetrievedChunk chunk = new RetrievedChunk();
+                chunk.setContent((String) chunkMap.get("content"));
+                chunk.setScore((Double) chunkMap.get("score"));
+                chunk.setDocId((String) chunkMap.get("docId"));
+                chunk.setDocName((String) chunkMap.get("title"));
+                chunk.setSource((String) chunkMap.get("source"));
+                retrievedChunks.add(chunk);
+                context += "\n\n" + chunk.getContent();
+            }
+        }
+
         // 调用智能体
         Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, messages);
         String aiResponse = (String) agentResult.get("content");
@@ -167,6 +205,7 @@ public class AgentChatService {
         ChatMessageResponse response = new ChatMessageResponse();
         response.setContent(aiResponse);
         response.setRetrievedChunks(retrievedChunks);
+        response.setToolTraces(toolCtx.getTraces());
         response.setPromptTokens((Integer) agentResult.getOrDefault("promptTokens", 0));
         response.setCompletionTokens((Integer) agentResult.getOrDefault("completionTokens", 0));
         response.setModel((String) agentResult.getOrDefault("model", ""));
@@ -271,5 +310,16 @@ public class AgentChatService {
     @Transactional
     public void deleteSession(String sessionId) {
         sessionRepository.deleteBySessionId(sessionId);
+    }
+
+    /**
+     * 更新知识库的文档过滤配置
+     */
+    @Transactional
+    public void updateKbDocFilters(String sessionId, Map<String, List<String>> kbDocFilters) {
+        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        session.setKbDocFilters(kbDocFilters);
+        sessionRepository.save(session);
     }
 }

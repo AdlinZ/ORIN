@@ -88,3 +88,12 @@ export function getAttachedKnowledgeBases(sessionId) {
     method: 'get',
   });
 }
+
+// 更新知识库文档过滤配置
+export function updateKbDocFilters(sessionId, kbDocFilters) {
+  return request({
+    url: `/agents/chat/sessions/${sessionId}/kb-doc-filters`,
+    method: 'put',
+    data: kbDocFilters,
+  });
+}

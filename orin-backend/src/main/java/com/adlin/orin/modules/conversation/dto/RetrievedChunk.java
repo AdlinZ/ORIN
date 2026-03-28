@@ -7,4 +7,6 @@ public class RetrievedChunk {
     private String source;
     private String content;
     private Double score;
+    private String docName;
+    private String docId;
 }

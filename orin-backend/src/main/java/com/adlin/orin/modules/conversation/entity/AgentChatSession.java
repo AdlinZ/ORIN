@@ -3,7 +3,12 @@ package com.adlin.orin.modules.conversation.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 智能体会话实体
@@ -12,6 +17,8 @@ import java.util.List;
 @Entity
 @Table(name = "agent_chat_session")
 public class AgentChatSession {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,8 +39,35 @@ public class AgentChatSession {
 
     private LocalDateTime updatedAt;
 
+    @Column(name = "attached_kb_ids", columnDefinition = "JSON")
+    private String attachedKbIdsJson;
+
+    @Column(name = "kb_doc_filters", columnDefinition = "JSON")
+    private String kbDocFiltersJson;
+
+    // Transient cache for in-memory access
     @Transient
     private List<String> attachedKbIds = new ArrayList<>();
+
+    @Transient
+    private Map<String, List<String>> kbDocFilters = new HashMap<>();
+
+    @PostLoad
+    private void loadJsonFields() {
+        try {
+            if (attachedKbIdsJson != null && !attachedKbIdsJson.isEmpty()) {
+                attachedKbIds = objectMapper.readValue(attachedKbIdsJson,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            }
+            if (kbDocFiltersJson != null && !kbDocFiltersJson.isEmpty()) {
+                kbDocFilters = objectMapper.readValue(kbDocFiltersJson,
+                    objectMapper.getTypeFactory().constructMapType(Map.class, String.class, List.class));
+            }
+        } catch (JsonProcessingException e) {
+            attachedKbIds = new ArrayList<>();
+            kbDocFilters = new HashMap<>();
+        }
+    }
 
     // Getters and Setters
     public Long getId() {
@@ -98,16 +132,49 @@ public class AgentChatSession {
 
     public void setAttachedKbIds(List<String> attachedKbIds) {
         this.attachedKbIds = attachedKbIds;
+        try {
+            this.attachedKbIdsJson = objectMapper.writeValueAsString(attachedKbIds);
+        } catch (JsonProcessingException e) {
+            this.attachedKbIdsJson = "[]";
+        }
+    }
+
+    public Map<String, List<String>> getKbDocFilters() {
+        return kbDocFilters;
+    }
+
+    public void setKbDocFilters(Map<String, List<String>> kbDocFilters) {
+        this.kbDocFilters = kbDocFilters;
+        try {
+            this.kbDocFiltersJson = objectMapper.writeValueAsString(kbDocFilters);
+        } catch (JsonProcessingException e) {
+            this.kbDocFiltersJson = "{}";
+        }
     }
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        syncJsonFields();
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        syncJsonFields();
+    }
+
+    private void syncJsonFields() {
+        try {
+            if (attachedKbIds != null) {
+                this.attachedKbIdsJson = objectMapper.writeValueAsString(attachedKbIds);
+            }
+            if (kbDocFilters != null) {
+                this.kbDocFiltersJson = objectMapper.writeValueAsString(kbDocFilters);
+            }
+        } catch (JsonProcessingException e) {
+            // ignore
+        }
     }
 }

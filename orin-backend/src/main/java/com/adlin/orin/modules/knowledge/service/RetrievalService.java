@@ -87,7 +87,15 @@ public class RetrievalService {
      * @return 检索结果列表 (Parent chunks for LLM context)
      */
     public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK) {
-        return hybridSearch(kbId, query, topK, null);
+        return hybridSearch(kbId, query, topK, null, null, null, null);
+    }
+
+    /**
+     * Hybrid Search with document filtering
+     */
+    public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
+            List<String> documentIds) {
+        return hybridSearch(kbId, query, topK, null, null, null, null, documentIds);
     }
 
     /**
@@ -112,16 +120,21 @@ public class RetrievalService {
 
     public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
             String embeddingModel, Double alpha, Double threshold, String rerankModel) {
+        return hybridSearch(kbId, query, topK, embeddingModel, alpha, threshold, rerankModel, null);
+    }
+
+    public List<VectorStoreProvider.SearchResult> hybridSearch(String kbId, String query, int topK,
+            String embeddingModel, Double alpha, Double threshold, String rerankModel, List<String> documentIds) {
         // 使用前端传入的 alpha，默认为 0.7（语义权重）
         double actualAlpha = alpha != null ? alpha : 0.7;
         double actualThreshold = threshold != null ? threshold : 0.0;
 
-        log.info("HybridSearch: kbId={}, query={}, alpha={}, threshold={}, rerankModel={}",
-                kbId, query, actualAlpha, actualThreshold, rerankModel);
+        log.info("HybridSearch: kbId={}, query={}, alpha={}, threshold={}, rerankModel={}, documentIds={}",
+                kbId, query, actualAlpha, actualThreshold, rerankModel, documentIds);
 
         // 1. 首先执行关键词检索（始终可用）
         // 返回 Map.Entry，包含 chunk 和匹配词数
-        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, topK * 3);
+        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, topK * 3, documentIds);
         log.info("HybridSearch: keywordResults.size={}", keywordResults.size());
 
         // 2. 尝试向量检索（可选增强）
@@ -137,7 +150,19 @@ public class RetrievalService {
                     vectorSearchFailed = true;
                 } else {
                     childResults = vectorService.search(kbId, query, topK * 3, embeddingModel);
-                    log.info("HybridSearch: vector results size={}", childResults.size());
+                    // Filter by documentIds if provided
+                    if (documentIds != null && !documentIds.isEmpty()) {
+                        Set<String> docIdSet = new HashSet<>(documentIds);
+                        childResults = childResults.stream()
+                                .filter(r -> {
+                                    String docId = (String) r.getMetadata().get("doc_id");
+                                    return docIdSet.contains(docId);
+                                })
+                                .collect(Collectors.toList());
+                        log.info("HybridSearch: vector results after docId filter size={}", childResults.size());
+                    } else {
+                        log.info("HybridSearch: vector results size={}", childResults.size());
+                    }
                 }
             } catch (Exception e) {
                 log.warn("Vector search failed, falling back to keyword-only search: {}", e.getMessage());
@@ -152,7 +177,7 @@ public class RetrievalService {
 
         // 如果向量检索失败或无可用结果，降级到纯关键词搜索
         if (childResults.isEmpty() || vectorSearchFailed) {
-            return keywordOnlySearch(kbId, query, topK);
+            return keywordOnlySearch(kbId, query, topK, documentIds);
         }
 
         // 2. Extract parent IDs and ALL doc IDs from child results
@@ -350,13 +375,13 @@ public class RetrievalService {
     /**
      * Keyword-only search fallback
      */
-    private List<VectorStoreProvider.SearchResult> keywordOnlySearch(String kbId, String query, int topK) {
-        log.warn("keywordOnlySearch called: kbId={}, query={}, topK={}", kbId, query, topK);
+    private List<VectorStoreProvider.SearchResult> keywordOnlySearch(String kbId, String query, int topK, List<String> documentIds) {
+        log.warn("keywordOnlySearch called: kbId={}, query={}, topK={}, documentIds={}", kbId, query, topK, documentIds);
         // 使用 alpha = 0（纯关键词搜索）
         double alpha = 0.0;
         double keywordWeight = 1.0 - alpha;
 
-        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, topK);
+        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, topK, documentIds);
         log.warn("keywordOnlySearch returned {} chunks", keywordResults.size());
         List<VectorStoreProvider.SearchResult> results = new ArrayList<>();
 
@@ -390,7 +415,7 @@ public class RetrievalService {
      * Keyword search helper - split query into words and search each
      * Returns map of chunk to matched word count
      */
-    private List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordSearch(String kbId, String query, int topK) {
+    private List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordSearch(String kbId, String query, int topK, List<String> documentIds) {
         if (query == null || query.trim().isEmpty()) {
             return new ArrayList<>();
         }
@@ -404,7 +429,7 @@ public class RetrievalService {
             }
         }
 
-        log.info("Keyword search: kbId={}, query={}, words={}", kbId, query, searchWords);
+        log.info("Keyword search: kbId={}, query={}, words={}, documentIds={}", kbId, query, searchWords, documentIds);
 
         if (searchWords.isEmpty()) {
             return new ArrayList<>();
@@ -414,7 +439,10 @@ public class RetrievalService {
         Map<String, Map.Entry<KnowledgeDocumentChunk, Integer>> chunkMap = new LinkedHashMap<>();
         for (String word : searchWords) {
             List<KnowledgeDocumentChunk> chunks;
-            if ("all".equalsIgnoreCase(kbId)) {
+            if (documentIds != null && !documentIds.isEmpty()) {
+                // Filter by specific document IDs
+                chunks = chunkRepository.searchByDocIds(documentIds, word);
+            } else if ("all".equalsIgnoreCase(kbId)) {
                 chunks = chunkRepository.searchAllByKeyword(word);
             } else {
                 chunks = chunkRepository.searchByKeyword(kbId, word);
