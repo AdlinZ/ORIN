@@ -2,15 +2,15 @@
 # 多阶段构建，减少镜像体积
 
 # 构建阶段
-FROM eclipse-temurin:17-jdk-alpine AS builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
 # 复制 pom.xml
 COPY pom.xml .
 
-# 下载依赖（利用 Docker 缓存层）
-RUN apk add --no-cache maven
+# 下载依赖
+RUN mvn dependency:go-offline -B
 
 # 构建源码并打包
 COPY src src
