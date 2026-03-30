@@ -5,6 +5,7 @@ import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
+import com.adlin.orin.modules.workflow.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class CollaborationExecutor {
     private final CollaborationEventBus eventBus;
     private final ObjectMapper objectMapper;
     private final LangfuseObservabilityService langfuseService;
+    private final WorkflowService workflowService;
 
     /**
      * 执行子任务
@@ -208,9 +210,17 @@ public class CollaborationExecutor {
             eventBus.publishSubtaskAssigned(packageId, subTaskId, null, "WORKFLOW", traceId);
 
             // TODO: 调用工作流执行服务
-            // 需要在 WorkflowService 中添加 execute 方法
-
-            future.complete("Workflow completed");
+            // 使用 WorkflowService.triggerWorkflow 执行工作流
+            if (workflowId != null) {
+                try {
+                    Map<String, Object> inputs = Map.of("subTaskId", subTaskId, "packageId", packageId);
+                    Long instanceId = workflowService.triggerWorkflow(workflowId, inputs, "collaboration");
+                    future.complete("Workflow triggered, instanceId: " + instanceId);
+                } catch (Exception e) {
+                    log.error("Failed to trigger workflow: {}", workflowId, e);
+                    future.completeExceptionally(e);
+                }
+            }
 
             eventBus.publishSubtaskCompleted(packageId, subTaskId, null,
                     Map.of("result", "Workflow completed"), traceId);
