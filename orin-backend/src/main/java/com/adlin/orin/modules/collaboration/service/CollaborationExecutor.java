@@ -70,11 +70,15 @@ public class CollaborationExecutor {
             List<AgentMetadata> agents = agentManageService.getAllAgents();
 
             if (agents == null || agents.isEmpty()) {
-                log.warn("No available agents, using mock result");
-                String mockResult = "Task completed (no agent available): " + description;
-                future.complete(mockResult);
-                eventBus.publishSubtaskCompleted(packageId, subTaskId, null,
-                        Map.of("result", mockResult), traceId);
+                log.warn("No available agents, failing subtask: {}", subTaskId);
+                String errorResult = "No available agents to execute subtask: " + description;
+                future.complete(errorResult);
+                eventBus.publishSubtaskFailed(packageId, subTaskId, null,
+                        "No available agents", traceId);
+                recordCollabEvent(traceId, subTaskId, "SUBTASK_FAILED", Map.of(
+                        "packageId", packageId != null ? packageId : "",
+                        "error", "No available agents"
+                ));
                 return future;
             }
 
