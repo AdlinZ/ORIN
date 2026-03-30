@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,7 @@ public class IntegrationController {
 
     private final DifyIntegrationService difyIntegrationService;
     private final RAGFlowIntegrationService ragFlowIntegrationService;
+    private final RestTemplate restTemplate;
 
     // 模拟的配置存储（实际应该存储到数据库或配置中心）
     private static final Map<String, Map<String, Object>> INTEGRATION_CONFIGS = new HashMap<>();
@@ -215,10 +217,24 @@ public class IntegrationController {
             return ResponseEntity.ok(result);
         }
 
-        // TODO: 实现真实的 AutoGen 连接测试
-        // 目前为预留位实现
-        result.put("success", false);
-        result.put("message", "AutoGen 为预留集成，暂未实现");
+        // 测试 AutoGen 连接
+        try {
+            // serviceUrl 已在前面定义
+            String apiKey = (String) autogenConfig.get("apiKey");
+            
+            // 简单的健康检查 - 调用 AutoGen 的 API endpoint
+            String healthUrl = serviceUrl + "/health";
+            
+            // 使用 restTemplate 进行健康检查
+            var response = restTemplate.getForObject(healthUrl, Map.class);
+            
+            result.put("success", true);
+            result.put("message", "AutoGen 连接成功");
+            result.put("details", response);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "AutoGen 连接失败: " + e.getMessage());
+        }
         return ResponseEntity.ok(result);
     }
 
@@ -261,10 +277,22 @@ public class IntegrationController {
             return ResponseEntity.ok(result);
         }
 
-        // TODO: 实现真实的 CrewAI 连接测试
-        // 目前为预留位实现
-        result.put("success", false);
-        result.put("message", "CrewAI 为预留集成，暂未实现");
+        // 实现 CrewAI 连接测试
+        try {
+            // serviceUrl 已在前面定义
+            
+            // CrewAI 通常有 /health 或 /api/health 端点
+            String healthUrl = serviceUrl + "/health";
+            
+            var response = restTemplate.getForObject(healthUrl, Map.class);
+            
+            result.put("success", true);
+            result.put("message", "CrewAI 连接成功");
+            result.put("details", response);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "CrewAI 连接失败: " + e.getMessage());
+        }
         return ResponseEntity.ok(result);
     }
 
