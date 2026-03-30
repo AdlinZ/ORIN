@@ -866,7 +866,8 @@ const formatMcpStatus = (status) => {
 };
 
 const getKnowledgeBaseName = (kbId) => {
-  return knowledgeBases.value.find((kb) => kb.id === kbId)?.name || kbId;
+  const targetKbId = normalizeId(kbId);
+  return knowledgeBases.value.find((kb) => normalizeId(kb.id) === targetKbId)?.name || targetKbId;
 };
 
 const getSkillName = (skillId) => {
@@ -895,7 +896,17 @@ const normalizeSession = (session) => ({
   agentId: session.agentId
 });
 
-const isKbAttached = (kbId) => attachedKbIds.value.includes(kbId);
+const normalizeId = (value) => (value == null ? '' : String(value));
+
+const normalizeKbDocFilters = (filters = {}) => {
+  const result = {};
+  Object.entries(filters || {}).forEach(([kbId, docIds]) => {
+    result[normalizeId(kbId)] = Array.isArray(docIds) ? docIds.map(normalizeId) : [];
+  });
+  return result;
+};
+
+const isKbAttached = (kbId) => attachedKbIds.value.includes(normalizeId(kbId));
 
 const loadAgents = async () => {
   const res = await listAgents({ page: 1, size: 100 });
@@ -936,7 +947,7 @@ const loadKnowledgeBases = async () => {
 
   knowledgeBases.value = list.map((kb) => ({
     ...kb,
-    id: kb.id || kb.kbId
+    id: normalizeId(kb.id || kb.kbId)
   })).filter((kb) => kb.id);
 };
 
@@ -993,7 +1004,7 @@ const loadAttachedKbs = async (sessionId) => {
   try {
     const res = await getAttachedKnowledgeBases(sessionId);
     const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-    attachedKbIds.value = list;
+    attachedKbIds.value = list.map(normalizeId);
   } catch (error) {
     attachedKbIds.value = [];
   }
@@ -1008,7 +1019,7 @@ const loadKbDocFilters = async (sessionId) => {
   try {
     const res = await getChatSession(sessionId);
     const data = res?.data || res || {};
-    const filters = data.kbDocFilters || {};
+    const filters = normalizeKbDocFilters(data.kbDocFilters || {});
     Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
     Object.assign(kbDocFilters, filters);
   } catch (error) {
@@ -1110,22 +1121,24 @@ const removeSession = async (session) => {
 };
 
 const toggleKb = async (kbId) => {
+  const targetKbId = normalizeId(kbId);
   if (!currentSessionId.value) {
     ElMessage.warning('请先创建会话');
     return;
   }
 
-  if (isKbAttached(kbId)) {
-    await detachKb(kbId);
+  if (isKbAttached(targetKbId)) {
+    await detachKb(targetKbId);
   } else {
-    await attachKb(kbId);
+    await attachKb(targetKbId);
   }
 };
 
 const attachKb = async (kbId) => {
+  const targetKbId = normalizeId(kbId);
   try {
-    await attachKnowledgeBase(currentSessionId.value, kbId);
-    attachedKbIds.value = [...new Set([...attachedKbIds.value, kbId])];
+    await attachKnowledgeBase(currentSessionId.value, targetKbId);
+    attachedKbIds.value = [...new Set([...attachedKbIds.value, targetKbId])];
     ElMessage.success('已附加知识库');
   } catch (error) {
     ElMessage.error('附加知识库失败');
@@ -1133,11 +1146,12 @@ const attachKb = async (kbId) => {
 };
 
 const detachKb = async (kbId) => {
+  const targetKbId = normalizeId(kbId);
   try {
-    await detachKnowledgeBase(currentSessionId.value, kbId);
-    attachedKbIds.value = attachedKbIds.value.filter((id) => id !== kbId);
-    if (kbDocFilters[kbId]) {
-      delete kbDocFilters[kbId];
+    await detachKnowledgeBase(currentSessionId.value, targetKbId);
+    attachedKbIds.value = attachedKbIds.value.filter((id) => id !== targetKbId);
+    if (kbDocFilters[targetKbId]) {
+      delete kbDocFilters[targetKbId];
     }
     ElMessage.success('已移除知识库');
   } catch (error) {
@@ -1153,51 +1167,57 @@ const toggleConfigItem = (field, itemId) => {
 };
 
 const loadKbDocuments = async (kbId) => {
-  if (kbDocuments.value[kbId]) return;
+  const targetKbId = normalizeId(kbId);
+  if (kbDocuments.value[targetKbId]) return;
   try {
-    const res = await getDocuments(kbId);
+    const res = await getDocuments(targetKbId);
     const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-    kbDocuments.value = { ...kbDocuments.value, [kbId]: list };
+    kbDocuments.value = { ...kbDocuments.value, [targetKbId]: list };
   } catch (error) {
-    kbDocuments.value = { ...kbDocuments.value, [kbId]: [] };
+    kbDocuments.value = { ...kbDocuments.value, [targetKbId]: [] };
   }
 };
 
 const toggleKbExpand = async (kbId) => {
-  if (expandedKbIds.value.has(kbId)) {
-    expandedKbIds.value.delete(kbId);
+  const targetKbId = normalizeId(kbId);
+  if (expandedKbIds.value.has(targetKbId)) {
+    expandedKbIds.value.delete(targetKbId);
   } else {
-    expandedKbIds.value.add(kbId);
-    if (!kbDocuments.value[kbId]) {
-      await loadKbDocuments(kbId);
+    expandedKbIds.value.add(targetKbId);
+    if (!kbDocuments.value[targetKbId]) {
+      await loadKbDocuments(targetKbId);
     }
   }
 };
 
-const isKbExpanded = (kbId) => expandedKbIds.value.has(kbId);
+const isKbExpanded = (kbId) => expandedKbIds.value.has(normalizeId(kbId));
 
 const isDocSelected = (kbId, docId) => {
-  return kbDocFilters[kbId]?.includes(docId) || false;
+  const targetKbId = normalizeId(kbId);
+  const targetDocId = normalizeId(docId);
+  return kbDocFilters[targetKbId]?.includes(targetDocId) || false;
 };
 
 const toggleDocFilter = async (kbId, docId) => {
-  if (!kbDocFilters[kbId]) {
-    kbDocFilters[kbId] = [];
+  const targetKbId = normalizeId(kbId);
+  const targetDocId = normalizeId(docId);
+  if (!kbDocFilters[targetKbId]) {
+    kbDocFilters[targetKbId] = [];
   }
-  const idx = kbDocFilters[kbId].indexOf(docId);
+  const idx = kbDocFilters[targetKbId].indexOf(targetDocId);
   if (idx >= 0) {
-    kbDocFilters[kbId].splice(idx, 1);
+    kbDocFilters[targetKbId].splice(idx, 1);
   } else {
-    kbDocFilters[kbId].push(docId);
+    kbDocFilters[targetKbId].push(targetDocId);
   }
   if (currentSessionId.value) {
-    await updateKbDocFilters(currentSessionId.value, kbDocFilters);
+    await updateKbDocFilters(currentSessionId.value, normalizeKbDocFilters(kbDocFilters));
   }
 };
 
 const syncKbDocFilters = async () => {
   if (currentSessionId.value) {
-    await updateKbDocFilters(currentSessionId.value, kbDocFilters);
+    await updateKbDocFilters(currentSessionId.value, normalizeKbDocFilters(kbDocFilters));
   }
 };
 
@@ -1224,8 +1244,8 @@ const sendMessage = async () => {
   try {
     const res = await sendChatMessage(currentSessionId.value, {
       message: content,
-      kbIds: attachedKbIds.value,
-      kbDocFilters: kbDocFilters
+      kbIds: attachedKbIds.value.map(normalizeId),
+      kbDocFilters: normalizeKbDocFilters(kbDocFilters)
     });
 
     const data = res?.data || res || {};
@@ -1400,23 +1420,23 @@ watch(
 }
 
 .sidebar-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .sidebar-name {
   margin-right: auto;
   min-width: 0;
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
   color: #242b38;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1480,7 +1500,7 @@ watch(
 .session-list {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 10px 14px;
+  padding: 4px 8px 10px;
 }
 
 .session-item {
@@ -1488,10 +1508,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 8px;
-  margin-bottom: 4px;
+  padding: 8px 10px;
+  margin-bottom: 2px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   transition: 0.18s ease;
 }
@@ -1566,10 +1586,10 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  min-height: 54px;
+  padding: 8px 16px;
+  min-height: 48px;
   border-bottom: 1px solid #e4e6ea;
-  background: #f7f7f8;
+  background: #fafafa;
 }
 
 .more-trigger {
@@ -1579,27 +1599,27 @@ watch(
 .messages-container {
   flex: 1;
   overflow-y: auto;
-  padding: 30px 32px 26px;
+  padding: 20px 24px 16px;
 }
 
 .welcome-panel {
   max-width: 780px;
-  margin: 18vh auto 0;
+  margin: 40px auto 0;
   text-align: center;
 }
 
 .welcome-panel h2 {
-  margin: 0 0 16px;
-  font-size: 30px;
+  margin: 0 0 12px;
+  font-size: 22px;
   color: #202736;
 }
 
 .welcome-modes {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 
 .mode-tag,
@@ -1626,10 +1646,10 @@ watch(
 }
 
 .composer-placeholder {
-  padding: 14px 16px 8px;
-  border: 1px solid #dfe3ea;
-  border-radius: 14px;
-  background: #f9fafb;
+  padding: 12px 14px 8px;
+  border: 1px solid #e4e7eb;
+  border-radius: 12px;
+  background: #ffffff;
 }
 
 .composer-placeholder.is-disabled {
@@ -1707,7 +1727,7 @@ watch(
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .quick-prompts :deep(.el-tag) {
@@ -1721,8 +1741,8 @@ watch(
 .message-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 22px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .message-item.user {
@@ -1747,7 +1767,7 @@ watch(
 }
 
 .message-bubble {
-  max-width: min(70%, 840px);
+  max-width: min(80%, 780px);
 }
 
 .message-role {
@@ -1777,13 +1797,13 @@ watch(
 }
 
 .message-text {
-  padding: 14px 16px;
-  border-radius: 20px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: rgba(248, 250, 252, 0.95);
   color: #1f2937;
-  line-height: 1.7;
+  line-height: 1.6;
   word-break: break-word;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .message-item.user .message-text {
@@ -1916,7 +1936,7 @@ watch(
 }
 
 .input-area {
-  padding: 14px 16px 10px;
+  padding: 12px 14px 8px;
   border-top: none;
 }
 
@@ -1932,10 +1952,10 @@ watch(
 }
 
 .input-area-wrapper {
-  padding: 14px 16px 8px;
+  padding: 12px 14px 8px;
   border: 1px solid #dfe3ea;
-  border-radius: 14px;
-  background: #f9fafb;
+  border-radius: 12px;
+  background: #ffffff;
 }
 
 .input-area-wrapper :deep(.el-textarea__inner) {
@@ -1963,13 +1983,13 @@ watch(
 
 .input-hint {
   font-size: 12px;
-  color: #94a3b8;
+  color: #9ca3af;
 }
 
 .workspace-config {
   display: flex;
   flex-direction: column;
-  background: #f4f5f7;
+  background: #f8f9fa;
   border-left: 1px solid #dedfe2;
   position: relative;
 }
@@ -2052,16 +2072,16 @@ watch(
 .config-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 0 12px 14px;
+  padding: 0 10px 10px;
 }
 
 .config-card {
-  padding: 14px;
+  padding: 12px;
   margin-bottom: 10px;
-  border: 1px solid #dfe3ea;
+  border: 1px solid #e8eaed;
   border-radius: 10px;
-  background: #eceff3;
-  box-shadow: none;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .config-card-head {
@@ -2104,8 +2124,8 @@ watch(
 .selection-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .selection-tag {
@@ -2202,11 +2222,11 @@ watch(
 }
 
 .selection-list {
-  margin-top: 12px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 280px;
+  gap: 6px;
+  max-height: 240px;
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -2216,10 +2236,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 12px;
-  border: 1px solid #d8dee7;
-  border-radius: 10px;
-  background: #f6f8fb;
+  padding: 8px 10px;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  background: #fafbfc;
   transition: 0.2s ease;
 }
 
@@ -2234,8 +2254,8 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 10px 0;
-  font-size: 14px;
+  padding: 8px 0;
+  font-size: 13px;
   color: #475569;
 }
 
@@ -2259,7 +2279,7 @@ watch(
 
 @media (max-width: 1440px) {
   .sidebar-name {
-    font-size: 20px;
+    font-size: 14px;
   }
 }
 </style>

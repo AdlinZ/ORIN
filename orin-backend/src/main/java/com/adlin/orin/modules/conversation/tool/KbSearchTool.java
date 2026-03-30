@@ -4,12 +4,14 @@ import com.adlin.orin.modules.conversation.dto.ChatMessageResponse.ToolTrace;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RequiredArgsConstructor
 public class KbSearchTool implements AgentTool {
     private static final String TOOL_NAME = "KB_SEARCH";
@@ -71,6 +73,13 @@ public class KbSearchTool implements AgentTool {
 
                 totalResults += results.size();
                 kbResults.add(kbResult);
+
+                log.info("KbSearchTool: kbId={}, docIds={}, query={}, results.size={}", kbId, docIds, query, results.size());
+                if (!results.isEmpty()) {
+                    Object firstContent = results.get(0).getContent();
+                    log.info("KbSearchTool 首个结果: kbId={}, content前100字={}", kbId,
+                            firstContent != null ? firstContent.toString().substring(0, Math.min(100, firstContent.toString().length())) : "null");
+                }
             }
 
             detail.put("kbResults", kbResults);

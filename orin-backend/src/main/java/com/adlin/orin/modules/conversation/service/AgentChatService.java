@@ -184,6 +184,10 @@ public class AgentChatService {
         }
 
         // 调用智能体
+        log.info("检索上下文内容: retrievedChunks.size={}, context长度={}, context前200字={}",
+                retrievedChunks.size(),
+                context != null ? context.length() : 0,
+                context != null && context.length() > 200 ? context.substring(0, 200) : context);
         Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, messages);
         String aiResponse = (String) agentResult.get("content");
 
