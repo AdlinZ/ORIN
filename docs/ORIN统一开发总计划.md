@@ -25,17 +25,17 @@
 
 以下文档视为“当前现状基线”，冲突时优先级高于旧设计和历史报告：
 
-1. [ORIN统一开发总计划.md](/Users/adlin/Documents/Code/ORIN/docs/ORIN统一开发总计划.md)
-2. [阶段0_改造基线.md](/Users/adlin/Documents/Code/ORIN/docs/阶段0_改造基线.md)
-3. [系统功能实现评估报告.md](/Users/adlin/Documents/Code/ORIN/docs/系统功能实现评估报告.md)
-4. [真实完成度报告.md](/Users/adlin/Documents/Code/ORIN/docs/真实完成度报告.md)
-5. [原始设计与当前实现对照.md](/Users/adlin/Documents/Code/ORIN/docs/原始设计与当前实现对照.md)
-6. [API文档.md](/Users/adlin/Documents/Code/ORIN/docs/API文档.md)
-7. [使用指南.md](/Users/adlin/Documents/Code/ORIN/docs/使用指南.md)
+1. [ORIN统一开发总计划.md](./ORIN统一开发总计划.md)
+2. [阶段0_改造基线.md](./阶段0_改造基线.md)
+3. [系统功能实现评估报告.md](./系统功能实现评估报告.md)
+4. [真实完成度报告.md](./真实完成度报告.md)
+5. [原始设计与当前实现对照.md](./原始设计与当前实现对照.md)
+6. [API文档.md](./API文档.md)
+7. [使用指南.md](./使用指南.md)
 
 ### 2.2 需求来源文档
 
-- [智能体管理系统设计方案.docx](/Users/adlin/Desktop/智能体管理系统设计方案.docx)
+- 原始设计方案 `智能体管理系统设计方案.docx`（仓库外背景材料，不保证在当前机器可见）
 
 它的定位是：
 

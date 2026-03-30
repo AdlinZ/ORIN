@@ -177,6 +177,6 @@ curl http://localhost:8080/api/traces/search?traceId=abc123 \
 
 - 本文档只维护“入口级别”信息，避免再出现手写接口清单和真实控制器脱节的问题。
 - 如果某个页面声称依赖某组接口，联调时请先确认控制器前缀、service 实现和前端调用是否真的对齐。
-- 如果新增或删除模块级前缀，应同步更新这里和 [docs/README.md](/Users/adlin/Documents/Code/ORIN/docs/README.md)。
+- 如果新增或删除模块级前缀，应同步更新这里和 [README.md](./README.md)。
 
-**更新日期**：2026-03-28
+**更新日期**：2026-03-31

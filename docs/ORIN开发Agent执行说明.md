@@ -4,6 +4,20 @@
 > 版本：`2026-03-31`
 > 用途：让接手 ORIN 的开发 agent 在最短时间内建立正确上下文，避免继续基于旧设计、旧文档或页面表象做出错误修改。
 
+## 0. 远端协作前提
+
+默认前提是：
+
+- 你运行在另一台机器上
+- 你通过 git 拉取 ORIN 仓库
+- 你看不到作者本机的绝对路径、桌面文件或本地临时资料
+
+因此你必须遵守：
+
+- 只相信仓库内实际存在的文件
+- 文档中的内部引用必须能在当前仓库中打开
+- 如果某条说明依赖仓库外文件，应明确视为“额外背景”，不能作为阻塞前提
+
 ## 1. 先说结论
 
 你接手的 ORIN，不是一个“已经基本完成、只差零碎修修补补”的项目。
@@ -24,29 +38,31 @@
 
 开始任何开发前，按这个顺序读：
 
-1. [ORIN统一开发总计划.md](/Users/adlin/Documents/Code/ORIN/docs/ORIN统一开发总计划.md)
-2. [阶段0_改造基线.md](/Users/adlin/Documents/Code/ORIN/docs/阶段0_改造基线.md)
-3. [系统功能实现评估报告.md](/Users/adlin/Documents/Code/ORIN/docs/系统功能实现评估报告.md)
-4. [真实完成度报告.md](/Users/adlin/Documents/Code/ORIN/docs/真实完成度报告.md)
-5. [原始设计与当前实现对照.md](/Users/adlin/Documents/Code/ORIN/docs/原始设计与当前实现对照.md)
-6. [API文档.md](/Users/adlin/Documents/Code/ORIN/docs/API文档.md)
-7. [使用指南.md](/Users/adlin/Documents/Code/ORIN/docs/使用指南.md)
+1. [ORIN统一开发总计划.md](./ORIN统一开发总计划.md)
+2. [阶段0_改造基线.md](./阶段0_改造基线.md)
+3. [系统功能实现评估报告.md](./系统功能实现评估报告.md)
+4. [真实完成度报告.md](./真实完成度报告.md)
+5. [原始设计与当前实现对照.md](./原始设计与当前实现对照.md)
+6. [API文档.md](./API文档.md)
+7. [使用指南.md](./使用指南.md)
 
-如果任务与工作流、协作、知识库有关，再继续读：
+如果任务与工作流、协作、知识库有关，不再依赖已删除的专题文档，直接去看代码：
 
-- [DSL节点规范.md](/Users/adlin/Documents/Code/ORIN/docs/DSL节点规范.md)
-- [Workflow样例.md](/Users/adlin/Documents/Code/ORIN/docs/Workflow样例.md)
-- [Workflow协作不稳定节点清单.md](/Users/adlin/Documents/Code/ORIN/docs/Workflow协作不稳定节点清单.md)
-- [串行协作验收路径.md](/Users/adlin/Documents/Code/ORIN/docs/串行协作验收路径.md)
-- [并行协作验收路径.md](/Users/adlin/Documents/Code/ORIN/docs/并行协作验收路径.md)
+- `orin-frontend/src/router/`
+- `orin-frontend/src/views/Workflow/`
+- `orin-frontend/src/views/Agent/`
+- `orin-backend/src/main/java/com/adlin/orin/modules/workflow/`
+- `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/`
+- `orin-backend/src/main/java/com/adlin/orin/modules/knowledge/`
+- `orin-ai-engine/app/engine/`
 
-如果任务与部署、监控、安全有关，再继续读：
+如果任务与部署、监控、安全有关，再继续读这些当前仍保留的文档和代码：
 
-- [部署指南.md](/Users/adlin/Documents/Code/ORIN/docs/部署指南.md)
-- [I1.2-部署前检查清单.md](/Users/adlin/Documents/Code/ORIN/docs/I1.2-部署前检查清单.md)
-- [三层观测模型.md](/Users/adlin/Documents/Code/ORIN/docs/三层观测模型.md)
-- [H1.1-敏感配置和默认值风险梳理.md](/Users/adlin/Documents/Code/ORIN/docs/H1.1-敏感配置和默认值风险梳理.md)
-- [H2.1-权限边界复核.md](/Users/adlin/Documents/Code/ORIN/docs/H2.1-权限边界复核.md)
+- [部署指南.md](./部署指南.md)
+- [I1.2-部署前检查清单.md](./I1.2-部署前检查清单.md)
+- `orin-backend/src/main/java/com/adlin/orin/security/`
+- `orin-backend/src/main/java/com/adlin/orin/modules/system/`
+- `orin-backend/src/main/java/com/adlin/orin/modules/apikey/`
 
 ## 3. 当前真实架构
 
@@ -77,7 +93,7 @@
 如果文档与代码冲突，优先级如下：
 
 1. 当前代码
-2. [ORIN统一开发总计划.md](/Users/adlin/Documents/Code/ORIN/docs/ORIN统一开发总计划.md)
+2. [ORIN统一开发总计划.md](./ORIN统一开发总计划.md)
 3. 当前评估类文档
 4. 原始设计方案
 5. 历史文档
@@ -144,6 +160,15 @@
 - 是否涉及权限、安全、配置、任务状态或 trace
 - 是否涉及外部依赖
 
+### 第零步：先确认 git 同步状态
+
+由于你与其他机器通过 git 协作，开始前至少确认：
+
+- 当前分支是什么
+- `git status` 是否干净
+- `git fetch` 后是否落后于远端
+- 最近是否有人在同一模块上持续提交
+
 ### 第二步：搜当前真实入口
 
 建议最少做这些检查：
@@ -204,6 +229,48 @@ rg -n "placeholder|mock|UnsupportedOperationException|TODO|return null" orin-bac
 - 错误语义
 - 验收状态
 
+## 6.1 接任务前检查清单
+
+- [ ] `git status` 确认没有未提交改动会干扰当前任务
+- [ ] `git fetch` 并确认当前分支没有明显落后
+- [ ] 阅读目标模块最近几次提交，确认不是并行冲突热点
+- [ ] 确认相关文档在当前仓库中真实存在
+- [ ] 确认你即将修改的是当前真实入口，而不是旧路径或兼容路径
+
+## 6.2 修改前必查项
+
+- [ ] 前端是否真的有对应路由或实际挂载页面
+- [ ] 后端是否真的有 controller + service 闭环
+- [ ] 如果涉及执行链，Python AI engine 是否参与其中
+- [ ] 是否已经存在 mock、placeholder、默认异常或页面复用
+- [ ] 是否依赖仓库外配置、第三方服务或人工前置数据
+
+## 6.3 修改后最小验证
+
+最少按改动类型完成以下验证：
+
+- 后端改动：至少执行一次 `mvn compile`
+- 前端改动：至少执行一次 `npm run build`，若项目约束更轻则至少说明未执行原因
+- Python AI 引擎改动：至少执行能覆盖本次修改的最小运行或测试命令
+- API 改动：至少用 curl、Swagger 或前端调用验证不是裸 500
+- 执行链改动：至少验证 Java 和 Python 两端都没有断链
+
+## 6.4 文档同步触发规则
+
+以下情况必须同步文档：
+
+- 新增、删除、修改了 API 路径或关键参数
+- 新增、删除、修改了前端路由或页面入口
+- 修改了部署方式、启动方式、依赖方式
+- 修改了模块边界、状态判断、错误语义
+- 删除了旧文档、旧入口或旧兼容路径
+
+以下情况通常不需要单独改文档：
+
+- 单纯改注释
+- 纯样式调整且不影响入口和行为
+- 不改变对外行为的内部重构
+
 ## 7. 什么算一次合格的修改
 
 只有同时满足下面条件，才算合格：
@@ -211,10 +278,13 @@ rg -n "placeholder|mock|UnsupportedOperationException|TODO|return null" orin-bac
 - 修的是根因，不只是掩盖报错
 - 改完后链路更清楚，而不是更绕
 - 补了最小验证
+- 后端修改至少应能编译通过，前端修改至少应能构建或说明未构建原因
 - 没有引入新的伪完成状态
 - 文档没有继续误导下一个 agent
 
 ## 8. 各模块工作时的特别注意事项
+
+> 注意：下面这些“模块名称”是工作视角，不一定和实际代码目录一一对应。实际路径请以 `orin-backend/src/main/java/com/adlin/orin/modules/`、`orin-frontend/src/`、`orin-ai-engine/app/` 为准。
 
 ## 8.1 智能体模块
 
@@ -336,6 +406,14 @@ rg -n "placeholder|mock|UnsupportedOperationException|TODO|return null" orin-bac
 3. 再决定要不要继续补实现
 
 不要为了“看起来完成”继续扩大误差。
+
+## 9.1 禁止事项
+
+- 禁止依赖作者本机绝对路径或仓库外文件作为开发前提
+- 禁止在未确认接口存在的情况下直接写前端调用
+- 禁止把 mock、placeholder、默认异常路径当成真实交付
+- 禁止只改前端或只改后端就默认宣称功能完成
+- 禁止跳过验证步骤直接声称“已修复”
 
 ## 10. 提交前检查清单
 
