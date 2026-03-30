@@ -60,6 +60,7 @@ public class SystemMessage {
      * 是否已读
      */
     @Builder.Default
+    @Column(name = "`read`")
     private Boolean read = false;
 
     /**
