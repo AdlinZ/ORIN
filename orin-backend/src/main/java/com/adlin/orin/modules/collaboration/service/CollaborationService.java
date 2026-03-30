@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.entity.CollaborationTask;
 import com.adlin.orin.modules.collaboration.repository.CollaborationTaskRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.Optional;
 public class CollaborationService {
 
     private final CollaborationTaskRepository taskRepository;
+    private final AgentManageService agentManageService;
 
     /**
      * 创建协作任务
@@ -89,7 +91,7 @@ public class CollaborationService {
     }
 
     /**
-     * 执行下一个 Agent
+     * 执行下一个 Agent - 真实调用
      */
     @Transactional
     public CollaborationTask executeNextAgent(Long id) {
@@ -109,8 +111,22 @@ public class CollaborationService {
                 String currentAgentId = agentIds.get(currentIndex);
                 log.info("Executing agent {} for task {}", currentAgentId, id);
                 
-                // TODO: 实际调用 Agent 执行任务
-                // 这里可以集成 Agent 服务来执行任务
+                // 真实调用 Agent 执行任务
+                try {
+                    Optional<Object> response = agentManageService.chat(currentAgentId, task.getDescription(), (String) null);
+                    
+                    if (response.isPresent()) {
+                        String resultStr = response.get() instanceof String ? (String) response.get() : response.get().toString();
+                        task.setResult(resultStr);
+                    } else {
+                        log.warn("Agent {} returned empty response", currentAgentId);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to execute agent {}: {}", currentAgentId, e.getMessage());
+                    task.setErrorMessage("Agent execution failed: " + e.getMessage());
+                    task.setStatus("FAILED");
+                    return taskRepository.save(task);
+                }
                 
                 // 移动到下一个 Agent
                 task.setCurrentAgentIndex(currentIndex + 1);
