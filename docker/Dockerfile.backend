@@ -12,6 +12,9 @@ COPY pom.xml .
 # 下载依赖
 RUN mvn dependency:go-offline -B
 
+# 安装 curl for health check
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # 构建源码并打包
 COPY src src
 RUN mvn clean package -DskipTests -B && \
@@ -19,12 +22,9 @@ RUN mvn clean package -DskipTests -B && \
     (cd target/dependency; jar -xf ../*.jar)
 
 # 运行阶段
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
-
-# 安装必要的工具
-RUN apk add --no-cache curl
 
 # 从构建阶段复制依赖
 COPY --from=builder /app/target/dependency/BOOT-INF/lib /app/lib
