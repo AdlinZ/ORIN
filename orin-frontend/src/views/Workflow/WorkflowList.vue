@@ -321,7 +321,7 @@ const handleCreate = () => {
 };
 
 const handleCreateVisual = () => {
-  router.push('/dashboard/agents/workflows/visual');
+  router.push('/dashboard/applications/workflows/visual');
 };
 
 const handleEdit = (row) => {

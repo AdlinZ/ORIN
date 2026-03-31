@@ -1353,8 +1353,12 @@ watch(
 <style scoped>
 .agent-workspace {
   display: grid;
-  height: calc(100vh - 60px);
+  height: 100%;
+  min-height: 0;
   background: #f5f5f6;
+  border: 1px solid #dee2e8;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .workspace-sidebar,
@@ -1373,18 +1377,18 @@ watch(
   display: flex;
   flex-direction: column;
   flex: 1;
+  height: 100%;
   min-width: 0;
   background: #f8f8f9;
   position: relative;
 }
 
 .session-collapse-handle {
-  position: sticky;
-  right: 0;
+  position: absolute;
+  right: -14px;
   top: 50%;
-  float: right;
-  margin-right: -16px;
-  z-index: 3;
+  transform: translateY(-50%);
+  z-index: 5;
 }
 
 .collapse-btn {
@@ -1532,6 +1536,7 @@ watch(
 .workspace-main {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   background: #f6f6f7;
   position: relative;
 }
@@ -1989,18 +1994,19 @@ watch(
 .workspace-config {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   background: #f8f9fa;
   border-left: 1px solid #dedfe2;
   position: relative;
 }
 
 .config-collapse-handle {
-  position: sticky;
-  left: 0;
+  position: absolute;
+  left: -14px;
   top: 50%;
-  float: left;
-  margin-left: -16px;
-  z-index: 3;
+  transform: translateY(-50%);
+  z-index: 5;
 }
 
 .config-header {

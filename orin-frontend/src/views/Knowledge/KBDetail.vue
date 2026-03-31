@@ -264,7 +264,7 @@
                     </el-select>
                     <p class="form-tip">
                       选择已在"API密钥管理"中配置的密钥
-                      <el-button type="primary" link @click="router.push('/system/api-keys')">
+                      <el-button type="primary" link @click="router.push('/dashboard/control/api-keys')">
                         去配置
                       </el-button>
                     </p>
@@ -517,7 +517,7 @@ const handleVectorize = async (row) => {
 };
 
 const openDocument = (doc) => {
-  router.push(`/dashboard/knowledge/${kbId.value}/document/${doc.id}`);
+  router.push(`/dashboard/resources/knowledge/${kbId.value}/document/${doc.id}`);
 };
 
 onMounted(() => {

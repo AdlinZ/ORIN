@@ -197,7 +197,7 @@ const fetchGraphs = async () => {
 }
 
 const openGraphDetail = (graph) => {
-  router.push(`/dashboard/knowledge/graph/${graph.id}`)
+  router.push(`/dashboard/resources/graph/${graph.id}`)
 }
 
 const handleCreate = () => {

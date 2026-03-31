@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.entity.CollaborationTask;
 import com.adlin.orin.modules.collaboration.repository.CollaborationTaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,11 +34,14 @@ class CollaborationServiceUnitTest {
     @Mock
     private CollaborationTaskRepository taskRepository;
 
+    @Mock
+    private AgentManageService agentManageService;
+
     private CollaborationService collaborationService;
 
     @BeforeEach
     void setUp() {
-        collaborationService = new CollaborationService(taskRepository);
+        collaborationService = new CollaborationService(taskRepository, agentManageService);
     }
 
     // ==================== 任务创建 ====================

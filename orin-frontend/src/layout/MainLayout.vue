@@ -11,7 +11,8 @@
       class="content-area"
       :class="{
         'with-sidebar': appStore.menuMode === 'sidebar',
-        'collapsed': appStore.menuMode === 'sidebar' && appStore.isCollapse
+        'collapsed': appStore.menuMode === 'sidebar' && appStore.isCollapse,
+        'is-workspace-page': isWorkspaceRoute
       }"
     >
       <router-view v-slot="{ Component }">
@@ -23,7 +24,7 @@
 
     <!-- 侧边栏外部切换按钮 -->
     <div
-      v-if="appStore.menuMode === 'sidebar'"
+      v-if="appStore.menuMode === 'sidebar' && !isWorkspaceRoute"
       class="sidebar-external-toggle"
       :class="{ 'is-collapsed': appStore.isCollapse }"
       @click="appStore.toggleSidebar"
@@ -41,10 +42,12 @@ import TopNavbar from './components/TopNavbar.vue'
 import Sidebar from './components/Sidebar.vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { computed } from 'vue'
 import { DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 
 const $route = useRoute()
 const appStore = useAppStore()
+const isWorkspaceRoute = computed(() => $route.name === 'ApplicationWorkspace')
 </script>
 
 <style scoped>
@@ -67,6 +70,12 @@ const appStore = useAppStore()
 .content-area.collapsed {
   margin-left: var(--sidebar-width-collapsed);
   width: calc(100% - var(--sidebar-width-collapsed));
+}
+
+.content-area.is-workspace-page {
+  padding: 0;
+  height: calc(100vh - 64px);
+  overflow: hidden;
 }
 
 /* 页面切换动画 */

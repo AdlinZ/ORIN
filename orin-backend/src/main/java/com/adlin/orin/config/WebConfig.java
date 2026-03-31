@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Paths;
@@ -108,5 +109,22 @@ public class WebConfig implements WebMvcConfigurer {
 
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations(uploadPath);
+
+        // Serve frontend static files from dist folder
+        String distPath = Paths.get("../orin-frontend/dist").toAbsolutePath().toUri().toString();
+        registry.addResourceHandler("/assets/**")
+                .addResourceLocations(distPath + "/assets/");
+
+        // SPA fallback: serve index.html for unmatched frontend routes
+        // Only for paths that don't look like file requests (no extension)
+        String finalDistPath = distPath;
+        registry.addResourceHandler("/favicon.ico")
+                .addResourceLocations(finalDistPath + "/favicon.ico");
+    }
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        // Root path redirects to index.html
+        registry.addViewController("/").setViewName("forward:/index.html");
     }
 }

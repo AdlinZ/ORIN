@@ -37,7 +37,9 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true
       }
-    }
+    },
+    // Enable SPA fallback - serve index.html for all non-file routes
+    historyApiFallback: true
   },
   build: {
     // 分包策略 - 提升缓存效率

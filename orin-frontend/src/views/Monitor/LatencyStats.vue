@@ -1,11 +1,16 @@
 <template>
   <div class="page-container">
-    <!-- Teleport actions to Navbar -->
-    <Teleport to="#navbar-actions" :disabled="false" defer>
-      <el-button :icon="Download" @click="handleExport">
-        导出报告
-      </el-button>
-    </Teleport>
+    <PageHeader
+      title="时延统计"
+      description="查看响应耗时趋势、当前样本分布与历史延迟记录"
+      icon="Timer"
+    >
+      <template #actions>
+        <el-button :icon="Download" @click="handleExport">
+          导出报告
+        </el-button>
+      </template>
+    </PageHeader>
 
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
@@ -153,10 +158,11 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
-import { Download, Refresh, Timer, TrendCharts, WarningFilled, Connection } from '@element-plus/icons-vue';
+import { Download, Timer, TrendCharts, WarningFilled, Connection } from '@element-plus/icons-vue';
 import { getLatencyStats, getLatencyHistory, getLatencyTrend } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
 import * as echarts from 'echarts';
+import PageHeader from '@/components/PageHeader.vue';
 
 const latencyStats = ref({
   daily: 0,
@@ -185,6 +191,7 @@ const trendChart = ref(null);
 const distributionChart = ref(null);
 let trendChartInstance = null;
 let distributionChartInstance = null;
+let isUnmounted = false;
 
 const statsCards = computed(() => [
   { 
@@ -246,12 +253,14 @@ const getLatencyClass = (val) => {
 const fetchData = async () => {
   try {
     const res = await getLatencyStats();
-    if (res) {
+    if (!isUnmounted && res) {
       latencyStats.value = res;
     }
   } catch (error) {
     console.warn('获取延迟统计失败');
-    latencyStats.value = { daily: 0, weekly: 0, monthly: 0, max: 0 };
+    if (!isUnmounted) {
+      latencyStats.value = { daily: 0, weekly: 0, monthly: 0, max: 0 };
+    }
   }
 };
 
@@ -261,6 +270,8 @@ const fetchTrendData = async () => {
   trendLoading.value = true;
   try {
     const res = await getLatencyTrend(trendPeriod.value);
+    if (isUnmounted) return;
+
     if (res && res.length > 0) {
       renderTrendChart(res);
     } else {
@@ -293,7 +304,7 @@ const fetchTrendData = async () => {
 // 渲染趋势图表
 const renderTrendChart = (data) => {
   nextTick(() => {
-    if (!trendChart.value) return;
+    if (isUnmounted || !trendChart.value) return;
 
     if (trendChartInstance) {
       trendChartInstance.dispose();
@@ -336,6 +347,8 @@ const renderTrendChart = (data) => {
 
 // 渲染分布图表（基于当前数据简单分类）
 const updateDistribution = (logs) => {
+    if (isUnmounted) return;
+
     let fast = 0, normal = 0, standard = 0, slow = 0, extreme = 0;
     logs.forEach(log => {
         const l = log.responseTime || 0;
@@ -353,6 +366,8 @@ const updateDistribution = (logs) => {
         { value: slow, name: '30s-60s', itemStyle: { color: '#F59E0B' } },
         { value: extreme, name: '> 60s', itemStyle: { color: '#EF4444' } }
     ];
+
+    if (!distributionChart.value) return;
 
     if (!distributionChartInstance) {
         distributionChartInstance = echarts.init(distributionChart.value);
@@ -388,7 +403,7 @@ const fetchHistoryData = async () => {
     }
 
     const res = await getLatencyHistory(params);
-    if (res) {
+    if (!isUnmounted && res) {
       historyData.value = res.content || [];
       total.value = res.totalElements || 0;
       updateDistribution(historyData.value);
@@ -408,12 +423,15 @@ const fetchHistoryData = async () => {
             status: 'success'
         });
     }
-    historyData.value = mockHistory;
-    total.value = 50;
-    updateDistribution(mockHistory);
+    if (!isUnmounted) {
+      historyData.value = mockHistory;
+      total.value = 50;
+      updateDistribution(mockHistory);
+    }
 
   } finally {
     historyLoading.value = false;
+    window.dispatchEvent(new Event('page-refresh-done'));
   }
 };
 
@@ -445,25 +463,28 @@ const handleGlobalRefresh = () => {
   fetchHistoryData();
 };
 
+const handleResize = () => {
+  trendChartInstance?.resize();
+  distributionChartInstance?.resize();
+};
+
 onMounted(() => {
+  isUnmounted = false;
   fetchData();
   fetchTrendData();
   fetchHistoryData();
   window.addEventListener('page-refresh', handleGlobalRefresh);
-  window.addEventListener('resize', () => {
-    trendChartInstance?.resize();
-    distributionChartInstance?.resize();
-  });
+  window.addEventListener('resize', handleResize);
 });
 
 onUnmounted(() => {
+  isUnmounted = true;
   window.removeEventListener('page-refresh', handleGlobalRefresh);
-  window.removeEventListener('resize', () => {
-    trendChartInstance?.resize();
-    distributionChartInstance?.resize();
-  });
+  window.removeEventListener('resize', handleResize);
   trendChartInstance?.dispose();
   distributionChartInstance?.dispose();
+  trendChartInstance = null;
+  distributionChartInstance = null;
 });
 </script>
 

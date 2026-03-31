@@ -244,7 +244,7 @@ const viewInstances = async (workflow) => {
 }
 
 const viewTrace = (instance) => {
-  router.push(`/trace/${instance.traceId}`)
+  router.push(`/dashboard/runtime/traces/${instance.traceId}`)
 }
 
 const editWorkflow = (workflow) => {

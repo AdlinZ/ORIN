@@ -18,11 +18,9 @@
         class="el-menu-vertical"
       >
         <!-- 首页 -->
-        <el-menu-item index="/dashboard/home">
+        <el-menu-item index="/dashboard/home" class="home-menu-item">
           <el-icon><House /></el-icon>
-          <template #title>
-            首页
-          </template>
+          <span>首页</span>
         </el-menu-item>
 
         <!-- 动态渲染四大模块 -->
@@ -498,6 +496,13 @@ router.afterEach(() => {
   display: flex;
   align-items: center;
   transition: all 0.3s;
+}
+
+:deep(.el-menu-item > .el-icon),
+:deep(.el-sub-menu__title > .el-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 核心修复：收起状态下的图标居中 */

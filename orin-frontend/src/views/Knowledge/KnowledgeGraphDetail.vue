@@ -320,7 +320,7 @@ const formatDate = (dateStr) => {
 }
 
 const goBack = () => {
-  router.push('/dashboard/knowledge/graph')
+  router.push('/dashboard/resources/graph')
 }
 
 const filteredEntities = computed(() => {

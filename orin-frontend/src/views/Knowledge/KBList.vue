@@ -461,7 +461,7 @@ const generateMockDocs = (kb) => {
 };
 
 const openInspector = (kb) => {
-  router.push(`/dashboard/knowledge/detail/${kb.id}`);
+  router.push(`/dashboard/resources/knowledge/detail/${kb.id}`);
 };
 
 const closeInspector = () => {

@@ -9,135 +9,142 @@
  * 4. 系统管理 - 组织与权限、平台配置、模型与资源、安全与运维、支持与维护
  */
 
-// ==================== 主要路由 ====================
+const agentRoutes = {
+    ROOT: '/dashboard/applications',
+    LIST: '/dashboard/applications/agents',
+    ONBOARD: '/dashboard/applications/agents/onboard',
+    CONSOLE: '/dashboard/applications/agents/console/:id',
+    CHAT_LOGS: '/dashboard/applications/conversations',
+    WORKSPACE: '/dashboard/applications/workspace',
+    COLLABORATION_DASHBOARD: '/dashboard/applications/collaboration/dashboard',
+    COLLABORATION: '/dashboard/applications/collaboration',
+    COLLABORATION_TASKS: '/dashboard/applications/collaboration/tasks',
+    COLLABORATION_CONFIG: '/dashboard/applications/collaboration/config',
+    VERSION_MANAGE: '/dashboard/applications/version',
+    TEST_DEBUG: '/dashboard/applications/test',
+    SKILLS: '/dashboard/applications/skills',
+    MCP: '/dashboard/control/mcp-service',
+    TOOLS: '/dashboard/control/mcp-service',
+    EXTERNAL_FRAMEWORKS: '/dashboard/control/external-frameworks',
+    WORKFLOWS: '/dashboard/applications/workflows',
+    WORKFLOW_CREATE: '/dashboard/applications/workflows/create',
+    WORKFLOW_EDIT: '/dashboard/applications/workflows/edit/:id',
+    WORKFLOW_VISUAL: '/dashboard/applications/workflows/visual',
+    WORKFLOW_VISUAL_EDIT: '/dashboard/applications/workflows/visual/:id',
+    MODELS: '/dashboard/applications/models',
+    MODEL_CONFIG: '/dashboard/applications/models/config',
+    MODEL_ADD: '/dashboard/applications/models/add',
+    MODEL_EDIT: '/dashboard/applications/models/edit/:id',
+}
+
+const knowledgeRoutes = {
+    ROOT: '/dashboard/resources',
+    LIST: '/dashboard/resources/knowledge',
+    CREATE: '/dashboard/resources/knowledge/create',
+    DETAIL: '/dashboard/resources/knowledge/detail/:id',
+    DOCUMENT_DETAIL: '/dashboard/resources/knowledge/:kbId/document/:docId',
+    MEDIA: '/dashboard/resources/media',
+    RETRIEVAL_LAB: '/dashboard/resources/embedding-lab',
+    EMBEDDING_LAB: '/dashboard/resources/embedding-lab',
+    VLM_LAB: '/dashboard/resources/vlm-lab',
+    INTELLIGENCE: '/dashboard/resources/architecture',
+    GRAPH: '/dashboard/resources/graph',
+    GRAPH_DETAIL: '/dashboard/resources/graph/:id',
+    SYNC: '/dashboard/resources/sync',
+    ARCHITECTURE: '/dashboard/resources/architecture',
+}
+
+const monitorRoutes = {
+    ROOT: '/dashboard/runtime',
+    DASHBOARD: '/dashboard/runtime/overview',
+    TOKENS: '/dashboard/runtime/metrics',
+    COSTS: '/dashboard/runtime/costs',
+    LATENCY: '/dashboard/runtime/latency',
+    ERRORS: '/dashboard/runtime/errors',
+    TRACES: '/dashboard/runtime/traces',
+    TRACE_DETAIL: '/dashboard/runtime/traces/:traceId',
+    DATAFLOW: '/dashboard/runtime/dataflow/:traceId',
+    ALERTS: '/dashboard/runtime/alerts',
+    ALERT_RULES: '/dashboard/runtime/alert-rules',
+    NOTIFICATIONS: '/dashboard/runtime/alerts',
+    TASKS: '/dashboard/runtime/tasks',
+    SERVER: '/dashboard/runtime/server',
+    LOGS: '/dashboard/runtime/logs',
+    MAINTENANCE: '/dashboard/runtime/maintenance',
+    VERSION_UPGRADE: '/dashboard/runtime/version-upgrade',
+    RATE_LIMIT: '/dashboard/runtime/rate-limit',
+}
+
+const systemRoutes = {
+    ROOT: '/dashboard/control',
+    USERS: '/dashboard/control/users',
+    DEPARTMENTS: '/dashboard/control/departments',
+    ROLES: '/dashboard/control/roles',
+    API_KEYS: '/dashboard/control/api-keys',
+    RATE_LIMIT: '/dashboard/control/rate-limit',
+    MESSAGES: '/dashboard/control/mail/setup',
+    FILES: '/dashboard/control/file-management',
+    SETTINGS: '/dashboard/control/system-env',
+    SETTINGS_BASE: '/dashboard/control/system-env',
+    SETTINGS_MAIL: '/dashboard/control/mail/setup',
+    SETTINGS_NOTIFICATIONS: '/dashboard/control/notification-channels',
+    SETTINGS_MODEL_DEFAULTS: '/dashboard/applications/models/config',
+    SETTINGS_MONITOR: '/dashboard/control/system-env',
+    SETTINGS_KNOWLEDGE: '/dashboard/control/knowledge-config',
+    SETTINGS_GATEWAY: '/dashboard/control/gateway',
+    SETTINGS_SYNC: '/dashboard/control/client-sync',
+    SETTINGS_INTEGRATIONS: '/dashboard/control/external-frameworks',
+    SETTINGS_MCP_SERVICE: '/dashboard/control/mcp-service',
+    AUDIT_LOGS: '/dashboard/control/audit-logs',
+    MODELS: '/dashboard/applications/models',
+    PRICING: '/dashboard/control/pricing',
+    MONITOR_SETTINGS: '/dashboard/control/system-env',
+    GATEWAY: '/dashboard/control/gateway',
+    DISTRIBUTED_LOCK: '/dashboard/control/distributed-lock',
+    EXTERNAL_FRAMEWORKS: '/dashboard/control/external-frameworks',
+    DIFY: '/dashboard/control/external-frameworks?tab=dify',
+    RAGFLOW: '/dashboard/control/external-frameworks?tab=ragflow',
+    AUTOGEN: '/dashboard/control/external-frameworks?tab=autogen',
+    CREWAI: '/dashboard/control/external-frameworks?tab=crewai',
+    MCP_SERVICE: '/dashboard/control/mcp-service',
+    HELP_CENTER: '/dashboard/control/help-center',
+    STATISTICS: '/dashboard/control/statistics',
+    SYSTEM_MAINTENANCE: '/dashboard/control/maintenance',
+}
+
+const controlRoutes = {
+    ROOT: systemRoutes.ROOT,
+    USERS: systemRoutes.USERS,
+    API_KEYS: systemRoutes.API_KEYS,
+    FILE_MANAGEMENT: systemRoutes.FILES,
+    SYSTEM_ENV: systemRoutes.SETTINGS_MONITOR,
+    KNOWLEDGE_CONFIG: systemRoutes.SETTINGS_KNOWLEDGE,
+    NOTIFICATION_CHANNELS: systemRoutes.SETTINGS_NOTIFICATIONS,
+    CLIENT_SYNC: systemRoutes.SETTINGS_SYNC,
+    MAIL: '/dashboard/control/mail',
+    MAIL_SETUP: '/dashboard/control/mail/setup',
+    MAIL_COMPOSE: '/dashboard/control/mail/compose',
+    MAIL_TRACKING: '/dashboard/control/mail/tracking',
+    MAIL_CENTER: '/dashboard/control/mail-center',
+    PROFILE: '/dashboard/profile',
+}
+
 export const ROUTES = {
-    // 首页
     HOME: '/dashboard/home',
-
-    // ==================== 智能体模块 ====================
-    AGENTS: {
-        ROOT: '/dashboard/agents',
-        // 智能体管理（二级）
-        LIST: '/dashboard/agents/list',
-        ONBOARD: '/dashboard/agents/onboard',
-        CONSOLE: '/dashboard/agents/console/:id',
-        // 运行与交互（二级）
-        CHAT_LOGS: '/dashboard/agents/chat-logs',
-        WORKSPACE: '/dashboard/agents/workspace',
-        // 编排与协作（二级）
-        COLLABORATION_DASHBOARD: '/dashboard/agents/collaboration/dashboard',
-        COLLABORATION: '/dashboard/agents/collaboration',
-        COLLABORATION_TASKS: '/dashboard/agents/collaboration/tasks',
-        COLLABORATION_CONFIG: '/dashboard/agents/collaboration/config',
-        // 版本与调试（二级）
-        VERSION_MANAGE: '/dashboard/agents/version',
-        TEST_DEBUG: '/dashboard/agents/test',
-        // 能力扩展（二级）
-        SKILLS: '/dashboard/agents/skills',
-        MCP: '/dashboard/agents/mcp',
-        TOOLS: '/dashboard/agents/tools',
-        EXTERNAL_FRAMEWORKS: '/dashboard/agents/external-frameworks',
-        // 工作流编排（二级）
-        WORKFLOWS: '/dashboard/agents/workflows',
+    AGENTS: agentRoutes,
+    KNOWLEDGE: knowledgeRoutes,
+    RESOURCES: {
+        ROOT: knowledgeRoutes.ROOT,
+        KNOWLEDGE: knowledgeRoutes.LIST,
+        MEDIA: knowledgeRoutes.MEDIA,
+        EMBEDDING_LAB: knowledgeRoutes.EMBEDDING_LAB,
+        VLM_LAB: knowledgeRoutes.VLM_LAB,
+        GRAPH: knowledgeRoutes.GRAPH,
+        ARCHITECTURE: knowledgeRoutes.ARCHITECTURE,
     },
-
-    // ==================== 知识中心模块 ====================
-    KNOWLEDGE: {
-        ROOT: '/dashboard/knowledge',
-        // 知识库（二级）
-        LIST: '/dashboard/knowledge/list',
-        CREATE: '/dashboard/knowledge/create',
-        DETAIL: '/dashboard/knowledge/detail/:id',
-        // 素材管理（归属知识库）
-        MEDIA: '/dashboard/knowledge/media',
-        // 实验室（二级）
-        RETRIEVAL_LAB: '/dashboard/knowledge/retrieval-lab',
-        EMBEDDING_LAB: '/dashboard/knowledge/embedding-lab',
-        VLM_LAB: '/dashboard/knowledge/vlm-lab',
-        // 智力资产（保留路由，暂不在主导航暴露）
-        INTELLIGENCE: '/dashboard/knowledge/intelligence',
-        // 知识图谱（LightRAG + Neo4j 可视化）
-        GRAPH: '/dashboard/knowledge/graph',
-        // 同步管理（二级）
-        SYNC: '/dashboard/knowledge/sync',
-    },
-
-    // ==================== 监控运维模块 ====================
-    MONITOR: {
-        ROOT: '/dashboard/monitor',
-        // 监控总览（二级）
-        DASHBOARD: '/dashboard/monitor/dashboard',
-        // 链路与分析（二级）
-        TOKENS: '/dashboard/monitor/tokens',
-        COSTS: '/dashboard/monitor/costs',
-        LATENCY: '/dashboard/monitor/latency',
-        ERRORS: '/dashboard/monitor/errors',
-        TRACES: '/dashboard/monitor/traces',
-        DATAFLOW: '/dashboard/monitor/dataflow',
-        // 告警与事件（二级）
-        ALERTS: '/dashboard/monitor/alerts',
-        ALERT_RULES: '/dashboard/monitor/alert-rules',
-        NOTIFICATIONS: '/dashboard/monitor/notifications',
-        // 运维操作（二级）
-        TASKS: '/dashboard/monitor/tasks',
-        SERVER: '/dashboard/monitor/server',
-        LOGS: '/dashboard/monitor/logs',
-        MAINTENANCE: '/dashboard/monitor/maintenance',
-        VERSION_UPGRADE: '/dashboard/monitor/version-upgrade',
-    },
-
-    // ==================== 系统管理模块 ====================
-    SYSTEM: {
-        ROOT: '/dashboard/system',
-        // 用户权限（二级）
-        USERS: '/dashboard/system/users',
-        DEPARTMENTS: '/dashboard/system/departments',
-        ROLES: '/dashboard/system/roles',
-        // 认证鉴权（二级）
-        API_KEYS: '/dashboard/system/api-keys',
-        RATE_LIMIT: '/dashboard/system/rate-limit',
-        // 消息中心（邮件中心）
-        MESSAGES: '/dashboard/system/settings/mail',
-        // 文件管理（二级）
-        FILES: '/dashboard/system/files',
-        // 系统设置（二级）
-        SETTINGS: '/dashboard/system/settings',
-        SETTINGS_BASE: '/dashboard/system/settings/base',
-        SETTINGS_MAIL: '/dashboard/system/settings/mail',
-        SETTINGS_NOTIFICATIONS: '/dashboard/system/settings/notifications',
-        SETTINGS_MODEL_DEFAULTS: '/dashboard/system/settings/model-defaults',
-        SETTINGS_MONITOR: '/dashboard/system/settings/monitor',
-        SETTINGS_KNOWLEDGE: '/dashboard/system/settings/knowledge',
-        SETTINGS_GATEWAY: '/dashboard/system/settings/gateway',
-        SETTINGS_SYNC: '/dashboard/system/settings/sync',
-        SETTINGS_INTEGRATIONS: '/dashboard/system/settings/integrations',
-        SETTINGS_MCP_SERVICE: '/dashboard/system/settings/mcp-service',
-        AUDIT_LOGS: '/dashboard/system/audit-logs',
-        // 配置中心（二级）
-        MODELS: '/dashboard/system/models',
-        PRICING: '/dashboard/system/pricing',
-        // 系统环境配置
-        MONITOR_SETTINGS: '/dashboard/system/monitor-settings',
-        // 网关与分布式
-        GATEWAY: '/dashboard/system/gateway',
-        DISTRIBUTED_LOCK: '/dashboard/system/distributed-lock',
-        // 外部框架集成（二级）
-        EXTERNAL_FRAMEWORKS: '/dashboard/system/external-frameworks',
-        DIFY: '/dashboard/system/external-frameworks/dify',
-        RAGFLOW: '/dashboard/system/external-frameworks/ragflow',
-        AUTOGEN: '/dashboard/system/external-frameworks/autogen',
-        CREWAI: '/dashboard/system/external-frameworks/crewai',
-        // MCP服务管理（二级）
-        MCP_SERVICE: '/dashboard/system/mcp-service',
-        // 帮助中心（二级）
-        HELP_CENTER: '/dashboard/system/help-center',
-        // 统计分析（二级）
-        STATISTICS: '/dashboard/system/statistics',
-        // 系统维护（二级）
-        SYSTEM_MAINTENANCE: '/dashboard/system/maintenance',
-    },
-
-    // 个人中心
+    MONITOR: monitorRoutes,
+    SYSTEM: systemRoutes,
+    CONTROL: controlRoutes,
     PROFILE: '/dashboard/profile',
     LOGIN: '/login',
 }
@@ -150,9 +157,20 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/agent/conversation-logs': ROUTES.AGENTS.CHAT_LOGS,
     '/dashboard/agent/onboard': ROUTES.AGENTS.ONBOARD,
     '/dashboard/agent/console': ROUTES.AGENTS.CONSOLE,
+    '/dashboard/agents/list': ROUTES.AGENTS.LIST,
+    '/dashboard/agents/onboard': ROUTES.AGENTS.ONBOARD,
+    '/dashboard/agents/console/:id': ROUTES.AGENTS.CONSOLE,
+    '/dashboard/agents/chat-logs': ROUTES.AGENTS.CHAT_LOGS,
+    '/dashboard/agents/workflows': ROUTES.AGENTS.WORKFLOWS,
+    '/dashboard/agents/workflows/visual': ROUTES.AGENTS.WORKFLOW_VISUAL,
+    '/dashboard/agents/workflows/visual/:id': ROUTES.AGENTS.WORKFLOW_VISUAL_EDIT,
     '/dashboard/applications/agents': ROUTES.AGENTS.LIST,
     '/dashboard/applications/conversations': ROUTES.AGENTS.CHAT_LOGS,
     '/dashboard/applications/collaboration': ROUTES.AGENTS.COLLABORATION,
+    '/dashboard/applications/models': ROUTES.AGENTS.MODELS,
+    '/dashboard/applications/models/config': ROUTES.AGENTS.MODEL_CONFIG,
+    '/dashboard/applications/models/add': ROUTES.AGENTS.MODEL_ADD,
+    '/dashboard/applications/models/edit/:id': ROUTES.AGENTS.MODEL_EDIT,
 
     // 技能模块（旧路径）
     '/dashboard/skill/management': ROUTES.AGENTS.SKILLS,
@@ -167,25 +185,38 @@ export const LEGACY_ROUTE_REDIRECTS = {
 
     // 知识中心模块（旧路径）
     '/dashboard/knowledge/list': ROUTES.KNOWLEDGE.LIST,
+    '/dashboard/knowledge/create': ROUTES.KNOWLEDGE.CREATE,
+    '/dashboard/knowledge/detail/:id': ROUTES.KNOWLEDGE.DETAIL,
+    '/dashboard/knowledge/:kbId/document/:docId': ROUTES.KNOWLEDGE.DOCUMENT_DETAIL,
     '/dashboard/knowledge/media': ROUTES.KNOWLEDGE.MEDIA,
     '/dashboard/knowledge/embedding-lab': ROUTES.KNOWLEDGE.EMBEDDING_LAB,
+    '/dashboard/knowledge/graph': ROUTES.KNOWLEDGE.GRAPH,
+    '/dashboard/knowledge/graph/:id': ROUTES.KNOWLEDGE.GRAPH_DETAIL,
+    '/dashboard/knowledge/sync': ROUTES.KNOWLEDGE.SYNC,
     '/dashboard/knowledge/lab': ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
     '/dashboard/knowledge/vlm-playground': ROUTES.KNOWLEDGE.VLM_LAB,
     '/dashboard/knowledge/intelligence': ROUTES.KNOWLEDGE.INTELLIGENCE,
     '/dashboard/resources/knowledge': ROUTES.KNOWLEDGE.LIST,
+    '/dashboard/resources/knowledge/create': ROUTES.KNOWLEDGE.CREATE,
+    '/dashboard/resources/knowledge/detail/:id': ROUTES.KNOWLEDGE.DETAIL,
     '/dashboard/resources/media': ROUTES.KNOWLEDGE.MEDIA,
     '/dashboard/resources/embedding-lab': ROUTES.KNOWLEDGE.EMBEDDING_LAB,
+    '/dashboard/resources/graph': ROUTES.KNOWLEDGE.GRAPH,
+    '/dashboard/resources/graph/:id': ROUTES.KNOWLEDGE.GRAPH_DETAIL,
+    '/dashboard/resources/sync': ROUTES.KNOWLEDGE.SYNC,
     '/dashboard/resources/rag-lab': ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
     '/dashboard/resources/vlm-lab': ROUTES.KNOWLEDGE.VLM_LAB,
-    '/dashboard/resources/architecture': ROUTES.KNOWLEDGE.LIST,
+    '/dashboard/resources/architecture': ROUTES.KNOWLEDGE.ARCHITECTURE,
 
     // 监控运维模块（旧路径）
     '/dashboard/monitor': ROUTES.MONITOR.DASHBOARD,
     '/dashboard/runtime/overview': ROUTES.MONITOR.DASHBOARD,
     '/dashboard/runtime/metrics': ROUTES.MONITOR.TOKENS,
+    '/dashboard/runtime/rate-limit': ROUTES.MONITOR.RATE_LIMIT,
     '/dashboard/stats/tokens': ROUTES.MONITOR.TOKENS,
     '/dashboard/stats/costs': ROUTES.MONITOR.COSTS,
     '/dashboard/system/alerts': ROUTES.MONITOR.ALERTS,
+    '/trace/:traceId': ROUTES.MONITOR.TRACE_DETAIL,
 
     // 系统管理模块（旧路径）
     '/dashboard/system/log-config': ROUTES.SYSTEM.AUDIT_LOGS,
@@ -203,6 +234,20 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/control/client-sync': ROUTES.SYSTEM.SETTINGS_SYNC,
     '/dashboard/control/rate-limit': ROUTES.SYSTEM.RATE_LIMIT,
     '/dashboard/control/mail': ROUTES.SYSTEM.MESSAGES,
+    '/dashboard/control/departments': ROUTES.SYSTEM.DEPARTMENTS,
+    '/dashboard/control/roles': ROUTES.SYSTEM.ROLES,
+    '/dashboard/control/gateway': ROUTES.SYSTEM.GATEWAY,
+    '/dashboard/control/distributed-lock': ROUTES.SYSTEM.DISTRIBUTED_LOCK,
+    '/dashboard/control/external-frameworks': ROUTES.SYSTEM.EXTERNAL_FRAMEWORKS,
+    '/dashboard/control/mcp-service': ROUTES.SYSTEM.MCP_SERVICE,
+    '/dashboard/control/help-center': ROUTES.SYSTEM.HELP_CENTER,
+    '/dashboard/control/statistics': ROUTES.SYSTEM.STATISTICS,
+    '/dashboard/control/maintenance': ROUTES.SYSTEM.SYSTEM_MAINTENANCE,
+    '/dashboard/control/pricing': ROUTES.SYSTEM.PRICING,
+    '/dashboard/control/mail/setup': ROUTES.CONTROL.MAIL_SETUP,
+    '/dashboard/control/mail/compose': ROUTES.CONTROL.MAIL_COMPOSE,
+    '/dashboard/control/mail/tracking': ROUTES.CONTROL.MAIL_TRACKING,
+    '/dashboard/control/mail-center': ROUTES.CONTROL.MAIL_CENTER,
 
     // 监控运维模块（旧路径补充）
     '/dashboard/runtime/traces': ROUTES.MONITOR.TRACES,
@@ -213,6 +258,7 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/monitor/latency': ROUTES.MONITOR.LATENCY,
     '/dashboard/monitor/traces': ROUTES.MONITOR.TRACES,
     '/dashboard/monitor/alerts': ROUTES.MONITOR.ALERTS,
+    '/dashboard/monitor/alert-rules': ROUTES.MONITOR.ALERT_RULES,
     '/dashboard/monitor/tasks': ROUTES.MONITOR.TASKS,
     '/dashboard/monitor/server': ROUTES.MONITOR.SERVER,
     '/dashboard/monitor/dataflow': ROUTES.MONITOR.DATAFLOW,
@@ -221,6 +267,10 @@ export const LEGACY_ROUTE_REDIRECTS = {
     '/dashboard/agent/model-list': ROUTES.SYSTEM.MODELS,
     '/dashboard/agent/model-config': ROUTES.SYSTEM.MODELS,
     '/dashboard/applications/models': ROUTES.SYSTEM.MODELS,
+
+    // 缺少 dashboard 前缀的历史地址
+    '/system/api-keys': ROUTES.SYSTEM.API_KEYS,
+    '/workflow': ROUTES.AGENTS.WORKFLOWS,
 }
 
 // ==================== 侧边栏菜单配置 ====================
@@ -436,7 +486,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: '/dashboard/system/security-ops',
                 children: [
                     { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY },
-                    { title: '网关配置', path: ROUTES.SYSTEM.SETTINGS_GATEWAY },
                     { title: '限流规则', path: ROUTES.SYSTEM.RATE_LIMIT },
                     { title: '分布式锁', path: ROUTES.SYSTEM.DISTRIBUTED_LOCK },
                     { title: '监控配置', path: ROUTES.SYSTEM.SETTINGS_MONITOR },

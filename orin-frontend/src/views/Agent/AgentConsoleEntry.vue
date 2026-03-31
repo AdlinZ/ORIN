@@ -245,7 +245,7 @@ const openConsole = (agentId) => {
   localStorage.setItem('recent-agents', JSON.stringify(newRecent));
   localStorage.setItem('recent-agents-meta', JSON.stringify(recentMeta));
 
-  router.push(`/dashboard/agents/console/${agentId}`);
+  router.push(`/dashboard/applications/agents/console/${agentId}`);
 };
 
 const formatAgentType = (type) => {

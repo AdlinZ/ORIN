@@ -227,6 +227,8 @@ export const getRateLimitConfig = (config = {}) => {
 
 export const updateRateLimitConfig = (data, config = {}) => {
     return request.put('/admin/rate-limit/config', data, config);
+};
+
 // ==================== Langfuse 可观测性 ====================
 
 export const getLangfuseStatus = (config = {}) => {

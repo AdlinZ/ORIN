@@ -156,6 +156,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { Plus } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { createWorkflow, getWorkflow, updateWorkflow } from '@/api/workflow';
+import { ROUTES } from '@/router/routes';
 // Assuming we have a generic agent API. If not, I'll need to double check the path. 
 // Based on file list, src/api/agent.js exists.
 import { getAgentList } from '@/api/agent'; 
@@ -335,7 +336,7 @@ const serializeWorkflow = (formData) => {
 };
 
 const goBack = () => {
-  router.push('/workflow');
+  router.push(ROUTES.AGENTS.WORKFLOWS);
 };
 </script>
 

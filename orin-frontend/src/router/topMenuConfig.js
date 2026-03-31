@@ -423,11 +423,6 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Router'
                     },
                     {
-                        title: '网关配置',
-                        path: ROUTES.SYSTEM.SETTINGS_GATEWAY,
-                        icon: 'Connection'
-                    },
-                    {
                         title: '限流规则',
                         path: ROUTES.SYSTEM.RATE_LIMIT,
                         icon: 'Lightning'

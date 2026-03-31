@@ -926,12 +926,12 @@ const handleDelete = () => {
     const filtered = docs.filter(d => d.id !== docId.value);
     localStorage.setItem(`orin_mock_docs_${kbId.value}`, JSON.stringify(filtered));
     ElMessage.success('已删除');
-    router.push(`/dashboard/knowledge/detail/${kbId.value}`);
+    router.push(`/dashboard/resources/knowledge/detail/${kbId.value}`);
   });
 };
 
 const goBackToKB = () => {
-  router.push(`/dashboard/knowledge/detail/${kbId.value}`);
+  router.push(`/dashboard/resources/knowledge/detail/${kbId.value}`);
 };
 
 onMounted(() => {

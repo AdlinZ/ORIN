@@ -66,6 +66,12 @@ const routes = [
                         meta: { title: '应用列表', icon: 'Grid' }
                     },
                     {
+                        path: 'agents/console',
+                        name: 'AgentConsoleEntry',
+                        component: () => import('@/views/Agent/AgentConsoleEntry.vue'),
+                        meta: { title: '应用控制台', icon: 'Monitor' }
+                    },
+                    {
                         path: 'agents/console/:id',
                         name: 'AgentConsole',
                         component: () => import('@/views/Agent/AgentConsole.vue'),
@@ -84,6 +90,36 @@ const routes = [
                         name: 'ApplicationConversations',
                         component: () => import('@/views/Agent/ChatLogs.vue'),
                         meta: { title: '会话记录', icon: 'ChatDotRound' }
+                    },
+                    {
+                        path: 'workspace',
+                        name: 'ApplicationWorkspace',
+                        component: () => import('@/views/Agent/AgentWorkspace.vue'),
+                        meta: { title: '智能体工作台', icon: 'Monitor' }
+                    },
+                    {
+                        path: 'collaboration',
+                        name: 'ApplicationCollaboration',
+                        component: () => import('@/views/Agent/Collaboration.vue'),
+                        meta: { title: '协作任务列表', icon: 'Avatar' }
+                    },
+                    {
+                        path: 'collaboration/tasks',
+                        name: 'ApplicationCollaborationTasks',
+                        component: () => import('@/views/Agent/Collaboration.vue'),
+                        meta: { title: '协作任务', hidden: true }
+                    },
+                    {
+                        path: 'collaboration/config',
+                        name: 'ApplicationCollaborationConfig',
+                        component: () => import('@/views/Agent/Collaboration.vue'),
+                        meta: { title: '协作模式配置', hidden: true }
+                    },
+                    {
+                        path: 'collaboration/dashboard',
+                        name: 'ApplicationCollaborationDashboard',
+                        component: () => import('@/views/Agent/CollaborationDashboard.vue'),
+                        meta: { title: '协作仪表盘', icon: 'DataAnalysis' }
                     },
 
                     // 模型管理
@@ -118,6 +154,24 @@ const routes = [
                         name: 'ApplicationSkills',
                         component: () => import('@/views/Skill/SkillManagement.vue'),
                         meta: { title: '技能绑定', icon: 'MagicStick' }
+                    },
+                    {
+                        path: 'mcp',
+                        name: 'ApplicationMcp',
+                        component: () => import('@/views/System/McpService.vue'),
+                        meta: { title: 'MCP 管理', icon: 'Connection' }
+                    },
+                    {
+                        path: 'tools',
+                        name: 'ApplicationTools',
+                        component: () => import('@/views/System/McpService.vue'),
+                        meta: { title: 'Tools 注册', icon: 'Tools' }
+                    },
+                    {
+                        path: 'external-frameworks',
+                        name: 'ApplicationExternalFrameworks',
+                        component: () => import('@/views/System/ExternalFrameworks.vue'),
+                        meta: { title: '外部框架', icon: 'Connection' }
                     },
 
                     // 流程编排
@@ -174,6 +228,24 @@ const routes = [
                         component: () => import('@/views/Monitor/TokenStats.vue'),
                         meta: { title: '实时指标', icon: 'TrendCharts' }
                     },
+                    {
+                        path: 'costs',
+                        name: 'RuntimeCosts',
+                        component: () => import('@/views/Monitor/CostStats.vue'),
+                        meta: { title: '成本分析', icon: 'Coin' }
+                    },
+                    {
+                        path: 'latency',
+                        name: 'RuntimeLatency',
+                        component: () => import('@/views/Monitor/LatencyStats.vue'),
+                        meta: { title: '时延统计', icon: 'Timer' }
+                    },
+                    {
+                        path: 'errors',
+                        name: 'RuntimeErrors',
+                        component: () => import('@/views/Monitor/ErrorStats.vue'),
+                        meta: { title: '错误统计', icon: 'Warning' }
+                    },
 
                     // 调用链路
                     {
@@ -203,6 +275,14 @@ const routes = [
                         meta: { title: '异常告警', icon: 'Bell', roles: ['ROLE_ADMIN'] }
                     },
 
+                    // 告警规则
+                    {
+                        path: 'alert-rules',
+                        name: 'RuntimeAlertRules',
+                        component: () => import('@/views/System/AlertManagement.vue'),
+                        meta: { title: '告警规则', icon: 'Setting', roles: ['ROLE_ADMIN'] }
+                    },
+
                     // 服务器监控
                     {
                         path: 'server',
@@ -225,6 +305,22 @@ const routes = [
                         name: 'RuntimeRateLimit',
                         component: () => import('@/views/Monitor/RateLimit.vue'),
                         meta: { title: '限流配置', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 日志归档
+                    {
+                        path: 'logs',
+                        name: 'RuntimeLogs',
+                        component: () => import('@/views/Monitor/LogArchive.vue'),
+                        meta: { title: '日志归档', icon: 'Document' }
+                    },
+
+                    // 系统维护
+                    {
+                        path: 'maintenance',
+                        name: 'RuntimeMaintenance',
+                        component: () => import('@/views/System/SystemMaintenance.vue'),
+                        meta: { title: '系统维护', icon: 'Tools' }
                     }
                 ]
             },
@@ -297,6 +393,24 @@ const routes = [
                         component: () => import('@/views/Knowledge/AssetSchema.vue'),
                         meta: { title: '资产架构', icon: 'Grid' }
                     },
+                    {
+                        path: 'graph',
+                        name: 'ResourcesGraph',
+                        component: () => import('@/views/Knowledge/KnowledgeGraphList.vue'),
+                        meta: { title: '知识图谱', icon: 'Connection' }
+                    },
+                    {
+                        path: 'graph/:id',
+                        name: 'ResourcesGraphDetail',
+                        component: () => import('@/views/Knowledge/KnowledgeGraphDetail.vue'),
+                        meta: { title: '图谱详情', hidden: true }
+                    },
+                    {
+                        path: 'sync',
+                        name: 'ResourcesSync',
+                        component: () => import('@/views/Knowledge/UnifiedKnowledgeView.vue'),
+                        meta: { title: '同步管理', icon: 'Upload' }
+                    },
 
                     // 智力资产中心（重定向到资产架构）
                     {
@@ -317,6 +431,18 @@ const routes = [
                         name: 'ControlUsers',
                         component: () => import('@/views/System/UserManagement.vue'),
                         meta: { title: '用户权限', icon: 'User', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'departments',
+                        name: 'ControlDepartments',
+                        component: () => import('@/views/System/DepartmentManagement.vue'),
+                        meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'roles',
+                        name: 'ControlRoles',
+                        component: () => import('@/views/System/RoleManagement.vue'),
+                        meta: { title: '角色管理', icon: 'UserFilled', roles: ['ROLE_ADMIN'] }
                     },
 
 
@@ -351,6 +477,60 @@ const routes = [
                         name: 'ControlSystemEnv',
                         component: () => import('@/views/System/MonitorSettings.vue'),
                         meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'gateway',
+                        name: 'ControlGateway',
+                        component: () => import('@/views/System/ApiGateway.vue'),
+                        meta: { title: '统一网关', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'distributed-lock',
+                        name: 'ControlDistributedLock',
+                        component: () => import('@/views/System/DistributedLock.vue'),
+                        meta: { title: '分布式锁', icon: 'Lock', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'external-frameworks',
+                        name: 'ControlExternalFrameworks',
+                        component: () => import('@/views/System/ExternalFrameworks.vue'),
+                        meta: { title: '外部框架', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'mcp-service',
+                        name: 'ControlMcpService',
+                        component: () => import('@/views/System/McpService.vue'),
+                        meta: { title: 'MCP 服务', icon: 'Service', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'pricing',
+                        name: 'ControlPricing',
+                        component: () => import('@/views/System/PricingConfig.vue'),
+                        meta: { title: '定价配置', icon: 'PriceTag', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'help-center',
+                        name: 'ControlHelpCenter',
+                        component: () => import('@/views/System/HelpCenter.vue'),
+                        meta: { title: '帮助中心', icon: 'QuestionFilled', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'statistics',
+                        name: 'ControlStatistics',
+                        component: () => import('@/views/System/Statistics.vue'),
+                        meta: { title: '统计分析', icon: 'DataAnalysis', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'maintenance',
+                        name: 'ControlMaintenance',
+                        component: () => import('@/views/System/SystemMaintenance.vue'),
+                        meta: { title: '系统维护', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'rate-limit',
+                        name: 'ControlRateLimit',
+                        component: () => import('@/views/System/RateLimitConfig.vue'),
+                        meta: { title: '限流规则', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
                     },
 
                     // 知识库配置
@@ -434,9 +614,50 @@ const routes = [
 
 // ==================== 添加旧路由重定向 ====================
 // 自动为所有旧路由添加重定向规则
+const normalizeRoutePath = (path = '') => {
+    if (!path) return '/'
+    const normalized = path.startsWith('/') ? path : `/${path}`
+    return normalized.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+}
+
+const joinRoutePath = (basePath = '', childPath = '') => {
+    if (!childPath) return normalizeRoutePath(basePath)
+    if (childPath.startsWith('/')) return normalizeRoutePath(childPath)
+    return normalizeRoutePath(`${basePath}/${childPath}`)
+}
+
+const hasRoutePath = (routeList, targetPath, parentPath = '') => {
+    const normalizedTargetPath = normalizeRoutePath(targetPath)
+
+    return routeList.some(route => {
+        const currentPath = joinRoutePath(parentPath, route.path || '')
+
+        if (currentPath === normalizedTargetPath) {
+            return true
+        }
+
+        if (route.children?.length) {
+            return hasRoutePath(route.children, normalizedTargetPath, currentPath)
+        }
+
+        return false
+    })
+}
+
 Object.entries(LEGACY_ROUTE_REDIRECTS).forEach(([oldPath, newPath]) => {
     const dashboardRoute = routes.find(r => r.path === '/dashboard')
     if (dashboardRoute && dashboardRoute.children) {
+        const normalizedOldPath = normalizeRoutePath(oldPath)
+        const normalizedNewPath = normalizeRoutePath(newPath)
+
+        // 跳过已经是正式路由的路径，以及重定向到自身的无效兼容项。
+        if (
+            normalizedOldPath === normalizedNewPath ||
+            hasRoutePath(routes, normalizedOldPath)
+        ) {
+            return
+        }
+
         // 移除 /dashboard 前缀
         const relativePath = oldPath.replace('/dashboard/', '')
         dashboardRoute.children.push({

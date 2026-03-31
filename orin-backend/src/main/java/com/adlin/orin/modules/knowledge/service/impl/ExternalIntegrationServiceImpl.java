@@ -3,6 +3,8 @@ package com.adlin.orin.modules.knowledge.service.impl;
 import com.adlin.orin.modules.knowledge.entity.ExternalIntegration;
 import com.adlin.orin.modules.knowledge.repository.ExternalIntegrationRepository;
 import com.adlin.orin.modules.knowledge.service.ExternalIntegrationService;
+import com.adlin.orin.modules.knowledge.service.RAGFlowIntegrationService;
+import com.adlin.orin.modules.knowledge.service.sync.DifyApiClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,8 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     private final ExternalIntegrationRepository repository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
+    private final RAGFlowIntegrationService ragflowIntegrationService;
+    private final DifyApiClient difyApiClient;
 
     // 支持的能力映射
     private static final Map<String, List<String>> CAPABILITY_MAP = Map.of(
@@ -216,20 +220,15 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     private SyncResult pullFromRagFlow(ExternalIntegration integration) {
         // 实现 RAGFlow 拉取逻辑 - 调用 RAGFlow API 获取文档
         try {
-            RAGFlowIntegrationService ragflowService = getRagflowService(integration);
-            if (ragflowService == null) {
-                return new SyncResult(false, 0, 0, 0, "RAGFlow service not available", null);
-            }
-            
-            var kbList = ragflowService.listKnowledgeBases(
-                integration.getConfigValue("endpoint"),
-                integration.getConfigValue("apiKey")
-            );
-            
+            String endpoint = integration.getBaseUrl();
+            String apiKey = getAuthConfigValue(integration, "apiKey");
+
+            var kbList = ragflowIntegrationService.listKnowledgeBases(endpoint, apiKey);
+
             int count = kbList != null ? kbList.size() : 0;
             log.info("RAGFlow pulled {} knowledge bases", count);
-            
-            return new SyncResult(true, count, count, 0, 
+
+            return new SyncResult(true, count, count, 0,
                 "RAGFlow pull completed, " + count + " knowledge bases", null);
         } catch (Exception e) {
             log.error("RAGFlow pull failed: {}", e.getMessage());
@@ -243,17 +242,12 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
             if (documents == null || documents.isEmpty()) {
                 return new SyncResult(true, 0, 0, 0, "No documents to push", null);
             }
-            
-            RAGFlowIntegrationService ragflowService = getRagflowService(integration);
-            if (ragflowService == null) {
-                return new SyncResult(false, 0, 0, 0, "RAGFlow service not available", null);
-            }
-            
+
             // 这里简化处理，实际需要逐个创建文档
             int pushed = documents.size();
             log.info("RAGFlow pushed {} documents", pushed);
-            
-            return new SyncResult(true, pushed, pushed, 0, 
+
+            return new SyncResult(true, pushed, pushed, 0,
                 "RAGFlow push completed, " + pushed + " documents", null);
         } catch (Exception e) {
             log.error("RAGFlow push failed: {}", e.getMessage());
@@ -264,12 +258,6 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     private List<Map<String, Object>> retrieveFromRagFlow(ExternalIntegration integration, String query, int topK) {
         // 实现 RAGFlow 检索逻辑
         try {
-            RAGFlowIntegrationService ragflowService = getRagflowService(integration);
-            if (ragflowService == null) {
-                log.warn("RAGFlow service not available for retrieval");
-                return List.of();
-            }
-            
             // 直接检索（简化实现，实际应调用检索API）
             log.info("RAGFlow retrieval for query: {}", query);
             return List.of(); // 返回空结果，实际从RAGFlow API获取
@@ -282,17 +270,16 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     private SyncResult pullFromDify(ExternalIntegration integration) {
         // 实现 Dify 拉取逻辑 - 通过 Dify API 获取知识库/数据集
         try {
-            String endpoint = integration.getConfigValue("endpoint");
-            String apiKey = integration.getConfigValue("apiKey");
-            
+            String endpoint = integration.getBaseUrl();
+            String apiKey = getAuthConfigValue(integration, "apiKey");
+
             if (endpoint == null || apiKey == null) {
                 return new SyncResult(false, 0, 0, 0, "Dify config incomplete", null);
             }
-            
-            // 直接使用 DifyIntegrationService
-            var datasets = difyIntegrationService.listDatasets(endpoint, apiKey);
+
+            var datasets = difyApiClient.listDatasets(endpoint, apiKey);
             int count = datasets != null ? datasets.size() : 0;
-            
+
             log.info("Dify pulled {} datasets", count);
             return new SyncResult(true, count, count, 0, "Dify pull completed", null);
         } catch (Exception e) {
@@ -307,12 +294,9 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
             if (documents == null || documents.isEmpty()) {
                 return new SyncResult(true, 0, 0, 0, "No documents to push", null);
             }
-            
-            String endpoint = integration.getConfigValue("endpoint");
-            String apiKey = integration.getConfigValue("apiKey");
-            
+
             log.info("Dify pushing {} documents", documents.size());
-            return new SyncResult(true, documents.size(), documents.size(), 0, 
+            return new SyncResult(true, documents.size(), documents.size(), 0,
                 "Dify push completed", null);
         } catch (Exception e) {
             log.error("Dify push failed: {}", e.getMessage());
@@ -334,12 +318,12 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     private SyncResult pullFromNotion(ExternalIntegration integration) {
         // 实现 Notion 拉取逻辑 - 需要 Notion API
         try {
-            String apiKey = integration.getConfigValue("apiKey");
-            
+            String apiKey = getAuthConfigValue(integration, "apiKey");
+
             if (apiKey == null || apiKey.isEmpty()) {
                 return new SyncResult(false, 0, 0, 0, "Notion API key not configured", null);
             }
-            
+
             // Notion 需要 OAuth 或 Integration Token
             // 这里简化实现，实际需要调用 Notion Search API
             log.info("Notion pull triggered (requires Notion API)");
@@ -347,6 +331,21 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
         } catch (Exception e) {
             log.error("Notion pull failed: {}", e.getMessage());
             return new SyncResult(false, 0, 0, 0, "Notion pull failed: " + e.getMessage(), null);
+        }
+    }
+
+    private String getAuthConfigValue(ExternalIntegration integration, String key) {
+        String authConfig = integration.getAuthConfig();
+        if (authConfig == null || authConfig.isEmpty()) {
+            return null;
+        }
+        try {
+            Map<String, Object> config = objectMapper.readValue(authConfig, Map.class);
+            Object value = config.get(key);
+            return value != null ? value.toString() : null;
+        } catch (Exception e) {
+            log.warn("Failed to parse authConfig for key {}: {}", key, e.getMessage());
+            return null;
         }
     }
 }
