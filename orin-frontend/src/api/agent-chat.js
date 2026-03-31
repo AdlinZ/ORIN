@@ -61,6 +61,8 @@ export function sendChatMessage(sessionId, data) {
     url: `/agents/chat/sessions/${sessionId}/messages`,
     method: 'post',
     data,
+    timeout: 180000, // Chat + KB retrieval may exceed default 60s under fallback paths
+    noRetry: true, // Avoid duplicate question submission on timeout/retry
   });
 }
 

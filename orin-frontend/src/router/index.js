@@ -386,6 +386,14 @@ const routes = [
                         meta: { title: '视觉实验室', icon: 'View' }
                     },
 
+                    // 检索测试
+                    {
+                        path: 'retrieval-test',
+                        name: 'ResourcesRetrievalTest',
+                        component: () => import('@/views/Knowledge/RetrievalTestPage.vue'),
+                        meta: { title: '检索测试', icon: 'Aim' }
+                    },
+
                     // 资产架构
                     {
                         path: 'architecture',

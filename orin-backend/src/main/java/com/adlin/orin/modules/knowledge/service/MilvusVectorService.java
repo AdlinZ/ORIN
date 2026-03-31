@@ -7,6 +7,7 @@ import io.milvus.client.MilvusServiceClient;
 import io.milvus.grpc.SearchResults;
 import io.milvus.param.ConnectParam;
 import io.milvus.param.R;
+import io.milvus.param.RetryParam;
 import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.SearchParam;
 import io.milvus.param.partition.CreatePartitionParam;
@@ -48,6 +49,21 @@ public class MilvusVectorService implements VectorStoreProvider {
 
     @Value("${milvus.token:}")
     private String token;
+
+    @Value("${milvus.client.connect-timeout-ms:1000}")
+    private long connectTimeoutMs;
+
+    @Value("${milvus.client.keepalive-timeout-ms:2000}")
+    private long keepAliveTimeoutMs;
+
+    @Value("${milvus.client.rpc-deadline-ms:1500}")
+    private long rpcDeadlineMs;
+
+    @Value("${milvus.client.max-retry-times:1}")
+    private int maxRetryTimes;
+
+    @Value("${milvus.client.retry-interval-ms:200}")
+    private long retryIntervalMs;
 
     // 全局唯一的 Collection 名称
     private static final String COLLECTION_NAME = "orin_knowledge_base";
@@ -213,8 +229,9 @@ public class MilvusVectorService implements VectorStoreProvider {
         ConnectParam.Builder builder = ConnectParam.newBuilder()
                 .withHost(host)
                 .withPort(port)
-                .withConnectTimeout(3, java.util.concurrent.TimeUnit.SECONDS) // 3s timeout
-                .withKeepAliveTimeout(3, java.util.concurrent.TimeUnit.SECONDS);
+                .withConnectTimeout(connectTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .withKeepAliveTimeout(keepAliveTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .withRpcDeadline(rpcDeadlineMs, java.util.concurrent.TimeUnit.MILLISECONDS);
 
         // 使用 token 或默认认证
         if (token != null && !token.isEmpty()) {
@@ -224,7 +241,13 @@ public class MilvusVectorService implements VectorStoreProvider {
             builder.withAuthorization("root", "");
         }
 
-        return new MilvusServiceClient(builder.build());
+        MilvusServiceClient client = new MilvusServiceClient(builder.build());
+        RetryParam retryParam = RetryParam.newBuilder()
+                .withMaxRetryTimes(Math.max(0, maxRetryTimes))
+                .withInitialBackOffMs(Math.max(1, retryIntervalMs))
+                .withMaxBackOffMs(Math.max(1, retryIntervalMs))
+                .build();
+        return (MilvusServiceClient) client.withRetry(retryParam);
     }
 
     @Override
@@ -920,9 +943,18 @@ public class MilvusVectorService implements VectorStoreProvider {
             ConnectParam connectParam = ConnectParam.newBuilder()
                     .withHost(host)
                     .withPort(port)
+                    .withConnectTimeout(connectTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .withKeepAliveTimeout(keepAliveTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .withRpcDeadline(rpcDeadlineMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     .withAuthorization("root", token != null ? token : "Milvus")
                     .build();
             client = new MilvusServiceClient(connectParam);
+            RetryParam retryParam = RetryParam.newBuilder()
+                    .withMaxRetryTimes(Math.max(0, maxRetryTimes))
+                    .withInitialBackOffMs(Math.max(1, retryIntervalMs))
+                    .withMaxBackOffMs(Math.max(1, retryIntervalMs))
+                    .build();
+            client = (MilvusServiceClient) client.withRetry(retryParam);
 
             SearchParam searchParam = SearchParam.newBuilder()
                     .withCollectionName(COLLECTION_NAME)

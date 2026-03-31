@@ -47,6 +47,7 @@ const knowledgeRoutes = {
     RETRIEVAL_LAB: '/dashboard/resources/embedding-lab',
     EMBEDDING_LAB: '/dashboard/resources/embedding-lab',
     VLM_LAB: '/dashboard/resources/vlm-lab',
+    RETRIEVAL_TEST: '/dashboard/resources/retrieval-test',
     INTELLIGENCE: '/dashboard/resources/architecture',
     GRAPH: '/dashboard/resources/graph',
     GRAPH_DETAIL: '/dashboard/resources/graph/:id',
@@ -349,6 +350,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 children: [
                     { title: '知识库列表', path: ROUTES.KNOWLEDGE.LIST },
                     { title: '素材管理', path: ROUTES.KNOWLEDGE.MEDIA },
+                    { title: '检索测试', path: ROUTES.KNOWLEDGE.RETRIEVAL_TEST },
                 ]
             },
             {

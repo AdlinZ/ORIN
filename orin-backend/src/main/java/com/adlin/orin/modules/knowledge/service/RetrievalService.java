@@ -2,10 +2,15 @@ package com.adlin.orin.modules.knowledge.service;
 
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +26,8 @@ public class RetrievalService {
 
     private final MilvusVectorService vectorService;
     private final KnowledgeDocumentChunkRepository chunkRepository;
+    private final KnowledgeDocumentRepository documentRepository;
+    private final StorageManagementService storageManagementService;
     private final com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService;
     private final RerankService rerankService;
 
@@ -35,10 +42,14 @@ public class RetrievalService {
     public RetrievalService(
             MilvusVectorService vectorService,
             KnowledgeDocumentChunkRepository chunkRepository,
+            KnowledgeDocumentRepository documentRepository,
+            StorageManagementService storageManagementService,
             com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService,
             RerankService rerankService) {
         this.vectorService = vectorService;
         this.chunkRepository = chunkRepository;
+        this.documentRepository = documentRepository;
+        this.storageManagementService = storageManagementService;
         this.visualAnalysisService = visualAnalysisService;
         this.rerankService = rerankService;
     }
@@ -256,6 +267,8 @@ public class RetrievalService {
                 meta.put("chunk_type", "parent");
                 meta.put("title", parent.getTitle());
                 meta.put("source", parent.getSource());
+                meta.put("paragraphIndex", parent.getPosition());
+                meta.put("pageNumber", parent.getPosition() != null ? parent.getPosition() + 1 : 1);
 
                 // Use child content for matching, parent content for context
                 // Apply alpha weight to vector score
@@ -323,6 +336,8 @@ public class RetrievalService {
             meta.put("chunk_type", chunk.getChunkType());
             meta.put("parent_id", chunk.getParentId());
             meta.put("match_count", matchCount);
+            meta.put("paragraphIndex", chunk.getPosition());
+            meta.put("pageNumber", chunk.getPosition() != null ? chunk.getPosition() + 1 : 1);
 
             VectorStoreProvider.SearchResult result = VectorStoreProvider.SearchResult.builder()
                     .content(chunk.getContent())
@@ -377,21 +392,26 @@ public class RetrievalService {
      */
     private List<VectorStoreProvider.SearchResult> keywordOnlySearch(String kbId, String query, int topK, List<String> documentIds) {
         log.warn("keywordOnlySearch called: kbId={}, query={}, topK={}, documentIds={}", kbId, query, topK, documentIds);
-        // 使用 alpha = 0（纯关键词搜索）
-        double alpha = 0.0;
-        double keywordWeight = 1.0 - alpha;
+        // 先走纯文本索引文件（parsed/*.txt）检索，再补 DB 关键词检索，最后按分数融合。
+        List<VectorStoreProvider.SearchResult> textIndexResults =
+                textIndexFallbackSearch(kbId, query, Math.max(topK * 3, 10), documentIds);
+        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, Math.max(topK * 2, 10), documentIds);
 
-        List<Map.Entry<KnowledgeDocumentChunk, Integer>> keywordResults = keywordSearch(kbId, query, topK, documentIds);
-        log.warn("keywordOnlySearch returned {} chunks", keywordResults.size());
-        List<VectorStoreProvider.SearchResult> results = new ArrayList<>();
+        Map<String, VectorStoreProvider.SearchResult> merged = new LinkedHashMap<>();
+        for (VectorStoreProvider.SearchResult result : textIndexResults) {
+            merged.put(buildResultDedupKey(result), result);
+        }
 
         for (Map.Entry<KnowledgeDocumentChunk, Integer> entry : keywordResults) {
             KnowledgeDocumentChunk chunk = entry.getKey();
             int matchCount = entry.getValue();
-            if (chunk.getContent() == null) continue;
+            if (chunk.getContent() == null || chunk.getContent().isBlank()) {
+                continue;
+            }
 
             double matchRatio = Math.min(matchCount / 3.0, 1.0);
-            double keywordScore = keywordWeight * matchRatio;
+            // 让 DB 关键词结果作为补充，不覆盖文本索引更高质量命中。
+            double keywordScore = 0.55 * matchRatio;
 
             Map<String, Object> meta = new HashMap<>();
             meta.put("doc_id", chunk.getDocumentId());
@@ -399,16 +419,214 @@ public class RetrievalService {
             meta.put("match_count", matchCount);
             meta.put("chunk_type", chunk.getChunkType());
             meta.put("parent_id", chunk.getParentId());
+            meta.put("paragraphIndex", chunk.getPosition());
+            meta.put("pageNumber", chunk.getPosition() != null ? chunk.getPosition() + 1 : 1);
 
-            results.add(VectorStoreProvider.SearchResult.builder()
+            VectorStoreProvider.SearchResult keywordResult = VectorStoreProvider.SearchResult.builder()
                     .content(chunk.getContent())
                     .score(keywordScore)
                     .matchType("KEYWORD")
                     .metadata(meta)
-                    .build());
+                    .build();
+
+            String key = buildResultDedupKey(keywordResult);
+            VectorStoreProvider.SearchResult existing = merged.get(key);
+            if (existing == null || keywordResult.getScore() > existing.getScore()) {
+                merged.put(key, keywordResult);
+            }
         }
 
+        List<VectorStoreProvider.SearchResult> finalResults = new ArrayList<>(merged.values());
+        finalResults.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
+        List<VectorStoreProvider.SearchResult> limited = finalResults.stream().limit(topK).collect(Collectors.toList());
+        log.warn("keywordOnlySearch merged fallback results: textIndex={}, keywordDb={}, final={}",
+                textIndexResults.size(), keywordResults.size(), limited.size());
+        return limited;
+    }
+
+    private String buildResultDedupKey(VectorStoreProvider.SearchResult result) {
+        if (result == null) {
+            return "";
+        }
+        Map<String, Object> metadata = result.getMetadata();
+        String chunkId = metadata != null && metadata.get("chunk_id") != null ? String.valueOf(metadata.get("chunk_id")) : "";
+        String docId = metadata != null && metadata.get("doc_id") != null ? String.valueOf(metadata.get("doc_id")) : "";
+        if (!chunkId.isEmpty()) {
+            return "chunk:" + chunkId;
+        }
+        String content = result.getContent() != null ? result.getContent() : "";
+        return "doc:" + docId + ":content:" + Integer.toHexString(content.hashCode());
+    }
+
+    private List<VectorStoreProvider.SearchResult> textIndexFallbackSearch(String kbId, String query, int topK, List<String> documentIds) {
+        if (query == null || query.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        List<KnowledgeDocument> docs;
+        if ("all".equalsIgnoreCase(kbId)) {
+            docs = documentRepository.findAll();
+        } else {
+            docs = documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(kbId);
+        }
+
+        if (documentIds != null && !documentIds.isEmpty()) {
+            Set<String> docIdSet = new HashSet<>(documentIds);
+            docs = docs.stream().filter(d -> docIdSet.contains(d.getId())).collect(Collectors.toList());
+        }
+
+        List<VectorStoreProvider.SearchResult> results = new ArrayList<>();
+        for (KnowledgeDocument doc : docs) {
+            String text = readDocumentTextForFallback(doc);
+            if (text == null || text.isBlank()) {
+                continue;
+            }
+
+            List<String> segments = splitTextForFallback(text, 700, 140);
+            int segmentIndex = 0;
+            for (String segment : segments) {
+                double score = scoreTextSegment(query, segment);
+                if (score <= 0) {
+                    segmentIndex++;
+                    continue;
+                }
+
+                Map<String, Object> meta = new HashMap<>();
+                meta.put("doc_id", doc.getId());
+                meta.put("chunk_id", doc.getId() + "#text#" + segmentIndex);
+                meta.put("chunk_type", "text_index");
+                meta.put("title", doc.getFileName());
+                meta.put("source", doc.getParsedTextPath() != null ? doc.getParsedTextPath() : doc.getFileName());
+                meta.put("paragraphIndex", segmentIndex);
+                meta.put("pageNumber", segmentIndex + 1);
+
+                results.add(VectorStoreProvider.SearchResult.builder()
+                        .content(segment)
+                        .score(score)
+                        .matchType("TEXT_INDEX")
+                        .metadata(meta)
+                        .build());
+                segmentIndex++;
+            }
+        }
+
+        results.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
+        if (results.size() > topK) {
+            results = results.subList(0, topK);
+        }
         return results;
+    }
+
+    private String readDocumentTextForFallback(KnowledgeDocument doc) {
+        if (doc == null) {
+            return "";
+        }
+
+        List<Path> candidates = new ArrayList<>();
+        if (doc.getParsedTextPath() != null && !doc.getParsedTextPath().isBlank()) {
+            candidates.add(Path.of(doc.getParsedTextPath()));
+        }
+        try {
+            candidates.add(storageManagementService.getParsedFilePath(doc.getKnowledgeBaseId(), doc.getId(), doc.getFileType()));
+        } catch (Exception e) {
+            log.debug("Build parsed path failed for doc {}: {}", doc.getId(), e.getMessage());
+        }
+
+        for (Path path : candidates) {
+            try {
+                if (path != null && Files.exists(path)) {
+                    String text = Files.readString(path);
+                    if (text != null && !text.isBlank()) {
+                        return text;
+                    }
+                }
+            } catch (IOException e) {
+                log.debug("Read parsed text failed: docId={}, path={}, err={}", doc.getId(), path, e.getMessage());
+            }
+        }
+
+        if (doc.getContentPreview() != null && !doc.getContentPreview().isBlank()) {
+            return doc.getContentPreview();
+        }
+        return "";
+    }
+
+    private List<String> splitTextForFallback(String text, int maxLen, int overlap) {
+        if (text == null || text.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        List<String> chunks = new ArrayList<>();
+        String normalized = text.replace("\r\n", "\n").replace('\r', '\n').trim();
+        String[] paragraphs = normalized.split("\\n\\s*\\n");
+
+        for (String paragraph : paragraphs) {
+            String p = paragraph.trim();
+            if (p.isBlank()) {
+                continue;
+            }
+            if (p.length() <= maxLen) {
+                chunks.add(p);
+                continue;
+            }
+
+            int start = 0;
+            while (start < p.length()) {
+                int end = Math.min(start + maxLen, p.length());
+                String segment = p.substring(start, end).trim();
+                if (!segment.isBlank()) {
+                    chunks.add(segment);
+                }
+                if (end >= p.length()) {
+                    break;
+                }
+                start = Math.max(start + maxLen - overlap, start + 1);
+            }
+        }
+
+        if (chunks.isEmpty() && !normalized.isBlank()) {
+            chunks.add(normalized.length() > maxLen ? normalized.substring(0, maxLen) : normalized);
+        }
+        return chunks;
+    }
+
+    private double scoreTextSegment(String query, String segment) {
+        if (query == null || query.isBlank() || segment == null || segment.isBlank()) {
+            return 0.0;
+        }
+
+        String q = query.toLowerCase(Locale.ROOT).trim();
+        String s = segment.toLowerCase(Locale.ROOT);
+        double score = 0.0;
+
+        if (s.contains(q)) {
+            score += 0.60;
+        }
+
+        Set<String> terms = Arrays.stream(q.split("[\\s,，.。!?;；:：/\\\\|]+"))
+                .map(String::trim)
+                .filter(t -> !t.isEmpty())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        for (String term : terms) {
+            if (s.contains(term)) {
+                score += Math.min(0.10 + term.length() * 0.01, 0.22);
+            }
+        }
+
+        Set<Character> qChars = q.chars()
+                .mapToObj(c -> (char) c)
+                .filter(c -> !Character.isWhitespace(c) && Character.isLetterOrDigit(c))
+                .collect(Collectors.toSet());
+        if (!qChars.isEmpty()) {
+            long hit = qChars.stream().filter(c -> s.indexOf(c) >= 0).count();
+            score += (hit * 1.0 / qChars.size()) * 0.20;
+        }
+
+        if (segment.length() >= 60 && segment.length() <= 600) {
+            score += 0.05;
+        }
+
+        return Math.min(score, 0.98);
     }
 
     /**

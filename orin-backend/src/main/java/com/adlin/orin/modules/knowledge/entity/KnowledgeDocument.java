@@ -124,14 +124,14 @@ public class KnowledgeDocument {
      */
     @Column(name = "chunk_size")
     @Builder.Default
-    private Integer chunkSize = 500;
+    private Integer chunkSize = 1000;
 
     /**
      * 重叠长度
      */
     @Column(name = "chunk_overlap")
     @Builder.Default
-    private Integer chunkOverlap = 50;
+    private Integer chunkOverlap = 200;
 
     /**
      * 上传时间

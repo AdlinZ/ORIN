@@ -256,41 +256,80 @@
                     </span>
                   </span>
                 </div>
-                <div class="message-text" v-html="renderMarkdown(msg.content)" />
-
-                <div v-if="msg.retrievedChunks?.length" class="retrieved-context">
-                  <div class="context-header">
-                    <el-icon><Document /></el-icon>
-                    <span>检索到的知识 {{ msg.retrievedChunks.length }} 条</span>
-                  </div>
-                  <div
-                    v-for="(chunk, chunkIndex) in msg.retrievedChunks.slice(0, 3)"
-                    :key="`${index}-${chunkIndex}`"
-                    class="context-item"
-                  >
-                    <div class="chunk-source">
-                      {{ chunk.docName || chunk.source || '未知来源' }}
-                    </div>
-                    <div class="chunk-text">
-                      {{ chunk.content?.substring(0, 160) }}{{ chunk.content?.length > 160 ? '...' : '' }}
+                <div
+                  v-if="msg.role === 'assistant' && msg.toolTraces?.length"
+                  class="reasoning-section"
+                >
+                  <div class="reasoning-title">检索/思考过程</div>
+                  <div class="reasoning-list">
+                    <div
+                      v-for="(trace, traceIdx) in msg.toolTraces"
+                      :key="`${index}-reason-${traceIdx}`"
+                      :class="['reasoning-item', 'trace-' + (trace.status || 'pending')]"
+                    >
+                      <div class="reasoning-step-dot">{{ traceIdx + 1 }}</div>
+                      <div class="reasoning-main">
+                        <div class="reasoning-top" @click="toggleTraceDetail(msg, index, traceIdx)">
+                          <span class="reasoning-name">{{ formatTraceType(trace.type) }}</span>
+                          <span class="reasoning-status" :class="'status-' + (trace.status || 'pending')">
+                            {{ formatTraceStatus(trace.status) }}
+                          </span>
+                          <span v-if="trace.durationMs != null" class="reasoning-duration">{{ trace.durationMs }}ms</span>
+                          <span class="reasoning-expand">
+                            {{ isTraceDetailExpanded(msg, index, traceIdx) ? '收起' : '详情' }}
+                          </span>
+                        </div>
+                        <div class="reasoning-msg">{{ trace.message }}</div>
+                        <div
+                          v-if="trace.detail && isTraceDetailExpanded(msg, index, traceIdx)"
+                          class="reasoning-detail"
+                        >
+                          <pre>{{ typeof trace.detail === 'object' ? JSON.stringify(trace.detail, null, 2) : trace.detail }}</pre>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div v-if="msg.toolTraces?.length" class="tool-traces">
-                  <div
-                    v-for="(trace, traceIdx) in msg.toolTraces"
-                    :key="`${index}-trace-${traceIdx}`"
-                    :class="['trace-card', 'trace-' + (trace.status || 'pending')]"
+                <div
+                  v-if="msg.role === 'assistant' && msg.retrievedChunks?.length"
+                  class="message-citations"
+                >
+                  <span class="citation-label">来源:</span>
+                  <button
+                    v-for="(chunk, citationIdx) in msg.retrievedChunks.slice(0, 5)"
+                    :key="`citation-${index}-${citationIdx}`"
+                    type="button"
+                    class="citation-item"
+                    :title="chunk.docName || chunk.source || '未知来源'"
+                    @click="openCitation(chunk)"
                   >
-                    <div class="trace-header">
-                      <el-icon class="trace-icon">{{ traceIcon(trace.type) }}</el-icon>
-                      <span class="trace-type">{{ trace.type }}</span>
-                      <span class="trace-duration">{{ trace.durationMs }}ms</span>
+                    [{{ citationIdx + 1 }}] {{ getChunkSourceLabel(chunk) }}
+                  </button>
+                </div>
+                <div class="message-text" v-html="renderMarkdown(msg.content)" />
+
+                <div v-if="msg.retrievedChunks?.length" class="retrieved-context">
+                  <div class="context-header context-toggle" @click="toggleRetrievedContext(msg, index)">
+                    <div class="context-header-left">
+                      <el-icon><Document /></el-icon>
+                      <span>检索依据 {{ msg.retrievedChunks.length }} 条</span>
                     </div>
-                    <div class="trace-message">{{ trace.message }}</div>
-                    <div v-if="trace.detail" class="trace-detail">
-                      <pre>{{ typeof trace.detail === 'object' ? JSON.stringify(trace.detail, null, 2) : trace.detail }}</pre>
+                    <span class="context-toggle-text">
+                      {{ isRetrievedContextExpanded(msg, index) ? '收起' : '查看依据' }}
+                    </span>
+                  </div>
+                  <div v-if="isRetrievedContextExpanded(msg, index)">
+                    <div
+                      v-for="(chunk, chunkIndex) in msg.retrievedChunks.slice(0, 3)"
+                      :key="`${index}-${chunkIndex}`"
+                      class="context-item"
+                    >
+                      <div class="chunk-source is-clickable" @click="openCitation(chunk)">
+                        [{{ chunkIndex + 1 }}] {{ getChunkSourceLabel(chunk) }}
+                      </div>
+                      <div class="chunk-text">
+                        {{ chunk.content?.substring(0, 160) }}{{ chunk.content?.length > 160 ? '...' : '' }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -628,6 +667,8 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useRouter } from 'vue-router';
+import { marked } from 'marked';
 import {
   ArrowDown,
   ArrowLeft,
@@ -674,9 +715,16 @@ const props = defineProps({
     default: false
   }
 });
+const router = useRouter();
+marked.setOptions({
+  gfm: true,
+  breaks: true
+});
 
 const CONFIG_STORAGE_PREFIX = 'agent-workspace-config:';
 const WORKSPACE_STATE_KEY = 'agent-workspace-state';
+const SESSION_MESSAGES_CACHE_KEY = 'agent-workspace-session-messages';
+const SESSION_MESSAGES_CACHE_LIMIT = 50;
 
 const interactionModes = [
   { label: '智能助手', value: 'assistant', icon: Cpu },
@@ -724,6 +772,8 @@ const currentConfigId = ref('default');
 const interactionMode = ref('assistant');
 const messagesContainer = ref(null);
 const currentConfig = reactive(defaultConfig());
+const expandedRetrievedContext = ref({});
+const expandedTraceDetails = ref({});
 const viewportWidth = ref(window.innerWidth);
 const isMobile = computed(() => viewportWidth.value < 1200);
 
@@ -784,6 +834,56 @@ const getAgentColor = (name) => {
 };
 
 const getConfigStorageKey = (agentId) => `${CONFIG_STORAGE_PREFIX}${agentId}`;
+
+const readSessionMessagesCache = () => {
+  const raw = localStorage.getItem(SESSION_MESSAGES_CACHE_KEY);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeSessionMessagesCache = (cache) => {
+  localStorage.setItem(SESSION_MESSAGES_CACHE_KEY, JSON.stringify(cache));
+};
+
+const pruneSessionMessagesCache = (cache) => {
+  const entries = Object.entries(cache || {})
+    .sort((a, b) => (b?.[1]?.updatedAt || 0) - (a?.[1]?.updatedAt || 0));
+  return Object.fromEntries(entries.slice(0, SESSION_MESSAGES_CACHE_LIMIT));
+};
+
+const getCachedSessionMessages = (sessionId) => {
+  const target = normalizeId(sessionId);
+  if (!target) return null;
+  const cache = readSessionMessagesCache();
+  const payload = cache[target];
+  return Array.isArray(payload?.messages) ? payload.messages : null;
+};
+
+const setCachedSessionMessages = (sessionId, sessionMessages) => {
+  const target = normalizeId(sessionId);
+  if (!target) return;
+  const cache = readSessionMessagesCache();
+  cache[target] = {
+    messages: Array.isArray(sessionMessages) ? sessionMessages : [],
+    updatedAt: Date.now()
+  };
+  writeSessionMessagesCache(pruneSessionMessagesCache(cache));
+};
+
+const removeCachedSessionMessages = (sessionId) => {
+  const target = normalizeId(sessionId);
+  if (!target) return;
+  const cache = readSessionMessagesCache();
+  if (cache[target]) {
+    delete cache[target];
+    writeSessionMessagesCache(cache);
+  }
+};
 
 const saveWorkspaceState = () => {
   const state = {
@@ -1031,6 +1131,11 @@ const selectSession = async (session) => {
   if (!session?.id) return;
 
   currentSessionId.value = session.id;
+  const cachedMessages = getCachedSessionMessages(session.id);
+  if (cachedMessages?.length) {
+    messages.value = cachedMessages;
+    scrollToBottom();
+  }
 
   try {
     const res = await getChatSession(session.id);
@@ -1039,11 +1144,16 @@ const selectSession = async (session) => {
       ...message,
       retrievedChunks: currentConfig.showRetrievedContext ? message.retrievedChunks || [] : []
     }));
+    setCachedSessionMessages(session.id, messages.value);
     await loadAttachedKbs(session.id);
     await loadKbDocFilters(session.id);
     scrollToBottom();
   } catch (error) {
-    ElMessage.error('加载会话失败');
+    if (!cachedMessages?.length) {
+      ElMessage.error('加载会话失败');
+    } else {
+      ElMessage.warning('网络波动：已显示本地缓存消息');
+    }
   }
 };
 
@@ -1057,6 +1167,7 @@ const createSessionForAgent = async (agentId) => {
   sessions.value = [session, ...sessions.value.filter((item) => item.id !== session.id)];
   currentSessionId.value = session.id;
   messages.value = [];
+  setCachedSessionMessages(session.id, []);
   attachedKbIds.value = [];
   Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
   return session;
@@ -1101,6 +1212,7 @@ const removeSession = async (session) => {
 
   try {
     await deleteChatSession(session.id);
+    removeCachedSessionMessages(session.id);
     sessions.value = sessions.value.filter((item) => item.id !== session.id);
 
     if (currentSessionId.value === session.id) {
@@ -1235,6 +1347,7 @@ const sendMessage = async () => {
   const content = inputMessage.value.trim();
   const userMsg = { role: 'user', content };
   messages.value.push(userMsg);
+  setCachedSessionMessages(currentSessionId.value, messages.value);
   updateSessionTitleLocally(content);
 
   inputMessage.value = '';
@@ -1249,19 +1362,42 @@ const sendMessage = async () => {
     });
 
     const data = res?.data || res || {};
+    const assistantContent = (data.content || '').trim();
     messages.value.push({
       role: 'assistant',
-      content: data.content || '',
+      content: assistantContent || '（检索流程已完成，但模型未返回正文。请重试，或检查模型/网关配置。）',
       retrievedChunks: currentConfig.showRetrievedContext ? data.retrievedChunks || [] : [],
+      toolTraces: data.toolTraces || [],
       model: data.model || '',
       provider: data.provider || '',
       promptTokens: data.promptTokens || 0,
       completionTokens: data.completionTokens || 0,
       createdAt: data.createdAt || new Date().toISOString()
     });
+    setCachedSessionMessages(currentSessionId.value, messages.value);
   } catch (error) {
-    messages.value.pop();
-    ElMessage.error('发送消息失败');
+    const status = error?.response?.status;
+    const backendMessage = error?.response?.data?.message || error?.response?.data?.error || '';
+    let failureReason = '网络异常';
+    if (error?.code === 'ECONNABORTED' || String(error?.message || '').toLowerCase().includes('timeout')) {
+      failureReason = '请求超时（超过 180 秒）';
+    } else if (status) {
+      failureReason = `服务错误 (${status})`;
+    }
+    const finalReason = backendMessage || failureReason;
+    messages.value.push({
+      role: 'assistant',
+      content: `（请求失败：${finalReason}）`,
+      retrievedChunks: [],
+      toolTraces: [],
+      model: '',
+      provider: '',
+      promptTokens: 0,
+      completionTokens: 0,
+      createdAt: new Date().toISOString()
+    });
+    setCachedSessionMessages(currentSessionId.value, messages.value);
+    ElMessage.error(`发送消息失败：${finalReason}`);
   } finally {
     loading.value = false;
     scrollToBottom();
@@ -1284,16 +1420,96 @@ const traceIcon = (type) => {
   return iconMap[type] || 'Setting';
 };
 
+const formatTraceType = (type) => {
+  const labelMap = {
+    KB_STRUCTURE: '知识库结构检查',
+    KB_SEARCH: '知识检索',
+    KB_RETRIEVE: '上下文组装',
+    KB_HINT: '检索提示',
+    KB_PIPELINE: '检索链路'
+  };
+  return labelMap[type] || type || '处理步骤';
+};
+
+const formatTraceStatus = (status) => {
+  const s = (status || '').toLowerCase();
+  if (s === 'success') return '成功';
+  if (s === 'warning') return '提醒';
+  if (s === 'error') return '失败';
+  return '处理中';
+};
+
+const getTraceDetailKey = (msg, index, traceIdx) => {
+  return `${normalizeId(currentSessionId.value)}:${msg?.createdAt || ''}:${index}:${traceIdx}`;
+};
+
+const isTraceDetailExpanded = (msg, index, traceIdx) => {
+  return !!expandedTraceDetails.value[getTraceDetailKey(msg, index, traceIdx)];
+};
+
+const toggleTraceDetail = (msg, index, traceIdx) => {
+  const key = getTraceDetailKey(msg, index, traceIdx);
+  expandedTraceDetails.value[key] = !expandedTraceDetails.value[key];
+};
+
 const renderMarkdown = (text) => {
   if (!text) return '';
-
-  return text
+  const normalized = String(text)
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t');
+  const escaped = normalized
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+    .replace(/>/g, '&gt;');
+  try {
+    return marked.parse(escaped);
+  } catch (error) {
+    return escaped.replace(/\n/g, '<br>');
+  }
+};
+
+const getChunkSourceLabel = (chunk) => {
+  return chunk?.docName || chunk?.source || chunk?.docId || '未知来源';
+};
+
+const getRetrievedContextKey = (msg, index) => {
+  return `${normalizeId(currentSessionId.value)}:${msg?.createdAt || ''}:${index}`;
+};
+
+const isRetrievedContextExpanded = (msg, index) => {
+  return !!expandedRetrievedContext.value[getRetrievedContextKey(msg, index)];
+};
+
+const toggleRetrievedContext = (msg, index) => {
+  const key = getRetrievedContextKey(msg, index);
+  expandedRetrievedContext.value[key] = !expandedRetrievedContext.value[key];
+};
+
+const openCitation = (chunk) => {
+  const docId = normalizeId(chunk?.docId);
+  if (!docId) {
+    ElMessage.warning('该来源暂无文档标识，无法打开详情');
+    return;
+  }
+
+  let kbId = normalizeId(chunk?.kbId);
+  if (!kbId && attachedKbIds.value.length === 1) {
+    kbId = normalizeId(attachedKbIds.value[0]);
+  }
+
+  if (!kbId) {
+    ElMessage.warning('该来源缺少知识库标识，请在单知识库会话中重试');
+    return;
+  }
+
+  const target = `/dashboard/resources/knowledge/${kbId}/document/${docId}`;
+  const resolved = router.resolve(target);
+  const opened = window.open(resolved.href, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    // 浏览器拦截弹窗时降级为当前页跳转
+    router.push(target);
+  }
 };
 
 const reloadWorkspace = async () => {
@@ -1801,6 +2017,197 @@ watch(
   color: #b0b8c4;
 }
 
+.reasoning-section {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e4e9f1;
+  background: #f8fafc;
+}
+
+.reasoning-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.reasoning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reasoning-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e7edf5;
+}
+
+.reasoning-step-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.reasoning-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.reasoning-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.reasoning-item.trace-success {
+  border-color: #d1fae5;
+  background: #f0fdf4;
+}
+
+.reasoning-item.trace-success .reasoning-step-dot {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.reasoning-item.trace-warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.reasoning-item.trace-warning .reasoning-step-dot {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.reasoning-item.trace-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.reasoning-item.trace-error .reasoning-step-dot {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.reasoning-name {
+  font-size: 12px;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.reasoning-status {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.reasoning-status.status-success {
+  border-color: #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.reasoning-status.status-warning {
+  border-color: #fde68a;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.reasoning-status.status-error {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.reasoning-duration {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.reasoning-expand {
+  margin-left: auto;
+  font-size: 11px;
+  color: #2563eb;
+}
+
+.reasoning-msg {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reasoning-detail {
+  margin-top: 6px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow: auto;
+}
+
+.reasoning-detail pre {
+  margin: 0;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.message-citations {
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.citation-label {
+  font-size: 12px;
+  color: #7b8495;
+}
+
+.citation-item {
+  max-width: 240px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f3f6fa;
+  border: 1px solid #d8e0eb;
+  color: #3d4a60;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  font: inherit;
+}
+
+.citation-item:hover {
+  background: #eaf1fb;
+  border-color: #c8d7eb;
+}
+
 .message-text {
   padding: 12px 14px;
   border-radius: 16px;
@@ -1830,6 +2237,39 @@ watch(
   background: rgba(15, 23, 42, 0.08);
 }
 
+.message-text :deep(pre code) {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.message-text :deep(p) {
+  margin: 0 0 8px;
+}
+
+.message-text :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.message-text :deep(ul),
+.message-text :deep(ol) {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.message-text :deep(li + li) {
+  margin-top: 4px;
+}
+
+.message-text :deep(blockquote) {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-left: 3px solid #cbd5e1;
+  color: #475569;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
 .retrieved-context {
   margin-top: 10px;
   padding: 12px;
@@ -1841,10 +2281,27 @@ watch(
 .context-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
   font-size: 12px;
   color: #b45309;
+}
+
+.context-header-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-toggle {
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.context-toggle-text {
+  color: #1d4ed8;
+  font-size: 12px;
 }
 
 .context-item + .context-item {
@@ -1854,6 +2311,12 @@ watch(
 .chunk-source {
   font-size: 12px;
   color: #92400e;
+}
+
+.chunk-source.is-clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
 }
 
 .chunk-text {

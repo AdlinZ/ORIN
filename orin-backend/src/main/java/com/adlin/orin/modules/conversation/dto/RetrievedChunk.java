@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class RetrievedChunk {
+    private String kbId;
     private String source;
     private String content;
     private Double score;

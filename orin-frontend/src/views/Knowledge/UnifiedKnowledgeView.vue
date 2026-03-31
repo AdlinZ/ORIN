@@ -8,7 +8,7 @@
         </el-icon>
         <span>{{ activeTabTitle }}</span>
       </div>
-      
+
       <div class="actions">
         <!-- Agent Selector -->
         <el-select v-model="selectedAgent" placeholder="Select Agent" style="width: 200px">
@@ -19,7 +19,7 @@
             :value="agent.agentId"
           />
         </el-select>
-        
+
         <!-- Upload Button for Unstructured -->
         <el-upload
           v-if="activeTab === 'UNSTRUCTURED'"
@@ -35,6 +35,52 @@
       </div>
     </div>
 
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane label="文档知识" name="UNSTRUCTURED">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Document /></el-icon>
+              文档知识
+            </span>
+          </template>
+        </el-tab-pane>
+        <el-tab-pane label="数据资产" name="STRUCTURED">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><DataLine /></el-icon>
+              数据资产
+            </span>
+          </template>
+        </el-tab-pane>
+        <el-tab-pane label="程序化技能" name="PROCEDURAL">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Cpu /></el-icon>
+              程序化技能
+            </span>
+          </template>
+        </el-tab-pane>
+        <el-tab-pane label="RAG评估" name="EVALUATION">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Aim /></el-icon>
+              RAG评估
+            </span>
+          </template>
+        </el-tab-pane>
+        <el-tab-pane label="元知识" name="META">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><User /></el-icon>
+              元知识
+            </span>
+          </template>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+
     <!-- Content Area -->
     <div v-loading="knowledgeStore.loading" class="view-content">
       <!-- 1. Unstructured View -->
@@ -46,18 +92,18 @@
           </div>
           <div class="progress-bar-wrapper">
             <!-- Amber color for vectorizing -->
-            <el-progress 
-              :percentage="info.progress" 
+            <el-progress
+              :percentage="info.progress"
               :color="getStatusColor(info.status)"
               :striped="info.status === 'VECTORIZING'"
               :striped-flow="info.status === 'VECTORIZING'"
-            /> 
+            />
           </div>
           <div class="status-text">
             {{ getStatusText(info.status) }}
           </div>
         </div>
-      
+
         <knowledge-table type="default" :data="knowledgeStore.knowledgeList" />
       </div>
 
@@ -76,7 +122,12 @@
         <knowledge-table type="api" :data="knowledgeStore.knowledgeList" />
       </div>
 
-      <!-- 4. Meta View -->
+      <!-- 4. RAG Evaluation View -->
+      <div v-if="activeTab === 'EVALUATION'">
+        <rag-evaluation />
+      </div>
+
+      <!-- 5. Meta View -->
       <div v-if="activeTab === 'META'">
         <knowledge-meta :agent-id="selectedAgent" />
       </div>
@@ -89,9 +140,10 @@ import { ref, watch, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ROUTES } from '@/router/routes'
 import { useKnowledgeStore } from '@/stores/knowledgeStore'
-import { Document, DataLine, Cpu, User, Upload } from '@element-plus/icons-vue'
+import { Document, DataLine, Cpu, User, Upload, Aim } from '@element-plus/icons-vue'
 import KnowledgeTable from './components/KnowledgeTable.vue'
 import KnowledgeMeta from './components/KnowledgeMeta.vue'
+import RagEvaluation from './components/RagEvaluation.vue'
 import { getAgentList } from '@/api/agent'
 
 const route = useRoute()
@@ -106,6 +158,7 @@ const activeTabTitle = computed(() => {
         'UNSTRUCTURED': '文档知识',
         'STRUCTURED': '数据资产',
         'PROCEDURAL': '程序化技能',
+        'EVALUATION': 'RAG评估',
         'META': '元知识与记忆'
     }
     return map[activeTab.value] || '知识管理'
@@ -116,6 +169,7 @@ const activeTabIcon = computed(() => {
         'UNSTRUCTURED': Document,
         'STRUCTURED': DataLine,
         'PROCEDURAL': Cpu,
+        'EVALUATION': Aim,
         'META': User
     }
     return map[activeTab.value] || Document
@@ -131,7 +185,7 @@ onMounted(async () => {
     const res = await getAgentList({ size: 100 })
     if (res) {
         agentList.value = res
-        
+
         // 3. Priority: Query Param > First Agent
         if (route.query.agentId) {
             selectedAgent.value = route.query.agentId
@@ -141,12 +195,18 @@ onMounted(async () => {
     }
 })
 
+// Handle tab change from UI
+const handleTabChange = (tabName) => {
+    activeTab.value = tabName
+}
+
 // Helper for syncing
 const syncTabFromMeta = (type) => {
     const typeMap = {
         'DOCUMENT': 'UNSTRUCTURED',
         'STRUCTURED': 'STRUCTURED',
         'API': 'PROCEDURAL',
+        'EVALUATION': 'EVALUATION',
         'META': 'META'
     }
     if (typeMap[type]) {
@@ -162,8 +222,8 @@ watch(() => route.meta.type, (newType) => {
 }, { immediate: true })
 
 watch([activeTab, selectedAgent], ([newTab, newAgent]) => {
-    if (newAgent) {
-        // Map Tab to API Type
+    if (newAgent && newTab !== 'EVALUATION') {
+        // Map Tab to API Type (skip for EVALUATION tab)
         const apiTypeMap = {
             'UNSTRUCTURED': 'DOCUMENT',
             'STRUCTURED': 'STRUCTURED',
@@ -177,7 +237,7 @@ watch([activeTab, selectedAgent], ([newTab, newAgent]) => {
 const customUpload = async (options) => {
     const { file } = options
     // Assuming default KB ID for now or selector
-    const defaultKbId = 'default_kb_' + selectedAgent.value 
+    const defaultKbId = 'default_kb_' + selectedAgent.value
     await knowledgeStore.uploadFile(selectedAgent.value, file, defaultKbId)
 }
 
@@ -207,6 +267,17 @@ const getStatusText = (status) => {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+}
+
+.tab-navigation {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e4e7ed;
+}
+
+.tab-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .actions {
@@ -259,5 +330,17 @@ const getStatusText = (status) => {
     text-align: right;
     font-size: 0.9em;
     color: #606266;
+}
+
+.mb-4 {
+    margin-bottom: 16px;
+}
+
+.flex {
+    display: flex;
+}
+
+.justify-between {
+    justify-content: space-between;
 }
 </style>

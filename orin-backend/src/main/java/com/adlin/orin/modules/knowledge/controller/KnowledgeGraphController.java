@@ -3,6 +3,7 @@ package com.adlin.orin.modules.knowledge.controller;
 import com.adlin.orin.modules.knowledge.entity.GraphEntity;
 import com.adlin.orin.modules.knowledge.entity.GraphRelation;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeGraph;
+import com.adlin.orin.modules.knowledge.service.GraphExtractionService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeGraphService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class KnowledgeGraphController {
 
     private final KnowledgeGraphService knowledgeGraphService;
+    private final GraphExtractionService graphExtractionService;
 
     @Operation(summary = "获取图谱列表")
     @GetMapping
@@ -109,5 +111,34 @@ public class KnowledgeGraphController {
             @RequestParam("q") String keyword) {
         List<GraphEntity> entities = knowledgeGraphService.searchEntities(graphId, keyword);
         return ResponseEntity.ok(entities);
+    }
+
+    @Operation(summary = "获取图谱可视化数据")
+    @GetMapping("/{graphId}/visualization")
+    public ResponseEntity<Map<String, Object>> getVisualizationData(
+            @PathVariable String graphId,
+            @RequestParam(value = "documentId", required = false) String documentId) {
+        GraphExtractionService.GraphVisualizationData data =
+                graphExtractionService.getVisualizationData(graphId, documentId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("nodes", data.getNodes());
+        result.put("edges", data.getEdges());
+        result.put("categories", data.getCategories());
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "获取实体详情")
+    @GetMapping("/{graphId}/entities/{entityId}/details")
+    public ResponseEntity<Map<String, Object>> getEntityDetails(
+            @PathVariable String graphId,
+            @PathVariable String entityId) {
+        return graphExtractionService.getEntityDetails(entityId)
+                .map(entity -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("entity", entity);
+                    result.put("relations", graphExtractionService.getEntityRelations(entityId));
+                    return ResponseEntity.ok(result);
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 }

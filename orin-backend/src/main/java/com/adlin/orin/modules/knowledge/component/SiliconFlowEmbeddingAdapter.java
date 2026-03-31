@@ -198,4 +198,59 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
     public String getModelName() {
         return modelName;
     }
+
+    public String getEffectiveApiKey() {
+        return effectiveApiKey;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    /**
+     * Send a chat message to SiliconFlow LLM
+     * @param prompt The prompt to send
+     * @param model The model to use (defaults to embedding model if not specified)
+     * @return The LLM response content
+     */
+    public String chat(String prompt, String model) {
+        if (effectiveApiKey == null || effectiveApiKey.isEmpty() || effectiveApiKey.equals("sk-placeholder")) {
+            throw new RuntimeException("SiliconFlow API Key is not configured. Please set a valid API Key.");
+        }
+
+        String chatModel = (model != null && !model.isEmpty()) ? model : "Qwen/Qwen2.5-7B-Instruct";
+        String url = baseUrl + "/chat/completions";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(effectiveApiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = Map.of(
+                "model", chatModel,
+                "messages", List.of(Map.of("role", "user", "content", prompt)),
+                "temperature", 0.7,
+                "max_tokens", 2000
+        );
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode choicesNode = root.path("choices");
+                if (choicesNode.isArray() && choicesNode.size() > 0) {
+                    JsonNode messageNode = choicesNode.get(0).path("message");
+                    String content = messageNode.path("content").asText();
+                    log.info("LLM chat call successful via SiliconFlow, response length={}", content.length());
+                    return content;
+                }
+            }
+            log.error("SiliconFlow LLM chat failed: {}, response: {}", response.getStatusCode(), response.getBody());
+            throw new RuntimeException("LLM chat API failed with status: " + response.getStatusCode());
+        } catch (Exception e) {
+            log.error("Error calling SiliconFlow LLM API: {}", e.getMessage());
+            throw new RuntimeException("LLM chat failed: " + e.getMessage(), e);
+        }
+    }
 }

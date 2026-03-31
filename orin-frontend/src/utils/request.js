@@ -161,7 +161,7 @@ service.interceptors.response.use(
         }
 
         // 判断是否应该重试（非401错误）
-        const shouldRetry = (
+        const shouldRetry = !config.noRetry && (
             error.message.includes('Network Error') ||
             error.message.includes('timeout') ||
             error.code === 'ECONNABORTED' ||
@@ -225,4 +225,3 @@ service.interceptors.response.use(
 );
 
 export default service;
-

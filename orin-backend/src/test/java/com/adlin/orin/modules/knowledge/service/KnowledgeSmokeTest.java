@@ -18,6 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -68,6 +70,9 @@ class KnowledgeSmokeTest {
     @Mock
     private RerankService rerankService;
 
+    @Mock
+    private StorageManagementService storageManagementService;
+
     // MultimodalContentParserService dependencies (for parsing path)
     @Mock
     private SiliconFlowIntegrationService siliconFlowService;
@@ -95,6 +100,8 @@ class KnowledgeSmokeTest {
         retrievalService = new RetrievalService(
                 milvusVectorService,
                 chunkRepository,
+                documentRepository,
+                storageManagementService,
                 visualAnalysisService,
                 rerankService
         );
@@ -315,6 +322,37 @@ class KnowledgeSmokeTest {
         // Then: 验证返回了关键词结果
         assertNotNull(results);
         assertTrue(results.stream().anyMatch(r -> "KEYWORD".equals(r.getMatchType())));
+    }
+
+    @Test
+    @DisplayName("E2.1 - Smoke Test: 向量服务不可用时降级到 parsed 文本索引")
+    void testHybridSearch_VectorServiceUnavailable_FallsBackToParsedTextIndex() throws Exception {
+        // Given: 向量服务不可用 + parsed 文本索引可用
+        String kbId = "kb-text-fallback";
+        String query = "应急预案";
+        KnowledgeDocument doc = KnowledgeDocument.builder()
+                .id("doc-text-1")
+                .knowledgeBaseId(kbId)
+                .fileName("fallback-guide.txt")
+                .fileType("txt")
+                .build();
+
+        Path parsedFile = Files.createTempFile("parsed-fallback-", ".txt");
+        Files.writeString(parsedFile, "这是一个离线检索测试文档，包含应急预案和恢复流程。");
+
+        when(milvusVectorService.isHealthy()).thenReturn(false);
+        when(documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(kbId)).thenReturn(List.of(doc));
+        when(storageManagementService.getParsedFilePath(eq(kbId), eq("doc-text-1"), eq("txt"))).thenReturn(parsedFile);
+        when(chunkRepository.searchByKeyword(eq(kbId), anyString())).thenReturn(Collections.emptyList());
+
+        // When
+        List<VectorStoreProvider.SearchResult> results = retrievalService.hybridSearch(kbId, query, 3);
+
+        // Then
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
+        assertTrue(results.stream().anyMatch(r -> "TEXT_INDEX".equals(r.getMatchType())));
+        assertTrue(results.stream().anyMatch(r -> r.getContent().contains("应急预案")));
     }
 
     @Test

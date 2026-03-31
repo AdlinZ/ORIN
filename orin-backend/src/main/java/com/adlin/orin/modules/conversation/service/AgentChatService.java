@@ -106,7 +106,7 @@ public class AgentChatService {
         
         // 解析历史消息
         try {
-            List<Map<String, String>> messages = objectMapper.readValue(session.getHistory(), 
+            List<Map<String, Object>> messages = objectMapper.readValue(session.getHistory(),
                     objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class));
             result.put("messages", messages);
         } catch (Exception e) {
@@ -129,18 +129,19 @@ public class AgentChatService {
                 .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
         
         // 解析历史
-        List<Map<String, String>> messages;
+        List<Map<String, Object>> messages;
         try {
-            messages = objectMapper.readValue(session.getHistory(), 
+            messages = objectMapper.readValue(session.getHistory(),
                     objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class));
         } catch (Exception e) {
             messages = new ArrayList<>();
         }
         
         // 添加用户消息
-        Map<String, String> userMsg = new HashMap<>();
+        Map<String, Object> userMsg = new HashMap<>();
         userMsg.put("role", "user");
         userMsg.put("content", request.getMessage());
+        userMsg.put("createdAt", java.time.LocalDateTime.now().toString());
         messages.add(userMsg);
 
         // 构建工具执行上下文
@@ -157,11 +158,19 @@ public class AgentChatService {
         // 执行工具链
         if (request.getKbIds() != null && !request.getKbIds().isEmpty()) {
             try {
-                kbStructureTool.execute(toolCtx);
-                kbSearchTool.execute(toolCtx);
-                kbRetrieveTool.execute(toolCtx);
+                toolCtx.addTrace(kbStructureTool.execute(toolCtx));
+                toolCtx.addTrace(kbSearchTool.execute(toolCtx));
+                toolCtx.addTrace(kbRetrieveTool.execute(toolCtx));
             } catch (Exception e) {
                 log.warn("工具链执行失败: {}", e.getMessage());
+                toolCtx.addTrace(ChatMessageResponse.ToolTrace.builder()
+                        .type("KB_PIPELINE")
+                        .kbId("multiple")
+                        .message("知识库检索链路异常，已跳过知识上下文")
+                        .status("error")
+                        .durationMs(0L)
+                        .detail(Map.of("error", e.getMessage()))
+                        .build());
             }
         }
 
@@ -173,6 +182,7 @@ public class AgentChatService {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> chunkMap = (Map<String, Object>) chunkObj;
                 RetrievedChunk chunk = new RetrievedChunk();
+                chunk.setKbId((String) chunkMap.get("kbId"));
                 chunk.setContent((String) chunkMap.get("content"));
                 chunk.setScore((Double) chunkMap.get("score"));
                 chunk.setDocId((String) chunkMap.get("docId"));
@@ -188,13 +198,36 @@ public class AgentChatService {
                 retrievedChunks.size(),
                 context != null ? context.length() : 0,
                 context != null && context.length() > 200 ? context.substring(0, 200) : context);
+
+        // 附加了知识库但未检索到任何内容时，给前端一个明确提醒（避免“静默失败”）。
+        if (request.getKbIds() != null && !request.getKbIds().isEmpty() && retrievedChunks.isEmpty()) {
+            toolCtx.addTrace(ChatMessageResponse.ToolTrace.builder()
+                    .type("KB_HINT")
+                    .kbId("multiple")
+                    .message("未检索到可用知识：可能是向量服务不可用、文档未解析/未向量化，或查询词未命中。")
+                    .status("warning")
+                    .durationMs(0L)
+                    .detail(Map.of(
+                            "kbIds", request.getKbIds(),
+                            "kbDocFilters", request.getKbDocFilters() != null ? request.getKbDocFilters() : Collections.emptyMap(),
+                            "retrievedCount", 0))
+                    .build());
+        }
+
         Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, messages);
         String aiResponse = (String) agentResult.get("content");
 
         // 添加 AI 响应
-        Map<String, String> assistantMsg = new HashMap<>();
+        Map<String, Object> assistantMsg = new HashMap<>();
         assistantMsg.put("role", "assistant");
         assistantMsg.put("content", aiResponse);
+        assistantMsg.put("retrievedChunks", retrievedChunks);
+        assistantMsg.put("toolTraces", toolCtx.getTraces());
+        assistantMsg.put("promptTokens", (Integer) agentResult.getOrDefault("promptTokens", 0));
+        assistantMsg.put("completionTokens", (Integer) agentResult.getOrDefault("completionTokens", 0));
+        assistantMsg.put("model", (String) agentResult.getOrDefault("model", ""));
+        assistantMsg.put("provider", (String) agentResult.getOrDefault("provider", ""));
+        assistantMsg.put("createdAt", java.time.LocalDateTime.now().toString());
         messages.add(assistantMsg);
 
         // 保存历史
@@ -223,7 +256,7 @@ public class AgentChatService {
      * 调用智能体，返回内容和usage信息
      */
     private Map<String, Object> callAgent(String agentId, String userMessage, String context,
-                             List<Map<String, String>> history) {
+                             List<Map<String, Object>> history) {
         Map<String, Object> result = new HashMap<>();
         result.put("content", "");
         result.put("promptTokens", 0);
@@ -248,7 +281,17 @@ public class AgentChatService {
                 if (resp instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> respMap = (Map<String, Object>) resp;
-                    result.put("content", respMap.getOrDefault("content", ""));
+                    String content = extractContent(respMap);
+                    if (content == null || content.isBlank()) {
+                        String errorText = extractErrorText(respMap);
+                        if (errorText != null && !errorText.isBlank()) {
+                            content = "模型调用失败: " + errorText;
+                        }
+                    }
+                    if (content == null || content.isBlank()) {
+                        content = "检索流程已完成，但模型未返回正文。";
+                    }
+                    result.put("content", content);
                     result.put("promptTokens", respMap.getOrDefault("promptTokens", 0));
                     result.put("completionTokens", respMap.getOrDefault("completionTokens", 0));
                     result.put("model", respMap.getOrDefault("model", ""));
@@ -268,6 +311,93 @@ public class AgentChatService {
         }
 
         return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractContent(Map<String, Object> respMap) {
+        if (respMap == null || respMap.isEmpty()) {
+            return "";
+        }
+
+        Object topContent = respMap.get("content");
+        if (topContent instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        // OpenAI/兼容格式: choices[0].message.content
+        Object choicesObj = respMap.get("choices");
+        if (choicesObj instanceof List<?> choices && !choices.isEmpty() && choices.get(0) instanceof Map<?, ?> choiceMap) {
+            Object messageObj = choiceMap.get("message");
+            if (messageObj instanceof Map<?, ?> messageMap) {
+                Object contentObj = messageMap.get("content");
+                if (contentObj instanceof String s && !s.isBlank()) {
+                    return s;
+                }
+            }
+        }
+
+        // 某些 provider 封装在 data 内
+        Object dataObj = respMap.get("data");
+        if (dataObj instanceof Map<?, ?> dataMap) {
+            Object answerObj = dataMap.get("answer");
+            if (answerObj instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            Object messageObj = dataMap.get("message");
+            if (messageObj instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            Object contentObj = dataMap.get("content");
+            if (contentObj instanceof String s && !s.isBlank()) {
+                return s;
+            }
+        }
+
+        Object message = respMap.get("message");
+        if (message instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        return "";
+    }
+
+    private String extractErrorText(Map<String, Object> respMap) {
+        if (respMap == null || respMap.isEmpty()) {
+            return "";
+        }
+
+        Object error = respMap.get("error");
+        if (error != null && !String.valueOf(error).isBlank()) {
+            return String.valueOf(error);
+        }
+
+        Object errorMessage = respMap.get("errorMessage");
+        if (errorMessage != null && !String.valueOf(errorMessage).isBlank()) {
+            return String.valueOf(errorMessage);
+        }
+
+        Object status = respMap.get("status");
+        Object message = respMap.get("message");
+        if (status != null && "ERROR".equalsIgnoreCase(String.valueOf(status))) {
+            if (message != null && !String.valueOf(message).isBlank()) {
+                return String.valueOf(message);
+            }
+            return "上游模型服务返回错误状态";
+        }
+
+        Object dataObj = respMap.get("data");
+        if (dataObj instanceof Map<?, ?> dataMap) {
+            Object nestedError = dataMap.get("error");
+            if (nestedError != null && !String.valueOf(nestedError).isBlank()) {
+                return String.valueOf(nestedError);
+            }
+            Object nestedErrorMessage = dataMap.get("errorMessage");
+            if (nestedErrorMessage != null && !String.valueOf(nestedErrorMessage).isBlank()) {
+                return String.valueOf(nestedErrorMessage);
+            }
+        }
+
+        return "";
     }
 
     /**

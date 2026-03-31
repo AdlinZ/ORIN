@@ -57,6 +57,7 @@ public class KbSearchTool implements AgentTool {
                 for (VectorStoreProvider.SearchResult r : results) {
                     Map<String, Object> meta = r.getMetadata();
                     Map<String, Object> structured = new HashMap<>();
+                    structured.put("kbId", kbId);
                     structured.put("content", r.getContent());
                     structured.put("score", r.getScore());
                     structured.put("docId", meta != null ? meta.get("doc_id") : null);

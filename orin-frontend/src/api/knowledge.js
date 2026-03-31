@@ -424,3 +424,36 @@ export const getGraphRelations = (graphId, params) => {
 export const searchGraphEntities = (graphId, keyword) => {
     return request.get(`/knowledge/graphs/${graphId}/entities/search`, { params: { q: keyword } });
 };
+
+// ==================== 图谱可视化 ====================
+
+export const getGraphVisualization = (graphId, documentId) => {
+    const params = documentId ? { documentId } : {};
+    return request.get(`/knowledge/graphs/${graphId}/visualization`, { params });
+};
+
+export const getGraphEntityDetails = (graphId, entityId) => {
+    return request.get(`/knowledge/graphs/${graphId}/entities/${entityId}/details`);
+};
+
+// ==================== 任务管理 ====================
+
+export const getKnowledgeTasks = (params) => {
+    return request.get('/knowledge/tasks', { params });
+};
+
+export const getKnowledgeTask = (taskId) => {
+    return request.get(`/knowledge/tasks/${taskId}`);
+};
+
+export const retryKnowledgeTask = (taskId) => {
+    return request.post(`/knowledge/tasks/${taskId}/retry`);
+};
+
+export const getQueueStats = () => {
+    return request.get('/knowledge/tasks/queue/stats');
+};
+
+export const getFailedTasks = () => {
+    return request.get('/knowledge/tasks/failed');
+};
