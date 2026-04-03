@@ -12,7 +12,7 @@ const props = defineProps({
   title: { type: String, default: '' },
   unit: { type: String, default: '%' },
   height: { type: String, default: '200px' },
-  color: { type: Array, default: () => ['#67C23A', '#E6A23C', '#F56C6C'] }
+  color: { type: Array, default: () => ['var(--success-500, #10b981)', 'var(--warning-500, #f59e0b)', 'var(--error-500, #ef4444)'] }
 });
 
 const chartRef = ref(null);
@@ -79,7 +79,7 @@ const updateOption = () => {
           }
         },
         axisLabel: {
-          color: '#909399',
+          color: 'var(--neutral-gray-400, #94a3b8)',
           fontSize: 10,
           distance: -40,
           rotate: 'tangential',
@@ -90,7 +90,7 @@ const updateOption = () => {
         title: {
           offsetCenter: [0, '-10%'],
           fontSize: 14,
-          color: '#606266',
+          color: 'var(--neutral-gray-500, #64748b)',
           fontWeight: 600
         },
         detail: {

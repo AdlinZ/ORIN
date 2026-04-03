@@ -207,24 +207,24 @@ const statsCards = computed(() => [
     key: 'weekly', 
     unit: 'ms',
     icon: TrendCharts, 
-    color: '#26FFDF', 
-    bgColor: 'rgba(38, 255, 223, 0.1)' 
+    color: 'var(--orin-primary)', 
+    bgColor: 'var(--primary-light)' 
   },
   { 
     label: '本月平均延迟', 
     key: 'monthly', 
     unit: 'ms',
     icon: Connection, 
-    color: '#14B8A6', 
-    bgColor: 'rgba(20, 184, 166, 0.1)' 
+    color: 'var(--orin-primary)', 
+    bgColor: 'var(--primary-light)' 
   },
   { 
     label: '历史峰值延迟', 
     key: 'max', 
     unit: 'ms',
     icon: WarningFilled, 
-    color: '#F56C6C', 
-    bgColor: 'rgba(245, 108, 108, 0.1)' 
+    color: 'var(--error-500)', 
+    bgColor: 'var(--error-light)' 
   }
 ]);
 
@@ -330,11 +330,11 @@ const renderTrendChart = (data) => {
           type: 'line',
           smooth: true,
           data: data.map(item => item.latency),
-          itemStyle: { color: '#00BFA5' }, // Explicit color
+          itemStyle: { color: 'var(--orin-primary)' }, // Explicit color
           areaStyle: {
                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(0, 191, 165, 0.5)' },
-              { offset: 1, color: 'rgba(0, 191, 165, 0.1)' }
+              { offset: 0, color: 'rgba(13, 148, 136, 0.5)' },
+              { offset: 1, color: 'rgba(13, 148, 136, 0.1)' }
             ])
           },
           animationDuration: 1000
@@ -360,11 +360,11 @@ const updateDistribution = (logs) => {
     });
 
     const data = [
-        { value: fast, name: '< 5s', itemStyle: { color: '#10B981' } },
-        { value: normal, name: '5s-15s', itemStyle: { color: '#3B82F6' } },
-        { value: standard, name: '15s-30s', itemStyle: { color: '#6366F1' } },
-        { value: slow, name: '30s-60s', itemStyle: { color: '#F59E0B' } },
-        { value: extreme, name: '> 60s', itemStyle: { color: '#EF4444' } }
+        { value: fast, name: '< 5s', itemStyle: { color: 'var(--success-500)' } },
+        { value: normal, name: '5s-15s', itemStyle: { color: 'var(--info-500)' } },
+        { value: standard, name: '15s-30s', itemStyle: { color: 'var(--accent-500)' } },
+        { value: slow, name: '30s-60s', itemStyle: { color: 'var(--warning-500)' } },
+        { value: extreme, name: '> 60s', itemStyle: { color: 'var(--error-500)' } }
     ];
 
     if (!distributionChart.value) return;
@@ -527,5 +527,5 @@ onUnmounted(() => {
 .text-danger { color: var(--error-color); font-weight: bold; }
 .text-warning { color: var(--warning-color); font-weight: bold; }
 .text-success { color: var(--success-color); }
-.text-extreme { color: #7F1D1D; font-weight: 800; text-decoration: underline; }
+.text-extreme { color: var(--error-900); font-weight: 800; text-decoration: underline; }
 </style>

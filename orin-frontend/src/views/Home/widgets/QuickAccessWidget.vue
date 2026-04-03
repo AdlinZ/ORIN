@@ -11,7 +11,7 @@
         :to="shortcut.path"
         class="shortcut-card"
       >
-        <div class="shortcut-icon" :style="{ background: shortcut.color + '15', color: shortcut.color }">
+        <div class="shortcut-icon" :style="{ background: shortcut.bgColor, color: shortcut.color }">
           <el-icon><component :is="shortcut.icon" /></el-icon>
         </div>
         <div class="shortcut-title">
@@ -36,28 +36,32 @@ const shortcuts = ref([
     description: '管理智能体应用',
     path: ROUTES.AGENTS.LIST,
     icon: Box,
-    color: '#155eef'
+    color: 'var(--orin-primary)',
+    bgColor: 'var(--primary-light)'
   },
   {
     title: '运行',
     description: '监控运行状态',
     path: ROUTES.MONITOR.DASHBOARD,
     icon: Monitor,
-    color: '#10b981'
+    color: 'var(--success-500)',
+    bgColor: 'var(--success-light)'
   },
   {
     title: '资源',
     description: '知识库与素材',
     path: ROUTES.RESOURCES.KNOWLEDGE,
     icon: Collection,
-    color: '#8b5cf6'
+    color: 'var(--accent-500)',
+    bgColor: 'var(--accent-light)'
   },
   {
     title: '控制',
     description: '系统设置管理',
     path: ROUTES.CONTROL.USERS,
     icon: Setting,
-    color: '#64748b'
+    color: 'var(--neutral-gray-500)',
+    bgColor: 'var(--neutral-gray-100)'
   }
 ])
 </script>

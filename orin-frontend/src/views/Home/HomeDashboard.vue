@@ -194,7 +194,7 @@
                 :y-axis-name="chartType === 'tokens' ? 'Tokens' : chartType === 'latency' ? 'ms' : '%'"
                 :max-points="30"
                 height="100%"
-                :color="isDark ? '#26FFDF' : '#00BFA5'"
+                :color="isDark ? '#26FFDF' : '#0d9488'"
               />
             </div>
           </div>
@@ -369,14 +369,14 @@ let keywordInterval = null
 
 // 静态后备标签（API失败时使用）
 const fallbackTags = [
-  { label: '知识库检索', size: 14, opacity: 1, delay: 0.1, color: '#00BFA5' },
-  { label: '语义理解', size: 11, opacity: 0.7, delay: 0.5, color: '#94a3b8' },
-  { label: '逻辑推理', size: 13, opacity: 0.9, delay: 0.8, color: '#26FFDF' },
-  { label: 'DeepSeek-R1', size: 16, opacity: 1, delay: 0.3, color: '#10b981' },
-  { label: 'Agent_Thinking', size: 10, opacity: 0.5, delay: 1.5, color: '#64748b' },
-  { label: '文本纠错', size: 11, opacity: 0.8, delay: 0.9, color: '#3b82f6' },
-  { label: '跨库关联', size: 12, opacity: 0.8, delay: 0.4, color: '#00BFA5' },
-  { label: '用户建模', size: 11, opacity: 0.6, delay: 1.8, color: '#94a3b8' }
+  { label: '知识库检索', size: 14, opacity: 1, delay: 0.1, color: 'var(--orin-primary)' },
+  { label: '语义理解', size: 11, opacity: 0.7, delay: 0.5, color: 'var(--neutral-gray-400)' },
+  { label: '逻辑推理', size: 13, opacity: 0.9, delay: 0.8, color: 'var(--orin-primary)' },
+  { label: 'DeepSeek-R1', size: 16, opacity: 1, delay: 0.3, color: 'var(--success-500)' },
+  { label: 'Agent_Thinking', size: 10, opacity: 0.5, delay: 1.5, color: 'var(--neutral-gray-500)' },
+  { label: '文本纠错', size: 11, opacity: 0.8, delay: 0.9, color: 'var(--info-500)' },
+  { label: '跨库关联', size: 12, opacity: 0.8, delay: 0.4, color: 'var(--orin-primary)' },
+  { label: '用户建模', size: 11, opacity: 0.6, delay: 1.8, color: 'var(--neutral-gray-400)' }
 ]
 
 // 获取语义关键词
@@ -390,7 +390,7 @@ const fetchKeywords = async () => {
         size: tag.size || 12,
         opacity: tag.opacity || 0.8,
         delay: tag.delay || (idx * 0.2),
-        color: tag.color || '#00BFA5'
+        color: tag.color || 'var(--orin-primary)'
       }))
       rotateKeywords()
     } else {
@@ -429,7 +429,7 @@ const getRkWidth = (v) => {
 
 const topAgents = computed(() => distribution.value.slice(0, 3))
 
-const getBarColor = (v) => v > 80 ? '#ef4444' : v > 60 ? '#f59e0b' : '#3b82f6'
+const getBarColor = (v) => v > 80 ? 'var(--error-500)' : v > 60 ? 'var(--warning-500)' : 'var(--info-500)'
 
 const getHardwareTitle = () => {
   const titles = {
@@ -648,8 +648,8 @@ onUnmounted(() => {
 .logo-text { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; }
 .logo-dot { color: var(--orin-primary); }
 
-.status-indicator { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800; color: #10b981; padding: 6px 14px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; }
-.status-indicator.is-load { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+.status-indicator { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800; color: var(--success-500); padding: 6px 14px; background: var(--success-light); border-radius: 8px; }
+.status-indicator.is-load { color: var(--warning-500); background: var(--warning-light); }
 .status-indicator .dot { width: 7px; height: 7px; background: currentColor; border-radius: 50%; animation: breathe 2s infinite; }
 
 .h-utility { display: flex; align-items: center; gap: 32px; }

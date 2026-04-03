@@ -2,15 +2,15 @@
   <div class="notification-center-container">
     <PageHeader
       title="通知中心"
-      description="配置邮件服务、告警通知渠道与通知偏好设置"
+      description="统一配置邮件渠道、告警通知渠道与通知偏好设置"
       icon="Bell"
     />
 
     <div class="setup-content">
       <!-- 标签页导航 -->
       <el-tabs v-model="activeTab" class="notification-tabs">
-        <!-- 标签1: 邮件服务配置 -->
-        <el-tab-pane label="邮件服务" name="mail-service">
+        <!-- 标签1: 邮件渠道配置 -->
+        <el-tab-pane label="邮件渠道" name="mail-service">
           <!-- 顶部快捷操作栏 -->
           <div class="quick-action-bar">
             <el-button
@@ -36,7 +36,7 @@
           <el-card class="setup-card">
             <template #header>
               <div class="card-header">
-                <span><el-icon><Setting /></el-icon> 邮件服务配置</span>
+                <span><el-icon><Setting /></el-icon> 邮件渠道配置</span>
                 <el-tag :type="mailConnected ? 'success' : 'warning'" size="small">
                   {{ mailConnected ? '已连接' : '未配置' }}
                 </el-tag>
@@ -365,7 +365,7 @@
           <NotificationChannelsPanel
             :mail-connected="mailConnected"
             :require-mail-connected-for-email-test="true"
-            mail-dependency-text="邮件通知依赖于&quot;邮件服务&quot;标签页中配置的 SMTP 服务器"
+            mail-dependency-text="邮件通知依赖于&quot;邮件渠道&quot;标签页中的邮件配置"
           />
         </el-tab-pane>
       </el-tabs>

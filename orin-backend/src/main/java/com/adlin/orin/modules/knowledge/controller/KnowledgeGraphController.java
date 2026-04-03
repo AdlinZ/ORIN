@@ -72,8 +72,10 @@ public class KnowledgeGraphController {
     public ResponseEntity<Map<String, Object>> buildGraph(@PathVariable String graphId) {
         try {
             KnowledgeGraph graph = knowledgeGraphService.triggerBuild(graphId);
+            graphExtractionService.buildGraphAsync(graphId);
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
+            result.put("message", "图谱构建任务已启动");
             result.put("graph", graph);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
@@ -132,11 +134,11 @@ public class KnowledgeGraphController {
     public ResponseEntity<Map<String, Object>> getEntityDetails(
             @PathVariable String graphId,
             @PathVariable String entityId) {
-        return graphExtractionService.getEntityDetails(entityId)
+        return graphExtractionService.getEntityDetails(graphId, entityId)
                 .map(entity -> {
                     Map<String, Object> result = new HashMap<>();
                     result.put("entity", entity);
-                    result.put("relations", graphExtractionService.getEntityRelations(entityId));
+                    result.put("relations", graphExtractionService.getEntityRelations(graphId, entityId));
                     return ResponseEntity.ok(result);
                 })
                 .orElse(ResponseEntity.notFound().build());

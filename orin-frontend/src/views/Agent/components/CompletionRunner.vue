@@ -146,5 +146,5 @@ const generate = async () => {
 }
 
 .placeholder { color: #ccc; font-style: italic; }
-.error-msg { padding: 8px 16px; color: #f56c6c; background: #fef0f0; font-size: 12px; }
+.error-msg { padding: 8px 16px; color: var(--error-500); background: var(--error-light); font-size: 12px; }
 </style>

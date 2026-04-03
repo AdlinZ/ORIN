@@ -559,9 +559,9 @@ const openHealthCheck = async () => {
 }
 
 const getProgressColor = (value) => {
-  if (value < 60) return '#67c23a'
-  if (value < 80) return '#e6a23c'
-  return '#f56c6c'
+  if (value < 60) return 'var(--success-500)'
+  if (value < 80) return 'var(--warning-500)'
+  return 'var(--error-500)'
 }
 
 const formatDate = (dateStr) => {
@@ -602,8 +602,8 @@ onMounted(() => {
 }
 
 .operation-item:hover {
-  background-color: #f5f7fa;
-  border-color: #409eff;
+  background-color: var(--neutral-gray-100);
+  border-color: var(--orin-primary);
 }
 
 .operation-icon {
@@ -613,15 +613,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: white;
 }
 
-.operation-icon.backup { background: #409eff; }
-.operation-icon.restore { background: #67c23a; }
-.operation-icon.upgrade { background: #e6a23c; }
-.operation-icon.log { background: #909399; }
-.operation-icon.cache { background: #f56c6c; }
-.operation-icon.health { background: #67c23a; }
+.operation-icon.backup { background: var(--info-500); }
+.operation-icon.restore { background: var(--success-500); }
+.operation-icon.upgrade { background: var(--warning-500); }
+.operation-icon.log { background: var(--neutral-gray-400); }
+.operation-icon.cache { background: var(--error-500); }
+.operation-icon.health { background: var(--success-500); }
 
 .operation-info h4 {
   margin: 0;
@@ -631,7 +631,7 @@ onMounted(() => {
 .operation-info p {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
 }
 
 .card-header {

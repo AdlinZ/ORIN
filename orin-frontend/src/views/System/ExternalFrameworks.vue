@@ -242,17 +242,103 @@
           </el-form>
         </el-card>
       </el-tab-pane>
+
+      <!-- Neo4j 集成 -->
+      <el-tab-pane label="Neo4j" name="neo4j" :lazy="true">
+        <el-card class="framework-card">
+          <template #header>
+            <div class="card-header">
+              <div class="framework-info">
+                <el-icon size="24">
+                  <Connection />
+                </el-icon>
+                <div>
+                  <h3>Neo4j</h3>
+                  <p>知识图谱图数据库连接配置（用于 Graph/RAG 图谱能力）</p>
+                </div>
+              </div>
+              <el-tag :type="neo4jConfig.enabled ? 'success' : 'info'">
+                {{ neo4jConfig.enabled ? '已启用' : '未启用' }}
+              </el-tag>
+            </div>
+          </template>
+
+          <el-form :model="neo4jConfig" label-width="160px">
+            <el-form-item label="连接 URI (可选)">
+              <el-input v-model="neo4jConfig.uri" placeholder="neo4j+s://xxxx.databases.neo4j.io" />
+              <div class="form-tip">
+                优先使用 URI；如果留空则使用 Host + Port 组合。
+              </div>
+            </el-form-item>
+            <el-form-item label="Host">
+              <el-input v-model="neo4jConfig.host" placeholder="localhost" />
+            </el-form-item>
+            <el-form-item label="Port">
+              <el-input-number v-model="neo4jConfig.port" :min="1" :max="65535" />
+            </el-form-item>
+            <el-form-item label="用户名">
+              <el-input v-model="neo4jConfig.username" placeholder="neo4j" />
+            </el-form-item>
+            <el-form-item label="密码">
+              <el-input
+                v-model="neo4jConfig.password"
+                type="password"
+                show-password
+                placeholder="Neo4j Password"
+              />
+            </el-form-item>
+            <el-form-item label="Database">
+              <el-input v-model="neo4jConfig.database" placeholder="neo4j" />
+            </el-form-item>
+            <el-form-item label="连接池大小">
+              <el-input-number v-model="neo4jConfig.maxConnectionPoolSize" :min="1" :max="500" />
+            </el-form-item>
+            <el-form-item label="获取连接超时(ms)">
+              <el-input-number v-model="neo4jConfig.connectionAcquisitionTimeoutMs" :min="1000" :max="300000" />
+            </el-form-item>
+            <el-form-item label="启用状态">
+              <el-switch v-model="neo4jConfig.enabled" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="neo4jLoading" @click="handleSaveNeo4jConfig">
+                保存配置
+              </el-button>
+              <el-button :disabled="!neo4jConfig.enabled" @click="handleTestNeo4jConnection">
+                测试连接
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
-import { getDifyConfig, saveDifyConfig, testDifyConnection, getRagflowConfig, saveRagflowConfig, testRagflowConnection, getAutogenConfig, saveAutogenConfig, testAutogenConnection, getCrewaiConfig, saveCrewaiConfig, testCrewaiConnection } from '@/api/integrations'
+import {
+  getDifyConfig,
+  saveDifyConfig,
+  testDifyConnection,
+  getRagflowConfig,
+  saveRagflowConfig,
+  testRagflowConnection,
+  getAutogenConfig,
+  saveAutogenConfig,
+  testAutogenConnection,
+  getCrewaiConfig,
+  saveCrewaiConfig,
+  testCrewaiConnection,
+  getNeo4jConfig,
+  saveNeo4jConfig,
+  testNeo4jConnection
+} from '@/api/integrations'
 
 const activeTab = ref('dify')
+const route = useRoute()
 
 // Dify 配置
 const difyConfig = reactive({
@@ -287,6 +373,20 @@ const crewaiConfig = reactive({
   enabled: false
 })
 const crewaiLoading = ref(false)
+
+// Neo4j 配置
+const neo4jConfig = reactive({
+  uri: '',
+  host: 'localhost',
+  port: 7687,
+  username: 'neo4j',
+  password: '',
+  database: 'neo4j',
+  maxConnectionPoolSize: 50,
+  connectionAcquisitionTimeoutMs: 60000,
+  enabled: false
+})
+const neo4jLoading = ref(false)
 
 // 加载 Dify 配置
 const loadDifyConfig = async () => {
@@ -454,11 +554,73 @@ const handleTestCrewaiConnection = async () => {
   }
 }
 
+// 加载 Neo4j 配置
+const loadNeo4jConfig = async () => {
+  try {
+    const res = await getNeo4jConfig()
+    if (res) {
+      neo4jConfig.uri = res.uri || ''
+      neo4jConfig.host = res.host || 'localhost'
+      neo4jConfig.port = Number(res.port) || 7687
+      neo4jConfig.username = res.username || 'neo4j'
+      neo4jConfig.password = res.password || ''
+      neo4jConfig.database = res.database || 'neo4j'
+      neo4jConfig.maxConnectionPoolSize = Number(res.maxConnectionPoolSize) || 50
+      neo4jConfig.connectionAcquisitionTimeoutMs = Number(res.connectionAcquisitionTimeoutMs) || 60000
+      neo4jConfig.enabled = !!res.enabled
+    }
+  } catch (e) {
+    console.error('加载 Neo4j 配置失败:', e)
+  }
+}
+
+// 保存 Neo4j 配置
+const handleSaveNeo4jConfig = async () => {
+  neo4jLoading.value = true
+  try {
+    await saveNeo4jConfig({
+      uri: neo4jConfig.uri,
+      host: neo4jConfig.host,
+      port: neo4jConfig.port,
+      username: neo4jConfig.username,
+      password: neo4jConfig.password,
+      database: neo4jConfig.database,
+      maxConnectionPoolSize: neo4jConfig.maxConnectionPoolSize,
+      connectionAcquisitionTimeoutMs: neo4jConfig.connectionAcquisitionTimeoutMs,
+      enabled: neo4jConfig.enabled
+    })
+    ElMessage.success('Neo4j 配置已保存')
+  } catch (e) {
+    ElMessage.error('保存失败: ' + (e.message || e))
+  } finally {
+    neo4jLoading.value = false
+  }
+}
+
+// 测试 Neo4j 连接
+const handleTestNeo4jConnection = async () => {
+  try {
+    const res = await testNeo4jConnection()
+    if (res.success) {
+      ElMessage.success('Neo4j 连接成功')
+    } else {
+      ElMessage.error(res.message || '连接失败')
+    }
+  } catch (e) {
+    ElMessage.error('测试失败: ' + (e.message || e))
+  }
+}
+
 onMounted(() => {
+  const tab = route.query.tab
+  if (typeof tab === 'string' && ['dify', 'ragflow', 'autogen', 'crewai', 'neo4j'].includes(tab)) {
+    activeTab.value = tab
+  }
   loadDifyConfig()
   loadRagflowConfig()
   loadAutogenConfig()
   loadCrewaiConfig()
+  loadNeo4jConfig()
 })
 </script>
 
@@ -495,7 +657,7 @@ onMounted(() => {
 .framework-info p {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-500);
 }
 
 .header-actions {
@@ -506,7 +668,7 @@ onMounted(() => {
 
 .form-tip {
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   margin-top: 4px;
 }
 

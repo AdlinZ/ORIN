@@ -78,6 +78,23 @@ export const testCrewaiConnection = () => {
     return request.get('/system/integrations/crewai/test');
 };
 
+// ========== Neo4j ==========
+
+// 获取 Neo4j 配置
+export const getNeo4jConfig = () => {
+    return request.get('/system/integrations/neo4j');
+};
+
+// 保存 Neo4j 配置
+export const saveNeo4jConfig = (data) => {
+    return request.post('/system/integrations/neo4j', data);
+};
+
+// 测试 Neo4j 连接
+export const testNeo4jConnection = () => {
+    return request.get('/system/integrations/neo4j/test');
+};
+
 // ========== 统一状态 ==========
 
 // 获取所有集成状态

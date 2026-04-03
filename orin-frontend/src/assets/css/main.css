@@ -20,19 +20,19 @@
   --glass-blur-strong: blur(24px);
 
   /* Subtle ambient light effects */
-  --ambient-glow-primary: radial-gradient(ellipse at top left, rgba(0, 191, 165, 0.08) 0%, transparent 50%);
+  --ambient-glow-primary: radial-gradient(ellipse at top left, rgba(13, 148, 136, 0.08) 0%, transparent 50%);
   --ambient-glow-secondary: radial-gradient(ellipse at top right, rgba(99, 102, 241, 0.06) 0%, transparent 50%);
-  --ambient-glow-accent: radial-gradient(ellipse at bottom, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+  --ambient-glow-accent: radial-gradient(ellipse at bottom, rgba(13, 148, 136, 0.05) 0%, transparent 50%);
 
-  /* ==================== Core Color Palette (Jadeite Cyan) ==================== */
-  /* Primary - 2026 Jadeite Cyan */
-  --orin-primary: #00BFA5;
-  --orin-primary-rgb: 0, 191, 165;
-  --orin-primary-hover: #14B8A6;
-  --orin-primary-active: #0D9488;
-  --orin-primary-soft: #F0FDFA;
-  --orin-primary-fade: rgba(0, 191, 165, 0.1);
-  --orin-glow: 0 0 15px rgba(0, 191, 165, 0.3);
+  /* ==================== Core Color Palette (Teal Enterprise) ====================  */
+  /* Primary - Teal Enterprise #0d9488 */
+  --orin-primary: #0d9488;
+  --orin-primary-rgb: 13, 148, 136;
+  --orin-primary-hover: #0f766e;
+  --orin-primary-active: #0a5c52;
+  --orin-primary-soft: #f0fdfa;
+  --orin-primary-fade: rgba(13, 148, 136, 0.1);
+  --orin-glow: 0 0 15px rgba(13, 148, 136, 0.3);
 
   /* Backgrounds & Text */
   --orin-bg: #F8FAFC;
@@ -59,40 +59,140 @@
 
   --primary-color: var(--orin-primary);
   --primary-hover: var(--orin-primary-hover);
-  --primary-light: var(--orin-primary-fade);
+  --primary-light: rgba(13, 148, 136, 0.1);
   --primary-glow: var(--orin-glow);
 
-  /* Element Plus Overrides - Force Jadeite Cyan Override */
+  /* Element Plus Overrides - Teal Enterprise */
   --el-color-primary: var(--orin-primary) !important;
-  --el-color-primary-light-3: #4bdcc7 !important;
-  --el-color-primary-light-5: #7fe8d9 !important;
-  --el-color-primary-light-7: #b2f3ea !important;
-  --el-color-primary-light-8: #ccf8f2 !important;
-  --el-color-primary-light-9: #e6fdfa !important;
-  --el-color-primary-dark-2: #009984 !important;
+  --el-color-primary-light-3: #2dd4bf !important;
+  --el-color-primary-light-5: #5eead4 !important;
+  --el-color-primary-light-7: #99f6e4 !important;
+  --el-color-primary-light-8: #ccfbf1 !important;
+  --el-color-primary-light-9: #f0fdfa !important;
+  --el-color-primary-dark-2: #0f766e !important;
+  /* Success */
+  --el-color-success: #10b981 !important;
+  --el-color-success-light-3: #6ee7b7 !important;
+  --el-color-success-light-5: #a7f3d0 !important;
+  --el-color-success-light-7: #d1fae5 !important;
+  --el-color-success-light-9: #ecfdf5 !important;
+  --el-color-success-dark-2: #059669 !important;
+  /* Warning */
+  --el-color-warning: #f59e0b !important;
+  --el-color-warning-light-3: #fcd34d !important;
+  --el-color-warning-light-5: #fde68a !important;
+  --el-color-warning-light-7: #fef3c7 !important;
+  --el-color-warning-light-9: #fffbeb !important;
+  --el-color-warning-dark-2: #d97706 !important;
+  /* Danger */
+  --el-color-danger: #ef4444 !important;
+  --el-color-danger-light-3: #fca5a5 !important;
+  --el-color-danger-light-5: #fecaca !important;
+  --el-color-danger-light-7: #fee2e2 !important;
+  --el-color-danger-light-9: #fef2f2 !important;
+  --el-color-danger-dark-2: #dc2626 !important;
+  /* Error */
+  --el-color-error: #ef4444 !important;
+  /* Info */
+  --el-color-info: #64748b !important;
+  --el-color-info-light-3: #cbd5e1 !important;
+  --el-color-info-light-5: #e2e8f0 !important;
+  --el-color-info-light-7: #f1f5f9 !important;
+  --el-color-info-light-9: #f8fafc !important;
+  --el-color-info-dark-2: #475569 !important;
+  /* Text */
+  --el-text-color-primary: var(--neutral-gray-800) !important;
+  --el-text-color-regular: var(--neutral-gray-600) !important;
+  --el-text-color-secondary: var(--neutral-gray-400) !important;
+  --el-text-color-placeholder: var(--neutral-gray-400) !important;
+  /* Border & BG */
   --el-bg-color: var(--orin-bg) !important;
+  --el-border-color: var(--neutral-gray-200) !important;
+  --el-border-color-light: var(--neutral-gray-100) !important;
+  --el-border-color-lighter: var(--neutral-gray-50) !important;
+  --el-fill-color-blank: #ffffff !important;
+  --el-fill-color-light: var(--neutral-gray-50) !important;
 
-  /* Semantic Status Colors */
-  --success-50: #ecfdf5;
+  /* Semantic Status Colors — Success (Emerald) */
+  --success-50:  #ecfdf5;
+  --success-100: #d1fae5;
+  --success-200: #a7f3d0;
+  --success-300: #6ee7b7;
+  --success-400: #34d399;
   --success-500: #10b981;
   --success-600: #059669;
+  --success-700: #047857;
   --success-color: var(--success-500);
+  --success-light: rgba(16, 185, 129, 0.1);
   --success-glow: rgba(16, 185, 129, 0.3);
 
-  --warning-50: #fffbeb;
+  /* Semantic Status Colors — Warning (Amber) */
+  --warning-50:  #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-300: #fcd34d;
+  --warning-400: #fbbf24;
   --warning-500: #f59e0b;
   --warning-600: #d97706;
+  --warning-700: #b45309;
   --warning-color: var(--warning-500);
+  --warning-light: rgba(245, 158, 11, 0.1);
 
-  --error-50: #fef2f2;
+  /* Semantic Status Colors — Error (Red) */
+  --error-50:  #fef2f2;
+  --error-100: #fee2e2;
+  --error-200: #fecaca;
+  --error-300: #fca5a5;
+  --error-400: #f87171;
   --error-500: #ef4444;
   --error-600: #dc2626;
+  --error-700: #b91c1c;
   --error-color: var(--error-500);
+  --error-light: rgba(239, 68, 68, 0.1);
 
-  --info-50: #eff6ff;
+  /* Semantic Status Colors — Info (Blue) */
+  --info-50:  #eff6ff;
+  --info-100: #dbeafe;
+  --info-200: #bfdbfe;
+  --info-300: #93c5fd;
+  --info-400: #60a5fa;
   --info-500: #3b82f6;
   --info-600: #2563eb;
+  --info-700: #1d4ed8;
   --info-color: var(--info-500);
+  --info-light: rgba(59, 130, 246, 0.1);
+
+  /* Accent Colors — Violet (用于图表、标签、多色场景) */
+  --accent-50:  #f5f3ff;
+  --accent-100: #ede9fe;
+  --accent-200: #ddd6fe;
+  --accent-300: #c4b5fd;
+  --accent-400: #a78bfa;
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
+  --accent-700: #6d28d9;
+  --accent-color: var(--accent-500);
+  --accent-light: rgba(139, 92, 246, 0.1);
+
+  /* 图表语义色盘 — 多色场景统一用这一组 */
+  --chart-color-1: var(--orin-primary);    /* Teal    */
+  --chart-color-2: var(--info-500);        /* Blue    */
+  --chart-color-3: var(--accent-500);      /* Violet  */
+  --chart-color-4: var(--success-500);     /* Emerald */
+  --chart-color-5: var(--warning-500);     /* Amber   */
+  --chart-color-6: var(--error-500);       /* Red     */
+
+  /* EP 遗留色语义对齐别名（供陽有硬编码的组件渐进迁移）*/
+  --ep-primary:  var(--orin-primary);   /* 替代 #409EFF */
+  --ep-success:  var(--success-500);    /* 替代 #67C23A */
+  --ep-warning:  var(--warning-500);    /* 替代 #E6A23C */
+  --ep-danger:   var(--error-500);      /* 替代 #F56C6C */
+  --ep-info:     var(--neutral-gray-400); /* 替代 #909399 */
+  --ep-text-primary:   var(--neutral-gray-800); /* 替代 #303133 */
+  --ep-text-regular:   var(--neutral-gray-600); /* 替代 #606266 */
+  --ep-text-secondary: var(--neutral-gray-500); /* 替代 #909399 */
+  --ep-border-base:    var(--neutral-gray-200); /* 替代 #DCDFE6 */
+  --ep-border-light:   var(--neutral-gray-100); /* 替代 #E4E7ED */
 
   /* Neutral Colors (Light Mode) */
   --neutral-bg: var(--orin-bg);
@@ -168,10 +268,10 @@
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 8px 15px -3px rgba(0, 191, 165, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 15px -3px rgba(13, 148, 136, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --shadow-premium: 0 8px 24px rgba(0, 191, 165, 0.05);
+  --shadow-premium: 0 8px 24px rgba(13, 148, 136, 0.05);
   --shadow-glow: 0 0 20px var(--orin-glow);
 
   /* ==================== Transitions ==================== */
@@ -269,12 +369,12 @@ html.dark .el-card__header {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 191, 165, 0.2);
+  background: rgba(13, 148, 136, 0.2);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 191, 165, 0.4);
+  background: rgba(13, 148, 136, 0.4);
 }
 
 html.dark ::-webkit-scrollbar-thumb {
@@ -436,10 +536,45 @@ code {
   border-color: var(--error-color) !important;
 }
 
-/* Cards - Glassmorphism Style */
+/* Cards - 轻量默认样式（数据密集页使用）*/
 .el-card {
+  border: 1px solid var(--neutral-gray-200) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--neutral-white) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all var(--transition-base);
+  overflow: hidden;
+}
+
+html.dark .el-card {
+  background: var(--neutral-gray-50) !important;
+  border-color: var(--neutral-gray-300) !important;
+}
+
+.el-card.is-hover-shadow:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md) !important;
+  border-color: var(--orin-primary) !important;
+}
+
+.el-card__header {
+  background: var(--neutral-gray-50);
+  border-bottom: 1px solid var(--neutral-gray-200);
+  padding: var(--spacing-lg);
+  font-weight: var(--font-semibold);
+}
+
+html.dark .el-card__header {
+  background: var(--neutral-gray-100);
+  border-color: var(--neutral-gray-300);
+}
+
+/* Glass Card - 毛玻璃展示型卡片（首页、概览页使用）*/
+.glass-card {
   border: 1px solid var(--glass-border) !important;
-  border-radius: 20px !important;
+  border-radius: var(--radius-xl) !important;
   background: var(--glass-bg) !important;
   -webkit-backdrop-filter: var(--glass-blur) !important;
   backdrop-filter: var(--glass-blur) !important;
@@ -448,17 +583,10 @@ code {
   overflow: hidden;
 }
 
-.el-card.is-hover-shadow:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 30px var(--orin-amber-glow) !important;
-  border-color: var(--orin-amber) !important;
-}
-
-.el-card__header {
-  background: var(--neutral-gray-50);
-  border-bottom: 1px solid var(--neutral-gray-200);
-  padding: var(--spacing-lg);
-  font-weight: var(--font-semibold);
+.glass-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(13, 148, 136, 0.12) !important;
+  border-color: rgba(13, 148, 136, 0.3) !important;
 }
 
 /* Input Fields */

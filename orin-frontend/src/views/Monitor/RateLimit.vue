@@ -251,7 +251,7 @@ onMounted(() => {
 .form-tip {
   display: block;
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   margin-top: 4px;
 }
 

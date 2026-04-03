@@ -1,70 +1,16 @@
 /* 
-  ORIN Jadeite Design System 2026
-  Theme: Minimalist & High-Vibrancy Intelligent Station
+  ORIN Theme — Element Plus 深度定制层
+  此文件专门用于 main.css 未覆盖的 Element Plus 特化样式
+  通用 token 与颜色定义请在 main.css 中维护
 */
 
+/* --- 橙色品牌辅助色（仅此处定义）--- */
 :root {
-    /* --- Brand Colors: Jadeite Cyan (High Luminance) --- */
-    --orin-primary: #0d9488;
-    /* Teal */
-    --orin-primary-glow: rgba(13, 148, 136, 0.3);
-    --orin-primary-soft: #f0fdfa;
     --orin-orange: #fb923c;
-    /* Brand Orange Accent */
     --orin-orange-soft: #fff7ed;
-
-    /* Semantic Variables */
-    --el-color-primary: var(--orin-primary);
-    --el-border-radius-base: 12px;
-    --el-border-radius-small: 8px;
-    --el-border-radius-round: 24px;
-    --el-border-color: #f0f0f0;
-    --el-border-color-light: #f3f4f6;
-
-    /* Surfaces */
-    --app-bg: #f9fafb;
-    --text-primary: #111827;
-    --text-secondary: #6b7280;
-    --border-subtle: #f3f4f6;
-
-    --panel-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-html.dark {
-    --orin-primary: #26FFDF;
-    --app-bg: #041010;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --el-border-color: #1e293b;
-}
-
-/* --- Global Overrides --- */
-body {
-    background-color: var(--app-bg);
-    color: var(--text-primary);
-    font-family: 'Inter', -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-}
-
-/* --- Element Plus Global Styles --- */
-.el-card {
-    border-radius: 12px !important;
-    border: 1px solid var(--el-border-color) !important;
-}
-
-.el-button {
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-}
-
-.el-input__wrapper,
-.el-textarea__inner {
-    border-radius: 10px !important;
-    box-shadow: none !important;
-    border: 1px solid var(--el-border-color) !important;
-}
-
-/* --- High-end Sliders --- */
+/* --- 高端 Slider --- */
 .el-slider {
     --el-slider-main-bg-color: var(--orin-primary);
     --el-slider-runway-bg-color: #f1f5f9;
@@ -88,22 +34,7 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* --- Scrollbar Customization --- */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #cbd5e1;
-}
-
-/* --- Playground Utilities --- */
+/* --- Playground 专用输入框 --- */
 .orin-playground-input {
     background-color: #f4f4f5;
     border: none !important;

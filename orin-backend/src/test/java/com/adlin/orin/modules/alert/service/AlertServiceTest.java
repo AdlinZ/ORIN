@@ -30,7 +30,7 @@ class AlertServiceTest {
     private AlertHistoryRepository historyRepository;
 
     @Mock
-    private NotificationService notificationService;
+    private AlertNotificationService notificationService;
 
     @InjectMocks
     private AlertService alertService;
@@ -100,7 +100,7 @@ class AlertServiceTest {
 
         assertNotNull(result);
         assertEquals("Test alert", result.getAlertMessage());
-        verify(notificationService).sendNotification(eq(testRule), eq("Test alert"));
+        verify(notificationService).sendRuleNotification(eq(testRule), eq("Test alert"));
     }
 
     @Test

@@ -214,6 +214,12 @@ public class KnowledgeManageController {
         return knowledgeManageService.getAllKnowledgeBases();
     }
 
+    @Operation(summary = "获取知识库详情")
+    @GetMapping("/{kbId}")
+    public KnowledgeBase getKnowledgeBase(@PathVariable String kbId) {
+        return knowledgeManageService.getKnowledgeBaseById(kbId);
+    }
+
     @Operation(summary = "获取智能体绑定的知识列表 (支持分类型 DOCUMENT/STRUCTURED/API)")
     @GetMapping("/agents/{agentId}")
     public List<?> getBoundKnowledge(
@@ -519,7 +525,7 @@ public class KnowledgeManageController {
         // 如果请求没有指定参数，使用知识库的默认配置
         Integer topK = (Integer) payload.get("topK");
         if (topK == null && kbConfig != null && kbConfig.containsKey("topK")) {
-            topK = (Integer) kbConfig.get("topK");
+            topK = asInteger(kbConfig.get("topK"));
         }
         if (topK == null) {
             topK = 3; // 系统默认
@@ -527,12 +533,12 @@ public class KnowledgeManageController {
 
         Double alpha = payload.get("alpha") != null ? ((Number) payload.get("alpha")).doubleValue() : null;
         if (alpha == null && kbConfig != null && kbConfig.containsKey("alpha")) {
-            alpha = (Double) kbConfig.get("alpha");
+            alpha = asDouble(kbConfig.get("alpha"));
         }
 
         Double threshold = payload.get("threshold") != null ? ((Number) payload.get("threshold")).doubleValue() : null;
         if (threshold == null && kbConfig != null && kbConfig.containsKey("similarityThreshold")) {
-            threshold = (Double) kbConfig.get("similarityThreshold");
+            threshold = asDouble(kbConfig.get("similarityThreshold"));
         }
 
         // Rerank 配置：优先使用请求参数，如果没有则使用知识库配置
@@ -550,6 +556,10 @@ public class KnowledgeManageController {
         }
 
         String embeddingModel = (String) payload.get("embeddingModel");
+        if ((embeddingModel == null || embeddingModel.isBlank()) && kbConfig != null
+                && kbConfig.containsKey("embeddingModel")) {
+            embeddingModel = String.valueOf(kbConfig.get("embeddingModel"));
+        }
         String imageUrl = (String) payload.get("imageUrl");
         String vlmModel = (String) payload.get("vlmModel");
 
@@ -571,6 +581,34 @@ public class KnowledgeManageController {
                 null, null, null, true, null, null, null);
 
         return result;
+    }
+
+    private Integer asInteger(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        if (value instanceof String && !((String) value).isBlank()) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Double asDouble(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value instanceof String && !((String) value).isBlank()) {
+            try {
+                return Double.parseDouble((String) value);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @Operation(summary = "获取元知识 (Prompt模板)")
@@ -809,7 +847,7 @@ public class KnowledgeManageController {
     // ==================== Knowledge Task 管理 API ====================
 
     @Operation(summary = "获取知识任务详情", description = "根据任务ID查询知识库任务详情和状态")
-    @GetMapping("/tasks/{taskId}")
+    @GetMapping("/task-detail/{taskId}")
     public ResponseEntity<Map<String, Object>> getKnowledgeTaskDetail(@PathVariable String taskId) {
         Optional<KnowledgeTask> taskOpt = knowledgeTaskRepository.findById(taskId);
         if (taskOpt.isEmpty()) {

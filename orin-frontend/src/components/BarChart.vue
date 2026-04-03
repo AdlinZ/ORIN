@@ -10,7 +10,7 @@ const props = defineProps({
   data: { type: Array, default: () => [] },
   title: { type: String, default: '' },
   height: { type: String, default: '300px' },
-  color: { type: String, default: '#409EFF' }
+  color: { type: String, default: 'var(--orin-primary, #0d9488)' }
 });
 
 const chartRef = ref(null);
@@ -44,7 +44,7 @@ const updateOption = () => {
       textStyle: {
         fontSize: 14,
         fontWeight: 700,
-        color: '#303133'
+        color: 'var(--neutral-gray-800, #1e293b)',
       }
     },
     tooltip: {
@@ -54,7 +54,7 @@ const updateOption = () => {
       },
       backgroundColor: '#ffffff',
       borderColor: '#e4e7ed',
-      textStyle: { color: '#303133' }
+      textStyle: { color: 'var(--neutral-gray-800, #1e293b)' },
     },
     grid: {
       top: 60,
@@ -70,7 +70,7 @@ const updateOption = () => {
         lineStyle: { color: '#e4e7ed' }
       },
       axisLabel: {
-        color: '#909399',
+        color: 'var(--neutral-gray-400, #94a3b8)',
         fontSize: 11,
         interval: 0,
         rotate: xData.length > 5 ? 30 : 0
@@ -82,7 +82,7 @@ const updateOption = () => {
         lineStyle: { color: '#f5f7fa', type: 'dashed' }
       },
       axisLabel: {
-        color: '#909399',
+        color: 'var(--neutral-gray-400, #94a3b8)',
         fontSize: 11
       }
     },

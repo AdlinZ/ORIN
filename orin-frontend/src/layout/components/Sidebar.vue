@@ -156,188 +156,52 @@
 </template>
 
 <script setup>
-import { computed, reactive, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import BrandingLogo from '@/components/BrandingLogo.vue'
 import { useUserStore } from '@/stores/user'
-import Cookies from 'js-cookie'
+import BrandingLogo from '@/components/BrandingLogo.vue'
 import { ElMessage } from 'element-plus'
 import { ROUTES } from '@/router/routes'
-import { TOP_MENU_CONFIG, getVisibleMenus } from '@/router/topMenuConfig'
-import {
-  House, User, SwitchButton, DArrowLeft, DArrowRight, Setting,
-  Box, Monitor, Collection, Setting as SettingIcon, Message, Expand,
-  Refresh, Moon, Sunny, Bell, DataAnalysis, Grid, List, Edit, Avatar,
-  MagicStick, Connection, Tools, Clock, ChatDotRound, Reading, Picture,
-  Document, DataLine, Share, Coin, Warning, Bell as BellIcon, Cpu,
-  Document as DocumentIcon, Upload, Timer, Tickets, Aim, Search, View,
-  Grid as GridIcon, UserFilled, OfficeBuilding, Lightning, Folder, SetUp, Plus,
-  PriceTag, Service, QuestionFilled, WarningFilled, Lock, Key, TrendCharts
-} from '@element-plus/icons-vue'
-import { useDark } from '@vueuse/core'
+import { getVisibleMenus } from '@/router/topMenuConfig'
+import { DArrowLeft, DArrowRight, Refresh, Moon, Sunny, Bell, Expand, User, SwitchButton } from '@element-plus/icons-vue' // eslint-disable-line no-unused-vars
+import { useUser } from '@/composables/useUser'
+import { useTheme } from '@/composables/useTheme'
+import { getIconComponent } from '@/utils/iconMap'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 
+// 共享 composable
+const { userInfo, checkLoginStatus, handleLogout } = useUser()
+const { isDarkMode, toggleTheme } = useTheme()
+
 const activeMenu = computed(() => route.path)
 const isAdmin = computed(() => userStore.isAdmin)
 
-// Dark mode logic
-const isDarkMode = useDark({
-  onChanged(dark) {
-    if (dark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }
-})
-
-// 刷新页面
-const handleRefresh = () => {
-  window.dispatchEvent(new Event('page-refresh'))
-  ElMessage({
-    message: '正在刷新页面数据...',
-    type: 'info',
-    duration: 1500
-  })
-}
-
-// 切换主题
-const toggleTheme = () => {
-  isDarkMode.value = !isDarkMode.value
-}
-
-// 显示通知
-const showNotifications = () => {
-  // 可以在这里打开通知中心，或者通过事件触发
-  ElMessage.info('通知中心功能开发中')
-}
-
-// 显示 AI 助手
-const showSystemAI = () => {
-  ElMessage.info('AI 助手功能开发中')
-}
-
-// 用户信息状态
-const userInfo = reactive({
-  name: '',
-  role: '',
-  avatar: ''
-})
-
-// 角色代码到显示名称的映射
-const roleNameMap = {
-  'ROLE_ADMIN': '管理员',
-  'ROLE_USER': '用户'
-}
-
-// 可见菜单（根据权限过滤）- 使用与 TopNavbar 相同的配置
-const visibleMenus = computed(() => {
-  return getVisibleMenus(isAdmin.value)
-})
-
-// 获取图标组件
-const getIconComponent = (iconName) => {
-  const iconMap = {
-    'Box': Box,
-    'Monitor': Monitor,
-    'Collection': Collection,
-    'Setting': SettingIcon,
-    'Message': Message,
-    'Grid': Grid,
-    'List': List,
-    'Edit': Edit,
-    'Avatar': Avatar,
-    'MagicStick': MagicStick,
-    'Connection': Connection,
-    'Tool': Tools,
-    'Tools': Tools,
-    'Clock': Clock,
-    'ChatDotRound': ChatDotRound,
-    'Reading': Reading,
-    'Picture': Picture,
-    'Document': DocumentIcon,
-    'DataLine': DataLine,
-    'Share': Share,
-    'Coin': Coin,
-    'Warning': Warning,
-    'Bell': BellIcon,
-    'Cpu': Cpu,
-    'Upload': Upload,
-    'Timer': Timer,
-    'Tickets': Tickets,
-    'Aim': Aim,
-    'Search': Search,
-    'View': View,
-    'GridIcon': GridIcon,
-    'UserFilled': UserFilled,
-    'OfficeBuilding': OfficeBuilding,
-    'Lightning': Lightning,
-    'Folder': Folder,
-    'SetUp': SetUp,
-    'Plus': Plus,
-    'PriceTag': PriceTag,
-    'Service': Service,
-    'QuestionFilled': QuestionFilled,
-    'WarningFilled': WarningFilled,
-    'Lock': Lock,
-    'Key': Key,
-    'TrendCharts': TrendCharts,
-    'Router': Connection,
-    'Wrench': SettingIcon,
-    'Robot': Cpu,
-    'Star': MagicStick,
-    'Bug': Warning
-  }
-  return iconMap[iconName] || Box
-}
+// 可见菜单（根据权限过滤）
+const visibleMenus = computed(() => getVisibleMenus(isAdmin.value))
 
 const getSubMenuIndex = (level, item, parentId = '') => {
-  // 子菜单容器使用内部唯一 key，避免与真实路由路径重复时吃掉叶子节点点击。
   const identity = item.id || item.path || item.title || 'menu'
   return `${level}:${parentId}:${identity}`
 }
 
-// 检查登录状态并更新用户信息
-const checkLoginStatus = () => {
-  if (userStore.isLoggedIn && userStore.userInfo) {
-    userInfo.name = userStore.userInfo.nickname || userStore.userInfo.username || '用户'
-    userInfo.avatar = userStore.userInfo.avatar || ''
-    
-    if (userStore.roles && userStore.roles.length > 0) {
-      userInfo.role = roleNameMap[userStore.roles[0]] || userStore.roles[0]
-    } else {
-      userInfo.role = '用户'
-    }
-  } else {
-    userStore.restoreFromCookies()
-    if (userStore.isLoggedIn && userStore.userInfo) {
-       userInfo.name = userStore.userInfo.nickname || userStore.userInfo.username || '用户'
-       userInfo.avatar = userStore.userInfo.avatar || ''
-       userInfo.role = (userStore.roles && userStore.roles.length > 0) ? (roleNameMap[userStore.roles[0]] || userStore.roles[0]) : '用户'
-    } else {
-       userInfo.name = ''
-       userInfo.role = ''
-       userInfo.avatar = ''
-    }
-  }
+const handleRefresh = () => {
+  window.dispatchEvent(new Event('page-refresh'))
+  ElMessage({ message: '正在刷新页面数据...', type: 'info', duration: 1500 })
 }
 
-const handleLogout = () => {
-  userStore.logout()
-  localStorage.removeItem('orin_user')
-  ElMessage.success('已安全退出登录')
-  router.push('/login')
+const showNotifications = () => {
+  ElMessage.info('通知中心功能开发中')
 }
 
 const handleCommand = (command) => {
   switch (command) {
     case 'logout':
-      handleLogout()
+      handleLogout(false)
       break
     case 'profile':
       router.push(ROUTES.PROFILE)

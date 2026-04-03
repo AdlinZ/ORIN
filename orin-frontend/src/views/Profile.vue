@@ -405,13 +405,13 @@ const handleSave = async () => {
 .page-container {
   padding: 24px;
   min-height: 100vh;
-  background: var(--app-bg, #f8fafc);
+  background: var(--orin-bg);
 }
 
 /* Header */
 .profile-header {
-  background: white;
-  border: 1px solid var(--el-border-color-light, #e2e8f0);
+  background: var(--orin-bg-white);
+  border: 1px solid var(--orin-border);
   border-radius: 12px;
   padding: 32px;
   margin-bottom: 24px;
@@ -496,14 +496,14 @@ const handleSave = async () => {
 
 .stat-card {
   border-radius: 12px !important;
-  border: none !important;
-  background: white !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid var(--orin-border) !important;
+  background: var(--orin-bg-white) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
 .stat-card-inner {
@@ -520,8 +520,8 @@ const handleSave = async () => {
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  background: var(--el-color-primary-light-9, #ecfdf5);
-  color: var(--orin-primary, #10b981);
+  background: var(--orin-primary-50);
+  color: var(--orin-primary);
 }
 
 .stat-info {
@@ -544,8 +544,8 @@ const handleSave = async () => {
 /* Content Cards */
 .content-card {
   border-radius: 12px !important;
-  border: 1px solid var(--el-border-color-light, #e2e8f0) !important;
-  background: white !important;
+  border: 1px solid var(--orin-border) !important;
+  background: var(--orin-bg-white) !important;
 }
 
 .card-header {
@@ -597,7 +597,7 @@ const handleSave = async () => {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: var(--text-secondary, #64748b);
+  color: var(--neutral-gray-500);
 }
 
 /* Activity List */
@@ -610,7 +610,7 @@ const handleSave = async () => {
   display: flex;
   gap: 12px;
   padding: 14px 0;
-  border-bottom: 1px solid var(--el-border-color-light, #f1f5f9);
+  border-bottom: 1px solid var(--orin-border);
 }
 
 .activity-item:last-child {
@@ -693,7 +693,7 @@ const handleSave = async () => {
   align-items: center;
   gap: 14px;
   padding: 14px;
-  background: var(--el-fill-color-light, #f8fafc);
+  background: var(--orin-bg);
   border-radius: 10px;
 }
 
@@ -710,8 +710,8 @@ const handleSave = async () => {
 }
 
 .security-icon.phone {
-  background: var(--el-color-primary-light-9, #ecfdf5);
-  color: #3b82f6;
+  background: var(--orin-primary-50);
+  color: var(--info-500);
 }
 
 .security-content {
@@ -731,80 +731,6 @@ const handleSave = async () => {
   color: var(--text-secondary, #64748b);
 }
 
-/* Dark Mode */
-html.dark .page-container {
-  background: #0f172a;
-}
-
-html.dark .profile-header {
-  background: #1e2937 !important;
-  border-color: #374151 !important;
-}
-
-html.dark .user-details {
-  color: #f1f5f9;
-}
-
-html.dark .user-name {
-  color: #f1f5f9;
-}
-
-html.dark .user-email {
-  color: #94a3b8;
-}
-
-html.dark .join-time {
-  color: #94a3b8;
-}
-
-html.dark .stat-icon,
-html.dark .security-icon,
-html.dark .security-icon.phone {
-  background: #374151;
-}
-
-html.dark .stat-card {
-  background: #1e2937 !important;
-  border-color: #374151 !important;
-}
-
-html.dark .stat-value {
-  color: #f1f5f9;
-}
-
-html.dark .content-card {
-  background: #1e2937 !important;
-  border-color: #374151 !important;
-}
-
-html.dark .card-header {
-  color: #f1f5f9;
-}
-
-html.dark .chart-bar {
-  background: #374151;
-}
-
-html.dark .chart-labels {
-  color: #94a3b8;
-}
-
-html.dark .activity-item {
-  border-color: #374151;
-}
-
-html.dark .activity-action {
-  color: #f1f5f9;
-}
-
-html.dark .activity-time,
-html.dark .activity-detail {
-  color: #94a3b8;
-}
-
-html.dark .security-item {
-  background: #0f172a;
-}
 
 html.dark .security-content h4 {
   color: #f1f5f9;

@@ -12,7 +12,7 @@ const props = defineProps({
   title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
   height: { type: String, default: '180px' },
-  color: { type: String, default: '#409EFF' }
+  color: { type: String, default: 'var(--orin-primary, #0d9488)' }
 });
 
 const chartRef = ref(null);
@@ -59,13 +59,13 @@ const updateOption = () => {
             },
             title: {
               fontSize: 13,
-              color: '#606266',
+              color: 'var(--neutral-gray-500, #64748b)',
               lineHeight: 20,
               fontWeight: 600
             },
             subtitle: {
               fontSize: 11,
-              color: '#909399',
+              color: 'var(--neutral-gray-400, #94a3b8)',
               lineHeight: 18
             }
           }

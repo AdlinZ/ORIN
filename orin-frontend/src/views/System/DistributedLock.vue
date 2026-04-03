@@ -340,12 +340,12 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: var(--neutral-gray-900);
 }
 
 .stat-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--neutral-gray-500);
   margin-top: 8px;
 }
 
@@ -357,7 +357,7 @@ onMounted(() => {
 
 .form-tip {
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   margin-top: 4px;
 }
 </style>

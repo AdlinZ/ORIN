@@ -53,12 +53,12 @@ const isWorkspaceRoute = computed(() => $route.name === 'ApplicationWorkspace')
 <style scoped>
 .main-layout {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-color);
 }
 
 .content-area {
-  padding: 20px;
-  min-height: calc(100vh - 64px);
+  padding: var(--orin-page-gap, 20px);
+  min-height: calc(100vh - var(--header-height, 64px));
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -74,7 +74,7 @@ const isWorkspaceRoute = computed(() => $route.name === 'ApplicationWorkspace')
 
 .content-area.is-workspace-page {
   padding: 0;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--header-height, 64px));
   overflow: hidden;
 }
 
@@ -94,13 +94,13 @@ const isWorkspaceRoute = computed(() => $route.name === 'ApplicationWorkspace')
   transform: translateX(10px);
 }
 
-/* 深色模式适配 */
+/* 深色模式自动从 body/html.dark 继承背景色，无需重复声明 */
 html.dark .main-layout {
-  background: #0f0f0f;
+  background: var(--bg-color);
 }
 
 html.dark .content-area {
-  background: #0f0f0f;
+  background: transparent;
 }
 
 /* 侧边栏外部切换按钮 */

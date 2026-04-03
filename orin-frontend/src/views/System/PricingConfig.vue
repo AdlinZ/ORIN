@@ -288,8 +288,8 @@ onMounted(() => {
 <style scoped>
 .page-container { padding: 0; }
 .price-highlight { color: var(--primary-color); font-weight: bold; }
-.text-success { color: var(--success-color); }
-.text-danger { color: var(--danger-color); }
+.text-success { color: var(--success-500); }
+.text-danger { color: var(--error-500); }
 
 .markup-tool {
   display: flex;
@@ -324,7 +324,7 @@ onMounted(() => {
 
 /* Dark Mode Adaptation */
 html.dark .markup-tool {
-  background: var(--neutral-gray-100);
+  background: var(--neutral-gray-800);
   color: var(--neutral-gray-400);
 }
 

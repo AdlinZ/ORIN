@@ -164,14 +164,14 @@ const sendMessage = async () => {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: #f9fafb;
+    background-color: var(--neutral-gray-50);
     font-family: 'Inter', sans-serif;
 }
 
 .chat-header {
     background: white;
     padding: 16px 24px;
-    border-bottom: 1px solid #eaecf0;
+    border-bottom: 1px solid var(--neutral-gray-200);
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
@@ -186,7 +186,7 @@ const sendMessage = async () => {
 .app-icon {
     width: 40px;
     height: 40px;
-    background: #eff6ff;
+    background: var(--info-light);
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -197,14 +197,14 @@ const sendMessage = async () => {
 .app-info h1 {
     font-size: 16px;
     font-weight: 600;
-    color: #101828;
+    color: var(--neutral-gray-900);
     margin: 0;
 }
 
 .status-badge {
     font-size: 12px;
-    color: #027a48;
-    background: #ecfdf5;
+    color: var(--success-600);
+    background: var(--success-light);
     padding: 2px 8px;
     border-radius: 12px;
     margin-top: 4px;
@@ -236,7 +236,7 @@ const sendMessage = async () => {
 .avatar {
     width: 32px;
     height: 32px;
-    background: #f2f4f7;
+    background: var(--neutral-gray-100);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -246,7 +246,7 @@ const sendMessage = async () => {
 }
 
 .message-row.user .avatar {
-    background: #eff6ff;
+    background: var(--info-light);
 }
 
 .message-bubble {
@@ -255,14 +255,14 @@ const sendMessage = async () => {
     border-radius: 12px;
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
     max-width: 80%;
-    border: 1px solid #eaecf0;
+    border: 1px solid var(--neutral-gray-200);
     font-size: 14px;
     line-height: 1.5;
-    color: #101828;
+    color: var(--neutral-gray-900);
 }
 
 .message-row.user .message-bubble {
-    background: #155eef;
+    background: var(--info-600);
     color: white;
     border: none;
 }
@@ -270,7 +270,7 @@ const sendMessage = async () => {
 .chat-input-area {
     background: white;
     padding: 24px;
-    border-top: 1px solid #eaecf0;
+    border-top: 1px solid var(--neutral-gray-200);
 }
 
 .input-wrapper {
@@ -281,7 +281,7 @@ const sendMessage = async () => {
 .footer-text {
     text-align: center;
     font-size: 12px;
-    color: #98a2b3;
+    color: var(--neutral-gray-400);
     margin-top: 12px;
 }
 

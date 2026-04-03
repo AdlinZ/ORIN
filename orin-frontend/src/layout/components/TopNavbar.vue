@@ -355,26 +355,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
-import { useDark } from '@vueuse/core'
 import { ROUTES } from '@/router/routes'
-import { TOP_MENU_CONFIG, getVisibleMenus, getActiveMenuId } from '@/router/topMenuConfig'
+import { getVisibleMenus, getActiveMenuId } from '@/router/topMenuConfig'
 import NotificationCenter from './NotificationCenter.vue'
 import DeveloperHub from './DeveloperHub.vue'
 import {
   Bell, ArrowDown, ArrowRight, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
-  Box, Monitor, Collection, Setting as SettingIcon,
-  List, ChatDotRound, Cpu, MagicStick, Connection,
-  DataLine, TrendCharts, Share, Warning,
-  Document, Picture, Histogram, Search, View, Grid,
-  Notebook, Link, Coin, Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock,
-  Operation, TrendCharts as TrendChartsIcon, CircleCheck, CircleClose, Clock, Message,
-  Fold, Expand, Money, Upload, WarningFilled, Service, QuestionFilled,
-  PriceTag, OfficeBuilding, UserFilled, Lightning, Folder, SetUp, Plus, Grid as GridIcon,
-  Avatar, Timer, Tickets, Aim, Reading, Key
+  Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock,
+  Fold, Expand, Cpu, MagicStick
 } from '@element-plus/icons-vue'
 import BrandingLogo from '@/components/BrandingLogo.vue'
 import { v4 as uuidv4 } from 'uuid'
@@ -383,82 +375,42 @@ import { chatAgent, getAgentList } from '@/api/agent'
 import { getServerHardware, getTokenHistory } from '@/api/monitor'
 import { getModelConfig } from '@/api/modelConfig'
 import { getKnowledgeList } from '@/api/knowledge'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import Cookies from 'js-cookie'
+import { ElMessage } from 'element-plus'
+import { useTheme } from '@/composables/useTheme'
+import { useUser } from '@/composables/useUser'
+import { getIconComponent } from '@/utils/iconMap'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const appStore = useAppStore()
 
-// Icon mapping
-const iconMap = {
-  Box, Monitor, Collection, Setting: SettingIcon,
-  List, ChatDotRound, Cpu, MagicStick, Connection,
-  DataLine, TrendCharts, Share, Warning,
-  Document, Picture, Histogram, Search, View, Grid: GridIcon,
-  User, Notebook, Link, Coin, Operation, TrendChartsIcon, Clock, Odometer, Message,
-  Money, Upload, WarningFilled, Service, QuestionFilled,
-  PriceTag, OfficeBuilding, UserFilled, Lightning, Folder, SetUp, Plus, Avatar, Timer, Tickets, Aim,
-  Reading, Key,
-  Tools: SettingIcon,
-  Router: Connection,
-  Wrench: SettingIcon,
-  Robot: Cpu,
-  Star: MagicStick,
-  Bug: Warning
-}
+// 共享 composable
+const { isDarkMode, toggleTheme } = useTheme()
+const { handleLogout: _doLogout } = useUser()
 
 // State
 const activeDropdown = ref(null)
 const showMobileMenu = ref(false)
 const showNotificationCenter = ref(false)
 const showDevHub = ref(false)
-const unreadCount = ref(0) // 初始未读数量为 0
-
-// Dark mode logic (from original Navbar)
-const isDarkMode = useDark({
-  onChanged(dark) {
-    if (dark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }
-})
+const unreadCount = ref(0)
 
 // Computed
 const userInfo = computed(() => {
-  // If no user info is available, try to restore from cookies
-  if (!userStore.userInfo) {
-      userStore.restoreFromCookies()
-  }
+  if (!userStore.userInfo) userStore.restoreFromCookies()
   return {
     name: userStore.userInfo?.nickname || userStore.userInfo?.username || '用户',
     avatar: userStore.userInfo?.avatar || ''
   }
 })
 
-const isAdmin = computed(() => {
-  return userStore.isAdmin
-})
-
-const visibleMenus = computed(() => {
-  return getVisibleMenus(isAdmin.value)
-})
-
-const activeMenuId = computed(() => {
-  return getActiveMenuId(route.path)
-})
+const isAdmin = computed(() => userStore.isAdmin)
+const visibleMenus = computed(() => getVisibleMenus(isAdmin.value))
+const activeMenuId = computed(() => getActiveMenuId(route.path))
 
 // Methods
-const getIconComponent = (iconName) => {
-  return iconMap[iconName] || Box
-}
-
-const goHome = () => {
-  router.push(ROUTES.HOME)
-}
+const goHome = () => router.push(ROUTES.HOME)
 
 const handleRefresh = () => {
   // 触发页面刷新事件
@@ -487,9 +439,8 @@ const handleRefresh = () => {
   }, 5000)
 }
 
-const toggleTheme = () => {
-  isDarkMode.value = !isDarkMode.value
-}
+const toggleMobileMenu = () => { showMobileMenu.value = !showMobileMenu.value }
+const closeMobileMenu = () => { showMobileMenu.value = false }
 
 const handleMenuHover = (menuId) => {
   activeDropdown.value = menuId
@@ -740,25 +691,8 @@ const handleUserCommand = (command) => {
   }
 }
 
-const handleLogout = () => {
-  ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    Cookies.remove('token')
-    router.push('/login')
-    ElMessage.success('已退出登录')
-  }).catch(() => {})
-}
+const handleLogout = () => _doLogout(true)
 
-const toggleMobileMenu = () => {
-  showMobileMenu.value = !showMobileMenu.value
-}
-
-const closeMobileMenu = () => {
-  showMobileMenu.value = false
-}
 
 onMounted(() => {
 })

@@ -1,18 +1,22 @@
 <template>
   <div class="document-detail-page">
-    <PageHeader
-      title="文档详情"
-      description="查看原文、索引内容与分段向量化状态"
-      icon="Document"
-    />
-    <!-- Header with Breadcrumb -->
-    <div class="detail-header">
+    <div class="detail-header-card">
+      <div class="header-topbar">
+        <el-button link :icon="ArrowLeft" @click="goBackToKB">
+          返回知识库工作台
+        </el-button>
+      </div>
       <div class="breadcrumb">
-        <span class="back-link" @click="$router.push(ROUTES.KNOWLEDGE.LIST)">知识库</span>
+        <span class="back-link" @click="goBackToList">知识库</span>
         <span class="separator">/</span>
         <span class="back-link" @click="goBackToKB">{{ kbName }}</span>
         <span class="separator">/</span>
         <span class="current">{{ documentData.name }}</span>
+      </div>
+
+      <div class="header-title">
+        <h1>{{ documentData.name || '文档详情' }}</h1>
+        <p>查看原文、索引内容与分段向量化状态</p>
       </div>
     </div>
 
@@ -40,7 +44,7 @@
         >
           立即向量化
         </el-button>
-        <el-button :icon="Setting">
+        <el-button :icon="Setting" @click="activeTab = 'settings'">
           设置
         </el-button>
         <el-button
@@ -491,19 +495,20 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ROUTES } from '@/router/routes';
 import {
-  Document, Search, Plus, Setting, Delete, Refresh, Edit,
-  Headset, VideoCamera, Picture, Download, DocumentCopy, Loading, DataLine
+  ArrowLeft, Document, Search, Plus, Setting, Delete, Refresh, Edit,
+  Headset, Picture, Download, DocumentCopy, Loading, DataLine
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
 import { useUserStore } from '@/stores/user';
-import PageHeader from '@/components/PageHeader.vue';
 
 const route = useRoute();
 const router = useRouter();
 
 const kbId = ref(route.params.kbId);
 const docId = ref(route.params.docId);
+const returnTab = ref(route.query.returnTab || 'graph');
+const returnSelectedDoc = ref(route.query.selectedDoc || docId.value);
 const kbName = ref('');
 const documentData = ref({});
 const segments = ref([]);
@@ -517,7 +522,6 @@ const editingSegment = reactive({ id: '', content: '' });
 const chunkStats = ref({ parentCount: 0, childCount: 0, chunkingMode: 'PARENT_CHILD' });
 const retrievalInfo = ref(null);
 const retrievalLoading = ref(false);
-const activeIndexCollapse = ref([]);
 const submitting = ref(false);
 
 const form = reactive({
@@ -564,7 +568,7 @@ const loadDocumentData = async () => {
     const doc = await request.get(`/knowledge/documents/${docId.value}`);
     if (!doc) {
       ElMessage.error('文档不存在');
-      router.push(ROUTES.KNOWLEDGE.LIST);
+      router.push(ROUTES.RESOURCES.KNOWLEDGE);
       return;
     }
     
@@ -921,17 +925,35 @@ const handleDelete = () => {
   ElMessageBox.confirm(`确认删除文档 [${documentData.value.name}] 吗？`, '警告', {
     type: 'warning',
     confirmButtonClass: 'el-button--danger'
-  }).then(() => {
-    const docs = JSON.parse(localStorage.getItem(`orin_mock_docs_${kbId.value}`) || '[]');
-    const filtered = docs.filter(d => d.id !== docId.value);
-    localStorage.setItem(`orin_mock_docs_${kbId.value}`, JSON.stringify(filtered));
+  }).then(async () => {
+    await request.delete(`/knowledge/documents/${docId.value}`);
     ElMessage.success('已删除');
-    router.push(`/dashboard/resources/knowledge/detail/${kbId.value}`);
+    router.push({
+      path: `/dashboard/resources/knowledge/detail/${kbId.value}`,
+      query: {
+        returnTab: returnTab.value,
+        selectedDoc: returnSelectedDoc.value
+      }
+    });
+  }).catch((error) => {
+    if (error !== 'cancel') {
+      ElMessage.error('删除文档失败');
+    }
   });
 };
 
 const goBackToKB = () => {
-  router.push(`/dashboard/resources/knowledge/detail/${kbId.value}`);
+  router.push({
+    path: `/dashboard/resources/knowledge/detail/${kbId.value}`,
+    query: {
+      returnTab: returnTab.value,
+      selectedDoc: returnSelectedDoc.value
+    }
+  });
+};
+
+const goBackToList = () => {
+  router.push(ROUTES.RESOURCES.KNOWLEDGE);
 };
 
 onMounted(() => {
@@ -943,47 +965,67 @@ onMounted(() => {
 
 <style scoped>
 .document-detail-page {
-  padding: 24px 32px;
-  background: #FCFCFD;
+  padding: 20px;
+  background: #F4F6FA;
   min-height: 100vh;
 }
 
-.detail-header {
-  margin-bottom: 24px;
+.detail-header-card {
+  margin-bottom: 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.header-topbar {
+  margin-bottom: 8px;
 }
 
 .breadcrumb {
-  font-size: 14px;
-  color: var(--neutral-gray-500);
+  font-size: 13px;
+  color: #6b7280;
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 8px;
 }
 
 .back-link {
   cursor: pointer;
   transition: color 0.2s;
 }
-.back-link:hover { color: var(--orin-blue); }
+.back-link:hover { color: #2563eb; }
 
 .separator {
-  color: var(--neutral-gray-300);
+  color: #d1d5db;
 }
 
 .current {
   font-weight: 600;
-  color: var(--neutral-gray-800);
+  color: #111827;
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 20px;
+  color: #111827;
+}
+
+.header-title p {
+  margin: 6px 0 0;
+  color: #4b5563;
 }
 
 .doc-info-section {
   display: flex;
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 12px;
   align-items: flex-start;
   background: white;
-  padding: 20px;
-  border-radius: 10px;
-  border: 1px solid var(--neutral-gray-200);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
 }
 
 .icon-wrapper {
@@ -1007,41 +1049,48 @@ onMounted(() => {
   margin: 0 0 8px 0;
   font-size: 20px;
   font-weight: 700;
-  color: var(--neutral-gray-900);
+  color: #111827;
 }
 
 .meta-info {
   font-size: 13px;
-  color: var(--neutral-gray-500);
+  color: #6b7280;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .meta-info .separator {
-  color: var(--neutral-gray-300);
+  color: #d1d5db;
 }
 
 .header-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .doc-tabs {
   background: white;
-  border-radius: 8px;
-  padding: 16px 24px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 10px 16px 16px;
 }
 
 .segments-container {
-  padding: 8px 0;
+  padding: 8px 0 0;
 }
 
 .tool-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 .left-tools {
@@ -1050,7 +1099,7 @@ onMounted(() => {
 }
 
 .search-input {
-  width: 300px;
+  width: 340px;
 }
 
 .right-tools {
@@ -1062,26 +1111,26 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .segment-card {
-  background: #FAFAFA;
-  border: 1px solid var(--neutral-gray-200);
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   padding: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .segment-card:hover {
-  border-color: var(--orin-amber);
+  border-color: #93c5fd;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .segment-card.selected {
-  border-color: var(--orin-amber);
-  background: #FFFBEB;
+  border-color: #3b82f6;
+  background: #eff6ff;
 }
 
 .segment-header {
@@ -1094,12 +1143,12 @@ onMounted(() => {
 .segment-number {
   font-size: 14px;
   font-weight: 600;
-  color: var(--neutral-gray-700);
+  color: #1f2937;
 }
 
 .segment-meta {
   font-size: 12px;
-  color: var(--neutral-gray-500);
+  color: #6b7280;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1108,7 +1157,7 @@ onMounted(() => {
 .segment-content {
   font-size: 14px;
   line-height: 1.6;
-  color: var(--neutral-gray-700);
+  color: #374151;
   margin-bottom: 12px;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -1134,13 +1183,13 @@ onMounted(() => {
 }
 
 .settings-panel {
-  padding: 20px 0;
+  padding: 10px 4px 4px;
 }
 
 .slider-value {
   margin-left: 12px;
   font-size: 13px;
-  color: var(--neutral-gray-500);
+  color: #6b7280;
 }
 
 .chunk-stats-display {
@@ -1150,7 +1199,7 @@ onMounted(() => {
 
 .form-tip {
   font-size: 12px;
-  color: var(--neutral-gray-500);
+  color: #6b7280;
   margin-top: 4px;
 }
 
@@ -1213,14 +1262,15 @@ onMounted(() => {
 }
 
 .history-timeline {
-  padding: 20px 0;
+  padding: 10px 4px 4px;
   max-width: 600px;
 }
 
 .original-content-container {
-  padding: 20px;
+  padding: 14px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
   min-height: 400px;
 }
 
@@ -1270,12 +1320,12 @@ onMounted(() => {
 }
 
 .media-icon {
-  color: var(--orin-blue);
+  color: #2563eb;
 }
 
 .file-name {
   font-size: 14px;
-  color: var(--neutral-gray-600);
+  color: #4b5563;
   font-weight: 500;
 }
 
@@ -1292,7 +1342,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 40px;
-  color: var(--neutral-gray-400);
+  color: #9ca3af;
   gap: 12px;
 }
 
@@ -1303,7 +1353,10 @@ onMounted(() => {
 }
 
 .index-file-container {
-  padding: 20px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
   min-height: 400px;
 }
 
@@ -1313,7 +1366,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--neutral-gray-200);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .index-status {
@@ -1324,7 +1377,7 @@ onMounted(() => {
 
 .index-char-count {
   font-size: 13px;
-  color: var(--neutral-gray-500);
+  color: #6b7280;
 }
 
 .index-actions {
@@ -1338,8 +1391,8 @@ onMounted(() => {
 
 .index-full-content {
   background: #f9fafb;
-  border: 1px solid var(--neutral-gray-200);
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   padding: 16px;
   margin-bottom: 24px;
   max-height: 500px;
@@ -1352,14 +1405,15 @@ onMounted(() => {
   font-family: 'Monaco', 'Menlo', 'Ubuntu', monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--neutral-gray-700);
+  color: #374151;
   margin: 0;
 }
 
 .index-stats {
   padding: 20px;
   background: #f9fafb;
-  border-radius: 8px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
 }
 
 .vector-info {
@@ -1381,7 +1435,7 @@ onMounted(() => {
 
 .vector-array-section h4 {
   margin-bottom: 10px;
-  color: var(--text-primary);
+  color: #111827;
 }
 
 .vector-array {
@@ -1393,5 +1447,53 @@ onMounted(() => {
   word-break: break-all;
   max-height: 200px;
   overflow-y: auto;
+}
+
+:deep(.doc-tabs .el-tabs__header) {
+  margin-bottom: 10px;
+}
+
+:deep(.doc-tabs .el-tabs__nav-wrap::after) {
+  background-color: #e5e7eb;
+}
+
+:deep(.doc-tabs .el-tabs__item) {
+  height: 36px;
+  line-height: 36px;
+}
+
+@media (max-width: 1120px) {
+  .document-detail-page {
+    padding: 12px;
+  }
+
+  .doc-info-section {
+    flex-direction: column;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .tool-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .left-tools,
+  .right-tools {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .chunk-stats-display {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 }
 </style>

@@ -656,8 +656,8 @@ onUnmounted(() => {
 }
 
 .status-dot.active {
-  background-color: #13ce66;
-  box-shadow: 0 0 0 2px rgba(19, 206, 102, 0.2);
+  background-color: var(--success-500);
+  box-shadow: 0 0 0 2px var(--success-light);
 }
 
 html.dark .status-dot.active {
@@ -665,7 +665,7 @@ html.dark .status-dot.active {
 }
 
 .status-dot.inactive {
-  background-color: #909399;
+  background-color: var(--neutral-gray-400);
   opacity: 0.6;
 }
 
@@ -776,14 +776,14 @@ html.dark .icon-btn:hover {
 }
 
 html.dark .role-admin {
-  background: rgba(245, 108, 108, 0.15);
-  border-color: rgba(245, 108, 108, 0.3);
-  color: #f56c6c;
+  background: var(--error-light);
+  border-color: var(--error-100);
+  color: var(--error-500);
 }
 
 html.dark .role-user {
-  background: rgba(38, 255, 223, 0.1);
-  border-color: rgba(38, 255, 223, 0.2);
+  background: var(--primary-light);
+  border-color: var(--primary-100);
   color: var(--orin-primary);
 }
 

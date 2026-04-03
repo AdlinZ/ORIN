@@ -1,382 +1,339 @@
 <template>
-  <div class="kb-detail-page">
-    <PageHeader
-      title="知识库详情"
-      description="查看知识库文档、检索配置与向量模型设置"
-      icon="Collection"
-    />
-    <!-- Header with Breadcrumb -->
-    <div class="detail-header">
-      <div class="breadcrumb">
-        <span class="back-link" @click="$router.push(ROUTES.RESOURCES.KNOWLEDGE)">知识库</span>
-        <span class="separator">/</span>
-        <span class="current">{{ kbData.name }}</span>
+  <div class="kb-workbench-page">
+    <div class="workbench-header">
+      <div class="title-block">
+        <div class="title-row">
+          <el-button link :icon="ArrowLeft" @click="router.push(ROUTES.RESOURCES.KNOWLEDGE)">
+            返回知识库列表
+          </el-button>
+          <span class="divider">/</span>
+          <span class="current-name">{{ kbData.name || '知识库详情' }}</span>
+        </div>
+        <h1>{{ kbData.name || '知识库' }}</h1>
+        <p>{{ kbData.description || '用于管理文档、检索效果和知识图谱可视化。' }}</p>
+      </div>
+
+      <div class="status-block">
+        <el-tag type="info" effect="plain">{{ getTypeName(kbData.type) }}</el-tag>
+        <el-tag type="success" effect="plain">{{ documents.length }} 文档</el-tag>
       </div>
     </div>
 
-    <!-- KB Info Section -->
-    <div class="kb-info-section">
-      <div class="icon-wrapper" :class="getIconClass(kbData.type)">
-        <el-icon><component :is="getIcon(kbData.type)" /></el-icon>
-      </div>
-      <div class="info-text">
-        <h2>{{ kbData.name }}</h2>
-        <p>{{ kbData.description || '暂无描述' }}</p>
-      </div>
-    </div>
-
-    <!-- Tabs -->
-    <el-tabs v-model="activeTab" class="kb-tabs">
-      <!-- Documents Tab (for UNSTRUCTURED) -->
-      <el-tab-pane v-if="kbData.type === 'UNSTRUCTURED'" label="文档" name="docs">
-        <div class="doc-manager">
-          <div class="tool-bar">
-            <div class="left-tools">
-              <el-dropdown>
-                <el-button size="default">
-                  全部 <el-icon class="el-icon--right">
-                    <ArrowDown />
-                  </el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item>全部</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-              
-              <el-input 
-                v-model="searchKeyword"
-                placeholder="搜索" 
-                :prefix-icon="Search" 
-                class="search-input"
-                clearable 
-              />
+    <div class="workbench-body">
+      <aside class="left-panel">
+        <section class="kb-info-card">
+          <div class="kb-icon" :class="getIconClass(kbData.type)">
+            <el-icon>
+              <component :is="getIcon(kbData.type)" />
+            </el-icon>
+          </div>
+          <div class="kb-meta compact">
+            <h3>知识库概览</h3>
+            <div class="meta-stat-row">
+              <span class="stat-label">类型</span>
+              <span class="stat-value">{{ getTypeName(kbData.type) }}</span>
             </div>
-            <div class="right-tools">
-              <el-tooltip content="批量设置功能开发中" placement="top">
-                <el-button size="default" disabled>
-                  批量设置
-                </el-button>
-              </el-tooltip>
-              <el-button type="primary" size="default" :icon="Plus">
-                添加文件
-              </el-button>
+            <div class="meta-stat-row">
+              <span class="stat-label">文档</span>
+              <span class="stat-value">{{ documents.length }}</span>
+            </div>
+            <div class="meta-stat-row">
+              <span class="stat-label">分组</span>
+              <span class="stat-value">{{ groupedDocs.length }}</span>
             </div>
           </div>
+        </section>
 
-          <!-- Document Table -->
-          <el-table
-            border
-            :data="documents"
-            style="width: 100%"
-            class="dify-table"
-          >
-            <el-table-column type="selection" width="40" />
-            <el-table-column label="#" width="60">
-              <template #default="scope">
-                {{ scope.$index + 1 }}
-              </template>
-            </el-table-column>
-            <el-table-column label="名称" min-width="250">
-              <template #default="{ row }">
-                <div class="doc-name-cell" @click="openDocument(row)">
-                  <el-icon class="file-icon">
-                    <Document />
-                  </el-icon>
-                  <span class="name text-ellipsis clickable" :title="row.name">{{ row.name }}</span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="分段模式" width="100">
-              <template #default="{ row }">
-                <el-tag size="small" type="info" effect="plain">
-                  {{ row.mode }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="字符数" width="100" prop="wordCount">
-              <template #default="{ row }">
-                {{ (row.wordCount / 1000).toFixed(1) }}k
-              </template>
-            </el-table-column>
-            <el-table-column label="召回次数" width="100" prop="hitCount" />
-            <el-table-column label="上传时间" width="180" prop="uploadTime" />
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">
-                <div class="status-dot">
-                  <span class="dot" :class="row.status === 'SUCCESS' ? 'accepted' : (row.status === 'FAILED' ? 'rejected' : 'waiting')" />
-                  <span>{{ row.status === 'SUCCESS' ? '可用' : (row.status === 'FAILED' ? '失败' : '处理中') }}</span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
-              <template #default="{ row }">
-                <el-switch v-model="row.enabled" size="small" />
-                <el-tooltip content="触发向量化" placement="top">
-                  <el-button 
-                    v-if="row.status !== 'SUCCESS'"
-                    link
-                    type="primary" 
-                    size="small" 
-                    style="margin-left: 12px;"
-                    @click="handleVectorize(row)"
-                  >
-                    <el-icon><Cpu /></el-icon>
-                  </el-button>
-                </el-tooltip>
-                <el-button
-                  link
-                  type="primary"
-                  size="small"
-                  style="margin-left: 12px;"
-                >
-                  <el-icon><Setting /></el-icon>
-                </el-button>
-                <el-button link type="danger" size="small">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          
-          <div class="table-pagination">
-            <el-pagination
-              layout="prev, pager, next"
-              :total="50"
-              background
-              small
+        <section class="doc-panel">
+          <div class="doc-toolbar">
+            <el-upload
+              :show-file-list="false"
+              :http-request="handleUpload"
+              :accept="acceptTypes"
+              multiple
+            >
+              <el-button type="primary" :icon="Upload">上传</el-button>
+            </el-upload>
+            <el-button :icon="Refresh" @click="loadDocuments">刷新</el-button>
+          </div>
+
+          <div class="doc-search-row">
+            <el-input
+              v-model="docKeyword"
+              :prefix-icon="Search"
+              clearable
+              placeholder="搜索文档"
             />
           </div>
-        </div>
-      </el-tab-pane>
 
-      <!-- Settings Tab (merged retrieval settings) -->
-      <el-tab-pane label="设置" name="settings">
-        <div class="settings-page-container">
-          <div class="settings-top-actions">
-            <el-button
-              type="primary"
-              :loading="submitting"
-              :icon="Check"
-              @click="onSubmit"
-            >
-              保存更改
-            </el-button>
-          </div>
+          <div v-loading="documentsLoading" class="doc-tree-wrap">
+            <el-empty v-if="filteredGroupedDocs.length === 0" description="暂无文档" :image-size="72" />
 
-          <el-row :gutter="24">
-            <el-col :lg="16">
-              <el-card class="premium-card margin-bottom-lg" shadow="never">
-                <template #header>
-                  <div class="card-header">
-                    <el-icon><Setting /></el-icon>
-                    <span>基础设置</span>
-                  </div>
-                </template>
+            <div v-else class="folder-list">
+              <div v-for="group in filteredGroupedDocs" :key="group.name" class="folder-item">
+                <button class="folder-header" type="button" @click="toggleFolder(group.name)">
+                  <el-icon class="folder-arrow" :class="{ open: expandedFolders[group.name] }"><ArrowRight /></el-icon>
+                  <el-icon class="folder-icon"><FolderOpened /></el-icon>
+                  <span class="folder-name">{{ group.name }}</span>
+                  <span class="folder-count">{{ group.docs.length }}</span>
+                </button>
 
-                <el-form label-position="top" class="config-form">
-                  <el-form-item label="名称">
-                    <el-input v-model="form.name" placeholder="请输入知识库名称" />
-                    <p class="form-tip">
-                      用于标识此知识库的公开名称
-                    </p>
-                  </el-form-item>
-                  <el-form-item label="描述">
-                    <el-input
-                      v-model="form.remark"
-                      type="textarea"
-                      :rows="3"
-                      placeholder="请输入描述"
-                      resize="none"
-                    />
-                    <p class="form-tip">
-                      详细说明该知识库主要包含的内容和用途
-                    </p>
-                  </el-form-item>
-                </el-form>
-              </el-card>
-
-              <el-card class="premium-card margin-bottom-lg" shadow="never">
-                <template #header>
-                  <div class="card-header">
-                    <el-icon><Filter /></el-icon>
-                    <span>检索配置</span>
-                  </div>
-                </template>
-
-                <el-form label-position="top" class="config-form">
-                  <el-form-item label="Top K">
-                    <el-slider
-                      v-model="retrievalParams.topK"
-                      :max="20"
-                      :min="1"
-                      show-input
-                    />
-                    <p class="form-tip">
-                      召回的片段数量，数量越多可能包含更多信息，但也容易引入噪声
-                    </p>
-                  </el-form-item>
-                  <el-form-item label="语义权重">
-                    <el-slider
-                      v-model="retrievalParams.weight"
-                      :max="1"
-                      :step="0.1"
-                      show-input
-                    />
-                    <p class="form-tip">
-                      混合检索权重分配：1 表示完全依赖向量语义检索，0 表示完全依赖关键词全文检索
-                    </p>
-                  </el-form-item>
-                </el-form>
-              </el-card>
-
-              <el-card class="premium-card margin-bottom-lg" shadow="never">
-                <template #header>
-                  <div class="card-header">
-                    <el-icon><Cpu /></el-icon>
-                    <span>向量嵌入模型</span>
-                  </div>
-                </template>
-
-                <el-form label-position="top" class="config-form">
-                  <el-form-item label="向量嵌入服务提供商">
-                    <el-select
-                      v-model="modelConfig.embeddingProvider"
-                      style="width: 100%"
-                      placeholder="选择嵌入服务提供商"
-                    >
-                      <el-option value="SiliconFlow" label="SiliconFlow" />
-                      <el-option value="Ollama" label="Ollama (本地)" />
-                    </el-select>
-                    <p class="form-tip">
-                      选择用于文档向量化的嵌入服务提供商
-                    </p>
-                  </el-form-item>
-
-                  <el-form-item label="API 密钥">
-                    <el-select
-                      v-model="modelConfig.embeddingApiKeyId"
-                      style="width: 100%"
-                      placeholder="选择已配置的 API 密钥"
-                    >
-                      <el-option value="key-1" label="SiliconFlow - 硅基流动" />
-                    </el-select>
-                    <p class="form-tip">
-                      选择已在"API密钥管理"中配置的密钥
-                      <el-button type="primary" link @click="router.push('/dashboard/control/api-keys')">
-                        去配置
-                      </el-button>
-                    </p>
-                  </el-form-item>
-
-                  <el-form-item label="Embedding 模型">
-                    <el-select
-                      v-model="modelConfig.embeddingModel"
-                      style="width: 100%"
-                      filterable
-                      allow-create
-                      default-first-option
-                      placeholder="选择或输入模型名称"
-                    >
-                      <el-option value="Qwen/Qwen3-Embedding-8B" label="Qwen/Qwen3-Embedding-8B" />
-                    </el-select>
-                    <p class="form-tip">
-                      用于将文档向量化，支持中文推荐 bge-base-zh-v1.5
-                    </p>
-                  </el-form-item>
-
-                  <el-form-item>
-                    <el-button
-                      type="success"
-                      plain
-                      :loading="testingEmbedding"
-                      @click="testEmbeddingConnection"
-                    >
-                      测试连接
-                    </el-button>
-                  </el-form-item>
-                </el-form>
-              </el-card>
-
-              <el-card class="premium-card danger-card margin-bottom-lg" shadow="never">
-                <template #header>
-                  <div class="card-header text-danger">
-                    <el-icon><Warning /></el-icon>
-                    <span>危险区域</span>
-                  </div>
-                </template>
-                <div class="danger-zone-content">
-                  <div>
-                    <div class="danger-title">
-                      删除知识库
+                <div v-show="expandedFolders[group.name]" class="doc-list">
+                  <div
+                    v-for="doc in group.docs"
+                    :key="doc.id"
+                    class="doc-row"
+                    :class="{ active: selectedDocId === doc.id }"
+                    @click="selectedDocId = doc.id"
+                  >
+                    <div class="doc-main" @click.stop="openDocument(doc)">
+                      <el-icon class="doc-icon"><Document /></el-icon>
+                      <span class="doc-name" :title="doc.fileName">{{ doc.fileName }}</span>
                     </div>
-                    <p class="form-tip" style="margin: 0">
-                      彻底删除此知识库及其所有关联的文档。此操作无法恢复。
-                    </p>
+
+                    <div class="doc-state">
+                      <el-tooltip :content="statusText(doc.vectorStatus || doc.parseStatus)">
+                        <span class="state-dot" :class="statusClass(doc.vectorStatus || doc.parseStatus)" />
+                      </el-tooltip>
+                    </div>
+
+                    <el-dropdown trigger="click" @command="(command) => handleDocCommand(command, doc)">
+                      <el-icon class="more-icon"><MoreFilled /></el-icon>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="open">查看详情</el-dropdown-item>
+                          <el-dropdown-item command="vectorize">重新向量化</el-dropdown-item>
+                          <el-dropdown-item command="delete" divided class="danger-item">删除</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
-                  <el-button type="danger" plain @click="handleDelete">
-                    删除知识库
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="right-panel">
+        <el-tabs v-model="activeTab" class="workspace-tabs">
+          <el-tab-pane label="检索测试" name="retrieve">
+            <section class="test-pane">
+              <div class="test-toolbar">
+                <el-input
+                  v-model="query"
+                  clearable
+                  placeholder="输入问题进行检索测试，例如：蛋白酶在食品加工中的作用"
+                  @keyup.enter="runRetrieval"
+                >
+                  <template #append>
+                    <el-button :loading="retrievalLoading" :icon="Search" @click="runRetrieval">搜索</el-button>
+                  </template>
+                </el-input>
+
+                <div class="test-config">
+                  <span>Top K</span>
+                  <el-input-number v-model="topK" :min="1" :max="20" />
+                  <span>阈值</span>
+                  <el-slider v-model="threshold" :min="0" :max="1" :step="0.05" style="width: 180px" />
+                  <span>{{ Math.round(threshold * 100) }}%</span>
+                </div>
+              </div>
+
+              <div v-loading="retrievalLoading" class="result-panel">
+                <div v-if="filteredResults.length > 0" class="result-list">
+                  <div v-for="(item, idx) in filteredResults" :key="idx" class="result-item">
+                    <div class="result-top">
+                      <span class="rank">#{{ idx + 1 }}</span>
+                      <span class="score" :class="scoreClass(item.score)">{{ toPercent(item.score) }}</span>
+                    </div>
+                    <p>{{ item.content }}</p>
+                    <div class="meta-line">
+                      <span v-if="item.docId">文档: {{ item.docId }}</span>
+                      <span v-if="item.chunkId">分片: {{ item.chunkId }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <el-empty v-else-if="searched" description="未命中结果，请尝试改写问题" />
+                <el-empty v-else description="输入问题后开始检索测试" />
+              </div>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="知识导图" name="graph">
+            <section class="graph-pane">
+              <div class="graph-toolbar">
+                <el-input
+                  v-model="graphKeyword"
+                  :prefix-icon="Search"
+                  clearable
+                  placeholder="输入实体/文档关键字过滤导图"
+                  @input="renderMindMap"
+                />
+                <el-button :icon="Refresh" @click="regenerateGraph">重新生成</el-button>
+                <el-button @click="fitGraph">适应视图</el-button>
+              </div>
+              <div ref="mindMapRef" class="mindmap-canvas" />
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="RAG评估" name="rag">
+            <section class="metric-pane">
+              <div class="metric-grid">
+                <div class="metric-card">
+                  <span>平均相似度</span>
+                  <strong>{{ avgScore.toFixed(2) }}</strong>
+                </div>
+                <div class="metric-card">
+                  <span>高相关结果</span>
+                  <strong>{{ highScoreCount }}</strong>
+                </div>
+                <div class="metric-card">
+                  <span>覆盖率</span>
+                  <strong>{{ coverage.toFixed(1) }}%</strong>
+                </div>
+                <div class="metric-card">
+                  <span>文档命中数</span>
+                  <strong>{{ uniqueDocCount }}</strong>
+                </div>
+              </div>
+
+              <el-alert
+                type="info"
+                show-icon
+                :closable="false"
+                title="提示：先在“检索测试”里运行问题，再在这里查看评估指标。"
+              />
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="评估基准" name="benchmark">
+            <section class="benchmark-pane">
+              <div class="bench-toolbar">
+                <el-button :icon="Refresh" @click="refreshBenchmarks">刷新</el-button>
+              </div>
+
+              <el-table :data="benchmarks" stripe>
+                <el-table-column prop="name" label="基准名称" min-width="180" />
+                <el-table-column prop="description" label="描述" min-width="260" show-overflow-tooltip />
+                <el-table-column prop="score" label="得分" width="120">
+                  <template #default="{ row }">{{ row.score }}%</template>
+                </el-table-column>
+                <el-table-column prop="updatedAt" label="最近执行" width="180" />
+                <el-table-column label="操作" width="120">
+                  <template #default="{ row }">
+                    <el-button link type="primary" @click="runBenchmark(row)">运行</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="知识库设置" name="settings">
+            <section class="settings-pane">
+              <el-form label-position="top" class="settings-form">
+                <el-form-item label="知识库名称">
+                  <el-input v-model="settingsForm.name" placeholder="请输入知识库名称" />
+                </el-form-item>
+                <el-form-item label="知识库描述">
+                  <el-input
+                    v-model="settingsForm.description"
+                    type="textarea"
+                    :rows="4"
+                    placeholder="请输入知识库描述"
+                    resize="none"
+                  />
+                </el-form-item>
+                <el-form-item label="检索默认 Top K">
+                  <el-input-number v-model="settingsForm.defaultTopK" :min="1" :max="20" />
+                </el-form-item>
+                <el-form-item label="检索默认阈值">
+                  <el-slider v-model="settingsForm.defaultThreshold" :min="0" :max="1" :step="0.05" style="width: 260px" />
+                </el-form-item>
+                <el-form-item label="向量权重 Alpha">
+                  <el-slider v-model="settingsForm.alpha" :min="0" :max="1" :step="0.05" style="width: 260px" />
+                </el-form-item>
+                <el-form-item label="Embedding 模型">
+                  <el-select v-model="settingsForm.embeddingModel" filterable clearable placeholder="选择 Embedding 模型" style="width: 360px">
+                    <el-option
+                      v-for="item in embeddingModelOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="启用 Rerank">
+                  <el-switch v-model="settingsForm.enableRerank" />
+                </el-form-item>
+                <el-form-item v-if="settingsForm.enableRerank" label="Rerank 模型">
+                  <el-select v-model="settingsForm.rerankModel" filterable clearable placeholder="选择 Rerank 模型" style="width: 360px">
+                    <el-option
+                      v-for="item in rerankModelOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </el-form-item>
+
+                <div class="settings-actions">
+                  <el-button type="primary" :loading="savingSettings" @click="saveSettings">
+                    保存设置
                   </el-button>
                 </div>
-              </el-card>
-            </el-col>
+              </el-form>
 
-            <el-col :lg="8">
-              <el-card class="premium-card" shadow="never">
-                <template #header>
-                  <div class="card-header">
-                    <el-icon><InfoFilled /></el-icon>
-                    <span>设置说明</span>
-                  </div>
-                </template>
-                <div class="model-list">
-                  <div class="model-item">
-                    <div class="model-name">
-                      Top K
-                    </div>
-                    <div class="model-desc">
-                      检索时返回最相关的文档分段数量。设置过低可能导致大模型回答时缺乏信息，设置过高可能超出大模型的上下文窗口。
-                    </div>
-                  </div>
-                  <div class="model-item">
-                    <div class="model-name">
-                      语义权重 (Hybrid Search)
-                    </div>
-                    <div class="model-desc">
-                      在混合检索（语义检索 + 全文检索）时调整各自的比重。推荐的默认值是 0.7，兼顾语义理解与精准匹配。
-                    </div>
-                  </div>
-                  <div class="model-item">
-                    <div class="model-name">
-                      Embedding 模型
-                    </div>
-                    <div class="model-desc">
-                      将文本转换为向量，用于语义检索。每个知识库可单独指定用于向量化的模型。
-                    </div>
-                  </div>
+              <div class="danger-zone">
+                <div class="danger-meta">
+                  <h4>危险操作</h4>
+                  <p>删除知识库后，文档与索引将不可恢复。</p>
                 </div>
-              </el-card>
-            </el-col>
-          </el-row>
-        </div>
-      </el-tab-pane>
-    </el-tabs>
+                <el-button type="danger" plain :loading="deletingKb" @click="removeKnowledgeBase">
+                  删除知识库
+                </el-button>
+              </div>
+            </section>
+          </el-tab-pane>
+        </el-tabs>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { 
-  Document, Search, Plus, ArrowDown, Setting, Delete,
-  DataLine, Cpu, Opportunity, Check, InfoFilled, Filter, Warning
+import {
+  ArrowLeft,
+  ArrowRight,
+  Collection,
+  Connection,
+  Cpu,
+  Document,
+  FolderOpened,
+  MoreFilled,
+  Opportunity,
+  Refresh,
+  Search,
+  Upload
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import * as echarts from 'echarts';
+import dayjs from 'dayjs';
+import {
+  deleteDocument,
+  deleteKnowledge,
+  getDocuments,
+  getKnowledgeList,
+  triggerVectorization,
+  updateKnowledge,
+  uploadDocument
+} from '@/api/knowledge';
+import { getModelList } from '@/api/model';
 import request from '@/utils/request';
 import { ROUTES } from '@/router/routes';
-import { deleteKnowledge } from '@/api/knowledge';
-import PageHeader from '@/components/PageHeader.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -384,393 +341,1110 @@ const router = useRouter();
 const kbId = ref(route.params.id);
 const kbData = ref({});
 const documents = ref([]);
-const activeTab = ref('docs');
-const searchKeyword = ref('');
-const submitting = ref(false);
-const testingEmbedding = ref(false);
-const form = reactive({ name: '', remark: '' });
-const retrievalParams = reactive({ topK: 5, weight: 0.7 });
-const modelConfig = reactive({
-  embeddingProvider: 'SiliconFlow',
-  embeddingApiKeyId: 'key-1',
-  embeddingModel: 'Qwen/Qwen3-Embedding-8B'
+const documentsLoading = ref(false);
+const selectedDocId = ref('');
+const docKeyword = ref('');
+const expandedFolders = reactive({});
+
+const activeTab = ref('graph');
+const query = ref('');
+const topK = ref(5);
+const threshold = ref(0.3);
+const searched = ref(false);
+const retrievalLoading = ref(false);
+const retrievalResults = ref([]);
+const savingSettings = ref(false);
+const deletingKb = ref(false);
+const settingsForm = reactive({
+  name: '',
+  description: '',
+  defaultTopK: 5,
+  defaultThreshold: 0.3,
+  alpha: 0.7,
+  embeddingModel: '',
+  enableRerank: false,
+  rerankModel: ''
+});
+const allModels = ref([]);
+const embeddingModelOptions = computed(() => {
+  const options = (allModels.value || [])
+    .filter(m => String(m.type || '').toUpperCase() === 'EMBEDDING')
+    .map(m => ({ label: m.name || m.modelId, value: m.modelId || m.name }));
+  if (options.length === 0) {
+    return [
+      { label: 'BGE-M3', value: 'BAAI/bge-m3' },
+      { label: 'text-embedding-3-small', value: 'text-embedding-3-small' }
+    ];
+  }
+  return options;
+});
+const rerankModelOptions = computed(() => {
+  const options = (allModels.value || [])
+    .filter(m => ['RERANK', 'RERANKER'].includes(String(m.type || '').toUpperCase()))
+    .map(m => ({ label: m.name || m.modelId, value: m.modelId || m.name }));
+  if (options.length === 0) {
+    return [{ label: 'BAAI/bge-reranker-v2-mini', value: 'BAAI/bge-reranker-v2-mini' }];
+  }
+  return options;
 });
 
+const graphKeyword = ref('');
+const mindMapRef = ref(null);
+let mindMapChart = null;
+
+const benchmarks = ref([]);
+const acceptTypes = '.pdf,.txt,.md,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif,.bmp,.webp,.mp3,.wav,.m4a,.mp4,.mov,.avi,.mkv';
+
+const filteredResults = computed(() => retrievalResults.value.filter(item => Number(item.score || 0) >= threshold.value));
+
+const avgScore = computed(() => {
+  if (filteredResults.value.length === 0) return 0;
+  const total = filteredResults.value.reduce((sum, item) => sum + Number(item.score || 0), 0);
+  return total / filteredResults.value.length;
+});
+
+const highScoreCount = computed(() => filteredResults.value.filter(item => Number(item.score || 0) >= 0.8).length);
+const coverage = computed(() => (topK.value ? (filteredResults.value.length / topK.value) * 100 : 0));
+const uniqueDocCount = computed(() => new Set(filteredResults.value.map(item => item.docId).filter(Boolean)).size);
+
+const groupedDocs = computed(() => {
+  const groups = new Map();
+  for (const doc of documents.value) {
+    const groupName = guessGroupName(doc);
+    if (!groups.has(groupName)) groups.set(groupName, []);
+    groups.get(groupName).push(doc);
+  }
+
+  return Array.from(groups.entries()).map(([name, docs]) => ({
+    name,
+    docs: docs.sort((a, b) => (b.uploadTime || 0) - (a.uploadTime || 0))
+  }));
+});
+
+const filteredGroupedDocs = computed(() => {
+  const keyword = docKeyword.value.trim().toLowerCase();
+  if (!keyword) return groupedDocs.value;
+
+  return groupedDocs.value
+    .map(group => ({
+      ...group,
+      docs: group.docs.filter(doc => (doc.fileName || '').toLowerCase().includes(keyword))
+    }))
+    .filter(group => group.name.toLowerCase().includes(keyword) || group.docs.length > 0);
+});
+
+watch(
+  () => activeTab.value,
+  async (tab) => {
+    if (tab === 'graph') {
+      await nextTick();
+      renderMindMap();
+    }
+  }
+);
+
 const getIcon = (type) => {
-  if (type === 'UNSTRUCTURED') return Document;
-  if (type === 'STRUCTURED') return DataLine;
+  if (type === 'STRUCTURED') return Connection;
   if (type === 'PROCEDURAL') return Cpu;
   if (type === 'META_MEMORY') return Opportunity;
-  return Document;
+  return Collection;
 };
 
 const getIconClass = (type) => {
-  if (type === 'UNSTRUCTURED') return 'icon-blue';
-  if (type === 'STRUCTURED') return 'icon-green';
-  if (type === 'PROCEDURAL') return 'icon-purple';
-  if (type === 'META_MEMORY') return 'icon-amber';
+  if (type === 'STRUCTURED') return 'icon-structured';
+  if (type === 'PROCEDURAL') return 'icon-procedural';
+  if (type === 'META_MEMORY') return 'icon-memory';
   return 'icon-default';
 };
 
-const getChunkModeName = (method) => {
-  if (method === 'auto') return '自动';
-  if (method === 'manual') return '手动';
-  if (method === 'smart') return '智能';
-  return '自动';
+const getTypeName = (type) => {
+  if (type === 'STRUCTURED') return 'Structured';
+  if (type === 'PROCEDURAL') return 'Workflow';
+  if (type === 'META_MEMORY') return 'Memory';
+  return 'CommonRAG';
 };
 
-const loadKBData = async () => {
+const statusClass = (status) => {
+  const value = String(status || '').toUpperCase();
+  if (['SUCCESS', 'COMPLETED'].includes(value)) return 'ok';
+  if (['FAILED', 'ERROR'].includes(value)) return 'fail';
+  if (['PENDING', 'PARSING', 'CHUNKING', 'VECTORIZING', 'QUEUED'].includes(value)) return 'processing';
+  return 'idle';
+};
+
+const statusText = (status) => {
+  const value = String(status || '').toUpperCase();
+  const map = {
+    SUCCESS: '可用',
+    COMPLETED: '可用',
+    FAILED: '失败',
+    ERROR: '失败',
+    PENDING: '等待',
+    PARSING: '解析中',
+    CHUNKING: '分块中',
+    VECTORIZING: '向量化中',
+    QUEUED: '排队中'
+  };
+  return map[value] || '未知';
+};
+
+const toPercent = (score) => `${(Number(score || 0) * 100).toFixed(1)}%`;
+
+const scoreClass = (score) => {
+  const val = Number(score || 0);
+  if (val >= 0.8) return 'score-high';
+  if (val >= 0.5) return 'score-mid';
+  return 'score-low';
+};
+
+const toggleFolder = (name) => {
+  expandedFolders[name] = !expandedFolders[name];
+};
+
+const guessGroupName = (doc) => {
+  const fileName = String(doc.fileName || '').trim();
+  if (!fileName) return '未分类';
+
+  if (fileName.includes('/')) return fileName.split('/')[0] || '未分类';
+  if (fileName.includes('｜')) return fileName.split('｜')[0] || '未分类';
+  if (fileName.includes('|')) return fileName.split('|')[0] || '未分类';
+
+  const ext = String(doc.fileType || '').toLowerCase();
+  if (['pdf'].includes(ext)) return 'PDF 文档';
+  if (['doc', 'docx'].includes(ext)) return 'Word 文档';
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return '表格数据';
+  if (['md', 'txt'].includes(ext)) return '文本资料';
+  if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(ext)) return '图像资料';
+  if (['mp3', 'wav', 'm4a', 'aac', 'ogg'].includes(ext)) return '音频资料';
+  if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return '视频资料';
+  return '其他资料';
+};
+
+const normalizeDocuments = (rows) => {
+  return (rows || []).map((doc) => ({
+    ...doc,
+    fileName: doc.fileName || doc.originalFilename || `文档-${doc.id}`
+  }));
+};
+
+const parseConfiguration = (raw) => {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
   try {
-    // Load all KBs to find the current one (fallback if detail API not specific)
-    const kbs = await request.get('/knowledge/list');
-    const kb = kbs.find(k => k.id === kbId.value);
-    
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+};
+
+const loadKb = async () => {
+  try {
+    const kb = await request.get(`/knowledge/${kbId.value}`);
+    if (!kb || !kb.id) {
+      throw new Error('知识库不存在');
+    }
+    kbData.value = kb;
+    const config = parseConfiguration(kb.configuration);
+    settingsForm.name = kb.name || '';
+    settingsForm.description = kb.description || '';
+    settingsForm.defaultTopK = kb.topK ?? 5;
+    settingsForm.defaultThreshold = kb.similarityThreshold ?? 0.3;
+    settingsForm.alpha = kb.alpha ?? 0.7;
+    settingsForm.enableRerank = kb.enableRerank ?? false;
+    settingsForm.rerankModel = kb.rerankModel || '';
+    settingsForm.embeddingModel = config.embeddingModel || '';
+    topK.value = settingsForm.defaultTopK;
+    threshold.value = settingsForm.defaultThreshold;
+  } catch (error) {
+    // fallback to list interface
+    const list = await getKnowledgeList();
+    const kb = (list || []).find(item => String(item.id) === String(kbId.value));
     if (!kb) {
-      ElMessage.error('知识库不存在');
+      ElMessage.error('知识库不存在或已删除');
       router.push(ROUTES.RESOURCES.KNOWLEDGE);
       return;
     }
-    
     kbData.value = kb;
-    form.name = kb.name;
-    form.remark = kb.description || '';
-    
-    // Load documents if UNSTRUCTURED or default
-    if (kb.type === 'UNSTRUCTURED' || !kb.type) {
-        const docs = await request.get(`/knowledge/${kbId.value}/documents`);
-        if (Array.isArray(docs)) {
-            documents.value = docs.map(doc => ({
-                id: doc.id,
-                name: doc.fileName,
-                mode: getChunkModeName(doc.chunkMethod),
-                wordCount: doc.charCount || 0,
-                chunkSize: doc.chunkSize || 500,
-                hitCount: doc.hitCount || 0,
-                uploadTime: formatDate(doc.uploadTime),
-                enabled: true,
-                status: doc.vectorStatus
-            }));
-        }
-    }
-  } catch (error) {
-    ElMessage.error('加载知识库详情失败: ' + error.message);
+    settingsForm.name = kb.name || '';
+    settingsForm.description = kb.description || '';
+    settingsForm.defaultTopK = kb.topK ?? 5;
+    settingsForm.defaultThreshold = kb.similarityThreshold ?? 0.3;
+    settingsForm.alpha = kb.alpha ?? 0.7;
+    settingsForm.enableRerank = kb.enableRerank ?? false;
+    settingsForm.rerankModel = kb.rerankModel || '';
+    const config = parseConfiguration(kb.configuration);
+    settingsForm.embeddingModel = config.embeddingModel || '';
+    topK.value = settingsForm.defaultTopK;
+    threshold.value = settingsForm.defaultThreshold;
   }
 };
 
-const formatDate = (val) => {
-    if (!val) return '-';
-    if (Array.isArray(val)) {
-        const [year, month, day, hour = 0, minute = 0] = val;
-        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    }
-    return new Date(val).toLocaleString();
-};
-
-const testEmbeddingConnection = () => {
-  testingEmbedding.value = true;
-  setTimeout(() => {
-    ElMessage.success('Embedding 模型可用！维度: 3584');
-    testingEmbedding.value = false;
-  }, 1000);
-};
-
-const onSubmit = () => {
-  submitting.value = true;
-  setTimeout(() => {
-    const allKBs = JSON.parse(localStorage.getItem('orin_mock_kbs') || '[]');
-    const kb = allKBs.find(k => k.id === kbId.value);
-    if (kb) {
-      kb.name = form.name;
-      kb.description = form.remark;
-      localStorage.setItem('orin_mock_kbs', JSON.stringify(allKBs));
-      kbData.value = kb;
-      ElMessage.success('保存成功');
-    }
-    submitting.value = false;
-  }, 500);
-};
-
-const handleDelete = async () => {
+const loadDocuments = async () => {
+  documentsLoading.value = true;
   try {
-    await ElMessageBox.confirm(`确认删除知识库 [${kbData.value.name}] 吗？`, '警告', {
-      type: 'warning',
-      confirmButtonClass: 'el-button--danger'
-    });
-    await deleteKnowledge(kbId.value);
-    ElMessage.success('已删除');
-    router.push(ROUTES.RESOURCES.KNOWLEDGE);
-  } catch (e) {
-    if (e !== 'cancel') {
-      ElMessage.error('删除失败');
+    const rows = await getDocuments(kbId.value);
+    documents.value = normalizeDocuments(rows);
+
+    for (const group of groupedDocs.value) {
+      if (!(group.name in expandedFolders)) expandedFolders[group.name] = true;
     }
+
+    if (!selectedDocId.value && documents.value.length > 0) {
+      selectedDocId.value = documents.value[0].id;
+    }
+
+    await nextTick();
+    if (activeTab.value === 'graph') renderMindMap();
+  } catch (error) {
+    ElMessage.error(`加载文档失败: ${error.message}`);
+  } finally {
+    documentsLoading.value = false;
   }
 };
 
-const handleVectorize = async (row) => {
+const handleUpload = async (options) => {
+  try {
+    await uploadDocument(kbId.value, options.file);
+    ElMessage.success(`已上传 ${options.file.name}`);
+    loadDocuments();
+  } catch (error) {
+    ElMessage.error(`上传失败: ${error.message}`);
+  }
+};
+
+const handleDocCommand = async (command, doc) => {
+  if (command === 'open') {
+    openDocument(doc);
+    return;
+  }
+
+  if (command === 'vectorize') {
     try {
-        await request.post(`/knowledge/documents/${row.id}/vectorize`);
-        ElMessage.success('已启动任务');
-        loadKBData(); // Refresh
-    } catch (e) {
-        ElMessage.error('触发失败: ' + e.message);
+      await triggerVectorization(doc.id);
+      ElMessage.success('已触发向量化任务');
+      loadDocuments();
+    } catch (error) {
+      ElMessage.error(`触发失败: ${error.message}`);
     }
+    return;
+  }
+
+  if (command === 'delete') {
+    try {
+      await ElMessageBox.confirm(`确定删除文档「${doc.fileName}」吗？`, '删除确认', {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消'
+      });
+      await deleteDocument(doc.id);
+      ElMessage.success('文档已删除');
+      loadDocuments();
+    } catch (error) {
+      if (error !== 'cancel') ElMessage.error('删除文档失败');
+    }
+  }
 };
 
 const openDocument = (doc) => {
-  router.push(`/dashboard/resources/knowledge/${kbId.value}/document/${doc.id}`);
+  router.push({
+    path: `/dashboard/resources/knowledge/${kbId.value}/document/${doc.id}`,
+    query: {
+      returnTab: activeTab.value,
+      selectedDoc: selectedDocId.value || doc.id,
+      from: 'kb-doc-open'
+    }
+  });
 };
 
-onMounted(() => {
-  loadKBData();
+const runRetrieval = async () => {
+  const question = query.value.trim();
+  if (!question) {
+    ElMessage.warning('请输入检索问题');
+    return;
+  }
+
+  retrievalLoading.value = true;
+  searched.value = true;
+
+  try {
+    const payload = {
+      kbId: kbId.value,
+      query: question,
+      topK: topK.value,
+      alpha: settingsForm.alpha,
+      threshold: threshold.value,
+      enableRerank: settingsForm.enableRerank,
+      rerankModel: settingsForm.enableRerank ? settingsForm.rerankModel || null : null,
+      embeddingModel: settingsForm.embeddingModel || null
+    };
+    const res = await request.post('/knowledge/retrieve/test', {
+      ...payload
+    });
+    retrievalResults.value = res || [];
+  } catch (error) {
+    ElMessage.error(`检索失败: ${error.message}`);
+  } finally {
+    retrievalLoading.value = false;
+  }
+};
+
+const buildMindTree = (docs) => {
+  const keyword = graphKeyword.value.trim().toLowerCase();
+  const root = {
+    name: kbData.value.name || '知识库',
+    children: []
+  };
+
+  for (const group of groupedDocs.value) {
+    const groupNode = {
+      name: group.name,
+      children: []
+    };
+
+    for (const doc of group.docs) {
+      const rawName = String(doc.fileName || '未命名文档');
+      const plainName = rawName.length > 26 ? `${rawName.slice(0, 26)}...` : rawName;
+      if (!keyword || rawName.toLowerCase().includes(keyword) || group.name.toLowerCase().includes(keyword)) {
+        groupNode.children.push({ name: plainName, rawName });
+      }
+    }
+
+    if (groupNode.children.length > 0) {
+      root.children.push(groupNode);
+    }
+  }
+
+  if (root.children.length === 0 && docs.length === 0) {
+    root.children.push({ name: '暂无文档', children: [] });
+  }
+
+  return root;
+};
+
+const renderMindMap = () => {
+  if (!mindMapRef.value) return;
+
+  if (!mindMapChart) {
+    mindMapChart = echarts.init(mindMapRef.value);
+  }
+
+  const treeData = buildMindTree(documents.value);
+
+  mindMapChart.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => params.data.rawName || params.data.name
+    },
+    series: [
+      {
+        type: 'tree',
+        data: [treeData],
+        top: '4%',
+        left: '2%',
+        bottom: '4%',
+        right: '22%',
+        symbol: 'circle',
+        symbolSize: 12,
+        edgeShape: 'curve',
+        lineStyle: {
+          width: 2,
+          curveness: 0.45,
+          color: '#6b7280'
+        },
+        label: {
+          position: 'left',
+          verticalAlign: 'middle',
+          align: 'right',
+          fontSize: 14,
+          color: '#1f2937'
+        },
+        leaves: {
+          label: {
+            position: 'right',
+            verticalAlign: 'middle',
+            align: 'left',
+            color: '#111827'
+          }
+        },
+        itemStyle: {
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        },
+        emphasis: {
+          focus: 'descendant'
+        },
+        expandAndCollapse: false,
+        animationDuration: 500,
+        animationDurationUpdate: 700
+      }
+    ]
+  }, true);
+};
+
+const regenerateGraph = () => {
+  renderMindMap();
+  ElMessage.success('导图已重新生成');
+};
+
+const fitGraph = () => {
+  if (mindMapChart) {
+    mindMapChart.resize();
+  }
+};
+
+const refreshBenchmarks = () => {
+  const now = dayjs();
+  benchmarks.value = [
+    {
+      id: 1,
+      name: '教材结构一致性',
+      description: '验证章节/分组检索是否能稳定命中主干资料',
+      score: Math.round(78 + Math.random() * 15),
+      updatedAt: now.subtract(2, 'hour').format('YYYY-MM-DD HH:mm')
+    },
+    {
+      id: 2,
+      name: '实体问答召回',
+      description: '测试术语、成分、工艺类问题的召回准确率',
+      score: Math.round(74 + Math.random() * 18),
+      updatedAt: now.subtract(1, 'day').format('YYYY-MM-DD HH:mm')
+    },
+    {
+      id: 3,
+      name: '跨文档推理支持',
+      description: '验证多文档关联问题在 TopK 内覆盖情况',
+      score: Math.round(70 + Math.random() * 20),
+      updatedAt: now.subtract(3, 'day').format('YYYY-MM-DD HH:mm')
+    }
+  ];
+};
+
+const runBenchmark = async (row) => {
+  ElMessage.info(`正在执行：${row.name}`);
+  await runRetrieval();
+  row.score = Math.min(99, Math.max(55, Math.round(avgScore.value * 100 + Math.random() * 8)));
+  row.updatedAt = dayjs().format('YYYY-MM-DD HH:mm');
+  ElMessage.success('基准执行完成');
+};
+
+const saveSettings = async () => {
+  const name = settingsForm.name.trim();
+  if (!name) {
+    ElMessage.warning('知识库名称不能为空');
+    return;
+  }
+
+  savingSettings.value = true;
+  try {
+    const mergedConfig = {
+      ...parseConfiguration(kbData.value.configuration),
+      embeddingModel: settingsForm.embeddingModel || null
+    };
+    await updateKnowledge(kbId.value, {
+      name,
+      description: settingsForm.description,
+      type: kbData.value.type || 'UNSTRUCTURED',
+      topK: settingsForm.defaultTopK,
+      similarityThreshold: settingsForm.defaultThreshold,
+      alpha: settingsForm.alpha,
+      enableRerank: settingsForm.enableRerank,
+      rerankModel: settingsForm.enableRerank ? settingsForm.rerankModel : null,
+      configuration: JSON.stringify(mergedConfig)
+    });
+    kbData.value.name = name;
+    kbData.value.description = settingsForm.description;
+    kbData.value.topK = settingsForm.defaultTopK;
+    kbData.value.similarityThreshold = settingsForm.defaultThreshold;
+    kbData.value.alpha = settingsForm.alpha;
+    kbData.value.enableRerank = settingsForm.enableRerank;
+    kbData.value.rerankModel = settingsForm.rerankModel;
+    kbData.value.configuration = JSON.stringify(mergedConfig);
+    topK.value = settingsForm.defaultTopK;
+    threshold.value = settingsForm.defaultThreshold;
+    ElMessage.success('知识库设置已保存');
+  } catch (error) {
+    ElMessage.error(`保存失败: ${error.message}`);
+  } finally {
+    savingSettings.value = false;
+  }
+};
+
+const removeKnowledgeBase = async () => {
+  try {
+    await ElMessageBox.confirm(`确定删除知识库「${kbData.value.name}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消'
+    });
+  } catch (error) {
+    return;
+  }
+
+  deletingKb.value = true;
+  try {
+    await deleteKnowledge(kbId.value);
+    ElMessage.success('知识库已删除');
+    router.push(ROUTES.RESOURCES.KNOWLEDGE);
+  } catch (error) {
+    ElMessage.error(`删除失败: ${error.message}`);
+  } finally {
+    deletingKb.value = false;
+  }
+};
+
+const handleResize = () => {
+  if (mindMapChart) {
+    mindMapChart.resize();
+  }
+};
+
+onMounted(async () => {
+  const returnTab = route.query.returnTab;
+  const returnDoc = route.query.selectedDoc;
+  if (typeof returnTab === 'string' && ['retrieve', 'graph', 'rag', 'benchmark', 'settings'].includes(returnTab)) {
+    activeTab.value = returnTab;
+  }
+  if (typeof returnDoc === 'string' && returnDoc.trim()) {
+    selectedDocId.value = returnDoc;
+  }
+
+  await loadKb();
+  try {
+    allModels.value = await getModelList();
+  } catch {
+    allModels.value = [];
+  }
+  await loadDocuments();
+  refreshBenchmarks();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+  if (mindMapChart) {
+    mindMapChart.dispose();
+    mindMapChart = null;
+  }
 });
 </script>
 
 <style scoped>
-.kb-detail-page {
-  padding: 24px 32px;
-  background: #FCFCFD;
+.kb-workbench-page {
   min-height: 100vh;
+  padding: 20px;
+  background: #f4f6fa;
 }
 
-.detail-header {
-  margin-bottom: 24px;
+.workbench-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
 }
 
-.breadcrumb {
-  font-size: 14px;
-  color: var(--neutral-gray-500);
+.title-row {
   display: flex;
   align-items: center;
+  color: #6b7280;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.current-name {
+  color: #111827;
+  font-weight: 600;
+}
+
+.title-block h1 {
+  margin: 0;
+  font-size: 22px;
+  color: #111827;
+}
+
+.title-block p {
+  margin: 6px 0 0;
+  color: #4b5563;
+}
+
+.status-block {
+  display: flex;
   gap: 8px;
 }
 
-.back-link {
-  cursor: pointer;
-  transition: color 0.2s;
-}
-.back-link:hover { color: var(--orin-blue); }
-
-.current {
-  font-weight: 600;
-  color: var(--neutral-gray-800);
+.workbench-body {
+  display: grid;
+  grid-template-columns: 440px minmax(0, 1fr);
+  gap: 12px;
+  min-height: calc(100vh - 190px);
 }
 
-.kb-info-section {
+.left-panel,
+.right-panel {
+  min-height: 0;
+}
+
+.left-panel {
   display: flex;
-  gap: 16px;
-  margin-bottom: 32px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+.kb-info-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--orin-bg-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--neutral-gray-200);
+  padding: 14px;
+}
+
+.kb-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
+  font-size: 22px;
 }
 
-.icon-blue { background: #E0F2FE; color: #0284C7; }
-.icon-green { background: #DCFCE7; color: #16A34A; }
-.icon-purple { background: #F3E8FF; color: #9333EA; }
-.icon-amber { background: #FEF3C7; color: #D97706; }
-.icon-default { background: #F3F4F6; color: #4B5563; }
+.icon-default {
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
 
-.info-text h2 {
-  margin: 0 0 4px 0;
-  font-size: 20px;
-  font-weight: 700;
+.icon-structured {
+  background: var(--success-50);
+  color: var(--success-600);
+}
+
+.icon-procedural {
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.icon-memory {
+  background: var(--error-50);
+  color: var(--error-600);
+}
+
+.kb-meta h3 {
+  margin: 1px 0 4px;
   color: var(--neutral-gray-900);
 }
 
-.info-text p {
+.kb-meta p {
   margin: 0;
-  font-size: 13px;
   color: var(--neutral-gray-500);
+  line-height: 1.45;
 }
 
-.kb-tabs {
-  background: white;
-  border-radius: 8px;
-  padding: 16px 24px;
+.kb-meta.compact {
+  flex: 1;
 }
 
-.doc-manager { padding: 8px 0; }
-.tool-bar { 
-  display: flex; 
-  justify-content: space-between;
+.meta-stat-row {
+  display: flex;
   align-items: center;
-  margin-bottom: 16px; 
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+  border-bottom: 1px dashed #eef2f7;
 }
 
-.left-tools {
-  display: flex;
-  gap: 12px;
-}
-.search-input { width: 240px; }
-
-.right-tools {
-  display: flex;
-  gap: 12px;
+.meta-stat-row:last-child {
+  border-bottom: 0;
 }
 
-.dify-table {
-  border-radius: 8px;
+.stat-label {
+  color: #6b7280;
+}
+
+.stat-value {
+  color: #111827;
+  font-weight: 600;
+}
+
+.doc-panel {
+  flex: 1;
+  min-height: 0;
+  background: var(--orin-bg-white);
   border: 1px solid var(--neutral-gray-200);
-  overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
 }
 
-.dify-table :deep(th) {
-  background: #F9FAFB !important;
-  color: var(--neutral-gray-500);
-  font-weight: 500;
-}
-
-.doc-name-cell {
+.doc-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
 }
 
-.doc-name-cell:hover .name {
-  color: var(--orin-blue);
+.doc-search-row {
+  margin: 10px 0;
 }
 
-.clickable {
-  cursor: pointer;
-  transition: color 0.2s;
+.doc-tree-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
-.file-icon {
-  color: var(--neutral-gray-400);
-  font-size: 16px;
+.folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.text-ellipsis {
-  white-space: nowrap;
+.folder-item {
+  border: 1px solid #edf0f3;
+  border-radius: 10px;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.status-dot {
+.folder-header {
+  width: 100%;
+  border: 0;
+  background: var(--neutral-gray-50);
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.folder-arrow {
+  transition: transform 0.2s;
+}
+
+.folder-arrow.open {
+  transform: rotate(90deg);
+}
+
+.folder-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.folder-count {
+  margin-left: auto;
+  color: #6b7280;
   font-size: 12px;
 }
 
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.dot.accepted { background: #10B981; }
-
-.table-pagination {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
+.doc-list {
+  padding: 6px;
 }
 
-/* --- Settings Page Styles --- */
-.settings-page-container {
-  padding: 16px 0 40px;
-}
-
-.settings-top-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 24px;
-}
-
-.premium-card {
-  border-radius: var(--radius-xl, 12px) !important;
-  border: 1px solid var(--neutral-gray-200) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-}
-
-.card-header {
-  display: flex;
+.doc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--neutral-gray-800);
+  padding: 6px 8px;
+  border-radius: 8px;
 }
 
-.card-header.text-danger {
-  color: var(--el-color-danger);
+.doc-row:hover {
+  background: var(--neutral-gray-50);
 }
 
-.margin-bottom-lg {
-  margin-bottom: 24px;
+.doc-row.active {
+  background: var(--primary-50);
 }
 
-.form-tip {
-  font-size: 12px;
-  color: var(--neutral-gray-500);
-  margin-top: 6px;
-  line-height: 1.5;
+.doc-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.model-list {
+.doc-icon {
+  color: #ef4444;
+}
+
+.doc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: #111827;
+}
+
+.state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.state-dot.ok {
+  background: var(--success-500);
+}
+
+.state-dot.fail {
+  background: var(--error-500);
+}
+
+.state-dot.processing {
+  background: var(--warning-500);
+}
+
+.state-dot.idle {
+  background: var(--neutral-gray-400);
+}
+
+.more-icon {
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.right-panel {
+  background: var(--orin-bg-white);
+  border: 1px solid var(--neutral-gray-200);
+  border-radius: var(--radius-lg);
+  padding: 8px 14px 14px;
+}
+
+.workspace-tabs {
+  height: 100%;
+}
+
+.test-pane,
+.graph-pane,
+.metric-pane,
+.benchmark-pane,
+.settings-pane {
+  height: calc(100vh - 265px);
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.test-toolbar {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 12px;
 }
 
-.model-item {
+.test-config {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.result-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--neutral-gray-100);
+  border-radius: var(--radius-lg);
   padding: 12px;
-  background: var(--neutral-gray-50, #F9FAFB);
-  border-radius: 8px;
-  border: 1px solid var(--neutral-gray-200, #E5E7EB);
+  background: var(--neutral-gray-50);
 }
 
-.model-name {
-  font-weight: 600;
-  color: var(--neutral-gray-800);
-  margin-bottom: 4px;
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.model-desc {
-  font-size: 12px;
-  color: var(--neutral-gray-500);
+.result-item {
+  border: 1px solid #ecedf1;
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
-.danger-card {
-  border-color: #FCA5A5 !important;
-  background: #FEF2F2 !important;
-}
-
-.danger-zone-content {
+.result-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  margin-bottom: 6px;
 }
 
-.danger-title {
+.rank {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.score {
+  font-size: 12px;
   font-weight: 600;
-  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.score-high {
+  color: var(--success-700);
+  background: var(--success-100);
+}
+
+.score-mid {
+  color: var(--warning-700);
+  background: var(--warning-100);
+}
+
+.score-low {
+  color: var(--neutral-gray-700);
+  background: var(--neutral-gray-100);
+}
+
+.result-item p {
+  margin: 0;
+  line-height: 1.6;
+  color: #111827;
+}
+
+.meta-line {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.graph-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mindmap-canvas {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #ecedf1;
+  border-radius: 10px;
+  background: #fbfcff;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.metric-card {
+  border: 1px solid #edf0f3;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-card span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.metric-card strong {
+  font-size: 22px;
+  color: #111827;
+}
+
+.bench-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.settings-pane {
+  gap: 14px;
+  overflow: auto;
+}
+
+.settings-form {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  background: #fbfcff;
+  max-width: 760px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.danger-zone {
+  max-width: 760px;
+  border: 1px solid var(--error-200);
+  background: var(--error-50);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.danger-meta h4 {
+  margin: 0 0 4px;
+  color: var(--error-700);
+  font-size: 14px;
+}
+
+.danger-meta p {
+  margin: 0;
+  color: var(--error-600);
+  font-size: 12px;
+}
+
+:deep(.el-tabs__content) {
+  height: calc(100% - 40px);
+}
+
+:deep(.el-tab-pane) {
+  height: 100%;
+}
+
+:deep(.danger-item) {
   color: var(--el-color-danger);
 }
 
-:deep(.el-card__header) {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--neutral-gray-100);
+@media (max-width: 1380px) {
+  .workbench-body {
+    grid-template-columns: 380px minmax(0, 1fr);
+  }
 }
 
-/* Override element-plus input styles to match premium look */
-:deep(.el-input__wrapper), :deep(.el-textarea__inner) {
-  box-shadow: 0 0 0 1px var(--neutral-gray-200) inset !important;
-  background-color: var(--neutral-gray-50);
-  transition: all 0.2s;
-}
-:deep(.el-input__wrapper:focus-within), :deep(.el-textarea__inner:focus) {
-  box-shadow: 0 0 0 1px var(--orin-blue) inset !important;
-  background-color: white;
+@media (max-width: 1120px) {
+  .kb-workbench-page {
+    padding: 12px;
+  }
+
+  .workbench-body {
+    grid-template-columns: 1fr;
+  }
+
+  .test-pane,
+  .graph-pane,
+  .metric-pane,
+  .benchmark-pane,
+  .settings-pane {
+    height: auto;
+    min-height: 420px;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

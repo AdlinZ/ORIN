@@ -350,12 +350,7 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Setting'
                     },
                     {
-                        title: '邮件服务',
-                        path: ROUTES.SYSTEM.SETTINGS_MAIL,
-                        icon: 'Message'
-                    },
-                    {
-                        title: '通知渠道',
+                        title: '通知中心',
                         path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS,
                         icon: 'Bell'
                     },

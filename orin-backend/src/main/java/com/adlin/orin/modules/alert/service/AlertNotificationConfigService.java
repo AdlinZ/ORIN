@@ -2,28 +2,21 @@ package com.adlin.orin.modules.alert.service;
 
 import com.adlin.orin.modules.alert.entity.AlertNotificationConfig;
 import com.adlin.orin.modules.alert.repository.AlertNotificationConfigRepository;
-import com.adlin.orin.modules.system.service.MailService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * 告警通知配置服务
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AlertNotificationConfigService {
 
     private final AlertNotificationConfigRepository repository;
-    private final MailService mailService;
-    private final RestTemplate restTemplate;
+    private final AlertNotificationService alertNotificationService;
 
     /**
      * 获取通知配置
@@ -82,119 +75,6 @@ public class AlertNotificationConfigService {
      * 测试通知
      */
     public boolean testNotification(String channel) {
-        AlertNotificationConfig config = getConfig();
-
-        switch (channel.toLowerCase()) {
-            case "email":
-                return testEmail(config);
-            case "dingtalk":
-                return testDingtalk(config);
-            case "wecom":
-                return testWecom(config);
-            default:
-                log.warn("未知的通知渠道: {}", channel);
-                return false;
-        }
-    }
-
-    private boolean testEmail(AlertNotificationConfig config) {
-        if (config.getEmailRecipients() == null || config.getEmailRecipients().isEmpty()) {
-            log.warn("邮件收件人未配置");
-            return false;
-        }
-        try {
-            String[] recipients = config.getEmailRecipients().split(",");
-            return mailService.sendAlertEmail(recipients, "[测试] ORIN 邮件通知", "这是一条测试通知，如果您收到此消息，说明邮件通道配置正常。");
-        } catch (Exception e) {
-            log.error("邮件测试发送失败", e);
-            return false;
-        }
-    }
-
-    private boolean testDingtalk(AlertNotificationConfig config) {
-        if (config.getDingtalkWebhook() == null || config.getDingtalkWebhook().isEmpty()) {
-            log.warn("钉钉 Webhook 未配置");
-            return false;
-        }
-        try {
-            validateWebhookUrl(config.getDingtalkWebhook());
-            Map<String, Object> body = new HashMap<>();
-            String markdownContent = "## ORIN 测试通知\n\n这是一条测试通知，如果您收到此消息，说明钉钉通道配置正常。";
-
-            body.put("msgtype", "markdown");
-            body.put("markdown", Map.of(
-                "title", "ORIN 测试通知",
-                "text", markdownContent
-            ));
-
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.set("Content-Type", "application/json");
-
-            org.springframework.http.HttpEntity<Map<String, Object>> entity =
-                new org.springframework.http.HttpEntity<>(body, headers);
-
-            restTemplate.postForObject(config.getDingtalkWebhook(), entity, String.class);
-            log.info("钉钉测试通知发送成功");
-            return true;
-        } catch (Exception e) {
-            log.error("钉钉测试通知发送失败", e);
-            return false;
-        }
-    }
-
-    private boolean testWecom(AlertNotificationConfig config) {
-        if (config.getWecomWebhook() == null || config.getWecomWebhook().isEmpty()) {
-            log.warn("企业微信 Webhook 未配置");
-            return false;
-        }
-        try {
-            validateWebhookUrl(config.getWecomWebhook());
-            Map<String, Object> body = new HashMap<>();
-            body.put("msgtype", "text");
-            body.put("text", Map.of(
-                "content", "ORIN 测试通知\n这是一条测试通知，如果您收到此消息，说明企业微信通道配置正常。"
-            ));
-
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.set("Content-Type", "application/json");
-
-            org.springframework.http.HttpEntity<Map<String, Object>> entity =
-                new org.springframework.http.HttpEntity<>(body, headers);
-
-            restTemplate.postForObject(config.getWecomWebhook(), entity, String.class);
-            log.info("企业微信测试通知发送成功");
-            return true;
-        } catch (Exception e) {
-            log.error("企业微信测试通知发送失败", e);
-            return false;
-        }
-    }
-
-    /**
-     * 验证 Webhook URL 是否安全，防止 SSRF 攻击。
-     * 仅允许 HTTPS 协议，且不允许请求内网保留地址。
-     */
-    private void validateWebhookUrl(String url) {
-        if (url == null || url.isBlank()) {
-            throw new IllegalArgumentException("Webhook URL 不能为空");
-        }
-        URI uri;
-        try {
-            uri = URI.create(url);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Webhook URL 格式无效: " + url);
-        }
-        if (!"https".equalsIgnoreCase(uri.getScheme())) {
-            throw new IllegalArgumentException("Webhook URL 必须使用 HTTPS 协议");
-        }
-        String host = uri.getHost();
-        if (host == null) {
-            throw new IllegalArgumentException("Webhook URL 缺少合法 Host");
-        }
-        if (Pattern.matches(
-                "(localhost|.*\\.local|127\\..+|10\\..+|172\\.(1[6-9]|2[0-9]|3[01])\\..+|192\\.168\\..+|0\\.0\\.0\\.0|169\\.254\\..+|::1|fc.+|fd.+)",
-                host.toLowerCase())) {
-            throw new IllegalArgumentException("Webhook URL 不允许指向内网地址");
-        }
+        return alertNotificationService.sendTestNotification(channel);
     }
 }

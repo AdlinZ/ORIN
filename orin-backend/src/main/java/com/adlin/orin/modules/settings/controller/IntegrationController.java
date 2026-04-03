@@ -6,19 +6,29 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Config;
+import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.SessionConfig;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 外部框架集成控制器
- * 统一管理 Dify、RAGFlow、AutoGen、CrewAI 的配置和测试接口
+ * 统一管理 Dify、RAGFlow、AutoGen、CrewAI、Neo4j 的配置和测试接口
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/system/integrations")
+@RequestMapping({"/api/system/integrations", "/api/v1/system/integrations"})
 @RequiredArgsConstructor
 @Tag(name = "外部框架集成", description = "外部 AI 框架的集成配置与连接测试")
 public class IntegrationController {
@@ -30,7 +40,6 @@ public class IntegrationController {
     private static final Map<String, Map<String, Object>> INTEGRATION_CONFIGS = new HashMap<>();
 
     static {
-        // 初始化默认配置
         INTEGRATION_CONFIGS.put("dify", new HashMap<>(Map.of(
             "apiUrl", "http://localhost:3000/v1",
             "enabled", false
@@ -47,6 +56,17 @@ public class IntegrationController {
         INTEGRATION_CONFIGS.put("crewai", new HashMap<>(Map.of(
             "serviceUrl", "http://localhost:8002",
             "defaultModel", "gpt-4",
+            "enabled", false
+        )));
+        INTEGRATION_CONFIGS.put("neo4j", new HashMap<>(Map.of(
+            "uri", "",
+            "host", "localhost",
+            "port", 7687,
+            "username", "neo4j",
+            "password", "",
+            "database", "neo4j",
+            "maxConnectionPoolSize", 50,
+            "connectionAcquisitionTimeoutMs", 60000,
             "enabled", false
         )));
     }
@@ -82,10 +102,10 @@ public class IntegrationController {
             return ResponseEntity.ok(result);
         }
 
-        String apiUrl = (String) difyConfig.get("apiUrl");
-        String apiKey = (String) difyConfig.get("apiKey");
+        String apiUrl = asString(difyConfig.get("apiUrl"));
+        String apiKey = asString(difyConfig.get("apiKey"));
 
-        if (apiUrl == null || apiUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
+        if (!StringUtils.hasText(apiUrl) || !StringUtils.hasText(apiKey)) {
             result.put("success", false);
             result.put("message", "Dify 配置不完整");
             return ResponseEntity.ok(result);
@@ -105,8 +125,8 @@ public class IntegrationController {
             return ResponseEntity.ok(Map.of("success", false, "message", "Dify 未启用"));
         }
 
-        String apiUrl = (String) difyConfig.get("apiUrl");
-        String apiKey = (String) difyConfig.get("apiKey");
+        String apiUrl = asString(difyConfig.get("apiUrl"));
+        String apiKey = asString(difyConfig.get("apiKey"));
 
         var apps = difyIntegrationService.getApplications(apiUrl, apiKey);
         if (apps.isPresent()) {
@@ -146,10 +166,10 @@ public class IntegrationController {
             return ResponseEntity.ok(result);
         }
 
-        String apiUrl = (String) ragflowConfig.get("apiUrl");
-        String apiKey = (String) ragflowConfig.get("apiKey");
+        String apiUrl = asString(ragflowConfig.get("apiUrl"));
+        String apiKey = asString(ragflowConfig.get("apiKey"));
 
-        if (apiUrl == null || apiUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
+        if (!StringUtils.hasText(apiUrl) || !StringUtils.hasText(apiKey)) {
             result.put("success", false);
             result.put("message", "RAGFlow 配置不完整");
             return ResponseEntity.ok(result);
@@ -169,8 +189,8 @@ public class IntegrationController {
             return ResponseEntity.ok(Map.of("success", false, "message", "RAGFlow 未启用"));
         }
 
-        String apiUrl = (String) ragflowConfig.get("apiUrl");
-        String apiKey = (String) ragflowConfig.get("apiKey");
+        String apiUrl = asString(ragflowConfig.get("apiUrl"));
+        String apiKey = asString(ragflowConfig.get("apiKey"));
 
         var kbList = ragFlowIntegrationService.listKnowledgeBases(apiUrl, apiKey);
         return ResponseEntity.ok(Map.of("success", true, "data", kbList));
@@ -208,15 +228,13 @@ public class IntegrationController {
             return ResponseEntity.ok(result);
         }
 
-        String serviceUrl = (String) autogenConfig.get("serviceUrl");
-        if (serviceUrl == null || serviceUrl.isEmpty()) {
+        String serviceUrl = asString(autogenConfig.get("serviceUrl"));
+        if (!StringUtils.hasText(serviceUrl)) {
             result.put("success", false);
             result.put("message", "AutoGen 服务地址未配置");
             return ResponseEntity.ok(result);
         }
 
-        // TODO: 实现真实的 AutoGen 连接测试
-        // 目前为预留位实现
         result.put("success", false);
         result.put("message", "AutoGen 为预留集成，暂未实现");
         return ResponseEntity.ok(result);
@@ -254,18 +272,90 @@ public class IntegrationController {
             return ResponseEntity.ok(result);
         }
 
-        String serviceUrl = (String) crewaiConfig.get("serviceUrl");
-        if (serviceUrl == null || serviceUrl.isEmpty()) {
+        String serviceUrl = asString(crewaiConfig.get("serviceUrl"));
+        if (!StringUtils.hasText(serviceUrl)) {
             result.put("success", false);
             result.put("message", "CrewAI 服务地址未配置");
             return ResponseEntity.ok(result);
         }
 
-        // TODO: 实现真实的 CrewAI 连接测试
-        // 目前为预留位实现
         result.put("success", false);
         result.put("message", "CrewAI 为预留集成，暂未实现");
         return ResponseEntity.ok(result);
+    }
+
+    // ========== Neo4j ==========
+
+    @GetMapping("/neo4j")
+    @Operation(summary = "获取 Neo4j 配置")
+    public ResponseEntity<Map<String, Object>> getNeo4jConfig() {
+        Map<String, Object> config = INTEGRATION_CONFIGS.get("neo4j");
+        return ResponseEntity.ok(config != null ? config : new HashMap<>());
+    }
+
+    @PostMapping("/neo4j")
+    @Operation(summary = "保存 Neo4j 配置")
+    public ResponseEntity<Map<String, Object>> saveNeo4jConfig(@RequestBody Map<String, Object> config) {
+        Map<String, Object> neo4jConfig = INTEGRATION_CONFIGS.computeIfAbsent("neo4j", k -> new HashMap<>());
+        neo4jConfig.put("uri", config.getOrDefault("uri", ""));
+        neo4jConfig.put("host", config.getOrDefault("host", "localhost"));
+        neo4jConfig.put("port", config.getOrDefault("port", 7687));
+        neo4jConfig.put("username", config.getOrDefault("username", "neo4j"));
+        neo4jConfig.put("password", config.getOrDefault("password", ""));
+        neo4jConfig.put("database", config.getOrDefault("database", "neo4j"));
+        neo4jConfig.put("maxConnectionPoolSize", config.getOrDefault("maxConnectionPoolSize", 50));
+        neo4jConfig.put("connectionAcquisitionTimeoutMs", config.getOrDefault("connectionAcquisitionTimeoutMs", 60000));
+        neo4jConfig.put("enabled", config.getOrDefault("enabled", false));
+        return ResponseEntity.ok(neo4jConfig);
+    }
+
+    @GetMapping("/neo4j/test")
+    @Operation(summary = "测试 Neo4j 连接")
+    public ResponseEntity<Map<String, Object>> testNeo4jConnection() {
+        Map<String, Object> neo4jConfig = INTEGRATION_CONFIGS.get("neo4j");
+        Map<String, Object> result = new HashMap<>();
+
+        if (neo4jConfig == null || !Boolean.TRUE.equals(neo4jConfig.get("enabled"))) {
+            result.put("success", false);
+            result.put("message", "Neo4j 未启用");
+            return ResponseEntity.ok(result);
+        }
+
+        String uri = asString(neo4jConfig.get("uri"));
+        String host = asString(neo4jConfig.get("host"));
+        int port = asInt(neo4jConfig.get("port"), 7687);
+        String username = asString(neo4jConfig.get("username"));
+        String password = asString(neo4jConfig.get("password"));
+        String database = asString(neo4jConfig.get("database"));
+        int maxPool = asInt(neo4jConfig.get("maxConnectionPoolSize"), 50);
+        int acquisitionTimeoutMs = asInt(neo4jConfig.get("connectionAcquisitionTimeoutMs"), 60000);
+
+        String boltUri = StringUtils.hasText(uri) ? uri : String.format("bolt://%s:%d", host, port);
+        if (!StringUtils.hasText(username) || !StringUtils.hasText(password) || !StringUtils.hasText(database)) {
+            result.put("success", false);
+            result.put("message", "Neo4j 配置不完整（用户名/密码/数据库必填）");
+            return ResponseEntity.ok(result);
+        }
+
+        try (var driver = GraphDatabase.driver(
+                boltUri,
+                AuthTokens.basic(username, password),
+                Config.builder()
+                        .withMaxConnectionPoolSize(maxPool)
+                        .withConnectionAcquisitionTimeout(acquisitionTimeoutMs, TimeUnit.MILLISECONDS)
+                        .build());
+             var session = driver.session(SessionConfig.forDatabase(database))) {
+            session.run("RETURN 1 AS ok").single();
+            result.put("success", true);
+            result.put("message", "Neo4j 连接成功");
+            result.put("uri", boltUri);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.warn("Neo4j test connection failed: {}", e.getMessage());
+            result.put("success", false);
+            result.put("message", "Neo4j 连接失败: " + e.getMessage());
+            return ResponseEntity.ok(result);
+        }
     }
 
     // ========== 统一状态查询 ==========
@@ -275,13 +365,12 @@ public class IntegrationController {
     public ResponseEntity<Map<String, Object>> getIntegrationStatus() {
         Map<String, Object> status = new HashMap<>();
 
-        // Dify
         Map<String, Object> difyConfig = INTEGRATION_CONFIGS.get("dify");
         if (difyConfig != null && Boolean.TRUE.equals(difyConfig.get("enabled"))) {
-            String apiUrl = (String) difyConfig.get("apiUrl");
-            String apiKey = (String) difyConfig.get("apiKey");
-            boolean connected = apiUrl != null && apiKey != null &&
-                difyIntegrationService.testConnection(apiUrl, apiKey);
+            String apiUrl = asString(difyConfig.get("apiUrl"));
+            String apiKey = asString(difyConfig.get("apiKey"));
+            boolean connected = StringUtils.hasText(apiUrl) && StringUtils.hasText(apiKey)
+                    && difyIntegrationService.testConnection(apiUrl, apiKey);
             status.put("dify", Map.of(
                 "enabled", true,
                 "connected", connected,
@@ -291,13 +380,12 @@ public class IntegrationController {
             status.put("dify", Map.of("enabled", false, "status", "DISABLED"));
         }
 
-        // RAGFlow
         Map<String, Object> ragflowConfig = INTEGRATION_CONFIGS.get("ragflow");
         if (ragflowConfig != null && Boolean.TRUE.equals(ragflowConfig.get("enabled"))) {
-            String apiUrl = (String) ragflowConfig.get("apiUrl");
-            String apiKey = (String) ragflowConfig.get("apiKey");
-            boolean connected = apiUrl != null && apiKey != null &&
-                ragFlowIntegrationService.testConnection(apiUrl, apiKey);
+            String apiUrl = asString(ragflowConfig.get("apiUrl"));
+            String apiKey = asString(ragflowConfig.get("apiKey"));
+            boolean connected = StringUtils.hasText(apiUrl) && StringUtils.hasText(apiKey)
+                    && ragFlowIntegrationService.testConnection(apiUrl, apiKey);
             status.put("ragflow", Map.of(
                 "enabled", true,
                 "connected", connected,
@@ -307,20 +395,42 @@ public class IntegrationController {
             status.put("ragflow", Map.of("enabled", false, "status", "DISABLED"));
         }
 
-        // AutoGen (预留位)
         Map<String, Object> autogenConfig = INTEGRATION_CONFIGS.get("autogen");
         status.put("autogen", Map.of(
             "enabled", autogenConfig != null && Boolean.TRUE.equals(autogenConfig.get("enabled")),
             "status", "NOT_IMPLEMENTED"
         ));
 
-        // CrewAI (预留位)
         Map<String, Object> crewaiConfig = INTEGRATION_CONFIGS.get("crewai");
         status.put("crewai", Map.of(
             "enabled", crewaiConfig != null && Boolean.TRUE.equals(crewaiConfig.get("enabled")),
             "status", "NOT_IMPLEMENTED"
         ));
 
+        Map<String, Object> neo4jConfig = INTEGRATION_CONFIGS.get("neo4j");
+        status.put("neo4j", Map.of(
+            "enabled", neo4jConfig != null && Boolean.TRUE.equals(neo4jConfig.get("enabled")),
+            "status", "CONFIGURED"
+        ));
+
         return ResponseEntity.ok(status);
+    }
+
+    private static String asString(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private static int asInt(Object value, int defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
     }
 }

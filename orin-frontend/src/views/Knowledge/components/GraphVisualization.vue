@@ -311,7 +311,7 @@ const updateChartHighlighting = () => {
             ? '#FFD700' // Gold for highlighted
             : getCategoryColor(node.type)
         }
-      })
+      }))
     }]
   })
 }
@@ -371,11 +371,11 @@ const renderChart = () => {
         fontSize: 12
       },
       itemStyle: {
-        borderColor: '#fff',
+        borderColor: '#e5e7eb',
         borderWidth: 2
       },
       lineStyle: {
-        color: '#ccc',
+        color: '#d1d5db',
         width: 1,
         curveness: 0.2
       },
@@ -454,8 +454,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  background: #fafafa;
-  border-radius: 8px;
+  background: var(--neutral-gray-50);
+  border-radius: var(--radius-lg);
   margin-bottom: 12px;
 }
 
@@ -464,15 +464,15 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 12px;
   padding: 8px 12px;
-  background: white;
-  border-radius: 6px;
+  background: var(--orin-bg-white);
+  border-radius: var(--radius-base);
   margin-bottom: 12px;
   align-items: center;
 }
 
 .legend-title {
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   font-weight: 500;
 }
 
@@ -502,7 +502,7 @@ onUnmounted(() => {
 
 .legend-label {
   font-size: 12px;
-  color: #606266;
+  color: var(--neutral-gray-600);
 }
 
 .graph-filter {
@@ -512,9 +512,9 @@ onUnmounted(() => {
 .graph-container {
   flex: 1;
   min-height: 400px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #eee;
+  background: var(--orin-bg-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--neutral-gray-200);
 }
 
 .loading-overlay {
@@ -523,7 +523,8 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--orin-bg-white);
+  opacity: 0.9;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -534,7 +535,7 @@ onUnmounted(() => {
 
 .spin {
   font-size: 32px;
-  color: #409EFF;
+  color: var(--orin-primary);
   animation: rotate 1s linear infinite;
 }
 
@@ -557,7 +558,7 @@ onUnmounted(() => {
 .node-detail h3 {
   margin: 0 0 12px;
   font-size: 18px;
-  color: #303133;
+  color: var(--neutral-gray-900);
 }
 
 .detail-section {
@@ -566,14 +567,14 @@ onUnmounted(() => {
 
 .detail-section h4 {
   font-size: 13px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   margin: 0 0 8px;
   font-weight: 500;
 }
 
 .detail-section p {
   font-size: 14px;
-  color: #606266;
+  color: var(--neutral-gray-600);
   line-height: 1.6;
   margin: 0;
 }
@@ -589,18 +590,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: #f9f9f9;
-  border-radius: 4px;
+  background: var(--neutral-gray-50);
+  border-radius: var(--radius-base);
   font-size: 13px;
 }
 
 .rel-type {
-  color: #409EFF;
+  color: var(--orin-primary);
   font-weight: 500;
 }
 
 .rel-arrow {
-  color: #909399;
+  color: var(--neutral-gray-400);
 }
 
 .rel-target {

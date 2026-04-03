@@ -88,7 +88,32 @@ public class KnowledgeManageService {
                 if (kb.getRerankModel() != null && !kb.getRerankModel().isEmpty()) {
                         config.put("rerankModel", kb.getRerankModel());
                 }
+                // Embedding 模型优先从 configuration JSON 中读取
+                JsonNode configNode = parseConfigurationNode(kb.getConfiguration());
+                if (configNode != null) {
+                        String embeddingModel = null;
+                        if (configNode.hasNonNull("embeddingModel")) {
+                                embeddingModel = configNode.get("embeddingModel").asText(null);
+                        } else if (configNode.hasNonNull("embedding_model")) {
+                                embeddingModel = configNode.get("embedding_model").asText(null);
+                        }
+                        if (embeddingModel != null && !embeddingModel.isBlank()) {
+                                config.put("embeddingModel", embeddingModel.trim());
+                        }
+                }
                 return config.isEmpty() ? null : config;
+        }
+
+        private JsonNode parseConfigurationNode(String rawConfiguration) {
+                if (rawConfiguration == null || rawConfiguration.isBlank()) {
+                        return null;
+                }
+                try {
+                        return objectMapper.readTree(rawConfiguration);
+                } catch (Exception e) {
+                        log.warn("Failed to parse knowledge configuration JSON: {}", e.getMessage());
+                        return null;
+                }
         }
 
         /**
@@ -331,6 +356,14 @@ public class KnowledgeManageService {
         }
 
         /**
+         * 获取知识库详情
+         */
+        public KnowledgeBase getKnowledgeBaseById(String id) {
+                return knowledgeBaseRepository.findById(id)
+                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + id));
+        }
+
+        /**
          * 更新知识库状态
          */
         public KnowledgeBase updateStatus(String kbId, boolean enabled) {
@@ -369,10 +402,47 @@ public class KnowledgeManageService {
                                 .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + id));
                 if (updates.getName() != null)
                         kb.setName(updates.getName());
+                if (updates.getType() != null)
+                        kb.setType(updates.getType());
                 if (updates.getDescription() != null)
                         kb.setDescription(updates.getDescription());
+                if (updates.getDescriptionModel() != null)
+                        kb.setDescriptionModel(updates.getDescriptionModel());
                 if (updates.getStatus() != null)
                         kb.setStatus(updates.getStatus());
+
+                // 解析配置
+                if (updates.getParsingEnabled() != null)
+                        kb.setParsingEnabled(updates.getParsingEnabled());
+                if (updates.getOcrProvider() != null)
+                        kb.setOcrProvider(updates.getOcrProvider());
+                if (updates.getAsrProvider() != null)
+                        kb.setAsrProvider(updates.getAsrProvider());
+                if (updates.getOcrModel() != null)
+                        kb.setOcrModel(updates.getOcrModel());
+                if (updates.getAsrModel() != null)
+                        kb.setAsrModel(updates.getAsrModel());
+                if (updates.getRichTextEnabled() != null)
+                        kb.setRichTextEnabled(updates.getRichTextEnabled());
+
+                // 检索配置
+                if (updates.getChunkSize() != null)
+                        kb.setChunkSize(updates.getChunkSize());
+                if (updates.getChunkOverlap() != null)
+                        kb.setChunkOverlap(updates.getChunkOverlap());
+                if (updates.getTopK() != null)
+                        kb.setTopK(updates.getTopK());
+                if (updates.getSimilarityThreshold() != null)
+                        kb.setSimilarityThreshold(updates.getSimilarityThreshold());
+                if (updates.getAlpha() != null)
+                        kb.setAlpha(updates.getAlpha());
+                if (updates.getEnableRerank() != null)
+                        kb.setEnableRerank(updates.getEnableRerank());
+                if (updates.getRerankModel() != null)
+                        kb.setRerankModel(updates.getRerankModel());
+                if (updates.getConfiguration() != null)
+                        kb.setConfiguration(updates.getConfiguration());
+
                 return knowledgeBaseRepository.save(kb);
         }
 

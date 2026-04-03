@@ -268,11 +268,12 @@ const handleLogin = async () => {
 <style scoped>
 .login-container {
   height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, var(--orin-bg) 0%, var(--orin-primary-fade) 100%);
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, var(--neutral-bg) 0%, var(--primary-light) 100%);
+  position: relative;
   overflow: hidden;
 }
 
@@ -280,7 +281,7 @@ const handleLogin = async () => {
   width: 1000px;
   max-width: 90%;
   height: 600px;
-  background: var(--neutral-white);
+  background: var(--orin-bg-white);
   border-radius: var(--radius-2xl);
   box-shadow: 0 40px 100px rgba(0,0,0,0.08);
   display: flex;
@@ -307,30 +308,38 @@ const handleLogin = async () => {
 .login-right {
   flex: 1.5;
   padding: 60px;
-  background: var(--neutral-white);
+  background: var(--orin-bg-white);
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .login-form-wrapper { width: 100%; max-width: 400px; }
-.form-title { font-size: 28px; font-weight: 700; color: var(--neutral-black); margin-bottom: 8px; }
-.form-subtitle { color: var(--neutral-gray-4); margin-bottom: 35px; font-size: 14px; }
+.form-title { font-size: 28px; font-weight: 700; color: var(--neutral-gray-900); margin-bottom: 8px; }
+.form-subtitle { color: var(--neutral-gray-400); margin-bottom: 35px; font-size: 14px; }
 
 .login-btn { width: 100%; height: 48px; font-size: 16px; font-weight: 600; border-radius: var(--radius-lg); margin-top: 20px; }
 .extra-actions { display: flex; justify-content: space-between; align-items: center; margin-top: -10px; margin-bottom: 10px; }
 
 .social-login { margin-top: 40px; text-align: center; }
-.divider-text { font-size: 12px; color: var(--neutral-gray-4); }
+.divider-text { font-size: 12px; color: var(--neutral-gray-400); }
 .icons { margin-top: 15px; display: flex; justify-content: center; gap: 20px; }
 
-.login-footer { margin-top: 40px; color: var(--neutral-gray-4); font-size: 13px; }
+.login-footer {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--neutral-gray-400);
+  font-size: 13px;
+  white-space: nowrap;
+}
 
 .animate-scale { animation: scaleIn 0.6s ease; }
 @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
-html.dark .login-box { background: #1f1f1f; box-shadow: 0 40px 100px rgba(0,0,0,0.3); }
-html.dark .login-left { background: #111; }
+html.dark .login-box { background: var(--neutral-gray-800); box-shadow: 0 40px 100px rgba(0,0,0,0.3); }
+html.dark .login-left { background: var(--neutral-gray-900); }
 
 /* Slide Verify Styles */
 .slide-verify-wrapper {
@@ -351,7 +360,7 @@ html.dark .login-left { background: #111; }
   top: 0;
   left: 0;
   height: 100%;
-  background-color: var(--success-color, #67C23A);
+  background-color: var(--success-500);
   z-index: 1;
 }
 .slide-text {
@@ -392,7 +401,7 @@ html.dark .login-left { background: #111; }
   cursor: grabbing;
 }
 .slide-track.is-success .slide-handler {
-  color: var(--success-color, #67C23A);
+  color: var(--success-500);
   cursor: default;
 }
 

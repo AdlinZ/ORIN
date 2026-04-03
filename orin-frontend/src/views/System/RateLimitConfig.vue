@@ -298,7 +298,7 @@ onMounted(() => {
 
 .premium-card {
   border-radius: 8px;
-  border: 1px solid var(--el-border-color-lighter);
+  border: 1px solid var(--neutral-gray-100);
 }
 
 .margin-bottom-lg {
@@ -331,13 +331,13 @@ onMounted(() => {
 }
 
 .form-label-desc {
-  color: var(--el-text-color-regular);
+  color: var(--neutral-gray-600);
   font-size: 13px;
   line-height: 1.5;
 }
 
 .form-tip {
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-400);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -363,7 +363,7 @@ onMounted(() => {
 
 .algorithm-desc {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
 }
 
 .dimension-switches {
@@ -392,7 +392,7 @@ onMounted(() => {
 
 .dimension-desc {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
 }
 
 .limit-info {
@@ -413,6 +413,6 @@ onMounted(() => {
 
 .info-label {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
 }
 </style>

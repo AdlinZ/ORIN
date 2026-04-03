@@ -346,7 +346,7 @@ onMounted(() => {
 }
 
 .channel-card.channel-active {
-  border-color: #409eff;
+  border-color: var(--orin-primary);
   background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%);
 }
 
@@ -367,7 +367,7 @@ onMounted(() => {
 }
 
 .email-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--orin-primary) 0%, var(--accent-600) 100%);
 }
 
 .dingtalk-icon {
@@ -385,13 +385,13 @@ onMounted(() => {
 .channel-name {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--neutral-gray-800);
   margin: 0 0 4px 0;
 }
 
 .channel-desc {
   font-size: 13px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   margin: 0;
 }
 
@@ -404,7 +404,7 @@ onMounted(() => {
 .form-tip {
   margin-top: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
 }
 
 .channel-actions {
@@ -470,7 +470,7 @@ onMounted(() => {
   margin: 8px 0 0 0;
   padding-left: 20px;
   font-size: 13px;
-  color: #606266;
+  color: var(--neutral-gray-500);
 }
 
 .status-list li {

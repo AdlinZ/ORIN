@@ -413,19 +413,19 @@ const integrationCategories = [
 // 带分类的 features 数据
 const featuresByCategory = {
   monitor: [
-    { title: '全链路监控', desc: '实时追踪 CPU、内存利用率及令牌消耗，秒级洞察系统性能瓶颈。', icon: Monitor, color: '#00BFA5', bgColor: 'rgba(0, 191, 165, 0.1)' },
-    { title: '交互日志审计', desc: '全面保留会话流水与逻辑树，支持全站事件溯源与安全合规审查。', icon: Tickets, color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.1)' },
-    { title: '实时告警', desc: '多通道通知机制，及时响应系统异常与性能瓶颈。', icon: Bell, color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.1)' }
+    { title: '全链路监控', desc: '实时追踪 CPU、内存利用率及令牌消耗，秒级洞察系统性能瓶颈。', icon: Monitor, color: 'var(--orin-primary)', bgColor: 'var(--orin-primary-fade)' },
+    { title: '交互日志审计', desc: '全面保留会话流水与逻辑树，支持全站事件溯源与安全合规审查。', icon: Tickets, color: 'var(--error-500)', bgColor: 'var(--error-50)' },
+    { title: '实时告警', desc: '多通道通知机制，及时响应系统异常与性能瓶颈。', icon: Bell, color: 'var(--warning-500)', bgColor: 'var(--warning-50)' }
   ],
   knowledge: [
-    { title: '知识库自动同步', desc: '深度集成 Dify、RAGFlow 知识库，支持文档版本管理与云端动态资产更新。', icon: Connection, color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.1)' }
+    { title: '知识库自动同步', desc: '深度集成 Dify、RAGFlow 知识库，支持文档版本管理与云端动态资产更新。', icon: Connection, color: 'var(--success-500)', bgColor: 'var(--success-50)' }
   ],
   security: [
-    { title: '模型安全管理', desc: '密钥托管与多租户权限隔离，确保留言资产与模型接口访问安全。', icon: Key, color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.1)' }
+    { title: '模型安全管理', desc: '密钥托管与多租户权限隔离，确保留言资产与模型接口访问安全。', icon: Key, color: 'var(--primary-600)', bgColor: 'var(--primary-50)' }
   ],
   ecosystem: [
-    { title: '分布式生命周期', desc: '从接入到注销，一站式控制不同环境下的智能体运行状态。', icon: Cpu, color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.1)' },
-    { title: '开放协同生态', desc: '标准 Webhook 接口与 API 扩展，轻松对接现有 DevOps 运维体系。', icon: Share, color: '#06B6D4', bgColor: 'rgba(6, 182, 212, 0.1)' }
+    { title: '分布式生命周期', desc: '从接入到注销，一站式控制不同环境下的智能体运行状态。', icon: Cpu, color: 'var(--warning-500)', bgColor: 'var(--warning-50)' },
+    { title: '开放协同生态', desc: '标准 Webhook 接口与 API 扩展，轻松对接现有 DevOps 运维体系。', icon: Share, color: 'var(--info-500)', bgColor: 'var(--info-50)' }
   ]
 };
 
@@ -556,18 +556,18 @@ onMounted(() => {
 
 .landing-nav {
   height: 70px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid var(--neutral-gray-100);
   display: flex;
   align-items: center;
   position: sticky;
   top: 0;
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(10px);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
   z-index: 100;
 }
 html.dark .landing-nav {
   background: rgba(20,20,20,0.8);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--neutral-gray-800);
 }
 
 .nav-content {
@@ -616,14 +616,14 @@ html.dark .landing-nav {
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s;
-  background: rgba(255,255,255,0.5);
-  border: 1px solid var(--neutral-gray-100);
+  background: var(--glass-bg);
+  border: 1px solid var(--neutral-gray-200);
 }
 
 .avatar-wrapper:hover {
-  background: white;
+  background: var(--orin-bg-white);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .user-info-text {
@@ -681,8 +681,8 @@ html.dark .landing-nav {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: rgba(0, 191, 165, 0.1);
-  border: 1px solid rgba(0, 191, 165, 0.2);
+  background: var(--orin-primary-fade);
+  border: 1px solid var(--primary-100);
   border-radius: 50px;
   font-size: 14px;
   color: var(--orin-primary);
@@ -743,13 +743,13 @@ html.dark .landing-nav {
   border-radius: 12px;
   background: var(--orin-primary);
   border-color: var(--orin-primary);
-  box-shadow: 0 8px 20px rgba(0, 191, 165, 0.3);
+  box-shadow: 0 8px 20px var(--orin-primary-fade);
 }
 
 .start-btn:hover {
   background: var(--orin-primary-hover);
   border-color: var(--orin-primary-hover);
-  box-shadow: 0 12px 28px rgba(0, 191, 165, 0.4);
+  box-shadow: 0 12px 28px var(--orin-primary-fade);
 }
 
 .secondary-btn {
@@ -797,16 +797,16 @@ html.dark .landing-nav {
 
 .visual-card {
   width: 360px;
-  background: white;
+  background: var(--orin-bg-white);
   border-radius: 16px;
-  box-shadow: 0 25px 50px rgba(0, 191, 165, 0.15);
+  box-shadow: 0 25px 50px var(--orin-primary-fade);
   overflow: hidden;
   position: relative;
   z-index: 2;
 }
 
 html.dark .visual-card {
-  background: #1a1a1a;
+  background: var(--neutral-gray-800);
 }
 
 .card-header {
@@ -821,9 +821,9 @@ html.dark .visual-card {
   height: 12px;
   border-radius: 50%;
 }
-.dot.red { background: #EF4444; }
-.dot.yellow { background: #F59E0B; }
-.dot.green { background: #10B981; }
+.dot.red { background: var(--error-500); }
+.dot.yellow { background: var(--warning-500); }
+.dot.green { background: var(--success-500); }
 
 .card-body {
   padding: 24px;
@@ -1015,14 +1015,14 @@ html.dark .pagination-wrapper :deep(.el-pagination) {
 }
 
 html.dark .feature-card {
-  background: #1a1a1a;
-  border-color: #2a2a2a;
+  background: var(--neutral-gray-800);
+  border-color: var(--neutral-gray-700);
 }
 
 .feature-card:hover {
   transform: translateY(-8px);
   border-color: var(--orin-primary);
-  box-shadow: 0 20px 40px rgba(0, 191, 165, 0.1);
+  box-shadow: 0 20px 40px var(--orin-primary-fade);
 }
 
 .feature-icon {
@@ -1095,9 +1095,9 @@ html.dark .integration-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--neutral-gray-4);
+  color: var(--neutral-gray-400);
   font-size: 14px;
-  border-top: 1px solid var(--neutral-gray-2);
+  border-top: 1px solid var(--neutral-gray-200);
 }
 
 .links { display: flex; gap: 30px; }

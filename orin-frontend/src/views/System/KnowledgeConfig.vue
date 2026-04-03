@@ -220,7 +220,7 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
 
             <!-- 知识库列表 -->
             <div v-if="collectionDetail.knowledgeBases && collectionDetail.knowledgeBases.length > 0" style="margin-top: 20px">
-              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">
+              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-600)">
                 知识库详情
               </h4>
               <el-table
@@ -243,7 +243,7 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
 
             <!-- 分区列表 -->
             <div v-if="collectionDetail.partitions && collectionDetail.partitions.length > 0" style="margin-top: 20px">
-              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-700)">
+              <h4 style="margin-bottom: 12px; color: var(--neutral-gray-600)">
                 分区信息
               </h4>
               <el-table
@@ -1458,7 +1458,7 @@ onMounted(() => {
 .step-num {
   width: 24px;
   height: 24px;
-  background: var(--orin-primary);
+  background: var(--orin-primary-50);
   color: white;
   border-radius: 50%;
   display: flex;

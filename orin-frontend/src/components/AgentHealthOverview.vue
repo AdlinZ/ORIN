@@ -119,9 +119,9 @@ const fetchHealthOverview = async () => {
 
 const healthRateColor = computed(() => {
   const rate = overview.value.healthRate || 0
-  if (rate >= 80) return '#67C23A'
-  if (rate >= 60) return '#E6A23C'
-  return '#F56C6C'
+  if (rate >= 80) return 'var(--success-500, #10b981)'
+  if (rate >= 60) return 'var(--warning-500, #f59e0b)'
+  return 'var(--error-500, #ef4444)'
 })
 
 const getStatusType = (status) => {
@@ -187,15 +187,15 @@ onMounted(() => {
 }
 
 .stat-item.healthy .stat-value {
-  color: #67C23A;
+  color: var(--success-500, #10b981);
 }
 
 .stat-item.unhealthy .stat-value {
-  color: #E6A23C;
+  color: var(--warning-500, #f59e0b);
 }
 
 .stat-item.offline .stat-value {
-  color: #909399;
+  color: var(--neutral-gray-400, #94a3b8);
 }
 
 .stat-label {

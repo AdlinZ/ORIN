@@ -470,7 +470,7 @@ const getStatusTagType = (status) => {
 }
 
 .error-section {
-  border-left: 4px solid #F56C6C;
+  border-left: 4px solid var(--error-500);
   padding-left: 15px;
 }
 </style>

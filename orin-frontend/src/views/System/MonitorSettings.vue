@@ -474,7 +474,7 @@ onMounted(() => {
 
 .premium-card {
   border-radius: var(--radius-xl) !important;
-  border: 1px solid var(--neutral-gray-200) !important;
+  border: 1px solid var(--neutral-gray-100) !important;
 }
 
 .card-header {
@@ -613,8 +613,8 @@ onMounted(() => {
     font-size: 12px;
     font-weight: 700;
 }
-.status-result.success { color: #10b981; }
-.status-result.error { color: #ef4444; }
+.status-result.success { color: var(--success-500); }
+.status-result.error { color: var(--error-500); }
 
 .ai-provider-select {
   margin: 12px 0;
@@ -660,7 +660,7 @@ onMounted(() => {
 .actions-row {
     margin-top: 24px;
     padding-top: 16px;
-    border-top: 1px dotted #eee;
+    border-top: 1px dotted var(--neutral-gray-200);
 }
 
 .text-success { color: #10b981; }

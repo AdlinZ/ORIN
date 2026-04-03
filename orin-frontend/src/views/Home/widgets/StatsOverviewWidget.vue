@@ -12,7 +12,7 @@
     
     <div class="stats-grid">
       <div v-for="stat in stats" :key="stat.key" class="stat-card">
-        <div class="stat-icon" :style="{ background: stat.color + '15', color: stat.color }">
+        <div class="stat-icon" :style="{ background: stat.bgColor, color: stat.color }">
           <el-icon><component :is="stat.icon" /></el-icon>
         </div>
         <div class="stat-content">
@@ -50,21 +50,24 @@ const stats = ref([
     label: '活跃智能体',
     value: '0',
     icon: Box,
-    color: '#155eef'
+    color: 'var(--orin-primary)',
+    bgColor: 'var(--primary-light)'
   },
   {
     key: 'calls',
     label: '今日调用',
     value: '0',
     icon: ChatDotRound,
-    color: '#10b981'
+    color: 'var(--success-500)',
+    bgColor: 'var(--success-light)'
   },
   {
     key: 'tokens',
     label: '今日 Token',
     value: '0',
     icon: Coin,
-    color: '#f59e0b',
+    color: 'var(--warning-500)',
+    bgColor: 'var(--warning-light)',
     trend: 0
   },
   {
@@ -72,7 +75,8 @@ const stats = ref([
     label: '平均延迟',
     value: '0ms',
     icon: Timer,
-    color: '#8b5cf6'
+    color: 'var(--accent-500)',
+    bgColor: 'var(--accent-light)'
   }
 ])
 
@@ -95,21 +99,24 @@ const loadStats = async () => {
           label: '活跃智能体',
           value: `${data.online_agents} / ${data.total_agents}`,
           icon: Box,
-          color: '#155eef'
+          color: 'var(--orin-primary)',
+          bgColor: 'var(--primary-light)'
         },
         {
           key: 'calls',
           label: '今日调用',
           value: formatNumber(data.daily_requests || 0),
           icon: ChatDotRound,
-          color: '#10b981'
+          color: 'var(--success-500)',
+          bgColor: 'var(--success-light)'
         },
         {
           key: 'tokens',
           label: '今日 Token',
           value: formatNumber(data.total_tokens || 0),
           icon: Coin,
-          color: '#f59e0b',
+          color: 'var(--warning-500)',
+          bgColor: 'var(--warning-light)',
           trend: data.total_tokens_trend
         },
         {
@@ -117,7 +124,8 @@ const loadStats = async () => {
           label: '平均延迟',
           value: data.avg_latency || '0ms',
           icon: Timer,
-          color: '#8b5cf6'
+          color: 'var(--accent-500)',
+          bgColor: 'var(--accent-light)'
         }
       ]
     }
@@ -211,10 +219,10 @@ onMounted(() => {
 }
 
 .stat-trend.up {
-  color: #10b981;
+  color: var(--success-500);
 }
 
 .stat-trend.down {
-  color: #ef4444;
+  color: var(--error-500);
 }
 </style>

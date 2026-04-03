@@ -569,16 +569,16 @@ const handleCardClick = (item) => {
 };
 
 const statItems = computed(() => [
-  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--orin-primary)', bgColor: 'var(--orin-primary-soft)', clickable: true },
-  { cardId: 'stat-requests', label: '今日请求', key: 'daily_requests', defaultValue: '0', icon: Tickets, color: '#26FFDF', bgColor: 'rgba(38, 255, 223, 0.1)' },
+  { cardId: 'stat-agents', label: '纳管智能体', key: 'total_agents', defaultValue: '0', icon: Monitor, color: 'var(--orin-primary)', bgColor: 'var(--orin-primary-fade)', clickable: true },
+  { cardId: 'stat-requests', label: '今日请求', key: 'daily_requests', defaultValue: '0', icon: Tickets, color: 'var(--success-500)', bgColor: 'var(--success-50)', clickable: true },
   { 
     cardId: 'stat-tokens', 
     label: 'Token 消耗', 
     key: 'total_tokens', 
     defaultValue: '0', 
     icon: Cpu, 
-    color: '#14B8A6', 
-    bgColor: 'rgba(20, 184, 166, 0.1)',
+    color: 'var(--warning-500)', 
+    bgColor: 'var(--warning-50)',
     clickable: true
   },
   { 
@@ -587,8 +587,8 @@ const statItems = computed(() => [
     key: 'avg_latency', 
     defaultValue: '0ms', 
     icon: Connection, 
-    color: '#0D9488', 
-    bgColor: 'rgba(13, 148, 136, 0.1)',
+    color: 'var(--info-500)', 
+    bgColor: 'var(--info-50)',
     clickable: true
   },
 ]);
@@ -832,7 +832,7 @@ onUnmounted(() => {
 
 .trace-input-row {
   display: flex;
-  gap: 8px;
+  gap: 12px;
 }
 
 .success-rate-display, .error-dist-display {
@@ -842,9 +842,11 @@ onUnmounted(() => {
   height: 100%;
 }
 
-.success-rate-display .label, .error-dist-display .label {
-  font-weight: 500;
-  color: var(--el-text-color-secondary);
+.success-rate-display .label,
+.error-dist-display .label {
+  font-size: 13px;
+  color: var(--neutral-gray-500);
+  margin-right: 8px;
 }
 
 .success-rate-display .value {
@@ -882,17 +884,15 @@ onUnmounted(() => {
 
 .stat-card {
   border-radius: var(--radius-xl) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  background: rgba(255, 255, 255, 0.7) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--neutral-gray-200) !important;
+  background: var(--neutral-white) !important;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
 }
 
 html.dark .stat-card {
-  background: rgba(30, 41, 59, 0.7) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: var(--neutral-gray-800) !important;
+  border: 1px solid var(--neutral-gray-700) !important;
 }
 
 .stat-card:hover {
@@ -918,8 +918,8 @@ html.dark .stat-card {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
-.stat-label { font-size: 13px; color: var(--neutral-gray-4); margin-bottom: 4px; }
-.stat-value { font-size: 24px; font-weight: 700; color: var(--neutral-black); display: flex; align-items: center; gap: 8px; }
+.stat-label { font-size: 13px; color: var(--neutral-gray-400); margin-bottom: 4px; }
+.stat-value { font-size: 24px; font-weight: 700; color: var(--neutral-gray-900); display: flex; align-items: center; gap: 8px; }
 
 .content-row { margin-bottom: 20px; }
 .header-flex {
@@ -948,17 +948,15 @@ html.dark .stat-card {
 
 .grid-card {
   border-radius: var(--radius-xl) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  background: rgba(255, 255, 255, 0.6) !important;
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid var(--neutral-gray-200) !important;
+  background: var(--neutral-white) !important;
   box-shadow: var(--shadow-lg) !important;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html.dark .grid-card {
-  background: rgba(15, 23, 42, 0.6) !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
+  background: var(--neutral-gray-800) !important;
+  border-color: var(--neutral-gray-700) !important;
 }
 
 .log-stream { 
@@ -981,16 +979,16 @@ html.dark .grid-card {
 }
 
 .log-entry.ERROR { 
-  color: var(--error-color); 
+  color: var(--el-color-danger); 
 }
 
 .log-time { 
-  color: var(--info-color); 
+  color: var(--el-color-info); 
   flex-shrink: 0; 
 }
 
 .log-tag { 
-  color: var(--primary-color); 
+  color: var(--el-color-primary); 
   min-width: 50px; 
 }
 
@@ -998,7 +996,13 @@ html.dark .grid-card {
   flex: 1; 
 }
 
-.card-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 15px; }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: var(--neutral-gray-800);
+}
 
 .empty-placeholder {
   height: 300px;
@@ -1058,7 +1062,7 @@ html.dark .agent-item {
 
 .agent-item.running::before { background: var(--orin-primary); }
 .agent-item.stopped::before { background: var(--neutral-gray-400); }
-.agent-item.high_load::before { background: #F56C6C; }
+.agent-item.high_load::before { background: var(--error-500); }
 
 .agent-item.running .agent-name {
   position: relative;
@@ -1097,8 +1101,8 @@ html.dark .agent-item {
 .activity-item { display: flex; padding: 12px 0; border-bottom: 1px solid var(--neutral-gray-1); }
 .activity-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; margin-right: 12px; flex-shrink: 0; }
 .activity-dot.conversation { background: var(--orin-primary); }
-.activity-dot.error { background: #F56C6C; }
-.activity-dot.system { background: #909399; }
+.activity-dot.error { background: var(--error-500); }
+.activity-dot.system { background: var(--neutral-gray-400); }
 .activity-info { flex: 1; }
 .activity-text { font-size: 13px; line-height: 1.4; color: var(--neutral-gray-6); }
 .activity-time { font-size: 11px; color: var(--neutral-gray-4); margin-top: 4px; }

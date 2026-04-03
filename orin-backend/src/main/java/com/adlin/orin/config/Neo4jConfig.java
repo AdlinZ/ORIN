@@ -18,6 +18,9 @@ public class Neo4jConfig {
     @Value("${neo4j.port:7687}")
     private int port;
 
+    @Value("${neo4j.uri:}")
+    private String uri;
+
     @Value("${neo4j.username:neo4j}")
     private String username;
 
@@ -38,14 +41,16 @@ public class Neo4jConfig {
         if (!StringUtils.hasText(password)) {
             log.warn("Neo4j password is not configured. Graph features may not work properly.");
         }
-        log.info("Configuring Neo4j connection: {}:{}/{}", host, port, database);
-        return new Neo4jConnectionManager(host, port, username, password, database,
+        String effectiveUri = StringUtils.hasText(uri) ? uri : String.format("bolt://%s:%d", host, port);
+        log.info("Configuring Neo4j connection: {}/{}", effectiveUri, database);
+        return new Neo4jConnectionManager(effectiveUri, host, port, username, password, database,
                 maxConnectionPoolSize, connectionAcquisitionTimeoutMs);
     }
 
     @lombok.Data
     @lombok.AllArgsConstructor
     public static class Neo4jConnectionManager implements AutoCloseable {
+        private String uri;
         private String host;
         private int port;
         private String username;
@@ -55,6 +60,9 @@ public class Neo4jConfig {
         private long connectionAcquisitionTimeoutMs;
 
         public String getBoltUri() {
+            if (StringUtils.hasText(uri)) {
+                return uri;
+            }
             return String.format("bolt://%s:%d", host, port);
         }
 

@@ -524,7 +524,7 @@
                 <div v-show="configStep === 3" class="config-step-content">
                   <div class="verify-section">
                     <div class="verify-info">
-                      <el-icon :size="48" color="#67C23A">
+                      <el-icon :size="48" color="var(--success-500)">
                         <CircleCheckFilled />
                       </el-icon>
                       <h3>配置完成</h3>
@@ -1807,7 +1807,7 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 20px;
   display: flex;
@@ -1818,11 +1818,11 @@ onMounted(() => {
 }
 
 .stat-success {
-  border-left: 4px solid #67C23A;
+  border-left: 4px solid var(--success-500);
 }
 
 .stat-warning {
-  border-left: 4px solid #E6A23C;
+  border-left: 4px solid var(--warning-500);
 }
 
 .stat-card-with-actions {
@@ -1851,24 +1851,24 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f9ff;
-  color: #409EFF;
+  background: var(--info-light);
+  color: var(--info-500);
   margin-right: 16px;
 }
 
 .stat-icon-blue {
-  background: #f0f9ff;
-  color: #409EFF;
+  background: var(--info-light);
+  color: var(--info-500);
 }
 
 .stat-icon-green {
-  background: #f0fdf4;
-  color: #67C23A;
+  background: var(--success-light);
+  color: var(--success-500);
 }
 
 .stat-icon-orange {
-  background: #fef0f0;
-  color: #E6A23C;
+  background: var(--warning-light);
+  color: var(--warning-500);
 }
 
 .stat-content {
@@ -1878,12 +1878,12 @@ onMounted(() => {
 .stat-value {
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: var(--neutral-gray-900);
 }
 
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-500);
   margin-top: 4px;
 }
 
@@ -1948,12 +1948,12 @@ onMounted(() => {
 }
 
 .status-label {
-  color: #909399;
+  color: var(--neutral-gray-500);
   font-size: 13px;
 }
 
 .status-value {
-  color: #303133;
+  color: var(--neutral-gray-900);
   font-size: 13px;
   font-weight: 500;
 }
@@ -1978,15 +1978,15 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: #f5f7fa;
+  background: var(--neutral-gray-100);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .quick-action:hover {
-  background: #ecf5ff;
-  color: #409EFF;
+  background: var(--info-light);
+  color: var(--info-500);
 }
 
 .quick-action span {
@@ -1996,7 +1996,7 @@ onMounted(() => {
 }
 
 .quick-action:hover span {
-  color: #409EFF;
+  color: var(--info-500);
 }
 
 /* 标签页 */
@@ -2027,7 +2027,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #e0e0e0;
+  background: var(--neutral-gray-200);
   color: #fff;
   display: flex;
   align-items: center;
@@ -2039,30 +2039,30 @@ onMounted(() => {
 
 .step-item.active .step-number,
 .step-item.completed .step-number {
-  background: #409EFF;
+  background: var(--orin-primary);
 }
 
 .step-text {
   font-size: 13px;
-  color: #909399;
+  color: var(--neutral-gray-500);
 }
 
 .step-item.active .step-text {
-  color: #409EFF;
+  color: var(--orin-primary);
   font-weight: 500;
 }
 
 .step-line {
   width: 100px;
   height: 2px;
-  background: #e0e0e0;
+  background: var(--neutral-gray-200);
   margin: 0 8px;
   margin-bottom: 24px;
   transition: all 0.3s;
 }
 
 .step-line.active {
-  background: #409EFF;
+  background: var(--orin-primary);
 }
 
 .config-step-content {
@@ -2097,8 +2097,8 @@ onMounted(() => {
 }
 
 .mailer-option.selected {
-  border-color: #409EFF;
-  background: #f0f9ff;
+  border-color: var(--orin-primary);
+  background: var(--primary-light);
 }
 
 .mailer-icon {
@@ -2141,7 +2141,7 @@ onMounted(() => {
   position: absolute;
   top: 12px;
   right: 12px;
-  color: #409EFF;
+  color: var(--orin-primary);
   font-size: 20px;
 }
 
@@ -2259,19 +2259,19 @@ onMounted(() => {
 }
 
 .log-status.status-success {
-  color: #67C23A;
+  color: var(--success-500);
 }
 
 .log-status.status-failed {
-  color: #F56C6C;
+  color: var(--error-500);
 }
 
 .log-status.status-pending {
-  color: #E6A23C;
+  color: var(--warning-500);
 }
 
 .error-text {
-  color: #F56C6C;
+  color: var(--error-500);
   font-size: 12px;
 }
 
@@ -2366,7 +2366,7 @@ onMounted(() => {
 }
 
 .unread-badge {
-  background: #f56c6c;
+  background: var(--error-500);
   color: white;
   padding: 2px 8px;
   border-radius: 10px;

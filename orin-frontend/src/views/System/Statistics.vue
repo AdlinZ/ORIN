@@ -34,7 +34,7 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon" style="background: #409eff">
+            <div class="stat-icon" style="background: var(--orin-primary)">
               <el-icon><User /></el-icon>
             </div>
             <div class="stat-info">
@@ -51,7 +51,7 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon" style="background: #67c23a">
+            <div class="stat-icon" style="background: var(--success-500)">
               <el-icon><ChatLineRound /></el-icon>
             </div>
             <div class="stat-info">
@@ -68,7 +68,7 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon" style="background: #e6a23c">
+            <div class="stat-icon" style="background: var(--warning-500)">
               <el-icon><Coin /></el-icon>
             </div>
             <div class="stat-info">
@@ -85,7 +85,7 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon" style="background: #f56c6c">
+            <div class="stat-icon" style="background: var(--error-500)">
               <el-icon><Grid /></el-icon>
             </div>
             <div class="stat-info">
@@ -389,12 +389,12 @@ const calculatePercentage = (count, total) => {
 
 .stat-label {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
 }
 
 .stat-value {
   font-size: 28px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--neutral-gray-800);
 }
 </style>

@@ -432,10 +432,10 @@ onMounted(() => {
   font-size: 22px;
 }
 
-.stat-icon.total { background: var(--orin-primary-soft); color: var(--orin-primary); }
-.stat-icon.image { background: var(--success-50); color: var(--success-color); }
-.stat-icon.video { background: var(--warning-50); color: var(--warning-color); }
-.stat-icon.audio { background: var(--primary-50); color: var(--primary-color); }
+.stat-icon.total { background: var(--primary-light); color: var(--orin-primary); }
+.stat-icon.image { background: var(--success-light); color: var(--success-600); }
+.stat-icon.video { background: var(--warning-light); color: var(--warning-600); }
+.stat-icon.audio { background: var(--info-light); color: var(--info-600); }
 
 .stat-content {
   flex: 1;
@@ -476,7 +476,7 @@ onMounted(() => {
 }
 
 .file-icon {
-  color: #909399;
+  color: var(--neutral-gray-400);
 }
 
 .file-name {
@@ -489,7 +489,7 @@ onMounted(() => {
 }
 
 .text-danger {
-  color: #f56c6c;
+  color: var(--error-500);
   font-size: 14px;
 }
 

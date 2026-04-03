@@ -21,12 +21,30 @@ const props = defineProps({
   // 限制显示的点数
   maxPoints: { type: Number, default: 0 },
   // 支持多系列数据
-  series: { type: Array, default: () => [] }
+  series: { type: Array, default: () => [] },
+  // 是否应用主题色解析 (如果是 CSS 变量则自动取值)
+  resolveColor: { type: Boolean, default: true }
 });
 
 // 检查是否为多系列数据模式
 const isMultiSeries = computed(() => {
   return props.series && props.series.length > 0;
+});
+
+// 解析实际颜色 (处理 CSS 变量)
+const actualColor = computed(() => {
+  if (props.color && props.color.startsWith('var(') && props.resolveColor) {
+    try {
+      const varName = props.color.match(/var\((--[^)]+)\)/)?.[1];
+      if (varName) {
+        const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        if (val) return val;
+      }
+    } catch (e) {
+      console.warn('Failed to resolve color variable:', props.color);
+    }
+  }
+  return props.color || '#0d9488';
 });
 
 const chartRef = ref(null);
@@ -95,7 +113,7 @@ const updateOption = () => {
             </div>
             <div style="color: #4b5563; font-size: 12px; margin-bottom: 10px;">执行节点监测数据采样</div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="width: 8px; height: 8px; border-radius: 50%; background: ${props.color};"></div>
+              <div style="width: 8px; height: 8px; border-radius: 50%; background: ${actualColor.value};"></div>
               <span style="font-weight: 600; font-size: 16px; color: #111827;">${p.value[1]}</span>
               <span style="font-size: 11px; color: #9ca3af; margin-top: 4px;">${props.yAxisName || ''}</span>
             </div>
@@ -151,17 +169,17 @@ const updateOption = () => {
           shadowOffsetY: 2
         },
         textStyle: { color: '#9ca3af', fontSize: 10 },
-        fillerColor: props.color + '15',
+        fillerColor: actualColor.value + '15',
         borderColor: 'transparent',
         backgroundColor: isDark.value ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
         borderRadius: 20,
         dataBackground: {
-          lineStyle: { color: props.color, width: 1, opacity: 0.3 },
-          areaStyle: { color: props.color, opacity: 0.1 }
+          lineStyle: { color: actualColor.value, width: 1, opacity: 0.3 },
+          areaStyle: { color: actualColor.value, opacity: 0.1 }
         },
         selectedDataBackground: {
-          lineStyle: { color: props.color, width: 2 },
-          areaStyle: { color: props.color, opacity: 0.3 }
+          lineStyle: { color: actualColor.value, width: 2 },
+          areaStyle: { color: actualColor.value, opacity: 0.3 }
         }
       },
       { type: 'inside' }
@@ -175,7 +193,7 @@ const updateOption = () => {
         symbol: 'circle',
         symbolSize: (val) => Math.min(Math.max(val[1] / 100, 6), 12),
         itemStyle: { 
-          color: props.color,
+          color: actualColor.value,
           borderWidth: 2,
           borderColor: '#fff',
           shadowBlur: 5,
@@ -183,11 +201,11 @@ const updateOption = () => {
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: props.color + '33' },
-            { offset: 1, color: props.color + '00' }
+            { offset: 0, color: actualColor.value + '33' },
+            { offset: 1, color: actualColor.value + '00' }
           ])
         },
-        lineStyle: { width: 3, color: props.color },
+        lineStyle: { width: 3, color: actualColor.value },
         data: displayData.map(d => [d.timestamp, d.value])
       }
     ]
@@ -195,14 +213,10 @@ const updateOption = () => {
   chartInstance.setOption(option);
 };
 
-watch(() => props.data, () => {
+watch([() => props.data, () => props.color, isDark], () => {
   if (chartInstance) updateOption();
   else initChart();
 }, { deep: true });
-
-watch(isDark, () => {
-  initChart();
-});
 
 onMounted(() => {
   initChart();

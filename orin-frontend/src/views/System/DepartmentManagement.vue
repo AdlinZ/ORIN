@@ -742,7 +742,7 @@ onUnmounted(() => {
   gap: 8px;
   margin-bottom: 16px;
   padding: 12px;
-  background: var(--el-color-primary-light-9);
+  background: var(--orin-primary-50);
   border-radius: 8px;
 }
 
@@ -757,11 +757,11 @@ onUnmounted(() => {
 }
 
 .capsule.enabled {
-  background: rgba(103, 194, 58, 0.1);
+  background: var(--success-50);
 }
 
 .capsule.root {
-  background: rgba(64, 158, 255, 0.1);
+  background: var(--info-50);
 }
 
 .capsule-value {
@@ -814,11 +814,11 @@ onUnmounted(() => {
 }
 
 .status-dot.enabled {
-  background: #67c23a;
+  background: var(--success-500);
 }
 
 .status-dot.disabled {
-  background: #f56c6c;
+  background: var(--error-500);
 }
 
 .status-dot.large {
@@ -884,7 +884,7 @@ onUnmounted(() => {
   display: flex;
   gap: 24px;
   padding: 20px;
-  background: linear-gradient(135deg, var(--el-color-primary-light-9) 0%, var(--el-color-primary-light-8) 100%);
+  background: linear-gradient(135deg, var(--orin-primary-50) 0%, var(--orin-primary-100) 100%);
   border-radius: 12px;
 }
 
@@ -988,7 +988,7 @@ onUnmounted(() => {
 }
 
 .child-item:hover {
-  background: var(--el-color-primary-light-9);
+  background: var(--orin-primary-50);
 }
 
 .child-name {
@@ -1042,23 +1042,23 @@ html.dark .premium-card {
 }
 
 html.dark .stats-capsules {
-  background: rgba(64, 158, 255, 0.15);
+  background: var(--orin-primary-dark-shallow);
 }
 
 html.dark .capsule {
-  background: var(--el-bg-color-overlay);
+  background: var(--neutral-gray-800);
 }
 
 html.dark .capsule.enabled {
-  background: rgba(103, 194, 58, 0.15);
+  background: var(--success-dark-shallow);
 }
 
 html.dark .capsule.root {
-  background: rgba(64, 158, 255, 0.15);
+  background: var(--info-dark-shallow);
 }
 
 html.dark .overview-card {
-  background: linear-gradient(135deg, rgba(64, 158, 255, 0.2) 0%, rgba(64, 158, 255, 0.1) 100%);
+  background: linear-gradient(135deg, var(--orin-primary-dark-shallow) 0%, var(--orin-primary-dark) 100%);
 }
 
 html.dark .info-section {

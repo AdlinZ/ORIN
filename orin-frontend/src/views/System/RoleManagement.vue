@@ -556,13 +556,13 @@ html.dark .icon-btn {
 }
 
 html.dark .role-code {
-  background: rgba(38, 255, 223, 0.1);
+  background: var(--primary-light);
   color: var(--orin-primary);
 }
 
 html.dark .role-code.admin {
-  background: rgba(245, 108, 108, 0.15);
-  color: #f56c6c;
+  background: var(--error-light);
+  color: var(--error-500);
 }
 
 html.dark .description-text,

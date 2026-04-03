@@ -1466,7 +1466,7 @@ const copyHelperScript = () => {
 
 .onboard-stepper .step-item.active .step-icon-wrapper,
 .onboard-stepper .step-item.completed .step-icon-wrapper {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--orin-primary) 0%, var(--accent-500) 100%);
   color: #fff;
 }
 
@@ -1488,7 +1488,7 @@ const copyHelperScript = () => {
 }
 
 .onboard-stepper .step-item.active .step-name {
-  color: #667eea;
+  color: var(--orin-primary);
 }
 
 .onboard-stepper .step-line {
@@ -1513,7 +1513,7 @@ const copyHelperScript = () => {
 
 .provider-icon {
   font-size: 20px;
-  color: #667eea;
+  color: var(--orin-primary);
 }
 
 .provider-info {
@@ -1622,7 +1622,7 @@ html.dark .test-result-body p {
 .provider-tag.openai { background: #10a37f; color: #fff; }
 .provider-tag.anthropic { background: #d97757; color: #fff; }
 .provider-tag.ollama { background: #000; color: #fff; }
-.provider-tag.dify { background: #155eef; color: #fff; }
+.provider-tag.dify { background: var(--info-600); color: #fff; }
 .provider-tag.siliconflow { background: #6b46c1; color: #fff; }
 .provider-tag.deepseek { background: #2f54eb; color: #fff; }
 
@@ -1683,7 +1683,7 @@ html.dark .test-result-body p {
   margin-bottom: 20px;
 }
 .tip-text {
-  color: #909399;
+  color: var(--neutral-gray-400);
   font-size: 13px;
   margin-right: 12px;
 }

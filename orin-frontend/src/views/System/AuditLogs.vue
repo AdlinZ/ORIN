@@ -172,7 +172,7 @@
                   {{ stats.totalCount || 0 }} <small>条</small>
                 </div>
               </div>
-              <el-icon class="icon" color="var(--primary-color)">
+              <el-icon class="icon" color="var(--orin-primary)">
                 <Document />
               </el-icon>
             </el-card>
@@ -187,7 +187,7 @@
                   {{ stats.estimatedSizeMb || 0 }} <small>MB</small>
                 </div>
               </div>
-              <el-icon class="icon" color="var(--success-color)">
+              <el-icon class="icon" color="var(--success-500)">
                 <Coin />
               </el-icon>
             </el-card>
@@ -202,7 +202,7 @@
                   {{ formatSimpleDate(stats.oldestLog) }}
                 </div>
               </div>
-              <el-icon class="icon" color="var(--warning-color)">
+              <el-icon class="icon" color="var(--warning-500)">
                 <Calendar />
               </el-icon>
             </el-card>
@@ -225,7 +225,7 @@
                   <div class="flex-between w-100">
                     <el-switch 
                       v-model="config.auditEnabled" 
-                      style="--el-switch-on-color: var(--success-color);"
+                      style="--el-switch-on-color: var(--success-500);"
                     />
                     <el-tag :type="config.auditEnabled ? 'success' : 'info'" size="small">
                       {{ config.auditEnabled ? '运行中' : '已停止' }}
@@ -559,10 +559,10 @@ const formatDateTime = (val) => {
 const getLatencyTagConfig = (ms) => {
   const val = Number(ms) || 0;
   if (val < 500) return { type: 'success', effect: 'light' };
-  if (val < 2000) return { color: '#e1f3d8', style: { color: '#67c23a', border: '1px solid #c2e7b0' } };
-  if (val < 5000) return { color: '#95d475', style: { color: 'white', border: 'none' } };
-  if (val < 10000) return { color: '#67c23a', style: { color: 'white', border: 'none' } };
-  return { color: '#3c8c25', style: { color: 'white', border: 'none' } };
+  if (val < 2000) return { color: 'var(--success-light)', style: { color: 'var(--success-500)', border: '1px solid var(--success-100)' } };
+  if (val < 5000) return { color: 'var(--success-200)', style: { color: 'white', border: 'none' } };
+  if (val < 10000) return { color: 'var(--success-400)', style: { color: 'white', border: 'none' } };
+  return { color: 'var(--success-700)', style: { color: 'white', border: 'none' } };
 };
 
 // 格式化操作类型显示
@@ -978,7 +978,7 @@ onUnmounted(() => {
 .unit-hint { margin-left: 8px; font-size: 12px; color: var(--neutral-gray-600); }
 .cleanup-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--neutral-gray-100); }
 .token-info { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
-.token-prompt { color: var(--primary-color); font-weight: 500; }
+.token-prompt { color: var(--orin-primary); font-weight: 500; }
 .token-sep { color: var(--neutral-gray-400); }
-.token-total { color: var(--success-color); font-weight: 600; }
+.token-total { color: var(--success-500); font-weight: 600; }
 </style>

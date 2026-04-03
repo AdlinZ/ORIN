@@ -257,11 +257,11 @@ const showDetailDialog = ref(false);
 const currentTask = ref(null);
 
 const statusMap = {
-  QUEUED: { label: '排队中', icon: Tickets, color: '#909399', bgColor: 'rgba(144, 147, 153, 0.1)', class: 'stat-queued' },
-  RUNNING: { label: '执行中', icon: Loading, color: '#E6A23C', bgColor: 'rgba(230, 162, 60, 0.1)', class: 'stat-running' },
-  RETRYING: { label: '重试中', icon: Refresh, color: '#409EFF', bgColor: 'rgba(64, 158, 255, 0.1)', class: 'stat-retrying' },
-  COMPLETED: { label: '已完成', icon: CircleCheck, color: '#67C23A', bgColor: 'rgba(103, 194, 58, 0.1)', class: 'stat-completed' },
-  FAILED: { label: '失败', icon: Warning, color: '#F56C6C', bgColor: 'rgba(245, 108, 108, 0.1)', class: 'stat-failed' },
+  QUEUED:    { label: '排队中', icon: Tickets,      color: 'var(--neutral-gray-400)',  bgColor: 'var(--neutral-gray-100)',          class: 'stat-queued'    },
+  RUNNING:   { label: '执行中', icon: Loading,      color: 'var(--warning-500)',       bgColor: 'var(--warning-light)',             class: 'stat-running'   },
+  RETRYING:  { label: '重试中', icon: Refresh,      color: 'var(--info-500)',          bgColor: 'var(--info-light)',                class: 'stat-retrying'  },
+  COMPLETED: { label: '已完成', icon: CircleCheck,  color: 'var(--success-500)',       bgColor: 'var(--success-light)',             class: 'stat-completed' },
+  FAILED:    { label: '失败',   icon: Warning,      color: 'var(--error-500)',         bgColor: 'var(--error-light)',               class: 'stat-failed'    },
   DEAD: { label: '死信', icon: CircleClose, color: '#C0C4CC', bgColor: 'rgba(192, 196, 204, 0.1)', class: 'stat-dead' }
 };
 

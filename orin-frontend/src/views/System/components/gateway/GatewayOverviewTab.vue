@@ -145,18 +145,18 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: var(--neutral-gray-800);
 }
 
 .stat-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--neutral-gray-500);
   margin-top: 8px;
 }
 
-.text-success { color: #67c23a; }
-.text-danger { color: #f56c6c; }
-.text-warning { color: #e6a23c; }
+.text-success { color: var(--success-500); }
+.text-danger { color: var(--error-500); }
+.text-warning { color: var(--warning-500); }
 
 .card-header {
   display: flex;

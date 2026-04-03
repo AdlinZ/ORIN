@@ -10,6 +10,8 @@ import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.model.service.ZhipuIntegrationService;
 import com.adlin.orin.modules.model.service.DeepSeekIntegrationService;
 import com.adlin.orin.modules.model.service.KimiIntegrationService;
+import com.adlin.orin.modules.model.service.OllamaIntegrationService;
+import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,8 @@ public class AgentHealthCheckTask {
     private final ZhipuIntegrationService zhipuIntegrationService;
     private final DeepSeekIntegrationService deepSeekIntegrationService;
     private final KimiIntegrationService kimiIntegrationService;
+    private final OllamaIntegrationService ollamaIntegrationService;
+    private final MinimaxIntegrationService minimaxIntegrationService;
 
     public AgentHealthCheckTask(
             AgentHealthStatusRepository healthStatusRepository,
@@ -39,7 +43,9 @@ public class AgentHealthCheckTask {
             SiliconFlowIntegrationService siliconFlowIntegrationService,
             ZhipuIntegrationService zhipuIntegrationService,
             DeepSeekIntegrationService deepSeekIntegrationService,
-            KimiIntegrationService kimiIntegrationService) {
+            KimiIntegrationService kimiIntegrationService,
+            OllamaIntegrationService ollamaIntegrationService,
+            MinimaxIntegrationService minimaxIntegrationService) {
         this.healthStatusRepository = healthStatusRepository;
         this.accessProfileRepository = accessProfileRepository;
         this.difyIntegrationService = difyIntegrationService;
@@ -47,6 +53,8 @@ public class AgentHealthCheckTask {
         this.zhipuIntegrationService = zhipuIntegrationService;
         this.deepSeekIntegrationService = deepSeekIntegrationService;
         this.kimiIntegrationService = kimiIntegrationService;
+        this.ollamaIntegrationService = ollamaIntegrationService;
+        this.minimaxIntegrationService = minimaxIntegrationService;
     }
 
     /**
@@ -100,6 +108,10 @@ public class AgentHealthCheckTask {
                 isHealthy = checkDeepSeekAgent(profile, agent);
             } else if ("Kimi".equalsIgnoreCase(providerType) || "Moonshot".equalsIgnoreCase(providerType)) {
                 isHealthy = checkKimiAgent(profile);
+            } else if ("Ollama".equalsIgnoreCase(providerType)) {
+                isHealthy = checkOllamaAgent(profile, agent);
+            } else if ("MiniMax".equalsIgnoreCase(providerType)) {
+                isHealthy = checkMiniMaxAgent(profile, agent);
             } else {
                 log.warn("Unknown provider type for agent {}: {}", agentId, providerType);
                 updateAgentStatus(agent, AgentStatus.UNKNOWN, 50);
@@ -202,6 +214,40 @@ public class AgentHealthCheckTask {
                     profile.getApiKey());
         } catch (Exception e) {
             log.debug("Kimi agent {} connection test failed: {}",
+                    profile.getAgentId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 检查Ollama智能体健康状况
+     */
+    private boolean checkOllamaAgent(AgentAccessProfile profile, AgentHealthStatus agent) {
+        try {
+            String modelName = agent.getModelName() != null ? agent.getModelName() : "llama3";
+            return ollamaIntegrationService.testConnection(
+                    profile.getEndpointUrl(),
+                    profile.getApiKey(),
+                    modelName);
+        } catch (Exception e) {
+            log.debug("Ollama agent {} connection test failed: {}",
+                    profile.getAgentId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 检查MiniMax智能体健康状况
+     */
+    private boolean checkMiniMaxAgent(AgentAccessProfile profile, AgentHealthStatus agent) {
+        try {
+            String modelName = agent.getModelName() != null ? agent.getModelName() : "abab6.5g-chat";
+            return minimaxIntegrationService.testConnection(
+                    profile.getEndpointUrl(),
+                    profile.getApiKey(),
+                    modelName);
+        } catch (Exception e) {
+            log.debug("MiniMax agent {} connection test failed: {}",
                     profile.getAgentId(), e.getMessage());
             return false;
         }

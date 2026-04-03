@@ -524,13 +524,13 @@ onMounted(() => {
 .stat-item {
   text-align: center;
   padding: 20px;
-  background: var(--el-fill-color-light);
+  background: var(--neutral-gray-50);
   border-radius: 8px;
 }
 
 .stat-label {
   display: block;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
   margin-bottom: 8px;
 }
 
@@ -539,9 +539,9 @@ onMounted(() => {
   font-weight: 700;
 }
 
-.stat-value.success { color: var(--el-color-success); }
-.stat-value.warning { color: var(--el-color-warning); }
-.stat-value.danger { color: var(--el-color-danger); }
+.stat-value.success { color: var(--success-500); }
+.stat-value.warning { color: var(--warning-500); }
+.stat-value.danger { color: var(--error-500); }
 
 .event-tag {
   margin-right: 4px;

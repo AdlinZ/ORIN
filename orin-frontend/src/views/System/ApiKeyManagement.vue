@@ -568,9 +568,9 @@ const formatNumber = (num) => {
 };
 
 const getQuotaColor = (percentage) => {
-  if (percentage >= 90) return '#f56c6c';
-  if (percentage >= 70) return '#e6a23c';
-  return '#67c23a';
+  if (percentage >= 90) return 'var(--error-500)';
+  if (percentage >= 70) return 'var(--warning-500)';
+  return 'var(--success-500)';
 };
 
 // --- External Key Handlers ---

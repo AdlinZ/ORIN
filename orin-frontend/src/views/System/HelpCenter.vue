@@ -298,7 +298,7 @@ const renderContent = (content) => {
   display: flex;
   align-items: center;
   gap: 16px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
   font-size: 13px;
 }
 
@@ -330,14 +330,14 @@ const renderContent = (content) => {
 }
 
 .markdown-body :deep(code) {
-  background: var(--el-fill-color-light);
+  background: var(--neutral-gray-50);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
 }
 
 .markdown-body :deep(pre) {
-  background: var(--el-fill-color-light);
+  background: var(--neutral-gray-100);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -356,13 +356,13 @@ const renderContent = (content) => {
 h4 {
   margin: 0 0 8px;
   font-size: 14px;
-  color: #303133;
+  color: var(--neutral-gray-800);
 }
 
 ul {
   margin: 0;
   padding-left: 20px;
-  color: #606266;
+  color: var(--neutral-gray-600);
   font-size: 13px;
 }
 

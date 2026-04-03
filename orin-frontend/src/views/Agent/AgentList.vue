@@ -307,8 +307,6 @@ const formatTime = (ts) => {
 
 const getViewTypeColor = (viewType) => {
   if (!viewType) return 'info';
-  
-  // 根据不同的模型类型返回不同的标签颜色
   const typeColorMap = {
     'TEXT_TO_IMAGE': 'warning',
     'TTI': 'warning',
@@ -324,7 +322,6 @@ const getViewTypeColor = (viewType) => {
     'EMBEDDING': 'primary',
     'RERANKER': 'primary'
   };
-  
   return typeColorMap[viewType] || 'info';
 };
 
@@ -380,18 +377,18 @@ onUnmounted(() => {
   padding: 2px 6px;
   border-radius: 4px;
   text-transform: uppercase;
-  background: #f0f2f5;
-  color: #606266;
+  background: var(--neutral-gray-100);
+  color: var(--neutral-gray-600);
   display: inline-block;
 }
 .provider-tag.openai { background: #10a37f !important; color: #fff !important; }
 .provider-tag.anthropic { background: #d97757 !important; color: #fff !important; }
 .provider-tag.ollama { background: #000 !important; color: #fff !important; }
-.provider-tag.dify { background: #155eef !important; color: #fff !important; }
+.provider-tag.dify { background: var(--info-600) !important; color: #fff !important; }
 .provider-tag.siliconflow { background: #6b46c1 !important; color: #fff !important; }
 .provider-tag.deepseek { background: #2f54eb !important; color: #fff !important; }
 
-.name { font-weight: 600; color: var(--neutral-black); }
+.name { font-weight: 600; color: var(--neutral-gray-900); }
 
 .pagination-container {
   margin-top: 24px;

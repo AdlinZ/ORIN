@@ -196,11 +196,11 @@ onMounted(() => {
 }
 
 .error-text {
-  color: #f56c6c;
+  color: var(--error-500);
   font-size: 12px;
 }
 
 .placeholder {
-  color: #909399;
+  color: var(--neutral-gray-400);
 }
 </style>

@@ -293,18 +293,18 @@ onMounted(() => {
 }
 
 .create-card {
-  border: 2px dashed var(--el-border-color);
-  border-radius: var(--radius-base);
+  border: 2px dashed var(--neutral-gray-200);
+  border-radius: var(--radius-lg);
   min-height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition: all var(--transition-base);
 }
 
 .create-card:hover {
-  border-color: var(--primary-color);
-  background: rgba(var(--primary-color-rgb), 0.05);
+  border-color: var(--orin-primary);
+  background: var(--primary-50);
 }
 
 .create-content {
@@ -316,26 +316,26 @@ onMounted(() => {
   height: 48px;
   margin: 0 auto 12px;
   border-radius: 50%;
-  background: var(--el-fill-color-light);
+  background: var(--neutral-gray-100);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-400);
 }
 
 .create-card:hover .create-icon {
-  background: var(--primary-color);
+  background: var(--orin-primary);
   color: white;
 }
 
 .create-text {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-400);
 }
 
 .create-card:hover .create-text {
-  color: var(--primary-color);
+  color: var(--orin-primary);
 }
 
 .graph-card {
@@ -352,8 +352,8 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
-  color: #7c3aed;
+  background: var(--primary-50);
+  color: var(--orin-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -370,7 +370,7 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
-  color: var(--el-text-color-primary);
+  color: var(--neutral-gray-900);
 }
 
 .graph-body {
@@ -379,11 +379,12 @@ onMounted(() => {
 
 .graph-desc {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
   margin: 0;
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -393,12 +394,12 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding-top: 12px;
-  border-top: 1px solid var(--el-fill-color-light);
+  border-top: 1px solid var(--neutral-gray-100);
 }
 
 .graph-stats {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-400);
 }
 
 .graph-stats .separator {
@@ -408,10 +409,10 @@ onMounted(() => {
 .more-btn {
   cursor: pointer;
   font-size: 16px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-400);
 }
 
 .more-btn:hover {
-  color: var(--primary-color);
+  color: var(--orin-primary);
 }
 </style>

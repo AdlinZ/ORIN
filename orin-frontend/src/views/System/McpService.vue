@@ -554,7 +554,7 @@ onMounted(() => {
 
 .form-tip {
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
   margin-top: 4px;
 }
 
@@ -599,14 +599,14 @@ onMounted(() => {
 }
 
 .health-good {
-  color: #67c23a;
+  color: var(--success-500);
 }
 
 .health-warning {
-  color: #e6a23c;
+  color: var(--warning-500);
 }
 
 .health-error {
-  color: #f56c6c;
+  color: var(--error-500);
 }
 </style>

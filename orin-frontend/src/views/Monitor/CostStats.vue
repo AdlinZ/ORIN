@@ -445,23 +445,23 @@ onUnmounted(() => {
 }
 
 .today-icon {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  background: var(--success-light);
+  color: var(--success-600);
 }
 
 .week-icon {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
+  background: var(--info-light);
+  color: var(--info-600);
 }
 
 .month-icon {
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
+  background: var(--warning-light);
+  color: var(--warning-600);
 }
 
 .total-icon {
-  background: rgba(20, 184, 166, 0.12);
-  color: #0f766e;
+  background: var(--primary-light);
+  color: var(--orin-primary);
 }
 
 .stat-content {

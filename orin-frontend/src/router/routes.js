@@ -459,8 +459,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: '/dashboard/system/platform',
                 children: [
                     { title: '基础设置', path: ROUTES.SYSTEM.SETTINGS_BASE },
-                    { title: '邮件服务', path: ROUTES.SYSTEM.SETTINGS_MAIL },
-                    { title: '通知渠道', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
+                    { title: '通知中心', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
                     { title: '同步配置', path: ROUTES.SYSTEM.SETTINGS_SYNC },
                     { title: '外部集成', path: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS },
                     { title: 'MCP 服务', path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE },

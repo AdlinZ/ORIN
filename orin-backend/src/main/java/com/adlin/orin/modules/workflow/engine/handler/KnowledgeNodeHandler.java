@@ -48,15 +48,16 @@ public class KnowledgeNodeHandler implements NodeHandler {
         Double threshold = null;
         Boolean enableRerank = null;
         String rerankModel = null;
+        String embeddingModel = null;
         if (kbConfig != null) {
             if (kbConfig.containsKey("topK")) {
-                topK = (Integer) kbConfig.get("topK");
+                topK = asInteger(kbConfig.get("topK"), topK);
             }
             if (kbConfig.containsKey("alpha")) {
-                alpha = (Double) kbConfig.get("alpha");
+                alpha = asDouble(kbConfig.get("alpha"));
             }
             if (kbConfig.containsKey("similarityThreshold")) {
-                threshold = (Double) kbConfig.get("similarityThreshold");
+                threshold = asDouble(kbConfig.get("similarityThreshold"));
             }
             if (kbConfig.containsKey("enableRerank")) {
                 enableRerank = (Boolean) kbConfig.get("enableRerank");
@@ -64,11 +65,14 @@ public class KnowledgeNodeHandler implements NodeHandler {
             if (kbConfig.containsKey("rerankModel")) {
                 rerankModel = (String) kbConfig.get("rerankModel");
             }
+            if (kbConfig.containsKey("embeddingModel")) {
+                embeddingModel = String.valueOf(kbConfig.get("embeddingModel"));
+            }
         }
 
         // 如果启用了 Rerank，则传入 rerankModel
         String finalRerankModel = (enableRerank != null && enableRerank && rerankModel != null) ? rerankModel : null;
-        var results = retrievalService.hybridSearch(kbId, query, topK, null, alpha, threshold, finalRerankModel);
+        var results = retrievalService.hybridSearch(kbId, query, topK, embeddingModel, alpha, threshold, finalRerankModel);
 
         List<Map<String, Object>> docList = new ArrayList<>();
         StringBuilder contextBuilder = new StringBuilder();
@@ -88,5 +92,33 @@ public class KnowledgeNodeHandler implements NodeHandler {
         output.put("output", contextBuilder.toString());
 
         return NodeExecutionResult.success(output);
+    }
+
+    private int asInteger(Object value, int defaultValue) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        if (value instanceof String && !((String) value).isBlank()) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException ignored) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    private Double asDouble(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value instanceof String && !((String) value).isBlank()) {
+            try {
+                return Double.parseDouble((String) value);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 }

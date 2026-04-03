@@ -130,23 +130,23 @@ const handleRemove = (file) => {
 
 .upload-icon {
   font-size: 48px;
-  color: #409eff;
+  color: var(--orin-primary);
   margin-bottom: 10px;
 }
 
 .upload-text {
-  color: #606266;
+  color: var(--neutral-gray-500);
   margin-bottom: 10px;
 }
 
 .upload-text em {
-  color: #409eff;
+  color: var(--orin-primary);
   font-style: normal;
 }
 
 .upload-hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--neutral-gray-400);
 }
 
 .upload-progress {

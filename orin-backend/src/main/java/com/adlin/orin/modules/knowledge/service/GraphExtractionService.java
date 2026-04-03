@@ -4,25 +4,46 @@ import com.adlin.orin.config.Neo4jConfig;
 import com.adlin.orin.modules.knowledge.entity.GraphBuildState;
 import com.adlin.orin.modules.knowledge.entity.GraphEntity;
 import com.adlin.orin.modules.knowledge.entity.GraphRelation;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeGraph;
 import com.adlin.orin.modules.knowledge.repository.GraphEntityRepository;
 import com.adlin.orin.modules.knowledge.repository.GraphRelationRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeGraphRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Config;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.SessionConfig;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 知识图谱抽取服务
- * 使用 LLM 从文档中抽取实体和关系，存储到 Neo4j 图数据库
+ * 使用 LLM 从文档中抽取实体和关系，优先存储到 Neo4j（外部图数据库），并同步到 MySQL 作为索引兜底。
  */
 @Slf4j
 @Service
@@ -31,15 +52,14 @@ public class GraphExtractionService {
 
     private final Neo4jConfig.Neo4jConnectionManager neo4jConnectionManager;
     private final KnowledgeGraphRepository knowledgeGraphRepository;
+    private final KnowledgeDocumentRepository knowledgeDocumentRepository;
     private final GraphEntityRepository graphEntityRepository;
     private final GraphRelationRepository graphRelationRepository;
+    private final DocumentManageService documentManageService;
     private final com.adlin.orin.modules.knowledge.component.SiliconFlowEmbeddingAdapter embeddingAdapter;
     private final ObjectMapper objectMapper;
 
-    private static final int MAX_RETRIES = 3;
-    private static final long RETRY_INITIAL_INTERVAL_MS = 1000;
-    private static final double RETRY_MULTIPLIER = 2.0;
-    private static final long RETRY_MAX_INTERVAL_MS = 30000;
+    private volatile Driver neo4jDriver;
 
     /**
      * 构建图谱 - 从文档中抽取实体和关系
@@ -66,10 +86,10 @@ public class GraphExtractionService {
             List<ExtractedRelation> relations = extractRelations(textContent, entities);
             log.info("Extracted {} relations from document {}", relations.size(), documentId);
 
-            // 3. 存储到 Neo4j
+            // 3. 存储到 Neo4j（主）
             saveToNeo4j(graphId, documentId, entities, relations);
 
-            // 4. 同步到 MySQL (作为备份/索引)
+            // 4. 同步到 MySQL (兜底/索引)
             saveEntitiesToMySQL(graphId, documentId, entities);
             saveRelationsToMySQL(graphId, documentId, relations);
 
@@ -90,14 +110,84 @@ public class GraphExtractionService {
     }
 
     /**
+     * 异步构建图谱（自动闭环）：
+     * 1) 清理旧图数据
+     * 2) 遍历文档抽取实体/关系
+     * 3) 写入 Neo4j + MySQL
+     * 4) 更新图谱状态
+     */
+    @Async("taskExecutor")
+    public void buildGraphAsync(String graphId) {
+        Optional<KnowledgeGraph> graphOpt = knowledgeGraphRepository.findById(graphId);
+        if (graphOpt.isEmpty()) {
+            log.warn("Graph build async aborted, graph not found: {}", graphId);
+            return;
+        }
+
+        KnowledgeGraph graph = graphOpt.get();
+        graph.setBuildStatus(GraphBuildState.BUILDING);
+        knowledgeGraphRepository.save(graph);
+
+        int processed = 0;
+        int skipped = 0;
+        int failed = 0;
+
+        try {
+            clearGraphData(graphId);
+
+            List<KnowledgeDocument> docs = knowledgeDocumentRepository.findAll();
+            if (docs.isEmpty()) {
+                graph.setBuildStatus(GraphBuildState.FAILED);
+                knowledgeGraphRepository.save(graph);
+                log.warn("Graph build async finished with no documents. graphId={}", graphId);
+                return;
+            }
+
+            for (KnowledgeDocument doc : docs) {
+                if (Boolean.TRUE.equals(doc.getDeletedFlag())) {
+                    skipped++;
+                    continue;
+                }
+
+                String text = loadDocumentText(doc);
+                if (!StringUtils.hasText(text) || text.trim().length() < 20) {
+                    skipped++;
+                    continue;
+                }
+
+                try {
+                    List<ExtractedEntity> entities = extractEntities(text);
+                    List<ExtractedRelation> relations = extractRelations(text, entities);
+                    saveToNeo4j(graphId, doc.getId(), entities, relations);
+                    saveEntitiesToMySQL(graphId, doc.getId(), entities);
+                    saveRelationsToMySQL(graphId, doc.getId(), relations);
+                    processed++;
+                } catch (Exception e) {
+                    failed++;
+                    log.warn("Graph build async doc failed: graphId={}, docId={}, err={}",
+                            graphId, doc.getId(), e.getMessage());
+                }
+            }
+
+            updateGraphStats(graphId);
+            graph.setBuildStatus(processed > 0 ? GraphBuildState.SUCCESS : GraphBuildState.FAILED);
+            knowledgeGraphRepository.save(graph);
+            log.info("Graph build async completed. graphId={}, processed={}, skipped={}, failed={}",
+                    graphId, processed, skipped, failed);
+        } catch (Exception e) {
+            log.error("Graph build async failed. graphId={}", graphId, e);
+            graph.setBuildStatus(GraphBuildState.FAILED);
+            knowledgeGraphRepository.save(graph);
+        }
+    }
+
+    /**
      * 使用 LLM 抽取实体
      */
     private List<ExtractedEntity> extractEntities(String text) {
-        // 构建提示词
         String prompt = buildEntityExtractionPrompt(text);
 
         try {
-            // 调用 LLM 进行实体抽取
             String response = callLlm(prompt);
             return parseEntityResponse(response);
         } catch (Exception e) {
@@ -131,33 +221,40 @@ public class GraphExtractionService {
     private void saveToNeo4j(String graphId, String documentId,
                              List<ExtractedEntity> entities,
                              List<ExtractedRelation> relations) {
-        String cypher;
         int saved = 0;
 
-        // 使用事务批量保存
         try (var session = createNeo4jSession()) {
-            // 保存实体节点
             for (ExtractedEntity entity : entities) {
-                cypher = String.format(
+                String cypher =
                     "MERGE (e:Entity {name: $name, graphId: $graphId}) " +
-                    "SET e.type = $type, e.description = $description, " +
-                    "    e.documentId = $documentId, e.updatedAt = timestamp()",
-                    entity.name, graphId, entity.type, entity.description, documentId
-                );
-                session.run(cypher, Map.of(
-                    "name", entity.name,
-                    "graphId", graphId,
-                    "type", entity.type,
-                    "description", entity.description != null ? entity.description : "",
-                    "documentId", documentId
-                ));
+                    "SET e.nodeId = coalesce(e.nodeId, randomUUID()), " +
+                    "    e.type = $type, e.entity_type = $type, " +
+                    "    e.description = $description, e.documentId = $documentId, " +
+                    "    e.entity_id = $entityId, e.source_id = $sourceId, " +
+                    "    e.file_path = $filePath, e.truncate = $truncate, " +
+                    "    e.source_chunk_id = $sourceChunkId, " +
+                    "    e.tags = $tags, " +
+                    "    e.created_at = coalesce(e.created_at, timestamp()), " +
+                    "    e.updated_at = timestamp(), e.updatedAt = timestamp()";
+                Map<String, Object> entityParams = new HashMap<>();
+                entityParams.put("name", entity.name);
+                entityParams.put("graphId", graphId);
+                entityParams.put("type", safeText(entity.type, "unknown"));
+                entityParams.put("description", safeText(entity.description, ""));
+                entityParams.put("documentId", safeText(documentId, ""));
+                entityParams.put("entityId", safeText(entity.name, ""));
+                entityParams.put("sourceId", safeText(documentId, ""));
+                entityParams.put("filePath", safeText(documentId, ""));
+                entityParams.put("truncate", "");
+                entityParams.put("sourceChunkId", "");
+                entityParams.put("tags", List.of(safeText(entity.type, "unknown")));
+                session.run(cypher, entityParams);
                 saved++;
             }
 
-            // 保存关系边
             Map<String, String> entityNameToId = new HashMap<>();
             for (ExtractedEntity entity : entities) {
-                cypher = "MATCH (e:Entity {name: $name, graphId: $graphId}) RETURN id(e) as id";
+                String cypher = "MATCH (e:Entity {name: $name, graphId: $graphId}) RETURN id(e) as id";
                 var result = session.run(cypher, Map.of("name", entity.name, "graphId", graphId));
                 if (result.hasNext()) {
                     entityNameToId.put(entity.name, result.next().get("id").asString());
@@ -169,19 +266,26 @@ public class GraphExtractionService {
                 String targetId = entityNameToId.get(relation.targetEntity);
 
                 if (sourceId != null && targetId != null) {
-                    cypher = String.format(
+                    String relationType = normalizeRelationType(relation.relationType);
+                    String cypher = String.format(
                         "MATCH (s:Entity {name: $sourceName, graphId: $graphId}) " +
                         "MATCH (t:Entity {name: $targetName, graphId: $graphId}) " +
                         "MERGE (s)-[r:%s]->(t) " +
-                        "SET r.description = $description, r.weight = $weight",
-                        relation.relationType
+                        "SET r.description = $description, r.weight = $weight, " +
+                        "    r.relation_type = $relationType, r.source_id = $sourceId, " +
+                        "    r.documentId = $documentId, r.updated_at = timestamp(), " +
+                        "    r.created_at = coalesce(r.created_at, timestamp())",
+                        relationType
                     );
                     session.run(cypher, Map.of(
                         "sourceName", relation.sourceEntity,
                         "targetName", relation.targetEntity,
                         "graphId", graphId,
-                        "description", relation.description != null ? relation.description : "",
-                        "weight", relation.confidence
+                        "description", safeText(relation.description, ""),
+                        "weight", relation.confidence,
+                        "relationType", safeText(relation.relationType, "RELATED_TO"),
+                        "sourceId", safeText(documentId, ""),
+                        "documentId", safeText(documentId, "")
                     ));
                 }
             }
@@ -214,7 +318,6 @@ public class GraphExtractionService {
      * 保存关系到 MySQL
      */
     private void saveRelationsToMySQL(String graphId, String documentId, List<ExtractedRelation> relations) {
-        // 需要将实体名称映射到 ID
         List<GraphEntity> savedEntities = graphEntityRepository.findByGraphId(graphId);
         Map<String, String> nameToId = new HashMap<>();
         for (GraphEntity e : savedEntities) {
@@ -242,9 +345,106 @@ public class GraphExtractionService {
     }
 
     /**
-     * 获取图谱可视化数据
+     * 获取图谱可视化数据（优先 Neo4j，失败后回退 MySQL）
      */
     public GraphVisualizationData getVisualizationData(String graphId, String documentIdFilter) {
+        GraphVisualizationData neo4jData = tryLoadVisualizationFromNeo4j(graphId, documentIdFilter);
+        if (!neo4jData.getNodes().isEmpty()) {
+            return neo4jData;
+        }
+
+        log.info("Falling back to MySQL graph visualization for graphId={}", graphId);
+        return loadVisualizationFromMySql(graphId, documentIdFilter);
+    }
+
+    private GraphVisualizationData tryLoadVisualizationFromNeo4j(String graphId, String documentIdFilter) {
+        try (var session = createNeo4jSession()) {
+            String nodeCypher =
+                    "MATCH (e:Entity {graphId: $graphId}) " +
+                    "WHERE $documentId = '' OR e.documentId = $documentId " +
+                    "RETURN coalesce(e.nodeId, toString(id(e))) AS nodeId, " +
+                    "       coalesce(e.name, '') AS name, " +
+                    "       coalesce(e.type, e.entity_type, 'unknown') AS type, " +
+                    "       coalesce(e.description, '') AS description, " +
+                    "       coalesce(e.documentId, '') AS documentId, " +
+                    "       coalesce(e.entity_id, e.name, '') AS entityId, " +
+                    "       coalesce(e.source_id, e.documentId, '') AS sourceId, " +
+                    "       coalesce(e.file_path, '') AS filePath, " +
+                    "       coalesce(e.truncate, '') AS truncate, " +
+                    "       coalesce(e.created_at, 0) AS createdAt, " +
+                    "       coalesce(e.source_chunk_id, '') AS sourceChunkId, " +
+                    "       coalesce(e.tags, []) AS tags";
+            var nodeResult = session.run(nodeCypher, Map.of(
+                    "graphId", graphId,
+                    "documentId", safeText(documentIdFilter, "")
+            ));
+
+            List<GraphVisualizationData.Node> nodes = new ArrayList<>();
+            Set<String> categories = new LinkedHashSet<>();
+            Set<String> nodeIds = new HashSet<>();
+            while (nodeResult.hasNext()) {
+                Record record = nodeResult.next();
+                String nodeId = record.get("nodeId").asString();
+                String nodeType = safeText(record.get("type").asString(), "unknown");
+                categories.add(nodeType);
+                nodeIds.add(nodeId);
+                nodes.add(new GraphVisualizationData.Node(
+                        nodeId,
+                        record.get("name").asString(),
+                        nodeType,
+                        record.get("description").asString(),
+                        record.get("documentId").asString(),
+                        record.get("entityId").asString(),
+                        record.get("sourceId").asString(),
+                        record.get("filePath").asString(),
+                        record.get("truncate").asString(),
+                        record.get("createdAt").asLong(0L),
+                        record.get("sourceChunkId").asString(),
+                        toStringList(record.get("tags").asList())
+                ));
+            }
+
+            if (nodes.isEmpty()) {
+                return new GraphVisualizationData(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+            }
+
+            String edgeCypher =
+                    "MATCH (s:Entity {graphId: $graphId})-[r]->(t:Entity {graphId: $graphId}) " +
+                    "WHERE ($documentId = '' OR s.documentId = $documentId OR t.documentId = $documentId OR r.documentId = $documentId) " +
+                    "  AND coalesce(s.nodeId, toString(id(s))) IN $nodeIds " +
+                    "  AND coalesce(t.nodeId, toString(id(t))) IN $nodeIds " +
+                    "RETURN coalesce(s.nodeId, toString(id(s))) AS source, " +
+                    "       coalesce(t.nodeId, toString(id(t))) AS target, " +
+                    "       coalesce(r.relation_type, type(r), 'RELATED_TO') AS relationType, " +
+                    "       coalesce(r.description, '') AS description, " +
+                    "       coalesce(r.weight, 1.0) AS weight";
+            var edgeResult = session.run(edgeCypher, Map.of(
+                    "graphId", graphId,
+                    "documentId", safeText(documentIdFilter, ""),
+                    "nodeIds", nodeIds
+            ));
+
+            List<GraphVisualizationData.Edge> edges = new ArrayList<>();
+            while (edgeResult.hasNext()) {
+                Record record = edgeResult.next();
+                edges.add(new GraphVisualizationData.Edge(
+                        record.get("source").asString(),
+                        record.get("target").asString(),
+                        record.get("relationType").asString(),
+                        record.get("description").asString(),
+                        record.get("weight").asDouble(1.0d)
+                ));
+            }
+
+            return new GraphVisualizationData(nodes, edges, new ArrayList<>(categories));
+        } catch (Exception e) {
+            log.warn("Load visualization from Neo4j failed, fallback to MySQL. graphId={}, error={}",
+                    graphId, e.getMessage());
+            return new GraphVisualizationData(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+        }
+    }
+
+    private GraphVisualizationData loadVisualizationFromMySql(String graphId, String documentIdFilter) {
         List<GraphEntity> entities;
         List<GraphRelation> relations;
 
@@ -257,15 +457,13 @@ public class GraphExtractionService {
                 entityIds.add(e.getId());
             }
             relations = graphRelationRepository.findByGraphId(graphId).stream()
-                    .filter(r -> entityIds.contains(r.getSourceEntityId()) ||
-                                 entityIds.contains(r.getTargetEntityId()))
+                    .filter(r -> entityIds.contains(r.getSourceEntityId()) || entityIds.contains(r.getTargetEntityId()))
                     .toList();
         } else {
             entities = graphEntityRepository.findByGraphId(graphId);
             relations = graphRelationRepository.findByGraphId(graphId);
         }
 
-        // 转换为可视化格式
         List<GraphVisualizationData.Node> nodes = new ArrayList<>();
         Map<String, String> entityIdToNodeId = new HashMap<>();
         Set<String> entityTypes = new HashSet<>();
@@ -274,14 +472,23 @@ public class GraphExtractionService {
             GraphEntity entity = entities.get(i);
             String nodeId = "node_" + i;
             entityIdToNodeId.put(entity.getId(), nodeId);
-            entityTypes.add(entity.getEntityType());
+            String entityType = safeText(entity.getEntityType(), "unknown");
+            entityTypes.add(entityType);
+            Map<String, Object> props = parseProperties(entity.getProperties());
 
             nodes.add(new GraphVisualizationData.Node(
                     nodeId,
                     entity.getName(),
-                    entity.getEntityType(),
+                    entityType,
                     entity.getDescription(),
-                    entity.getSourceDocumentId()
+                    safeText(entity.getSourceDocumentId(), ""),
+                    safeText(entity.getName(), ""),
+                    safeText(entity.getSourceDocumentId(), ""),
+                    safeText(asString(props.get("file_path")), safeText(entity.getSourceDocumentId(), "")),
+                    safeText(asString(props.get("truncate")), ""),
+                    toEpochSeconds(entity.getCreatedAt()),
+                    safeText(entity.getSourceChunkId(), ""),
+                    Collections.singletonList(entityType)
             ));
         }
 
@@ -295,7 +502,7 @@ public class GraphExtractionService {
                         targetNodeId,
                         relation.getRelationType(),
                         relation.getDescription(),
-                        relation.getWeight()
+                        relation.getWeight() == null ? 1.0d : relation.getWeight()
                 ));
             }
         }
@@ -304,33 +511,100 @@ public class GraphExtractionService {
     }
 
     /**
-     * 搜索实体
+     * 搜索实体（优先 Neo4j）
      */
     public List<GraphEntity> searchEntities(String graphId, String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return Collections.emptyList();
+        }
+        List<GraphEntity> neo4jResult = trySearchEntitiesFromNeo4j(graphId, keyword);
+        if (!neo4jResult.isEmpty()) {
+            return neo4jResult;
+        }
         return graphEntityRepository.findByGraphIdAndNameContainingIgnoreCase(graphId, keyword);
     }
 
     /**
-     * 获取实体详情
+     * 获取实体详情（优先 Neo4j）
      */
-    public Optional<GraphEntity> getEntityDetails(String entityId) {
+    public Optional<GraphEntity> getEntityDetails(String graphId, String entityId) {
+        Optional<GraphEntity> fromNeo4j = tryGetEntityDetailsFromNeo4j(graphId, entityId);
+        if (fromNeo4j.isPresent()) {
+            return fromNeo4j;
+        }
         return graphEntityRepository.findById(entityId);
     }
 
     /**
-     * 获取实体的关联关系
+     * 获取实体关联关系（优先 Neo4j）
      */
-    public List<GraphRelation> getEntityRelations(String entityId) {
-        List<GraphRelation> relations = graphRelationRepository.findAll().stream()
-                .filter(r -> entityId.equals(r.getSourceEntityId()) ||
-                             entityId.equals(r.getTargetEntityId()))
+    public List<GraphRelation> getEntityRelations(String graphId, String entityId) {
+        List<GraphRelation> fromNeo4j = tryGetEntityRelationsFromNeo4j(graphId, entityId);
+        if (!fromNeo4j.isEmpty()) {
+            return fromNeo4j;
+        }
+        return graphRelationRepository.findAll().stream()
+                .filter(r -> entityId.equals(r.getSourceEntityId()) || entityId.equals(r.getTargetEntityId()))
                 .toList();
-        return relations;
     }
 
     private org.neo4j.driver.Session createNeo4jSession() {
-        var config = neo4jConnectionManager.toConfig();
-        return null; // Placeholder - actual implementation needs neo4j driver session
+        Driver driver = getOrCreateNeo4jDriver();
+        return driver.session(SessionConfig.forDatabase(neo4jConnectionManager.getDatabase()));
+    }
+
+    private void clearGraphData(String graphId) {
+        graphRelationRepository.deleteByGraphId(graphId);
+        graphEntityRepository.deleteByGraphId(graphId);
+        try (var session = createNeo4jSession()) {
+            session.run("MATCH (e:Entity {graphId: $graphId}) DETACH DELETE e", Map.of("graphId", graphId));
+        } catch (Exception e) {
+            log.warn("Clear Neo4j graph data failed. graphId={}, err={}", graphId, e.getMessage());
+        }
+    }
+
+    private String loadDocumentText(KnowledgeDocument doc) {
+        try {
+            Map<String, Object> content = documentManageService.getDocumentContent(doc.getId());
+            Object textObj = content.get("text");
+            String text = textObj == null ? "" : String.valueOf(textObj);
+            if (StringUtils.hasText(text)) {
+                return text;
+            }
+        } catch (Exception e) {
+            log.warn("Load document text failed from document service: docId={}, err={}", doc.getId(), e.getMessage());
+        }
+        return safeText(doc.getContentPreview(), "");
+    }
+
+    private Driver getOrCreateNeo4jDriver() {
+        if (neo4jDriver != null) {
+            return neo4jDriver;
+        }
+        synchronized (this) {
+            if (neo4jDriver == null) {
+                Config config = Config.builder()
+                        .withMaxConnectionPoolSize(neo4jConnectionManager.getMaxConnectionPoolSize())
+                        .withConnectionAcquisitionTimeout(neo4jConnectionManager.getConnectionAcquisitionTimeoutMs(), TimeUnit.MILLISECONDS)
+                        .build();
+                neo4jDriver = GraphDatabase.driver(
+                        neo4jConnectionManager.getBoltUri(),
+                        AuthTokens.basic(neo4jConnectionManager.getUsername(), safeText(neo4jConnectionManager.getPassword(), "")),
+                        config
+                );
+                log.info("Neo4j driver initialized for {}", neo4jConnectionManager.getBoltUri());
+            }
+        }
+        return neo4jDriver;
+    }
+
+    @PreDestroy
+    public void closeNeo4jDriver() {
+        if (neo4jDriver != null) {
+            neo4jDriver.close();
+            neo4jDriver = null;
+            log.info("Neo4j driver closed");
+        }
     }
 
     private String buildEntityExtractionPrompt(String text) {
@@ -376,8 +650,6 @@ public class GraphExtractionService {
 
     private String callLlm(String prompt) {
         try {
-            // 使用 SiliconFlowEmbeddingAdapter 的 chat 方法调用 LLM
-            // 默认使用 Qwen/Qwen2.5-7B-Instruct 模型进行实体和关系抽取
             return embeddingAdapter.chat(prompt, null);
         } catch (Exception e) {
             log.error("LLM call failed: {}", e.getMessage());
@@ -390,7 +662,6 @@ public class GraphExtractionService {
             if (!StringUtils.hasText(response)) {
                 return Collections.emptyList();
             }
-            // 尝试解析 JSON 数组
             String jsonStr = extractJsonArray(response);
             return objectMapper.readValue(jsonStr, new TypeReference<List<ExtractedEntity>>() {});
         } catch (Exception e) {
@@ -440,6 +711,164 @@ public class GraphExtractionService {
         }
     }
 
+    private Optional<GraphEntity> tryGetEntityDetailsFromNeo4j(String graphId, String entityId) {
+        try (var session = createNeo4jSession()) {
+            String cypher =
+                    "MATCH (e:Entity {graphId: $graphId}) " +
+                    "WHERE coalesce(e.nodeId, toString(id(e))) = $entityId OR e.entity_id = $entityId OR e.name = $entityId " +
+                    "RETURN coalesce(e.nodeId, toString(id(e))) AS id, " +
+                    "       coalesce(e.name, '') AS name, " +
+                    "       coalesce(e.type, e.entity_type, 'unknown') AS entityType, " +
+                    "       coalesce(e.description, '') AS description, " +
+                    "       coalesce(e.documentId, '') AS sourceDocumentId, " +
+                    "       coalesce(e.source_chunk_id, '') AS sourceChunkId, " +
+                    "       e AS rawNode " +
+                    "LIMIT 1";
+            var result = session.run(cypher, Map.of("graphId", graphId, "entityId", entityId));
+            if (!result.hasNext()) {
+                return Optional.empty();
+            }
+            Record record = result.next();
+            Map<String, Object> props = new LinkedHashMap<>(record.get("rawNode").asNode().asMap());
+            GraphEntity entity = GraphEntity.builder()
+                    .id(record.get("id").asString())
+                    .graphId(graphId)
+                    .name(record.get("name").asString())
+                    .entityType(record.get("entityType").asString())
+                    .description(record.get("description").asString())
+                    .sourceDocumentId(record.get("sourceDocumentId").asString())
+                    .sourceChunkId(record.get("sourceChunkId").asString())
+                    .properties(toJson(props))
+                    .build();
+            return Optional.of(entity);
+        } catch (Exception e) {
+            log.warn("Get entity details from Neo4j failed, graphId={}, entityId={}, err={}",
+                    graphId, entityId, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private List<GraphRelation> tryGetEntityRelationsFromNeo4j(String graphId, String entityId) {
+        try (var session = createNeo4jSession()) {
+            String cypher =
+                    "MATCH (e:Entity {graphId: $graphId}) " +
+                    "WHERE coalesce(e.nodeId, toString(id(e))) = $entityId OR e.entity_id = $entityId OR e.name = $entityId " +
+                    "MATCH (e)-[r]-(other:Entity {graphId: $graphId}) " +
+                    "RETURN coalesce(r.id, toString(id(r))) AS id, " +
+                    "       coalesce(startNode(r).nodeId, toString(id(startNode(r)))) AS sourceEntityId, " +
+                    "       coalesce(endNode(r).nodeId, toString(id(endNode(r)))) AS targetEntityId, " +
+                    "       coalesce(r.relation_type, type(r), 'RELATED_TO') AS relationType, " +
+                    "       coalesce(r.description, '') AS description, " +
+                    "       coalesce(r.weight, 1.0) AS weight, " +
+                    "       r AS rawRel";
+            var result = session.run(cypher, Map.of("graphId", graphId, "entityId", entityId));
+            List<GraphRelation> relations = new ArrayList<>();
+            while (result.hasNext()) {
+                Record record = result.next();
+                relations.add(GraphRelation.builder()
+                        .id(record.get("id").asString())
+                        .graphId(graphId)
+                        .sourceEntityId(record.get("sourceEntityId").asString())
+                        .targetEntityId(record.get("targetEntityId").asString())
+                        .relationType(record.get("relationType").asString())
+                        .description(record.get("description").asString())
+                        .weight(record.get("weight").asDouble(1.0d))
+                        .properties(toJson(record.get("rawRel").asRelationship().asMap()))
+                        .build());
+            }
+            return relations;
+        } catch (Exception e) {
+            log.warn("Get entity relations from Neo4j failed, graphId={}, entityId={}, err={}",
+                    graphId, entityId, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private List<GraphEntity> trySearchEntitiesFromNeo4j(String graphId, String keyword) {
+        try (var session = createNeo4jSession()) {
+            String cypher =
+                    "MATCH (e:Entity {graphId: $graphId}) " +
+                    "WHERE toLower(coalesce(e.name, '')) CONTAINS toLower($keyword) " +
+                    "RETURN coalesce(e.nodeId, toString(id(e))) AS id, " +
+                    "       coalesce(e.name, '') AS name, " +
+                    "       coalesce(e.type, e.entity_type, 'unknown') AS entityType, " +
+                    "       coalesce(e.description, '') AS description, " +
+                    "       coalesce(e.documentId, '') AS sourceDocumentId, " +
+                    "       coalesce(e.source_chunk_id, '') AS sourceChunkId, " +
+                    "       e AS rawNode " +
+                    "LIMIT 200";
+            var result = session.run(cypher, Map.of("graphId", graphId, "keyword", keyword));
+            List<GraphEntity> entities = new ArrayList<>();
+            while (result.hasNext()) {
+                Record record = result.next();
+                entities.add(GraphEntity.builder()
+                        .id(record.get("id").asString())
+                        .graphId(graphId)
+                        .name(record.get("name").asString())
+                        .entityType(record.get("entityType").asString())
+                        .description(record.get("description").asString())
+                        .sourceDocumentId(record.get("sourceDocumentId").asString())
+                        .sourceChunkId(record.get("sourceChunkId").asString())
+                        .properties(toJson(record.get("rawNode").asNode().asMap()))
+                        .build());
+            }
+            return entities;
+        } catch (Exception e) {
+            log.warn("Search entities from Neo4j failed, graphId={}, err={}", graphId, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private Map<String, Object> parseProperties(String properties) {
+        if (!StringUtils.hasText(properties)) {
+            return Collections.emptyMap();
+        }
+        try {
+            return objectMapper.readValue(properties, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Collections.emptyMap();
+        }
+    }
+
+    private List<String> toStringList(List<Object> list) {
+        if (list == null || list.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> result = new ArrayList<>(list.size());
+        for (Object item : list) {
+            if (item != null) {
+                result.add(String.valueOf(item));
+            }
+        }
+        return result;
+    }
+
+    private String normalizeRelationType(String relationType) {
+        String raw = safeText(relationType, "RELATED_TO").trim();
+        String normalized = raw.replaceAll("[^\\p{L}\\p{N}_]", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_|_$", "");
+        if (!StringUtils.hasText(normalized)) {
+            return "RELATED_TO";
+        }
+        return normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String safeText(String value, String fallback) {
+        return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private long toEpochSeconds(LocalDateTime value) {
+        if (value == null) {
+            return 0L;
+        }
+        return value.atZone(java.time.ZoneId.systemDefault()).toEpochSecond();
+    }
+
     // 内部类：抽取的实体
     @lombok.Data
     private static class ExtractedEntity {
@@ -475,6 +904,13 @@ public class GraphExtractionService {
             private String type;
             private String description;
             private String documentId;
+            private String entityId;
+            private String sourceId;
+            private String filePath;
+            private String truncate;
+            private long createdAt;
+            private String sourceChunkId;
+            private List<String> tags;
         }
 
         @lombok.Data

@@ -500,7 +500,7 @@ const renderChart = () => {
         position: 'bottom',
         formatter: '{b}',
         fontSize: 11,
-        color: '#333',
+        color: '#4b5563',
         overflow: 'truncate',
         width: 80
       },
@@ -596,11 +596,11 @@ const handleResize = () => {
 
 <style scoped>
 .graph-info-card {
-  background: var(--el-bg-color);
-  border-radius: var(--radius-base);
+  background: var(--orin-bg-white);
+  border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 20px;
-  border: 1px solid var(--el-border-color-light);
+  border: 1px solid var(--neutral-gray-200);
 }
 
 .stat-item {
@@ -609,21 +609,21 @@ const handleResize = () => {
 
 .stat-label {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--neutral-gray-500);
   margin-bottom: 8px;
 }
 
 .stat-value {
   font-size: 18px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--neutral-gray-900);
 }
 
 .graph-tabs {
-  background: var(--el-bg-color);
-  border-radius: var(--radius-base);
+  background: var(--orin-bg-white);
+  border-radius: var(--radius-lg);
   padding: 16px;
-  border: 1px solid var(--el-border-color-light);
+  border: 1px solid var(--neutral-gray-200);
 }
 
 .tab-toolbar {

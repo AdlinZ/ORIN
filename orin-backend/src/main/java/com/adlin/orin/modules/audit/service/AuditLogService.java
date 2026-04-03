@@ -3,8 +3,9 @@ package com.adlin.orin.modules.audit.service;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.system.service.LogConfigService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
@@ -19,13 +20,23 @@ import java.time.LocalDateTime;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
     private final LogConfigService logConfigService;
     private final com.adlin.orin.modules.monitor.service.PricingService pricingService;
-    private final com.adlin.orin.modules.alert.service.AlertService alertService;
+    private com.adlin.orin.modules.alert.service.AlertService alertService;
+
+    @Autowired
+    public AuditLogService(AuditLogRepository auditLogRepository,
+                          LogConfigService logConfigService,
+                          com.adlin.orin.modules.monitor.service.PricingService pricingService,
+                          @Lazy com.adlin.orin.modules.alert.service.AlertService alertService) {
+        this.auditLogRepository = auditLogRepository;
+        this.logConfigService = logConfigService;
+        this.pricingService = pricingService;
+        this.alertService = alertService;
+    }
 
     /**
      * 异步记录审计日志

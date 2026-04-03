@@ -1307,7 +1307,7 @@ const onSubmit = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--orin-bg-white);
   color: var(--neutral-gray-400);
   border: 2px solid var(--neutral-gray-200);
   font-size: 24px;
@@ -1349,40 +1349,27 @@ const onSubmit = async () => {
 
 /* Active State */
 .step-item.active .step-icon-wrapper {
-  background: var(--primary-color);
+  background: var(--orin-primary);
   color: white;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 15px rgba(var(--orin-primary-rgb), 0.3);
+  border-color: var(--orin-primary);
+  box-shadow: var(--orin-glow);
 }
 
 .step-item.active .step-name {
-  color: var(--primary-color);
+  color: var(--orin-primary);
 }
-
 .step-item.active .step-line {
-  background: var(--primary-color);
+  background: var(--orin-primary);
 }
 
+/* Theme-aware variables handle stepper colors */
 html.dark .onboard-stepper {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: var(--neutral-gray-300);
+  background: var(--neutral-gray-800);
+  border-color: var(--neutral-gray-700);
 }
-
 html.dark .step-icon-wrapper {
-  background: var(--neutral-gray-200);
-  border-color: var(--neutral-gray-300);
-}
-
-html.dark .step-name {
-  color: var(--neutral-gray-100);
-}
-
-html.dark .step-line {
-  background: var(--neutral-gray-300);
-}
-
-html.dark .step-item.active .step-line {
-  background: var(--primary-color);
+  background: var(--neutral-gray-700);
+  border-color: var(--neutral-gray-600);
 }
 
 @media (max-width: 992px) {
@@ -1410,7 +1397,7 @@ html.dark .step-item.active .step-line {
 
 .provider-icon {
   font-size: 20px;
-  color: var(--primary-color);
+  color: var(--orin-primary);
   margin-top: 4px;
 }
 
@@ -1454,7 +1441,7 @@ html.dark .provider-label {
 
 .integrated-select-group .main-select :deep(.el-input__wrapper.is-focus) {
   z-index: 2;
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset !important;
+  box-shadow: 0 0 0 1px var(--orin-primary) inset !important;
 }
 
 .integrated-select-group .append-select {
@@ -1472,6 +1459,6 @@ html.dark .provider-label {
 }
 
 html.dark .integrated-select-group .append-select :deep(.el-input__wrapper) {
-  background-color: var(--neutral-gray-200);
+  background-color: var(--neutral-gray-800);
 }
 </style>

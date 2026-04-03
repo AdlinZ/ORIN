@@ -26,7 +26,7 @@ public class AlertService {
 
     private final AlertRuleRepository ruleRepository;
     private final AlertHistoryRepository historyRepository;
-    private final NotificationService notificationService;
+    private final AlertNotificationService notificationService;
 
     // Cooldown cache: key = ruleType + ":" + agentId, value = last trigger
     // timestamp
@@ -144,7 +144,7 @@ public class AlertService {
 
         // 发送通知
         try {
-            notificationService.sendNotification(rule, message);
+            notificationService.sendRuleNotification(rule, message);
             log.info("Alert triggered and notification sent: {}", message);
         } catch (Exception e) {
             log.error("Failed to send alert notification", e);
@@ -280,7 +280,7 @@ public class AlertService {
      */
     public void testNotification(AlertRule rule) {
         String testMessage = "这是一条测试告警消息 - " + LocalDateTime.now();
-        notificationService.sendNotification(rule, testMessage);
+        notificationService.sendRuleNotification(rule, testMessage);
     }
 
     /**

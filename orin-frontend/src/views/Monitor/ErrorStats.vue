@@ -462,7 +462,7 @@ const updateBarChart = () => {
         data: topErrors.value.map(item => item.count),
         barWidth: 18,
         itemStyle: {
-          color: '#ef4444',
+          color: 'var(--error-500, #ef4444)',
           borderRadius: [0, 6, 6, 0]
         }
       }
@@ -602,8 +602,8 @@ onUnmounted(() => {
 .chart-card,
 .table-card {
   border-radius: 12px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
 }
 
 .stat-card :deep(.el-card__body) {
@@ -624,23 +624,23 @@ onUnmounted(() => {
 }
 
 .total-icon {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
+  background: var(--error-light);
+  color: var(--error-600);
 }
 
 .rate-icon {
-  background: rgba(249, 115, 22, 0.12);
-  color: #ea580c;
+  background: var(--warning-light);
+  color: var(--warning-600);
 }
 
 .category-icon {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
+  background: var(--info-light);
+  color: var(--info-600);
 }
 
 .provider-icon {
-  background: rgba(20, 184, 166, 0.12);
-  color: #0f766e;
+  background: var(--primary-light);
+  color: var(--orin-primary);
 }
 
 .stat-content {
@@ -703,7 +703,7 @@ onUnmounted(() => {
 }
 
 .error-count {
-  color: #dc2626;
+  color: var(--error-600);
   font-weight: 700;
 }
 

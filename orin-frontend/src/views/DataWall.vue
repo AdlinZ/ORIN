@@ -256,7 +256,7 @@ const runningAgents = computed(() => agents.value.filter(a => a.status === 'RUNN
 
 const miniStats = computed(() => [
   { key: 'agents', label: '活跃智能体', value: summary.value.total_agents || 0, unit: '', color: '#3b82f6', trend: 'up', change: 12 },
-  { key: 'requests', label: '今日请求', value: summary.value.daily_requests || 0, unit: '', color: '#8b5cf6', trend: 'up', change: 8 },
+  { key: 'requests', label: '今日请求', value: summary.value.daily_requests || 0, unit: '', color: 'var(--accent-500)', trend: 'up', change: 8 },
   { key: 'tokens', label: 'Token消耗', value: summary.value.total_tokens || 0, unit: 'K', color: '#10b981', trend: 'down', change: 3 },
   { key: 'latency', label: '平均延迟', value: parseInt(summary.value.avg_latency) || 0, unit: 'ms', color: '#f59e0b', trend: 'down', change: 15 }
 ]);
@@ -264,7 +264,7 @@ const miniStats = computed(() => [
 const bigStats = computed(() => [
   { 
     key: 'total', label: '总请求数', value: summary.value.daily_requests || 0, unit: '次',
-    icon: Tickets, gradient: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#3b82f6',
+    icon: Tickets, gradient: 'linear-gradient(135deg, var(--info-500), var(--info-600))', color: 'var(--info-500)',
     history: [10, 15, 12, 18, 20, 22, 19, 25]
   },
   { 
@@ -274,7 +274,7 @@ const bigStats = computed(() => [
   },
   { 
     key: 'tokens', label: 'Token消耗', value: summary.value.total_tokens || 0, unit: 'K',
-    icon: Cpu, gradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: '#8b5cf6',
+    icon: Cpu, gradient: 'linear-gradient(135deg, var(--accent-500), var(--accent-600))', color: 'var(--accent-500)',
     history: [100, 95, 98, 92, 90, 88, 85, 82]
   },
   { 
@@ -286,7 +286,7 @@ const bigStats = computed(() => [
 
 const performanceMetrics = ref([
   { key: 'cpu', label: 'CPU', value: 0, color: '#3b82f6' },
-  { key: 'memory', label: '内存', value: 0, color: '#8b5cf6' },
+  { key: 'memory', label: '内存', value: 0, color: 'var(--accent-500)' },
   { key: 'gpu', label: 'GPU', value: 0, color: '#10b981' },
   { key: 'disk', label: '磁盘', value: 0, color: '#f59e0b' }
 ]);
@@ -298,7 +298,7 @@ const agentDistribution = computed(() => {
     map[type] = (map[type] || 0) + 1;
   });
   
-  const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+  const colors = ['var(--info-500)', 'var(--accent-500)', 'var(--success-500)', 'var(--warning-500)', 'var(--error-500)'];
   const nameMap = {
     'CHAT': '对话助手', 'WORKFLOW': '工作流', 'TEXT_TO_IMAGE': '图像生成',
     'TTI': '图像生成', 'TTS': '语音合成', 'AGENT': '智能体'
@@ -424,8 +424,8 @@ onUnmounted(() => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #f8fafc;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+  background: var(--orin-bg);
+  font-family: var(--font-family);
 }
 
 /* Background */
@@ -451,9 +451,9 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
-  border-bottom: 2px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: var(--orin-bg-white);
+  border-bottom: 2px solid var(--orin-border);
+  box-shadow: var(--shadow-sm);
   position: relative;
   z-index: 10;
 }
@@ -473,12 +473,12 @@ onUnmounted(() => {
   font-size: 20px;
   font-weight: 700;
   margin: 0;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
 }
 
 .subtitle {
   font-size: 11px;
-  color: #64748b;
+  color: var(--neutral-gray-500);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -497,15 +497,15 @@ onUnmounted(() => {
   border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
+  background: var(--neutral-gray-100);
+  border: 1px solid var(--neutral-gray-200);
+  color: var(--neutral-gray-500);
 }
 
 .status-badge.online {
-  background: #d1fae5;
-  border-color: #6ee7b7;
-  color: #059669;
+  background: var(--success-50);
+  border-color: var(--success-200);
+  color: var(--success-600);
 }
 
 .dot {
@@ -528,13 +528,13 @@ onUnmounted(() => {
 .time {
   font-size: 20px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
   font-variant-numeric: tabular-nums;
 }
 
 .date {
   font-size: 11px;
-  color: #64748b;
+  color: var(--neutral-gray-500);
   margin-top: 2px;
 }
 
@@ -569,26 +569,26 @@ onUnmounted(() => {
 .left-column::-webkit-scrollbar-thumb,
 .center-column::-webkit-scrollbar-thumb,
 .right-column::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--neutral-gray-300);
   border-radius: 2px;
 }
 
 /* Panel Base */
 .panel {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--orin-bg-white);
+  border: 1px solid var(--orin-border);
   border-radius: 8px;
   padding: 15px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .panel-title {
   font-size: 14px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--orin-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -605,14 +605,14 @@ onUnmounted(() => {
 .mini-stat {
   text-align: center;
   padding: 10px;
-  background: #f8fafc;
+  background: var(--orin-bg);
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--orin-border);
 }
 
 .mini-label {
   font-size: 11px;
-  color: #64748b;
+  color: var(--neutral-gray-500);
   margin-bottom: 6px;
 }
 
@@ -664,12 +664,12 @@ onUnmounted(() => {
 .gauge-val {
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
 }
 
 .gauge-lbl {
   font-size: 11px;
-  color: #64748b;
+  color: var(--neutral-gray-500);
 }
 
 /* Distribution Panel */
@@ -687,7 +687,7 @@ onUnmounted(() => {
 
 .dist-label {
   font-size: 12px;
-  color: #475569;
+  color: var(--neutral-gray-600);
   width: 70px;
   flex-shrink: 0;
 }
@@ -709,7 +709,7 @@ onUnmounted(() => {
 .dist-val {
   font-size: 12px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
   width: 40px;
   text-align: right;
 }
@@ -722,14 +722,14 @@ onUnmounted(() => {
 }
 
 .big-stat {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--orin-bg-white);
+  border: 1px solid var(--orin-border);
   border-radius: 8px;
   padding: 15px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .big-icon {
@@ -745,13 +745,13 @@ onUnmounted(() => {
 
 .big-label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--neutral-gray-500);
 }
 
 .big-value {
   font-size: 24px;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
   display: flex;
   align-items: baseline;
   gap: 4px;
@@ -759,7 +759,7 @@ onUnmounted(() => {
 
 .big-unit {
   font-size: 12px;
-  color: #64748b;
+  color: var(--neutral-gray-500);
 }
 
 .big-sparkline {
@@ -812,16 +812,16 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 8px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  background: var(--orin-bg);
+  border: 1px solid var(--orin-border);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .agent-row:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: var(--orin-primary-50);
+  border-color: var(--primary-100);
   transform: translateX(4px);
 }
 
@@ -835,7 +835,7 @@ onUnmounted(() => {
 .agent-name {
   flex: 1;
   font-size: 12px;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -863,7 +863,7 @@ onUnmounted(() => {
 .health-num {
   font-size: 10px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--neutral-gray-800);
   width: 32px;
   text-align: right;
 }
