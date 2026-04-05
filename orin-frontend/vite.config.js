@@ -36,6 +36,18 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true
+      },
+      '/v1': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/v3': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/swagger-ui': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
       }
     },
     // Enable SPA fallback - serve index.html for all non-file routes

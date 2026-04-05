@@ -30,6 +30,13 @@ const routes = [
         component: () => import('@/views/DataWall.vue'),
         meta: { title: '数据大屏' }
     },
+    // 独立统一 API 文档页（不在 dashboard 内）
+    {
+        path: '/unified-docs',
+        name: 'ApiDocsPortal',
+        component: () => import('@/views/System/UnifiedApiDocs.vue'),
+        meta: { title: '统一 API 文档' }
+    },
 
     // 主应用布局
     {
@@ -493,6 +500,12 @@ const routes = [
                         meta: { title: '统一网关', icon: 'Connection', roles: ['ROLE_ADMIN'] }
                     },
                     {
+                        path: 'unified-api-docs',
+                        name: 'ControlUnifiedApiDocs',
+                        component: () => import('@/views/System/UnifiedApiDocs.vue'),
+                        meta: { title: '统一 API 文档', icon: 'Document', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
                         path: 'distributed-lock',
                         name: 'ControlDistributedLock',
                         component: () => import('@/views/System/DistributedLock.vue'),
@@ -692,7 +705,7 @@ router.beforeEach((to, from, next) => {
     const token = Cookies.get('orin_token')
 
     // 公开页面列表
-    const publicPages = ['/', '/login', '/datawall']
+    const publicPages = ['/', '/login', '/datawall', '/unified-docs']
     const authRequired = !publicPages.includes(to.path)
 
     if (authRequired && !token) {

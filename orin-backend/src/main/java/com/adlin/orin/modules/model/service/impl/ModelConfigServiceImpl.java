@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.model.service.impl;
 
+import com.adlin.orin.gateway.service.GatewayProviderRefreshService;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.model.service.KimiIntegrationService;
@@ -28,6 +29,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     private final MinimaxIntegrationService minimaxIntegrationService;
     private final OllamaIntegrationService ollamaIntegrationService;
     private final KimiIntegrationService kimiIntegrationService;
+    private final GatewayProviderRefreshService gatewayProviderRefreshService;
 
     @Autowired
     public ModelConfigServiceImpl(ModelConfigRepository modelConfigRepository,
@@ -37,7 +39,8 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             DeepSeekIntegrationService deepSeekIntegrationService,
             MinimaxIntegrationService minimaxIntegrationService,
             OllamaIntegrationService ollamaIntegrationService,
-            KimiIntegrationService kimiIntegrationService) {
+            KimiIntegrationService kimiIntegrationService,
+            GatewayProviderRefreshService gatewayProviderRefreshService) {
         this.modelConfigRepository = modelConfigRepository;
         this.difyIntegrationService = difyIntegrationService;
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
@@ -46,6 +49,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
         this.minimaxIntegrationService = minimaxIntegrationService;
         this.ollamaIntegrationService = ollamaIntegrationService;
         this.kimiIntegrationService = kimiIntegrationService;
+        this.gatewayProviderRefreshService = gatewayProviderRefreshService;
     }
 
     @Override
@@ -80,6 +84,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     public ModelConfig updateConfig(ModelConfig config) {
         Optional<ModelConfig> existingConfig = modelConfigRepository.findFirstByOrderByIdDesc();
 
+        ModelConfig saved;
         if (existingConfig.isPresent()) {
             ModelConfig existing = existingConfig.get();
             // Update existing config with new values
@@ -122,11 +127,15 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             }
             existing.setOllamaModel(config.getOllamaModel());
 
-            return modelConfigRepository.save(existing);
+            saved = modelConfigRepository.save(existing);
         } else {
             // If no config exists, save the new one
-            return modelConfigRepository.save(config);
+            saved = modelConfigRepository.save(config);
         }
+
+        // 配置更新后立即热刷新统一网关 Provider（免重启）
+        gatewayProviderRefreshService.refreshFromConfig(saved);
+        return saved;
     }
 
     @Override

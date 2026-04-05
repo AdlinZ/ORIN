@@ -42,6 +42,66 @@ public class ApiGatewayController {
     private static final String TRACE_ID_HEADER = "X-Trace-Id";
 
     /**
+     * 统一API入口索引
+     * GET /v1
+     */
+    @Operation(summary = "统一API入口", description = "返回统一网关的核心入口、文档链接和版本信息")
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> apiIndex() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("name", "ORIN Unified API");
+        result.put("version", "v1");
+        result.put("description", "OpenAI兼容统一网关入口");
+        result.put("docs", Map.of(
+                "swagger", "/swagger-ui/index.html",
+                "openapi", "/v3/api-docs",
+                "guide", "/v1/docs",
+                "userDocInRepo", "docs/统一API用户文档.md"));
+        result.put("endpoints", Map.of(
+                "health", "/v1/health",
+                "models", "/v1/models",
+                "chatCompletions", "/v1/chat/completions",
+                "embeddings", "/v1/embeddings",
+                "capabilities", "/v1/capabilities"));
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 统一API文档入口
+     * GET /v1/docs
+     */
+    @Operation(summary = "统一API文档入口", description = "返回统一API的文档导航信息")
+    @GetMapping("/docs")
+    public ResponseEntity<Map<String, Object>> apiDocs() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("title", "ORIN Unified API Docs");
+        result.put("quickStartInRepo", "docs/统一API用户文档.md");
+        result.put("apiReferenceInRepo", "docs/API文档.md");
+        result.put("uiPath", "/unified-docs");
+        result.put("swagger", "/swagger-ui/index.html");
+        result.put("openapi", "/v3/api-docs");
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 统一能力清单
+     * GET /v1/capabilities
+     */
+    @Operation(summary = "统一能力清单", description = "返回当前统一网关暴露的能力分组")
+    @GetMapping("/capabilities")
+    public ResponseEntity<Map<String, Object>> capabilities() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("gateway", "openai-compatible");
+        result.put("capabilities", Map.of(
+                "chat", "/v1/chat/completions",
+                "embeddings", "/v1/embeddings",
+                "models", "/v1/models",
+                "workflowExecution", "/v1/workflows/{workflowId}/execute"));
+        result.put("providerStatistics", providerRegistry.getStatistics());
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * 聊天完成接口 (OpenAI兼容)
      * POST /v1/chat/completions
      */

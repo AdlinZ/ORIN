@@ -418,6 +418,11 @@ export const TOP_MENU_CONFIG = [
                         icon: 'Router'
                     },
                     {
+                        title: '统一 API 文档',
+                        path: ROUTES.SYSTEM.UNIFIED_API_DOCS,
+                        icon: 'Document'
+                    },
+                    {
                         title: '限流规则',
                         path: ROUTES.SYSTEM.RATE_LIMIT,
                         icon: 'Lightning'

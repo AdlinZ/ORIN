@@ -253,6 +253,7 @@ import { Plus, Search, VideoPlay, DataLine, Timer, Connection, Upload, Refresh, 
 import { ElMessage, ElMessageBox } from 'element-plus';
 import dayjs from 'dayjs';
 import { getWorkflows, importWorkflow, deleteWorkflow, exportWorkflow, listDifyWorkflows, importFromDify, testDifyConnection } from '@/api/workflow';
+import { getDifyConfig } from '@/api/integrations';
 import PageHeader from '@/components/PageHeader.vue';
 
 const router = useRouter();
@@ -424,11 +425,24 @@ const formatTime = (time) => {
 };
 
 // Dify Sync Handlers
-const handleSyncDify = () => {
+const handleSyncDify = async () => {
   syncForm.endpoint = '';
   syncForm.apiKey = '';
   difyWorkflows.value = [];
   syncDialogVisible.value = true;
+
+  // 尝试从系统配置中获取 Dify 配置并预填充
+  try {
+    const config = await getDifyConfig();
+    if (config && config.apiUrl) {
+      syncForm.endpoint = config.apiUrl;
+    }
+    if (config && config.apiKey) {
+      syncForm.apiKey = config.apiKey;
+    }
+  } catch (e) {
+    console.warn('获取系统 Dify 配置失败，将使用空表单:', e);
+  }
 };
 
 const handleTestConnection = async () => {

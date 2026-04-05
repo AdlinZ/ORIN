@@ -64,7 +64,10 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/v1/**", "/api/v1/**")
                 .excludePathPatterns(
                         // 公开端点
+                        "/v1",
                         "/v1/health",
+                        "/v1/docs",
+                        "/v1/capabilities",
                         "/v1/providers",
                         "/api/v1/auth/**",
                         "/api/v1/system/providers/**",
@@ -85,7 +88,10 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/v1/**", "/api/v1/**")
                 .excludePathPatterns(
                         // 公开端点
+                        "/v1",
                         "/v1/health",
+                        "/v1/docs",
+                        "/v1/capabilities",
                         "/v1/providers",
                         "/api/v1/auth/**",
                         "/api/v1/system/providers/**",

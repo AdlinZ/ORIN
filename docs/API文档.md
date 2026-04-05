@@ -4,6 +4,9 @@
 
 ## 先看哪里
 
+- 统一 API 入口：`http://localhost:8080/v1`
+- 统一 API 文档导航：`http://localhost:8080/v1/docs`
+- 统一能力清单：`http://localhost:8080/v1/capabilities`
 - Swagger UI：`http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON：`http://localhost:8080/v3/api-docs`
 - 后端控制器根目录：`orin-backend/src/main/java/com/adlin/orin/modules`
@@ -58,6 +61,9 @@
 
 常见入口：
 
+- `GET /v1`（统一入口索引）
+- `GET /v1/docs`（统一文档导航）
+- `GET /v1/capabilities`（统一能力清单）
 - `POST /v1/chat/completions`
 - `POST /v1/embeddings`
 

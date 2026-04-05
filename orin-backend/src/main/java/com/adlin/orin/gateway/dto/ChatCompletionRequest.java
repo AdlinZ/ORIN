@@ -1,5 +1,6 @@
 package com.adlin.orin.gateway.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -37,6 +38,7 @@ public class ChatCompletionRequest {
      * 核采样参数
      */
     @Builder.Default
+    @JsonAlias("top_p")
     private Double topP = 1.0;
 
     /**
@@ -59,18 +61,21 @@ public class ChatCompletionRequest {
     /**
      * 最大Token数
      */
+    @JsonAlias("max_tokens")
     private Integer maxTokens;
 
     /**
      * 存在惩罚
      */
     @Builder.Default
+    @JsonAlias("presence_penalty")
     private Double presencePenalty = 0.0;
 
     /**
      * 频率惩罚
      */
     @Builder.Default
+    @JsonAlias("frequency_penalty")
     private Double frequencyPenalty = 0.0;
 
     /**

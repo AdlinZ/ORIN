@@ -28,13 +28,14 @@ public class AgentStatusUpdater {
     public void heartbeatAgents() {
         List<AgentHealthStatus> agents = healthStatusRepository.findAll();
         for (AgentHealthStatus agent : agents) {
-            // If status is unknown or null, set to RUNNING
+            // If status is unknown, null, stopped, or error, set to RUNNING
             // Also refresh heartbeat timestamp
             if (agent.getStatus() == null || agent.getStatus() == AgentStatus.UNKNOWN
-                    || agent.getStatus() == AgentStatus.STOPPED) {
-                // If we really wanted to check connectivity, we'd inject DifyIntegrationService
-                // here and test.
-                // For "System AI" display purposes, getting them out of "OFFLINE" is the goal.
+                    || agent.getStatus() == AgentStatus.STOPPED
+                    || agent.getStatus() == AgentStatus.ERROR) {
+                // Health check failures should not permanently mark agents as error,
+                // since external API issues (disabled models, network problems, etc.)
+                // do not necessarily mean the agent is unusable.
                 agent.setStatus(AgentStatus.RUNNING);
             }
             agent.setLastHeartbeat(System.currentTimeMillis());

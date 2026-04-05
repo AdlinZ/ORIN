@@ -1,8 +1,10 @@
 package com.adlin.orin.modules.agent.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AgentOnboardRequest {
     private String name;
     private String endpointUrl;

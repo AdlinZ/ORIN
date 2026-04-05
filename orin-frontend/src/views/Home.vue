@@ -93,6 +93,9 @@
           <el-button link @click="$router.push(ROUTES.AGENTS.LIST)">
             智能体管理
           </el-button>
+          <el-button link @click="openApiDocs">
+            API 文档
+          </el-button>
 
           <template v-if="isLoggedIn">
             <el-dropdown trigger="click" @command="handleCommand">
@@ -357,9 +360,9 @@
         </p>
         <div class="links">
           <a href="https://github.com/AdlinZ/ORIN/" target="_blank">GitHub</a>
-          <span>Documentation</span>
+          <a href="/unified-docs" target="_blank">API 文档</a>
           <span>Privacy Policy</span>
-          <span>API References</span>
+          <a href="/unified-docs" target="_blank">API References</a>
         </div>
       </footer>
     </div>
@@ -539,6 +542,10 @@ const handleCommand = (command) => {
       handleLogout();
       break;
   }
+};
+
+const openApiDocs = () => {
+  window.open('/unified-docs', '_blank');
 };
 
 onMounted(() => {

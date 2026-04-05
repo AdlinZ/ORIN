@@ -101,6 +101,7 @@ const systemRoutes = {
     PRICING: '/dashboard/control/pricing',
     MONITOR_SETTINGS: '/dashboard/control/system-env',
     GATEWAY: '/dashboard/control/gateway',
+    UNIFIED_API_DOCS: '/dashboard/control/unified-api-docs',
     DISTRIBUTED_LOCK: '/dashboard/control/distributed-lock',
     EXTERNAL_FRAMEWORKS: '/dashboard/control/external-frameworks',
     DIFY: '/dashboard/control/external-frameworks?tab=dify',

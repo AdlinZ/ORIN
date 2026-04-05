@@ -48,8 +48,8 @@ export function deleteApiKey(keyId) {
 // 重置月度配额
 export function resetQuota(keyId) {
     return request({
-        url: `/api/v1/api-keys/${keyId}/reset-quota`,
-        method: 'post'
+        url: `/api-keys/${keyId}/reset-quota`,
+        method: 'patch'
     })
 }
 // --- External Provider Keys ---

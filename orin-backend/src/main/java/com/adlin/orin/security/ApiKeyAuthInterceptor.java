@@ -36,9 +36,13 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 健康检查和Provider信息接口不需要认证
+        // 公开只读接口不需要认证
         String path = request.getRequestURI();
-        if (path.equals("/v1/health") || path.equals("/v1/providers")) {
+        if (path.equals("/v1")
+                || path.equals("/v1/health")
+                || path.equals("/v1/providers")
+                || path.equals("/v1/docs")
+                || path.equals("/v1/capabilities")) {
             return true;
         }
 

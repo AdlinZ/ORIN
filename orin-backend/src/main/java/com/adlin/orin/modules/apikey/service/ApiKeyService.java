@@ -77,8 +77,8 @@ public class ApiKeyService {
             // 查找所有密钥并验证
             List<ApiKey> allKeys = apiKeyRepository.findAll();
             for (ApiKey key : allKeys) {
-                if (passwordEncoder.matches(apiKeyString.substring(KEY_PREFIX.length()),
-                        key.getKeyHash().substring(KEY_PREFIX.length()))) {
+                String rawSecret = apiKeyString.substring(KEY_PREFIX.length());
+                if (matchesKeyHash(rawSecret, key.getKeyHash())) {
                     // 检查密钥是否有效
                     if (!key.isValid()) {
                         log.warn("API key is invalid: {}", key.getId());
@@ -103,6 +103,28 @@ public class ApiKeyService {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * 校验密钥哈希（兼容历史错误格式）
+     */
+    private boolean matchesKeyHash(String rawSecret, String storedHash) {
+        if (storedHash == null || storedHash.isEmpty()) {
+            return false;
+        }
+
+        // 正常格式：直接与完整 bcrypt 哈希比对
+        if (passwordEncoder.matches(rawSecret, storedHash)) {
+            return true;
+        }
+
+        // 兼容历史错误逻辑：曾错误地对 hash 做了前缀截断
+        if (storedHash.length() > KEY_PREFIX.length()) {
+            String legacyTrimmedHash = storedHash.substring(KEY_PREFIX.length());
+            return passwordEncoder.matches(rawSecret, legacyTrimmedHash);
+        }
+
+        return false;
     }
 
     /**
