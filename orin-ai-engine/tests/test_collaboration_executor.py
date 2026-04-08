@@ -43,8 +43,8 @@ class TestCollaborationExecutorResultAggregation:
             max_parallel=3
         )
 
-        # 验证分支状态（通过 collaboration_state 而非返回值）
-        # 注意：execute_parallel_branches 的返回值有 bug，未捕获 gather 结果
+        # 验证分支状态（通过 collaboration_state 验证）
+        # 注意：execute_parallel_branches 返回值已修复，gather 结果正确填充到 results 字典
         for i in range(3):
             branch_id = f"branch_{i}"
             assert executor.collaboration_state["branches"][branch_id]["status"] == "completed"

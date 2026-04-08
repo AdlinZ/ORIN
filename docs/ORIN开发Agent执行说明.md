@@ -1,7 +1,7 @@
 # ORIN 开发 Agent 执行说明
 
 > 面向：Codex、Claude Code、Cursor Agent、内部开发型智能体
-> 版本：`2026-03-31`
+> 版本：`2026-04-08`
 > 用途：让接手 ORIN 的开发 agent 在最短时间内建立正确上下文，避免继续基于旧设计、旧文档或页面表象做出错误修改。
 
 ## 0. 远端协作前提
@@ -41,10 +41,9 @@
 1. [ORIN统一开发总计划.md](./ORIN统一开发总计划.md)
 2. [阶段0_改造基线.md](./阶段0_改造基线.md)
 3. [系统功能实现评估报告.md](./系统功能实现评估报告.md)
-4. [真实完成度报告.md](./真实完成度报告.md)
-5. [原始设计与当前实现对照.md](./原始设计与当前实现对照.md)
-6. [API文档.md](./API文档.md)
-7. [使用指南.md](./使用指南.md)
+4. [原始设计与当前实现对照.md](./原始设计与当前实现对照.md)
+5. [API文档.md](./API文档.md)
+6. [使用指南.md](./使用指南.md)
 
 如果任务与工作流、协作、知识库有关，不再依赖已删除的专题文档，直接去看代码：
 
@@ -359,6 +358,54 @@ rg -n "placeholder|mock|UnsupportedOperationException|TODO|return null" orin-bac
 - `critic`
 - `memory_read`
 - `memory_write`
+
+### 8.4.1 协作模块优先补完清单（执行顺序）
+
+按下面顺序推进，不要跳步：
+
+1. P0：前后端接口断层收口（已完成）
+- 目标：前端调用的关键协作运行时接口在后端都存在，并返回稳定语义。
+- 重点入口：
+  - `orin-frontend/src/api/collaborationRuntime.js`
+  - `orin-frontend/src/api/collaboration.js`
+  - `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/controller/CollaborationOrchestratorController.java`
+
+2. P0：并行结果汇总修复（已完成）
+- 目标：并行分支结果可正确汇总并供后续共识节点消费。
+- 重点入口：
+  - `orin-ai-engine/app/engine/collaboration_executor.py`
+  - `orin-ai-engine/tests/test_collaboration_executor.py`
+
+3. P1：依赖驱动自动调度（已完成）
+- 目标：从手动推进改为依赖满足后自动调度，按协作模式执行。
+- 重点入口：
+  - `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/service/CollaborationOrchestrator.java`
+  - `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/controller/CollaborationOrchestratorController.java`
+
+4. P1：能力路由替代固定 Agent（已完成）
+- 目标：按角色/能力匹配执行 Agent，无匹配时可降级。
+- 重点入口：
+  - `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/service/CollaborationExecutor.java`
+
+5. P1：运行态观测与指标查询（已完成）
+- 目标：关键协作指标可查询，失败/重试/耗时可追踪。
+- 重点入口：
+  - `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/metrics/CollaborationMetricsService.java`
+  - `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/service/CollaborationExecutor.java`
+
+6. P2：占位执行分支补全（进行中）
+- 目标：workflow/human 分支从“可触发”提升到“可稳定执行+可回放”。
+- 重点入口：
+  - `orin-backend/src/main/java/com/adlin/orin/modules/collaboration/service/CollaborationExecutor.java`
+
+7. P0：端到端回归链路（已完成）
+- 目标：至少覆盖创建 -> 分解 -> 执行 -> 完成/失败 -> 事件可查。
+- 重点入口：
+  - `orin-backend/src/test/java/com/adlin/orin/modules/collaboration/service/CollaborationOrchestratorTest.java`
+  - `orin-ai-engine/tests/test_collaboration_executor.py`
+
+说明：
+- 测试结果以当前执行环境和 CI 为准，不使用文档中的固定“通过数”作为唯一判断依据。
 
 ## 8.5 观测与运维模块
 

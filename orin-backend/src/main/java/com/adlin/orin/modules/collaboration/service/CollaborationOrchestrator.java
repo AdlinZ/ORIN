@@ -55,15 +55,19 @@ public class CollaborationOrchestrator {
     public static final String SUBTASK_FAILED = "FAILED";
     public static final String SUBTASK_SKIPPED = "SKIPPED";
     public static final String SUBTASK_CANCELLED = "CANCELLED";
+    public static final String SUBTASK_AWAITING_HUMAN = "AWAITING_HUMAN_INPUT";
+    public static final String SUBTASK_MANUAL_HANDLING = "MANUAL_HANDLING";
 
     // 状态流转校验映射：当前状态 -> 可转换的目标状态
     private static final Map<String, Set<String>> SUBTASK_STATUS_TRANSITIONS = Map.of(
-            SUBTASK_PENDING, Set.of(SUBTASK_RUNNING, SUBTASK_CANCELLED),
-            SUBTASK_RUNNING, Set.of(SUBTASK_COMPLETED, SUBTASK_FAILED, SUBTASK_CANCELLED),
+            SUBTASK_PENDING, Set.of(SUBTASK_RUNNING, SUBTASK_CANCELLED, SUBTASK_AWAITING_HUMAN),
+            SUBTASK_RUNNING, Set.of(SUBTASK_COMPLETED, SUBTASK_FAILED, SUBTASK_CANCELLED, SUBTASK_AWAITING_HUMAN, SUBTASK_MANUAL_HANDLING),
             SUBTASK_COMPLETED, Set.of(),  // 已完成状态不可转换
             SUBTASK_FAILED, Set.of(SUBTASK_PENDING, SUBTASK_SKIPPED),  // 失败后可重试或跳过
             SUBTASK_SKIPPED, Set.of(),  // 已跳过不可转换
-            SUBTASK_CANCELLED, Set.of(SUBTASK_PENDING)  // 取消后可重置
+            SUBTASK_CANCELLED, Set.of(SUBTASK_PENDING),  // 取消后可重置
+            SUBTASK_AWAITING_HUMAN, Set.of(SUBTASK_COMPLETED, SUBTASK_CANCELLED),  // 人工输入后可完成或取消
+            SUBTASK_MANUAL_HANDLING, Set.of(SUBTASK_COMPLETED, SUBTASK_CANCELLED)  // 人工接管后可完成或取消
     );
 
     // 任务状态
@@ -71,6 +75,8 @@ public class CollaborationOrchestrator {
     public static final String STATUS_DECOMPOSING = "DECOMPOSING";
     public static final String STATUS_EXECUTING = "EXECUTING";
     public static final String STATUS_CONSENSUS = "CONSENSUS";
+    public static final String STATUS_PAUSED = "PAUSED";
+    public static final String STATUS_CANCELLED = "CANCELLED";
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_FAILED = "FAILED";
     public static final String STATUS_FALLBACK = "FALLBACK";
@@ -383,6 +389,9 @@ public class CollaborationOrchestrator {
         // 记录审计日志
         recordAuditLog(entity, "COMPLETED", result, null);
 
+        // 发布任务包完成事件
+        eventBus.publishPackageStatusChanged(packageId, STATUS_COMPLETED, getTraceId(packageId));
+
         return toDto(packageRepository.save(entity));
     }
 
@@ -429,7 +438,211 @@ public class CollaborationOrchestrator {
         // 记录审计日志
         recordAuditLog(entity, "FAILED", null, errorMessage);
 
+        // 发布任务包失败事件
+        eventBus.publishPackageStatusChanged(packageId, STATUS_FAILED, getTraceId(packageId));
+
         return toDto(packageRepository.save(entity));
+    }
+
+    /**
+     * 暂停协作任务包
+     */
+    @Transactional
+    public CollaborationPackage pause(String packageId) {
+        Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
+        if (entityOpt.isEmpty()) {
+            throw new RuntimeException("Package not found: " + packageId);
+        }
+
+        CollaborationPackageEntity entity = entityOpt.get();
+        String currentStatus = entity.getStatus();
+
+        if (!STATUS_EXECUTING.equals(currentStatus) && !STATUS_PLANNING.equals(currentStatus)) {
+            throw new IllegalStateException("Only EXECUTING or PLANNING packages can be paused, current: " + currentStatus);
+        }
+
+        entity.setStatus(STATUS_PAUSED);
+        log.info("Collaboration package paused: {}", packageId);
+
+        eventBus.publishPackageStatusChanged(packageId, STATUS_PAUSED, entity.getTraceId());
+        recordAuditLog(entity, "PAUSED", null, null);
+
+        return toDto(packageRepository.save(entity));
+    }
+
+    /**
+     * 恢复协作任务包
+     */
+    @Transactional
+    public CollaborationPackage resume(String packageId) {
+        Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
+        if (entityOpt.isEmpty()) {
+            throw new RuntimeException("Package not found: " + packageId);
+        }
+
+        CollaborationPackageEntity entity = entityOpt.get();
+        String currentStatus = entity.getStatus();
+
+        if (!STATUS_PAUSED.equals(currentStatus)) {
+            throw new IllegalStateException("Only PAUSED packages can be resumed, current: " + currentStatus);
+        }
+
+        entity.setStatus(STATUS_EXECUTING);
+        log.info("Collaboration package resumed: {}", packageId);
+
+        eventBus.publishPackageStatusChanged(packageId, STATUS_EXECUTING, entity.getTraceId());
+        recordAuditLog(entity, "RESUMED", null, null);
+
+        return toDto(packageRepository.save(entity));
+    }
+
+    /**
+     * 取消协作任务包
+     */
+    @Transactional
+    public CollaborationPackage cancel(String packageId) {
+        Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
+        if (entityOpt.isEmpty()) {
+            throw new RuntimeException("Package not found: " + packageId);
+        }
+
+        CollaborationPackageEntity entity = entityOpt.get();
+        String currentStatus = entity.getStatus();
+
+        if (STATUS_COMPLETED.equals(currentStatus) || STATUS_FAILED.equals(currentStatus) || STATUS_CANCELLED.equals(currentStatus)) {
+            throw new IllegalStateException("Cannot cancel package in terminal state: " + currentStatus);
+        }
+
+        entity.setStatus(STATUS_CANCELLED);
+        log.info("Collaboration package cancelled: {}", packageId);
+
+        // 取消所有 PENDING/RUNNING 的子任务
+        List<CollabSubtaskEntity> subtasks = subtaskRepository.findByPackageId(packageId);
+        for (CollabSubtaskEntity subtask : subtasks) {
+            if ("PENDING".equals(subtask.getStatus()) || "RUNNING".equals(subtask.getStatus())) {
+                subtask.setStatus(SUBTASK_CANCELLED);
+                subtask.setCompletedAt(LocalDateTime.now());
+            }
+        }
+        subtaskRepository.saveAll(subtasks);
+
+        eventBus.publishPackageStatusChanged(packageId, STATUS_CANCELLED, entity.getTraceId());
+        recordAuditLog(entity, "CANCELLED", null, null);
+
+        return toDto(packageRepository.save(entity));
+    }
+
+    /**
+     * 获取运行时状态（包含包状态、子任务进度、执行统计）
+     */
+    public Map<String, Object> getRuntimeStatus(String packageId) {
+        Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
+        if (entityOpt.isEmpty()) {
+            throw new RuntimeException("Package not found: " + packageId);
+        }
+
+        CollaborationPackageEntity entity = entityOpt.get();
+        List<CollabSubtaskEntity> subtasks = subtaskRepository.findByPackageId(packageId);
+
+        long pendingCount = subtasks.stream().filter(s -> "PENDING".equals(s.getStatus())).count();
+        long runningCount = subtasks.stream().filter(s -> "RUNNING".equals(s.getStatus())).count();
+        long completedCount = subtasks.stream().filter(s -> "COMPLETED".equals(s.getStatus())).count();
+        long failedCount = subtasks.stream().filter(s -> "FAILED".equals(s.getStatus())).count();
+        long skippedCount = subtasks.stream().filter(s -> "SKIPPED".equals(s.getStatus())).count();
+        long cancelledCount = subtasks.stream().filter(s -> "CANCELLED".equals(s.getStatus())).count();
+
+        Map<String, Object> stats = memoryService.getPackageStats(packageId);
+
+        return Map.of(
+                "packageId", packageId,
+                "status", entity.getStatus(),
+                "intent", entity.getIntent() != null ? entity.getIntent() : "",
+                "collaborationMode", entity.getCollaborationMode() != null ? entity.getCollaborationMode() : "",
+                "progress", Map.of(
+                        "total", subtasks.size(),
+                        "pending", pendingCount,
+                        "running", runningCount,
+                        "completed", completedCount,
+                        "failed", failedCount,
+                        "skipped", skippedCount,
+                        "cancelled", cancelledCount
+                ),
+                "executionStats", stats,
+                "createdAt", entity.getCreatedAt() != null ? entity.getCreatedAt().toString() : "",
+                "timeoutAt", entity.getTimeoutAt() != null ? entity.getTimeoutAt().toString() : "",
+                "traceId", entity.getTraceId() != null ? entity.getTraceId() : ""
+        );
+    }
+
+    /**
+     * 人工接管子任务
+     */
+    @Transactional
+    public CollabSubtaskEntity manuallyHandleSubtask(String packageId, String subTaskId, String handlerInput) {
+        Optional<CollabSubtaskEntity> subtaskOpt = subtaskRepository.findByPackageIdAndSubTaskId(packageId, subTaskId);
+        if (subtaskOpt.isEmpty()) {
+            throw new RuntimeException("Subtask not found: " + subTaskId);
+        }
+
+        CollabSubtaskEntity subtask = subtaskOpt.get();
+
+        if (!"PENDING".equals(subtask.getStatus()) && !"RUNNING".equals(subtask.getStatus())) {
+            throw new IllegalStateException("Only PENDING or RUNNING subtasks can be manually handled");
+        }
+
+        subtask.setStatus("MANUAL_HANDLING");
+        subtask.setResult("Manually handled by user: " + handlerInput);
+        subtask.setCompletedAt(LocalDateTime.now());
+
+        log.info("Subtask manually handled: {} in package: {}", subTaskId, packageId);
+
+        eventBus.publishSubtaskManuallyHandled(packageId, subTaskId, handlerInput, getTraceId(packageId));
+
+        return subtaskRepository.save(subtask);
+    }
+
+    /**
+     * 依赖驱动自动调度 - 子任务完成后自动触发满足依赖的后续子任务
+     *
+     * @param packageId 任务包 ID
+     * @return 触发调度的子任务列表（subTaskId 列表）
+     */
+    public List<CollabSubtaskEntity> autoScheduleIfPossible(String packageId) {
+        Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
+        if (entityOpt.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        CollaborationPackageEntity entity = entityOpt.get();
+        String collaborationMode = entity.getCollaborationMode();
+
+        List<CollabSubtaskEntity> executable = getExecutableSubtasks(packageId);
+        if (executable.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<CollabSubtaskEntity> toExecute;
+
+        if (MODE_PARALLEL.equals(collaborationMode)) {
+            // PARALLEL 模式：执行所有可执行的子任务
+            toExecute = executable;
+        } else {
+            // SEQUENTIAL 模式（默认）：只执行最靠前的子任务
+            toExecute = List.of(executable.get(0));
+        }
+
+        // 更新状态为 RUNNING
+        for (CollabSubtaskEntity subtask : toExecute) {
+            try {
+                updateSubtaskStatus(packageId, subtask.getSubTaskId(), SUBTASK_RUNNING, null, null);
+            } catch (IllegalStateException e) {
+                // 状态已被其他调度更改，跳过
+                log.warn("Skipping subtask {} due to status conflict: {}", subtask.getSubTaskId(), e.getMessage());
+            }
+        }
+
+        log.info("Auto-scheduled {} subtasks for package {} (mode={})", toExecute.size(), packageId, collaborationMode);
+        return toExecute;
     }
 
     /**

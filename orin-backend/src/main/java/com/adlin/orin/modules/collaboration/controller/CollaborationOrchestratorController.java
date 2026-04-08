@@ -4,6 +4,7 @@ import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.event.CollaborationEvent;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
+import com.adlin.orin.modules.collaboration.metrics.CollaborationMetricsService;
 import com.adlin.orin.modules.collaboration.service.CollaborationExecutor;
 import com.adlin.orin.modules.collaboration.service.CollaborationMemoryService;
 import com.adlin.orin.modules.collaboration.service.CollaborationOrchestrator;
@@ -33,6 +34,7 @@ public class CollaborationOrchestratorController {
     private final CollaborationEventBus eventBus;
     private final CollaborationExecutor executor;
     private final CollaborationMemoryService memoryService;
+    private final CollaborationMetricsService metricsService;
 
     @Operation(summary = "创建协作任务包")
     @PostMapping("/packages")
@@ -150,6 +152,56 @@ public class CollaborationOrchestratorController {
         return ResponseEntity.ok(orchestrator.getPackagesByUser(userId));
     }
 
+    @Operation(summary = "获取协作统计")
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> getCollaborationStats() {
+        List<CollaborationPackage> allPackages = orchestrator.getAllPackages();
+        long total = allPackages.size();
+        long planning = allPackages.stream().filter(p -> "PLANNING".equals(p.getStatus())).count();
+        long decomposing = allPackages.stream().filter(p -> "DECOMPOSING".equals(p.getStatus())).count();
+        long executing = allPackages.stream().filter(p -> "EXECUTING".equals(p.getStatus())).count();
+        long paused = allPackages.stream().filter(p -> "PAUSED".equals(p.getStatus())).count();
+        long completed = allPackages.stream().filter(p -> "COMPLETED".equals(p.getStatus())).count();
+        long failed = allPackages.stream().filter(p -> "FAILED".equals(p.getStatus())).count();
+        long cancelled = allPackages.stream().filter(p -> "CANCELLED".equals(p.getStatus())).count();
+
+        // 基于协作指标服务做聚合
+        Map<String, CollaborationMetricsService.AgentMetrics> allAgentMetrics = metricsService.getAllAgentMetrics();
+        long activeAgents = executor.getAvailableAgents() != null ? executor.getAvailableAgents().size() : 0;
+
+        long todayTokens = allAgentMetrics.values().stream()
+                .mapToLong(CollaborationMetricsService.AgentMetrics::getTotalTokens)
+                .sum();
+
+        long totalRequests = allAgentMetrics.values().stream()
+                .mapToLong(CollaborationMetricsService.AgentMetrics::getTotalRequests)
+                .sum();
+        long successRequests = allAgentMetrics.values().stream()
+                .mapToLong(CollaborationMetricsService.AgentMetrics::getSuccessCount)
+                .sum();
+        long totalLatencyMs = allAgentMetrics.values().stream()
+                .mapToLong(CollaborationMetricsService.AgentMetrics::getTotalLatencyMs)
+                .sum();
+
+        double avgLatency = totalRequests > 0 ? (double) totalLatencyMs / totalRequests : 0.0;
+        double successRate = totalRequests > 0 ? ((double) successRequests / totalRequests) * 100.0 : 0.0;
+
+        return ResponseEntity.ok(Map.of(
+                "total", total,
+                "planning", planning,
+                "decomposing", decomposing,
+                "executing", executing,
+                "paused", paused,
+                "completed", completed,
+                "failed", failed,
+                "cancelled", cancelled,
+                "activeAgents", activeAgents,
+                "todayTokens", todayTokens,
+                "avgLatency", Math.round(avgLatency * 100.0) / 100.0,
+                "successRate", Math.round(successRate * 100.0) / 100.0
+        ));
+    }
+
     @Operation(summary = "筛选任务包")
     @GetMapping("/packages/filter")
     public ResponseEntity<List<CollaborationPackage>> filterPackages(
@@ -232,6 +284,58 @@ public class CollaborationOrchestratorController {
         return ResponseEntity.ok(Map.of("status", "deleted", "checkpointId", checkpointId));
     }
 
+    // ==================== 运行时状态与控制接口 ====================
+
+    @Operation(summary = "获取运行时状态")
+    @GetMapping("/packages/{packageId}/runtime")
+    public ResponseEntity<Map<String, Object>> getRuntimeStatus(@PathVariable String packageId) {
+        try {
+            Map<String, Object> status = orchestrator.getRuntimeStatus(packageId);
+            return ResponseEntity.ok(status);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(summary = "暂停协作任务")
+    @PostMapping("/packages/{packageId}/pause")
+    public ResponseEntity<CollaborationPackage> pauseCollaboration(@PathVariable String packageId) {
+        try {
+            CollaborationPackage pkg = orchestrator.pause(packageId);
+            return ResponseEntity.ok(pkg);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(summary = "恢复协作任务")
+    @PostMapping("/packages/{packageId}/resume")
+    public ResponseEntity<CollaborationPackage> resumeCollaboration(@PathVariable String packageId) {
+        try {
+            CollaborationPackage pkg = orchestrator.resume(packageId);
+            return ResponseEntity.ok(pkg);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(summary = "取消协作任务")
+    @PostMapping("/packages/{packageId}/cancel")
+    public ResponseEntity<CollaborationPackage> cancelCollaboration(@PathVariable String packageId) {
+        try {
+            CollaborationPackage pkg = orchestrator.cancel(packageId);
+            return ResponseEntity.ok(pkg);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // ==================== 运行时执行接口 ====================
 
     @Operation(summary = "启动子任务执行")
@@ -264,11 +368,13 @@ public class CollaborationOrchestratorController {
             // 执行完成后更新状态
             orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
 
-            // 检查是否所有子任务都完成
-            checkAndCompletePackage(packageId);
+            // 依赖驱动自动调度：尝试调度后续子任务
+            scheduleNextSubtasks(packageId, traceId);
         }).exceptionally(e -> {
             log.error("Subtask execution failed: {}", subTaskId, e);
             orchestrator.updateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
+            // 失败后也尝试调度（可能有依赖该失败任务的替代路径）
+            scheduleNextSubtasks(packageId, traceId);
             return null;
         });
 
@@ -306,10 +412,12 @@ public class CollaborationOrchestratorController {
         // 异步重试执行
         executor.retrySubtask(subtask, packageId, traceId).thenAccept(result -> {
             orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
-            checkAndCompletePackage(packageId);
+            // 依赖驱动自动调度
+            scheduleNextSubtasks(packageId, traceId);
         }).exceptionally(e -> {
             log.error("Subtask retry failed: {}", subTaskId, e);
             orchestrator.updateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
+            scheduleNextSubtasks(packageId, traceId);
             return null;
         });
 
@@ -349,6 +457,10 @@ public class CollaborationOrchestratorController {
             @RequestBody Map<String, String> request) {
 
         String result = request.get("result");
+
+        // 完成等待中的人工任务（如果存在）
+        executor.completeHumanTask(packageId, subTaskId, result);
+
         return ResponseEntity.ok(orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null));
     }
 
@@ -362,12 +474,96 @@ public class CollaborationOrchestratorController {
         return ResponseEntity.ok(orchestrator.complete(packageId, result));
     }
 
+    @Operation(summary = "人工接管子任务")
+    @PostMapping("/packages/{packageId}/subtasks/{subTaskId}/manual")
+    public ResponseEntity<CollabSubtaskEntity> manuallyHandleSubtask(
+            @PathVariable String packageId,
+            @PathVariable String subTaskId,
+            @RequestBody Map<String, String> request) {
+
+        String handlerInput = request.get("handlerInput");
+        try {
+            CollabSubtaskEntity subtask = orchestrator.manuallyHandleSubtask(packageId, subTaskId, handlerInput);
+            return ResponseEntity.ok(subtask);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ==================== 指标查询接口 ====================
+
+    @Operation(summary = "获取 Agent 指标")
+    @GetMapping("/metrics/agent/{agentId}")
+    public ResponseEntity<CollaborationMetricsService.AgentMetrics> getAgentMetrics(@PathVariable String agentId) {
+        return ResponseEntity.ok(metricsService.getAgentMetrics(agentId));
+    }
+
+    @Operation(summary = "获取降级建议")
+    @GetMapping("/metrics/suggestion")
+    public ResponseEntity<Map<String, Object>> getDegradationSuggestion(
+            @RequestParam String agentId,
+            @RequestParam(required = false, defaultValue = "10.0") Double budgetThreshold,
+            @RequestParam(required = false, defaultValue = "5000") Long latencyThresholdMs) {
+
+        String suggestion = metricsService.getDegradationSuggestion(agentId, budgetThreshold, latencyThresholdMs);
+        CollaborationMetricsService.AgentMetrics metrics = metricsService.getAgentMetrics(agentId);
+
+        return ResponseEntity.ok(Map.of(
+                "agentId", agentId,
+                "suggestion", suggestion,
+                "metrics", Map.of(
+                        "totalTokens", metrics.getTotalTokens(),
+                        "totalCost", metrics.getTotalCost(),
+                        "successRate", metrics.getSuccessRate(),
+                        "averageLatencyMs", metrics.getAverageLatencyMs(),
+                        "totalRequests", metrics.getTotalRequests()
+                )
+        ));
+    }
+
     /**
      * 检查并完成协作包
      */
     private void checkAndCompletePackage(String packageId) {
         if (orchestrator.isAllSubtasksCompleted(packageId)) {
             orchestrator.complete(packageId, "All subtasks completed");
+        }
+    }
+
+    /**
+     * 依赖驱动自动调度 - 查询可执行子任务并异步执行
+     */
+    private void scheduleNextSubtasks(String packageId, String traceId) {
+        try {
+            List<CollabSubtaskEntity> toSchedule = orchestrator.autoScheduleIfPossible(packageId);
+
+            for (CollabSubtaskEntity subtask : toSchedule) {
+                // 跳过已完成/失败/取消的（状态已被其他调度处理）
+                String status = subtask.getStatus();
+                if (!"RUNNING".equals(status)) {
+                    continue;
+                }
+
+                final String subTaskId = subtask.getSubTaskId();
+                executor.executeSubtask(subtask, packageId, traceId).thenAccept(result -> {
+                    orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
+                    scheduleNextSubtasks(packageId, traceId);
+                }).exceptionally(e -> {
+                    log.error("Auto-scheduled subtask failed: {}", subTaskId, e);
+                    orchestrator.updateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
+                    scheduleNextSubtasks(packageId, traceId);
+                    return null;
+                });
+            }
+
+            // 如果没有可调度的子任务，检查是否全部完成
+            if (toSchedule.isEmpty()) {
+                checkAndCompletePackage(packageId);
+            }
+        } catch (Exception e) {
+            log.error("Error in auto-schedule for package {}: {}", packageId, e.getMessage());
         }
     }
 }

@@ -83,4 +83,4 @@ curl -X POST http://localhost:8080/v1/embeddings \
 - Swagger UI：`/swagger-ui/index.html`
 - OpenAPI：`/v3/api-docs`
 - 详细接口说明：`docs/API文档.md`
-- 网关接入速查：`docs/统一网关对外接入快速指南.md`
+- 网关接入说明：见本文档第 1-4 章

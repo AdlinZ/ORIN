@@ -28,10 +28,9 @@
 1. [ORIN统一开发总计划.md](./ORIN统一开发总计划.md)
 2. [阶段0_改造基线.md](./阶段0_改造基线.md)
 3. [系统功能实现评估报告.md](./系统功能实现评估报告.md)
-4. [真实完成度报告.md](./真实完成度报告.md)
-5. [原始设计与当前实现对照.md](./原始设计与当前实现对照.md)
-6. [API文档.md](./API文档.md)
-7. [使用指南.md](./使用指南.md)
+4. [原始设计与当前实现对照.md](./原始设计与当前实现对照.md)
+5. [API文档.md](./API文档.md)
+6. [使用指南.md](./使用指南.md)
 
 ### 2.2 需求来源文档
 
@@ -713,6 +712,39 @@ AI 引擎工作：
 8. 建立协作任务数据模型和状态流设计稿
 9. 明确 Langfuse、Prometheus、Audit/Trace 的字段边界
 10. 选定 3 条演示级端到端场景作为阶段 2 验收样例
+
+### 12.1 多智能体协作迁移任务（LangGraph + RabbitMQ + Redis）
+
+为支持从当前 Java 主编排平滑迁移到“LangGraph 编排 + RabbitMQ 并发分发 + Redis 共享状态”，按两周拆解如下：
+
+#### 第 1 周（并行协作 POC）
+
+1. 保持现有对外 API 不变，新增协作执行引擎开关（`JAVA_NATIVE` / `LANGGRAPH_MQ`）
+2. 仅对 `PARALLEL` 模式灰度启用 `LANGGRAPH_MQ`
+3. 在后端执行器中增加 RabbitMQ 发布能力（消息体至少含 `packageId`、`subTaskId`、`traceId`、`attempt`）
+4. 在 AI 引擎增加 MQ Worker，消费任务并回写结果
+5. 建立 Redis 协作键规范：
+- `collab:{packageId}:ctx`
+- `collab:{packageId}:branch_counter`
+- `collab:{packageId}:lock:{subTaskId}`
+6. 增加并行 E2E 验收链路：创建包 -> 分解 -> 并行执行 -> 汇总 -> 完成
+
+#### 第 2 周（可靠性与模式扩展）
+
+1. RabbitMQ 增加重试、DLQ、TTL；消费端增加幂等键（`packageId:subTaskId:attempt`）
+2. 统一 DB/Redis/MQ 三方状态语义（重试、超时、取消、人工接管）
+3. 迁移 `SEQUENTIAL` 与 `CONSENSUS` 模式到 LangGraph 协作图
+4. 统一 trace 贯穿：Java -> MQ -> Python -> Java 回写
+5. 指标收口到现有协作指标接口（成功率、延迟、token、重试）
+6. 完成灰度发布与回滚策略：
+- 灰度：内部任务 -> 10% -> 50% -> 100%
+- 回滚：一键切回 `JAVA_NATIVE`
+
+#### 迁移约束
+
+- 不改前端调用协议
+- 不一次性删除现有 Java Orchestrator
+- 先双轨运行，稳定后再收敛职责
 
 ## 13. 最终结论
 

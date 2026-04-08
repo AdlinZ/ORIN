@@ -80,6 +80,9 @@ public class CollaborationEvent {
         PACKAGE_CREATED("任务包创建"),
         PACKAGE_DECOMPOSED("任务分解完成"),
         PACKAGE_STARTED("任务包开始执行"),
+        PACKAGE_PAUSED("任务包暂停"),
+        PACKAGE_RESUMED("任务包恢复"),
+        PACKAGE_CANCELLED("任务包取消"),
         PACKAGE_COMPLETED("任务包完成"),
         PACKAGE_FAILED("任务包失败"),
         PACKAGE_FALLBACK("任务包回退"),
@@ -92,6 +95,7 @@ public class CollaborationEvent {
         SUBTASK_FAILED("子任务失败"),
         SUBTASK_RETRY("子任务重试"),
         SUBTASK_SKIPPED("子任务跳过"),
+        SUBTASK_MANUAL_HANDLING("子任务人工接管"),
 
         // Agent 生命周期
         AGENT_ASSIGNED("Agent 分配"),

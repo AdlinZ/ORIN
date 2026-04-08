@@ -43,9 +43,8 @@ export function skipSubtask(packageId, subTaskId) {
 // 回滚到检查点
 export function rollbackToCheckpoint(packageId, checkpointId) {
   return request({
-    url: `/collaboration/packages/${packageId}/rollback`,
-    method: 'post',
-    data: { checkpointId }
+    url: `/collaboration/packages/${packageId}/checkpoints/${checkpointId}/rollback`,
+    method: 'post'
   })
 }
 

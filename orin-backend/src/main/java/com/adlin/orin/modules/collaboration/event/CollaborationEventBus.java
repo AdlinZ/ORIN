@@ -181,6 +181,44 @@ public class CollaborationEventBus {
     }
 
     /**
+     * 发布任务包状态变更事件（暂停/恢复/取消）
+     */
+    public void publishPackageStatusChanged(String packageId, String newStatus, String traceId) {
+        CollaborationEvent.CollaborationEventType eventType = switch (newStatus) {
+            case "PAUSED" -> CollaborationEvent.CollaborationEventType.PACKAGE_PAUSED;
+            case "EXECUTING" -> CollaborationEvent.CollaborationEventType.PACKAGE_RESUMED;
+            case "CANCELLED" -> CollaborationEvent.CollaborationEventType.PACKAGE_CANCELLED;
+            case "COMPLETED" -> CollaborationEvent.CollaborationEventType.PACKAGE_COMPLETED;
+            case "FAILED" -> CollaborationEvent.CollaborationEventType.PACKAGE_FAILED;
+            default -> CollaborationEvent.CollaborationEventType.PACKAGE_STARTED;
+        };
+
+        CollaborationEvent event = CollaborationEvent.builder()
+                .eventType(eventType)
+                .packageId(packageId)
+                .eventData(Map.of("newStatus", newStatus))
+                .traceId(traceId)
+                .source("orchestrator")
+                .build();
+        publish(event);
+    }
+
+    /**
+     * 发布子任务人工接管事件
+     */
+    public void publishSubtaskManuallyHandled(String packageId, String subTaskId, String handlerInput, String traceId) {
+        CollaborationEvent event = CollaborationEvent.builder()
+                .eventType(CollaborationEvent.CollaborationEventType.SUBTASK_MANUAL_HANDLING)
+                .packageId(packageId)
+                .subTaskId(subTaskId)
+                .eventData(Map.of("handlerInput", handlerInput != null ? handlerInput : ""))
+                .traceId(traceId)
+                .source("user")
+                .build();
+        publish(event);
+    }
+
+    /**
      * 发布检查点保存事件
      */
     public void publishCheckpointSaved(String packageId, String checkpointId, String traceId) {

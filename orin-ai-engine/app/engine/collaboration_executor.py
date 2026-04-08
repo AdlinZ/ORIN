@@ -166,13 +166,14 @@ class CollaborationExecutor:
 
                 duration = time.time() - start_time
 
+                outputs = branch_result.outputs if hasattr(branch_result, 'outputs') else branch_result
                 self.collaboration_state["branches"][branch_id] = {
                     "status": "completed",
-                    "outputs": branch_result.outputs if hasattr(branch_result, 'outputs') else branch_result,
+                    "outputs": outputs,
                     "duration": duration
                 }
 
-                return branch_id, branch_result
+                return branch_id, outputs
 
             except Exception as e:
                 duration = time.time() - start_time
@@ -192,8 +193,16 @@ class CollaborationExecutor:
             task = asyncio.create_task(execute_branch(branch, f"branch_{i}"))
             branch_tasks.append(task)
 
-        # 等待所有分支完成
-        await asyncio.gather(*branch_tasks, return_exceptions=True)
+        # 等待所有分支完成并收集结果
+        gathered = await asyncio.gather(*branch_tasks, return_exceptions=True)
+
+        # 将 gather 结果正确填充到 results
+        for item in gathered:
+            if isinstance(item, Exception):
+                continue
+            branch_id, branch_result = item
+            if branch_result is not None:
+                results[branch_id] = branch_result
 
         return {
             "completed": len(results),
