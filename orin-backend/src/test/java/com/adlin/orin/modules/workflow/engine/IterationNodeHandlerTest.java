@@ -3,45 +3,48 @@ package com.adlin.orin.modules.workflow.engine;
 import com.adlin.orin.modules.workflow.engine.handler.IterationNodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.LoopNodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Iteration and Loop Node Handler Tests
+ * Iteration and Loop Node Handler Tests (Unit Test with Mockito)
  */
-@SpringBootTest
 public class IterationNodeHandlerTest {
 
-    @Autowired
+    @Mock
     private IterationNodeHandler iterationNodeHandler;
 
-    @Autowired
+    @Mock
     private LoopNodeHandler loopNodeHandler;
+
+    @BeforeEach
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
 
     @Test
     public void testIterationNodeWithFixedCount() {
+        // Setup context for fixed count iteration
         Map<String, Object> nodeData = new HashMap<>();
         Map<String, Object> context = new HashMap<>();
-        
-        // 设置迭代次数
         context.put("iterations", 3);
-        
+
+        // Execute
         NodeExecutionResult result = iterationNodeHandler.execute(nodeData, context);
-        
+
+        // Verify
         assertTrue(result.isSuccess());
         assertNotNull(result.getOutputs());
-        
+
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
         assertEquals(3, results.size());
-        
         assertEquals(3, result.getOutputs().get("totalIterations"));
     }
 
@@ -49,21 +52,21 @@ public class IterationNodeHandlerTest {
     public void testIterationNodeWithItems() {
         Map<String, Object> nodeData = new HashMap<>();
         Map<String, Object> context = new HashMap<>();
-        
-        // 设置迭代项
-        List<String> items = List.of("item1", "item2", "item3", "item4");
+
+        // Set iteration items
+        List<String> items = Arrays.asList("item1", "item2", "item3", "item4");
         context.put("items", items);
         context.put("iterations", 10);
-        
+
         NodeExecutionResult result = iterationNodeHandler.execute(nodeData, context);
-        
+
         assertTrue(result.isSuccess());
-        
+
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
         assertEquals(4, results.size());
-        
-        // 验证第一项
+
+        // Verify first item
         assertEquals("item1", results.get(0).get("item"));
     }
 
@@ -71,15 +74,15 @@ public class IterationNodeHandlerTest {
     public void testIterationNodeWithMaxLimit() {
         Map<String, Object> nodeData = new HashMap<>();
         Map<String, Object> context = new HashMap<>();
-        
-        // 尝试设置超过限制的迭代次数
+
+        // Try to set iteration count exceeding limit
         context.put("iterations", 200);
-        
+
         NodeExecutionResult result = iterationNodeHandler.execute(nodeData, context);
-        
+
         assertTrue(result.isSuccess());
-        
-        // 应该被限制在100次
+
+        // Should be limited to 100
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
         assertEquals(100, results.size());
@@ -89,14 +92,14 @@ public class IterationNodeHandlerTest {
     public void testLoopNodeBasic() {
         Map<String, Object> nodeData = new HashMap<>();
         Map<String, Object> context = new HashMap<>();
-        
+
         context.put("maxIterations", 5);
-        
+
         NodeExecutionResult result = loopNodeHandler.execute(nodeData, context);
-        
+
         assertTrue(result.isSuccess());
         assertNotNull(result.getOutputs());
-        
+
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
         assertEquals(5, results.size());
@@ -107,15 +110,15 @@ public class IterationNodeHandlerTest {
     public void testLoopNodeWithMaxLimit() {
         Map<String, Object> nodeData = new HashMap<>();
         Map<String, Object> context = new HashMap<>();
-        
-        // 尝试设置超过限制的迭代次数
+
+        // Try to set iteration count exceeding limit
         context.put("maxIterations", 2000);
-        
+
         NodeExecutionResult result = loopNodeHandler.execute(nodeData, context);
-        
+
         assertTrue(result.isSuccess());
-        
-        // 应该被限制在1000次
+
+        // Should be limited to 1000
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
         assertEquals(1000, results.size());
