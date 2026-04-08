@@ -25,20 +25,21 @@
 
       <div class="tree">
         <template v-if="activeDoc === 'guide'">
-          <div class="group-title">使用 ORIN</div>
-          <div class="sub-title">入门</div>
-          <a href="#orin-intro" class="endpoint">
-            <span>介绍</span>
-          </a>
-          <a href="#orin-quickstart" class="endpoint">
-            <span>30 分钟快速入门</span>
-          </a>
-          <a href="#orin-core-concepts" class="endpoint">
-            <span>核心概念</span>
-          </a>
-          <a href="#orin-first-request" class="endpoint">
-            <span>第一个请求</span>
-          </a>
+          <div class="group-title">系统指南</div>
+          
+          <template v-for="(group, catName) in articlesGrouped" :key="catName">
+            <div class="sub-title">{{ catName }}</div>
+            <a 
+              v-for="article in group" 
+              :key="article.id"
+              :href="`#guide-${article.id}`"
+              class="endpoint" 
+              :class="{ active: selectedArticle?.id === article.id }"
+              @click.prevent="selectArticle(article)"
+            >
+              <span>{{ article.title }}</span>
+            </a>
+          </template>
         </template>
 
         <template v-else>
@@ -96,8 +97,27 @@
 
     <main class="center-panel">
       <template v-if="activeDoc === 'guide'">
-        <!-- 教程：介绍 -->
-        <div class="head-tag">入门</div>
+        <!-- 动态文章详情 -->
+        <div v-if="selectedArticle" class="article-content">
+          <div class="head-tag">{{ selectedArticle.category }}</div>
+          <h1 :id="`guide-${selectedArticle.id}`">{{ selectedArticle.title }}</h1>
+          
+          <div class="article-meta">
+            <span class="meta-item">
+              <el-icon><View /></el-icon>
+              {{ selectedArticle.viewCount }} 次阅读
+            </span>
+            <span class="meta-item">更新时间：{{ formatDate(selectedArticle.updatedAt) }}</span>
+          </div>
+
+          <el-divider />
+
+          <div class="markdown-body" v-html="articleContentHtml" />
+        </div>
+        
+        <!-- 静态默认欢迎页 (未选中文章时展示) -->
+        <div v-else>
+          <div class="head-tag">入门</div>
         <h1 id="orin-intro">介绍</h1>
         <p class="lead">ORIN 是一个统一 AI 网关与智能体平台：你可以用一套 OpenAI 兼容接口，接入多个模型与 Provider，并配合工作流、监控和权限体系进行生产化落地。</p>
         <section class="section">
@@ -185,6 +205,7 @@
   }'</pre>
           </section>
         </section>
+        </div>
       </template>
 
       <template v-else>
@@ -634,9 +655,17 @@ data: [DONE]</pre>
 
 <script setup>
 import axios from 'axios'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, Search } from '@element-plus/icons-vue'
+import { ArrowDown, Search, View } from '@element-plus/icons-vue'
+import { marked } from 'marked'
+import {
+  getHelpArticles,
+  getHelpArticle,
+  getHelpCategories,
+  searchHelpArticles
+} from '@/api/help'
+import dayjs from 'dayjs'
 
 const search = ref('')
 const sending = ref(false)
@@ -695,10 +724,116 @@ const successTitle = computed(() => responseStatus.value ? String(responseStatus
 const errorStatusText = computed(() => errorStatus.value ? String(errorStatus.value) : '')
 const activeDocLabel = computed(() => activeDoc.value === 'guide' ? '使用 ORIN' : 'API 文档')
 
+// Help Center / Guide Logic
+const categories = ref([])
+const articlesGrouped = ref({})
+const isSearching = ref(false)
+const selectedArticle = ref(null)
+const articleContentHtml = ref('')
+
+onMounted(async () => {
+  await fetchCategoriesAndArticles()
+  
+  // Handle auto open from hash
+  const hash = window.location.hash
+  if (hash && hash.startsWith('#guide-')) {
+    const id = hash.replace('#guide-', '')
+    activeDoc.value = 'guide'
+    await selectArticle({ id })
+  }
+})
+
+const fetchCategoriesAndArticles = async () => {
+  try {
+    const catsRes = await getHelpCategories()
+    categories.value = catsRes.data || catsRes || []
+    
+    // Fetch all articles to build the tree
+    const articlesRes = await getHelpArticles({ page: 0, size: 1000 })
+    const allArticles = (articlesRes.data?.content || articlesRes.data) || []
+    
+    const grouped = {}
+    categories.value.forEach(c => grouped[c] = [])
+    
+    allArticles.forEach(item => {
+      const cat = item.category || '未分类'
+      if (!grouped[cat]) grouped[cat] = []
+      grouped[cat].push(item)
+    })
+    
+    const finalGrouped = {}
+    Object.keys(grouped).forEach(k => {
+      if (grouped[k] && grouped[k].length > 0) {
+        finalGrouped[k] = grouped[k]
+      }
+    })
+    
+    articlesGrouped.value = finalGrouped
+  } catch (e) {
+    console.error('获取帮助文章失败:', e)
+  }
+}
+
+// Searching logic using watch
+let searchTimeout = null
+watch(search, (newVal) => {
+  if (activeDoc.value !== 'guide') return
+  
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(async () => {
+    if (!newVal.trim()) {
+      isSearching.value = false
+      await fetchCategoriesAndArticles()
+      return
+    }
+    isSearching.value = true
+    try {
+      const res = await searchHelpArticles(newVal, 0, 50)
+      const data = res.data || res
+      const results = data.content || data || []
+      articlesGrouped.value = {
+        '搜索结果': results
+      }
+    } catch(e) {
+      console.error(e)
+    }
+  }, 300)
+})
+
+const selectArticle = async (article) => {
+  try {
+    const res = await getHelpArticle(article.id)
+    selectedArticle.value = res.data || res
+    
+    let md = selectedArticle.value.content || ''
+    try {
+      articleContentHtml.value = marked(md)
+    } catch(e) {
+      articleContentHtml.value = md
+    }
+    
+    window.location.hash = `#guide-${article.id}`
+  } catch(e) {
+    ElMessage.error('获取文章内容失败')
+  }
+}
+
+const formatDate = (date) => {
+  if (!date) return '-'
+  if (Array.isArray(date)) {
+    return dayjs(new Date(date[0], date[1] - 1, date[2], date[3] || 0, date[4] || 0)).format('YYYY-MM-DD HH:mm')
+  }
+  return dayjs(date).format('YYYY-MM-DD HH:mm')
+}
+
 const changeDocType = (docType) => {
   activeDoc.value = docType
   if (docType === 'guide') {
-    window.location.hash = '#orin-intro'
+    if (selectedArticle.value) {
+      window.location.hash = `#guide-${selectedArticle.value.id}`
+    } else {
+      window.location.hash = '#orin-intro'
+    }
     return
   }
   window.location.hash = '#api-index'
@@ -1018,6 +1153,7 @@ h2 {
     display: none;
   }
 }
+
 @media (max-width: 900px) {
   .api-doc-page {
     grid-template-columns: 1fr;
@@ -1037,5 +1173,66 @@ h2 {
   h2 {
     font-size: 30px;
   }
+}
+
+/* Markdown Styles for Guide Mode */
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.markdown-body {
+  line-height: 1.8;
+  color: #334155;
+  font-size: 15px;
+}
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3) {
+  margin-top: 24px;
+  margin-bottom: 12px;
+  color: #0f172a;
+  font-weight: 700;
+}
+.markdown-body :deep(p) {
+  margin-bottom: 12px;
+}
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 24px;
+  margin-bottom: 12px;
+}
+.markdown-body :deep(code) {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #be123c;
+}
+.markdown-body :deep(pre) {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+.markdown-body :deep(pre code) {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.markdown-body :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 </style>

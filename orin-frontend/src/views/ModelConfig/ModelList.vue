@@ -499,16 +499,25 @@
               style="margin-bottom: 16px;"
             />
 
-            <el-form-item label="计费模式">
-              <el-radio-group v-model="pricingForm.billingMode">
-                <el-radio-button label="PER_TOKEN">
-                  Token计费
-                </el-radio-button>
-                <el-radio-button label="PER_REQUEST">
-                  按次计费
-                </el-radio-button>
-              </el-radio-group>
-            </el-form-item>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="计费模式">
+                  <el-radio-group v-model="pricingForm.billingMode">
+                    <el-radio-button label="PER_TOKEN">Token计费</el-radio-button>
+                    <el-radio-button label="PER_REQUEST">按次计费</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="结算货币">
+                  <el-select v-model="pricingForm.currency" style="width: 100%">
+                    <el-option label="USD ($)" value="USD" />
+                    <el-option label="CNY (¥)" value="CNY" />
+                    <el-option label="EUR (€)" value="EUR" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
 
             <el-row :gutter="20">
               <el-col :span="12">
@@ -757,7 +766,7 @@ import { Plus, Edit, Delete, Search, Box, Money, Link, Key, View, Hide, ChatDotR
 import PageHeader from '@/components/PageHeader.vue';
 import ResizableTable from '@/components/ResizableTable.vue';
 import { getModelList, saveModel, deleteModel, toggleModelStatus, fetchModels } from '@/api/model';
-import { getPricingConfig, savePricingConfig } from '@/api/monitor';
+import { getPricingConfig, getPricingByProvider, savePricingConfig } from '@/api/monitor';
 import { getModelConfig } from '@/api/modelConfig';
 import { getExternalKeys, saveExternalKey, deleteExternalKey, toggleExternalKeyStatus } from '@/api/apiKey';
 import { getProviderList } from '@/api/system';
@@ -918,7 +927,7 @@ const handleProviderChange = (value) => {
 };
 
 const pricingCollapse = ref('pricing');
-const showPricing = ref(false);
+const showPricing = ref(true); // 默认开启显示，或改为受控模式
 
 const resetPricingForm = () => {
   Object.assign(pricingForm, {
@@ -930,7 +939,7 @@ const resetPricingForm = () => {
     outputCostUnit: 0,
     inputPriceUnit: 0,
     outputPriceUnit: 0,
-    currency: 'CNY'
+    currency: 'USD'
   });
 };
 
@@ -1110,51 +1119,58 @@ const handleImportAll = async () => {
 };
 
 const handleEdit = async (row) => {
-  activeTab.value = 'basic';
+  console.log('Editing row:', row);
+  // 1. Immediately open dialog to avoid UI block
   Object.assign(form, row);
-  // Fetch pricing
+  wizardStep.value = 2; // Jump to details/pricing
   resetPricingForm();
+  dialogVisible.value = true;
+  
+  // 2. Fetch pricing in background
   try {
-    const res = await getPricingConfig();
-    const list = res.data || res;
-    // Find matching rule for this modelId + default group
     const pid = row.modelId;
-    const match = list.find(p => p.providerId === pid && p.tenantGroup === 'default');
-    if (match) {
-        Object.assign(pricingForm, match);
+    console.log('Fetching pricing for:', pid);
+    const res = await getPricingConfig();
+    const list = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
+    const data = Array.isArray(list) ? list.find(p => p.providerId === pid && p.tenantGroup === 'default') : null;
+    
+    if (data) {
+        Object.assign(pricingForm, data);
+        console.log('Pricing loaded successfully');
     } else {
         pricingForm.providerId = pid;
+        console.log('No existing pricing rule, using defaults');
     }
-  } catch(e) { console.warn(e); }
-  
-  dialogVisible.value = true;
+  } catch(e) { 
+    console.error('Failed to load pricing info:', e);
+  }
 };
 
 const handleSubmit = async () => {
   if (!formRef.value) return;
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      submitting.value = true;
-      try {
-        // 1. Save Model
-        await saveModel(form);
-        
-        // 2. Save Pricing (if modelId is set)
-        if (form.modelId) {
-            pricingForm.providerId = form.modelId; // Ensure sync
-            await savePricingConfig(pricingForm);
-        }
+  
+  try {
+    const valid = await formRef.value.validate().catch(() => false);
+    if (!valid) return;
 
-        ElMessage.success('保存成功');
-        dialogVisible.value = false;
-        fetchData();
-      } catch(e) {
-        ElMessage.error('保存失败: ' + e.message);
-      } finally {
-        submitting.value = false;
-      }
+    submitting.value = true;
+    // 1. Save Model
+    await saveModel(form);
+    
+    // 2. Save Pricing (only if modelId is set and we have input values)
+    if (form.modelId && (pricingForm.inputCostUnit > 0 || pricingForm.outputCostUnit > 0 || pricingForm.id)) {
+        pricingForm.providerId = form.modelId;
+        await savePricingConfig(pricingForm);
     }
-  });
+
+    ElMessage.success('保存成功');
+    dialogVisible.value = false;
+    fetchData();
+  } catch(e) {
+    ElMessage.error('保存失败: ' + e.message);
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const handleToggleStatus = async (row) => {

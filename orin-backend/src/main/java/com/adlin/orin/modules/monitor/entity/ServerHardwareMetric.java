@@ -118,6 +118,16 @@ public class ServerHardwareMetric {
      */
     private String errorMessage;
 
+    /**
+     * 服务器唯一标识
+     */
+    private String serverId;
+
+    /**
+     * 服务器显示名
+     */
+    private String serverName;
+
     public ServerHardwareMetric() {
     }
 
@@ -291,6 +301,22 @@ public class ServerHardwareMetric {
         this.errorMessage = errorMessage;
     }
 
+    public String getServerId() {
+        return serverId;
+    }
+
+    public void setServerId(String serverId) {
+        this.serverId = serverId;
+    }
+
+    public String getServerName() {
+        return serverName;
+    }
+
+    public void setServerName(String serverName) {
+        this.serverName = serverName;
+    }
+
     public static ServerHardwareMetricBuilder builder() {
         return new ServerHardwareMetricBuilder();
     }
@@ -317,6 +343,8 @@ public class ServerHardwareMetric {
         private String cpuModel;
         private Boolean online;
         private String errorMessage;
+        private String serverId;
+        private String serverName;
 
         public ServerHardwareMetricBuilder id(Long id) {
             this.id = id;
@@ -423,6 +451,16 @@ public class ServerHardwareMetric {
             return this;
         }
 
+        public ServerHardwareMetricBuilder serverId(String serverId) {
+            this.serverId = serverId;
+            return this;
+        }
+
+        public ServerHardwareMetricBuilder serverName(String serverName) {
+            this.serverName = serverName;
+            return this;
+        }
+
         public ServerHardwareMetric build() {
             ServerHardwareMetric metric = new ServerHardwareMetric();
             metric.setId(id);
@@ -446,6 +484,8 @@ public class ServerHardwareMetric {
             metric.setCpuModel(cpuModel);
             metric.setOnline(online);
             metric.setErrorMessage(errorMessage);
+            metric.setServerId(serverId);
+            metric.setServerName(serverName);
             return metric;
         }
     }

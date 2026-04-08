@@ -144,27 +144,41 @@ public interface MonitorService {
     Map<String, Object> testMilvusConnection(String host, int port, String token);
 
     /**
-     * 保存服务器硬件监控数据
+     * 保存本地服务器硬件监控数据
      */
     void saveServerHardwareMetric();
 
     /**
+     * 保存远程服务器硬件监控数据
+     *
+     * @param metric 监控指标
+     */
+    void saveRemoteServerHardwareMetric(com.adlin.orin.modules.monitor.entity.ServerHardwareMetric metric);
+
+    /**
      * 获取服务器硬件监控历史数据
      *
+     * @param serverId  服务器ID (如果传null则默认为 local)
      * @param startTime 开始时间戳
      * @param endTime   结束时间戳
      * @param page      页码
      * @param size      每页大小
      */
     Page<com.adlin.orin.modules.monitor.entity.ServerHardwareMetric> getServerHardwareHistory(
-            Long startTime, Long endTime, int page, int size);
+            String serverId, Long startTime, Long endTime, int page, int size);
 
     /**
      * 获取服务器硬件监控趋势数据
      *
-     * @param period 时间段 (5m, 1h, 24h, 7d)
+     * @param serverId 服务器ID (如果传null则默认为 local)
+     * @param period   时间段 (5m, 1h, 24h, 7d)
      */
-    List<Map<String, Object>> getServerHardwareTrend(String period);
+    List<Map<String, Object>> getServerHardwareTrend(String serverId, String period);
+
+    /**
+     * 获取受监控的所有服务器节点列表
+     */
+    List<Map<String, Object>> getServerNodes();
 
     /**
      * 获取硬件监控统计信息

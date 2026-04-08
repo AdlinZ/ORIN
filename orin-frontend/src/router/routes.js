@@ -109,7 +109,7 @@ const systemRoutes = {
     AUTOGEN: '/dashboard/control/external-frameworks?tab=autogen',
     CREWAI: '/dashboard/control/external-frameworks?tab=crewai',
     MCP_SERVICE: '/dashboard/control/mcp-service',
-    HELP_CENTER: '/dashboard/control/help-center',
+    HELP_CENTER: '/unified-docs',
     STATISTICS: '/dashboard/control/statistics',
     SYSTEM_MAINTENANCE: '/dashboard/control/maintenance',
 }

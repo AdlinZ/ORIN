@@ -64,4 +64,25 @@ public interface ServerHardwareMetricRepository extends JpaRepository<ServerHard
      */
     @Query("SELECT m FROM ServerHardwareMetric m WHERE m.timestamp >= ?1 ORDER BY m.timestamp ASC")
     List<ServerHardwareMetric> findLastHour(Long oneHourAgo);
+
+    /**
+     * 查询指定节点在一段时间内的硬件监控数据
+     */
+    List<ServerHardwareMetric> findByServerIdAndTimestampBetweenOrderByTimestampAsc(String serverId, Long startTime, Long endTime);
+
+    /**
+     * 查询指定节点在一段时间内的硬件监控数据（分页）
+     */
+    Page<ServerHardwareMetric> findByServerIdAndTimestampBetween(String serverId, Long startTime, Long endTime, Pageable pageable);
+
+    /**
+     * 查询指定节点在指定时间之后的记录
+     */
+    List<ServerHardwareMetric> findByServerIdAndTimestampAfterOrderByTimestampAsc(String serverId, Long timestamp);
+
+    /**
+     * 获取所有不同的服务器节点
+     */
+    @Query("SELECT DISTINCT new map(m.serverId as id, m.serverName as name) FROM ServerHardwareMetric m WHERE m.serverId IS NOT NULL")
+    List<java.util.Map<String, Object>> findDistinctServerNodes();
 }

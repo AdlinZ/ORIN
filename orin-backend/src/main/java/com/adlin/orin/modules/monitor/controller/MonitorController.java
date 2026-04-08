@@ -206,23 +206,38 @@ public class MonitorController {
     @Operation(summary = "获取硬件监控历史数据")
     @GetMapping("/server-hardware/history")
     public Page<com.adlin.orin.modules.monitor.entity.ServerHardwareMetric> getServerHardwareHistory(
+            @RequestParam(required = false) String serverId,
             @RequestParam(required = false) Long startTime,
             @RequestParam(required = false) Long endTime,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return monitorService.getServerHardwareHistory(startTime, endTime, page, size);
+        return monitorService.getServerHardwareHistory(serverId, startTime, endTime, page, size);
     }
 
     @Operation(summary = "获取硬件监控趋势数据")
     @GetMapping("/server-hardware/trend")
-    public List<Map<String, Object>> getServerHardwareTrend(@RequestParam(defaultValue = "1h") String period) {
-        return monitorService.getServerHardwareTrend(period);
+    public List<Map<String, Object>> getServerHardwareTrend(
+            @RequestParam(required = false) String serverId,
+            @RequestParam(defaultValue = "1h") String period) {
+        return monitorService.getServerHardwareTrend(serverId, period);
     }
 
     @Operation(summary = "获取硬件监控统计信息")
     @GetMapping("/server-hardware/stats")
     public Map<String, Object> getServerHardwareStats() {
         return monitorService.getServerHardwareStats();
+    }
+
+    @Operation(summary = "获取所有受监控的服务器节点列表")
+    @GetMapping("/server-hardware/nodes")
+    public List<Map<String, Object>> getServerNodes() {
+        return monitorService.getServerNodes();
+    }
+
+    @Operation(summary = "供远程Agent上报硬件监控数据")
+    @PostMapping("/server-hardware/report")
+    public void reportServerHardwareMetric(@RequestBody com.adlin.orin.modules.monitor.entity.ServerHardwareMetric metric) {
+        monitorService.saveRemoteServerHardwareMetric(metric);
     }
 
     @Operation(summary = "获取服务器静态信息列表")

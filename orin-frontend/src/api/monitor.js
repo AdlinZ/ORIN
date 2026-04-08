@@ -84,30 +84,26 @@ export const getLatencyTrend = (period = 'daily', config = {}) => {
     });
 };
 
-// Pricing Config API
-export const getPricingConfig = () => {
-    return request.get('/pricing/config');
-};
-
-export const savePricingConfig = (data) => {
-    return request.post('/pricing/config', data);
-};
-
-export const deletePricingConfig = (id) => {
-    return request.delete(`/pricing/config/${id}`);
-};
+// Pricing Config API — re-exported from dedicated module for backward compatibility
+export { getPricingConfig, getPricingByProvider, savePricingConfig, deletePricingConfig } from '@/api/pricing';
 
 export const getServerHardware = () => {
     return request.get('/monitor/server-hardware');
 };
 
 // Server Hardware History APIs
+export const getServerNodes = () => {
+    return request.get('/monitor/server-hardware/nodes');
+};
+
 export const getServerHardwareHistory = (params = {}) => {
     return request.get('/monitor/server-hardware/history', { params });
 };
 
-export const getServerHardwareTrend = (period = '1h') => {
-    return request.get('/monitor/server-hardware/trend', { params: { period } });
+export const getServerHardwareTrend = (period = '1h', serverId = null) => {
+    const params = { period };
+    if (serverId) params.serverId = serverId;
+    return request.get('/monitor/server-hardware/trend', { params });
 };
 
 export const getServerHardwareStats = () => {

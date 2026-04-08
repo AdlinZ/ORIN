@@ -1158,6 +1158,13 @@ public class MonitorServiceImpl implements MonitorService {
                                 handleServerInfo(prometheusUrl, hardwareData, now);
                         }
 
+                        String serverId = "local";
+                        String serverName = "Local Node";
+                        if (prometheusUrl != null && !prometheusUrl.isEmpty()) {
+                                serverId = prometheusUrl;
+                                serverName = "Prometheus: " + prometheusUrl;
+                        }
+
                         ServerHardwareMetric metric = ServerHardwareMetric.builder()
                                 .timestamp(now)
                                 .recordedAt(LocalDateTime.now())
@@ -1179,14 +1186,33 @@ public class MonitorServiceImpl implements MonitorService {
                                 .cpuModel((String) hardwareData.get("cpuModel"))
                                 .online(isOnline)
                                 .errorMessage((String) hardwareData.get("error"))
+                                .serverId(serverId)
+                                .serverName(serverName)
                                 .build();
 
                         serverHardwareMetricRepository.save(metric);
-                        log.debug("Saved server hardware metric: CPU={}%, Memory={}%, Disk={}%, GPU={}%",
+                        log.debug("Saved local server hardware metric: CPU={}%, Memory={}%, Disk={}%, GPU={}%",
                                 metric.getCpuUsage(), metric.getMemoryUsage(), metric.getDiskUsage(), metric.getGpuUsage());
                 } catch (Exception e) {
-                        log.error("Failed to save server hardware metric", e);
+                        log.error("Failed to save local server hardware metric", e);
                 }
+        }
+
+        @Override
+        public void saveRemoteServerHardwareMetric(ServerHardwareMetric metric) {
+                if (metric.getServerId() == null || metric.getServerId().isEmpty()) {
+                        throw new IllegalArgumentException("Server ID is required for remote metrics");
+                }
+                if (metric.getServerName() == null || metric.getServerName().isEmpty()) {
+                        metric.setServerName(metric.getServerId());
+                }
+                if (metric.getTimestamp() == null) {
+                        metric.setTimestamp(System.currentTimeMillis());
+                }
+                if (metric.getRecordedAt() == null) {
+                        metric.setRecordedAt(LocalDateTime.now());
+                }
+                serverHardwareMetricRepository.save(metric);
         }
 
         /**
@@ -1244,15 +1270,18 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         @Override
-        public Page<ServerHardwareMetric> getServerHardwareHistory(Long startTime, Long endTime, int page, int size) {
+        public Page<ServerHardwareMetric> getServerHardwareHistory(String serverId, Long startTime, Long endTime, int page, int size) {
                 Pageable pageable = PageRequest.of(page, size);
                 long start = startTime != null ? startTime : System.currentTimeMillis() - 24 * 60 * 60 * 1000; // 默认24小时
                 long end = endTime != null ? endTime : System.currentTimeMillis();
-                return serverHardwareMetricRepository.findByTimestampBetween(start, end, pageable);
+                if (serverId == null || serverId.trim().isEmpty()) {
+                        serverId = "local";
+                }
+                return serverHardwareMetricRepository.findByServerIdAndTimestampBetween(serverId, start, end, pageable);
         }
 
         @Override
-        public List<Map<String, Object>> getServerHardwareTrend(String period) {
+        public List<Map<String, Object>> getServerHardwareTrend(String serverId, String period) {
                 long now = System.currentTimeMillis();
                 long start;
                 switch (period) {
@@ -1272,8 +1301,12 @@ public class MonitorServiceImpl implements MonitorService {
                                 start = now - 60 * 60 * 1000; // 默认1小时
                 }
 
+                if (serverId == null || serverId.trim().isEmpty()) {
+                        serverId = "local";
+                }
+
                 List<ServerHardwareMetric> metrics = serverHardwareMetricRepository
-                        .findByTimestampBetweenOrderByTimestampAsc(start, now);
+                        .findByServerIdAndTimestampBetweenOrderByTimestampAsc(serverId, start, now);
 
                 List<Map<String, Object>> result = new ArrayList<>();
                 for (ServerHardwareMetric m : metrics) {
@@ -1285,6 +1318,29 @@ public class MonitorServiceImpl implements MonitorService {
                         item.put("gpuUsage", m.getGpuUsage());
                         item.put("gpuMemoryUsage", m.getGpuMemoryUsage());
                         result.add(item);
+                }
+                return result;
+        }
+
+        @Override
+        public List<Map<String, Object>> getServerNodes() {
+                List<Map<String, Object>> nodes = serverHardwareMetricRepository.findDistinctServerNodes();
+                List<Map<String, Object>> result = new ArrayList<>();
+                Map<String, Object> localNode = null;
+                for (Map<String, Object> node : nodes) {
+                        if ("local".equals(node.get("id"))) {
+                                localNode = node;
+                        } else {
+                                result.add(node);
+                        }
+                }
+                if (localNode != null) {
+                        result.add(0, localNode);
+                } else if (result.isEmpty()) {
+                        localNode = new HashMap<>();
+                        localNode.put("id", "local");
+                        localNode.put("name", "Local Node");
+                        result.add(0, localNode);
                 }
                 return result;
         }

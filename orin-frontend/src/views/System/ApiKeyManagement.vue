@@ -127,7 +127,7 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column label="操作" width="270" fixed="right">
               <template #default="{ row }">
                 <el-button 
                   size="small" 
@@ -136,6 +136,16 @@
                   @click="toggleApiKey(row)"
                 >
                   {{ row.enabled ? '禁用' : '启用' }}
+                </el-button>
+                <el-button
+                  v-if="row.canRevealSecret"
+                  size="small"
+                  type="info"
+                  link
+                  :loading="revealLoadingKeys.has(row.id)"
+                  @click="handleRevealSecret(row)"
+                >
+                  查看明文
                 </el-button>
                 <el-button
                   size="small"
@@ -342,15 +352,16 @@
     <!-- 密钥创建成功对话框 -->
     <el-dialog 
       v-model="secretDialogVisible" 
-      title="密钥创建成功"
+      :title="secretDialogTitle"
       width="600px"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
+      @closed="handleSecretDialogClosed"
     >
       <el-alert
         title="重要提示"
         type="warning"
-        description="请妥善保存此密钥,它只会显示一次!关闭此对话框后将无法再次查看。"
+        :description="secretDialogDescription"
         :closable="false"
         show-icon
       />
@@ -372,7 +383,7 @@
       </div>
       <template #footer>
         <el-button type="primary" @click="secretDialogVisible = false">
-          我已保存密钥
+          我已处理
         </el-button>
       </template>
     </el-dialog>
@@ -392,6 +403,7 @@ import {
   disableApiKey,
   deleteApiKey,
   resetQuota,
+  getApiKeySecret,
   getExternalKeys,
   saveExternalKey,
   deleteExternalKey,
@@ -410,9 +422,13 @@ const loading = ref(false);
 const apiKeys = ref([]);
 const dialogVisible = ref(false);
 const secretDialogVisible = ref(false);
+const secretDialogTitle = ref('密钥创建成功');
+const secretDialogDescription = ref('请妥善保存此密钥,它只会显示一次!关闭此对话框后将无法再次查看。');
 const submitting = ref(false);
 const formRef = ref(null);
 const createdSecretKey = ref('');
+const revealLoadingKeys = ref(new Set());
+let secretAutoHideTimer = null;
 
 const formData = ref({
   name: '',
@@ -490,6 +506,8 @@ const handleCreate = async () => {
   try {
     const res = await createApiKey(formData.value);
     createdSecretKey.value = res.secretKey;
+    secretDialogTitle.value = '密钥创建成功';
+    secretDialogDescription.value = '请妥善保存此密钥,它只会显示一次!关闭此对话框后将无法再次查看。';
     ElMessage.success('创建成功');
     dialogVisible.value = false;
     secretDialogVisible.value = true;
@@ -548,6 +566,57 @@ const handleDelete = async (row) => {
       ElMessage.error('删除失败');
     }
   }
+};
+
+const handleRevealSecret = async (row) => {
+  try {
+    const passwordPrompt = await ElMessageBox.prompt(
+      '请输入当前登录密码以继续查看明文（本次操作会被审计记录）',
+      '管理员密钥回显确认',
+      {
+        confirmButtonText: '确认查看',
+        cancelButtonText: '取消',
+        inputType: 'password',
+        inputPattern: /^.{1,}$/,
+        inputErrorMessage: '请输入密码'
+      }
+    );
+    revealLoadingKeys.value.add(row.id);
+    const res = await getApiKeySecret(row.id, {
+      currentPassword: passwordPrompt.value
+    });
+    createdSecretKey.value = res.secretKey;
+    secretDialogTitle.value = '管理员密钥回显';
+    secretDialogDescription.value = '该明文仅用于受控运维场景，30 秒后将自动隐藏。请勿截图传播或粘贴到不安全环境。';
+    secretDialogVisible.value = true;
+    if (secretAutoHideTimer) {
+      clearTimeout(secretAutoHideTimer);
+    }
+    secretAutoHideTimer = setTimeout(() => {
+      secretDialogVisible.value = false;
+      ElMessage.info('密钥明文已自动隐藏');
+    }, 30000);
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(
+        error?.response?.status === 403
+          ? '当前密码错误'
+          : error?.response?.status === 404
+            ? '该密钥为历史数据，不支持回显'
+            : '回显失败'
+      );
+    }
+  } finally {
+    revealLoadingKeys.value.delete(row.id);
+  }
+};
+
+const handleSecretDialogClosed = () => {
+  if (secretAutoHideTimer) {
+    clearTimeout(secretAutoHideTimer);
+    secretAutoHideTimer = null;
+  }
+  createdSecretKey.value = '';
 };
 
 const copyToClipboard = (text) => {
@@ -657,6 +726,10 @@ onUnmounted(() => {
   // 清理全局刷新事件监听器
   window.removeEventListener('global-refresh', fetchApiKeys);
   window.removeEventListener('page-refresh', fetchApiKeys);
+  if (secretAutoHideTimer) {
+    clearTimeout(secretAutoHideTimer);
+    secretAutoHideTimer = null;
+  }
 });
 </script>
 

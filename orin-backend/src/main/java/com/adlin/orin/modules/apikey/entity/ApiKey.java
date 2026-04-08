@@ -39,6 +39,12 @@ public class ApiKey {
     private String keyPrefix;
 
     /**
+     * 加密后的密钥明文（仅管理员在受控场景查看）
+     */
+    @Column(name = "encrypted_secret", length = 1024)
+    private String encryptedSecret;
+
+    /**
      * 所属用户ID
      */
     @Column(nullable = false)

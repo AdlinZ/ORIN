@@ -530,12 +530,6 @@ const routes = [
                         meta: { title: '定价配置', icon: 'PriceTag', roles: ['ROLE_ADMIN'] }
                     },
                     {
-                        path: 'help-center',
-                        name: 'ControlHelpCenter',
-                        component: () => import('@/views/System/HelpCenter.vue'),
-                        meta: { title: '帮助中心', icon: 'QuestionFilled', roles: ['ROLE_ADMIN'] }
-                    },
-                    {
                         path: 'statistics',
                         name: 'ControlStatistics',
                         component: () => import('@/views/System/Statistics.vue'),

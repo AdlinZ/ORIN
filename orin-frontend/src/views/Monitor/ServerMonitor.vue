@@ -1,12 +1,59 @@
 <template>
-  <div class="server-monitor-page">
-    <PageHeader title="服务器监控" icon="Monitor">
-      <template #actions>
-        <el-button :icon="Refresh" :loading="loading" @click="fetchAllData">
-          刷新
-        </el-button>
-      </template>
-    </PageHeader>
+  <div class="agent-workspace server-workspace" :class="{ 'is-collapsed': sessionPaneCollapsed }">
+    <div v-if="!sessionPaneCollapsed && isMobile" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
+    <aside class="workspace-sidebar" :class="{ 'is-collapsed': sessionPaneCollapsed }">
+      <div class="workspace-session-pane">
+        <div class="session-collapse-handle">
+          <el-button class="collapse-btn" circle :icon="sessionPaneCollapsed ? ArrowRight : ArrowLeft" @click="sessionPaneCollapsed = !sessionPaneCollapsed" />
+        </div>
+        <div v-if="sessionPaneCollapsed" class="collapsed-pane">
+          <el-button class="collapsed-new-btn" circle :icon="Monitor" @click="sessionPaneCollapsed = false" />
+        </div>
+        <template v-else>
+          <div class="sidebar-top">
+            <div class="sidebar-profile">
+              <div class="sidebar-avatar">
+                <el-icon><Monitor /></el-icon>
+              </div>
+              <div class="sidebar-name">服务器节点</div>
+            </div>
+            <el-button link :icon="Refresh" class="refresh-btn" @click="fetchNodes" :loading="nodesLoading" />
+          </div>
+          <div class="session-search">
+            <el-input v-model="searchQuery" placeholder="搜索节点..." :prefix-icon="Search" clearable />
+          </div>
+          <div class="session-list">
+            <div v-for="node in filteredNodes" :key="node.id" :class="['session-item', { active: currentServerId === node.id }]" @click="changeServer(node)">
+              <div class="node-icon">
+                <el-icon><Connection /></el-icon>
+              </div>
+              <div class="session-main">
+                <div class="session-title">{{ node.name || node.id }}</div>
+                <div class="session-meta" style="display: flex; align-items: center; justify-content: space-between;">
+                  <span>{{ node.id === 'local' ? '本地主节点' : '远程节点' }}</span>
+                  <el-tag v-if="node.id === 'local'" size="small" effect="plain" type="info" style="padding: 0 4px; height: 18px; line-height: 16px;">Local</el-tag>
+                </div>
+              </div>
+            </div>
+            <el-empty v-if="filteredNodes.length === 0" :image-size="56" description="暂无节点" />
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <main class="workspace-main custom-scrollbar">
+      <div class="chat-header">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <el-button v-if="sessionPaneCollapsed" link :icon="Menu" @click="sessionPaneCollapsed = false" />
+          <h2 style="margin:0; font-size: 16px; font-weight: 600; color: #1e293b">{{ currentServerName }} - 监控面板</h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px">
+            <el-button :icon="Refresh" :loading="loading" type="primary" @click="fetchAllData" size="small">刷新数据</el-button>
+        </div>
+      </div>
+      
+      <div class="messages-container" v-loading="loading">
+        <div class="dashboard-content">
 
     <!-- Prometheus 状态卡片 -->
     <el-row :gutter="20" class="margin-bottom-lg">
@@ -399,21 +446,58 @@
         />
       </div>
     </el-card>
+
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { Cpu, Coin, Folder, Connection, Refresh, TrendCharts, List, Clock, Monitor, CircleCheck, CircleClose, DataLine, Star, Loading } from '@element-plus/icons-vue';
+import { Cpu, Coin, Folder, Connection, Refresh, TrendCharts, List, Clock, Monitor, CircleCheck, CircleClose, DataLine, Star, Loading, Search, ArrowRight, ArrowLeft, Menu } from '@element-plus/icons-vue';
 import LineChart from '@/components/LineChart.vue';
-import PageHeader from '@/components/PageHeader.vue';
-import { getPrometheusConfig, getServerHardwareTrend, getServerHardwareHistory, collectServerHardware } from '@/api/monitor';
+import { getPrometheusConfig, getServerHardwareTrend, getServerHardwareHistory, collectServerHardware, getServerNodes } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
 
 // Loading states
 const loading = ref(false);
 const collecting = ref(false);
 const period = ref('1h');
+
+// Workspace & Node states
+const sessionPaneCollapsed = ref(false);
+const serverNodes = ref([]);
+const filteredNodes = computed(() => {
+  if (!searchQuery.value) return serverNodes.value;
+  const q = searchQuery.value.toLowerCase();
+  return serverNodes.value.filter(n => (n.name && n.name.toLowerCase().includes(q)) || (n.id && n.id.toLowerCase().includes(q)));
+});
+const currentServerId = ref('local');
+const currentServerName = ref('Local Node');
+const searchQuery = ref('');
+const nodesLoading = ref(false);
+
+const fetchNodes = async () => {
+  nodesLoading.value = true;
+  try {
+    const data = await getServerNodes();
+    serverNodes.value = data || [];
+  } catch(e) {
+    console.error(e);
+  } finally {
+    nodesLoading.value = false;
+  }
+};
+
+const changeServer = (node) => {
+  if (currentServerId.value === node.id) return;
+  currentServerId.value = node.id;
+  currentServerName.value = node.name || node.id;
+  
+  page.value = 1;
+  fetchAllData();
+};
 
 // Data
 const prometheusStatus = ref({ connected: false });
@@ -453,7 +537,7 @@ const fetchPrometheusStatus = async () => {
 const fetchServerStatusFromDB = async () => {
   try {
     // 获取历史数据的第一条作为当前状态
-    const data = await getServerHardwareHistory({ page: 0, size: 1 });
+    const data = await getServerHardwareHistory({ serverId: currentServerId.value, page: 0, size: 1 });
     if (data.content && data.content.length > 0) {
       const latest = data.content[0];
       serverOnline.value = latest.online === true;
@@ -524,7 +608,7 @@ const fetchSystemLoad = async () => {
 // Fetch trend data
 const fetchTrendData = async () => {
   try {
-    const data = await getServerHardwareTrend(period.value);
+    const data = await getServerHardwareTrend(period.value, currentServerId.value);
     trendData.value = data.map(item => ({
       timestamp: item.timestamp,
       value: item.cpuUsage || 0,
@@ -560,6 +644,7 @@ const fetchTrendData = async () => {
 const fetchHistoryData = async () => {
   try {
     const data = await getServerHardwareHistory({
+      serverId: currentServerId.value,
       page: page.value - 1,
       size: pageSize.value
     });
@@ -588,6 +673,7 @@ const collectNow = async () => {
 const fetchAllData = async () => {
   loading.value = true;
   try {
+    fetchNodes();
     await Promise.all([
       fetchPrometheusStatus(),
       fetchLocalServerInfo(),
@@ -912,4 +998,41 @@ html.dark .info-item {
     align-items: flex-start;
   }
 }
+
+/* Workspace Premium Framework Styles */
+.agent-workspace { position: relative; width: 100%; height: 100%; display: flex; overflow: hidden; background-color: #f8fafc; font-family: 'Inter', -apple-system, sans-serif; }
+.agent-workspace::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 10% 40%, rgba(79, 70, 229, 0.04) 0%, transparent 50%), radial-gradient(circle at 90% 60%, rgba(139, 92, 246, 0.04) 0%, transparent 50%); z-index: 0; pointer-events: none; }
+.workspace-sidebar { position: relative; z-index: 10; height: 100%; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(16px); border-right: 1px solid rgba(226, 232, 240, 0.8); width: 280px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0; }
+.workspace-sidebar.is-collapsed { width: 64px; }
+.workspace-session-pane { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.session-collapse-handle { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); z-index: 20; }
+.collapse-btn { width: 28px !important; height: 28px !important; font-size: 14px; background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.04); color: #64748b; transition: 0.2s ease; }
+.collapse-btn:hover { color: #3b82f6; border-color: #bfdbfe; transform: scale(1.05); }
+.sidebar-top { padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 12px; }
+.sidebar-profile { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.sidebar-avatar { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.sidebar-name { font-size: 15px; font-weight: 700; color: #1e293b; flex: 1; margin-top:2px; }
+.refresh-btn { position: absolute; top: 24px; right: 16px; color: #94a3b8; }
+.session-search { padding: 0 16px 12px; }
+.session-search :deep(.el-input__wrapper) { border-radius: 10px; background: rgba(248, 250, 252, 0.6); box-shadow: 0 0 0 1px #e2e8f0 inset !important; }
+.session-list { flex: 1; overflow-y: auto; padding: 0 12px 16px; display: flex; flex-direction: column; gap: 4px; }
+.session-list::-webkit-scrollbar { width: 4px; }
+.session-list::-webkit-scrollbar-thumb { background: rgba(203, 213, 225, 0.6); border-radius: 4px; }
+.session-item { display: flex; align-items: center; padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: all 0.15s ease; border: 1px solid transparent; }
+.session-item:hover { background: rgba(241, 245, 249, 0.6); }
+.session-item.active { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.node-icon { margin-right: 10px; color: #64748b; display: flex; font-size: 16px;}
+.session-item.active .node-icon { color: #3b82f6; }
+.session-main { flex: 1; min-width: 0; }
+.session-title { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display:flex; align-items:center; gap: 6px;}
+.session-meta { font-size: 11px; color: #94a3b8; }
+.collapsed-pane { display: flex; justify-content: center; padding-top: 24px; }
+.collapsed-new-btn { width: 40px !important; height: 40px !important; font-size: 18px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: none; }
+
+.workspace-main { flex: 1; position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; background: transparent; }
+.chat-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; min-height: 56px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(226, 232, 240, 0.5); z-index: 2; }
+.messages-container { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 24px; display: flex; flex-direction: column; scroll-behavior: smooth; }
+.messages-container::-webkit-scrollbar { width: 6px; }
+.messages-container::-webkit-scrollbar-thumb { background: rgba(203, 213, 225, 0.8); border-radius: 6px; }
+.dashboard-content { width: 100%; max-width: 1200px; margin: 0 auto; }
 </style>

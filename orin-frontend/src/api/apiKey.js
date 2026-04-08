@@ -52,6 +52,15 @@ export function resetQuota(keyId) {
         method: 'patch'
     })
 }
+
+// 管理员查看密钥明文（受控回显）
+export function getApiKeySecret(keyId, data) {
+    return request({
+        url: `/api-keys/${keyId}/secret`,
+        method: 'post',
+        data
+    })
+}
 // --- External Provider Keys ---
 
 export function getExternalKeys() {

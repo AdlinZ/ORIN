@@ -2,6 +2,7 @@ package com.adlin.orin.modules.apikey.service;
 
 import com.adlin.orin.modules.apikey.entity.ApiKey;
 import com.adlin.orin.modules.apikey.repository.ApiKeyRepository;
+import com.adlin.orin.security.EncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,6 +24,7 @@ import java.util.Optional;
 public class ApiKeyService {
 
     private final ApiKeyRepository apiKeyRepository;
+    private final EncryptionUtil encryptionUtil;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -40,11 +42,14 @@ public class ApiKeyService {
         String secretKey = generateSecretKey();
         String keyHash = passwordEncoder.encode(secretKey);
         String keyPrefix = KEY_PREFIX + secretKey.substring(0, 8);
+        String fullSecretKey = KEY_PREFIX + secretKey;
+        String encryptedSecret = encryptionUtil.isEncryptionEnabled() ? encryptionUtil.encrypt(fullSecretKey) : null;
 
         // 创建密钥实体
         ApiKey apiKey = ApiKey.builder()
                 .keyHash(keyHash)
                 .keyPrefix(keyPrefix)
+                .encryptedSecret(encryptedSecret)
                 .userId(userId)
                 .name(name)
                 .description(description)
@@ -62,7 +67,7 @@ public class ApiKeyService {
         log.info("Created API key for user: {}, keyId: {}", userId, apiKey.getId());
 
         // 返回包含明文密钥的对象（仅此一次）
-        return new ApiKeyWithSecret(apiKey, KEY_PREFIX + secretKey);
+        return new ApiKeyWithSecret(apiKey, fullSecretKey);
     }
 
     /**
@@ -132,6 +137,39 @@ public class ApiKeyService {
      */
     public List<ApiKey> getUserApiKeys(String userId) {
         return apiKeyRepository.findByUserId(userId);
+    }
+
+    /**
+     * 获取所有密钥（管理员用）
+     */
+    public List<ApiKey> getAllApiKeys() {
+        return apiKeyRepository.findAll();
+    }
+
+    /**
+     * 根据ID获取密钥
+     */
+    public Optional<ApiKey> getApiKeyById(String keyId) {
+        return apiKeyRepository.findById(keyId);
+    }
+
+    /**
+     * 获取密钥明文（管理员受控回显）
+     */
+    public Optional<String> getSecretKeyForAdmin(String keyId) {
+        Optional<ApiKey> keyOpt = apiKeyRepository.findById(keyId);
+        if (keyOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        ApiKey apiKey = keyOpt.get();
+        if (!encryptionUtil.isEncryptionEnabled()) {
+            log.warn("Admin key reveal requested but ENCRYPTION_KEY is not configured, keyId={}", keyId);
+            return Optional.empty();
+        }
+        if (apiKey.getEncryptedSecret() == null || apiKey.getEncryptedSecret().isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(encryptionUtil.decrypt(apiKey.getEncryptedSecret()));
     }
 
     /**
