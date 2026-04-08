@@ -73,6 +73,24 @@ export const deleteAgent = (agentId) => {
     return request.delete(`/agents/${agentId}`);
 };
 
+export const batchExportAgents = (agentIds) => {
+    return request.post('/agents/batch/export', agentIds, {
+        responseType: 'blob'
+    });
+};
+
+export const batchImportAgents = (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post('/agents/batch/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
+
+export const refreshAllAgentsMetadata = () => {
+    return request.post('/agents/refresh-all-metadata');
+};
+
 
 export const getJobStatus = (agentId, jobId) => {
     return request.get(`/agents/${agentId}/jobs/${jobId}`);
