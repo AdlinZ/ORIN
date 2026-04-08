@@ -327,6 +327,10 @@ public class GraphExecutor {
             beanName = "ifElseNodeHandler";
         } else if ("knowledge-retrieval".equals(type) || "knowledge_retrieval".equals(type)) {
             beanName = "knowledgeNodeHandler";
+        } else if ("iteration".equals(type)) {
+            beanName = "iterationNodeHandler";
+        } else if ("loop".equals(type)) {
+            beanName = "loopNodeHandler";
         }
 
         NodeHandler handler = nodeHandlers.get(beanName);
