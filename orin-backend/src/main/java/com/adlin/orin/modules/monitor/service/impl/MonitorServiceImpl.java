@@ -1324,24 +1324,66 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public List<Map<String, Object>> getServerNodes() {
-                List<Map<String, Object>> nodes = serverHardwareMetricRepository.findDistinctServerNodes();
-                List<Map<String, Object>> result = new ArrayList<>();
-                Map<String, Object> localNode = null;
-                for (Map<String, Object> node : nodes) {
-                        if ("local".equals(node.get("id"))) {
-                                localNode = node;
+                // 从 ServerHardwareMetric 获取已有数据的节点
+                List<Map<String, Object>> reportedNodes = serverHardwareMetricRepository.findDistinctServerNodes();
+                // 从 ServerInfo 获取预配置的节点
+                List<ServerInfo> configuredNodes = serverInfoRepository.findAll();
+
+                // 使用 Map 合并节点，key 为 serverId
+                Map<String, Map<String, Object>> nodesMap = new LinkedHashMap<>();
+
+                // 先添加预配置的节点（使用 ServerInfo 中的 name）
+                for (ServerInfo info : configuredNodes) {
+                        Map<String, Object> node = new HashMap<>();
+                        node.put("id", info.getServerId());
+                        node.put("name", info.getServerName() != null ? info.getServerName() : info.getServerId());
+                        node.put("online", info.getOnline());
+                        node.put("prometheusUrl", info.getPrometheusUrl());
+                        node.put("configured", true); // 标记为预配置节点
+                        nodesMap.put(info.getServerId(), node);
+                }
+
+                // 更新已有数据的节点（使用 Metric 中的 name，覆盖预配置的 name）
+                for (Map<String, Object> reported : reportedNodes) {
+                        String id = (String) reported.get("id");
+                        Map<String, Object> existing = nodesMap.get(id);
+                        if (existing != null) {
+                                // 合并：保留预配置的 id，用 Metric 中的 name
+                                if (reported.get("name") != null) {
+                                        existing.put("name", reported.get("name"));
+                                }
+                                existing.put("hasData", true);
                         } else {
-                                result.add(node);
+                                // 新节点，只有 reported 数据
+                                reported.put("hasData", true);
+                                nodesMap.put(id, reported);
                         }
                 }
-                if (localNode != null) {
-                        result.add(0, localNode);
-                } else if (result.isEmpty()) {
-                        localNode = new HashMap<>();
+
+                // 构建结果列表，确保 local 节点在最前面
+                List<Map<String, Object>> result = new ArrayList<>();
+                List<Map<String, Object>> others = new ArrayList<>();
+
+                for (Map.Entry<String, Map<String, Object>> entry : nodesMap.entrySet()) {
+                        Map<String, Object> node = entry.getValue();
+                        if ("local".equals(entry.getKey())) {
+                                result.add(0, node);
+                        } else {
+                                others.add(node);
+                        }
+                }
+                result.addAll(others);
+
+                // 如果没有任何节点，添加默认 local 节点
+                if (result.isEmpty()) {
+                        Map<String, Object> localNode = new HashMap<>();
                         localNode.put("id", "local");
                         localNode.put("name", "Local Node");
+                        localNode.put("configured", false);
+                        localNode.put("hasData", false);
                         result.add(0, localNode);
                 }
+
                 return result;
         }
 
@@ -1470,6 +1512,14 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         @Override
+        public ServerInfo createServerInfo(ServerInfo serverInfo) {
+                if (serverInfoRepository.existsByServerId(serverInfo.getServerId())) {
+                        throw new IllegalArgumentException("Server with id " + serverInfo.getServerId() + " already exists");
+                }
+                return serverInfoRepository.save(serverInfo);
+        }
+
+        @Override
         public void updateServerInfo(ServerInfo serverInfo) {
                 serverInfoRepository.save(serverInfo);
         }
@@ -1484,21 +1534,55 @@ public class MonitorServiceImpl implements MonitorService {
                 return localServerInfoService.getLocalServerInfo();
         }
 
+        /**
+         * 获取本地服务器硬件状态（用于 local 节点）
+         */
+        private Map<String, Object> getLocalServerHardwareStatus() {
+                Map<String, Object> status = new HashMap<>();
+                try {
+                        Map<String, Object> info = localServerInfoService.getLocalServerInfo();
+                        status.put("online", true);
+                        status.put("os", info.getOrDefault("os", "Unknown"));
+                        status.put("cpuModel", info.getOrDefault("cpuModel", "Unknown"));
+                        status.put("cpuCores", info.getOrDefault("cpuCores", 0));
+                        status.put("cpuUsage", info.getOrDefault("cpuUsage", 0));
+                        status.put("memoryTotal", info.getOrDefault("memoryTotal", 0L));
+                        status.put("memoryUsage", info.getOrDefault("memoryUsagePercent", 0));
+                        status.put("diskTotal", info.getOrDefault("diskTotal", 0L));
+                        status.put("diskUsage", 0); // OSHI 不直接提供磁盘使用率百分比
+                        status.put("gpuModel", info.getOrDefault("gpuModel", "N/A"));
+                        status.put("gpuUsage", 0);
+                        status.put("gpuMemoryTotal", 0L);
+                        status.put("gpuMemoryUsage", 0);
+                        status.put("uptime", info.getOrDefault("uptime", 0L));
+                } catch (Exception e) {
+                        log.error("Failed to get local server hardware status: {}", e.getMessage());
+                        status.put("online", false);
+                        status.put("error", e.getMessage());
+                }
+                return status;
+        }
+
         @Override
-        public Map<String, Object> getPrometheusServerStatus() {
+        public Map<String, Object> getPrometheusServerStatus(String serverId) {
                 Map<String, Object> status = new HashMap<>();
 
-                PrometheusConfig config = getPrometheusConfig();
-                if (config == null || !Boolean.TRUE.equals(config.getEnabled())) {
-                        status.put("online", false);
-                        status.put("error", "Prometheus is not enabled");
-                        return status;
+                // 如果是 local 节点或没有指定 serverId，使用本地 OSHI 采集
+                if (serverId == null || "local".equals(serverId)) {
+                        return getLocalServerHardwareStatus();
                 }
 
-                String baseUrl = config.getPrometheusUrl();
+                // 查询该节点的 ServerInfo，获取 Prometheus URL
+                ServerInfo serverInfo = serverInfoRepository.findByServerId(serverId).orElse(null);
+                String baseUrl = null;
+                if (serverInfo != null && serverInfo.getPrometheusUrl() != null && !serverInfo.getPrometheusUrl().isEmpty()) {
+                        baseUrl = serverInfo.getPrometheusUrl();
+                }
+
+                // 如果没有配置 Prometheus URL，返回离线状态
                 if (baseUrl == null || baseUrl.isEmpty()) {
                         status.put("online", false);
-                        status.put("error", "Prometheus URL is not configured");
+                        status.put("error", "该节点未配置 Prometheus URL");
                         return status;
                 }
 
@@ -1510,7 +1594,6 @@ public class MonitorServiceImpl implements MonitorService {
                         Long memoryTotal = prometheusService.getTotalMemory(baseUrl);
 
                         // 只要能获取到 CPU 使用率或内存，就认为服务器在线
-                        // 因为有些服务器可能没有 GPU 或者没有完整暴露所有指标
                         boolean hasMetrics = (cpuUsage != null && cpuUsage >= 0) || (memoryTotal != null && memoryTotal >= 0) || (cpuCores != null && cpuCores > 0) || (os != null && !"Unknown".equals(os));
 
                         if (!hasMetrics) {
@@ -1533,13 +1616,11 @@ public class MonitorServiceImpl implements MonitorService {
                         status.put("gpuUsage", prometheusService.getGpuUsage(baseUrl));
                         status.put("gpuMemoryTotal", prometheusService.getGpuMemoryTotalBytes(baseUrl));
                         status.put("gpuMemoryUsage", prometheusService.getGpuMemoryUsage(baseUrl));
-
-                        // 网络流量
                         status.put("networkReceiveRate", prometheusService.getNetworkReceiveRate(baseUrl));
                         status.put("networkTransmitRate", prometheusService.getNetworkTransmitRate(baseUrl));
 
                 } catch (Exception e) {
-                        log.error("Failed to get Prometheus server status: {}", e.getMessage());
+                        log.error("Failed to get Prometheus server status for {}: {}", serverId, e.getMessage());
                         status.put("online", false);
                         status.put("error", e.getMessage());
                 }

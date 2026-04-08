@@ -8,6 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:revamp": "vitest run tests/unit/revamp*.test.js",
+    "flags:revamp:snapshot": "node scripts/revamp-flag-snapshot.mjs",
+    "smoke:revamp": "node scripts/revamp-smoke.mjs",
+    "acceptance:revamp": "node scripts/revamp-acceptance-checklist.mjs",
+    "rollback:revamp:drill": "node scripts/revamp-rollback-drill.mjs",
     "lint": "eslint --ext .js,.vue src",
     "lint:fix": "eslint --ext .js,.vue src --fix",
     "format": "prettier --write \"src/**/*.{js,vue,css,scss}\""

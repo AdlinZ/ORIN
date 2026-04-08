@@ -198,6 +198,11 @@ public interface MonitorService {
     com.adlin.orin.modules.monitor.entity.ServerInfo getServerInfo(String serverId);
 
     /**
+     * 创建服务器静态信息
+     */
+    com.adlin.orin.modules.monitor.entity.ServerInfo createServerInfo(com.adlin.orin.modules.monitor.entity.ServerInfo serverInfo);
+
+    /**
      * 更新服务器静态信息
      */
     void updateServerInfo(com.adlin.orin.modules.monitor.entity.ServerInfo serverInfo);
@@ -216,8 +221,9 @@ public interface MonitorService {
 
     /**
      * 通过 Prometheus 获取远程服务器状态
+     * @param serverId 服务器ID (如果传null则默认为 local)
      */
-    Map<String, Object> getPrometheusServerStatus();
+    Map<String, Object> getPrometheusServerStatus(String serverId);
 
     /**
      * 调试：查询 Prometheus 原始数据

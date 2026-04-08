@@ -37,6 +37,15 @@
                     <component :is="getIconComponent(child.icon)" />
                   </el-icon>
                   <span>{{ child.title }}</span>
+                  <el-tag
+                    v-if="child.status"
+                    size="small"
+                    :type="getMaturityTagType(child.status)"
+                    effect="plain"
+                    class="dropdown-status-tag"
+                  >
+                    {{ getMaturityText(child.status) }}
+                  </el-tag>
                   <el-icon class="submenu-arrow">
                     <ArrowRight />
                   </el-icon>
@@ -53,6 +62,15 @@
                       <component :is="getIconComponent(subChild.icon)" />
                     </el-icon>
                     <span>{{ subChild.title }}</span>
+                    <el-tag
+                      v-if="subChild.status"
+                      size="small"
+                      :type="getMaturityTagType(subChild.status)"
+                      effect="plain"
+                      class="dropdown-status-tag"
+                    >
+                      {{ getMaturityText(subChild.status) }}
+                    </el-tag>
                   </router-link>
                 </div>
               </div>
@@ -67,6 +85,15 @@
                   <component :is="getIconComponent(child.icon)" />
                 </el-icon>
                 <span>{{ child.title }}</span>
+                <el-tag
+                  v-if="child.status"
+                  size="small"
+                  :type="getMaturityTagType(child.status)"
+                  effect="plain"
+                  class="dropdown-status-tag"
+                >
+                  {{ getMaturityText(child.status) }}
+                </el-tag>
               </router-link>
             </template>
           </div>
@@ -207,6 +234,14 @@
           <div v-if="child.children && child.children.length > 0" class="mobile-submenu-group">
             <div class="mobile-submenu-title">
               {{ child.title }}
+              <el-tag
+                v-if="child.status"
+                size="small"
+                :type="getMaturityTagType(child.status)"
+                effect="plain"
+              >
+                {{ getMaturityText(child.status) }}
+              </el-tag>
             </div>
             <router-link
               v-for="subChild in child.children.filter(c => !c.divider)"
@@ -216,6 +251,14 @@
               @click="closeMobileMenu"
             >
               {{ subChild.title }}
+              <el-tag
+                v-if="subChild.status"
+                size="small"
+                :type="getMaturityTagType(subChild.status)"
+                effect="plain"
+              >
+                {{ getMaturityText(subChild.status) }}
+              </el-tag>
             </router-link>
           </div>
           <!-- 无三级菜单的二级菜单项 -->
@@ -226,6 +269,14 @@
             @click="closeMobileMenu"
           >
             {{ child.title }}
+            <el-tag
+              v-if="child.status"
+              size="small"
+              :type="getMaturityTagType(child.status)"
+              effect="plain"
+            >
+              {{ getMaturityText(child.status) }}
+            </el-tag>
           </router-link>
         </template>
       </div>
@@ -379,6 +430,7 @@ import { ElMessage } from 'element-plus'
 import { useTheme } from '@/composables/useTheme'
 import { useUser } from '@/composables/useUser'
 import { getIconComponent } from '@/utils/iconMap'
+import { getMaturityTagType, getMaturityText } from '@/utils/maturity'
 
 const router = useRouter()
 const route = useRoute()
@@ -559,10 +611,10 @@ const sendSystemMessage = async () => {
   try {
     // [PHASE] 1. Gather Real System Data
     const [hardwareRes, agentsRes, kbRes, logsRes] = await Promise.allSettled([
-      getServerHardware().catch(e => ({ error: 'Hardware fetch failed' })),
-      getAgentList().catch(e => []),
-      getKnowledgeList().catch(e => ({ list: [] })),
-      getTokenHistory({ size: 5 }).catch(e => ({ content: [] })) // Last 5 tasks
+      getServerHardware().catch(() => ({ error: 'Hardware fetch failed' })),
+      getAgentList().catch(() => []),
+      getKnowledgeList().catch(() => ({ list: [] })),
+      getTokenHistory({ size: 5 }).catch(() => ({ content: [] })) // Last 5 tasks
     ])
 
     // Format Hardware
@@ -825,6 +877,10 @@ onMounted(() => {
 
 .dropdown-item .el-icon {
   font-size: 16px;
+}
+
+.dropdown-status-tag {
+  margin-left: auto;
 }
 
 /* 三级菜单样式 */

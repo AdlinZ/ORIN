@@ -14,6 +14,7 @@
 - [使用指南.md](./使用指南.md)：当前前端入口与联调方式
 - [部署指南.md](./部署指南.md)：部署与本地环境说明
 - [I1.2-部署前检查清单.md](./I1.2-部署前检查清单.md)：部署前检查清单
+- [../orin-frontend/docs/README.md](../orin-frontend/docs/README.md)：前端专项文档入口（重构灰度/发布 checkpoint/组件文档）
 
 ## 阅读顺序
 

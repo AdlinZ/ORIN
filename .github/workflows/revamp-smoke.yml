@@ -1,0 +1,69 @@
+name: Frontend Revamp Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'orin-frontend/**'
+      - '.github/workflows/revamp-smoke.yml'
+  push:
+    branches:
+      - main
+      - master
+      - 'release/**'
+    paths:
+      - 'orin-frontend/**'
+      - '.github/workflows/revamp-smoke.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: revamp-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  revamp-smoke:
+    name: Revamp Smoke + Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orin-frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: orin-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Revamp static smoke
+        run: |
+          mkdir -p artifacts
+          npm run smoke:revamp -- --json-out ./artifacts/revamp-smoke-report.json --summary-out ./artifacts/revamp-smoke-summary.md
+
+      - name: Revamp test suite
+        run: npm run test:revamp
+
+      - name: Generate acceptance checklist artifact
+        run: npm run acceptance:revamp -- --out ./artifacts/revamp-acceptance-checklist.md
+
+      - name: Generate rollback drill artifact
+        run: npm run rollback:revamp:drill -- --out ./artifacts/revamp-rollback-drill.md
+
+      - name: Upload revamp artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: revamp-governance-${{ github.run_id }}
+          path: |
+            orin-frontend/artifacts/revamp-smoke-report.json
+            orin-frontend/artifacts/revamp-smoke-summary.md
+            orin-frontend/artifacts/revamp-acceptance-checklist.md
+            orin-frontend/artifacts/revamp-rollback-drill.md
+
+      - name: Append smoke summary
+        run: cat ./artifacts/revamp-smoke-summary.md >> "$GITHUB_STEP_SUMMARY"

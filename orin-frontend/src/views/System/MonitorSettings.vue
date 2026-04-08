@@ -21,242 +21,45 @@
       <!-- 硬件监控数据源 Tab -->
       <el-tab-pane label="硬件监控数据源" name="prometheus">
         <el-row :gutter="24">
-          <el-col :lg="14">
-            <el-card class="premium-card margin-bottom-lg">
-              <template #header>
-                <div class="card-header">
-                  <el-icon><Connection /></el-icon>
-                  <span>Prometheus 配置</span>
-                </div>
-              </template>
-              
-              <el-form :model="config" label-position="top" class="config-form">
-                <el-form-item label="启用硬件监控服务">
-                  <div class="flex-between w-100">
-                    <div class="form-info">
-                      <div class="form-label-desc">
-                        开启后，后台将尝试从指定的 Prometheus 实例拉取 CPU、内存、路盘等指标。
-                      </div>
-                    </div>
-                    <el-switch v-model="config.enabled" />
-                  </div>
-                </el-form-item>
-
-                <el-divider border-style="dashed" />
-
-                <el-form-item v-if="config.enabled" label="Prometheus 服务器地址">
-                  <el-input 
-                    v-model="config.prometheusUrl" 
-                    placeholder="例如: http://192.168.1.107:9090"
-                    class="url-input"
-                  >
-                    <template #prepend>
-                      http(s)://
-                    </template>
-                  </el-input>
-                  <p class="form-tip">
-                    请确保后台服务能够网络通达。如果是 Docker 环境，请使用宿主机 IP 或容器专用网络地址。
-                  </p>
-                </el-form-item>
-                
-                <el-form-item v-if="config.enabled">
-                  <el-button
-                    :loading="testing"
-                    type="primary"
-                    plain
-                    size="small"
-                    @click="testConnection"
-                  >
-                    测试连接响应
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </el-card>
-
-            <el-card class="premium-card">
-              <template #header>
-                <div class="card-header">
-                  <el-icon><InfoFilled /></el-icon>
-                  <span>数据采集策略</span>
-                </div>
-              </template>
-              <div class="strategy-list">
-                <div class="strategy-item">
-                  <div class="item-title">
-                    后端缓存周期
-                  </div>
-                  <el-input-number 
-                    v-model="config.cacheTtl" 
-                    :min="5" 
-                    :max="300" 
-                    :step="5"
-                    size="small"
-                    style="width: 120px"
-                  />
-                  <span style="margin-left: 8px; color: var(--neutral-gray-600);">秒</span>
-                  <div class="item-desc">
-                    为了降低对 Prometheus 的请求压力，后端会对硬件数据进行短时缓存。
-                  </div>
-                </div>
-                <div class="strategy-item">
-                  <div class="item-title">
-                    前端刷新频率
-                  </div>
-                  <el-input-number 
-                    v-model="config.refreshInterval" 
-                    :min="5" 
-                    :max="300" 
-                    :step="5"
-                    size="small"
-                    style="width: 120px"
-                  />
-                  <span style="margin-left: 8px; color: var(--neutral-gray-600);">秒</span>
-                  <div class="item-desc">
-                    监控看板会每隔指定秒数主动请求一次后端接口。
-                  </div>
-                </div>
-              </div>
-            </el-card>
-          </el-col>
-
-          <el-col :lg="10">
+          <el-col :span="24">
             <el-card class="premium-card guide-card">
               <template #header>
                 <div class="card-header">
                   <el-icon><QuestionFilled /></el-icon>
-                  <span>配置指南</span>
+                  <span>入口迁移说明</span>
                 </div>
               </template>
               <div class="guide-content">
                 <div class="guide-step">
                   <span class="step-num">1</span>
                   <div class="step-text">
-                    <strong>安装 Node Exporter (Ubuntu)</strong>
-                    <pre class="install-cmd"># 下载 Node Exporter (以 v1.7.0 为例)
-wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
-
-# 解压
-tar xzf node_exporter-1.7.0.linux-amd64.tar.gz
-
-# 移动二进制文件
-sudo cp node_exporter-1.7.0.linux-amd64/node_exporter /usr/local/bin/
-
-# 创建专用用户
-sudo useradd -rs /bin/false node_exporter</pre>
+                    <strong>硬件监控数据源配置已迁移</strong>
+                    <p>请前往运行时监控页面统一维护全局 Prometheus 配置与节点级 Prometheus URL。</p>
                   </div>
                 </div>
                 <div class="guide-step">
                   <span class="step-num">2</span>
                   <div class="step-text">
-                    <strong>配置 systemd 服务</strong>
-                    <pre class="install-cmd">sudo nano /etc/systemd/system/node_exporter.service
-
-# 写入以下内容:
-[Unit]
-Description=Node Exporter
-After=network.target
-
-[Service]
-Type=simple
-User=node_exporter
-ExecStart=/usr/local/bin/node_exporter
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-# 启动服务
-sudo systemctl daemon-reload
-sudo systemctl enable node_exporter
-sudo systemctl start node_exporter
-
-# 验证 (默认端口 9100)
-curl http://localhost:9100/metrics | head</pre>
+                    <strong>新的配置位置</strong>
+                    <p>访问 `/dashboard/runtime/server` 页面，在顶部的“硬件监控数据源配置”区域进行保存与连接测试。</p>
                   </div>
                 </div>
                 <div class="guide-step">
                   <span class="step-num">3</span>
                   <div class="step-text">
-                    <strong>配置 Prometheus 抓取</strong>
-                    <pre class="install-cmd">sudo nano /etc/prometheus/prometheus.yml
-
-# 在 scrape_configs 下添加:
-  - job_name: 'node_exporter'
-    static_configs:
-      - targets: ['localhost:9100']
-
-# 重启 Prometheus
-sudo systemctl restart prometheus</pre>
-                  </div>
-                </div>
-                <div class="guide-step">
-                  <span class="step-num">4</span>
-                  <div class="step-text">
-                    <strong>填入 API 地址</strong>
-                    <p>将 Prometheus 地址 (默认 http://localhost:9090) 填入左侧表单并保存。</p>
+                    <strong>迁移原因</strong>
+                    <p>这样可以把“数据源配置”、“全节点总览”和“单节点面板”放在同一处，避免监控相关配置散落在多个页面。</p>
                   </div>
                 </div>
               </div>
-              
+
               <el-alert
-                title="提示：系统目前支持 Linux node_exporter 和 Windows windows_exporter 的标准指标。"
+                title="提示：系统环境配置页保留其他外部依赖配置；硬件监控入口已统一迁移。"
                 type="info"
                 :closable="false"
                 show-icon
                 style="margin-top: 20px;"
               />
-
-              <!-- NVIDIA GPU 监控说明 -->
-              <el-collapse style="margin-top: 20px;">
-                <el-collapse-item title="NVIDIA GPU 监控配置 (可选)" name="nvidia">
-                  <div class="nvidia-guide">
-                    <p>如需监控 NVIDIA GPU 指标，需要额外配置 GPU exporter：</p>
-
-                    <div class="guide-step">
-                      <span class="step-num">1</span>
-                      <div class="step-text">
-                        <strong>安装 DCGM Exporter (推荐)</strong>
-                        <pre class="install-cmd"># 使用 Helm 安装 (Kubernetes)
-helm repo add gpu-operator https://nvidia.github.io/gpu-operator
-helm install dcgm-exporter gpu-operator/dcgm-exporter
-
-# 或使用 Docker 直接运行
-docker run -d --gpus all --rm -p 9400:9400 nvidia/dcgm-exporter:latest</pre>
-                      </div>
-                    </div>
-
-                    <div class="guide-step">
-                      <span class="step-num">2</span>
-                      <div class="step-text">
-                        <strong>或使用 nvidia_gpu_exporter</strong>
-                        <pre class="install-cmd"># 下载并运行
-wget https://github.com/mindprince/nvidia_gpu_exporter/releases/download/v1.0.0/nvidia_gpu_exporter_1.0.0_linux_amd64.tar.gz
-tar -xzf nvidia_gpu_exporter_1.0.0_linux_amd64.tar.gz
-./nvidia_gpu_exporter</pre>
-                      </div>
-                    </div>
-
-                    <div class="guide-step">
-                      <span class="step-num">3</span>
-                      <div class="step-text">
-                        <strong>在 Prometheus 中添加 GPU job</strong>
-                        <pre class="install-cmd"># 添加到 prometheus.yml
-  - job_name: 'nvidia_gpu'
-    static_configs:
-      - targets: ['localhost:9400']  # DCGM Exporter 默认端口</pre>
-                      </div>
-                    </div>
-
-                    <el-alert
-                      title="注意：ORIN 支持的 GPU 指标查询包括：nvidia_smi_utilization_gpu_ratio, nvidia_smi_memory_used_bytes, nvidia_smi_gpu_info 等。"
-                      type="warning"
-                      :closable="false"
-                      show-icon
-                      style="margin-top: 10px;"
-                    />
-                  </div>
-                </el-collapse-item>
-              </el-collapse>
             </el-card>
           </el-col>
         </el-row>
@@ -359,13 +162,12 @@ import { ElMessage } from 'element-plus';
 import request from '@/utils/request';
 import PageHeader from '@/components/PageHeader.vue';
 import { 
-  Check, Connection, InfoFilled, 
+  Check, Connection,
   QuestionFilled
 } from '@element-plus/icons-vue';
 
 const activeTab = ref('prometheus');
 const saving = ref(false);
-const testing = ref(false);
 const config = reactive({
   prometheusUrl: '',
   enabled: false,
@@ -404,29 +206,6 @@ const saveConfig = async () => {
     } finally {
         saving.value = false;
     }
-};
-
-  const testConnection = async () => {
-  testing.value = true;
-  try {
-    // Use the dedicated test endpoint
-    const res = await request.get('/monitor/prometheus/test');
-    console.log('Test Connection Response:', res);
-    if (res.probedUrl) {
-        console.log('Backend actually probed this URL:', res.probedUrl);
-    }
-    
-    if (res.online) {
-      ElMessage.success('连接成功！Prometheus 响应正常。');
-    } else {
-      ElMessage.warning('连接测试失败: ' + (res.error || '无法解析数据'));
-    }
-  } catch (e) {
-    console.error('Test Connection Error:', e);
-    ElMessage.error('测试失败: ' + e.message);
-  } finally {
-    testing.value = false;
-  }
 };
 
 const envConfig = ref({});

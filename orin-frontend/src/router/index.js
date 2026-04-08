@@ -4,6 +4,14 @@ import Cookies from 'js-cookie'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import { ROUTES, LEGACY_ROUTE_REDIRECTS } from './routes'
+import { isFeatureEnabled } from '@/config/featureFlags'
+
+const resolveDomainView = (flag, legacyLoader, revampedLoader) => {
+    if (isFeatureEnabled(flag)) {
+        return revampedLoader
+    }
+    return legacyLoader
+}
 
 // ==================== 路由配置 ====================
 const routes = [
@@ -69,7 +77,11 @@ const routes = [
                     {
                         path: 'agents',
                         name: 'ApplicationAgents',
-                        component: () => import('@/views/Agent/AgentList.vue'),
+                        component: resolveDomainView(
+                            'revampAgentsHub',
+                            () => import('@/views/Agent/AgentList.vue'),
+                            () => import('@/views/revamp/agents/AgentListV2.vue')
+                        ),
                         meta: { title: '应用列表', icon: 'Grid' }
                     },
                     {
@@ -125,7 +137,11 @@ const routes = [
                     {
                         path: 'collaboration/dashboard',
                         name: 'ApplicationCollaborationDashboard',
-                        component: () => import('@/views/Agent/CollaborationDashboard.vue'),
+                        component: resolveDomainView(
+                            'revampCollaboration',
+                            () => import('@/views/Agent/CollaborationDashboard.vue'),
+                            () => import('@/views/revamp/collaboration/CollaborationDashboardV2.vue')
+                        ),
                         meta: { title: '协作仪表盘', icon: 'DataAnalysis' }
                     },
 
@@ -185,7 +201,11 @@ const routes = [
                     {
                         path: 'workflows',
                         name: 'ApplicationWorkflows',
-                        component: () => import('@/views/Workflow/WorkflowList.vue'),
+                        component: resolveDomainView(
+                            'revampWorkflowHub',
+                            () => import('@/views/Workflow/WorkflowList.vue'),
+                            () => import('@/views/revamp/workflow/WorkflowListV2.vue')
+                        ),
                         meta: { title: '流程编排', icon: 'Connection' }
                     },
                     {
@@ -224,7 +244,11 @@ const routes = [
                     {
                         path: 'overview',
                         name: 'RuntimeOverview',
-                        component: () => import('@/views/MonitorDashboard.vue'),
+                        component: resolveDomainView(
+                            'revampRuntimeOverview',
+                            () => import('@/views/MonitorDashboard.vue'),
+                            () => import('@/views/revamp/monitor/RuntimeOverviewV2.vue')
+                        ),
                         meta: { title: '运行概览', icon: 'DataAnalysis' }
                     },
 
@@ -292,6 +316,12 @@ const routes = [
 
                     // 服务器监控
                     {
+                        path: 'server/:serverId',
+                        name: 'RuntimeServerNode',
+                        component: () => import('@/views/Monitor/ServerNodeDetail.vue'),
+                        meta: { title: '节点监控详情', hidden: true }
+                    },
+                    {
                         path: 'server',
                         name: 'RuntimeServer',
                         component: () => import('@/views/Monitor/ServerMonitor.vue'),
@@ -341,7 +371,11 @@ const routes = [
                     {
                         path: 'knowledge',
                         name: 'ResourcesKnowledge',
-                        component: () => import('@/views/Knowledge/KBList.vue'),
+                        component: resolveDomainView(
+                            'revampKnowledgeHub',
+                            () => import('@/views/Knowledge/KBList.vue'),
+                            () => import('@/views/revamp/knowledge/KnowledgeListV2.vue')
+                        ),
                         meta: { title: '知识库', icon: 'Reading' }
                     },
                     {
@@ -466,7 +500,11 @@ const routes = [
                     {
                         path: 'audit-logs',
                         name: 'ControlAuditLogs',
-                        component: () => import('@/views/System/AuditLogs.vue'),
+                        component: resolveDomainView(
+                            'revampAuditCenter',
+                            () => import('@/views/System/AuditLogs.vue'),
+                            () => import('@/views/revamp/system/AuditCenterV2.vue')
+                        ),
                         meta: { title: '审计日志', icon: 'List', roles: ['ROLE_ADMIN'] }
                     },
 
@@ -490,13 +528,27 @@ const routes = [
                     {
                         path: 'system-env',
                         name: 'ControlSystemEnv',
-                        component: () => import('@/views/System/MonitorSettings.vue'),
+                        component: resolveDomainView(
+                            'revampSystemConfigHub',
+                            () => import('@/views/System/MonitorSettings.vue'),
+                            () => import('@/views/revamp/system/SystemConfigHubV2.vue')
+                        ),
                         meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'revamp-rollout',
+                        name: 'ControlRevampRollout',
+                        component: () => import('@/views/revamp/system/RevampRolloutCenterV2.vue'),
+                        meta: { title: '重构灰度控制台', icon: 'Operation', roles: ['ROLE_ADMIN'] }
                     },
                     {
                         path: 'gateway',
                         name: 'ControlGateway',
-                        component: () => import('@/views/System/ApiGateway.vue'),
+                        component: resolveDomainView(
+                            'revampSystemGateway',
+                            () => import('@/views/System/ApiGateway.vue'),
+                            () => import('@/views/revamp/system/SystemGatewayV2.vue')
+                        ),
                         meta: { title: '统一网关', icon: 'Connection', roles: ['ROLE_ADMIN'] }
                     },
                     {

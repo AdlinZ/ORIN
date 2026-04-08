@@ -5,16 +5,16 @@ import { ROUTES } from './routes'
  * 4个一级菜单，按照用户建议的结构组织
  *
  * 菜单结构：
- * 1. 智能体 - 智能体管理、工作流编排、多智能体协作、版本管理与测试
- * 2. 知识中心 - 知识库、知识图谱、同步管理
- * 3. 监控运维 - 监控总览、链路与分析、告警与事件、运维操作
- * 4. 系统管理 - 组织与权限、平台配置、模型与资源、安全与运维、支持与维护
+ * 1. 智能体中枢 - 智能体管理、工作流编排、多智能体协作、版本管理与测试
+ * 2. 知识与工作流 - 知识库、知识图谱、同步管理
+ * 3. 监控与运维 - 监控总览、链路与分析、告警与事件、运维操作
+ * 4. 系统与网关 - 组织与权限、平台配置、模型与资源、安全与运维、支持与维护
  */
 export const TOP_MENU_CONFIG = [
-    // ==================== 1. 智能体 ====================
+    // ==================== 1. 智能体中枢 ====================
     {
         id: 'agents',
-        title: '智能体',
+        title: '智能体中枢',
         icon: 'Robot',
         color: '#155eef',
         path: ROUTES.AGENTS.ROOT,
@@ -29,12 +29,14 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '智能体列表',
                         path: ROUTES.AGENTS.LIST,
-                        icon: 'List'
+                        icon: 'List',
+                        status: 'available'
                     },
                     {
                         title: '智能体接入',
                         path: ROUTES.AGENTS.ONBOARD,
-                        icon: 'Plus'
+                        icon: 'Plus',
+                        status: 'available'
                     }
                 ]
             },
@@ -47,17 +49,20 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '智能体控制台',
                         path: ROUTES.AGENTS.CONSOLE.replace('/:id', ''),
-                        icon: 'Monitor'
+                        icon: 'Monitor',
+                        status: 'available'
                     },
                     {
                         title: '知识库对话',
                         path: ROUTES.AGENTS.WORKSPACE,
-                        icon: 'ChatLineRound'
+                        icon: 'ChatLineRound',
+                        status: 'available'
                     },
                     {
                         title: '会话记录',
                         path: ROUTES.AGENTS.CHAT_LOGS,
-                        icon: 'ChatDotRound'
+                        icon: 'ChatDotRound',
+                        status: 'available'
                     }
                 ]
             },
@@ -70,22 +75,26 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '工作流编排',
                         path: ROUTES.AGENTS.WORKFLOWS,
-                        icon: 'Edit'
+                        icon: 'Edit',
+                        status: 'available'
                     },
                     {
                         title: '协作任务列表',
                         path: ROUTES.AGENTS.COLLABORATION,
-                        icon: 'Avatar'
+                        icon: 'Avatar',
+                        status: 'available'
                     },
                     {
                         title: '协作模式配置',
                         path: ROUTES.AGENTS.COLLABORATION_CONFIG,
-                        icon: 'SetUp'
+                        icon: 'SetUp',
+                        status: 'beta'
                     },
                     {
                         title: '协作仪表盘',
                         path: ROUTES.AGENTS.COLLABORATION_DASHBOARD,
-                        icon: 'DataAnalysis'
+                        icon: 'DataAnalysis',
+                        status: 'beta'
                     }
                 ]
             },
@@ -98,17 +107,20 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '技能管理',
                         path: ROUTES.AGENTS.SKILLS,
-                        icon: 'Star'
+                        icon: 'Star',
+                        status: 'available'
                     },
                     {
                         title: 'MCP 管理',
                         path: ROUTES.AGENTS.MCP,
-                        icon: 'Connection'
+                        icon: 'Connection',
+                        status: 'available'
                     },
                     {
                         title: 'Tools 注册',
                         path: ROUTES.AGENTS.TOOLS,
-                        icon: 'Tool'
+                        icon: 'Tool',
+                        status: 'available'
                     }
                 ]
             },
@@ -121,22 +133,24 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '版本管理',
                         path: ROUTES.AGENTS.VERSION_MANAGE,
-                        icon: 'Collection'
+                        icon: 'Collection',
+                        status: 'available'
                     },
                     {
                         title: '测试与调试',
                         path: ROUTES.AGENTS.TEST_DEBUG,
-                        icon: 'Bug'
+                        icon: 'Bug',
+                        status: 'beta'
                     }
                 ]
             }
         ]
     },
 
-    // ==================== 2. 知识中心 ====================
+    // ==================== 2. 知识与工作流 ====================
     {
         id: 'knowledge',
-        title: '知识中心',
+        title: '知识与工作流',
         icon: 'Reading',
         color: '#8b5cf6',
         path: ROUTES.KNOWLEDGE.ROOT,
@@ -151,17 +165,20 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '知识库列表',
                         path: ROUTES.KNOWLEDGE.LIST,
-                        icon: 'List'
+                        icon: 'List',
+                        status: 'available'
                     },
                     {
                         title: '文档管理',
                         path: ROUTES.KNOWLEDGE.LIST,
-                        icon: 'Document'
+                        icon: 'Document',
+                        status: 'available'
                     },
                     {
                         title: '素材管理',
                         path: ROUTES.KNOWLEDGE.MEDIA,
-                        icon: 'Picture'
+                        icon: 'Picture',
+                        status: 'available'
                     }
                 ]
             },
@@ -170,7 +187,7 @@ export const TOP_MENU_CONFIG = [
                 title: '知识图谱',
                 path: ROUTES.KNOWLEDGE.GRAPH,
                 icon: 'Connection',
-                status: 'placeholder'
+                status: 'beta'
             },
             { divider: true },
             {
@@ -181,22 +198,24 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '同步任务',
                         path: ROUTES.KNOWLEDGE.SYNC,
-                        icon: 'Clock'
+                        icon: 'Clock',
+                        status: 'beta'
                     },
                     {
                         title: '设备列表',
                         path: ROUTES.KNOWLEDGE.SYNC,
-                        icon: 'Monitor'
+                        icon: 'Monitor',
+                        status: 'planned'
                     }
                 ]
             }
         ]
     },
 
-    // ==================== 3. 监控运维 ====================
+    // ==================== 3. 监控与运维 ====================
     {
         id: 'monitor',
-        title: '监控运维',
+        title: '监控与运维',
         icon: 'Monitor',
         color: '#f59e0b',
         path: ROUTES.MONITOR.ROOT,
@@ -211,17 +230,20 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '监控大盘',
                         path: ROUTES.MONITOR.DASHBOARD,
-                        icon: 'DataAnalysis'
+                        icon: 'DataAnalysis',
+                        status: 'available'
                     },
                     {
                         title: '服务器监控',
                         path: ROUTES.MONITOR.SERVER,
-                        icon: 'Monitor'
+                        icon: 'Monitor',
+                        status: 'available'
                     },
                     {
                         title: '任务队列',
                         path: ROUTES.MONITOR.TASKS,
-                        icon: 'Tickets'
+                        icon: 'Tickets',
+                        status: 'available'
                     }
                 ]
             },
@@ -235,27 +257,32 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '调用链路',
                         path: ROUTES.MONITOR.TRACES,
-                        icon: 'Share'
+                        icon: 'Share',
+                        status: 'available'
                     },
                     {
                         title: 'Token 统计',
                         path: ROUTES.MONITOR.TOKENS,
-                        icon: 'Coin'
+                        icon: 'Coin',
+                        status: 'available'
                     },
                     {
                         title: '成本分析',
                         path: ROUTES.MONITOR.COSTS,
-                        icon: 'Money'
+                        icon: 'Money',
+                        status: 'available'
                     },
                     {
                         title: '时延统计',
                         path: ROUTES.MONITOR.LATENCY,
-                        icon: 'Timer'
+                        icon: 'Timer',
+                        status: 'available'
                     },
                     {
                         title: '错误统计',
                         path: ROUTES.MONITOR.ERRORS,
-                        icon: 'Warning'
+                        icon: 'Warning',
+                        status: 'available'
                     }
                 ]
             },
@@ -269,12 +296,14 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '告警管理',
                         path: ROUTES.MONITOR.ALERTS,
-                        icon: 'Bell'
+                        icon: 'Bell',
+                        status: 'available'
                     },
                     {
                         title: '告警规则配置',
                         path: ROUTES.MONITOR.ALERT_RULES,
-                        icon: 'Setting'
+                        icon: 'Setting',
+                        status: 'beta'
                     }
                 ]
             },
@@ -288,22 +317,24 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '日志归档',
                         path: ROUTES.MONITOR.LOGS,
-                        icon: 'Document'
+                        icon: 'Document',
+                        status: 'available'
                     },
                     {
                         title: '系统维护',
                         path: ROUTES.MONITOR.MAINTENANCE,
-                        icon: 'Setting'
+                        icon: 'Setting',
+                        status: 'available'
                     }
                 ]
             }
         ]
     },
 
-    // ==================== 4. 系统管理 ====================
+    // ==================== 4. 系统与网关 ====================
     {
         id: 'system',
-        title: '系统管理',
+        title: '系统与网关',
         icon: 'Setting',
         color: '#64748b',
         path: ROUTES.SYSTEM.ROOT,
@@ -318,22 +349,26 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '用户管理',
                         path: ROUTES.SYSTEM.USERS,
-                        icon: 'User'
+                        icon: 'User',
+                        status: 'available'
                     },
                     {
                         title: '部门管理',
                         path: ROUTES.SYSTEM.DEPARTMENTS,
-                        icon: 'OfficeBuilding'
+                        icon: 'OfficeBuilding',
+                        status: 'available'
                     },
                     {
                         title: '角色管理',
                         path: ROUTES.SYSTEM.ROLES,
-                        icon: 'UserFilled'
+                        icon: 'UserFilled',
+                        status: 'available'
                     },
                     {
                         title: 'API Key',
                         path: ROUTES.SYSTEM.API_KEYS,
-                        icon: 'Key'
+                        icon: 'Key',
+                        status: 'available'
                     }
                 ]
             },
@@ -347,27 +382,38 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '基础设置',
                         path: ROUTES.SYSTEM.SETTINGS_BASE,
-                        icon: 'Setting'
+                        icon: 'Setting',
+                        status: 'available'
+                    },
+                    {
+                        title: '重构灰度控制台',
+                        path: ROUTES.SYSTEM.REVAMP_ROLLOUT,
+                        icon: 'Operation',
+                        status: 'beta'
                     },
                     {
                         title: '通知中心',
                         path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS,
-                        icon: 'Bell'
+                        icon: 'Bell',
+                        status: 'available'
                     },
                     {
                         title: '同步配置',
                         path: ROUTES.SYSTEM.SETTINGS_SYNC,
-                        icon: 'Refresh'
+                        icon: 'Refresh',
+                        status: 'beta'
                     },
                     {
                         title: '外部集成',
                         path: ROUTES.SYSTEM.SETTINGS_INTEGRATIONS,
-                        icon: 'Connection'
+                        icon: 'Connection',
+                        status: 'beta'
                     },
                     {
                         title: 'MCP 服务',
                         path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE,
-                        icon: 'Service'
+                        icon: 'Service',
+                        status: 'available'
                     }
                 ]
             },
@@ -381,27 +427,32 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '模型默认参数',
                         path: ROUTES.SYSTEM.SETTINGS_MODEL_DEFAULTS,
-                        icon: 'Cpu'
+                        icon: 'Cpu',
+                        status: 'available'
                     },
                     {
                         title: '模型配置',
                         path: ROUTES.SYSTEM.MODELS,
-                        icon: 'SetUp'
+                        icon: 'SetUp',
+                        status: 'available'
                     },
                     {
                         title: '定价配置',
                         path: ROUTES.SYSTEM.PRICING,
-                        icon: 'PriceTag'
+                        icon: 'PriceTag',
+                        status: 'available'
                     },
                     {
                         title: '知识库配置',
                         path: ROUTES.SYSTEM.SETTINGS_KNOWLEDGE,
-                        icon: 'Document'
+                        icon: 'Document',
+                        status: 'available'
                     },
                     {
                         title: '文件管理',
                         path: ROUTES.SYSTEM.FILES,
-                        icon: 'Folder'
+                        icon: 'Folder',
+                        status: 'available'
                     }
                 ]
             },
@@ -415,32 +466,38 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '统一网关',
                         path: ROUTES.SYSTEM.GATEWAY,
-                        icon: 'Router'
+                        icon: 'Router',
+                        status: 'available'
                     },
                     {
                         title: '统一 API 文档',
                         path: ROUTES.SYSTEM.UNIFIED_API_DOCS,
-                        icon: 'Document'
+                        icon: 'Document',
+                        status: 'available'
                     },
                     {
                         title: '限流规则',
                         path: ROUTES.SYSTEM.RATE_LIMIT,
-                        icon: 'Lightning'
+                        icon: 'Lightning',
+                        status: 'available'
                     },
                     {
                         title: '分布式锁',
                         path: ROUTES.SYSTEM.DISTRIBUTED_LOCK,
-                        icon: 'Lock'
+                        icon: 'Lock',
+                        status: 'available'
                     },
                     {
                         title: '监控配置',
                         path: ROUTES.SYSTEM.SETTINGS_MONITOR,
-                        icon: 'Monitor'
+                        icon: 'Monitor',
+                        status: 'available'
                     },
                     {
                         title: '审计日志',
                         path: ROUTES.SYSTEM.AUDIT_LOGS,
-                        icon: 'Document'
+                        icon: 'Document',
+                        status: 'available'
                     }
                 ]
             },
@@ -454,17 +511,20 @@ export const TOP_MENU_CONFIG = [
                     {
                         title: '帮助中心',
                         path: ROUTES.SYSTEM.HELP_CENTER,
-                        icon: 'QuestionFilled'
+                        icon: 'QuestionFilled',
+                        status: 'available'
                     },
                     {
                         title: '统计分析',
                         path: ROUTES.SYSTEM.STATISTICS,
-                        icon: 'DataAnalysis'
+                        icon: 'DataAnalysis',
+                        status: 'available'
                     },
                     {
                         title: '系统维护',
                         path: ROUTES.SYSTEM.SYSTEM_MAINTENANCE,
-                        icon: 'Wrench'
+                        icon: 'Wrench',
+                        status: 'available'
                     }
                 ]
             }

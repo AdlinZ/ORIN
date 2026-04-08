@@ -406,6 +406,8 @@ rg -n "placeholder|mock|UnsupportedOperationException|TODO|return null" orin-bac
 
 说明：
 - 测试结果以当前执行环境和 CI 为准，不使用文档中的固定“通过数”作为唯一判断依据。
+- 本地 MQ 灰度 smoke 统一使用 `./scripts/run-collab-mq-smoke.sh`
+- RabbitMQ 联调参数以 `docker/local-infra/.env.example` 为准，后端与 AI Engine 的 `.env.example` 需要保持一致
 
 ## 8.5 观测与运维模块
 

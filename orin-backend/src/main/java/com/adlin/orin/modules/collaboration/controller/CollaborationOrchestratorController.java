@@ -16,8 +16,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -186,20 +188,21 @@ public class CollaborationOrchestratorController {
         double avgLatency = totalRequests > 0 ? (double) totalLatencyMs / totalRequests : 0.0;
         double successRate = totalRequests > 0 ? ((double) successRequests / totalRequests) * 100.0 : 0.0;
 
-        return ResponseEntity.ok(Map.of(
-                "total", total,
-                "planning", planning,
-                "decomposing", decomposing,
-                "executing", executing,
-                "paused", paused,
-                "completed", completed,
-                "failed", failed,
-                "cancelled", cancelled,
-                "activeAgents", activeAgents,
-                "todayTokens", todayTokens,
-                "avgLatency", Math.round(avgLatency * 100.0) / 100.0,
-                "successRate", Math.round(successRate * 100.0) / 100.0
-        ));
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", total);
+        stats.put("planning", planning);
+        stats.put("decomposing", decomposing);
+        stats.put("executing", executing);
+        stats.put("paused", paused);
+        stats.put("completed", completed);
+        stats.put("failed", failed);
+        stats.put("cancelled", cancelled);
+        stats.put("activeAgents", activeAgents);
+        stats.put("todayTokens", todayTokens);
+        stats.put("avgLatency", Math.round(avgLatency * 100.0) / 100.0);
+        stats.put("successRate", Math.round(successRate * 100.0) / 100.0);
+
+        return ResponseEntity.ok(stats);
     }
 
     @Operation(summary = "筛选任务包")
@@ -365,14 +368,15 @@ public class CollaborationOrchestratorController {
 
         // 异步执行
         executor.executeSubtask(subtask, packageId, traceId).thenAccept(result -> {
-            // 执行完成后更新状态
-            orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
+            // 执行完成后更新状态（仅在 RUNNING 状态下推进，避免 MQ 回调与 Controller 回调重复更新）
+            safeUpdateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
 
             // 依赖驱动自动调度：尝试调度后续子任务
             scheduleNextSubtasks(packageId, traceId);
         }).exceptionally(e -> {
             log.error("Subtask execution failed: {}", subTaskId, e);
-            orchestrator.updateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
+            // 仅在 RUNNING 状态下推进，避免重复失败流转
+            safeUpdateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
             // 失败后也尝试调度（可能有依赖该失败任务的替代路径）
             scheduleNextSubtasks(packageId, traceId);
             return null;
@@ -411,12 +415,12 @@ public class CollaborationOrchestratorController {
 
         // 异步重试执行
         executor.retrySubtask(subtask, packageId, traceId).thenAccept(result -> {
-            orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
+            safeUpdateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
             // 依赖驱动自动调度
             scheduleNextSubtasks(packageId, traceId);
         }).exceptionally(e -> {
             log.error("Subtask retry failed: {}", subTaskId, e);
-            orchestrator.updateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
+            safeUpdateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
             scheduleNextSubtasks(packageId, traceId);
             return null;
         });
@@ -548,11 +552,11 @@ public class CollaborationOrchestratorController {
 
                 final String subTaskId = subtask.getSubTaskId();
                 executor.executeSubtask(subtask, packageId, traceId).thenAccept(result -> {
-                    orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
+                    safeUpdateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
                     scheduleNextSubtasks(packageId, traceId);
                 }).exceptionally(e -> {
                     log.error("Auto-scheduled subtask failed: {}", subTaskId, e);
-                    orchestrator.updateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
+                    safeUpdateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
                     scheduleNextSubtasks(packageId, traceId);
                     return null;
                 });
@@ -564,6 +568,40 @@ public class CollaborationOrchestratorController {
             }
         } catch (Exception e) {
             log.error("Error in auto-schedule for package {}: {}", packageId, e.getMessage());
+        }
+    }
+
+    /**
+     * 仅在子任务当前状态为 RUNNING 时推进状态，避免重复流转导致 IllegalStateException
+     */
+    private void safeUpdateSubtaskStatus(String packageId, String subTaskId, String targetStatus,
+                                         String result, String errorMessage) {
+        try {
+            List<CollabSubtaskEntity> subtasks = orchestrator.getSubtasks(packageId);
+            Optional<CollabSubtaskEntity> subtaskOpt = subtasks.stream()
+                    .filter(s -> s.getSubTaskId().equals(subTaskId))
+                    .findFirst();
+
+            if (subtaskOpt.isEmpty()) {
+                log.warn("safeUpdateSubtaskStatus skipped, subtask not found: packageId={}, subTaskId={}",
+                        packageId, subTaskId);
+                return;
+            }
+
+            String currentStatus = subtaskOpt.get().getStatus();
+            if (!"RUNNING".equals(currentStatus)) {
+                log.info("safeUpdateSubtaskStatus skipped, currentStatus={}, targetStatus={}, packageId={}, subTaskId={}",
+                        currentStatus, targetStatus, packageId, subTaskId);
+                return;
+            }
+
+            orchestrator.updateSubtaskStatus(packageId, subTaskId, targetStatus, result, errorMessage);
+        } catch (IllegalStateException e) {
+            log.info("safeUpdateSubtaskStatus ignored invalid transition: packageId={}, subTaskId={}, targetStatus={}, msg={}",
+                    packageId, subTaskId, targetStatus, e.getMessage());
+        } catch (Exception e) {
+            log.error("safeUpdateSubtaskStatus failed: packageId={}, subTaskId={}, targetStatus={}",
+                    packageId, subTaskId, targetStatus, e);
         }
     }
 }

@@ -54,13 +54,13 @@
                   </el-icon>
                   <span>{{ subChild.title }}</span>
                   <el-tag
-                    v-if="subChild.status === 'placeholder'"
+                    v-if="subChild.status"
                     size="small"
-                    type="info"
+                    :type="getMaturityTagType(subChild.status)"
                     effect="plain"
                     class="menu-status-tag"
                   >
-                    占位
+                    {{ getMaturityText(subChild.status) }}
                   </el-tag>
                 </el-menu-item>
               </el-sub-menu>
@@ -71,13 +71,13 @@
                 </el-icon>
                 <span>{{ child.title }}</span>
                 <el-tag
-                  v-if="child.status === 'placeholder'"
+                  v-if="child.status"
                   size="small"
-                  type="info"
+                  :type="getMaturityTagType(child.status)"
                   effect="plain"
                   class="menu-status-tag"
                 >
-                  占位
+                  {{ getMaturityText(child.status) }}
                 </el-tag>
               </el-menu-item>
             </template>
@@ -168,6 +168,7 @@ import { DArrowLeft, DArrowRight, Refresh, Moon, Sunny, Bell, Expand, User, Swit
 import { useUser } from '@/composables/useUser'
 import { useTheme } from '@/composables/useTheme'
 import { getIconComponent } from '@/utils/iconMap'
+import { getMaturityTagType, getMaturityText } from '@/utils/maturity'
 
 const appStore = useAppStore()
 const userStore = useUserStore()

@@ -70,6 +70,7 @@ const monitorRoutes = {
     NOTIFICATIONS: '/dashboard/runtime/alerts',
     TASKS: '/dashboard/runtime/tasks',
     SERVER: '/dashboard/runtime/server',
+    SERVER_NODE: '/dashboard/runtime/server/:serverId',
     LOGS: '/dashboard/runtime/logs',
     MAINTENANCE: '/dashboard/runtime/maintenance',
     VERSION_UPGRADE: '/dashboard/runtime/version-upgrade',
@@ -96,6 +97,7 @@ const systemRoutes = {
     SETTINGS_SYNC: '/dashboard/control/client-sync',
     SETTINGS_INTEGRATIONS: '/dashboard/control/external-frameworks',
     SETTINGS_MCP_SERVICE: '/dashboard/control/mcp-service',
+    REVAMP_ROLLOUT: '/dashboard/control/revamp-rollout',
     AUDIT_LOGS: '/dashboard/control/audit-logs',
     MODELS: '/dashboard/applications/models',
     PRICING: '/dashboard/control/pricing',
@@ -152,7 +154,7 @@ export const ROUTES = {
 }
 
 // ==================== 旧路由重定向映射表 ====================
-export const LEGACY_ROUTE_REDIRECTS = {
+const LEGACY_ROUTE_REDIRECTS_RAW = {
     // 智能体模块（旧路径）
     '/dashboard/agent/list': ROUTES.AGENTS.LIST,
     '/dashboard/agent/chat-history': ROUTES.AGENTS.CHAT_LOGS,
@@ -268,12 +270,27 @@ export const LEGACY_ROUTE_REDIRECTS = {
     // 模型相关（旧路径）
     '/dashboard/agent/model-list': ROUTES.SYSTEM.MODELS,
     '/dashboard/agent/model-config': ROUTES.SYSTEM.MODELS,
-    '/dashboard/applications/models': ROUTES.SYSTEM.MODELS,
 
     // 缺少 dashboard 前缀的历史地址
     '/system/api-keys': ROUTES.SYSTEM.API_KEYS,
     '/workflow': ROUTES.AGENTS.WORKFLOWS,
 }
+
+function buildLegacyRedirects(rawMap) {
+    const deduped = new Map()
+    for (const [from, to] of Object.entries(rawMap)) {
+        if (!from || !to || from === to) {
+            continue
+        }
+        if (!deduped.has(from)) {
+            deduped.set(from, to)
+        }
+    }
+    return Object.fromEntries(deduped)
+}
+
+// 清理重定向噪音：过滤掉自重定向与空映射，统一输出稳定映射表
+export const LEGACY_ROUTE_REDIRECTS = buildLegacyRedirects(LEGACY_ROUTE_REDIRECTS_RAW)
 
 // ==================== 侧边栏菜单配置 ====================
 // 支持二级和三级菜单

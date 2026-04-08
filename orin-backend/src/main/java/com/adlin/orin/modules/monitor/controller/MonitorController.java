@@ -246,6 +246,12 @@ public class MonitorController {
         return monitorService.getServerInfoList();
     }
 
+    @Operation(summary = "创建服务器节点配置")
+    @PostMapping("/server-info")
+    public com.adlin.orin.modules.monitor.entity.ServerInfo createServerInfo(@RequestBody com.adlin.orin.modules.monitor.entity.ServerInfo serverInfo) {
+        return monitorService.createServerInfo(serverInfo);
+    }
+
     @Operation(summary = "获取指定服务器的静态信息")
     @GetMapping("/server-info/{serverId}")
     public com.adlin.orin.modules.monitor.entity.ServerInfo getServerInfo(@PathVariable String serverId) {
@@ -272,8 +278,9 @@ public class MonitorController {
 
     @Operation(summary = "通过 Prometheus 获取远程服务器状态")
     @GetMapping("/prometheus/server-status")
-    public Map<String, Object> getPrometheusServerStatus() {
-        return monitorService.getPrometheusServerStatus();
+    public Map<String, Object> getPrometheusServerStatus(
+            @RequestParam(required = false) String serverId) {
+        return monitorService.getPrometheusServerStatus(serverId);
     }
 
     @Operation(summary = "调试：查询 Prometheus 原始数据")

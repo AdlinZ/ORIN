@@ -31,6 +31,51 @@ class CollaborationExecutor:
         # 协作状态
         self.collaboration_state: Dict[str, Any] = {}
 
+    async def execute_single_task(
+        self,
+        description: str,
+        expected_role: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        执行单个任务（MQ Worker 调用）
+
+        Args:
+            description: 任务描述
+            expected_role: 期望角色（PLANNER, SPECIALIST, REVIEWER, etc.）
+            context: 执行上下文
+
+        Returns:
+            任务结果字符串
+        """
+        from app.engine.handlers.llm import RealLLMNodeHandler
+
+        context = context or {}
+
+        # 构建 LLM 节点
+        node = Node(
+            id="mq_single_task",
+            type="llm",
+            data={
+                "prompt": description,
+                "model": context.get("model", "default"),
+                "expectedRole": expected_role,
+            }
+        )
+
+        # 使用 Real LLM Handler 执行
+        llm_handler = RealLLMNodeHandler(executor=self.base_executor)
+
+        try:
+            output: NodeExecutionOutput = await llm_handler.run(node, context)
+            if output and output.outputs:
+                result = output.outputs.get("text", "")
+                return str(result) if result else "No result"
+            return "No output"
+        except Exception as e:
+            # 如果 LLM 调用失败，记录错误并返回
+            return f"Task failed: {str(e)}"
+
     async def execute_collaboration(
         self,
         dsl: WorkflowDSL,

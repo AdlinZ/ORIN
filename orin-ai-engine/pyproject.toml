@@ -12,6 +12,8 @@ pydantic = "^2.6.0"
 pydantic-settings = "^2.2.0"
 httpx = "^0.26.0"
 RestrictedPython = "^5.0"
+aio-pika = "^9.0.0"
+redis = "^5.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

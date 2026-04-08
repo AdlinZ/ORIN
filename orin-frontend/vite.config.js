@@ -8,6 +8,21 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 // 构建时日期
 const buildDate = new Date().toISOString().split('T')[0]
 
+const toPackageChunk = (id) => {
+  if (!id.includes('node_modules')) return null
+  if (id.includes('/node_modules/echarts/')) return 'echarts'
+  if (id.includes('/node_modules/element-plus/') || id.includes('/node_modules/@element-plus/')) return 'element-plus'
+  if (id.includes('/node_modules/@vue-flow/')) return 'vue-flow'
+  if (
+    id.includes('/node_modules/vue/') ||
+    id.includes('/node_modules/vue-router/') ||
+    id.includes('/node_modules/pinia/')
+  ) {
+    return 'vue-core'
+  }
+  return 'vendor'
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
@@ -57,10 +72,8 @@ export default defineConfig({
     // 分包策略 - 提升缓存效率
     rollupOptions: {
       output: {
-        manualChunks: {
-          'element-plus': ['element-plus', '@element-plus/icons-vue'],
-          'echarts': ['echarts'],
-          'vendor': ['vue', 'vue-router', 'pinia', 'axios']
+        manualChunks (id) {
+          return toPackageChunk(id)
         }
       }
     },
@@ -71,6 +84,11 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    globals: true
+    globals: true,
+    server: {
+      deps: {
+        inline: ['element-plus', '@element-plus/icons-vue']
+      }
+    }
   }
 })

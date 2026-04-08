@@ -2,9 +2,15 @@ package com.adlin.orin.modules.collaboration.service;
 
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.service.AgentManageService;
+import com.adlin.orin.modules.collaboration.config.CollaborationOrchestrationMode;
+import com.adlin.orin.modules.collaboration.consumer.CollaborationResultListener;
+import com.adlin.orin.modules.collaboration.dto.CollabTaskMessage;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
+import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.collaboration.metrics.CollaborationMetricsService;
+import com.adlin.orin.modules.collaboration.producer.CollaborationMQProducer;
+import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * 协作任务执行器 - 负责执行子任务，调用智能体或工作流
+ * 支持 JAVA_NATIVE 和 LANGGRAPH_MQ 两种编舞模式
  */
 @Slf4j
 @Service
@@ -29,6 +36,12 @@ public class CollaborationExecutor {
     private final ObjectMapper objectMapper;
     private final LangfuseObservabilityService langfuseService;
     private final WorkflowService workflowService;
+    private final CollaborationOrchestrationMode orchestrationMode;
+    private final CollaborationMQProducer mqProducer;
+    private final CollaborationResultListener resultListener;
+    private final CollaborationPackageRepository packageRepository;
+    private final CollaborationMemoryService memoryService;
+    private final CollaborationRedisService redisService;
 
     // 角色 -> 能力关键词映射（从 agent name/description 中匹配）
     private static final Map<String, List<String>> ROLE_CAPABILITY_KEYWORDS = Map.of(
@@ -59,7 +72,7 @@ public class CollaborationExecutor {
 
     /**
      * 执行子任务
-     * 根据子任务的类型，调用对应的执行器
+     * 根据协作模式和子任务类型，调用对应的执行器
      */
     public CompletableFuture<String> executeSubtask(CollabSubtaskEntity subtask, String packageId, String traceId) {
         String subTaskId = subtask.getSubTaskId();
@@ -69,11 +82,142 @@ public class CollaborationExecutor {
 
         log.info("Executing subtask: {} for package: {} with role: {} (type: {})", subTaskId, packageId, expectedRole, executorType);
 
+        // 获取协作模式，判断是否启用 MQ
+        String collaborationMode = getCollaborationMode(packageId);
+        boolean useMq = orchestrationMode.isMqEnabled(collaborationMode);
+
+        // HUMAN 类型不支持 MQ，必须走本地执行
+        if (EXECUTOR_TYPE_HUMAN.equals(executorType)) {
+            return executeHumanTask(subTaskId, description, packageId, traceId);
+        }
+
+        // 检查是否启用 MQ 模式
+        if (useMq) {
+            return executeViaMQ(subtask, packageId, traceId, collaborationMode);
+        }
+
+        // 回退到 Java 原生执行
         return switch (executorType) {
             case EXECUTOR_TYPE_WORKFLOW -> executeWithWorkflow(subTaskId, description, expectedRole, packageId, traceId, subtask);
-            case EXECUTOR_TYPE_HUMAN -> executeHumanTask(subTaskId, description, packageId, traceId);
             default -> executeWithAgent(subTaskId, description, expectedRole, packageId, traceId);
         };
+    }
+
+    /**
+     * 获取协作模式
+     */
+    private String getCollaborationMode(String packageId) {
+        return packageRepository.findByPackageId(packageId)
+                .map(CollaborationPackageEntity::getCollaborationMode)
+                .orElse("SEQUENTIAL");
+    }
+
+    /**
+     * 通过 MQ 执行子任务
+     */
+    private CompletableFuture<String> executeViaMQ(CollabSubtaskEntity subtask, String packageId,
+                                                   String traceId, String collaborationMode) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        String callbackKey = packageId + ":" + subtask.getSubTaskId();
+
+        // 注册回调
+        resultListener.registerCallback(callbackKey, future);
+
+        try {
+            // 构建上下文快照
+            Map<String, Object> contextSnapshot = buildContextSnapshot(packageId);
+
+            // 构建消息
+            CollabTaskMessage message = CollabTaskMessage.builder()
+                    .packageId(packageId)
+                    .subTaskId(subtask.getSubTaskId())
+                    .traceId(traceId)
+                    .attempt(subtask.getRetryCount() != null ? subtask.getRetryCount() : 0)
+                    .collaborationMode(collaborationMode)
+                    .expectedRole(subtask.getExpectedRole())
+                    .description(subtask.getDescription())
+                    .inputData(subtask.getInputData())
+                    .dependsOn(parseDependsOn(subtask.getDependsOn()))
+                    .maxRetries(3)
+                    .timeoutMillis(300000L)
+                    .executionStrategy(determineExecutorType(subtask.getExpectedRole()))
+                    .replyTo("collaboration-task-result-queue")
+                    .correlationId(callbackKey)
+                    .contextSnapshot(contextSnapshot)
+                    .enqueuedAt(System.currentTimeMillis())
+                    .retryInitialInterval(1000L)
+                    .retryMultiplier(2.0)
+                    .retryMaxInterval(30000L)
+                    .delayedRetry(true)
+                    .build();
+
+            // 保存 pending_task 到 Redis（用于重试时恢复）。
+            // 这里必须按 subTaskId 隔离，避免并行分支互相覆盖导致重试拿错上下文。
+            Map<String, Object> pendingTaskData = new HashMap<>();
+            pendingTaskData.put("collaborationMode", collaborationMode);
+            pendingTaskData.put("expectedRole", subtask.getExpectedRole());
+            pendingTaskData.put("description", subtask.getDescription());
+            pendingTaskData.put("inputData", subtask.getInputData());
+            pendingTaskData.put("executionStrategy", determineExecutorType(subtask.getExpectedRole()));
+            pendingTaskData.put("contextSnapshot", contextSnapshot);
+            pendingTaskData.put("maxRetries", 3);
+            redisService.updateContextField(packageId, buildPendingTaskField(subtask.getSubTaskId()), pendingTaskData);
+
+            // 发送消息
+            mqProducer.sendTask(message);
+
+            log.info("Subtask sent to MQ: packageId={}, subTaskId={}", packageId, subtask.getSubTaskId());
+
+        } catch (Exception e) {
+            log.error("Failed to send subtask to MQ: packageId={}, subTaskId={}", packageId, subtask.getSubTaskId(), e);
+            future.completeExceptionally(e);
+            resultListener.unregisterCallback(callbackKey);
+        }
+
+        return future;
+    }
+
+    /**
+     * 构建上下文快照（用于 MQ Worker）
+     */
+    private Map<String, Object> buildContextSnapshot(String packageId) {
+        Map<String, Object> snapshot = new HashMap<>();
+
+        // 添加黑板数据
+        Map<String, Object> blackboard = new HashMap<>(memoryService.readAllBlackboard(packageId));
+        snapshot.put("blackboard", blackboard);
+
+        // 添加光标
+        snapshot.put("cursor", memoryService.getCursor(packageId));
+
+        // 添加当前包状态
+        packageRepository.findByPackageId(packageId)
+                .ifPresent(pkg -> {
+                    snapshot.put("packageStatus", pkg.getStatus());
+                    snapshot.put("collaborationMode", pkg.getCollaborationMode());
+                });
+
+        return snapshot;
+    }
+
+    private String buildPendingTaskField(String subTaskId) {
+        return "pending_task:" + subTaskId;
+    }
+
+    /**
+     * 解析依赖列表
+     */
+    @SuppressWarnings("unchecked")
+    private List<String> parseDependsOn(String dependsOnJson) {
+        if (dependsOnJson == null || dependsOnJson.isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            return (List<String>) objectMapper.readValue(dependsOnJson, List.class);
+        } catch (Exception e) {
+            log.warn("Failed to parse dependsOn: {}", dependsOnJson);
+            return Collections.emptyList();
+        }
     }
 
     /**

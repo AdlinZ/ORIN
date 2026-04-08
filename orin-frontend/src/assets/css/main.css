@@ -1,9 +1,29 @@
-/* 
-  ORIN Premium Design System v3.0 
-  "Enterprise-Grade Excellence" - Complete Design Token System
+/*
+  ORIN Design Tokens v4.0
+  目标：统一四大域视觉语义（智能体中枢/知识与工作流/监控与运维/系统与网关）
 */
 
 :root {
+  /* ==================== Domain Colors ==================== */
+  --domain-agents: #155eef;
+  --domain-knowledge: #7a5af8;
+  --domain-monitor: #f79009;
+  --domain-system: #344054;
+
+  /* ==================== Density / Grid ==================== */
+  --orin-page-gap: 20px;
+  --orin-grid-gap: 16px;
+  --orin-block-gap: 12px;
+  --orin-card-padding: 16px;
+  --orin-table-row-height: 44px;
+
+  /* ==================== Async State Colors ==================== */
+  --status-available-bg: #ecfdf3;
+  --status-available-fg: #027a48;
+  --status-beta-bg: #fffaeb;
+  --status-beta-fg: #b54708;
+  --status-planned-bg: #f2f4f7;
+  --status-planned-fg: #344054;
   /* ==================== Glassmorphism & Soft Gradients ==================== */
   /* Subtle gradient backgrounds */
   --orin-gradient-soft: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);

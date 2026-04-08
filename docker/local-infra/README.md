@@ -32,6 +32,18 @@ docker compose --profile queue up -d
 
 - `RabbitMQ`
 
+如果要验证协作模块的 MQ 灰度链路，可以在仓库根目录执行：
+
+```bash
+./scripts/run-collab-mq-smoke.sh
+```
+
+这个脚本会：
+
+- 启动 `RabbitMQ`
+- 编译并运行协作模块相关后端测试
+- 在临时 Python 3.11 容器里执行 `orin-ai-engine/tests/test_mq_worker.py`
+
 ### Langfuse
 
 ```bash

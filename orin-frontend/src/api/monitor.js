@@ -114,6 +114,27 @@ export const collectServerHardware = () => {
     return request.post('/monitor/server-hardware/collect');
 };
 
+// Server Info (Node Configuration) APIs
+export const getServerInfoList = () => {
+    return request.get('/monitor/server-info/list');
+};
+
+export const getServerInfo = (serverId) => {
+    return request.get(`/monitor/server-info/${serverId}`);
+};
+
+export const createServerInfo = (data) => {
+    return request.post('/monitor/server-info', data);
+};
+
+export const updateServerInfo = (data) => {
+    return request.put('/monitor/server-info', data);
+};
+
+export const deleteServerInfo = (serverId) => {
+    return request.delete(`/monitor/server-info/${serverId}`);
+};
+
 // Token Stats Dashboard APIs
 export const getTokenByDayOfWeek = (config = {}) => {
     return request.get('/monitor/tokens/by-day-of-week', config);
@@ -191,8 +212,10 @@ export const testPrometheusConnection = (config = {}) => {
     return request.get('/monitor/prometheus/test', config);
 };
 
-export const getPrometheusServerStatus = (config = {}) => {
-    return request.get('/monitor/prometheus/server-status', config);
+export const getPrometheusServerStatus = (serverId = null, config = {}) => {
+    const params = {};
+    if (serverId) params.serverId = serverId;
+    return request.get('/monitor/prometheus/server-status', { params, ...config });
 };
 
 // ==================== 链路追踪查询 ====================
