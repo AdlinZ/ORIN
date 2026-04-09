@@ -97,6 +97,10 @@
           <h3 class="card-head">
             物理负载<span class="head-line" />
           </h3>
+          <div class="load-node-id">
+            <span>当前节点 ID</span>
+            <span class="node-id-val">{{ currentHardwareNodeId }}</span>
+          </div>
           <div class="load-bars">
             <div class="l-item">
               <div class="l-info">
@@ -311,6 +315,7 @@ import {
   getGlobalSummary,
   getAgentList,
   getServerHardware,
+  getServerNodes,
   getTokenHistory,
   getTokenTrend,
   getLatencyTrend,
@@ -359,6 +364,7 @@ const trendData = ref([])
 const summary = ref({})
 const agents = ref([])
 const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0, gpuModel: '' })
+const serverNodes = ref([])
 const recentLogs = ref([])
 const distribution = ref([])
 const intentTags = ref([])
@@ -431,6 +437,24 @@ const topAgents = computed(() => distribution.value.slice(0, 3))
 
 const getBarColor = (v) => v > 80 ? 'var(--error-500)' : v > 60 ? 'var(--warning-500)' : 'var(--info-500)'
 
+const normalizeUrl = (url = '') => String(url || '').trim().replace(/\/+$/, '')
+
+const currentHardwareNodeId = computed(() => {
+  const directId = hardware.value?.serverId || hardware.value?.nodeId || hardware.value?.id
+  if (directId) return String(directId)
+
+  const probedUrl = normalizeUrl(hardware.value?.probedUrl || hardware.value?.probeUrl || '')
+  if (probedUrl && serverNodes.value.length) {
+    const matched = serverNodes.value.find((node) => normalizeUrl(node?.prometheusUrl) === probedUrl)
+    if (matched?.id) return String(matched.id)
+  }
+
+  const localNode = serverNodes.value.find((node) => String(node?.id || '').toLowerCase() === 'local')
+  if (localNode?.id) return String(localNode.id)
+
+  return 'local'
+})
+
 const getHardwareTitle = () => {
   const titles = {
     cpuUsage: 'CPU 使用率',
@@ -484,8 +508,8 @@ const fetchTrend = async () => {
 
 const fetchData = async () => {
   try {
-    const [s, a, h, l, d] = await Promise.allSettled([
-      getGlobalSummary(), getAgentList(), getServerHardware(), getTokenHistory({ size: 10 }), getTokenDistribution()
+    const [s, a, h, l, d, n] = await Promise.allSettled([
+      getGlobalSummary(), getAgentList(), getServerHardware(), getTokenHistory({ size: 10 }), getTokenDistribution(), getServerNodes()
     ])
     if (s.status === 'fulfilled') {
       summary.value = s.value
@@ -512,6 +536,7 @@ const fetchData = async () => {
       })
     }
     if (d.status === 'fulfilled') distribution.value = d.value.sort((a,b) => b.value - a.value)
+    if (n.status === 'fulfilled') serverNodes.value = n.value || []
     await fetchTrend()
   } catch (e) { console.error(e) }
   finally {
@@ -719,6 +744,27 @@ onUnmounted(() => {
 .m-trend.up { color: #ef4444; } .m-trend.down { color: #10b981; }
 
 .load-bars { display: flex; flex-direction: column; gap: 10px; }
+.load-node-id {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: -2px 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+.node-id-val {
+  max-width: 62%;
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .l-item { display: flex; flex-direction: column; gap: 4px; }
 .l-info { display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; color: #64748b; }
 .l-val { color: #1a1c21; }
@@ -970,6 +1016,16 @@ html.dark .bubble-item {
 
 html.dark .l-rail {
   background: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .load-node-id {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+}
+
+html.dark .node-id-val {
+  color: #e2e8f0;
 }
 
 html.dark .rk-item {

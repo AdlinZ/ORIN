@@ -384,6 +384,13 @@
 
       <main class="workspace-main">
         <section class="stage-shell">
+          <InteractionTopBar
+            :chips="consoleTopChips"
+            :settings-open="!rightPaneCollapsed"
+            settings-label="配置"
+            @chip-click="handleConsoleChipClick"
+            @toggle-settings="rightPaneCollapsed = !rightPaneCollapsed"
+          />
           <div class="runner-frame">
             <component
               :is="activeRunner"
@@ -455,6 +462,17 @@ import { getAgentMetadata, updateAgent } from '@/api/agent';
 import { getAgentList as getMonitorAgentList } from '@/api/monitor';
 import { getAgentLogs } from '@/api/runtime';
 import request from '@/utils/request';
+import { useInteractionShell } from '@/composables/useInteractionShell';
+import { runQuickChipAction } from '@/composables/useInteractionQuickChips';
+import { buildConsoleTopChips } from '@/composables/useInteractionChipRegistry';
+import {
+  getModeLabel,
+  isMode,
+  isViewTypeInMode,
+  resolveModeFromMeta,
+  resolveModeFromTab
+} from '@/composables/useInteractionModeRegistry';
+import InteractionTopBar from '@/components/orin/InteractionTopBar.vue';
 
 import UnifiedConversationRunner from './components/UnifiedConversationRunner.vue';
 
@@ -462,33 +480,23 @@ const route = useRoute();
 const agentId = route.params.id;
 
 const isMounted = ref(false);
-
-const containerRef = ref(null);
-const workspaceWidth = ref(1200);
-
-const isWide = computed(() => workspaceWidth.value >= 1200);
-const isMedium = computed(() => workspaceWidth.value >= 820 && workspaceWidth.value < 1200);
-const isNarrow = computed(() => workspaceWidth.value < 820);
-
-const isLeftDrawer = computed(() => isNarrow.value);
-const isRightDrawer = computed(() => !isWide.value);
-
-const leftPaneCollapsed = ref(false);
-const rightPaneCollapsed = ref(false);
-
-let resizeObserver = null;
-onMounted(() => {
-  isMounted.value = true;
-  if (containerRef.value) {
-    resizeObserver = new ResizeObserver((entries) => {
-      workspaceWidth.value = entries[0].contentRect.width;
-    });
-    resizeObserver.observe(containerRef.value);
-  }
+const {
+  containerRef,
+  isWide,
+  isMedium,
+  isNarrow,
+  isLeftDrawer,
+  isRightDrawer
+} = useInteractionShell({
+  leftDrawerMode: 'narrow',
+  rightDrawerMode: 'always'
 });
 
-onUnmounted(() => {
-  if (resizeObserver) resizeObserver.disconnect();
+const leftPaneCollapsed = ref(false);
+const rightPaneCollapsed = ref(true);
+
+onMounted(() => {
+  isMounted.value = true;
 });
 
 
@@ -522,29 +530,6 @@ const editForm = ref({
 });
 const promptTemplates = ref([]);
 const selectedPromptTemplate = ref('');
-
-const resolveModeFromTab = (tab) => {
-  if (!tab) return '';
-  const normalized = String(tab).toLowerCase();
-  if (normalized === 'image') return 'image';
-  if (normalized === 'stt' || normalized === 'audio') return 'stt';
-  if (normalized === 'tts') return 'tts';
-  if (normalized === 'video') return 'video';
-  if (normalized === 'workflow') return 'workflow';
-  if (normalized === 'completion') return 'completion';
-  if (normalized === 'chat') return 'chat';
-  return '';
-};
-
-const resolveModeFromViewType = (viewType) => {
-  const type = (viewType || '').toUpperCase();
-  if (type === 'TEXT_TO_IMAGE' || type === 'IMAGE_TO_IMAGE' || type === 'TTI') return 'image';
-  if (type === 'SPEECH_TO_TEXT' || type === 'STT') return 'stt';
-  if (type === 'TEXT_TO_SPEECH' || type === 'TTS') return 'tts';
-  if (type === 'TEXT_TO_VIDEO' || type === 'VIDEO' || type === 'TTV') return 'video';
-  if (type === 'WORKFLOW') return 'workflow';
-  return '';
-};
 
 const currentMode = ref(resolveModeFromTab(route.query.tab) || 'chat');
 
@@ -587,30 +572,26 @@ const currentParameters = computed(() => {
 });
 
 const isImageGenerationAgent = computed(() => {
-  if (currentMode.value === 'image') return true;
-  const viewType = (agentInfo.value.viewType || '').toUpperCase();
-  return viewType === 'TEXT_TO_IMAGE' || viewType === 'IMAGE_TO_IMAGE' || viewType === 'TTI';
+  return isMode(currentMode.value, 'image') || isViewTypeInMode(agentInfo.value.viewType, 'image');
 });
 
 const isTTSAgent = computed(() => {
-  if (currentMode.value === 'tts') return true;
-  const viewType = (agentInfo.value.viewType || '').toUpperCase();
-  return viewType === 'TEXT_TO_SPEECH' || viewType === 'TTS';
+  return isMode(currentMode.value, 'tts') || isViewTypeInMode(agentInfo.value.viewType, 'tts');
 });
 
 const isTTVAgent = computed(() => {
-  if (currentMode.value === 'video') return true;
-  const viewType = (agentInfo.value.viewType || '').toUpperCase();
-  return viewType === 'TEXT_TO_VIDEO' || viewType === 'TTV' || viewType === 'VIDEO';
+  return isMode(currentMode.value, 'video') || isViewTypeInMode(agentInfo.value.viewType, 'video');
 });
 
 const activeRunner = computed(() => UnifiedConversationRunner);
 
 const syncCurrentMode = (metaRes) => {
-  const fromTab = resolveModeFromTab(route.query.tab);
-  const fromMode = metaRes?.mode ? String(metaRes.mode).toLowerCase() : '';
-  const fromViewType = resolveModeFromViewType(metaRes?.viewType || agentInfo.value?.viewType);
-  currentMode.value = fromTab || fromMode || fromViewType || 'chat';
+  currentMode.value = resolveModeFromMeta({
+    tab: route.query.tab,
+    metaMode: metaRes?.mode,
+    viewType: metaRes?.viewType || agentInfo.value?.viewType,
+    fallback: 'chat'
+  });
 };
 
 const currentAccent = computed(() => {
@@ -627,6 +608,24 @@ const runtimeStatusLabel = computed(() => {
   if (loading.value) return '加载中';
   return agentInfo.value.status || '已就绪';
 });
+
+const consoleTopChips = computed(() => buildConsoleTopChips(currentMode.value, {
+  modeLabel: getModeLabel(currentMode.value),
+  runtimeStatus: runtimeStatusLabel.value,
+  promptTemplatesCount: promptTemplates.value.length,
+  parameters: currentParameters.value
+}));
+
+const handleConsoleChipClick = (chip) => {
+  runQuickChipAction(chip, {
+    openInspector: () => {
+      rightPaneCollapsed.value = false;
+    },
+    toggleInspector: () => {
+      rightPaneCollapsed.value = !rightPaneCollapsed.value;
+    }
+  });
+};
 
 const latestLogTime = computed(() => {
   if (!logs.value.length) return '暂无';
@@ -802,19 +801,6 @@ const getViewLabel = (v) => {
   return type;
 };
 
-const getModeLabel = (mode) => {
-  const map = {
-    chat: '对话模式',
-    completion: '文本补全',
-    workflow: '工作流',
-    image: '图像生成',
-    tts: '语音合成',
-    stt: '语音转写',
-    video: '视频生成'
-  };
-  return map[String(mode || '').toLowerCase()] || '对话模式';
-};
-
 const restoreHistory = (log) => {
   console.log('历史记录详情:', log);
   const content = log.content || (log.response ? '[' + log.status + '] ' + log.response.substring(0, 200) : (log.sessionId ? '会话: ' + log.sessionId : null));
@@ -911,7 +897,8 @@ onUnmounted(() => {
   border-right: 1px solid rgba(226, 232, 240, 0.8);
 }
 .workspace-config {
-  width: 300px;
+  width: 0;
+  pointer-events: none;
   border-left: 1px solid rgba(226, 232, 240, 0.8);
 }
 
@@ -937,6 +924,8 @@ onUnmounted(() => {
   bottom: 0;
   z-index: 100;
   width: 320px;
+  display: flex;
+  pointer-events: auto;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: -8px 0 32px rgba(0,0,0,0.06);
   transform: translateX(100%);
@@ -1163,6 +1152,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
 }
+
 .runner-frame {
   flex: 1;
   min-height: 0;

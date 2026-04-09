@@ -102,6 +102,7 @@
             <el-empty v-if="currentAgentId && filteredSessions.length === 0" :image-size="56" description="暂无会话" />
             <el-empty v-else-if="!currentAgentId" :image-size="56" description="请先选择智能体" />
           </div>
+
         </template>
       </div>
     </aside>
@@ -109,22 +110,17 @@
     <main class="workspace-main">
       <div v-if="!currentAgent" class="state-panel">
         <div class="welcome-panel">
-          <h2>👋您好，有什么可以帮您?</h2>
-          <div class="welcome-modes">
-            <el-tag
-              v-for="mode in interactionModes"
-              :key="`empty-${mode.value}`"
-              :type="interactionMode === mode.value ? 'primary' : 'info'"
-              effect="plain"
-              class="mode-tag"
-              @click="interactionMode = mode.value"
-            >
-              <el-icon><component :is="mode.icon" /></el-icon>
-              <span>{{ mode.label }}</span>
-            </el-tag>
-          </div>
+          <h2>您好，有什么可以帮您？</h2>
 
           <div class="composer-placeholder is-disabled">
+            <div class="quick-config-row">
+              <button type="button" class="quick-config-chip" disabled>
+                模式：{{ currentInteractionLabel }}
+              </button>
+              <button type="button" class="quick-config-chip" disabled>
+                知识库：{{ attachedKbIds.length }}
+              </button>
+            </div>
             <el-input
               model-value=""
               type="textarea"
@@ -167,29 +163,31 @@
       </div>
 
       <template v-else>
-        <div class="chat-header">
-          <span />
-          <el-button link :icon="MoreFilled" class="more-trigger" />
-        </div>
+        <InteractionTopBar
+          :chips="workspaceTopChips"
+          :settings-open="!configPaneCollapsed"
+          settings-label="设置"
+          @chip-click="handleWorkspaceChipClick"
+          @toggle-settings="configPaneCollapsed = !configPaneCollapsed"
+        />
 
-        <div ref="messagesContainer" class="messages-container">
+        <div ref="messagesContainer" class="messages-container" :class="{ 'is-empty': messages.length === 0 }">
           <div v-if="messages.length === 0" class="welcome-panel">
-            <h2>👋您好，有什么可以帮您?</h2>
-            <div class="welcome-modes">
-              <el-tag
-                v-for="mode in interactionModes"
-                :key="mode.value"
-                :type="interactionMode === mode.value ? 'primary' : 'info'"
-                effect="plain"
-                class="mode-tag"
-                @click="interactionMode = mode.value"
-              >
-                <el-icon><component :is="mode.icon" /></el-icon>
-                <span>{{ mode.label }}</span>
-              </el-tag>
-            </div>
+            <h2>您好，有什么可以帮您？</h2>
 
             <div class="composer-placeholder">
+              <div class="quick-config-row">
+                <button
+                  v-for="chip in composerQuickChips"
+                  :key="chip.key"
+                  type="button"
+                  class="quick-config-chip"
+                  :disabled="chip.disabled"
+                  @click="handleWorkspaceChipClick(chip)"
+                >
+                  {{ chip.label }}
+                </button>
+              </div>
               <el-input
                 v-model="inputMessage"
                 type="textarea"
@@ -349,6 +347,18 @@
 
         <div v-if="messages.length > 0" class="input-area">
           <div class="input-area-wrapper">
+            <div class="quick-config-row compact">
+              <button
+                v-for="chip in inputQuickChips"
+                :key="chip.key"
+                type="button"
+                class="quick-config-chip"
+                :disabled="chip.disabled"
+                @click="handleWorkspaceChipClick(chip)"
+              >
+                {{ chip.label }}
+              </button>
+            </div>
             <el-input
               v-model="inputMessage"
               type="textarea"
@@ -683,7 +693,6 @@ import {
   Delete,
   Document,
   Loading,
-  MoreFilled,
   Plus,
   Promotion,
   Refresh,
@@ -708,6 +717,10 @@ import {
 import { getDocuments } from '@/api/knowledge';
 import { getSkillList } from '@/api/skill';
 import { getMcpServices } from '@/api/mcp';
+import { useInteractionShell } from '@/composables/useInteractionShell';
+import { runQuickChipAction } from '@/composables/useInteractionQuickChips';
+import { buildWorkspaceChipSets } from '@/composables/useInteractionChipRegistry';
+import InteractionTopBar from '@/components/orin/InteractionTopBar.vue';
 
 const props = defineProps({
   presetAgentId: {
@@ -771,7 +784,7 @@ const kbSearch = ref('');
 const inputMessage = ref('');
 const loading = ref(false);
 const sessionPaneCollapsed = ref(false);
-const configPaneCollapsed = ref(false);
+const configPaneCollapsed = ref(true);
 const activeConfigTab = ref('tools');
 const currentConfigId = ref('default');
 const interactionMode = ref('assistant');
@@ -779,33 +792,22 @@ const messagesContainer = ref(null);
 const currentConfig = reactive(defaultConfig());
 const expandedRetrievedContext = ref({});
 const expandedTraceDetails = ref({});
-const containerRef = ref(null);
-const workspaceWidth = ref(1200);
-
-const isWide = computed(() => workspaceWidth.value >= 1200);
-const isMedium = computed(() => workspaceWidth.value >= 820 && workspaceWidth.value < 1200);
-const isNarrow = computed(() => workspaceWidth.value < 820);
+const {
+  containerRef,
+  isWide,
+  isMedium,
+  isNarrow,
+  isLeftDrawer,
+  isRightDrawer
+} = useInteractionShell({
+  leftDrawerMode: 'narrow',
+  rightDrawerMode: 'always'
+});
 
 // 保留 isMobile 以便兼容某些未删干净的模板指令
 const isMobile = isNarrow;
 
-let resizeObserver = null;
-onMounted(() => {
-  if (containerRef.value) {
-    resizeObserver = new ResizeObserver((entries) => {
-      workspaceWidth.value = entries[0].contentRect.width;
-    });
-    resizeObserver.observe(containerRef.value);
-  }
-});
-
-onUnmounted(() => {
-  if (resizeObserver) resizeObserver.disconnect();
-});
-
 const configProfiles = [{ id: 'default', name: '初始配置（默认）' }];
-const isLeftDrawer = computed(() => isNarrow.value);
-const isRightDrawer = computed(() => !isWide.value);
 
 
 const filteredSessions = computed(() => {
@@ -827,6 +829,32 @@ const currentSessionTitle = computed(() => {
 const currentInteractionLabel = computed(() => {
   return interactionModes.find((mode) => mode.value === interactionMode.value)?.label || '智能助手';
 });
+
+const workspaceChipSets = computed(() => buildWorkspaceChipSets({
+  interactionLabel: currentInteractionLabel.value,
+  attachedKbCount: attachedKbIds.value.length,
+  retrievedContextEnabled: currentConfig.showRetrievedContext,
+  filteredDocsCount: totalFilteredDocs.value
+}));
+
+const workspaceTopChips = computed(() => workspaceChipSets.value.top);
+const composerQuickChips = computed(() => workspaceChipSets.value.composer);
+const inputQuickChips = computed(() => workspaceChipSets.value.input);
+
+const handleWorkspaceChipClick = (chip) => {
+  runQuickChipAction(chip, {
+    openInspector: () => {
+      configPaneCollapsed.value = false;
+    },
+    toggleInspector: () => {
+      configPaneCollapsed.value = !configPaneCollapsed.value;
+    },
+    openTab: (tab) => {
+      activeConfigTab.value = tab || 'tools';
+      configPaneCollapsed.value = false;
+    }
+  });
+};
 
 const totalFilteredDocs = computed(() => {
   return Object.values(kbDocFilters).reduce((sum, docs) => sum + (docs?.length || 0), 0);
@@ -1552,7 +1580,7 @@ onMounted(async () => {
   const savedState = restoreWorkspaceState();
   if (savedState) {
     sessionPaneCollapsed.value = savedState.sessionPaneCollapsed ?? false;
-    configPaneCollapsed.value = savedState.configPaneCollapsed ?? false;
+    configPaneCollapsed.value = savedState.configPaneCollapsed ?? true;
     activeConfigTab.value = savedState.activeConfigTab ?? 'tools';
   }
 
@@ -1602,13 +1630,24 @@ watch(
 /* 1. Global & Layout 
 -------------------------------------------------- */
 .agent-workspace {
+  --left-pane-width: 268px;
+  --right-pane-width: 0px;
+  --drawer-left-width: 272px;
+  --drawer-right-width: 320px;
+  --chat-content-max-width: 900px;
   position: relative;
   width: 100%;
   height: 100%; /* Fill the host shell height */
   display: flex;
   overflow: hidden; /* No global scrolling */
-  background-color: #f8fafc;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f6f9fb;
+  font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.agent-workspace.is-wide {
+  --left-pane-width: 260px;
+  --right-pane-width: 0px;
+  --chat-content-max-width: 920px;
 }
 
 /* Ambient Glass Background */
@@ -1616,8 +1655,8 @@ watch(
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 10% 40%, rgba(79, 70, 229, 0.04) 0%, transparent 50%),
-              radial-gradient(circle at 90% 60%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+  background: radial-gradient(circle at 10% 40%, rgba(20, 184, 166, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 90% 60%, rgba(14, 165, 233, 0.05) 0%, transparent 50%);
   z-index: 0;
   pointer-events: none;
 }
@@ -1647,21 +1686,22 @@ watch(
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .workspace-sidebar {
-  width: 280px;
+  width: var(--left-pane-width);
   border-right: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .workspace-config {
-  width: 340px;
+  width: var(--right-pane-width);
+  pointer-events: none;
   border-left: 1px solid rgba(226, 232, 240, 0.8);
 }
 
@@ -1672,7 +1712,7 @@ watch(
   top: 0;
   bottom: 0;
   z-index: 100;
-  width: 280px;
+  width: var(--drawer-left-width);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 8px 0 32px rgba(0,0,0,0.06);
   transform: translateX(-100%);
@@ -1687,7 +1727,9 @@ watch(
   top: 0;
   bottom: 0;
   z-index: 100;
-  width: 340px;
+  width: var(--drawer-right-width);
+  display: flex;
+  pointer-events: auto;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: -8px 0 32px rgba(0,0,0,0.06);
   transform: translateX(100%);
@@ -1932,22 +1974,12 @@ watch(
   background: transparent; /* Rely on root bg */
 }
 
-.chat-header {
+.state-panel {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  min-height: 56px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
-  z-index: 2;
-}
-
-.more-trigger {
-  color: #64748b;
-  font-size: 18px;
+  justify-content: center;
+  padding: 28px 24px 36px;
 }
 
 /* Scrolling messages container */
@@ -1958,8 +1990,21 @@ watch(
   padding: 24px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   /* Smooth scroll behavior */
   scroll-behavior: smooth;
+}
+
+.messages-container.is-empty {
+  justify-content: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.messages-container.is-empty > .welcome-panel {
+  margin-top: 0;
+  padding-bottom: 0;
+  transform: translateY(-4%);
 }
 
 /* Content wrapper to center and limit width */
@@ -1967,7 +2012,7 @@ watch(
 .messages-container > .message-item,
 .messages-container > .loading-indicator {
   width: 100%;
-  max-width: 820px;
+  max-width: var(--chat-content-max-width);
   margin-left: auto;
   margin-right: auto;
 }
@@ -1982,10 +2027,17 @@ watch(
 }
 
 .welcome-panel {
-  margin-top: 60px;
+  margin-top: 40px;
   padding-bottom: 40px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   animation: floatIn 0.5s ease-out;
+  width: 100%;
+  max-width: var(--chat-content-max-width);
+  margin-left: auto;
+  margin-right: auto;
 }
 @keyframes floatIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -1996,15 +2048,16 @@ watch(
   font-size: 28px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 16px;
+  margin: 0 0 22px;
   letter-spacing: -0.02em;
 }
 
 .welcome-modes {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .mode-tag {
@@ -2029,6 +2082,18 @@ watch(
   background: rgba(239, 246, 255, 0.8) !important;
   color: #1d4ed8 !important;
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.composer-placeholder {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.composer-right-tools {
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Message Items */
@@ -2062,7 +2127,7 @@ watch(
 }
 
 .message-bubble {
-  max-width: 85%;
+  max-width: min(85%, 760px);
   min-width: 0;
 }
 .message-item.user .message-bubble {
@@ -2225,7 +2290,7 @@ watch(
   background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.9) 30%, #f8fafc 100%);
   z-index: 5;
   width: 100%;
-  max-width: 868px; /* 820 + 24*2 padding */
+  max-width: calc(var(--chat-content-max-width) + 48px);
   margin: 0 auto;
 }
 
@@ -2259,6 +2324,40 @@ watch(
 .input-area-wrapper :deep(.el-textarea__inner::placeholder),
 .composer-placeholder :deep(.el-textarea__inner::placeholder) {
   color: #94a3b8;
+}
+
+.quick-config-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.quick-config-row.compact {
+  margin-bottom: 10px;
+}
+
+.quick-config-chip {
+  border: 1px solid #d7e3ef;
+  background: #f8fbff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.quick-config-chip:hover {
+  border-color: #93c5fd;
+  color: #0f766e;
+  background: #eff6ff;
+}
+
+.quick-config-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .input-actions, .composer-footer {
@@ -2322,6 +2421,33 @@ watch(
   color: #94a3b8;
 }
 
+.quick-prompts {
+  margin: 16px auto 0;
+  max-width: 760px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.prompt-tag {
+  border: 1px solid rgba(125, 211, 252, 0.45) !important;
+  background: rgba(240, 249, 255, 0.9) !important;
+  color: #0369a1 !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  padding: 7px 12px !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prompt-tag:hover {
+  background: #e0f2fe !important;
+  border-color: rgba(14, 165, 233, 0.55) !important;
+  color: #075985 !important;
+  transform: translateY(-1px);
+}
+
 /* 5. Right Config Sidebar
 -------------------------------------------------- */
 .config-header {
@@ -2378,15 +2504,15 @@ watch(
 .config-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 14px;
 }
 
 .config-card {
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 12px;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.02);
 }
 
@@ -2540,5 +2666,37 @@ watch(
 .quick-prompts :deep(.el-tag) {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(4px);
+}
+
+@media (max-width: 1100px) {
+  .welcome-panel {
+    margin-top: 24px;
+  }
+
+  .messages-container.is-empty > .welcome-panel {
+    transform: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .messages-container {
+    padding: 18px 14px;
+  }
+
+  .welcome-panel h2 {
+    font-size: 24px;
+  }
+
+  .composer-placeholder {
+    max-width: 100%;
+  }
+
+  .quick-config-row {
+    margin-bottom: 10px;
+  }
+
+  .quick-prompts {
+    justify-content: center;
+  }
 }
 </style>

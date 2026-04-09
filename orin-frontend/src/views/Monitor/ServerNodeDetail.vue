@@ -108,74 +108,6 @@
       <div class="messages-container" v-loading="loading">
         <div class="dashboard-content">
           <div class="panel-section">
-            <div class="section-heading">
-              <div>
-                <div class="section-kicker">Single Node Panel</div>
-                <h3>单节点面板</h3>
-              </div>
-              <div class="section-desc">当前节点：{{ currentServerName }}</div>
-            </div>
-
-            <el-row :gutter="20" class="margin-bottom-lg">
-              <el-col :span="24">
-                <el-card shadow="never" class="status-card">
-                  <div class="status-content">
-                    <div class="status-item">
-                      <div class="status-label">
-                        <el-icon><Connection /></el-icon>
-                        <span>Prometheus</span>
-                      </div>
-                      <el-tag :type="prometheusStatus.connected ? 'success' : 'danger'" effect="dark" size="small">
-                        <el-icon style="margin-right: 4px;">
-                          <component :is="prometheusStatus.connected ? 'CircleCheck' : 'CircleClose'" />
-                        </el-icon>
-                        {{ prometheusStatus.connected ? '已连接' : '未连接' }}
-                      </el-tag>
-                    </div>
-
-                    <div class="status-item">
-                      <div class="status-label">
-                        <el-icon><Monitor /></el-icon>
-                        <span>服务器状态</span>
-                      </div>
-                      <el-tag v-if="serverOnline === null" type="info" effect="dark" size="small">
-                        <el-icon style="margin-right: 4px;"><Loading /></el-icon>
-                        加载中
-                      </el-tag>
-                      <el-tooltip v-else-if="!serverOnline && serverError" :content="serverError" placement="bottom">
-                        <el-tag type="danger" effect="dark" size="small">
-                          <el-icon style="margin-right: 4px;"><CircleClose /></el-icon>
-                          离线
-                        </el-tag>
-                      </el-tooltip>
-                      <el-tag v-else :type="serverOnline ? 'success' : 'danger'" effect="dark" size="small">
-                        <el-icon style="margin-right: 4px;">
-                          <component :is="serverOnline ? 'CircleCheck' : 'CircleClose'" />
-                        </el-icon>
-                        {{ serverOnline ? '在线' : '离线' }}
-                      </el-tag>
-                    </div>
-
-                    <div class="status-item">
-                      <div class="status-label">
-                        <el-icon><Clock /></el-icon>
-                        <span>最后采集</span>
-                      </div>
-                      <span class="status-value">{{ formatDateTime(selectedSnapshot.recordedAt || selectedSnapshot.timestamp, true) }}</span>
-                    </div>
-
-                    <div class="status-item">
-                      <div class="status-label">
-                        <el-icon><Cpu /></el-icon>
-                        <span>CPU 核心</span>
-                      </div>
-                      <span class="status-value">{{ formatCount(selectedServerInfo.cpuCores) }} 核 / {{ formatLogicalCores(selectedServerInfo) }} 线程</span>
-                    </div>
-                  </div>
-                </el-card>
-              </el-col>
-            </el-row>
-
             <el-row :gutter="20" class="margin-bottom-lg">
               <el-col :xs="24" :sm="12" :lg="6">
                 <el-card shadow="never" class="metric-card cpu-card">
@@ -255,7 +187,7 @@
                         <div class="info-item"><span class="info-label">运行状态</span><span class="info-value">{{ serverOnline ? '运行中' : '离线' }}</span></div>
                         <div class="info-item"><span class="info-label">数据源</span><span class="info-value">{{ selectedServerMeta.prometheusUrl || selectedNode?.prometheusUrl || '全局默认' }}</span></div>
                         <div class="info-item"><span class="info-label">创建时间</span><span class="info-value">{{ formatDateTime(selectedServerMeta.createdAt) }}</span></div>
-                        <div class="info-item"><span class="info-label">最近在线</span><span class="info-value">{{ formatDateTime(selectedServerMeta.lastOnlineTime) }}</span></div>
+                        <div class="info-item"><span class="info-label">最近在线</span><span class="info-value">{{ formatDateTime(selectedServerMeta.lastOnlineTime || selectedSnapshot.recordedAt || selectedSnapshot.timestamp) }}</span></div>
                         <div class="info-item wide"><span class="info-label">备注</span><span class="info-value">{{ selectedServerMeta.remark || 'N/A' }}</span></div>
                       </div>
                     </section>

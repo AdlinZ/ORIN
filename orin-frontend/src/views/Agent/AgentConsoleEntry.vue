@@ -367,9 +367,9 @@ onMounted(() => {
 .hero-panel {
   border-radius: 28px;
   padding: 30px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
 .eyebrow {
@@ -417,6 +417,7 @@ onMounted(() => {
 
 .hero-stats {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -698,8 +699,8 @@ onMounted(() => {
 }
 
 @media (max-width: 1100px) {
-  .hero-panel {
-    grid-template-columns: 1fr;
+  .hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -724,6 +725,10 @@ onMounted(() => {
 
   .hero-filter {
     width: 100%;
+  }
+
+  .hero-stats {
+    grid-template-columns: 1fr;
   }
 
   .section-header {
