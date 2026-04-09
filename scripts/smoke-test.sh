@@ -4,11 +4,13 @@
 
 set -e
 
-ORIN_ROOT="/home/adlin/.openclaw/workspace/ORIN"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ORIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+FAILED=0
 
 echo -e "${YELLOW}=== ORIN Smoke Test ===${NC}"
 echo ""
@@ -16,13 +18,16 @@ echo ""
 # 1. Java后端编译
 echo -e "${YELLOW}[1/4] Testing Java Backend Compile...${NC}"
 cd "$ORIN_ROOT/orin-backend"
-export JAVA_HOME=/home/adlin/.local/java/jdk-17
-export PATH=/home/adlin/.local/maven/bin:$JAVA_HOME/bin:$PATH
 
 if mvn -q -DskipTests compile -o 2>/dev/null; then
     echo -e "${GREEN}✓ Backend compile OK${NC}"
 else
-    echo -e "${GREEN}✓ Backend compile OK (with network)${NC}"
+    if mvn -q -DskipTests compile; then
+        echo -e "${GREEN}✓ Backend compile OK (with network)${NC}"
+    else
+        echo -e "${RED}✗ Backend compile failed${NC}"
+        FAILED=1
+    fi
 fi
 
 # 2. 前端构建
@@ -31,7 +36,12 @@ cd "$ORIN_ROOT/orin-frontend"
 if npm run build --silent 2>/dev/null; then
     echo -e "${GREEN}✓ Frontend build OK${NC}"
 else
-    echo -e "${GREEN}✓ Frontend build OK${NC}"
+    if npm run build --silent; then
+        echo -e "${GREEN}✓ Frontend build OK${NC}"
+    else
+        echo -e "${RED}✗ Frontend build failed${NC}"
+        FAILED=1
+    fi
 fi
 
 # 3. Python引擎依赖检查
@@ -56,4 +66,9 @@ echo "  Workflow tests: $WORKFLOW_TESTS"
 echo "  Collaboration tests: $COLLAB_TESTS"
 
 echo ""
-echo -e "${GREEN}=== Smoke Test Complete ===${NC}"
+if [ "$FAILED" -eq 0 ]; then
+    echo -e "${GREEN}=== Smoke Test Complete (PASS) ===${NC}"
+else
+    echo -e "${RED}=== Smoke Test Complete (FAIL) ===${NC}"
+    exit 1
+fi

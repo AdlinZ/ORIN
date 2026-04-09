@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Iteration Node Handler
@@ -25,6 +27,7 @@ import java.util.Map;
 @Slf4j
 @Component("iterationNodeHandler")
 public class IterationNodeHandler implements NodeHandler {
+    private static final Pattern CONDITION_PATTERN = Pattern.compile("^\\s*(\\{\\{)?([a-zA-Z_][\\w.]*)\\}?\\}?\\s*(==|!=|>=|<=|>|<)\\s*(.+?)\\s*$");
 
     @Override
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) {
@@ -63,8 +66,6 @@ public class IterationNodeHandler implements NodeHandler {
         List<Map<String, Object>> results = new ArrayList<>();
         int currentIndex = 0;
         
-        // 获取循环体节点ID
-        String loopBodyId = (String) nodeData.get("loop_body_id");
         String exitCondition = conditionObj != null ? conditionObj.toString() : null;
         
         while (currentIndex < maxIterations) {
@@ -99,10 +100,10 @@ public class IterationNodeHandler implements NodeHandler {
         Map<String, Object> output = new HashMap<>();
         output.put("results", results);
         output.put("currentIndex", currentIndex);
-        output.put("totalIterations", currentIndex + 1);
+        output.put("totalIterations", results.size());
         output.put("completed", true);
         
-        log.info("IterationNode completed: {} iterations", currentIndex + 1);
+        log.info("IterationNode completed: {} iterations", results.size());
         
         return NodeExecutionResult.success(output);
     }
@@ -112,15 +113,82 @@ public class IterationNodeHandler implements NodeHandler {
      * 简单实现：支持常见条件表达式
      */
     private boolean evaluateExitCondition(String condition, Map<String, Object> context) {
-        // 简单条件评估：支持 {{variable}} == value 等模式
-        // 实际生产环境应使用表达式解析器
         if (condition == null || condition.isEmpty()) {
             return false;
         }
-        
-        // TODO: 实现完整的条件表达式解析
-        // 当前仅支持基本场景
-        
-        return false;
+
+        Matcher matcher = CONDITION_PATTERN.matcher(condition);
+        if (!matcher.matches()) {
+            log.warn("Unsupported iteration condition format: {}", condition);
+            return false;
+        }
+
+        String key = matcher.group(2);
+        String operator = matcher.group(3);
+        String expectedRaw = matcher.group(4).trim();
+
+        Object actual = context.get(key);
+        if (actual == null) {
+            return false;
+        }
+
+        Object expected = parseExpectedValue(expectedRaw);
+        return compare(actual, expected, operator);
+    }
+
+    private Object parseExpectedValue(String raw) {
+        if ((raw.startsWith("\"") && raw.endsWith("\"")) || (raw.startsWith("'") && raw.endsWith("'"))) {
+            return raw.substring(1, raw.length() - 1);
+        }
+        if ("true".equalsIgnoreCase(raw) || "false".equalsIgnoreCase(raw)) {
+            return Boolean.parseBoolean(raw);
+        }
+        try {
+            if (raw.contains(".")) {
+                return Double.parseDouble(raw);
+            }
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return raw;
+        }
+    }
+
+    private boolean compare(Object actual, Object expected, String operator) {
+        if (actual instanceof Number && expected instanceof Number) {
+            double a = ((Number) actual).doubleValue();
+            double b = ((Number) expected).doubleValue();
+            return switch (operator) {
+                case "==" -> Double.compare(a, b) == 0;
+                case "!=" -> Double.compare(a, b) != 0;
+                case ">" -> a > b;
+                case "<" -> a < b;
+                case ">=" -> a >= b;
+                case "<=" -> a <= b;
+                default -> false;
+            };
+        }
+
+        if (actual instanceof Boolean && expected instanceof Boolean) {
+            boolean a = (Boolean) actual;
+            boolean b = (Boolean) expected;
+            return switch (operator) {
+                case "==" -> a == b;
+                case "!=" -> a != b;
+                default -> false;
+            };
+        }
+
+        String a = String.valueOf(actual);
+        String b = String.valueOf(expected);
+        int cmp = a.compareTo(b);
+        return switch (operator) {
+            case "==" -> a.equals(b);
+            case "!=" -> !a.equals(b);
+            case ">" -> cmp > 0;
+            case "<" -> cmp < 0;
+            case ">=" -> cmp >= 0;
+            case "<=" -> cmp <= 0;
+            default -> false;
+        };
     }
 }

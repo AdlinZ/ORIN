@@ -88,12 +88,13 @@ export const batchImportAgents = (file) => {
 };
 
 export const refreshAllAgentsMetadata = () => {
-    return request.post('/agents/refresh-all-metadata');
+    return request.post('/agents/refresh');
 };
 
 
-export const getJobStatus = (agentId, jobId) => {
-    return request.get(`/agents/${agentId}/jobs/${jobId}`);
+export const getJobStatus = (agentIdOrJobId, maybeJobId) => {
+    const jobId = maybeJobId ?? agentIdOrJobId;
+    return request.get(`/agents/jobs/${jobId}`);
 };
 
 export const getGroupedConversationLogs = (page = 0, size = 15) => {

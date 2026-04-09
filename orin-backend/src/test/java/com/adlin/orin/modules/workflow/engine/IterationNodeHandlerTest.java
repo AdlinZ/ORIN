@@ -3,10 +3,7 @@ package com.adlin.orin.modules.workflow.engine;
 import com.adlin.orin.modules.workflow.engine.handler.IterationNodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.LoopNodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.util.*;
 
@@ -17,16 +14,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class IterationNodeHandlerTest {
 
-    @Mock
-    private IterationNodeHandler iterationNodeHandler;
+    private final IterationNodeHandler iterationNodeHandler = new IterationNodeHandler();
 
-    @Mock
-    private LoopNodeHandler loopNodeHandler;
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    private final LoopNodeHandler loopNodeHandler = new LoopNodeHandler();
 
     @Test
     public void testIterationNodeWithFixedCount() {
@@ -122,5 +112,38 @@ public class IterationNodeHandlerTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
         assertEquals(1000, results.size());
+    }
+
+    @Test
+    public void testIterationNodeExitCondition() {
+        Map<String, Object> nodeData = new HashMap<>();
+        Map<String, Object> context = new HashMap<>();
+        context.put("iterations", 10);
+        context.put("condition", "currentIndex >= 2");
+
+        NodeExecutionResult result = iterationNodeHandler.execute(nodeData, context);
+        assertTrue(result.isSuccess());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
+        assertEquals(3, results.size());
+        assertEquals(3, result.getOutputs().get("totalIterations"));
+    }
+
+    @Test
+    public void testLoopNodeBreakCondition() {
+        Map<String, Object> nodeData = new HashMap<>();
+        Map<String, Object> context = new HashMap<>();
+        context.put("maxIterations", 10);
+        context.put("breakCondition", "currentIndex >= 2");
+
+        NodeExecutionResult result = loopNodeHandler.execute(nodeData, context);
+        assertTrue(result.isSuccess());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> results = (List<Map<String, Object>>) result.getOutputs().get("results");
+        assertEquals(3, results.size());
+        assertTrue((Boolean) result.getOutputs().get("exitedEarly"));
+        assertEquals(3, result.getOutputs().get("totalIterations"));
     }
 }

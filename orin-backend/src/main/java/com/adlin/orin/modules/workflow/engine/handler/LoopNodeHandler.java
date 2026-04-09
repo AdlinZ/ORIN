@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Loop Node Handler
@@ -25,6 +27,7 @@ import java.util.Map;
 @Slf4j
 @Component("loopNodeHandler")
 public class LoopNodeHandler implements NodeHandler {
+    private static final Pattern CONDITION_PATTERN = Pattern.compile("^\\s*(\\{\\{)?([a-zA-Z_][\\w.]*)\\}?\\}?\\s*(==|!=|>=|<=|>|<)\\s*(.+?)\\s*$");
 
     @Override
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) {
@@ -92,7 +95,7 @@ public class LoopNodeHandler implements NodeHandler {
         Map<String, Object> output = new HashMap<>();
         output.put("results", results);
         output.put("currentIndex", currentIndex);
-        output.put("totalIterations", currentIndex);
+        output.put("totalIterations", results.size());
         output.put("exitedEarly", exitedEarly);
         output.put("completed", true);
         
@@ -109,10 +112,79 @@ public class LoopNodeHandler implements NodeHandler {
         if (condition == null || condition.isEmpty()) {
             return true;
         }
-        
-        // TODO: 实现完整的条件表达式解析
-        // 当前仅支持基本场景
-        
-        return true;
+
+        Matcher matcher = CONDITION_PATTERN.matcher(condition);
+        if (!matcher.matches()) {
+            log.warn("Unsupported loop condition format: {}", condition);
+            return false;
+        }
+
+        String key = matcher.group(2);
+        String operator = matcher.group(3);
+        String expectedRaw = matcher.group(4).trim();
+
+        Object actual = context.get(key);
+        if (actual == null) {
+            return false;
+        }
+
+        Object expected = parseExpectedValue(expectedRaw);
+        return compare(actual, expected, operator);
+    }
+
+    private Object parseExpectedValue(String raw) {
+        if ((raw.startsWith("\"") && raw.endsWith("\"")) || (raw.startsWith("'") && raw.endsWith("'"))) {
+            return raw.substring(1, raw.length() - 1);
+        }
+        if ("true".equalsIgnoreCase(raw) || "false".equalsIgnoreCase(raw)) {
+            return Boolean.parseBoolean(raw);
+        }
+        try {
+            if (raw.contains(".")) {
+                return Double.parseDouble(raw);
+            }
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return raw;
+        }
+    }
+
+    private boolean compare(Object actual, Object expected, String operator) {
+        if (actual instanceof Number && expected instanceof Number) {
+            double a = ((Number) actual).doubleValue();
+            double b = ((Number) expected).doubleValue();
+            return switch (operator) {
+                case "==" -> Double.compare(a, b) == 0;
+                case "!=" -> Double.compare(a, b) != 0;
+                case ">" -> a > b;
+                case "<" -> a < b;
+                case ">=" -> a >= b;
+                case "<=" -> a <= b;
+                default -> false;
+            };
+        }
+
+        if (actual instanceof Boolean && expected instanceof Boolean) {
+            boolean a = (Boolean) actual;
+            boolean b = (Boolean) expected;
+            return switch (operator) {
+                case "==" -> a == b;
+                case "!=" -> a != b;
+                default -> false;
+            };
+        }
+
+        String a = String.valueOf(actual);
+        String b = String.valueOf(expected);
+        int cmp = a.compareTo(b);
+        return switch (operator) {
+            case "==" -> a.equals(b);
+            case "!=" -> !a.equals(b);
+            case ">" -> cmp > 0;
+            case "<" -> cmp < 0;
+            case ">=" -> cmp >= 0;
+            case "<=" -> cmp <= 0;
+            default -> false;
+        };
     }
 }
