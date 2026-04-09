@@ -149,11 +149,16 @@ public class CollaborationExecutor {
             Map<String, Object> contextSnapshot = buildContextSnapshot(packageId);
 
             // 构建消息
+            String sessionId = contextSnapshot.get("sessionId") != null ? String.valueOf(contextSnapshot.get("sessionId")) : null;
+            String turnId = contextSnapshot.get("turnId") != null ? String.valueOf(contextSnapshot.get("turnId")) : null;
             CollabTaskMessage message = CollabTaskMessage.builder()
                     .packageId(packageId)
+                    .sessionId(sessionId)
+                    .turnId(turnId)
                     .subTaskId(subtask.getSubTaskId())
                     .traceId(traceId)
                     .attempt(subtask.getRetryCount() != null ? subtask.getRetryCount() : 0)
+                    .stage("DRAFT")
                     .collaborationMode(collaborationMode)
                     .expectedRole(subtask.getExpectedRole())
                     .description(subtask.getDescription())
@@ -426,7 +431,10 @@ public class CollaborationExecutor {
             }
             double score = estimateQualityScore(result);
             if (score < qualityThreshold) {
-                return AgentExecutionAttempt.failed("quality_below_threshold:" + score);
+                // 质量阈值用于路由/观测，不应直接导致整轮失败。
+                // 否则简短回答（如多模态请求、确认类回复）会被误判并中断协作会话。
+                log.info("Agent response below quality threshold but accepted: score={}, threshold={}, agentId={}",
+                        score, qualityThreshold, agentId);
             }
             return AgentExecutionAttempt.success(result);
         } catch (Exception e) {

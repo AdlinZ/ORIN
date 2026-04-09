@@ -22,9 +22,13 @@ public class CollabTaskMessage implements Serializable {
 
     // Core identification
     private String packageId;
+    private String sessionId;
+    private String turnId;
     private String subTaskId;
     private String traceId;
     private Integer attempt;
+    private String stage;
+    private Map<String, Object> selectionMeta;
 
     // Collaboration context
     private String collaborationMode;  // PARALLEL, SEQUENTIAL, CONSENSUS

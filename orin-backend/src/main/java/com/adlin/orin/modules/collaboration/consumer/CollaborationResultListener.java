@@ -185,9 +185,13 @@ public class CollaborationResultListener {
                                     // 构建重试消息
                                     CollabTaskMessage retryMessage = CollabTaskMessage.builder()
                                             .packageId(packageId)
+                                            .sessionId(result.getSessionId())
+                                            .turnId(result.getTurnId())
                                             .subTaskId(subTaskId)
                                             .traceId(result.getTraceId())
                                             .attempt((result.getAttempt() != null ? result.getAttempt() : 0) + 1)
+                                            .stage(result.getStage())
+                                            .selectionMeta(result.getSelectionMeta())
                                             .collaborationMode((String) taskData.getOrDefault("collaborationMode", "PARALLEL"))
                                             .expectedRole((String) taskData.getOrDefault("expectedRole", "SPECIALIST"))
                                             .description((String) taskData.get("description"))
