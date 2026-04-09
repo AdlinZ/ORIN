@@ -24,7 +24,9 @@ import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -37,6 +39,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.adlin.orin.modules.audit.entity.AuditLog;
 
@@ -58,6 +61,7 @@ public class MonitorServiceImpl implements MonitorService {
         private final ProviderRegistry providerRegistry;
         private final KnowledgeBaseRepository knowledgeBaseRepository;
         private final KnowledgeDocumentRepository knowledgeDocumentRepository;
+        private final JdbcTemplate jdbcTemplate;
 
         // Dedicated thread pool for Prometheus queries to avoid using the common
         // ForkJoinPool
@@ -946,21 +950,21 @@ public class MonitorServiceImpl implements MonitorService {
                                         status.put("gpuMemory", "N/A");
                                 }
 
-                                // Format Memory
+                                // Keep raw bytes for persistence; format in frontend when rendering.
                                 long totalMemBytes = totalMemFuture.getNow(0L);
-                                status.put("memoryTotal", formatBytes(totalMemBytes));
+                                status.put("memoryTotal", totalMemBytes);
 
                                 // Calculate Used Memory
                                 double memPct = memFuture.getNow(0.0);
                                 long usedMemBytes = (long) (totalMemBytes * (memPct / 100.0));
-                                status.put("memoryUsed", formatBytes(usedMemBytes));
+                                status.put("memoryUsed", usedMemBytes);
 
-                                // Format Disk
+                                // Keep raw bytes for persistence; format in frontend when rendering.
                                 long totalDiskBytes = diskTotalFuture.getNow(0.0).longValue();
-                                status.put("diskTotal", formatBytes(totalDiskBytes));
+                                status.put("diskTotal", totalDiskBytes);
                                 double diskPct = diskFuture.getNow(0.0);
                                 long usedDiskBytes = (long) (totalDiskBytes * (diskPct / 100.0));
-                                status.put("diskUsed", formatBytes(usedDiskBytes));
+                                status.put("diskUsed", usedDiskBytes);
 
                                 // Format Network
                                 status.put("networkDownload", formatSpeed(netInFuture.getNow(0.0)));
@@ -1227,16 +1231,8 @@ public class MonitorServiceImpl implements MonitorService {
                 Optional<ServerInfo> existingInfoOpt = serverInfoRepository.findByServerId(serverId);
 
                 if (existingInfoOpt.isEmpty()) {
-                        // 首次上线：创建新的 ServerInfo
-                        ServerInfo newInfo = new ServerInfo();
-                        newInfo.setServerId(serverId);
-                        newInfo.setPrometheusUrl(prometheusUrl);
-                        updateServerInfoFromHardwareData(newInfo, hardwareData, nowDateTime);
-                        newInfo.setFirstOnlineTime(nowDateTime);
-                        newInfo.setLastOnlineTime(nowDateTime);
-                        newInfo.setOnline(true);
-                        serverInfoRepository.save(newInfo);
-                        log.info("Server first online: {}, saved static info", serverId);
+                        // 不再自动注册节点，避免已删除节点被采集任务重新创建
+                        log.debug("Skip auto-register server info for unconfigured server: {}", serverId);
                 } else {
                         // 服务器已存在，检查是否重连（之前离线现在在线）
                         ServerInfo existingInfo = existingInfoOpt.get();
@@ -1271,13 +1267,14 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public Page<ServerHardwareMetric> getServerHardwareHistory(String serverId, Long startTime, Long endTime, int page, int size) {
-                Pageable pageable = PageRequest.of(page, size);
+                Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "timestamp"));
                 long start = startTime != null ? startTime : System.currentTimeMillis() - 24 * 60 * 60 * 1000; // 默认24小时
                 long end = endTime != null ? endTime : System.currentTimeMillis();
                 if (serverId == null || serverId.trim().isEmpty()) {
                         serverId = "local";
                 }
-                return serverHardwareMetricRepository.findByServerIdAndTimestampBetween(serverId, start, end, pageable);
+                List<String> aliases = resolveMetricServerAliases(serverId);
+                return serverHardwareMetricRepository.findByServerIdInAndTimestampBetween(aliases, start, end, pageable);
         }
 
         @Override
@@ -1306,7 +1303,7 @@ public class MonitorServiceImpl implements MonitorService {
                 }
 
                 List<ServerHardwareMetric> metrics = serverHardwareMetricRepository
-                        .findByServerIdAndTimestampBetweenOrderByTimestampAsc(serverId, start, now);
+                        .findByServerIdInAndTimestampBetweenOrderByTimestampAsc(resolveMetricServerAliases(serverId), start, now);
 
                 List<Map<String, Object>> result = new ArrayList<>();
                 for (ServerHardwareMetric m : metrics) {
@@ -1322,10 +1319,22 @@ public class MonitorServiceImpl implements MonitorService {
                 return result;
         }
 
+        private List<String> resolveMetricServerAliases(String serverId) {
+                LinkedHashSet<String> aliases = new LinkedHashSet<>(buildServerIdAliases(serverId));
+                if (aliases.isEmpty()) {
+                        aliases.add("local");
+                }
+                serverInfoRepository.findByServerIdIn(new ArrayList<>(aliases)).stream()
+                                .map(ServerInfo::getPrometheusUrl)
+                                .filter(url -> url != null && !url.trim().isEmpty())
+                                .forEach(url -> aliases.addAll(buildServerIdAliases(url)));
+                return new ArrayList<>(aliases);
+        }
+
         @Override
         public List<Map<String, Object>> getServerNodes() {
                 // 从 ServerHardwareMetric 获取已有数据的节点
-                List<Map<String, Object>> reportedNodes = serverHardwareMetricRepository.findDistinctServerNodes();
+                List<Map<String, Object>> reportedNodes = loadReportedServerNodesCompatible();
                 // 从 ServerInfo 获取预配置的节点
                 List<ServerInfo> configuredNodes = serverInfoRepository.findAll();
 
@@ -1343,7 +1352,7 @@ public class MonitorServiceImpl implements MonitorService {
                         nodesMap.put(info.getServerId(), node);
                 }
 
-                // 更新已有数据的节点（使用 Metric 中的 name，覆盖预配置的 name）
+                // 仅对已配置节点合并已有数据（使用 Metric 中的 name，覆盖预配置的 name）
                 for (Map<String, Object> reported : reportedNodes) {
                         String id = (String) reported.get("id");
                         Map<String, Object> existing = nodesMap.get(id);
@@ -1353,10 +1362,6 @@ public class MonitorServiceImpl implements MonitorService {
                                         existing.put("name", reported.get("name"));
                                 }
                                 existing.put("hasData", true);
-                        } else {
-                                // 新节点，只有 reported 数据
-                                reported.put("hasData", true);
-                                nodesMap.put(id, reported);
                         }
                 }
 
@@ -1374,17 +1379,39 @@ public class MonitorServiceImpl implements MonitorService {
                 }
                 result.addAll(others);
 
-                // 如果没有任何节点，添加默认 local 节点
-                if (result.isEmpty()) {
-                        Map<String, Object> localNode = new HashMap<>();
-                        localNode.put("id", "local");
-                        localNode.put("name", "Local Node");
-                        localNode.put("configured", false);
-                        localNode.put("hasData", false);
-                        result.add(0, localNode);
+                return result;
+        }
+
+        /**
+         * 兼容不同历史环境中的列命名（server_id/server_name 或 serverId/serverName）
+         * 避免因列名差异导致节点接口 500。
+         */
+        private List<Map<String, Object>> loadReportedServerNodesCompatible() {
+                String idColumn = resolveExistingColumn("server_hardware_metrics", "server_id", "serverId");
+                if (idColumn == null) {
+                        log.warn("No compatible server id column found in server_hardware_metrics");
+                        return new ArrayList<>();
                 }
 
-                return result;
+                String nameColumn = resolveExistingColumn("server_hardware_metrics", "server_name", "serverName");
+                String nameExpr = nameColumn != null ? nameColumn : "NULL";
+
+                String sql = String.format(
+                                "SELECT DISTINCT %s AS id, %s AS name FROM server_hardware_metrics WHERE %s IS NOT NULL",
+                                idColumn, nameExpr, idColumn);
+                return jdbcTemplate.queryForList(sql);
+        }
+
+        private String resolveExistingColumn(String tableName, String... candidates) {
+                String sql = "SELECT COUNT(1) FROM information_schema.columns " +
+                                "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?";
+                for (String candidate : candidates) {
+                        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, tableName, candidate);
+                        if (count != null && count > 0) {
+                                return candidate;
+                        }
+                }
+                return null;
         }
 
         @Override
@@ -1508,7 +1535,8 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public ServerInfo getServerInfo(String serverId) {
-                return serverInfoRepository.findByServerId(serverId).orElse(null);
+                List<String> aliases = buildServerIdAliases(serverId);
+                return serverInfoRepository.findByServerIdIn(aliases).stream().findFirst().orElse(null);
         }
 
         @Override
@@ -1525,8 +1553,38 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         @Override
+        @Transactional
         public void deleteServerInfo(String serverId) {
-                serverInfoRepository.findByServerId(serverId).ifPresent(serverInfoRepository::delete);
+                if (serverId == null || serverId.trim().isEmpty()) {
+                        throw new IllegalArgumentException("serverId 不能为空");
+                }
+
+                List<String> aliases = buildServerIdAliases(serverId);
+                List<ServerInfo> infos = serverInfoRepository.findByServerIdIn(aliases);
+                long deletedMetrics = serverHardwareMetricRepository.deleteByServerIdIn(aliases);
+
+                if (!infos.isEmpty()) {
+                        serverInfoRepository.deleteAll(infos);
+                        return;
+                }
+                if (deletedMetrics <= 0) {
+                        // 删除接口保持幂等：节点不存在时不抛错，避免前端收到 500。
+                        log.info("Delete server node skipped (not found): {}", serverId);
+                }
+        }
+
+        private List<String> buildServerIdAliases(String serverId) {
+                String base = serverId == null ? "" : serverId.trim();
+                LinkedHashSet<String> aliases = new LinkedHashSet<>();
+                if (!base.isEmpty()) {
+                        aliases.add(base);
+                        if (base.endsWith("/")) {
+                                aliases.add(base.substring(0, base.length() - 1));
+                        } else {
+                                aliases.add(base + "/");
+                        }
+                }
+                return new ArrayList<>(aliases);
         }
 
         @Override

@@ -271,6 +271,15 @@ public class SideClientSyncService {
     @Transactional
     public void recordChange(String agentId, String documentId, String knowledgeBaseId,
                               String changeType, Integer version, String contentHash) {
+        // 生成幂等键，避免同一变更重复记录
+        String idempotencyKey = String.format("%s_%s_%s", agentId, documentId, changeType);
+
+        // 如果幂等键已存在且未同步，跳过
+        if (changeLogRepository.findByIdempotencyKey(idempotencyKey).isPresent()) {
+            log.debug("Change already recorded for idempotency key: {}", idempotencyKey);
+            return;
+        }
+
         SyncChangeLog changeLog = SyncChangeLog.builder()
                 .agentId(agentId)
                 .documentId(documentId)
@@ -280,6 +289,7 @@ public class SideClientSyncService {
                 .contentHash(contentHash)
                 .changedAt(LocalDateTime.now())
                 .synced(false)
+                .idempotencyKey(idempotencyKey)
                 .build();
 
         changeLogRepository.save(changeLog);

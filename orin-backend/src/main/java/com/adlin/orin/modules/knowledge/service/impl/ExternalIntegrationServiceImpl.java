@@ -1,14 +1,23 @@
 package com.adlin.orin.modules.knowledge.service.impl;
 
+import com.adlin.orin.modules.knowledge.dto.ExternalIntegrationResponse;
 import com.adlin.orin.modules.knowledge.entity.ExternalIntegration;
+import com.adlin.orin.modules.knowledge.entity.IntegrationAuditLog;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
+import com.adlin.orin.modules.knowledge.entity.SyncChangeLog;
 import com.adlin.orin.modules.knowledge.repository.ExternalIntegrationRepository;
+import com.adlin.orin.modules.knowledge.repository.IntegrationAuditLogRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.knowledge.repository.SyncChangeLogRepository;
 import com.adlin.orin.modules.knowledge.service.ExternalIntegrationService;
 import com.adlin.orin.modules.knowledge.service.RAGFlowIntegrationService;
 import com.adlin.orin.modules.knowledge.service.sync.DifyApiClient;
+import com.adlin.orin.security.EncryptionUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -24,10 +33,14 @@ import java.util.*;
 public class ExternalIntegrationServiceImpl implements ExternalIntegrationService {
 
     private final ExternalIntegrationRepository repository;
+    private final IntegrationAuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
     private final RAGFlowIntegrationService ragflowIntegrationService;
     private final DifyApiClient difyApiClient;
+    private final SyncChangeLogRepository changeLogRepository;
+    private final KnowledgeDocumentRepository documentRepository;
+    private final EncryptionUtil encryptionUtil;
 
     // 支持的能力映射
     private static final Map<String, List<String>> CAPABILITY_MAP = Map.of(
@@ -41,36 +54,137 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     );
 
     @Override
+    @Transactional
     public ExternalIntegration createIntegration(ExternalIntegration integration) {
         integration.setStatus(ExternalIntegration.Status.ENABLED.name());
         integration.setHealthStatus(ExternalIntegration.HealthStatus.UNKNOWN.name());
         integration.setConsecutiveFailures(0);
-        return repository.save(integration);
+        // 加密存储敏感配置
+        if (integration.getAuthConfig() != null && !integration.getAuthConfig().isEmpty()) {
+            integration.setAuthConfig(encryptionUtil.encrypt(integration.getAuthConfig()));
+        }
+        ExternalIntegration saved = repository.save(integration);
+        // 审计日志
+        logAudit(saved.getId(), saved.getName(), "CREATE", null,
+                ExternalIntegrationResponse.maskSensitiveConfig(integration.getAuthConfig()));
+        return saved;
     }
 
     @Override
+    @Transactional
     public ExternalIntegration updateIntegration(Long id, ExternalIntegration integration) {
         ExternalIntegration existing = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Integration not found: " + id));
+
+        String beforeState = ExternalIntegrationResponse.maskSensitiveConfig(existing.getAuthConfig());
+
         existing.setName(integration.getName());
         existing.setAuthType(integration.getAuthType());
-        existing.setAuthConfig(integration.getAuthConfig());
         existing.setBaseUrl(integration.getBaseUrl());
         existing.setSyncDirection(integration.getSyncDirection());
         existing.setCapabilities(integration.getCapabilities());
         existing.setExtraConfig(integration.getExtraConfig());
-        return repository.save(existing);
+
+        // 加密存储新密码/密钥
+        if (integration.getAuthConfig() != null && !integration.getAuthConfig().isEmpty()) {
+            existing.setAuthConfig(encryptionUtil.encrypt(integration.getAuthConfig()));
+        }
+
+        ExternalIntegration saved = repository.save(existing);
+
+        logAudit(id, saved.getName(), "UPDATE", beforeState,
+                ExternalIntegrationResponse.maskSensitiveConfig(saved.getAuthConfig()));
+        return saved;
     }
 
     @Override
+    @Transactional
     public void deleteIntegration(Long id) {
+        ExternalIntegration existing = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Integration not found: " + id));
+        logAudit(id, existing.getName(), "DELETE",
+                ExternalIntegrationResponse.maskSensitiveConfig(existing.getAuthConfig()), null);
         repository.deleteById(id);
     }
 
     @Override
     public ExternalIntegration getIntegration(Long id) {
-        return repository.findById(id)
+        ExternalIntegration integration = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Integration not found: " + id));
+        // 解密 authConfig 以供内部 API 调用使用（不修改持久化实体，避免污染上下文）
+        if (integration.getAuthConfig() != null && !integration.getAuthConfig().isEmpty()) {
+            try {
+                String decrypted = encryptionUtil.decrypt(integration.getAuthConfig());
+                // 用 shallow copy 并替换 authConfig，外部调用者拿到解密后的副本
+                ExternalIntegration decryptedCopy = copyWithDecryptedAuth(integration, decrypted);
+                return decryptedCopy;
+            } catch (Exception e) {
+                log.warn("Failed to decrypt authConfig for integration {}: {}", id, e.getMessage());
+            }
+        }
+        return integration;
+    }
+
+    private ExternalIntegration copyWithDecryptedAuth(ExternalIntegration source, String decryptedAuth) {
+        return ExternalIntegration.builder()
+                .id(source.getId())
+                .name(source.getName())
+                .integrationType(source.getIntegrationType())
+                .knowledgeBaseId(source.getKnowledgeBaseId())
+                .authType(source.getAuthType())
+                .authConfig(decryptedAuth)
+                .baseUrl(source.getBaseUrl())
+                .syncDirection(source.getSyncDirection())
+                .status(source.getStatus())
+                .healthStatus(source.getHealthStatus())
+                .lastSyncTime(source.getLastSyncTime())
+                .lastHealthCheck(source.getLastHealthCheck())
+                .consecutiveFailures(source.getConsecutiveFailures())
+                .capabilities(source.getCapabilities())
+                .extraConfig(source.getExtraConfig())
+                .errorMessage(source.getErrorMessage())
+                .createdAt(source.getCreatedAt())
+                .updatedAt(source.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * 返回脱敏后的集成信息（用于 API 响应，不暴露密钥）
+     */
+    public ExternalIntegrationResponse getMaskedResponse(Long id) {
+        ExternalIntegration integration = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Integration not found: " + id));
+        return toMaskedResponse(integration);
+    }
+
+    /**
+     * 列出所有集成并脱敏（用于 API 响应）
+     */
+    public List<ExternalIntegrationResponse> listAllMasked() {
+        return repository.findAll().stream().map(this::toMaskedResponse).toList();
+    }
+
+    private ExternalIntegrationResponse toMaskedResponse(ExternalIntegration integration) {
+        return ExternalIntegrationResponse.builder()
+                .id(integration.getId())
+                .name(integration.getName())
+                .integrationType(integration.getIntegrationType())
+                .knowledgeBaseId(integration.getKnowledgeBaseId())
+                .authType(integration.getAuthType())
+                .authConfigMasked(ExternalIntegrationResponse.maskSensitiveConfig(integration.getAuthConfig()))
+                .baseUrl(integration.getBaseUrl())
+                .syncDirection(integration.getSyncDirection())
+                .status(integration.getStatus())
+                .healthStatus(integration.getHealthStatus())
+                .lastSyncTime(integration.getLastSyncTime())
+                .lastHealthCheck(integration.getLastHealthCheck())
+                .consecutiveFailures(integration.getConsecutiveFailures())
+                .capabilities(integration.getCapabilities())
+                .extraConfig(integration.getExtraConfig())
+                .errorMessage(integration.getErrorMessage())
+                .createdAt(integration.getCreatedAt())
+                .updatedAt(integration.getUpdatedAt())
+                .build();
     }
 
     @Override
@@ -85,13 +199,13 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
 
     @Override
     public ExternalIntegration.HealthStatus checkHealth(ExternalIntegration integration) {
+        String beforeStatus = integration.getHealthStatus();
         try {
             String healthUrl = buildHealthCheckUrl(integration);
             if (healthUrl == null) {
                 return ExternalIntegration.HealthStatus.UNKNOWN;
             }
 
-            // 简单的 HEAD 请求检查服务是否可达
             var response = restTemplate.getForEntity(healthUrl, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
                 integration.setHealthStatus(ExternalIntegration.HealthStatus.HEALTHY.name());
@@ -108,8 +222,20 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
         }
 
         integration.setLastHealthCheck(LocalDateTime.now());
-        ExternalIntegration saved = repository.save(integration);
-        return ExternalIntegration.HealthStatus.valueOf(saved.getHealthStatus());
+        // 只更新健康状态相关字段，不碰 authConfig（使用原生更新避免加密字段被覆盖）
+        repository.updateHealthStatus(integration.getId(),
+                integration.getHealthStatus(),
+                integration.getConsecutiveFailures(),
+                integration.getLastHealthCheck(),
+                integration.getErrorMessage());
+
+        // 健康状态变化时记审计
+        if (!Objects.equals(beforeStatus, integration.getHealthStatus())) {
+            logAudit(integration.getId(), integration.getName(), "HEALTH_CHECK",
+                    "status:" + beforeStatus, "status:" + integration.getHealthStatus());
+        }
+
+        return ExternalIntegration.HealthStatus.valueOf(integration.getHealthStatus());
     }
 
     @Override
@@ -156,13 +282,69 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
             return new SyncResult(false, 0, 0, 0, "Integration is not bidirectional", null);
         }
 
-        // 先拉取，再推送
+        // 先拉取
         SyncResult pullResult = pullFromExternal(integrationId);
-        if (!pullResult.success()) {
-            return pullResult;
+        log.info("Bidirectional pull result: {}", pullResult);
+
+        // 按变更日志构造增量推送包，不再传空文档
+        List<SyncChangeLog> pendingChanges = changeLogRepository
+                .findByAgentIdAndSyncedFalseOrderByChangedAtAsc(integration.getKnowledgeBaseId());
+
+        List<Map<String, Object>> docsToPush = new ArrayList<>();
+        int skipped = 0;
+        for (SyncChangeLog change : pendingChanges) {
+            if ("DELETED".equals(change.getChangeType())) {
+                docsToPush.add(Map.of(
+                        "documentId", change.getDocumentId(),
+                        "changeType", "DELETE",
+                        "knowledgeBaseId", change.getKnowledgeBaseId()
+                ));
+            } else {
+                // ADDED / UPDATED：查出文档内容
+                Optional<KnowledgeDocument> docOpt = documentRepository.findById(change.getDocumentId());
+                if (docOpt.isPresent()) {
+                    KnowledgeDocument doc = docOpt.get();
+                    if (Boolean.TRUE.equals(doc.getDeletedFlag())) {
+                        docsToPush.add(Map.of(
+                                "documentId", doc.getId(),
+                                "changeType", "DELETE",
+                                "knowledgeBaseId", change.getKnowledgeBaseId()
+                        ));
+                    } else {
+                        docsToPush.add(Map.of(
+                                "documentId", doc.getId(),
+                                "fileName", doc.getFileName() != null ? doc.getFileName() : "untitled",
+                                "content", doc.getContentPreview() != null ? doc.getContentPreview() : "",
+                                "changeType", change.getChangeType(),
+                                "version", change.getVersion(),
+                                "contentHash", change.getContentHash(),
+                                "knowledgeBaseId", change.getKnowledgeBaseId()
+                        ));
+                    }
+                } else {
+                    skipped++;
+                }
+            }
         }
 
-        return pushToExternal(integrationId, List.of());
+        log.info("Bidirectional push: {} docs to push, {} skipped (not found)", docsToPush.size(), skipped);
+
+        SyncResult pushResult = pushToExternal(integrationId, docsToPush);
+
+        // 推送成功后标记变更已同步
+        if (pushResult.success()) {
+            changeLogRepository.markAllSynced(integration.getKnowledgeBaseId());
+        }
+
+        // 合并 pull + push 结果
+        return new SyncResult(
+                pullResult.success() && pushResult.success(),
+                pullResult.addedCount() + pushResult.addedCount(),
+                pullResult.updatedCount() + pushResult.updatedCount(),
+                pullResult.deletedCount() + pushResult.deletedCount(),
+                "Pull: " + pullResult.message() + " | Push: " + pushResult.message(),
+                null
+        );
     }
 
     @Override
@@ -289,15 +471,56 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     }
 
     private SyncResult pushToDify(ExternalIntegration integration, List<Map<String, Object>> documents) {
-        // 实现 Dify 推送逻辑
         try {
             if (documents == null || documents.isEmpty()) {
                 return new SyncResult(true, 0, 0, 0, "No documents to push", null);
             }
 
-            log.info("Dify pushing {} documents", documents.size());
-            return new SyncResult(true, documents.size(), documents.size(), 0,
-                "Dify push completed", null);
+            String endpoint = integration.getBaseUrl();
+            String apiKey = getAuthConfigValue(integration, "apiKey");
+            String datasetId = getAuthConfigValue(integration, "datasetId");
+
+            if (endpoint == null || apiKey == null) {
+                return new SyncResult(false, 0, 0, 0, "Dify endpoint or apiKey not configured", null);
+            }
+
+            // 没有指定 datasetId 时，取第一个知识库
+            String targetDatasetId = datasetId;
+            if (targetDatasetId == null || targetDatasetId.isEmpty()) {
+                var datasets = difyApiClient.listDatasets(endpoint, apiKey);
+                if (datasets.isEmpty()) {
+                    return new SyncResult(false, 0, 0, 0, "No Dify dataset found to push documents", null);
+                }
+                targetDatasetId = datasets.get(0).getId();
+            }
+
+            int added = 0, updated = 0, deleted = 0;
+
+            for (Map<String, Object> doc : documents) {
+                String changeType = (String) doc.get("changeType");
+                String docId = (String) doc.get("documentId");
+                String docName = (String) doc.get("fileName");
+                String content = (String) doc.get("content");
+
+                if ("DELETE".equals(changeType)) {
+                    boolean ok = difyApiClient.deleteDocument(endpoint, apiKey, targetDatasetId, docId);
+                    if (ok) deleted++;
+                    else log.warn("Failed to delete document {} from Dify", docId);
+                } else if ("ADDED".equals(changeType)) {
+                    String newId = difyApiClient.createDocument(endpoint, apiKey, targetDatasetId, docName, content);
+                    if (newId != null) {
+                        difyApiClient.uploadDocumentContent(endpoint, apiKey, targetDatasetId, newId, content);
+                        added++;
+                    }
+                } else if ("UPDATED".equals(changeType)) {
+                    String newId = difyApiClient.updateDocument(endpoint, apiKey, targetDatasetId, docId, docName, content);
+                    if (newId != null) updated++;
+                }
+            }
+
+            log.info("Dify push completed: added={}, updated={}, deleted={}", added, updated, deleted);
+            return new SyncResult(true, added, updated, deleted,
+                String.format("Dify push completed: +%d ~%d -%d", added, updated, deleted), null);
         } catch (Exception e) {
             log.error("Dify push failed: {}", e.getMessage());
             return new SyncResult(false, 0, 0, 0, "Dify push failed: " + e.getMessage(), null);
@@ -305,10 +528,38 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
     }
 
     private List<Map<String, Object>> retrieveFromDify(ExternalIntegration integration, String query, int topK) {
-        // 实现 Dify 检索逻辑
         try {
-            log.info("Dify retrieval for query: {}", query);
-            return List.of(); // 需要调用 Dify 检索 API
+            String endpoint = integration.getBaseUrl();
+            String apiKey = getAuthConfigValue(integration, "apiKey");
+            String datasetId = getAuthConfigValue(integration, "datasetId");
+
+            if (endpoint == null || apiKey == null) {
+                log.warn("Dify retrieve called without endpoint or apiKey configured");
+                return List.of();
+            }
+
+            // 没有指定 datasetId 时，遍历所有数据集检索并合并结果
+            if (datasetId == null || datasetId.isEmpty()) {
+                var datasets = difyApiClient.listDatasets(endpoint, apiKey);
+                List<Map<String, Object>> allResults = new ArrayList<>();
+                for (var ds : datasets) {
+                    var results = difyApiClient.retrieveFromDataset(endpoint, apiKey, ds.getId(), query, topK);
+                    for (Map<String, Object> r : results) {
+                        r.put("datasetId", ds.getId());
+                        r.put("datasetName", ds.getName());
+                    }
+                    allResults.addAll(results);
+                }
+                log.info("Dify retrieval query '{}' returned {} results across {} datasets",
+                        query, allResults.size(), datasets.size());
+                return allResults;
+            }
+
+            List<Map<String, Object>> results = difyApiClient.retrieveFromDataset(
+                    endpoint, apiKey, datasetId, query, topK);
+            log.info("Dify retrieval query '{}' returned {} results from dataset {}",
+                    query, results.size(), datasetId);
+            return results;
         } catch (Exception e) {
             log.error("Dify retrieval failed: {}", e.getMessage());
             return List.of();
@@ -340,12 +591,41 @@ public class ExternalIntegrationServiceImpl implements ExternalIntegrationServic
             return null;
         }
         try {
-            Map<String, Object> config = objectMapper.readValue(authConfig, Map.class);
+            String decrypted = encryptionUtil.decrypt(authConfig);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> config = objectMapper.readValue(decrypted, Map.class);
             Object value = config.get(key);
             return value != null ? value.toString() : null;
         } catch (Exception e) {
             log.warn("Failed to parse authConfig for key {}: {}", key, e.getMessage());
             return null;
         }
+    }
+
+    private void logAudit(Long integrationId, String name, String action, String before, String after) {
+        try {
+            IntegrationAuditLog audit = IntegrationAuditLog.builder()
+                    .integrationId(integrationId)
+                    .integrationName(name)
+                    .action(action)
+                    .operator(getAuditOperator())
+                    .beforeState(before)
+                    .afterState(after)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            auditLogRepository.save(audit);
+        } catch (Exception e) {
+            log.warn("Failed to write integration audit log: {}", e.getMessage());
+        }
+    }
+
+    private String getAuditOperator() {
+        try {
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                return auth.getName();
+            }
+        } catch (Exception ignored) {}
+        return "anonymous";
     }
 }

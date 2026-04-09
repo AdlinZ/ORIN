@@ -68,6 +68,25 @@
       </el-col>
     </el-row>
 
+    <el-card shadow="never" class="chat-entry-card">
+      <template #header>
+        <div class="chat-entry-title">
+          协作对话入口
+        </div>
+      </template>
+      <el-input
+        v-model="chatIntent"
+        type="textarea"
+        :rows="3"
+        placeholder="输入任务目标，跳转到智能体工作台继续对话"
+      />
+      <div class="chat-entry-actions">
+        <el-button type="primary" @click="goToWorkspace">
+          去工作台对话
+        </el-button>
+      </div>
+    </el-card>
+
     <!-- 任务列表 -->
     <el-card class="task-card" shadow="never">
       <el-table v-loading="loading" :data="tasks" stripe>
@@ -203,14 +222,18 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Connection, Loading, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import PageHeader from '@/components/PageHeader.vue'
+import { ROUTES } from '@/router/routes'
 import { getAgentList } from '@/api/agent'
 import request from '@/utils/request'
 
+const router = useRouter()
 const loading = ref(false)
 const tasks = ref([])
 const agentList = ref([])
 const showCreateDialog = ref(false)
+const chatIntent = ref('')
 
 const form = ref({
   name: '',
@@ -316,6 +339,14 @@ const deleteTask = async (id) => {
   }
 }
 
+const goToWorkspace = () => {
+  const prompt = chatIntent.value.trim()
+  router.push({
+    path: ROUTES.AGENTS.WORKSPACE,
+    query: prompt ? { prompt } : {}
+  })
+}
+
 // 辅助函数
 const getStatusTag = (status) => {
   const map = { PENDING: 'info', RUNNING: 'warning', COMPLETED: 'success', FAILED: 'danger' }
@@ -355,6 +386,20 @@ onMounted(() => {
 
 .stats-row {
   margin-bottom: 24px;
+}
+
+.chat-entry-card {
+  margin-bottom: 24px;
+}
+
+.chat-entry-title {
+  font-weight: 600;
+}
+
+.chat-entry-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .stat-card {

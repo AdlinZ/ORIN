@@ -50,8 +50,21 @@ public class CollaborationOrchestratorController {
         String priority = (String) request.getOrDefault("priority", "NORMAL");
         String complexity = (String) request.getOrDefault("complexity", "SIMPLE");
         String mode = (String) request.getOrDefault("collaborationMode", "SEQUENTIAL");
+        Map<String, Object> strategyOverrides = new HashMap<>();
+        copyIfPresent(request, strategyOverrides, "mainAgentPolicy");
+        copyIfPresent(request, strategyOverrides, "qualityThreshold");
+        copyIfPresent(request, strategyOverrides, "maxCritiqueRounds");
+        copyIfPresent(request, strategyOverrides, "draftParallelism");
+        copyIfPresent(request, strategyOverrides, "mainAgentStaticDefault");
+        copyIfPresent(request, strategyOverrides, "staticMainAgent");
+        copyIfPresent(request, strategyOverrides, "bidWhitelist");
+        copyIfPresent(request, strategyOverrides, "bidWeightReasoning");
+        copyIfPresent(request, strategyOverrides, "bidWeightSpeed");
+        copyIfPresent(request, strategyOverrides, "bidWeightCost");
 
-        CollaborationPackage pkg = orchestrator.createPackage(intent, category, priority, complexity, mode, userId, traceId);
+        CollaborationPackage pkg = orchestrator.createPackage(
+                intent, category, priority, complexity, mode, userId, traceId, strategyOverrides
+        );
         return ResponseEntity.ok(pkg);
     }
 
@@ -602,6 +615,12 @@ public class CollaborationOrchestratorController {
         } catch (Exception e) {
             log.error("safeUpdateSubtaskStatus failed: packageId={}, subTaskId={}, targetStatus={}",
                     packageId, subTaskId, targetStatus, e);
+        }
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source.containsKey(key) && source.get(key) != null) {
+            target.put(key, source.get(key));
         }
     }
 }

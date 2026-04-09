@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -89,6 +90,40 @@ class CollaborationOrchestratorTest {
 
         verify(packageRepository).save(any(CollaborationPackageEntity.class));
         verify(eventBus).publishPackageCreated(anyString(), eq("分析这个代码库的结构"), eq("trace-001"));
+    }
+
+    @Test
+    @DisplayName("F2.1 - 创建协作包支持主 Agent 策略参数")
+    void testCreatePackage_withMainAgentStrategyOverrides() {
+        when(packageRepository.save(any(CollaborationPackageEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        CollaborationPackage pkg = orchestrator.createPackage(
+                "生成方案草案",
+                "GENERATION",
+                "HIGH",
+                "COMPLEX",
+                "PARALLEL",
+                "test-user",
+                "trace-override-001",
+                Map.of(
+                        "mainAgentPolicy", "STATIC_THEN_BID",
+                        "qualityThreshold", 0.9,
+                        "maxCritiqueRounds", 5,
+                        "draftParallelism", 6,
+                        "bidWhitelist", List.of("agent-a", "agent-b"),
+                        "bidWeightReasoning", 0.7,
+                        "bidWeightSpeed", 0.2,
+                        "bidWeightCost", 0.1
+                )
+        );
+
+        assertNotNull(pkg.getStrategy());
+        assertEquals("STATIC_THEN_BID", pkg.getStrategy().getMainAgentPolicy());
+        assertEquals(0.9, pkg.getStrategy().getQualityThreshold());
+        assertEquals(5, pkg.getStrategy().getMaxCritiqueRounds());
+        assertEquals(6, pkg.getStrategy().getDraftParallelism());
+        assertEquals(List.of("agent-a", "agent-b"), pkg.getStrategy().getBidWhitelist());
     }
 
     @Test

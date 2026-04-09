@@ -671,7 +671,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import {
   ArrowDown,
@@ -720,6 +720,7 @@ const props = defineProps({
   }
 });
 const router = useRouter();
+const route = useRoute();
 marked.setOptions({
   gfm: true,
   breaks: true
@@ -992,6 +993,21 @@ const getMcpServiceName = (serviceId) => {
 
 const applyPrompt = (prompt) => {
   inputMessage.value = prompt;
+};
+
+const applyRoutePromptIfExists = async () => {
+  const prompt = typeof route.query?.prompt === 'string' ? route.query.prompt.trim() : '';
+  if (!prompt) return;
+  inputMessage.value = prompt;
+  await nextTick();
+  scrollToBottom();
+  // 消费一次后移除 query，避免刷新重复填充
+  const nextQuery = { ...route.query };
+  delete nextQuery.prompt;
+  router.replace({
+    path: route.path,
+    query: nextQuery
+  });
 };
 
 const updateSessionTitleLocally = (content) => {
@@ -1563,6 +1579,7 @@ onMounted(async () => {
       await createSessionForAgent(agentToRestore);
     }
   }
+  await applyRoutePromptIfExists();
 });
 
 onUnmounted(() => {

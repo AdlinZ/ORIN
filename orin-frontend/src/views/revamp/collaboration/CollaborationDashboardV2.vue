@@ -49,6 +49,25 @@
       </el-col>
     </el-row>
 
+    <el-card shadow="never" class="chat-entry-card">
+      <template #header>
+        <div class="side-header">
+          协作对话入口
+        </div>
+      </template>
+      <el-input
+        v-model="chatIntent"
+        type="textarea"
+        :rows="3"
+        placeholder="输入你的协作意图，跳转到智能体工作台继续对话"
+      />
+      <div class="chat-entry-actions">
+        <el-button type="primary" @click="goToWorkspace">
+          去工作台对话
+        </el-button>
+      </div>
+    </el-card>
+
     <el-row :gutter="16">
       <el-col :xs="24" :lg="15">
         <el-card shadow="never">
@@ -144,11 +163,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import StatCard from '@/components/StatCard.vue'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinTaskTimeline from '@/components/orin/OrinTaskTimeline.vue'
+import { ROUTES } from '@/router/routes'
 import {
   createCollaborationPackage,
   getAllPackages,
@@ -167,6 +188,7 @@ import {
 } from '@/viewmodels'
 
 const statuses = ['PLANNING', 'DECOMPOSING', 'EXECUTING', 'CONSENSUS', 'COMPLETED', 'FAILED', 'FALLBACK']
+const router = useRouter()
 
 const packagesState = reactive(createAsyncState())
 const timelineState = reactive(createAsyncState({ status: 'empty' }))
@@ -176,6 +198,7 @@ const statusFilter = ref('')
 const packages = ref([])
 const timeline = ref([])
 const activePackage = ref(null)
+const chatIntent = ref('')
 
 const showCreate = ref(false)
 const creating = ref(false)
@@ -254,6 +277,14 @@ const createPackage = async () => {
   }
 }
 
+const goToWorkspace = () => {
+  const prompt = chatIntent.value.trim()
+  router.push({
+    path: ROUTES.AGENTS.WORKSPACE,
+    query: prompt ? { prompt } : {}
+  })
+}
+
 const formatTime = (value) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-'
 
 const statusTag = (status) => {
@@ -273,6 +304,16 @@ onMounted(loadAll)
 <style scoped>
 .stats-row {
   margin-bottom: 16px;
+}
+
+.chat-entry-card {
+  margin-bottom: 16px;
+}
+
+.chat-entry-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .side-header {

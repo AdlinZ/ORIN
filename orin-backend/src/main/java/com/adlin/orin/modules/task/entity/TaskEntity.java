@@ -29,7 +29,14 @@ public class TaskEntity {
     @Column(name = "task_id", nullable = false, unique = true, length = 64)
     private String taskId;
 
-    @Column(name = "workflow_id", nullable = false)
+    /**
+     * 任务类别: WORKFLOW, SYNC
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_category", nullable = false, length = 20)
+    private TaskCategory taskCategory;
+
+    @Column(name = "workflow_id")
     private Long workflowId;
 
     @Column(name = "workflow_instance_id")
@@ -109,6 +116,19 @@ public class TaskEntity {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 任务类别枚举
+     */
+    public enum TaskCategory {
+        WORKFLOW("工作流"),
+        SYNC("同步任务");
+
+        private final String description;
+        TaskCategory(String description) {
+            this.description = description;
+        }
     }
 
     /**

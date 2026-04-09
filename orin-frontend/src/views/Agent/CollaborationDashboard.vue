@@ -397,7 +397,11 @@ const createForm = reactive({
   category: 'GENERATION',
   priority: 'NORMAL',
   complexity: 'MEDIUM',
-  collaborationMode: 'SEQUENTIAL'
+  collaborationMode: 'SEQUENTIAL',
+  mainAgentPolicy: 'STATIC_THEN_BID',
+  qualityThreshold: 0.82,
+  maxCritiqueRounds: 3,
+  draftParallelism: 4
 })
 
 // 统计数据
@@ -469,6 +473,10 @@ const createPackage = async () => {
     createForm.priority = 'NORMAL'
     createForm.complexity = 'MEDIUM'
     createForm.collaborationMode = 'SEQUENTIAL'
+    createForm.mainAgentPolicy = 'STATIC_THEN_BID'
+    createForm.qualityThreshold = 0.82
+    createForm.maxCritiqueRounds = 3
+    createForm.draftParallelism = 4
   } catch (error) {
     ElMessage.error('创建失败')
   } finally {

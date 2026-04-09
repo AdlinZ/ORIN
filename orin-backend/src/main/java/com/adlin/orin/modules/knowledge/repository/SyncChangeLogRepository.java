@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SyncChangeLogRepository extends JpaRepository<SyncChangeLog, Long> {
@@ -30,4 +31,6 @@ public interface SyncChangeLogRepository extends JpaRepository<SyncChangeLog, Lo
     int markAllSynced(@Param("agentId") String agentId);
 
     long countByAgentIdAndSyncedFalse(String agentId);
+
+    Optional<SyncChangeLog> findByIdempotencyKey(String idempotencyKey);
 }

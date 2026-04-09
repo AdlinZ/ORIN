@@ -53,8 +53,8 @@ else
     echo -e "${YELLOW}⚠ Some Python dependencies missing (install if needed)${NC}"
 fi
 
-# 4. 测试文件统计
-echo -e "${YELLOW}[4/4] Test Coverage Summary...${NC}"
+# 4. 测试文件统计 + DifySync 单元测试
+echo -e "${YELLOW}[4/4] Test Coverage Summary + DifySync Unit Tests...${NC}"
 AGENT_TESTS=$(find "$ORIN_ROOT/orin-backend/src/test" -name "*Agent*Test.java" | wc -l)
 KNOWLEDGE_TESTS=$(find "$ORIN_ROOT/orin-backend/src/test" -name "*Knowledge*Test.java" | wc -l)
 WORKFLOW_TESTS=$(find "$ORIN_ROOT/orin-backend/src/test" -name "*Workflow*Test.java" | wc -l)
@@ -64,6 +64,31 @@ echo "  Agent tests: $AGENT_TESTS"
 echo "  Knowledge tests: $KNOWLEDGE_TESTS"
 echo "  Workflow tests: $WORKFLOW_TESTS"
 echo "  Collaboration tests: $COLLAB_TESTS"
+
+# DifyApiClient 单元测试
+echo -e "${YELLOW}  Running DifyApiClient unit tests...${NC}"
+cd "$ORIN_ROOT/orin-backend"
+DIFY_TEST_OUTPUT=$(mvn test -Dtest=DifyApiClientTest 2>&1)
+DIFY_TEST_RESULT=$(echo "$DIFY_TEST_OUTPUT" | grep -E "Tests run" | tail -1 || echo "")
+if echo "$DIFY_TEST_RESULT" | grep -q "Failures: 0, Errors: 0"; then
+    echo -e "${GREEN}  ✓ DifyApiClient unit tests PASS ($DIFY_TEST_RESULT)${NC}"
+else
+    echo -e "${RED}  ✗ DifyApiClient unit tests FAIL${NC}"
+    echo "$DIFY_TEST_RESULT"
+    FAILED=1
+fi
+
+# SideClientSyncService 单元测试
+echo -e "${YELLOW}  Running SideClientSyncService unit tests...${NC}"
+SIDE_TEST_OUTPUT=$(mvn test -Dtest=SideClientSyncServiceTest 2>&1)
+SIDE_TEST_RESULT=$(echo "$SIDE_TEST_OUTPUT" | grep -E "Tests run" | tail -1 || echo "")
+if echo "$SIDE_TEST_RESULT" | grep -q "Failures: 0, Errors: 0"; then
+    echo -e "${GREEN}  ✓ SideClientSyncService unit tests PASS ($SIDE_TEST_RESULT)${NC}"
+else
+    echo -e "${RED}  ✗ SideClientSyncService unit tests FAIL${NC}"
+    echo "$SIDE_TEST_RESULT"
+    FAILED=1
+fi
 
 echo ""
 if [ "$FAILED" -eq 0 ]; then

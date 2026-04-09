@@ -297,5 +297,50 @@ public class CollaborationPackage {
          * 是否启用事件驱动
          */
         private Boolean enableEventDriven;
+
+        /**
+         * 主 Agent 策略：STATIC_ONLY, STATIC_THEN_BID
+         */
+        private String mainAgentPolicy;
+
+        /**
+         * 静态主 Agent（可选）
+         */
+        private String mainAgentStaticDefault;
+
+        /**
+         * 动态竞标候选白名单
+         */
+        private List<String> bidWhitelist;
+
+        /**
+         * 竞标权重：推理能力
+         */
+        private Double bidWeightReasoning;
+
+        /**
+         * 竞标权重：速度
+         */
+        private Double bidWeightSpeed;
+
+        /**
+         * 竞标权重：成本
+         */
+        private Double bidWeightCost;
+
+        /**
+         * 质量阈值（Critique 收敛）
+         */
+        private Double qualityThreshold;
+
+        /**
+         * 最大 Critique 轮次
+         */
+        private Integer maxCritiqueRounds;
+
+        /**
+         * Draft 并行度
+         */
+        private Integer draftParallelism;
     }
 }

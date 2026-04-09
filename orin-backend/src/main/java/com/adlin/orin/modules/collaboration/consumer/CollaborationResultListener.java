@@ -77,11 +77,23 @@ public class CollaborationResultListener {
                     null
             );
 
+            // 并行 fan-in：原子写入分支结果并递增计数
+            long branchCounter = redisService.writeBranchResultAndIncrement(
+                    result.getPackageId(),
+                    result.getSubTaskId(),
+                    Map.of(
+                            "result", result.getResult(),
+                            "status", result.getStatus(),
+                            "attempt", result.getAttempt() != null ? result.getAttempt() : 0
+                    )
+            );
+
             // 记录 metrics
             recordMetrics(result);
 
             log.info("Subtask completed via MQ: packageId={}, subTaskId={}",
                     result.getPackageId(), result.getSubTaskId());
+            log.debug("Branch counter updated: packageId={}, counter={}", result.getPackageId(), branchCounter);
 
         } else {
             // 失败或超时 - 检查是否需要重试

@@ -120,7 +120,9 @@ export const getServerInfoList = () => {
 };
 
 export const getServerInfo = (serverId) => {
-    return request.get(`/monitor/server-info/${serverId}`);
+    return request.get('/monitor/server-info', {
+        params: { serverId }
+    });
 };
 
 export const createServerInfo = (data) => {
@@ -132,7 +134,9 @@ export const updateServerInfo = (data) => {
 };
 
 export const deleteServerInfo = (serverId) => {
-    return request.delete(`/monitor/server-info/${serverId}`);
+    return request.delete('/monitor/server-info', {
+        params: { serverId }
+    });
 };
 
 // Token Stats Dashboard APIs
@@ -192,6 +196,14 @@ export const getSystemHealth = () => {
 
 export const getSchedulerStatus = () => {
     return request.get('/scheduler/status');
+};
+
+export const getSystemProperties = (config = {}) => {
+    return request.get('/monitor/system/properties', config);
+};
+
+export const updateSystemProperties = (properties) => {
+    return request.post('/monitor/system/properties', properties);
 };
 
 // ==================== Local Server Info ====================

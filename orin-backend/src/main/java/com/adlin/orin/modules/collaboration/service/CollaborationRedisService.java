@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -106,10 +108,17 @@ public class CollaborationRedisService {
      * 获取分布式锁
      */
     public boolean acquireLock(String packageId, String subTaskId, Duration timeout) {
+        return acquireLockWithToken(packageId, subTaskId, "locked", timeout);
+    }
+
+    /**
+     * 获取分布式锁（带 token）
+     */
+    public boolean acquireLockWithToken(String packageId, String subTaskId, String token, Duration timeout) {
         String lockKey = String.format(LOCK_PREFIX, packageId, subTaskId);
         Duration effectiveTimeout = timeout != null ? timeout : LOCK_TTL;
         Boolean acquired = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey, "locked", effectiveTimeout);
+                .setIfAbsent(lockKey, token, effectiveTimeout);
         return Boolean.TRUE.equals(acquired);
     }
 
@@ -120,6 +129,24 @@ public class CollaborationRedisService {
         String lockKey = String.format(LOCK_PREFIX, packageId, subTaskId);
         redisTemplate.delete(lockKey);
         log.debug("Released lock: {}", lockKey);
+    }
+
+    /**
+     * 释放分布式锁（token 校验）
+     */
+    public boolean releaseLockWithToken(String packageId, String subTaskId, String token) {
+        String lockKey = String.format(LOCK_PREFIX, packageId, subTaskId);
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setResultType(Long.class);
+        script.setScriptText(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+                "  return redis.call('del', KEYS[1]) " +
+                "else " +
+                "  return 0 " +
+                "end"
+        );
+        Long deleted = redisTemplate.execute(script, List.of(lockKey), token);
+        return deleted != null && deleted > 0;
     }
 
     /**
@@ -142,6 +169,47 @@ public class CollaborationRedisService {
             redisTemplate.expire(key, CTX_TTL);
         }
         return counter != null ? counter : 0;
+    }
+
+    /**
+     * 原子写入分支结果并递增分支计数
+     */
+    public long writeBranchResultAndIncrement(String packageId, String subTaskId, Object result) {
+        String ctxKey = String.format(CTX_PREFIX, packageId);
+        String counterKey = String.format(BRANCH_COUNTER_PREFIX, packageId);
+        String resultField = "branch_result:" + subTaskId;
+
+        String resultJson;
+        try {
+            resultJson = objectMapper.writeValueAsString(result);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize branch result", e);
+        }
+
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setResultType(Long.class);
+        script.setScriptText(
+                "local ctxRaw = redis.call('GET', KEYS[1]) " +
+                "local ctx = {} " +
+                "if ctxRaw and ctxRaw ~= '' then " +
+                "  local ok, decoded = pcall(cjson.decode, ctxRaw) " +
+                "  if ok and type(decoded) == 'table' then ctx = decoded end " +
+                "end " +
+                "ctx[ARGV[1]] = cjson.decode(ARGV[2]) " +
+                "redis.call('SET', KEYS[1], cjson.encode(ctx), 'EX', ARGV[3]) " +
+                "local counter = redis.call('INCR', KEYS[2]) " +
+                "if counter == 1 then redis.call('EXPIRE', KEYS[2], ARGV[3]) end " +
+                "return counter"
+        );
+
+        Long counter = redisTemplate.execute(
+                script,
+                List.of(ctxKey, counterKey),
+                resultField,
+                resultJson,
+                String.valueOf(CTX_TTL.toSeconds())
+        );
+        return counter != null ? counter : 0L;
     }
 
     /**

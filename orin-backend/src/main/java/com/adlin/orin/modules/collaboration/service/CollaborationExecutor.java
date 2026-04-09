@@ -5,12 +5,17 @@ import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.config.CollaborationOrchestrationMode;
 import com.adlin.orin.modules.collaboration.consumer.CollaborationResultListener;
 import com.adlin.orin.modules.collaboration.dto.CollabTaskMessage;
+import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.collaboration.metrics.CollaborationMetricsService;
 import com.adlin.orin.modules.collaboration.producer.CollaborationMQProducer;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
+import com.adlin.orin.modules.collaboration.service.selection.AgentSelectionContext;
+import com.adlin.orin.modules.collaboration.service.selection.AgentSelectionResult;
+import com.adlin.orin.modules.collaboration.service.selection.BiddingSelector;
+import com.adlin.orin.modules.collaboration.service.selection.StaticSelector;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,8 +23,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 协作任务执行器 - 负责执行子任务，调用智能体或工作流
@@ -42,6 +49,8 @@ public class CollaborationExecutor {
     private final CollaborationPackageRepository packageRepository;
     private final CollaborationMemoryService memoryService;
     private final CollaborationRedisService redisService;
+    private final StaticSelector staticSelector;
+    private final BiddingSelector biddingSelector;
 
     // 角色 -> 能力关键词映射（从 agent name/description 中匹配）
     private static final Map<String, List<String>> ROLE_CAPABILITY_KEYWORDS = Map.of(
@@ -82,25 +91,37 @@ public class CollaborationExecutor {
 
         log.info("Executing subtask: {} for package: {} with role: {} (type: {})", subTaskId, packageId, expectedRole, executorType);
 
+        String lockToken = UUID.randomUUID().toString();
+        if (!redisService.acquireLockWithToken(packageId, subTaskId, lockToken, Duration.ofMinutes(30))) {
+            log.info("Skipped duplicate subtask execution due to lock: packageId={}, subTaskId={}", packageId, subTaskId);
+            return CompletableFuture.completedFuture("Subtask already in progress");
+        }
+
         // 获取协作模式，判断是否启用 MQ
         String collaborationMode = getCollaborationMode(packageId);
         boolean useMq = orchestrationMode.isMqEnabled(collaborationMode);
 
         // HUMAN 类型不支持 MQ，必须走本地执行
         if (EXECUTOR_TYPE_HUMAN.equals(executorType)) {
-            return executeHumanTask(subTaskId, description, packageId, traceId);
+            CompletableFuture<String> humanFuture = executeHumanTask(subTaskId, description, packageId, traceId);
+            humanFuture.whenComplete((r, e) -> redisService.releaseLockWithToken(packageId, subTaskId, lockToken));
+            return humanFuture;
         }
 
         // 检查是否启用 MQ 模式
         if (useMq) {
-            return executeViaMQ(subtask, packageId, traceId, collaborationMode);
+            CompletableFuture<String> mqFuture = executeViaMQ(subtask, packageId, traceId, collaborationMode);
+            mqFuture.whenComplete((r, e) -> redisService.releaseLockWithToken(packageId, subTaskId, lockToken));
+            return mqFuture;
         }
 
         // 回退到 Java 原生执行
-        return switch (executorType) {
+        CompletableFuture<String> localFuture = switch (executorType) {
             case EXECUTOR_TYPE_WORKFLOW -> executeWithWorkflow(subTaskId, description, expectedRole, packageId, traceId, subtask);
             default -> executeWithAgent(subTaskId, description, expectedRole, packageId, traceId);
         };
+        localFuture.whenComplete((r, e) -> redisService.releaseLockWithToken(packageId, subTaskId, lockToken));
+        return localFuture;
     }
 
     /**
@@ -299,43 +320,79 @@ public class CollaborationExecutor {
                 return future;
             }
 
-            // 根据 expectedRole 选择最匹配的 Agent（能力路由）
-            AgentMetadata selectedAgent = selectAgentByCapability(agents, expectedRole, description);
-            String agentId = selectedAgent.getAgentId();
-            log.info("Capability-routed agent: {} (role={}) for subtask: {}", agentId, expectedRole, subTaskId);
+            CollaborationPackage.ExecutionStrategy strategy = resolveExecutionStrategy(packageId);
+            String policy = strategy != null && strategy.getMainAgentPolicy() != null
+                    ? strategy.getMainAgentPolicy().toUpperCase(Locale.ROOT)
+                    : "STATIC_THEN_BID";
+            double qualityThreshold = strategy != null && strategy.getQualityThreshold() != null
+                    ? strategy.getQualityThreshold()
+                    : 0.82;
 
-            // 调用 Agent 执行任务
-            Optional<Object> response = agentManageService.chat(agentId, description, (String) null);
+            AgentSelectionContext selectionContext = AgentSelectionContext.builder()
+                    .packageId(packageId)
+                    .subTaskId(subTaskId)
+                    .expectedRole(expectedRole)
+                    .description(description)
+                    .qualityThreshold(qualityThreshold)
+                    .build();
 
-            if (response.isPresent()) {
-                String result = convertResponseToString(response.get());
+            AgentSelectionResult staticSelection = staticSelector.select(agents, selectionContext, strategy);
+            String staticAgentId = staticSelection.getSelectedAgentId();
+            String selectedAgentId = staticAgentId;
+            String selectionMode = "static";
+            String selectionReason = staticSelection.getSelectionReason();
+
+            AgentExecutionAttempt staticAttempt = executeAgentAttempt(staticAgentId, description, qualityThreshold);
+            AgentExecutionAttempt finalAttempt = staticAttempt;
+
+            if ("STATIC_THEN_BID".equals(policy) && shouldTriggerBidding(staticAttempt)) {
+                AgentSelectionResult bidSelection = biddingSelector.select(agents, selectionContext, strategy, staticAgentId);
+                String bidAgentId = bidSelection.getSelectedAgentId();
+                if (bidAgentId != null && !bidAgentId.isBlank()) {
+                    AgentExecutionAttempt bidAttempt = executeAgentAttempt(bidAgentId, description, qualityThreshold);
+                    selectedAgentId = bidAgentId;
+                    selectionMode = "bid";
+                    selectionReason = "fallback_after_static_" + staticAttempt.failureReason();
+                    finalAttempt = bidAttempt;
+                    writeSelectionAudit(packageId, subTaskId, bidSelection, selectionReason, staticSelection);
+                } else {
+                    writeSelectionAudit(packageId, subTaskId, staticSelection, "bid_no_candidate", null);
+                }
+            } else {
+                writeSelectionAudit(packageId, subTaskId, staticSelection, selectionReason, null);
+            }
+
+            if (finalAttempt.success()) {
+                String result = finalAttempt.result();
                 log.info("Agent execution completed for subtask: {}, result: {}", subTaskId,
                         result.length() > 100 ? result.substring(0, 100) + "..." : result);
 
-                // 记录完成到 Langfuse
                 long durationMs = System.currentTimeMillis() - startTime;
                 recordCollabEvent(traceId, subTaskId, "SUBTASK_COMPLETED", Map.of(
                         "packageId", packageId != null ? packageId : "",
-                        "agentId", agentId != null ? agentId : "",
+                        "agentId", selectedAgentId != null ? selectedAgentId : "",
+                        "selectionMode", selectionMode,
+                        "selectionReason", selectionReason != null ? selectionReason : "",
                         "durationMs", durationMs
                 ));
 
-                // 记录指标
                 metricsService.recordSubtask(packageId, subTaskId, expectedRole, durationMs, "COMPLETED");
-
-                // 发布子任务完成事件
-                eventBus.publishSubtaskCompleted(packageId, subTaskId, agentId,
-                        Map.of("result", result, "agentId", agentId), traceId);
-
+                eventBus.publishSubtaskCompleted(packageId, subTaskId, selectedAgentId,
+                        Map.of(
+                                "result", result,
+                                "agentId", selectedAgentId != null ? selectedAgentId : "",
+                                "selectedAgentId", selectedAgentId != null ? selectedAgentId : "",
+                                "selectionMode", selectionMode,
+                                "selectionReason", selectionReason != null ? selectionReason : ""
+                        ), traceId);
                 future.complete(result);
             } else {
-                String errorResult = "Agent execution returned empty response";
-                log.warn(errorResult);
-                future.complete(errorResult);
-                eventBus.publishSubtaskCompleted(packageId, subTaskId, agentId,
-                        Map.of("result", errorResult), traceId);
+                String errorMessage = "Agent execution failed: " + finalAttempt.failureReason();
+                log.warn("Subtask {} failed with policy {}: {}", subTaskId, policy, errorMessage);
+                eventBus.publishSubtaskFailed(packageId, subTaskId, selectedAgentId, errorMessage, traceId);
                 metricsService.recordSubtask(packageId, subTaskId, expectedRole,
                         System.currentTimeMillis() - startTime, "FAILED");
+                future.completeExceptionally(new RuntimeException(errorMessage));
             }
 
         } catch (Exception e) {
@@ -349,6 +406,102 @@ public class CollaborationExecutor {
         }
 
         return future;
+    }
+
+    private AgentExecutionAttempt executeAgentAttempt(String agentId, String prompt, double qualityThreshold) {
+        if (agentId == null || agentId.isBlank()) {
+            return AgentExecutionAttempt.failed("no_selected_agent");
+        }
+        try {
+            Optional<Object> response = CompletableFuture
+                    .supplyAsync(() -> agentManageService.chat(agentId, prompt, (String) null))
+                    .orTimeout(60, TimeUnit.SECONDS)
+                    .join();
+            if (response == null || response.isEmpty()) {
+                return AgentExecutionAttempt.failed("empty_response");
+            }
+            String result = convertResponseToString(response.get());
+            if (result == null || result.isBlank()) {
+                return AgentExecutionAttempt.failed("blank_response");
+            }
+            double score = estimateQualityScore(result);
+            if (score < qualityThreshold) {
+                return AgentExecutionAttempt.failed("quality_below_threshold:" + score);
+            }
+            return AgentExecutionAttempt.success(result);
+        } catch (Exception e) {
+            return AgentExecutionAttempt.failed(e.getClass().getSimpleName() + ":" + e.getMessage());
+        }
+    }
+
+    private boolean shouldTriggerBidding(AgentExecutionAttempt attempt) {
+        return !attempt.success();
+    }
+
+    private double estimateQualityScore(String text) {
+        if (text == null || text.isBlank()) {
+            return 0.0;
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("failed") || lower.contains("error") || lower.contains("超时")) {
+            return 0.1;
+        }
+        int length = text.length();
+        if (length >= 1200) {
+            return 0.95;
+        }
+        if (length >= 600) {
+            return 0.86;
+        }
+        if (length >= 300) {
+            return 0.8;
+        }
+        if (length >= 100) {
+            return 0.72;
+        }
+        return 0.55;
+    }
+
+    private CollaborationPackage.ExecutionStrategy resolveExecutionStrategy(String packageId) {
+        return packageRepository.findByPackageId(packageId)
+                .map(CollaborationPackageEntity::getStrategy)
+                .filter(s -> s != null && !s.isBlank())
+                .map(s -> {
+                    try {
+                        return objectMapper.readValue(s, CollaborationPackage.ExecutionStrategy.class);
+                    } catch (Exception e) {
+                        log.warn("Failed to parse execution strategy for package {}: {}", packageId, e.getMessage());
+                        return null;
+                    }
+                })
+                .orElse(null);
+    }
+
+    private void writeSelectionAudit(String packageId, String subTaskId, AgentSelectionResult selection,
+                                     String overrideReason, AgentSelectionResult previous) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("selectedAgentId", selection != null ? selection.getSelectedAgentId() : null);
+        payload.put("selectionMode", selection != null ? selection.getSelectionMode() : null);
+        payload.put("selectionReason", overrideReason != null ? overrideReason :
+                (selection != null ? selection.getSelectionReason() : null));
+        payload.put("scoreBreakdown", selection != null ? selection.getScoreBreakdown() : Map.of());
+        payload.put("candidates", selection != null ? selection.getCandidates() : List.of());
+        if (previous != null) {
+            payload.put("previousSelection", previous);
+        }
+        payload.put("timestamp", System.currentTimeMillis());
+        memoryService.writeToBlackboard(packageId, "selection_last", payload);
+        memoryService.writeToBlackboard(packageId, "selection_" + subTaskId, payload);
+    }
+
+    private record AgentExecutionAttempt(boolean success, String result, String failureReason) {
+        static AgentExecutionAttempt success(String result) {
+            return new AgentExecutionAttempt(true, result, null);
+        }
+
+        static AgentExecutionAttempt failed(String reason) {
+            return new AgentExecutionAttempt(false, null, reason);
+        }
     }
 
     /**

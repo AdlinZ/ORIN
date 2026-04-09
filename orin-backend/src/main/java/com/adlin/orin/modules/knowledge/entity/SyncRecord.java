@@ -82,4 +82,11 @@ public class SyncRecord {
      */
     @Column(name = "sync_direction", length = 10)
     private String syncDirection;
+
+    /**
+     * 冲突数量
+     */
+    @Column(name = "conflict_count")
+    @Builder.Default
+    private Integer conflictCount = 0;
 }

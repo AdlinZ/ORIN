@@ -266,7 +266,7 @@
                       <el-icon><Cpu /></el-icon>
                       <span>CPU 核心</span>
                     </div>
-                    <span class="status-value">{{ selectedServerInfo.cpuCores || 0 }} 核 / {{ selectedServerInfo.cpuLogicalCores || 0 }} 线程</span>
+                    <span class="status-value">{{ formatCount(selectedServerInfo.cpuCores) }} 核 / {{ formatLogicalCores(selectedServerInfo) }} 线程</span>
                   </div>
                 </div>
               </el-card>
@@ -297,16 +297,16 @@
                   <el-icon><Coin /></el-icon>
                   <span>内存使用</span>
                 </div>
-                <div class="metric-value">{{ formatBytes(memoryInfo.used) }}</div>
+                <div class="metric-value">{{ formatBytesOrNA(memoryInfo.used) }}</div>
                 <div class="metric-sub">
                   <span>已用</span>
                   <span class="divider">/</span>
-                  <span>{{ formatBytes(memoryInfo.total) }}</span>
+                  <span>{{ formatBytesOrNA(memoryInfo.total) }}</span>
                 </div>
                 <div class="metric-gauge">
                   <el-progress :percentage="memoryInfo.percent" :stroke-width="6" :show-text="false" :color="getUsageColor(memoryInfo.percent)" />
                 </div>
-                <div class="metric-label">可用: {{ formatBytes(memoryInfo.available) }} ({{ formatPercent(100 - memoryInfo.percent) }})</div>
+                <div class="metric-label">可用: {{ memoryInfo.total > 0 ? `${formatBytes(memoryInfo.available)} (${formatPercent(100 - memoryInfo.percent)})` : 'N/A' }}</div>
               </el-card>
             </el-col>
 
@@ -316,16 +316,16 @@
                   <el-icon><Folder /></el-icon>
                   <span>磁盘使用</span>
                 </div>
-                <div class="metric-value">{{ formatBytes(diskInfo.used) }}</div>
+                <div class="metric-value">{{ formatBytesOrNA(diskInfo.used) }}</div>
                 <div class="metric-sub">
                   <span>已用</span>
                   <span class="divider">/</span>
-                  <span>{{ formatBytes(diskInfo.total) }}</span>
+                  <span>{{ formatBytesOrNA(diskInfo.total) }}</span>
                 </div>
                 <div class="metric-gauge">
                   <el-progress :percentage="diskInfo.percent" :stroke-width="6" :show-text="false" :color="getUsageColor(diskInfo.percent)" />
                 </div>
-                <div class="metric-label">可用: {{ formatBytes(diskInfo.available) }}</div>
+                <div class="metric-label">可用: {{ diskInfo.total > 0 ? formatBytes(diskInfo.available) : 'N/A' }}</div>
               </el-card>
             </el-col>
 
@@ -337,9 +337,7 @@
                 </div>
                 <div class="metric-value">{{ formatPercent(gpuInfo.used) }}</div>
                 <div class="metric-sub">
-                  <span>显存: {{ formatBytes(gpuInfo.memoryUsed) }}</span>
-                  <span class="divider">/</span>
-                  <span>{{ formatBytes(gpuInfo.memoryTotal) }}</span>
+                  <span>显存: {{ selectedSnapshot.gpuMemory || `${formatBytesOrNA(gpuInfo.memoryUsed)} / ${formatBytesOrNA(gpuInfo.memoryTotal)}` }}</span>
                 </div>
                 <div class="metric-gauge">
                   <el-progress :percentage="gpuInfo.used || 0" :stroke-width="6" :show-text="false" :color="getUsageColor(gpuInfo.used)" />
@@ -374,15 +372,15 @@
                   </div>
                   <div class="info-item">
                     <span class="info-label">CPU 逻辑核心</span>
-                    <span class="info-value">{{ selectedServerInfo.cpuLogicalCores || 0 }} 线程</span>
+                    <span class="info-value">{{ formatLogicalCores(selectedServerInfo) }} 线程</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">总内存</span>
-                    <span class="info-value">{{ formatBytes(memoryInfo.total) }}</span>
+                    <span class="info-value">{{ formatBytesOrNA(memoryInfo.total) }}</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">进程数</span>
-                    <span class="info-value">{{ selectedServerInfo.processCount || 0 }}</span>
+                    <span class="info-value">{{ formatCount(selectedServerInfo.processCount) }}</span>
                   </div>
                   <div class="info-item wide">
                     <span class="info-label">GPU</span>
@@ -391,6 +389,46 @@
                   <div class="info-item wide">
                     <span class="info-label">磁盘</span>
                     <span class="info-value">{{ diskInfo.devices || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">实例 ID</span>
+                    <span class="info-value">{{ currentServerId || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">实例名称</span>
+                    <span class="info-value">{{ currentServerName || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">运行状态</span>
+                    <span class="info-value">{{ serverOnline ? '运行中' : '离线' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">数据源</span>
+                    <span class="info-value">{{ selectedNode?.prometheusUrl || '全局默认' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">公网 IP</span>
+                    <span class="info-value">{{ selectedNode?.publicIp || selectedNode?.publicIP || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">私网 IP</span>
+                    <span class="info-value">{{ selectedNode?.privateIp || selectedNode?.privateIP || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">地域</span>
+                    <span class="info-value">{{ selectedNode?.region || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">规格族</span>
+                    <span class="info-value">{{ selectedNode?.instanceFamily || selectedNode?.flavor || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item wide">
+                    <span class="info-label">镜像</span>
+                    <span class="info-value">{{ selectedNode?.image || selectedNode?.imageName || 'N/A' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">到期时间</span>
+                    <span class="info-value">{{ formatDateTime(selectedNode?.expireAt || selectedNode?.expiredAt || selectedNode?.expireTime) }}</span>
                   </div>
                 </div>
               </el-card>
@@ -533,24 +571,79 @@
       </div>
     </main>
 
-    <el-dialog v-model="nodeDialogVisible" :title="isEditingNode ? '编辑节点' : '添加节点'" width="500px" append-to-body>
-      <el-form :model="nodeForm" label-width="100px" ref="nodeFormRef">
-        <el-form-item label="节点ID" prop="serverId">
-          <el-input v-model="nodeForm.serverId" placeholder="如: node-01" :disabled="isEditingNode" />
-        </el-form-item>
-        <el-form-item label="节点名称" prop="serverName">
-          <el-input v-model="nodeForm.serverName" placeholder="如: 北京服务器-1" />
-        </el-form-item>
-        <el-form-item label="Prometheus URL" prop="prometheusUrl">
-          <el-input v-model="nodeForm.prometheusUrl" placeholder="如: http://192.168.1.100:9090" />
-        </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="nodeForm.remark" type="textarea" placeholder="可选备注信息" />
-        </el-form-item>
+    <el-dialog v-model="nodeDialogVisible" width="640px" append-to-body class="node-dialog">
+      <template #header>
+        <div class="node-dialog-header">
+          <div class="node-dialog-title">{{ isEditingNode ? '编辑节点' : '添加节点' }}</div>
+          <div class="node-dialog-subtitle">配置节点标识、展示名称和可选 Prometheus 地址。</div>
+        </div>
+      </template>
+      <el-form :model="nodeForm" label-position="top" ref="nodeFormRef" class="node-form">
+        <div class="node-form-section">
+          <div class="section-title">基础信息</div>
+          <div class="section-grid">
+            <el-form-item label="节点 ID" prop="serverId" required>
+              <el-input
+                v-model="nodeForm.serverId"
+                placeholder="自动生成，如: ORIN-20260409153000-A1B2"
+                :disabled="isEditingNode"
+                readonly
+                maxlength="128"
+                show-word-limit
+              >
+                <template #append>
+                  <el-button :disabled="isEditingNode" @click="regenerateNodeId">重新生成</el-button>
+                </template>
+              </el-input>
+              <div class="field-tip">保存后作为唯一标识，建议保持稳定且可读。</div>
+            </el-form-item>
+            <el-form-item label="节点名称" prop="serverName">
+              <el-input
+                v-model="nodeForm.serverName"
+                placeholder="如: 北京 GPU 节点"
+                maxlength="64"
+                show-word-limit
+              />
+            </el-form-item>
+          </div>
+        </div>
+
+        <div class="node-form-section">
+          <div class="section-title">数据源配置</div>
+          <el-form-item label="Prometheus URL（可选）" prop="prometheusUrl">
+            <el-input
+              v-model="nodeForm.prometheusUrl"
+              placeholder="如: http://192.168.1.100:9090"
+              clearable
+            />
+            <div class="field-tip">填写后该节点优先使用此地址；留空则走全局默认配置。</div>
+          </el-form-item>
+          <el-alert
+            v-if="nodeForm.prometheusUrl.trim() && !nodePrometheusUrlValid"
+            title="Prometheus URL 格式不正确，请使用 http:// 或 https:// 开头的完整地址。"
+            type="warning"
+            :closable="false"
+            show-icon
+          />
+        </div>
+
+        <div class="node-form-section">
+          <div class="section-title">备注信息</div>
+          <el-form-item label="备注" prop="remark">
+            <el-input
+              v-model="nodeForm.remark"
+              type="textarea"
+              :rows="3"
+              maxlength="200"
+              show-word-limit
+              placeholder="可选：用途、机房位置、负责人等"
+            />
+          </el-form-item>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="nodeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveNode" :loading="nodeDialogLoading">保存</el-button>
+        <el-button type="primary" @click="saveNode" :loading="nodeDialogLoading" :disabled="!canSubmitNodeForm">保存</el-button>
       </template>
     </el-dialog>
 
@@ -565,6 +658,18 @@
               </div>
             </div>
             <el-switch v-model="prometheusConfig.enabled" />
+          </div>
+        </el-form-item>
+
+        <el-form-item label="自动采集任务">
+          <div class="config-switch-row">
+            <div>
+              <div class="config-switch-title">后台定时自动采集硬件数据</div>
+              <div class="config-switch-desc">
+                默认开启，每分钟采集一次。修改后需要重启后端服务才会生效。
+              </div>
+            </div>
+            <el-switch v-model="hardwareAutoCollectEnabled" />
           </div>
         </el-form-item>
 
@@ -641,13 +746,16 @@ import {
   createServerInfo,
   deleteServerInfo,
   getPrometheusConfig,
+  getPrometheusServerStatus,
   getServerHardwareHistory,
   getServerHardwareTrend,
   getServerInfoList,
   getServerNodes,
+  getSystemProperties,
   testPrometheusConnection,
   updatePrometheusConfig,
-  updateServerInfo
+  updateServerInfo,
+  updateSystemProperties
 } from '@/api/monitor';
 import { ROUTES } from '@/router/routes';
 
@@ -692,8 +800,39 @@ const prometheusConfig = ref({
   cacheTtl: 10,
   refreshInterval: 15
 });
+const hardwareAutoCollectEnabled = ref(true);
 
 let refreshTimer = null;
+
+const isHttpUrl = (value = '') => {
+  const text = String(value || '').trim();
+  if (!text) return true;
+  try {
+    const parsed = new URL(text);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const nodePrometheusUrlValid = computed(() => isHttpUrl(nodeForm.value.prometheusUrl));
+const canSubmitNodeForm = computed(() => Boolean((nodeForm.value.serverId || '').trim()) && nodePrometheusUrlValid.value);
+const NODE_ID_PREFIX = 'ORIN-';
+
+const generateNodeId = () => {
+  const now = new Date();
+  const pad = (num) => String(num).padStart(2, '0');
+  const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `${NODE_ID_PREFIX}${ts}-${rand}`;
+};
+
+const normalizeNodeId = (value = '') => {
+  const text = String(value || '').trim();
+  if (!text) return generateNodeId();
+  if (text.startsWith(NODE_ID_PREFIX)) return text;
+  return `${NODE_ID_PREFIX}${text}`;
+};
 
 const createEmptySnapshot = (node = {}) => ({
   serverId: node.id || '',
@@ -714,6 +853,7 @@ const createEmptySnapshot = (node = {}) => ({
   diskTotal: 0,
   diskUsed: 0,
   gpuModel: '',
+  gpuMemory: '',
   gpuMemoryTotal: 0,
   gpuMemoryUsed: 0,
   os: '',
@@ -726,15 +866,12 @@ const createEmptySnapshot = (node = {}) => ({
 
 const normalizeNode = (node = {}) => ({
   ...node,
-  id: node.id || node.serverId || 'local',
-  name: node.name || node.serverName || node.id || node.serverId || 'Local Node'
+  id: node.id || node.serverId || '',
+  name: node.name || node.serverName || node.id || node.serverId || 'Unnamed Node'
 });
 
 const normalizedNodes = computed(() => {
   const nodes = (serverNodes.value || []).map(normalizeNode);
-  if (!nodes.some((node) => node.id === 'local')) {
-    nodes.unshift({ id: 'local', name: 'Local Node', configured: false });
-  }
   return nodes;
 });
 
@@ -845,6 +982,7 @@ const buildSnapshotFromMetric = (metric = {}, node = {}) => {
   snapshot.diskTotal = Number(metric.diskTotal) || 0;
   snapshot.diskUsed = Number(metric.diskUsed) || 0;
   snapshot.gpuModel = metric.gpuModel || '';
+  snapshot.gpuMemory = metric.gpuMemory || '';
   snapshot.gpuMemoryTotal = Number(metric.gpuMemoryTotal) || 0;
   snapshot.gpuMemoryUsed = Number(metric.gpuMemoryUsed) || 0;
   snapshot.os = metric.os || '';
@@ -869,6 +1007,58 @@ const fetchNodeSnapshots = async () => {
   }));
 
   nodeSnapshots.value = Object.fromEntries(results);
+  await hydrateCurrentNodeSnapshot();
+};
+
+const hydrateCurrentNodeSnapshot = async () => {
+  const serverId = currentServerId.value;
+  if (!serverId) return;
+  const snapshot = nodeSnapshots.value[serverId];
+  if (!snapshot) return;
+
+  const needsHydration = (Number(snapshot.memoryTotal) || 0) <= 0 || (Number(snapshot.diskTotal) || 0) <= 0;
+  if (!needsHydration) return;
+
+  try {
+    const realtime = await getPrometheusServerStatus(serverId);
+    if (!realtime || realtime.online === false) return;
+
+    const next = { ...snapshot };
+    const memoryTotal = Number(realtime.memoryTotal) || 0;
+    const diskTotal = Number(realtime.diskTotal) || 0;
+    const memoryUsage = Number(realtime.memoryUsage) || 0;
+    const diskUsage = Number(realtime.diskUsage) || 0;
+    const gpuMemoryTotal = Number(realtime.gpuMemoryTotal) || 0;
+    const gpuMemoryUsed = Number(realtime.gpuMemoryUsed) || 0;
+
+    if ((Number(next.memoryTotal) || 0) <= 0 && memoryTotal > 0) next.memoryTotal = memoryTotal;
+    if ((Number(next.diskTotal) || 0) <= 0 && diskTotal > 0) next.diskTotal = diskTotal;
+    if ((Number(next.memoryUsed) || 0) <= 0 && (Number(next.memoryTotal) || 0) > 0 && memoryUsage >= 0) {
+      next.memoryUsed = Math.round((Number(next.memoryTotal) || 0) * (memoryUsage / 100));
+    }
+    if ((Number(next.diskUsed) || 0) <= 0 && (Number(next.diskTotal) || 0) > 0 && diskUsage >= 0) {
+      next.diskUsed = Math.round((Number(next.diskTotal) || 0) * (diskUsage / 100));
+    }
+
+    if ((Number(next.gpuMemoryTotal) || 0) <= 0 && gpuMemoryTotal > 0) next.gpuMemoryTotal = gpuMemoryTotal;
+    if ((Number(next.gpuMemoryUsed) || 0) <= 0 && gpuMemoryUsed > 0) next.gpuMemoryUsed = gpuMemoryUsed;
+    const currentGpuMemoryText = String(next.gpuMemory || '').trim().toLowerCase();
+    if ((!currentGpuMemoryText || currentGpuMemoryText === 'n/a' || currentGpuMemoryText === 'unknown') && gpuMemoryTotal > 0) {
+      const used = gpuMemoryUsed > 0 ? gpuMemoryUsed : 0;
+      next.gpuMemory = `${formatBytes(used)} / ${formatBytes(gpuMemoryTotal)}`;
+    }
+
+    next.cpuModel = next.cpuModel || realtime.cpuModel || '';
+    const currentGpuModel = String(next.gpuModel || '').trim().toLowerCase();
+    if (!currentGpuModel || currentGpuModel === 'unknown' || currentGpuModel === 'n/a') {
+      next.gpuModel = realtime.gpuModel || next.gpuModel || '';
+    }
+    next.os = next.os || realtime.os || '';
+    next.online = typeof next.online === 'boolean' ? next.online : Boolean(realtime.online);
+    nodeSnapshots.value = { ...nodeSnapshots.value, [serverId]: next };
+  } catch {
+    // Ignore hydration failures; keep historical snapshot as-is.
+  }
 };
 
 const fetchNodesAndSnapshots = async () => {
@@ -887,9 +1077,15 @@ const fetchPrometheusStatus = async () => {
         refreshInterval: config.refreshInterval || 15
       };
     }
+    const properties = await getSystemProperties();
+    const rawEnabled = properties?.['orin.hardware.monitor.enabled'];
+    hardwareAutoCollectEnabled.value = rawEnabled === undefined || rawEnabled === null || rawEnabled === ''
+      ? true
+      : String(rawEnabled).toLowerCase() === 'true';
     prometheusStatus.value.connected = !!(config && config.enabled);
   } catch (error) {
     prometheusStatus.value.connected = false;
+    hardwareAutoCollectEnabled.value = true;
   }
 };
 
@@ -897,7 +1093,10 @@ const savePrometheusConfig = async () => {
   configSaving.value = true;
   try {
     await updatePrometheusConfig(prometheusConfig.value);
-    ElMessage.success('硬件监控数据源配置已保存');
+    await updateSystemProperties({
+      'orin.hardware.monitor.enabled': hardwareAutoCollectEnabled.value ? 'true' : 'false'
+    });
+    ElMessage.success('硬件监控数据源配置已保存（自动采集开关需重启后端生效）');
     await fetchPrometheusStatus();
     restartRefreshTimer();
   } catch (error) {
@@ -1012,7 +1211,7 @@ const openNodeDialog = (node = null) => {
   } else {
     isEditingNode.value = false;
     nodeForm.value = {
-      serverId: '',
+      serverId: generateNodeId(),
       serverName: '',
       prometheusUrl: '',
       remark: ''
@@ -1021,9 +1220,23 @@ const openNodeDialog = (node = null) => {
   nodeDialogVisible.value = true;
 };
 
+const regenerateNodeId = () => {
+  if (isEditingNode.value) return;
+  nodeForm.value.serverId = generateNodeId();
+};
+
 const saveNode = async () => {
-  if (!nodeForm.value.serverId) {
+  const serverId = normalizeNodeId(nodeForm.value.serverId);
+  const serverName = String(nodeForm.value.serverName || '').trim();
+  const prometheusUrl = String(nodeForm.value.prometheusUrl || '').trim();
+  const remark = String(nodeForm.value.remark || '').trim();
+
+  if (!serverId) {
     ElMessage.warning('请输入节点ID');
+    return;
+  }
+  if (!isHttpUrl(prometheusUrl)) {
+    ElMessage.warning('Prometheus URL 格式不正确');
     return;
   }
 
@@ -1031,22 +1244,22 @@ const saveNode = async () => {
   try {
     if (isEditingNode.value) {
       const existingInfo = await getServerInfoList();
-      const existing = existingInfo.find((item) => item.serverId === nodeForm.value.serverId);
+      const existing = existingInfo.find((item) => item.serverId === serverId);
       if (existing) {
         await updateServerInfo({
           ...existing,
-          serverName: nodeForm.value.serverName,
-          prometheusUrl: nodeForm.value.prometheusUrl,
-          remark: nodeForm.value.remark
+          serverName,
+          prometheusUrl,
+          remark
         });
       }
       ElMessage.success('节点更新成功');
     } else {
       await createServerInfo({
-        serverId: nodeForm.value.serverId,
-        serverName: nodeForm.value.serverName,
-        prometheusUrl: nodeForm.value.prometheusUrl,
-        remark: nodeForm.value.remark,
+        serverId,
+        serverName,
+        prometheusUrl,
+        remark,
         online: false
       });
       ElMessage.success('节点添加成功');
@@ -1115,6 +1328,23 @@ const clampPercent = (value) => {
 };
 
 const formatPercent = (value) => `${clampPercent(value).toFixed(1)}%`;
+
+const formatCount = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 'N/A';
+};
+
+const formatLogicalCores = (snapshot = {}) => {
+  const logical = Number(snapshot.cpuLogicalCores);
+  if (Number.isFinite(logical) && logical > 0) return logical;
+  const physical = Number(snapshot.cpuCores);
+  return Number.isFinite(physical) && physical > 0 ? physical : 'N/A';
+};
+
+const formatBytesOrNA = (bytes) => {
+  const value = Number(bytes);
+  return Number.isFinite(value) && value > 0 ? formatBytes(value) : 'N/A';
+};
 
 const formatBytes = (bytes) => {
   const value = Number(bytes) || 0;
@@ -1187,6 +1417,12 @@ watch(currentServerId, async () => {
   syncSelectedServerState();
 });
 
+watch(configDialogVisible, async (val) => {
+  if (val) {
+    await fetchPrometheusStatus();
+  }
+});
+
 onMounted(async () => {
   updateIsMobile();
   window.addEventListener('resize', updateIsMobile);
@@ -1225,6 +1461,65 @@ onUnmounted(() => {
   margin-top: 2px;
   font-size: 12px;
   color: #64748b;
+}
+
+.node-dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.node-dialog-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.node-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.node-form-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .section-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+:deep(.node-dialog .el-dialog__body) {
+  padding-top: 8px;
 }
 
 .overview-card {

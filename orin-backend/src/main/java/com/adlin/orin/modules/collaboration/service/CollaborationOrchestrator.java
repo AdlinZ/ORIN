@@ -88,6 +88,14 @@ public class CollaborationOrchestrator {
     public CollaborationPackage createPackage(String intent, String category, String priority,
                                                 String complexity, String collaborationMode,
                                                 String createdBy, String traceId) {
+        return createPackage(intent, category, priority, complexity, collaborationMode, createdBy, traceId, null);
+    }
+
+    @Transactional
+    public CollaborationPackage createPackage(String intent, String category, String priority,
+                                              String complexity, String collaborationMode,
+                                              String createdBy, String traceId,
+                                              Map<String, Object> strategyOverrides) {
         String packageId = UUID.randomUUID().toString().replace("-", "");
 
         // 构建意图标签
@@ -99,6 +107,24 @@ public class CollaborationOrchestrator {
                 .needConsensus("COMPLEX".equals(complexity) || "VERY_COMPLEX".equals(complexity))
                 .build();
 
+        double qualityThreshold = parseDouble(strategyOverrides, "qualityThreshold", 0.82);
+        int maxCritiqueRounds = parseInt(strategyOverrides, "maxCritiqueRounds", 3);
+        int draftParallelism = parseInt(strategyOverrides, "draftParallelism", 4);
+        String mainAgentPolicy = parseString(strategyOverrides, "mainAgentPolicy", "STATIC_THEN_BID");
+        String staticMainAgent = parseString(strategyOverrides, "mainAgentStaticDefault",
+                parseString(strategyOverrides, "staticMainAgent", null));
+        List<String> bidWhitelist = parseList(strategyOverrides, "bidWhitelist");
+        double bidWeightReasoning = parseDouble(strategyOverrides, "bidWeightReasoning", 0.6);
+        double bidWeightSpeed = parseDouble(strategyOverrides, "bidWeightSpeed", 0.3);
+        double bidWeightCost = parseDouble(strategyOverrides, "bidWeightCost", 0.1);
+
+        // 强制权重顺序：推理能力 > 速度 > 成本
+        if (!(bidWeightReasoning > bidWeightSpeed && bidWeightSpeed > bidWeightCost)) {
+            bidWeightReasoning = 0.6;
+            bidWeightSpeed = 0.3;
+            bidWeightCost = 0.1;
+        }
+
         // 构建执行策略
         CollaborationPackage.ExecutionStrategy strategy = CollaborationPackage.ExecutionStrategy.builder()
                 .maxParallel(3)
@@ -109,6 +135,15 @@ public class CollaborationOrchestrator {
                 .consensusStrategy("MAJORITY")
                 .enableMemorySharing(true)
                 .enableEventDriven(true)
+                .mainAgentPolicy(mainAgentPolicy)
+                .mainAgentStaticDefault(staticMainAgent)
+                .bidWhitelist(bidWhitelist)
+                .bidWeightReasoning(bidWeightReasoning)
+                .bidWeightSpeed(bidWeightSpeed)
+                .bidWeightCost(bidWeightCost)
+                .qualityThreshold(qualityThreshold)
+                .maxCritiqueRounds(maxCritiqueRounds)
+                .draftParallelism(draftParallelism)
                 .build();
 
         // 创建实体
@@ -553,25 +588,29 @@ public class CollaborationOrchestrator {
 
         Map<String, Object> stats = memoryService.getPackageStats(packageId);
 
-        return Map.of(
-                "packageId", packageId,
-                "status", entity.getStatus(),
-                "intent", entity.getIntent() != null ? entity.getIntent() : "",
-                "collaborationMode", entity.getCollaborationMode() != null ? entity.getCollaborationMode() : "",
-                "progress", Map.of(
-                        "total", subtasks.size(),
-                        "pending", pendingCount,
-                        "running", runningCount,
-                        "completed", completedCount,
-                        "failed", failedCount,
-                        "skipped", skippedCount,
-                        "cancelled", cancelledCount
-                ),
-                "executionStats", stats,
-                "createdAt", entity.getCreatedAt() != null ? entity.getCreatedAt().toString() : "",
-                "timeoutAt", entity.getTimeoutAt() != null ? entity.getTimeoutAt().toString() : "",
-                "traceId", entity.getTraceId() != null ? entity.getTraceId() : ""
-        );
+        Map<String, Object> runtime = new HashMap<>();
+        runtime.put("packageId", packageId);
+        runtime.put("status", entity.getStatus());
+        runtime.put("intent", entity.getIntent() != null ? entity.getIntent() : "");
+        runtime.put("collaborationMode", entity.getCollaborationMode() != null ? entity.getCollaborationMode() : "");
+        runtime.put("progress", Map.of(
+                "total", subtasks.size(),
+                "pending", pendingCount,
+                "running", runningCount,
+                "completed", completedCount,
+                "failed", failedCount,
+                "skipped", skippedCount,
+                "cancelled", cancelledCount
+        ));
+        runtime.put("executionStats", stats);
+        runtime.put("createdAt", entity.getCreatedAt() != null ? entity.getCreatedAt().toString() : "");
+        runtime.put("timeoutAt", entity.getTimeoutAt() != null ? entity.getTimeoutAt().toString() : "");
+        runtime.put("traceId", entity.getTraceId() != null ? entity.getTraceId() : "");
+
+        memoryService.readFromBlackboard(packageId, "selection_last")
+                .ifPresent(selection -> runtime.put("selection", selection));
+
+        return runtime;
     }
 
     /**
@@ -765,6 +804,10 @@ public class CollaborationOrchestrator {
     }
 
     private CollaborationPackage toDto(CollaborationPackageEntity entity, List<CollabSubtaskEntity> subtasks) {
+        CollaborationPackage.ExecutionStrategy strategy = null;
+        if (entity.getStrategy() != null && !entity.getStrategy().isBlank()) {
+            strategy = fromJson(entity.getStrategy(), CollaborationPackage.ExecutionStrategy.class);
+        }
         return CollaborationPackage.builder()
                 .packageId(entity.getPackageId())
                 .rootTaskId(entity.getRootTaskId())
@@ -777,6 +820,7 @@ public class CollaborationOrchestrator {
                         .needConsensus(entity.getNeedConsensus())
                         .build())
                 .collaborationMode(entity.getCollaborationMode())
+                .strategy(strategy)
                 .status(entity.getStatus())
                 .result(entity.getResult())
                 .errorMessage(entity.getErrorMessage())
@@ -784,5 +828,66 @@ public class CollaborationOrchestrator {
                 .createdAt(entity.getCreatedAt())
                 .timeoutAt(entity.getTimeoutAt())
                 .build();
+    }
+
+    private String parseString(Map<String, Object> source, String key, String defaultValue) {
+        if (source == null) {
+            return defaultValue;
+        }
+        Object val = source.get(key);
+        if (val == null) {
+            return defaultValue;
+        }
+        String value = String.valueOf(val).trim();
+        return value.isEmpty() ? defaultValue : value;
+    }
+
+    private int parseInt(Map<String, Object> source, String key, int defaultValue) {
+        if (source == null || source.get(key) == null) {
+            return defaultValue;
+        }
+        Object val = source.get(key);
+        if (val instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(val));
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    private double parseDouble(Map<String, Object> source, String key, double defaultValue) {
+        if (source == null || source.get(key) == null) {
+            return defaultValue;
+        }
+        Object val = source.get(key);
+        if (val instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(val));
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> parseList(Map<String, Object> source, String key) {
+        if (source == null || source.get(key) == null) {
+            return Collections.emptyList();
+        }
+        Object val = source.get(key);
+        if (val instanceof List<?> list) {
+            return list.stream().filter(Objects::nonNull).map(String::valueOf).collect(Collectors.toList());
+        }
+        String raw = String.valueOf(val);
+        if (raw.isBlank()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(raw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toList());
     }
 }

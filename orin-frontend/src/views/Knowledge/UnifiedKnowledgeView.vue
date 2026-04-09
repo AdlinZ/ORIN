@@ -32,6 +32,9 @@
             <el-icon><Upload /></el-icon> 上传文档
           </el-button>
         </el-upload>
+
+        <!-- Dify 同步按钮组 -->
+        <DifySyncButton v-if="selectedAgent" :agent-id="selectedAgent" />
       </div>
     </div>
 
@@ -144,6 +147,7 @@ import { Document, DataLine, Cpu, User, Upload, Aim } from '@element-plus/icons-
 import KnowledgeTable from './components/KnowledgeTable.vue'
 import KnowledgeMeta from './components/KnowledgeMeta.vue'
 import RagEvaluation from './components/RagEvaluation.vue'
+import DifySyncButton from './components/DifySyncButton.vue'
 import { getAgentList } from '@/api/agent'
 
 const route = useRoute()

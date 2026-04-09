@@ -10,6 +10,8 @@ import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.collaboration.metrics.CollaborationMetricsService;
 import com.adlin.orin.modules.collaboration.producer.CollaborationMQProducer;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
+import com.adlin.orin.modules.collaboration.service.selection.BiddingSelector;
+import com.adlin.orin.modules.collaboration.service.selection.StaticSelector;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +30,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,6 +61,10 @@ class CollaborationMqIsolationTest {
     private CollaborationRedisService redisService;
     @Mock
     private CollaborationOrchestrator orchestrator;
+    @Mock
+    private StaticSelector staticSelector;
+    @Mock
+    private BiddingSelector biddingSelector;
 
     private ObjectMapper objectMapper;
     private CollaborationOrchestrationMode orchestrationMode;
@@ -69,6 +77,8 @@ class CollaborationMqIsolationTest {
         orchestrationMode.setMqForParallel(true);
         orchestrationMode.setMqForSequential(false);
         orchestrationMode.setMqForConsensus(false);
+        lenient().when(redisService.acquireLockWithToken(anyString(), anyString(), anyString(), any()))
+                .thenReturn(true);
     }
 
     @Test
@@ -86,7 +96,9 @@ class CollaborationMqIsolationTest {
                 resultListener,
                 packageRepository,
                 memoryService,
-                redisService
+                redisService,
+                staticSelector,
+                biddingSelector
         );
 
         CollabSubtaskEntity subtask = CollabSubtaskEntity.builder()

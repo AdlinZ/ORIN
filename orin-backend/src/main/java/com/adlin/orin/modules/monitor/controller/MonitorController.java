@@ -258,6 +258,12 @@ public class MonitorController {
         return monitorService.getServerInfo(serverId);
     }
 
+    @Operation(summary = "获取指定服务器的静态信息（Query 参数）")
+    @GetMapping("/server-info")
+    public com.adlin.orin.modules.monitor.entity.ServerInfo getServerInfoByQuery(@RequestParam String serverId) {
+        return monitorService.getServerInfo(serverId);
+    }
+
     @Operation(summary = "更新服务器静态信息")
     @PutMapping("/server-info")
     public void updateServerInfo(@RequestBody com.adlin.orin.modules.monitor.entity.ServerInfo serverInfo) {
@@ -267,6 +273,12 @@ public class MonitorController {
     @Operation(summary = "删除服务器静态信息")
     @DeleteMapping("/server-info/{serverId}")
     public void deleteServerInfo(@PathVariable String serverId) {
+        monitorService.deleteServerInfo(serverId);
+    }
+
+    @Operation(summary = "删除服务器静态信息（Query 参数）")
+    @DeleteMapping("/server-info")
+    public void deleteServerInfoByQuery(@RequestParam String serverId) {
         monitorService.deleteServerInfo(serverId);
     }
 

@@ -152,19 +152,208 @@ public class DifyApiClient {
         try {
             String url = buildUrl(endpointUrl, String.format("/v1/datasets/%s/documents/%s", datasetId, documentId));
             HttpHeaders headers = createHeaders(apiKey);
-            
+
             ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
                     url, HttpMethod.GET, new HttpEntity<>(headers),
                     new ParameterizedTypeReference<Map<String, Object>>() {});
-            
+
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return response.getBody();
             }
         } catch (Exception e) {
             log.error("Failed to get document from Dify: {}", e.getMessage());
         }
-        
+
         return null;
+    }
+
+    /**
+     * 创建文档（文本直接写入）
+     * POST /v1/datasets/{dataset_id}/documents
+     */
+    @SuppressWarnings("unchecked")
+    public String createDocument(String endpointUrl, String apiKey, String datasetId,
+                                 String docName, String content) {
+        try {
+            String url = buildUrl(endpointUrl, String.format("/v1/datasets/%s/documents", datasetId));
+            HttpHeaders headers = createHeaders(apiKey);
+
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("indexing_technique", "high_quality");
+            body.put("process_rule", Map.of(
+                    "mode", "custom",
+                    "rules", Map.of(
+                            "pre_processing_rules", List.of(
+                                    Map.of("id", "remove_extra_spaces", "enabled", true),
+                                    Map.of("id", "remove_urls_and_emails", "enabled", false)
+                            ),
+                            "segmentation", Map.of("separator", "\n", "max_tokens", 500)
+                    )
+            ));
+
+            Map<String, Object> docForm = new java.util.HashMap<>();
+            docForm.put("data_source", Map.of(
+                    "type", "upload_file",
+                    "file_info", Map.of("file_id", "")
+            ));
+            docForm.put("indexing_technique", "high_quality");
+            docForm.put("process_rule", body.get("process_rule"));
+
+            // Dify v1 API: upload via separated API, then create doc reference
+            // For simplicity, use "upload_file" then create doc with text_input
+            Map<String, Object> requestBody = new java.util.HashMap<>();
+            requestBody.put("indexing_technique", "high_quality");
+            requestBody.put("process_rule", body.get("process_rule"));
+            requestBody.put("doc_form", "text");
+            requestBody.put("doc_language", "Auto");
+            requestBody.put("name", docName);
+
+            // If content is provided, use text input mode
+            if (content != null && !content.isEmpty()) {
+                requestBody.put("data_source", Map.of(
+                        "type", "upload_file",
+                        "file_info", Map.of("file_name", docName + ".txt")
+                ));
+            }
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.POST, entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> result = response.getBody();
+                // Dify returns { "data": { "document": { "id": "xxx" }, "batch": "xxx" } }
+                Object data = result.get("data");
+                if (data instanceof Map) {
+                    Map<String, Object> dataMap = (Map<String, Object>) data;
+                    Object doc = dataMap.get("document");
+                    if (doc instanceof Map) {
+                        return (String) ((Map<String, Object>) doc).get("id");
+                    }
+                }
+                // Fallback: try batch field
+                Object batch = result.get("batch");
+                if (batch != null) {
+                    return batch.toString();
+                }
+            }
+            log.warn("Unexpected create document response: {}, body: {}", response.getStatusCode(), response.getBody());
+        } catch (Exception e) {
+            log.error("Failed to create document in Dify dataset {}: {}", datasetId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 上传文档内容（分块上传）
+     * POST /v1/datasets/{dataset_id}/documents/{document_id}/upload
+     */
+    public boolean uploadDocumentContent(String endpointUrl, String apiKey, String datasetId,
+                                          String documentId, String content) {
+        try {
+            String url = buildUrl(endpointUrl,
+                    String.format("/v1/datasets/%s/documents/%s/upload", datasetId, documentId));
+            HttpHeaders headers = createHeaders(apiKey);
+
+            Map<String, Object> requestBody = new java.util.HashMap<>();
+            requestBody.put("file", List.of(Map.of(
+                    "type", "text",
+                    "name", "content.txt",
+                    "content", content != null ? content : ""
+            )));
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.POST, entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                return true;
+            }
+            log.warn("uploadDocumentContent failed with status {}: {}", response.getStatusCode(), response.getBody());
+        } catch (Exception e) {
+            log.error("Failed to upload document content to Dify {}/{}: {}", datasetId, documentId, e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * 增量更新文档（重新上传文本内容）
+     * DELETE then re-CREATE is Dify's update pattern for dataset docs
+     * Returns the new document ID, or null on failure
+     */
+    public String updateDocument(String endpointUrl, String apiKey, String datasetId,
+                                 String oldDocumentId, String docName, String content) {
+        // Dify doesn't have a direct update API — delete and recreate
+        deleteDocument(endpointUrl, apiKey, datasetId, oldDocumentId);
+        String newId = createDocument(endpointUrl, apiKey, datasetId, docName, content);
+        if (newId != null) {
+            uploadDocumentContent(endpointUrl, apiKey, datasetId, newId, content);
+        }
+        return newId;
+    }
+
+    /**
+     * 删除 Dify 数据集中的文档
+     * DELETE /v1/datasets/{dataset_id}/documents/{document_id}
+     */
+    public boolean deleteDocument(String endpointUrl, String apiKey, String datasetId, String documentId) {
+        try {
+            String url = buildUrl(endpointUrl,
+                    String.format("/v1/datasets/%s/documents/%s", datasetId, documentId));
+            HttpHeaders headers = createHeaders(apiKey);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.DELETE, new HttpEntity<>(headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            // 200/204 are both successes for delete
+            if (response.getStatusCode().is2xxSuccessful() || response.getStatusCode().value() == 204) {
+                return true;
+            }
+            log.warn("deleteDocument failed with status {}: {}", response.getStatusCode(), response.getBody());
+        } catch (Exception e) {
+            log.error("Failed to delete document {} from Dify dataset {}: {}", documentId, datasetId, e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * 从数据集检索（语义搜索）
+     * POST /v1/datasets/{dataset_id}/retrieve
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> retrieveFromDataset(String endpointUrl, String apiKey,
+                                                          String datasetId, String query, int topK) {
+        try {
+            String url = buildUrl(endpointUrl,
+                    String.format("/v1/datasets/%s/retrieve", datasetId));
+            HttpHeaders headers = createHeaders(apiKey);
+
+            Map<String, Object> requestBody = new java.util.HashMap<>();
+            requestBody.put("query", query);
+            requestBody.put("top_k", topK);
+            requestBody.put("rerank_model", Map.of("rerank_model_name", ""));
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url, HttpMethod.POST, entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Object records = response.getBody().get("records");
+                if (records instanceof List) {
+                    return (List<Map<String, Object>>) records;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to retrieve from Dify dataset {}: {}", datasetId, e.getMessage());
+        }
+        return List.of();
     }
 
     // ==================== 私有方法 ====================
@@ -200,7 +389,6 @@ public class DifyApiClient {
         return base + path;
     }
 
-    @SuppressWarnings("unchecked")
     private DifyKnowledgeSyncService.DifyDataset parseDataset(Map<String, Object> item) {
         return DifyKnowledgeSyncService.DifyDataset.builder()
                 .id((String) item.get("id"))
@@ -212,7 +400,6 @@ public class DifyApiClient {
                 .build();
     }
 
-    @SuppressWarnings("unchecked")
     private DifyKnowledgeSyncService.DifyDocument parseDocument(Map<String, Object> item) {
         return DifyKnowledgeSyncService.DifyDocument.builder()
                 .id((String) item.get("id"))

@@ -73,6 +73,13 @@ public class SyncChangeLog {
     @Builder.Default
     private Boolean synced = false;
 
+    /**
+     * 幂等键（用于防重复同步）
+     * 格式: agentId_documentId_changeType
+     */
+    @Column(name = "idempotency_key", length = 128, unique = true)
+    private String idempotencyKey;
+
     @PrePersist
     protected void onCreate() {
         if (changedAt == null) {

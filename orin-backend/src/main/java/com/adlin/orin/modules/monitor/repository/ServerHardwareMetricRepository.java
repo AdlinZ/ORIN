@@ -76,13 +76,28 @@ public interface ServerHardwareMetricRepository extends JpaRepository<ServerHard
     Page<ServerHardwareMetric> findByServerIdAndTimestampBetween(String serverId, Long startTime, Long endTime, Pageable pageable);
 
     /**
+     * 查询指定节点集合在一段时间内的硬件监控数据（分页）
+     */
+    Page<ServerHardwareMetric> findByServerIdInAndTimestampBetween(List<String> serverIds, Long startTime, Long endTime, Pageable pageable);
+
+    /**
      * 查询指定节点在指定时间之后的记录
      */
     List<ServerHardwareMetric> findByServerIdAndTimestampAfterOrderByTimestampAsc(String serverId, Long timestamp);
+
+    /**
+     * 查询指定节点集合在一段时间内的硬件监控数据
+     */
+    List<ServerHardwareMetric> findByServerIdInAndTimestampBetweenOrderByTimestampAsc(List<String> serverIds, Long startTime, Long endTime);
 
     /**
      * 获取所有不同的服务器节点
      */
     @Query("SELECT DISTINCT new map(m.serverId as id, m.serverName as name) FROM ServerHardwareMetric m WHERE m.serverId IS NOT NULL")
     List<java.util.Map<String, Object>> findDistinctServerNodes();
+
+    /**
+     * 删除指定节点集合的硬件监控数据
+     */
+    long deleteByServerIdIn(List<String> serverIds);
 }
