@@ -701,6 +701,9 @@ public class AgentManageServiceImpl implements AgentManageService {
                 if (messageMap.containsKey("image_size")) {
                     params.put("image_size", messageMap.get("image_size"));
                 }
+                if (messageMap.containsKey("imageSize")) {
+                    params.put("image_size", messageMap.get("imageSize"));
+                }
                 if (messageMap.containsKey("aspect_ratio")) {
                     // 将 aspect_ratio 转换为 image_size
                     String aspectRatio = (String) messageMap.get("aspect_ratio");
@@ -715,8 +718,23 @@ public class AgentManageServiceImpl implements AgentManageService {
                 if (messageMap.containsKey("negative_prompt")) {
                     params.put("negative_prompt", messageMap.get("negative_prompt"));
                 }
+                if (messageMap.containsKey("negativePrompt")) {
+                    params.put("negative_prompt", messageMap.get("negativePrompt"));
+                }
                 if (messageMap.containsKey("seed")) {
                     params.put("seed", messageMap.get("seed"));
+                }
+                if (messageMap.containsKey("guidance_scale")) {
+                    params.put("guidance_scale", messageMap.get("guidance_scale"));
+                }
+                if (messageMap.containsKey("guidanceScale")) {
+                    params.put("guidance_scale", messageMap.get("guidanceScale"));
+                }
+                if (messageMap.containsKey("num_inference_steps")) {
+                    params.put("num_inference_steps", messageMap.get("num_inference_steps"));
+                }
+                if (messageMap.containsKey("inferenceSteps")) {
+                    params.put("num_inference_steps", messageMap.get("inferenceSteps"));
                 }
             } catch (Exception e) {
                 // 如果不是JSON，直接使用message作为prompt

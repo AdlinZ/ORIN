@@ -47,7 +47,12 @@ import { DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 
 const $route = useRoute()
 const appStore = useAppStore()
-const isWorkspaceRoute = computed(() => $route.name === 'ApplicationWorkspace')
+const WORKSPACE_ROUTE_NAMES = new Set([
+  'ApplicationWorkspace',
+  'AgentConsole',
+  'AgentConsoleEntry'
+])
+const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.name || '')))
 </script>
 
 <style scoped>

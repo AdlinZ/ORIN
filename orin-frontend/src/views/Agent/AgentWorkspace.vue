@@ -3,7 +3,12 @@
     
     <div v-if="isLeftDrawer && !sessionPaneCollapsed" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
     <aside class="workspace-sidebar" :class="{ 'is-drawer': isLeftDrawer, 'is-collapsed': sessionPaneCollapsed }">
-      <div class="workspace-session-pane">
+      
+      <div v-if="!sessionPaneCollapsed" class="sidebar-tabs">
+        <div class="sidebar-tab" :class="{ active: sidebarTab === 'session' }" @click="sidebarTab = 'session'">会话记录</div>
+        <div class="sidebar-tab" :class="{ active: sidebarTab === 'config' }" @click="sidebarTab = 'config'">工作台设置</div>
+      </div>
+      <div v-show="sidebarTab === 'session'" class="workspace-session-pane">
         <div class="session-collapse-handle">
           <el-button
             class="collapse-btn"
@@ -24,49 +29,6 @@
         </div>
 
         <template v-else>
-          <div class="sidebar-top">
-            <div class="sidebar-profile">
-              <div class="sidebar-avatar" :style="{ background: getAgentColor(currentAgent?.name || 'A') }">
-                {{ currentAgent?.name?.charAt(0) || 'A' }}
-              </div>
-              <div class="sidebar-name">
-                {{ currentAgent?.name || '未选择智能体' }}
-              </div>
-            </div>
-            <el-button
-              link
-              :icon="Refresh"
-              class="refresh-btn"
-              @click="reloadWorkspace"
-            />
-
-            <el-select
-              v-if="!lockAgent"
-              v-model="currentAgentId"
-              class="agent-switcher"
-              placeholder="选择智能体"
-              filterable
-              @change="handleAgentChange"
-            >
-              <el-option
-                v-for="agent in agents"
-                :key="agent.id"
-                :label="agent.name"
-                :value="agent.id"
-              />
-            </el-select>
-
-            <el-button
-              type="primary"
-              class="new-session-btn"
-              :icon="Plus"
-              :disabled="!currentAgentId"
-              @click="newSession"
-            >
-              创建新对话
-            </el-button>
-          </div>
-
           <div class="session-search">
             <el-input
               v-model="sessionSearch"
@@ -105,317 +67,7 @@
 
         </template>
       </div>
-    </aside>
-
-    <main class="workspace-main">
-      <div v-if="!currentAgent" class="state-panel">
-        <div class="welcome-panel">
-          <h2>您好，有什么可以帮您？</h2>
-
-          <div class="composer-placeholder is-disabled">
-            <div class="quick-config-row">
-              <button type="button" class="quick-config-chip" disabled>
-                模式：{{ currentInteractionLabel }}
-              </button>
-              <button type="button" class="quick-config-chip" disabled>
-                知识库：{{ attachedKbIds.length }}
-              </button>
-            </div>
-            <el-input
-              model-value=""
-              type="textarea"
-              :rows="4"
-              resize="none"
-              placeholder="请先在左侧选择智能体后开始对话"
-              disabled
-            />
-
-            <div class="composer-footer">
-              <div class="composer-left-tools">
-                <button type="button" class="plus-trigger" disabled>
-                  +
-                </button>
-              </div>
-              <div class="composer-right-tools">
-                <span class="composer-chip">{{ currentConfig.name }}</span>
-                <el-button
-                  class="composer-send-btn"
-                  type="primary"
-                  circle
-                  :icon="Top"
-                  disabled
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="quick-prompts">
-            <el-tag
-              v-for="prompt in quickPrompts"
-              :key="`empty-${prompt}`"
-              effect="plain"
-              class="prompt-tag"
-            >
-              {{ prompt }}
-            </el-tag>
-          </div>
-        </div>
-      </div>
-
-      <template v-else>
-        <InteractionTopBar
-          :chips="workspaceTopChips"
-          :settings-open="!configPaneCollapsed"
-          settings-label="设置"
-          @chip-click="handleWorkspaceChipClick"
-          @toggle-settings="configPaneCollapsed = !configPaneCollapsed"
-        />
-
-        <div ref="messagesContainer" class="messages-container" :class="{ 'is-empty': messages.length === 0 }">
-          <div v-if="messages.length === 0" class="welcome-panel">
-            <h2>您好，有什么可以帮您？</h2>
-
-            <div class="composer-placeholder">
-              <div class="quick-config-row">
-                <button
-                  v-for="chip in composerQuickChips"
-                  :key="chip.key"
-                  type="button"
-                  class="quick-config-chip"
-                  :disabled="chip.disabled"
-                  @click="handleWorkspaceChipClick(chip)"
-                >
-                  {{ chip.label }}
-                </button>
-              </div>
-              <el-input
-                v-model="inputMessage"
-                type="textarea"
-                :rows="4"
-                resize="none"
-                placeholder="问点什么？使用 @ 可以提及哦~"
-                @keydown.enter="handleEnter"
-              />
-
-              <div class="composer-footer">
-                <div class="composer-left-tools">
-                  <button type="button" class="plus-trigger">
-                    +
-                  </button>
-                </div>
-                <div class="composer-right-tools">
-                  <span class="composer-chip">{{ currentConfig.name }}</span>
-                  <el-button
-                    class="composer-send-btn"
-                    type="primary"
-                    circle
-                    :icon="Top"
-                    :disabled="loading || !inputMessage.trim()"
-                    @click="sendMessage"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div class="quick-prompts">
-              <el-tag
-                v-for="prompt in quickPrompts"
-                :key="prompt"
-                effect="plain"
-                class="prompt-tag"
-                @click="applyPrompt(prompt)"
-              >
-                {{ prompt }}
-              </el-tag>
-            </div>
-          </div>
-
-          <template v-else>
-            <div
-              v-for="(msg, index) in messages"
-              :key="`${msg.role}-${index}`"
-              :class="['message-item', msg.role]"
-            >
-              <div class="message-avatar">
-                <el-icon v-if="msg.role === 'user'">
-                  <User />
-                </el-icon>
-                <el-icon v-else>
-                  <Cpu />
-                </el-icon>
-              </div>
-
-              <div class="message-bubble">
-                <div class="message-role">
-                  <span>{{ msg.role === 'user' ? '你' : currentAgent.name }}</span>
-                  <span v-if="msg.createdAt" class="message-time">{{ formatMessageTime(msg.createdAt) }}</span>
-                  <span v-if="msg.role === 'assistant' && (msg.model || msg.provider)" class="message-meta">
-                    <span v-if="msg.model">{{ msg.model }}</span>
-                    <span v-if="msg.promptTokens || msg.completionTokens" class="meta-tokens">
-                      ↑{{ msg.promptTokens || 0 }} ↓{{ msg.completionTokens || 0 }}
-                    </span>
-                  </span>
-                </div>
-                <div
-                  v-if="msg.role === 'assistant' && msg.toolTraces?.length"
-                  class="reasoning-section"
-                >
-                  <div class="reasoning-title">检索/思考过程</div>
-                  <div class="reasoning-list">
-                    <div
-                      v-for="(trace, traceIdx) in msg.toolTraces"
-                      :key="`${index}-reason-${traceIdx}`"
-                      :class="['reasoning-item', 'trace-' + (trace.status || 'pending')]"
-                    >
-                      <div class="reasoning-step-dot">{{ traceIdx + 1 }}</div>
-                      <div class="reasoning-main">
-                        <div class="reasoning-top" @click="toggleTraceDetail(msg, index, traceIdx)">
-                          <span class="reasoning-name">{{ formatTraceType(trace.type) }}</span>
-                          <span class="reasoning-status" :class="'status-' + (trace.status || 'pending')">
-                            {{ formatTraceStatus(trace.status) }}
-                          </span>
-                          <span v-if="trace.durationMs != null" class="reasoning-duration">{{ trace.durationMs }}ms</span>
-                          <span class="reasoning-expand">
-                            {{ isTraceDetailExpanded(msg, index, traceIdx) ? '收起' : '详情' }}
-                          </span>
-                        </div>
-                        <div class="reasoning-msg">{{ trace.message }}</div>
-                        <div
-                          v-if="trace.detail && isTraceDetailExpanded(msg, index, traceIdx)"
-                          class="reasoning-detail"
-                        >
-                          <pre>{{ typeof trace.detail === 'object' ? JSON.stringify(trace.detail, null, 2) : trace.detail }}</pre>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div
-                  v-if="msg.role === 'assistant' && msg.retrievedChunks?.length"
-                  class="message-citations"
-                >
-                  <span class="citation-label">来源:</span>
-                  <button
-                    v-for="(chunk, citationIdx) in msg.retrievedChunks.slice(0, 5)"
-                    :key="`citation-${index}-${citationIdx}`"
-                    type="button"
-                    class="citation-item"
-                    :title="chunk.docName || chunk.source || '未知来源'"
-                    @click="openCitation(chunk)"
-                  >
-                    [{{ citationIdx + 1 }}] {{ getChunkSourceLabel(chunk) }}
-                  </button>
-                </div>
-                <div class="message-text" v-html="renderMarkdown(msg.content)" />
-
-                <div v-if="msg.retrievedChunks?.length" class="retrieved-context">
-                  <div class="context-header context-toggle" @click="toggleRetrievedContext(msg, index)">
-                    <div class="context-header-left">
-                      <el-icon><Document /></el-icon>
-                      <span>检索依据 {{ msg.retrievedChunks.length }} 条</span>
-                    </div>
-                    <span class="context-toggle-text">
-                      {{ isRetrievedContextExpanded(msg, index) ? '收起' : '查看依据' }}
-                    </span>
-                  </div>
-                  <div v-if="isRetrievedContextExpanded(msg, index)">
-                    <div
-                      v-for="(chunk, chunkIndex) in msg.retrievedChunks.slice(0, 3)"
-                      :key="`${index}-${chunkIndex}`"
-                      class="context-item"
-                    >
-                      <div class="chunk-source is-clickable" @click="openCitation(chunk)">
-                        [{{ chunkIndex + 1 }}] {{ getChunkSourceLabel(chunk) }}
-                      </div>
-                      <div class="chunk-text">
-                        {{ chunk.content?.substring(0, 160) }}{{ chunk.content?.length > 160 ? '...' : '' }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="loading" class="loading-indicator">
-              <el-icon class="is-loading">
-                <Loading />
-              </el-icon>
-              <span>思考中...</span>
-            </div>
-          </template>
-        </div>
-
-        <div v-if="messages.length > 0" class="input-area">
-          <div class="input-area-wrapper">
-            <div class="quick-config-row compact">
-              <button
-                v-for="chip in inputQuickChips"
-                :key="chip.key"
-                type="button"
-                class="quick-config-chip"
-                :disabled="chip.disabled"
-                @click="handleWorkspaceChipClick(chip)"
-              >
-                {{ chip.label }}
-              </button>
-            </div>
-            <el-input
-              v-model="inputMessage"
-              type="textarea"
-              :rows="3"
-              resize="none"
-              placeholder="输入消息... Enter 发送，Shift+Enter 换行"
-              :disabled="loading || !currentSessionId"
-              @keydown.enter="handleEnter"
-            />
-            <div class="input-actions">
-              <div class="input-hint">
-                模式：{{ currentInteractionLabel }} · 已附加知识库 {{ attachedKbIds.length }} 个
-                <span v-if="totalFilteredDocs > 0"> · 文档过滤 {{ totalFilteredDocs }} 个</span>
-              </div>
-              <el-button
-                type="primary"
-                :loading="loading"
-                :disabled="!currentSessionId"
-                @click="sendMessage"
-              >
-                <el-icon><Promotion /></el-icon>
-                发送
-              </el-button>
-            </div>
-          </div>
-        </div>
-      </template>
-    </main>
-
-    
-    <div v-if="isRightDrawer && !configPaneCollapsed" class="d-overlay" @click="configPaneCollapsed = true"></div>
-    <aside class="workspace-config" :class="{ 'is-drawer': isRightDrawer, 'is-collapsed': configPaneCollapsed }">
-      <div class="config-collapse-handle">
-        <el-button
-          class="collapse-btn"
-          circle
-          :icon="configPaneCollapsed ? ArrowLeft : ArrowRight"
-          @click="configPaneCollapsed = !configPaneCollapsed"
-        />
-      </div>
-
-      <template v-if="!configPaneCollapsed">
-        <div class="config-header">
-          <el-select v-model="currentConfigId" class="config-select">
-            <el-option
-              v-for="config in configProfiles"
-              :key="config.id"
-              :label="config.name"
-              :value="config.id"
-            />
-          </el-select>
-          <div class="config-header-actions">
-            <el-button class="header-icon-btn" circle :icon="Star" />
-            <el-button class="header-icon-btn" circle :icon="Delete" />
-            <el-button class="header-icon-btn" circle :icon="Close" />
-          </div>
-        </div>
+      <div v-show="sidebarTab === 'config' && !sessionPaneCollapsed" class="workspace-config-pane">
 
         <el-tabs v-model="activeConfigTab" class="config-tabs">
           <el-tab-pane label="模型" name="model" />
@@ -428,7 +80,7 @@
             <section class="config-card">
               <div class="config-card-head">
                 <div class="config-card-title">
-                  模型信息
+                  智能体信息
                 </div>
                 <div class="config-badge soft">
                   运行中
@@ -436,26 +88,260 @@
               </div>
               <div class="config-row">
                 <span>智能体</span>
-                <strong>{{ currentAgent?.name || '未选择' }}</strong>
+                <template v-if="isEditingAgentName">
+                  <el-input
+                    ref="agentNameInputRef"
+                    v-model="editingAgentName"
+                    class="agent-name-input"
+                    placeholder="请输入智能体名称"
+                    @keydown.enter.prevent="saveAgentName"
+                    @keydown.esc.prevent="cancelEditAgentName"
+                    @blur="saveAgentName"
+                  />
+                </template>
+                <strong
+                  v-else
+                  class="editable-agent-name"
+                  title="双击修改名称"
+                  @dblclick="startEditAgentName"
+                >
+                  {{ currentAgent?.name || '未选择' }}
+                </strong>
               </div>
               <div class="config-row">
                 <span>模型</span>
-                <strong>{{ currentAgent?.model || '默认模型' }}</strong>
-              </div>
-              <div class="config-row">
-                <span>交互模式</span>
-                <el-select v-model="interactionMode" style="width: 160px">
+                <el-select
+                  v-model="selectedModelName"
+                  class="model-switcher"
+                  placeholder="选择模型"
+                  filterable
+                  :loading="modelSwitching"
+                  :disabled="modelSwitching || !currentAgentId"
+                  @change="handleModelChange"
+                >
                   <el-option
-                    v-for="mode in interactionModes"
-                    :key="mode.value"
-                    :label="mode.label"
-                    :value="mode.value"
+                    v-for="model in modelOptions"
+                    :key="model.value"
+                    :label="model.label"
+                    :value="model.value"
                   />
                 </el-select>
               </div>
-              <div class="config-description">
-                {{ currentAgent?.description || '这个智能体暂时没有补充描述。' }}
+              <div class="config-row">
+                <span>交互模式</span>
+                <strong class="mode-readonly">{{ currentInteractionModeLabel }}</strong>
               </div>
+              <div class="config-row">
+                <span>模型类型</span>
+                <strong>{{ activeModelType }}</strong>
+              </div>
+              <div class="config-row">
+                <span>提供方</span>
+                <strong>{{ currentProviderLabel }}</strong>
+              </div>
+            </section>
+
+            <section class="config-card">
+              <div class="config-card-head">
+                <div class="config-card-title">
+                  模型参数
+                </div>
+                <div class="config-badge">
+                  {{ activeModelTypeLabel }}
+                </div>
+              </div>
+              <div class="config-card-desc">
+                会根据模型类型自动切换可编辑参数。
+              </div>
+
+              <template v-if="isChatLikeModel">
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">Temperature</span>
+                      <span class="param-desc">控制回复随机性与创造力</span>
+                    </div>
+                    <span class="value-badge">{{ agentRuntimeForm.temperature }}</span>
+                  </div>
+                  <el-slider v-model="agentRuntimeForm.temperature" :min="0" :max="2" :step="0.1" />
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">Top P</span>
+                      <span class="param-desc">控制采样范围与输出稳定性</span>
+                    </div>
+                    <span class="value-badge">{{ agentRuntimeForm.topP }}</span>
+                  </div>
+                  <el-slider v-model="agentRuntimeForm.topP" :min="0" :max="1" :step="0.1" />
+                </div>
+                <div class="config-row">
+                  <span>Max Tokens</span>
+                  <el-input-number
+                    v-model="agentRuntimeForm.maxTokens"
+                    :min="1"
+                    :max="65536"
+                    :step="256"
+                    controls-position="right"
+                  />
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">System Prompt</span>
+                      <span class="param-desc">设置角色、语气和输出约束</span>
+                    </div>
+                  </div>
+                  <el-input
+                    v-model="agentRuntimeForm.systemPrompt"
+                    type="textarea"
+                    :rows="5"
+                    placeholder="定义智能体的身份、回复风格和约束条件..."
+                  />
+                </div>
+              </template>
+
+              <template v-else-if="isImageModel">
+                <div class="config-row">
+                  <span>图像尺寸</span>
+                  <el-select v-model="agentRuntimeForm.imageSize" class="model-switcher">
+                    <el-option label="正方形 1:1 (1328x1328)" value="1328x1328" />
+                    <el-option label="横屏 16:9 (1664x928)" value="1664x928" />
+                    <el-option label="竖屏 9:16 (928x1664)" value="928x1664" />
+                    <el-option label="标准 4:3 (1472x1140)" value="1472x1140" />
+                    <el-option label="标准 3:4 (1140x1472)" value="1140x1472" />
+                  </el-select>
+                </div>
+                <div class="config-row">
+                  <span>随机种子</span>
+                  <el-input v-model="agentRuntimeForm.seed" placeholder="留空则随机生成">
+                    <template #append>
+                      <el-button :icon="Refresh" @click="generateRandomSeed" />
+                    </template>
+                  </el-input>
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">CFG Scale</span>
+                      <span class="param-desc">提示词约束强度</span>
+                    </div>
+                    <span class="value-badge">{{ agentRuntimeForm.guidanceScale }}</span>
+                  </div>
+                  <el-slider v-model="agentRuntimeForm.guidanceScale" :min="1" :max="20" :step="0.5" />
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">Steps</span>
+                      <span class="param-desc">步数越高质量越好但耗时增加</span>
+                    </div>
+                    <span class="value-badge">{{ agentRuntimeForm.inferenceSteps }}</span>
+                  </div>
+                  <el-slider v-model="agentRuntimeForm.inferenceSteps" :min="1" :max="50" :step="1" />
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">Negative Prompt</span>
+                      <span class="param-desc">描述不希望出现的元素</span>
+                    </div>
+                  </div>
+                  <el-input
+                    v-model="agentRuntimeForm.negativePrompt"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="例如：低清晰度、模糊、噪点"
+                  />
+                </div>
+              </template>
+
+              <template v-else-if="isVideoModel">
+                <div class="config-row">
+                  <span>视频比例</span>
+                  <el-radio-group v-model="agentRuntimeForm.videoSize" size="small">
+                    <el-radio-button value="16:9" label="16:9" />
+                    <el-radio-button value="9:16" label="9:16" />
+                    <el-radio-button value="1:1" label="1:1" />
+                  </el-radio-group>
+                </div>
+                <div class="config-row">
+                  <span>视频时长</span>
+                  <el-select v-model="agentRuntimeForm.videoDuration" class="model-switcher">
+                    <el-option label="5 秒" value="5" />
+                    <el-option label="10 秒" value="10" />
+                  </el-select>
+                </div>
+                <div class="config-row">
+                  <span>随机种子</span>
+                  <el-input v-model="agentRuntimeForm.seed" placeholder="留空则随机生成">
+                    <template #append>
+                      <el-button :icon="Refresh" @click="generateRandomSeed" />
+                    </template>
+                  </el-input>
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">Negative Prompt</span>
+                      <span class="param-desc">排除不希望出现的内容</span>
+                    </div>
+                  </div>
+                  <el-input
+                    v-model="agentRuntimeForm.negativePrompt"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="例如：抖动、失真、字幕遮挡"
+                  />
+                </div>
+              </template>
+
+              <template v-else-if="isSpeechModel">
+                <div class="config-row">
+                  <span>音色</span>
+                  <el-select
+                    v-model="agentRuntimeForm.voice"
+                    class="model-switcher"
+                    placeholder="请选择音色"
+                    filterable
+                    allow-create
+                    clearable
+                  >
+                    <el-option
+                      v-for="voice in voiceOptions"
+                      :key="voice.value"
+                      :label="voice.label"
+                      :value="voice.value"
+                    />
+                  </el-select>
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">Speed</span>
+                      <span class="param-desc">语速倍率</span>
+                    </div>
+                    <span class="value-badge">{{ agentRuntimeForm.speed }}x</span>
+                  </div>
+                  <el-slider v-model="agentRuntimeForm.speed" :min="0.5" :max="2" :step="0.1" />
+                </div>
+                <div class="param-group">
+                  <div class="param-header">
+                    <div class="param-label-wrap">
+                      <span class="param-label">Gain</span>
+                      <span class="param-desc">音量增益</span>
+                    </div>
+                    <span class="value-badge">{{ agentRuntimeForm.gain }} dB</span>
+                  </div>
+                  <el-slider v-model="agentRuntimeForm.gain" :min="-10" :max="10" :step="1" />
+                </div>
+              </template>
+
+              <template v-else>
+                <div class="config-card-desc">
+                  该模型类型暂未定义可编辑参数，默认按通用配置运行。
+                </div>
+              </template>
             </section>
 
             <section class="config-card">
@@ -669,17 +555,319 @@
         </div>
 
         <div class="config-footer">
-          <el-button type="primary" @click="saveCurrentConfig">
-            保存
+          <el-button type="primary" :loading="savingModelParams" @click="saveCurrentConfig">
+            {{ activeConfigTab === 'model' ? '保存模型参数' : '保存' }}
           </el-button>
         </div>
-      </template>
+      </div>
     </aside>
+
+    <main class="workspace-main">
+      <div v-if="!currentAgent" class="state-panel">
+        <div class="welcome-panel">
+          <h2>{{ greetingText }}</h2>
+
+          <div class="composer-placeholder is-disabled">
+            <div class="quick-config-row">
+              <button type="button" class="quick-config-chip" disabled>
+                模式：{{ currentInteractionLabel }}
+              </button>
+              <button type="button" class="quick-config-chip" disabled>
+                知识库：{{ attachedKbIds.length }}
+              </button>
+            </div>
+            <el-input
+              model-value=""
+              type="textarea"
+              :rows="4"
+              resize="none"
+              placeholder="请先在左侧选择智能体后开始对话"
+              disabled
+            />
+
+              <div class="composer-footer">
+                <div class="composer-left-tools">
+                  <button type="button" class="plus-trigger" disabled @click="triggerFilePicker">
+                    +
+                  </button>
+                </div>
+              <div class="composer-right-tools">
+                <el-button
+                  class="composer-send-btn"
+                  type="primary"
+                  circle
+                  :icon="Top"
+                  disabled
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-prompts">
+            <el-tag
+              v-for="prompt in quickPrompts"
+              :key="`empty-${prompt}`"
+              effect="plain"
+              class="prompt-tag"
+            >
+              {{ prompt }}
+            </el-tag>
+          </div>
+        </div>
+      </div>
+
+      <template v-else>
+        <div ref="messagesContainer" class="messages-container" :class="{ 'is-empty': messages.length === 0 }">
+          <div v-if="messages.length === 0" class="welcome-panel">
+            <h2>{{ greetingText }}</h2>
+
+            <div class="composer-placeholder">
+              <div class="quick-config-row">
+                <button
+                  v-for="chip in composerQuickChips"
+                  :key="chip.key"
+                  type="button"
+                  class="quick-config-chip"
+                  :disabled="chip.disabled"
+                  @click="handleWorkspaceChipClick(chip)"
+                >
+                  {{ chip.label }}
+                </button>
+              </div>
+              <el-input
+                v-model="inputMessage"
+                type="textarea"
+                :rows="4"
+                resize="none"
+                placeholder="问点什么？使用 @ 可以提及哦~"
+                @keydown.enter="handleEnter"
+              />
+
+              <div class="composer-footer">
+                <div class="composer-left-tools">
+                  <button type="button" class="plus-trigger" :disabled="uploadingFile" @click="triggerFilePicker">
+                    +
+                  </button>
+                </div>
+                <div class="composer-right-tools">
+                  <el-button
+                    class="composer-send-btn"
+                    type="primary"
+                    circle
+                    :icon="Top"
+                    :disabled="loading || (!inputMessage.trim() && !selectedUploadFileId)"
+                    @click="sendMessage"
+                  />
+                </div>
+              </div>
+              <div v-if="selectedUploadFileName" class="attached-file-row">
+                <span class="attached-file-name">已附加：{{ selectedUploadFileName }}</span>
+                <button type="button" class="attached-file-remove" @click="clearUploadedFile">移除</button>
+              </div>
+            </div>
+
+            <div class="quick-prompts">
+              <el-tag
+                v-for="prompt in quickPrompts"
+                :key="prompt"
+                effect="plain"
+                class="prompt-tag"
+                @click="applyPrompt(prompt)"
+              >
+                {{ prompt }}
+              </el-tag>
+            </div>
+          </div>
+
+          <template v-else>
+            <div
+              v-for="(msg, index) in messages"
+              :key="`${msg.role}-${index}`"
+              :class="['message-item', msg.role]"
+            >
+              <div class="message-avatar">
+                <el-icon v-if="msg.role === 'user'">
+                  <User />
+                </el-icon>
+                <el-icon v-else>
+                  <Cpu />
+                </el-icon>
+              </div>
+
+              <div class="message-bubble">
+                <div class="message-role">
+                  <span>{{ msg.role === 'user' ? '你' : currentAgent.name }}</span>
+                  <span v-if="msg.createdAt" class="message-time">{{ formatMessageTime(msg.createdAt) }}</span>
+                  <span v-if="msg.role === 'assistant' && (msg.model || msg.provider)" class="message-meta">
+                    <span v-if="msg.model">{{ msg.model }}</span>
+                    <span v-if="msg.promptTokens || msg.completionTokens" class="meta-tokens">
+                      ↑{{ msg.promptTokens || 0 }} ↓{{ msg.completionTokens || 0 }}
+                    </span>
+                  </span>
+                </div>
+                <div
+                  v-if="msg.role === 'assistant' && msg.toolTraces?.length"
+                  class="reasoning-section"
+                >
+                  <div class="reasoning-title">检索/思考过程</div>
+                  <div class="reasoning-list">
+                    <div
+                      v-for="(trace, traceIdx) in msg.toolTraces"
+                      :key="`${index}-reason-${traceIdx}`"
+                      :class="['reasoning-item', 'trace-' + (trace.status || 'pending')]"
+                    >
+                      <div class="reasoning-step-dot">{{ traceIdx + 1 }}</div>
+                      <div class="reasoning-main">
+                        <div class="reasoning-top" @click="toggleTraceDetail(msg, index, traceIdx)">
+                          <span class="reasoning-name">{{ formatTraceType(trace.type) }}</span>
+                          <span class="reasoning-status" :class="'status-' + (trace.status || 'pending')">
+                            {{ formatTraceStatus(trace.status) }}
+                          </span>
+                          <span v-if="trace.durationMs != null" class="reasoning-duration">{{ trace.durationMs }}ms</span>
+                          <span class="reasoning-expand">
+                            {{ isTraceDetailExpanded(msg, index, traceIdx) ? '收起' : '详情' }}
+                          </span>
+                        </div>
+                        <div class="reasoning-msg">{{ trace.message }}</div>
+                        <div
+                          v-if="trace.detail && isTraceDetailExpanded(msg, index, traceIdx)"
+                          class="reasoning-detail"
+                        >
+                          <pre>{{ typeof trace.detail === 'object' ? JSON.stringify(trace.detail, null, 2) : trace.detail }}</pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  v-if="msg.role === 'assistant' && msg.retrievedChunks?.length"
+                  class="message-citations"
+                >
+                  <span class="citation-label">来源:</span>
+                  <button
+                    v-for="(chunk, citationIdx) in msg.retrievedChunks.slice(0, 5)"
+                    :key="`citation-${index}-${citationIdx}`"
+                    type="button"
+                    class="citation-item"
+                    :title="chunk.docName || chunk.source || '未知来源'"
+                    @click="openCitation(chunk)"
+                  >
+                    [{{ citationIdx + 1 }}] {{ getChunkSourceLabel(chunk) }}
+                  </button>
+                </div>
+                <div v-if="getMessageImageUrl(msg)" class="message-media">
+                  <el-image
+                    :src="getMessageImageUrl(msg)"
+                    fit="contain"
+                    class="generated-image"
+                    :preview-src-list="[getMessageImageUrl(msg)]"
+                    :preview-teleported="true"
+                  />
+                </div>
+                <div v-else-if="getMessageAudioUrl(msg)" class="message-media">
+                  <audio :src="getMessageAudioUrl(msg)" controls class="generated-audio" />
+                </div>
+                <div v-else-if="getMessageVideoUrl(msg)" class="message-media">
+                  <video :src="getMessageVideoUrl(msg)" controls class="generated-video" />
+                </div>
+                <div v-else class="message-text" v-html="renderMarkdown(getMessageText(msg))" />
+
+                <div v-if="msg.retrievedChunks?.length" class="retrieved-context">
+                  <div class="context-header context-toggle" @click="toggleRetrievedContext(msg, index)">
+                    <div class="context-header-left">
+                      <el-icon><Document /></el-icon>
+                      <span>检索依据 {{ msg.retrievedChunks.length }} 条</span>
+                    </div>
+                    <span class="context-toggle-text">
+                      {{ isRetrievedContextExpanded(msg, index) ? '收起' : '查看依据' }}
+                    </span>
+                  </div>
+                  <div v-if="isRetrievedContextExpanded(msg, index)">
+                    <div
+                      v-for="(chunk, chunkIndex) in msg.retrievedChunks.slice(0, 3)"
+                      :key="`${index}-${chunkIndex}`"
+                      class="context-item"
+                    >
+                      <div class="chunk-source is-clickable" @click="openCitation(chunk)">
+                        [{{ chunkIndex + 1 }}] {{ getChunkSourceLabel(chunk) }}
+                      </div>
+                      <div class="chunk-text">
+                        {{ chunk.content?.substring(0, 160) }}{{ chunk.content?.length > 160 ? '...' : '' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="loading" class="loading-indicator">
+              <el-icon class="is-loading">
+                <Loading />
+              </el-icon>
+              <span>思考中...</span>
+            </div>
+          </template>
+        </div>
+
+        <div v-if="messages.length > 0" class="input-area">
+          <div class="input-area-wrapper">
+            <div class="quick-config-row compact">
+              <button
+                v-for="chip in inputQuickChips"
+                :key="chip.key"
+                type="button"
+                class="quick-config-chip"
+                :disabled="chip.disabled"
+                @click="handleWorkspaceChipClick(chip)"
+              >
+                {{ chip.label }}
+              </button>
+            </div>
+            <el-input
+              v-model="inputMessage"
+              type="textarea"
+              :rows="3"
+              resize="none"
+              placeholder="输入消息... Enter 发送，Shift+Enter 换行"
+              :disabled="loading || !currentSessionId"
+              @keydown.enter="handleEnter"
+            />
+            <div class="input-actions">
+              <div class="input-hint">
+                模式：{{ currentInteractionLabel }} · 已附加知识库 {{ attachedKbIds.length }} 个
+                <span v-if="totalFilteredDocs > 0"> · 文档过滤 {{ totalFilteredDocs }} 个</span>
+                <span v-if="selectedUploadFileName"> · 文件：{{ selectedUploadFileName }}</span>
+              </div>
+              <button type="button" class="plus-trigger input-plus" :disabled="uploadingFile" @click="triggerFilePicker">
+                +
+              </button>
+              <el-button
+                type="primary"
+                :loading="loading"
+                :disabled="!currentSessionId || (!inputMessage.trim() && !selectedUploadFileId)"
+                @click="sendMessage"
+              >
+                <el-icon><Promotion /></el-icon>
+                发送
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </main>
+
+    <input
+      ref="fileInputRef"
+      type="file"
+      class="hidden-file-input"
+      @change="onFileSelected"
+    >
+    
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
@@ -697,10 +885,15 @@ import {
   Promotion,
   Refresh,
   Search,
-  Star,
   Top,
   User
 } from '@element-plus/icons-vue';
+import {
+  chatAgent,
+  getAgentMetadata,
+  uploadMultimodalFile,
+  updateAgent,
+} from '@/api/agent';
 import {
   attachKnowledgeBase,
   createChatSession,
@@ -714,13 +907,13 @@ import {
   sendChatMessage,
   updateKbDocFilters
 } from '@/api/agent-chat';
+import { getModelList } from '@/api/model';
 import { getDocuments } from '@/api/knowledge';
 import { getSkillList } from '@/api/skill';
 import { getMcpServices } from '@/api/mcp';
 import { useInteractionShell } from '@/composables/useInteractionShell';
 import { runQuickChipAction } from '@/composables/useInteractionQuickChips';
 import { buildWorkspaceChipSets } from '@/composables/useInteractionChipRegistry';
-import InteractionTopBar from '@/components/orin/InteractionTopBar.vue';
 
 const props = defineProps({
   presetAgentId: {
@@ -744,16 +937,40 @@ const WORKSPACE_STATE_KEY = 'agent-workspace-state';
 const SESSION_MESSAGES_CACHE_KEY = 'agent-workspace-session-messages';
 const SESSION_MESSAGES_CACHE_LIMIT = 50;
 
-const interactionModes = [
-  { label: '智能助手', value: 'assistant', icon: Cpu },
-  { label: '深度分析', value: 'analysis', icon: Search }
-];
+const quickPromptMap = {
+  CHAT: [
+    '你好，请介绍一下你自己',
+    '帮我写一封商务邮件',
+    '解释一下什么是机器学习',
+    '创建一个冒泡排序 Python 示例'
+  ],
+  TEXT_TO_IMAGE: [
+    '生成一张赛博朋克风格的城市夜景，霓虹灯，高细节',
+    '画一只戴宇航头盔的柯基，写实风，4K',
+    '设计一个极简科技风 APP 图标，蓝绿配色',
+    '生成一张中国山水水墨风海报，留白，竖版'
+  ],
+  TEXT_TO_VIDEO: [
+    '生成一个黄昏海边延时镜头，镜头缓慢推进，10 秒',
+    '制作一段产品展示短视频，干净背景，16:9',
+    '生成城市街头雨夜氛围视频，霓虹反光，5 秒',
+    '做一个卡通角色转身挥手动画，平滑过渡'
+  ],
+  TEXT_TO_SPEECH: [
+    '用温和语气朗读：欢迎使用 ORIN 智能体平台',
+    '把这段文案转成语音：今天下午三点开会，请准时参加',
+    '生成一段播报：当前系统运行正常，未发现异常告警',
+    '朗读一段客服话术：您好，很高兴为您服务'
+  ]
+};
 
-const quickPrompts = [
-  '你好，请介绍一下你自己',
-  '帮我写一封商务邮件',
-  '解释一下什么是机器学习',
-  '创建一个冒泡排序 Python 示例'
+const voiceOptions = [
+  { label: 'Alex', value: 'alex' },
+  { label: 'Anna', value: 'anna' },
+  { label: 'Bella', value: 'bella' },
+  { label: 'Benjamin', value: 'benjamin' },
+  { label: 'Charles', value: 'charles' },
+  { label: 'David', value: 'david' }
 ];
 
 const defaultConfig = () => ({
@@ -764,6 +981,23 @@ const defaultConfig = () => ({
   enableSuggestions: true,
   showRetrievedContext: true,
   autoRenameSession: true
+});
+
+const defaultRuntimeForm = () => ({
+  temperature: 0.7,
+  topP: 0.7,
+  maxTokens: 2000,
+  systemPrompt: '',
+  imageSize: '1328x1328',
+  seed: '',
+  guidanceScale: 7.5,
+  inferenceSteps: 20,
+  negativePrompt: '',
+  voice: '',
+  speed: 1.0,
+  gain: 0,
+  videoSize: '16:9',
+  videoDuration: '5'
 });
 
 const agents = ref([]);
@@ -784,12 +1018,23 @@ const kbSearch = ref('');
 const inputMessage = ref('');
 const loading = ref(false);
 const sessionPaneCollapsed = ref(false);
-const configPaneCollapsed = ref(true);
+const sidebarTab = ref('session');
 const activeConfigTab = ref('tools');
 const currentConfigId = ref('default');
-const interactionMode = ref('assistant');
+const selectedModelName = ref('');
+const modelSwitching = ref(false);
+const modelCatalog = ref([]);
+const savingModelParams = ref(false);
+const isEditingAgentName = ref(false);
+const editingAgentName = ref('');
+const agentNameInputRef = ref(null);
+const fileInputRef = ref(null);
+const selectedUploadFileId = ref('');
+const selectedUploadFileName = ref('');
+const uploadingFile = ref(false);
 const messagesContainer = ref(null);
 const currentConfig = reactive(defaultConfig());
+const agentRuntimeForm = reactive(defaultRuntimeForm());
 const expandedRetrievedContext = ref({});
 const expandedTraceDetails = ref({});
 const {
@@ -798,10 +1043,9 @@ const {
   isMedium,
   isNarrow,
   isLeftDrawer,
-  isRightDrawer
 } = useInteractionShell({
   leftDrawerMode: 'narrow',
-  rightDrawerMode: 'always'
+  
 });
 
 // 保留 isMobile 以便兼容某些未删干净的模板指令
@@ -826,32 +1070,77 @@ const currentSessionTitle = computed(() => {
   return sessions.value.find((item) => item.id === currentSessionId.value)?.title || '新对话';
 });
 
-const currentInteractionLabel = computed(() => {
-  return interactionModes.find((mode) => mode.value === interactionMode.value)?.label || '智能助手';
+const normalizeAgentViewType = (agent) => {
+  const rawType = agent?.viewType || agent?.mode || agent?.type || agent?.agentType || '';
+  const normalized = String(rawType || '').trim().toUpperCase();
+  if (!normalized) return 'CHAT';
+  if (normalized === 'TTS') return 'TEXT_TO_SPEECH';
+  if (normalized === 'STT') return 'SPEECH_TO_TEXT';
+  if (normalized === 'TTI') return 'TEXT_TO_IMAGE';
+  if (normalized === 'TTV') return 'TEXT_TO_VIDEO';
+  if (normalized === 'LLM') return 'CHAT';
+  return normalized;
+};
+
+const currentInteractionLabel = computed(() => normalizeAgentViewType(currentAgent.value));
+const INTERACTION_MODE_LABEL_MAP = {
+  CHAT: '对话',
+  TEXT_TO_IMAGE: '文生图',
+  IMAGE_TO_IMAGE: '图生图',
+  TEXT_TO_VIDEO: '文生视频',
+  TEXT_TO_SPEECH: '语音合成',
+  SPEECH_TO_TEXT: '语音转写'
+};
+const currentInteractionModeLabel = computed(() => {
+  const mode = String(currentInteractionLabel.value || '').toUpperCase();
+  return INTERACTION_MODE_LABEL_MAP[mode] || mode || '未知';
+});
+const greetingMap = {
+  CHAT: '您好，有什么可以帮您？',
+  TEXT_TO_IMAGE: '想生成什么图像？描述越具体，效果越好。',
+  TEXT_TO_VIDEO: '想生成什么视频？可以描述镜头、时长和风格。',
+  TEXT_TO_SPEECH: '请输入要朗读的文本，我来为你生成语音。'
+};
+const greetingText = computed(() => {
+  const mode = String(currentInteractionLabel.value || 'CHAT').toUpperCase();
+  return greetingMap[mode] || greetingMap.CHAT;
+});
+const quickPrompts = computed(() => {
+  const mode = String(currentInteractionLabel.value || 'CHAT').toUpperCase();
+  return quickPromptMap[mode] || quickPromptMap.CHAT;
 });
 
 const workspaceChipSets = computed(() => buildWorkspaceChipSets({
   interactionLabel: currentInteractionLabel.value,
   attachedKbCount: attachedKbIds.value.length,
   retrievedContextEnabled: currentConfig.showRetrievedContext,
-  filteredDocsCount: totalFilteredDocs.value
+  filteredDocsCount: totalFilteredDocs.value,
+  runtimeParams: {
+    temperature: agentRuntimeForm.temperature,
+    maxTokens: agentRuntimeForm.maxTokens,
+    imageSize: agentRuntimeForm.imageSize,
+    inferenceSteps: agentRuntimeForm.inferenceSteps,
+    videoSize: agentRuntimeForm.videoSize,
+    videoDuration: agentRuntimeForm.videoDuration,
+    voice: agentRuntimeForm.voice,
+    speed: agentRuntimeForm.speed
+  }
 }));
 
-const workspaceTopChips = computed(() => workspaceChipSets.value.top);
 const composerQuickChips = computed(() => workspaceChipSets.value.composer);
 const inputQuickChips = computed(() => workspaceChipSets.value.input);
 
 const handleWorkspaceChipClick = (chip) => {
   runQuickChipAction(chip, {
     openInspector: () => {
-      configPaneCollapsed.value = false;
+      openSettings();
     },
     toggleInspector: () => {
-      configPaneCollapsed.value = !configPaneCollapsed.value;
+      openSettings();
     },
     openTab: (tab) => {
       activeConfigTab.value = tab || 'tools';
-      configPaneCollapsed.value = false;
+      openSettings();
     }
   });
 };
@@ -860,11 +1149,101 @@ const totalFilteredDocs = computed(() => {
   return Object.values(kbDocFilters).reduce((sum, docs) => sum + (docs?.length || 0), 0);
 });
 
+const normalizeModelRecord = (item = {}) => {
+  const value = String(item.modelId || item.modelName || item.name || item.id || '').trim();
+  return {
+    value,
+    label: item.name || item.modelName || item.modelId || value || '未知模型',
+    provider: item.provider || item.providerType || '',
+    type: normalizeAgentViewType(item),
+    status: item.status || ''
+  };
+};
+
+const modelOptions = computed(() => {
+  return modelCatalog.value
+    .filter((item) => item.value)
+    .map((item) => ({ value: item.value, label: item.label }));
+});
+
+const currentModelInfo = computed(() => {
+  const current = String(selectedModelName.value || currentAgent.value?.model || '').trim().toLowerCase();
+  if (!current) return null;
+  return modelCatalog.value.find((item) => {
+    const candidates = [item.value, item.label].filter(Boolean).map((val) => String(val).trim().toLowerCase());
+    return candidates.includes(current);
+  }) || null;
+});
+
+const currentProviderLabel = computed(() => {
+  return (
+    currentModelInfo.value?.provider ||
+    currentAgent.value?.provider ||
+    currentAgent.value?.providerType ||
+    '未知'
+  );
+});
+
+const inferModelTypeFromName = (modelName = '') => {
+  const modelLower = String(modelName || '').trim().toLowerCase();
+  if (!modelLower) return 'CHAT';
+  if (
+    modelLower.includes('wan-') ||
+    modelLower.includes('-t2v') ||
+    modelLower.includes('-i2v') ||
+    modelLower.includes('video')
+  ) {
+    return 'TEXT_TO_VIDEO';
+  }
+  if (
+    modelLower.includes('-tts') ||
+    modelLower.includes('cosyvoice') ||
+    modelLower.includes('speech')
+  ) {
+    return 'TEXT_TO_SPEECH';
+  }
+  if (
+    modelLower.includes('flux') ||
+    modelLower.includes('stable-diffusion') ||
+    modelLower.includes('image')
+  ) {
+    return 'TEXT_TO_IMAGE';
+  }
+  return 'CHAT';
+};
+
+const activeModelType = computed(() => {
+  const byCatalog = normalizeAgentViewType({ viewType: currentModelInfo.value?.type });
+  if (byCatalog && byCatalog !== 'CHAT' && byCatalog !== 'UNKNOWN') return byCatalog;
+
+  const byAgent = normalizeAgentViewType({ viewType: currentAgent.value?.viewType });
+  if (byAgent && byAgent !== 'UNKNOWN') return byAgent;
+
+  return inferModelTypeFromName(selectedModelName.value || currentAgent.value?.model || '');
+});
+
+const isImageModel = computed(() => activeModelType.value === 'TEXT_TO_IMAGE' || activeModelType.value === 'IMAGE_TO_IMAGE');
+const isVideoModel = computed(() => activeModelType.value === 'TEXT_TO_VIDEO');
+const isSpeechModel = computed(() => activeModelType.value === 'TEXT_TO_SPEECH');
+const isChatLikeModel = computed(() => !isImageModel.value && !isVideoModel.value && !isSpeechModel.value);
+
+const activeModelTypeLabel = computed(() => {
+  if (isImageModel.value) return '图像生成';
+  if (isVideoModel.value) return '视频生成';
+  if (isSpeechModel.value) return '语音合成';
+  return '对话模型';
+});
+
 const normalizeAgent = (agent) => ({
   ...agent,
   id: agent.id || agent.agentId,
   name: agent.name || agent.agentName || '未命名智能体',
-  model: agent.model || agent.modelName || ''
+  model: agent.model || agent.modelName || '',
+  viewType: normalizeAgentViewType(agent),
+  provider: agent.provider || agent.providerType || '',
+  providerType: agent.providerType || agent.provider || '',
+  status: agent.status || '',
+  enabled: agent.enabled
 });
 
 const getAgentColor = (name) => {
@@ -930,7 +1309,7 @@ const saveWorkspaceState = () => {
     currentAgentId: currentAgentId.value,
     currentSessionId: currentSessionId.value,
     sessionPaneCollapsed: sessionPaneCollapsed.value,
-    configPaneCollapsed: configPaneCollapsed.value,
+    sidebarTab: sidebarTab.value,
     activeConfigTab: activeConfigTab.value
   };
   localStorage.setItem(WORKSPACE_STATE_KEY, JSON.stringify(state));
@@ -962,9 +1341,142 @@ const restoreConfigForAgent = (agentId) => {
   }
 };
 
-const saveCurrentConfig = () => {
+const parseAgentExtraParams = (raw) => {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+};
+
+const syncRuntimeFormFromMetadata = (metadata = {}) => {
+  const extra = parseAgentExtraParams(metadata.parameters);
+  Object.assign(agentRuntimeForm, defaultRuntimeForm(), {
+    temperature: metadata.temperature ?? 0.7,
+    topP: metadata.topP ?? 0.7,
+    maxTokens: metadata.maxTokens ?? 2000,
+    systemPrompt: metadata.systemPrompt || '',
+    imageSize: extra.imageSize || metadata.imageSize || '1328x1328',
+    seed: extra.seed || metadata.seed || '',
+    guidanceScale: extra.guidanceScale ?? metadata.guidanceScale ?? 7.5,
+    inferenceSteps: extra.inferenceSteps ?? metadata.inferenceSteps ?? 20,
+    negativePrompt: extra.negativePrompt || metadata.negativePrompt || '',
+    voice: extra.voice || metadata.voice || '',
+    speed: extra.speed ?? metadata.speed ?? 1.0,
+    gain: extra.gain ?? metadata.gain ?? 0,
+    videoSize: extra.videoSize || metadata.videoSize || '16:9',
+    videoDuration: extra.videoDuration || metadata.videoDuration || '5'
+  });
+};
+
+const loadAgentRuntimeConfig = async (agentId) => {
+  if (!agentId) {
+    Object.assign(agentRuntimeForm, defaultRuntimeForm());
+    return;
+  }
+  try {
+    const metadata = await getAgentMetadata(agentId);
+    syncRuntimeFormFromMetadata(metadata || {});
+    if (metadata?.viewType || metadata?.modelName || metadata?.name) {
+      const nextModel = metadata.modelName || selectedModelName.value || currentAgent.value?.model || '';
+      currentAgent.value = {
+        ...(currentAgent.value || {}),
+        viewType: metadata.viewType ? normalizeAgentViewType(metadata) : currentAgent.value?.viewType,
+        model: nextModel,
+        name: metadata.name || metadata.agentName || currentAgent.value?.name || '',
+        provider: metadata.provider || metadata.providerType || currentAgent.value?.provider || '',
+        providerType: metadata.providerType || metadata.provider || currentAgent.value?.providerType || '',
+        status: metadata.status || currentAgent.value?.status || '',
+        enabled: metadata.enabled ?? currentAgent.value?.enabled
+      };
+      selectedModelName.value = nextModel;
+      agents.value = agents.value.map((agent) => (
+        agent.id === agentId
+          ? {
+              ...agent,
+              model: nextModel,
+              viewType: metadata.viewType ? normalizeAgentViewType(metadata) : agent.viewType,
+              name: metadata.name || metadata.agentName || agent.name,
+              provider: metadata.provider || metadata.providerType || agent.provider || '',
+              providerType: metadata.providerType || metadata.provider || agent.providerType || '',
+              status: metadata.status || agent.status || '',
+              enabled: metadata.enabled ?? agent.enabled
+            }
+          : agent
+      ));
+    }
+  } catch (error) {
+    console.warn('Failed to load agent runtime config:', error);
+  }
+};
+
+const buildRuntimePayloadByModelType = () => {
+  const payload = {
+    name: currentAgent.value?.name,
+    model: selectedModelName.value || currentAgent.value?.model || ''
+  };
+  if (isImageModel.value) {
+    return {
+      ...payload,
+      imageSize: agentRuntimeForm.imageSize,
+      seed: agentRuntimeForm.seed || null,
+      guidanceScale: agentRuntimeForm.guidanceScale,
+      inferenceSteps: agentRuntimeForm.inferenceSteps,
+      negativePrompt: agentRuntimeForm.negativePrompt || null
+    };
+  }
+  if (isVideoModel.value) {
+    return {
+      ...payload,
+      videoSize: agentRuntimeForm.videoSize,
+      videoDuration: agentRuntimeForm.videoDuration,
+      seed: agentRuntimeForm.seed || null,
+      negativePrompt: agentRuntimeForm.negativePrompt || null
+    };
+  }
+  if (isSpeechModel.value) {
+    return {
+      ...payload,
+      voice: agentRuntimeForm.voice || null,
+      speed: agentRuntimeForm.speed,
+      gain: agentRuntimeForm.gain
+    };
+  }
+  return {
+    ...payload,
+    temperature: agentRuntimeForm.temperature,
+    topP: agentRuntimeForm.topP,
+    maxTokens: agentRuntimeForm.maxTokens,
+    systemPrompt: agentRuntimeForm.systemPrompt
+  };
+};
+
+const saveAgentRuntimeConfig = async () => {
   if (!currentAgentId.value) {
     ElMessage.warning('请先选择智能体');
+    return;
+  }
+  savingModelParams.value = true;
+  try {
+    await updateAgent(currentAgentId.value, buildRuntimePayloadByModelType());
+    await loadAgentRuntimeConfig(currentAgentId.value);
+    ElMessage.success('模型参数已保存');
+  } catch (error) {
+    ElMessage.error('模型参数保存失败');
+  } finally {
+    savingModelParams.value = false;
+  }
+};
+
+const saveCurrentConfig = async () => {
+  if (!currentAgentId.value) {
+    ElMessage.warning('请先选择智能体');
+    return;
+  }
+  if (activeConfigTab.value === 'model') {
+    await saveAgentRuntimeConfig();
     return;
   }
 
@@ -1019,6 +1531,10 @@ const getMcpServiceName = (serviceId) => {
   return mcpServices.value.find((item) => item.id === serviceId)?.name || String(serviceId);
 };
 
+const generateRandomSeed = () => {
+  agentRuntimeForm.seed = Math.floor(Math.random() * 10000000000).toString();
+};
+
 const applyPrompt = (prompt) => {
   inputMessage.value = prompt;
 };
@@ -1051,6 +1567,45 @@ const normalizeSession = (session) => ({
   agentId: session.agentId
 });
 
+const inferMessageDataType = (message = {}) => {
+  const explicitType = String(message.dataType || message.type || '').toUpperCase();
+  if (explicitType) return explicitType;
+  const content = message?.content;
+  if (content && typeof content === 'object') {
+    if (content.image_url || content.url?.match(/\.(png|jpg|jpeg|webp|gif)(\?|$)/i)) return 'IMAGE';
+    if (content.audio_url) return 'AUDIO';
+    if (content.video_url) return 'VIDEO';
+  }
+  return 'TEXT';
+};
+
+const normalizeWorkspaceMessage = (message = {}) => {
+  const dataType = inferMessageDataType(message);
+  const content = message?.content;
+  const isObjectContent = content && typeof content === 'object';
+  const imageUrl = message?.imageUrl || message?.image_url || (isObjectContent ? (content.image_url || content.url || content.images?.[0]?.url || '') : '');
+  const audioUrl = message?.audioUrl || message?.audio_url || (isObjectContent ? (content.audio_url || content.url || '') : '');
+  const videoUrl = message?.videoUrl || message?.video_url || (isObjectContent ? (content.video_url || content.url || '') : '');
+
+  let normalizedContent = content;
+  if (isObjectContent) {
+    normalizedContent = content.text || content.answer || content.prompt || '';
+  }
+  if (normalizedContent == null) normalizedContent = '';
+  if (typeof normalizedContent !== 'string') {
+    normalizedContent = JSON.stringify(normalizedContent, null, 2);
+  }
+
+  return {
+    ...message,
+    dataType,
+    imageUrl,
+    audioUrl,
+    videoUrl,
+    content: normalizedContent
+  };
+};
+
 const normalizeId = (value) => (value == null ? '' : String(value));
 
 const normalizeKbDocFilters = (filters = {}) => {
@@ -1079,6 +1634,7 @@ const loadAgents = async () => {
   if (presetId && agents.value.some((agent) => String(agent.id) === presetId)) {
     currentAgentId.value = presetId;
     currentAgent.value = agents.value.find((agent) => String(agent.id) === presetId) || null;
+    selectedModelName.value = currentAgent.value?.model || '';
     return;
   }
 
@@ -1088,6 +1644,7 @@ const loadAgents = async () => {
   } else {
     currentAgent.value = agents.value.find((agent) => agent.id === currentAgentId.value) || null;
   }
+  selectedModelName.value = currentAgent.value?.model || '';
 };
 
 const loadKnowledgeBases = async () => {
@@ -1124,6 +1681,108 @@ const loadMcpServicesSafe = async () => {
   } catch (error) {
     console.warn('Failed to load MCP services:', error);
     mcpServices.value = [];
+  }
+};
+
+const loadModelCatalog = async () => {
+  try {
+    const res = await getModelList();
+    const list = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.data)
+        ? res.data
+        : [];
+    modelCatalog.value = list.map(normalizeModelRecord).filter((item) => item.value);
+  } catch (error) {
+    console.warn('Failed to load model catalog:', error);
+    modelCatalog.value = [];
+  }
+};
+
+const handleModelChange = async (nextModel) => {
+  const modelName = String(nextModel || '').trim();
+  if (!modelName || !currentAgentId.value || !currentAgent.value) return;
+  if (modelName === currentAgent.value.model) return;
+
+  const previousModel = currentAgent.value.model || '';
+  modelSwitching.value = true;
+  try {
+    await updateAgent(currentAgentId.value, { model: modelName });
+    const meta = await getAgentMetadata(currentAgentId.value).catch(() => null);
+    const resolvedModel = meta?.modelName || modelName;
+
+    currentAgent.value = {
+      ...currentAgent.value,
+      model: resolvedModel,
+      viewType: meta?.viewType ? normalizeAgentViewType(meta) : currentAgent.value.viewType
+    };
+
+    agents.value = agents.value.map((agent) => (
+      agent.id === currentAgentId.value
+        ? { ...agent, model: resolvedModel, viewType: currentAgent.value.viewType }
+        : agent
+    ));
+
+    selectedModelName.value = resolvedModel;
+    if (meta) {
+      syncRuntimeFormFromMetadata(meta);
+    } else {
+      await loadAgentRuntimeConfig(currentAgentId.value);
+    }
+    await loadModelCatalog();
+    ElMessage.success('模型已切换');
+  } catch (error) {
+    selectedModelName.value = previousModel;
+    ElMessage.error('模型切换失败');
+  } finally {
+    modelSwitching.value = false;
+  }
+};
+
+const startEditAgentName = async () => {
+  if (!currentAgentId.value || !currentAgent.value) return;
+  isEditingAgentName.value = true;
+  editingAgentName.value = currentAgent.value.name || '';
+  await nextTick();
+  const inputEl = agentNameInputRef.value?.input || agentNameInputRef.value?.$el?.querySelector('input');
+  inputEl?.focus?.();
+  inputEl?.select?.();
+};
+
+const cancelEditAgentName = () => {
+  isEditingAgentName.value = false;
+  editingAgentName.value = '';
+};
+
+const saveAgentName = async () => {
+  if (!isEditingAgentName.value || !currentAgentId.value || !currentAgent.value) return;
+  const trimmedName = String(editingAgentName.value || '').trim();
+  if (!trimmedName) {
+    ElMessage.warning('名称不能为空');
+    editingAgentName.value = currentAgent.value.name || '';
+    return;
+  }
+  if (trimmedName === currentAgent.value.name) {
+    cancelEditAgentName();
+    return;
+  }
+
+  try {
+    await updateAgent(currentAgentId.value, { name: trimmedName });
+    const meta = await getAgentMetadata(currentAgentId.value).catch(() => null);
+    const resolvedName = meta?.name || meta?.agentName || trimmedName;
+
+    currentAgent.value = {
+      ...currentAgent.value,
+      name: resolvedName
+    };
+    agents.value = agents.value.map((agent) => (
+      agent.id === currentAgentId.value ? { ...agent, name: resolvedName } : agent
+    ));
+    ElMessage.success('名称已更新');
+    cancelEditAgentName();
+  } catch (error) {
+    ElMessage.error('名称更新失败');
   }
 };
 
@@ -1188,14 +1847,14 @@ const selectSession = async (session) => {
   currentSessionId.value = session.id;
   const cachedMessages = getCachedSessionMessages(session.id);
   if (cachedMessages?.length) {
-    messages.value = cachedMessages;
+    messages.value = cachedMessages.map((message) => normalizeWorkspaceMessage(message));
     scrollToBottom();
   }
 
   try {
     const res = await getChatSession(session.id);
     const data = res?.data || res || {};
-    messages.value = (data.messages || []).map((message) => ({
+    messages.value = (data.messages || []).map((message) => normalizeWorkspaceMessage({
       ...message,
       retrievedChunks: currentConfig.showRetrievedContext ? message.retrievedChunks || [] : []
     }));
@@ -1243,7 +1902,9 @@ const newSession = async () => {
 
 const handleAgentChange = async (agentId) => {
   currentAgent.value = agents.value.find((agent) => agent.id === agentId) || null;
+  selectedModelName.value = currentAgent.value?.model || '';
   restoreConfigForAgent(agentId);
+  await loadAgentRuntimeConfig(agentId);
   activeConfigTab.value = 'tools';
 
   try {
@@ -1274,10 +1935,16 @@ const removeSession = async (session) => {
       if (sessions.value.length) {
         await selectSession(sessions.value[0]);
       } else {
-        messages.value = [];
-        currentSessionId.value = '';
-        attachedKbIds.value = [];
-        Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
+        // In locked console mode, keep the workspace "live" by auto-creating
+        // a fresh session after deleting the last one.
+        if (props.lockAgent && currentAgentId.value) {
+          await createSessionForAgent(currentAgentId.value);
+        } else {
+          messages.value = [];
+          currentSessionId.value = '';
+          attachedKbIds.value = [];
+          Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
+        }
       }
     }
 
@@ -1388,6 +2055,52 @@ const syncKbDocFilters = async () => {
   }
 };
 
+
+const openSettings = () => {
+  sidebarTab.value = 'config';
+  sessionPaneCollapsed.value = false;
+};
+
+const triggerFilePicker = () => {
+  if (!currentAgentId.value || uploadingFile.value) return;
+  fileInputRef.value?.click();
+};
+
+const clearUploadedFile = () => {
+  selectedUploadFileId.value = '';
+  selectedUploadFileName.value = '';
+  if (fileInputRef.value) {
+    fileInputRef.value.value = '';
+  }
+};
+
+const onFileSelected = async (event) => {
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+  if (!currentAgentId.value) {
+    ElMessage.warning('请先选择智能体');
+    clearUploadedFile();
+    return;
+  }
+
+  uploadingFile.value = true;
+  try {
+    const uploadRes = await uploadMultimodalFile(file);
+    const fileId = uploadRes?.id || uploadRes?.data?.id || '';
+    if (!fileId) {
+      throw new Error('上传成功但未返回文件ID');
+    }
+    selectedUploadFileId.value = fileId;
+    selectedUploadFileName.value = file.name || `文件-${fileId.slice(0, 8)}`;
+    ElMessage.success('文件已上传并附加');
+  } catch (error) {
+    clearUploadedFile();
+    ElMessage.error(error?.message || '文件上传失败');
+  } finally {
+    uploadingFile.value = false;
+  }
+};
+
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
@@ -1396,43 +2109,226 @@ const scrollToBottom = () => {
   });
 };
 
+const normalizeChatResponse = (res) => {
+  if (res?.status === 'SUCCESS' && res?.data) return { data: res.data, dataType: res.dataType };
+  if (res?.status === 'PROCESSING') {
+    return { data: { answer: '任务处理中，请稍候...' }, dataType: res.dataType };
+  }
+  if (res?.status === 'FAILED' || res?.status === 'ERROR') {
+    const errorMessage = res?.errorMessage || res?.message || '请求失败，请稍后重试';
+    throw new Error(errorMessage);
+  }
+  return { data: res, dataType: res?.dataType };
+};
+
+const normalizeTtsVoice = (voice, modelName) => {
+  const rawVoice = String(voice || '').trim();
+  const model = String(modelName || '').trim();
+  if (!rawVoice) return '';
+  if (!model) return rawVoice;
+  if (rawVoice.includes(':')) return rawVoice;
+  const systemVoices = ['alex', 'anna', 'bella', 'benjamin', 'charles', 'david', 'claire', 'diana'];
+  if (systemVoices.includes(rawVoice.toLowerCase())) {
+    return `${model}:${rawVoice.toLowerCase()}`;
+  }
+  return rawVoice;
+};
+
+const formatRequestError = (error) => {
+  const backendMessage = error?.response?.data?.message || error?.response?.data?.error || '';
+  const base = String(backendMessage || error?.message || '');
+  if (base.includes('20052') || base.includes('Voice or reference audio should be set')) {
+    return '语音生成失败：当前模型需要有效音色或参考音频，请在“模型参数”里重新选择音色。';
+  }
+  if (!base) return '请求失败，请稍后重试';
+  return base.replace(/^SiliconFlow API Error:\s*/i, '');
+};
+
+const appendAssistantResult = (payload, dataType = '') => {
+  const resolveMediaUrl = (obj = {}, kind = 'audio') => {
+    const direct = obj?.url || obj?.download_url || obj?.downloadUrl || '';
+    if (direct) return direct;
+
+    const typed =
+      kind === 'image'
+        ? (obj?.image_url || obj?.imageUrl || obj?.images?.[0]?.url || '')
+        : kind === 'video'
+          ? (obj?.video_url || obj?.videoUrl || '')
+          : (obj?.audio_url || obj?.audioUrl || '');
+    if (typed) return typed;
+
+    const fileId = obj?.file_id || obj?.fileId || '';
+    if (fileId) return `/api/v1/multimodal/files/${fileId}/download`;
+    return '';
+  };
+
+  const inferredDataType = String(dataType || payload?.dataType || payload?.type || '').toUpperCase();
+  if (inferredDataType === 'IMAGE' || payload?.image_url || payload?.url?.match(/\.(png|jpg|jpeg|webp|gif)(\?|$)/i)) {
+    const url = resolveMediaUrl(payload, 'image');
+    messages.value.push(normalizeWorkspaceMessage({
+      role: 'assistant',
+      dataType: 'IMAGE',
+      imageUrl: url || '',
+      content: payload?.text || payload?.answer || (url ? '图像已生成' : '（图像生成成功，但未返回图像地址）'),
+      retrievedChunks: [],
+      toolTraces: [],
+      model: currentAgent.value?.model || '',
+      provider: currentModelInfo.value?.provider || '',
+      promptTokens: payload?.usage?.prompt_tokens || 0,
+      completionTokens: payload?.usage?.completion_tokens || 0,
+      createdAt: new Date().toISOString()
+    }));
+    return;
+  }
+
+  if (inferredDataType === 'VIDEO' || payload?.video_url) {
+    const url = resolveMediaUrl(payload, 'video');
+    messages.value.push(normalizeWorkspaceMessage({
+      role: 'assistant',
+      dataType: 'VIDEO',
+      videoUrl: url || '',
+      content: url ? '视频已生成' : '（视频任务已提交，请稍后在日志中查看结果）',
+      retrievedChunks: [],
+      toolTraces: [],
+      model: currentAgent.value?.model || '',
+      provider: currentModelInfo.value?.provider || '',
+      promptTokens: payload?.usage?.prompt_tokens || 0,
+      completionTokens: payload?.usage?.completion_tokens || 0,
+      createdAt: new Date().toISOString()
+    }));
+    return;
+  }
+
+  if (inferredDataType === 'AUDIO' || payload?.audio_url) {
+    const url = resolveMediaUrl(payload, 'audio');
+    messages.value.push(normalizeWorkspaceMessage({
+      role: 'assistant',
+      dataType: 'AUDIO',
+      audioUrl: url || '',
+      content: url ? '语音已生成' : '（语音生成成功，但未返回可播放地址）',
+      retrievedChunks: [],
+      toolTraces: [],
+      model: currentAgent.value?.model || '',
+      provider: currentModelInfo.value?.provider || '',
+      promptTokens: payload?.usage?.prompt_tokens || 0,
+      completionTokens: payload?.usage?.completion_tokens || 0,
+      createdAt: new Date().toISOString()
+    }));
+    return;
+  }
+
+  const text = payload?.answer || payload?.text || payload?.choices?.[0]?.message?.content || (typeof payload === 'string' ? payload : JSON.stringify(payload));
+  messages.value.push(normalizeWorkspaceMessage({
+    role: 'assistant',
+    dataType: inferredDataType || 'TEXT',
+    content: text || '（模型未返回正文）',
+    retrievedChunks: [],
+    toolTraces: [],
+    model: currentAgent.value?.model || '',
+    provider: currentModelInfo.value?.provider || '',
+    promptTokens: payload?.usage?.prompt_tokens || 0,
+    completionTokens: payload?.usage?.completion_tokens || 0,
+    createdAt: new Date().toISOString()
+  }));
+};
+
+const sendMultimodalMessage = async (content) => {
+  const model = selectedModelName.value || currentAgent.value?.model || '';
+  if (isImageModel.value) {
+    const payload = {
+      prompt: content,
+      model,
+      image_size: agentRuntimeForm.imageSize || '1328x1328',
+      negative_prompt: agentRuntimeForm.negativePrompt || undefined,
+      guidance_scale: agentRuntimeForm.guidanceScale,
+      num_inference_steps: agentRuntimeForm.inferenceSteps,
+      seed: agentRuntimeForm.seed ? parseInt(agentRuntimeForm.seed, 10) : undefined
+    };
+    const rawRes = await chatAgent(currentAgentId.value, JSON.stringify(payload));
+    const { data, dataType } = normalizeChatResponse(rawRes);
+    appendAssistantResult(data, dataType);
+    return;
+  }
+
+  if (isVideoModel.value) {
+    const payload = {
+      prompt: content,
+      model,
+      videoSize: agentRuntimeForm.videoSize || '16:9',
+      negative_prompt: agentRuntimeForm.negativePrompt || undefined,
+      seed: agentRuntimeForm.seed ? parseInt(agentRuntimeForm.seed, 10) : undefined
+    };
+    const rawRes = await chatAgent(currentAgentId.value, JSON.stringify(payload));
+    const { data, dataType } = normalizeChatResponse(rawRes);
+    appendAssistantResult(data, dataType);
+    return;
+  }
+
+  if (isSpeechModel.value) {
+    const normalizedVoice = normalizeTtsVoice(agentRuntimeForm.voice, model);
+    const payload = {
+      input: content,
+      model,
+      voice: normalizedVoice || undefined,
+      speed: agentRuntimeForm.speed,
+      gain: agentRuntimeForm.gain
+    };
+    const rawRes = await chatAgent(currentAgentId.value, JSON.stringify(payload));
+    const { data, dataType } = normalizeChatResponse(rawRes);
+    appendAssistantResult(data, dataType);
+  }
+};
+
 const sendMessage = async () => {
-  if (!inputMessage.value.trim() || !currentSessionId.value || loading.value) return;
+  if ((!inputMessage.value.trim() && !selectedUploadFileId.value) || !currentSessionId.value || loading.value) return;
 
   const content = inputMessage.value.trim();
-  const userMsg = { role: 'user', content };
-  messages.value.push(userMsg);
+  const outboundMessage = selectedUploadFileId.value
+    ? `${content}${content ? '\n\n' : ''}file_id=${selectedUploadFileId.value}`
+    : content;
+  const userMsg = {
+    role: 'user',
+    content: selectedUploadFileName.value
+      ? `${content || '[已附加文件]'}\n\n[文件] ${selectedUploadFileName.value}`
+      : content
+  };
+  messages.value.push(normalizeWorkspaceMessage(userMsg));
   setCachedSessionMessages(currentSessionId.value, messages.value);
-  updateSessionTitleLocally(content);
+  updateSessionTitleLocally(content || selectedUploadFileName.value || '新会话');
 
   inputMessage.value = '';
   loading.value = true;
   scrollToBottom();
 
   try {
-    const res = await sendChatMessage(currentSessionId.value, {
-      message: content,
-      kbIds: attachedKbIds.value.map(normalizeId),
-      kbDocFilters: normalizeKbDocFilters(kbDocFilters)
-    });
+    if (isImageModel.value || isVideoModel.value || isSpeechModel.value) {
+      await sendMultimodalMessage(content || selectedUploadFileName.value || '');
+    } else {
+      const res = await sendChatMessage(currentSessionId.value, {
+        message: outboundMessage,
+        kbIds: attachedKbIds.value.map(normalizeId),
+        kbDocFilters: normalizeKbDocFilters(kbDocFilters)
+      });
 
-    const data = res?.data || res || {};
-    const assistantContent = (data.content || '').trim();
-    messages.value.push({
-      role: 'assistant',
-      content: assistantContent || '（检索流程已完成，但模型未返回正文。请重试，或检查模型/网关配置。）',
-      retrievedChunks: currentConfig.showRetrievedContext ? data.retrievedChunks || [] : [],
-      toolTraces: data.toolTraces || [],
-      model: data.model || '',
-      provider: data.provider || '',
-      promptTokens: data.promptTokens || 0,
-      completionTokens: data.completionTokens || 0,
-      createdAt: data.createdAt || new Date().toISOString()
-    });
+      const data = res?.data || res || {};
+      const assistantContent = (data.content || '').trim();
+      messages.value.push(normalizeWorkspaceMessage({
+        role: 'assistant',
+        content: assistantContent || '（检索流程已完成，但模型未返回正文。请重试，或检查模型/网关配置。）',
+        retrievedChunks: currentConfig.showRetrievedContext ? data.retrievedChunks || [] : [],
+        toolTraces: data.toolTraces || [],
+        model: data.model || '',
+        provider: data.provider || '',
+        promptTokens: data.promptTokens || 0,
+        completionTokens: data.completionTokens || 0,
+        createdAt: data.createdAt || new Date().toISOString()
+      }));
+    }
     setCachedSessionMessages(currentSessionId.value, messages.value);
+    clearUploadedFile();
   } catch (error) {
     const status = error?.response?.status;
-    const backendMessage = error?.response?.data?.message || error?.response?.data?.error || '';
+    const backendMessage = formatRequestError(error);
     let failureReason = '网络异常';
     if (error?.code === 'ECONNABORTED' || String(error?.message || '').toLowerCase().includes('timeout')) {
       failureReason = '请求超时（超过 180 秒）';
@@ -1440,7 +2336,7 @@ const sendMessage = async () => {
       failureReason = `服务错误 (${status})`;
     }
     const finalReason = backendMessage || failureReason;
-    messages.value.push({
+    messages.value.push(normalizeWorkspaceMessage({
       role: 'assistant',
       content: `（请求失败：${finalReason}）`,
       retrievedChunks: [],
@@ -1450,7 +2346,7 @@ const sendMessage = async () => {
       promptTokens: 0,
       completionTokens: 0,
       createdAt: new Date().toISOString()
-    });
+    }));
     setCachedSessionMessages(currentSessionId.value, messages.value);
     ElMessage.error(`发送消息失败：${finalReason}`);
   } finally {
@@ -1524,6 +2420,34 @@ const renderMarkdown = (text) => {
   }
 };
 
+const getMessageText = (msg) => {
+  if (!msg) return '';
+  if (typeof msg.content === 'string') return msg.content;
+  if (msg.content == null) return '';
+  return JSON.stringify(msg.content, null, 2);
+};
+
+const getMessageImageUrl = (msg) => {
+  if (!msg) return '';
+  if (msg.imageUrl) return msg.imageUrl;
+  if (String(msg.dataType || '').toUpperCase() !== 'IMAGE') return '';
+  return '';
+};
+
+const getMessageAudioUrl = (msg) => {
+  if (!msg) return '';
+  if (msg.audioUrl) return msg.audioUrl;
+  if (String(msg.dataType || '').toUpperCase() !== 'AUDIO') return '';
+  return '';
+};
+
+const getMessageVideoUrl = (msg) => {
+  if (!msg) return '';
+  if (msg.videoUrl) return msg.videoUrl;
+  if (String(msg.dataType || '').toUpperCase() !== 'VIDEO') return '';
+  return '';
+};
+
 const getChunkSourceLabel = (chunk) => {
   return chunk?.docName || chunk?.source || chunk?.docId || '未知来源';
 };
@@ -1568,9 +2492,10 @@ const openCitation = (chunk) => {
 };
 
 const reloadWorkspace = async () => {
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadModelCatalog()]);
   if (currentAgentId.value) {
     restoreConfigForAgent(currentAgentId.value);
+    await loadAgentRuntimeConfig(currentAgentId.value);
     await loadSessions(currentAgentId.value, { autoSelect: !currentSessionId.value });
   }
 };
@@ -1580,21 +2505,26 @@ onMounted(async () => {
   const savedState = restoreWorkspaceState();
   if (savedState) {
     sessionPaneCollapsed.value = savedState.sessionPaneCollapsed ?? false;
-    configPaneCollapsed.value = savedState.configPaneCollapsed ?? true;
+    sidebarTab.value = savedState.sidebarTab ?? 'session';
     activeConfigTab.value = savedState.activeConfigTab ?? 'tools';
   }
 
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadModelCatalog()]);
 
-  // Restore saved agent (or use first available)
-  const agentToRestore = savedState?.currentAgentId && agents.value.find(a => a.id === savedState.currentAgentId)
-    ? savedState.currentAgentId
-    : (agents.value[0]?.id || '');
+  const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
+  // Restore saved agent (or use first available); preset has highest priority.
+  const agentToRestore = (presetId && agents.value.find((a) => String(a.id) === presetId))
+    ? presetId
+    : (savedState?.currentAgentId && agents.value.find((a) => a.id === savedState.currentAgentId)
+      ? savedState.currentAgentId
+      : (agents.value[0]?.id || ''));
 
   if (agentToRestore) {
     currentAgentId.value = agentToRestore;
     currentAgent.value = agents.value.find(a => a.id === agentToRestore) || null;
+    selectedModelName.value = currentAgent.value?.model || '';
     restoreConfigForAgent(agentToRestore);
+    await loadAgentRuntimeConfig(agentToRestore);
 
     // Load sessions and try to restore the saved session
     await loadSessions(agentToRestore, { autoSelect: false });
@@ -1610,15 +2540,31 @@ onMounted(async () => {
   await applyRoutePromptIfExists();
 });
 
-onUnmounted(() => {
-  window.removeEventListener('resize', updateViewportWidth);
-});
-
 // Save workspace state on changes
 watch(
-  [currentAgentId, currentSessionId, sessionPaneCollapsed, configPaneCollapsed, activeConfigTab],
+  [currentAgentId, currentSessionId, sessionPaneCollapsed, sidebarTab, activeConfigTab],
   () => saveWorkspaceState(),
   { immediate: false }
+);
+
+watch(
+  () => currentAgent.value?.model,
+  (value) => {
+    if (!modelSwitching.value) {
+      selectedModelName.value = value || '';
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.presetAgentId,
+  async (value) => {
+    const presetId = String(value || '').trim();
+    if (!presetId || presetId === String(currentAgentId.value || '')) return;
+    if (!agents.value.some((agent) => String(agent.id) === presetId)) return;
+    await handleAgentChange(presetId);
+  }
 );
 </script>
 
@@ -1630,11 +2576,19 @@ watch(
 /* 1. Global & Layout 
 -------------------------------------------------- */
 .agent-workspace {
-  --left-pane-width: 268px;
+  --left-pane-width: 320px;
   --right-pane-width: 0px;
-  --drawer-left-width: 272px;
+  --drawer-left-width: 320px;
   --drawer-right-width: 320px;
   --chat-content-max-width: 900px;
+  --sidebar-accent: var(--orin-primary, #0f9f95);
+  --sidebar-text-strong: #0f172a;
+  --sidebar-text: #334155;
+  --sidebar-text-muted: #64748b;
+  --sidebar-line: rgba(226, 232, 240, 0.9);
+  --sidebar-soft-bg: rgba(248, 250, 252, 0.9);
+  --sidebar-hover-bg: rgba(241, 245, 249, 0.9);
+  --sidebar-active-bg: rgba(237, 249, 247, 0.92);
   position: relative;
   width: 100%;
   height: 100%; /* Fill the host shell height */
@@ -1645,21 +2599,13 @@ watch(
 }
 
 .agent-workspace.is-wide {
-  --left-pane-width: 260px;
+  --left-pane-width: 320px;
   --right-pane-width: 0px;
   --chat-content-max-width: 920px;
 }
 
 /* Ambient Glass Background */
-.agent-workspace::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 10% 40%, rgba(20, 184, 166, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 90% 60%, rgba(14, 165, 233, 0.05) 0%, transparent 50%);
-  z-index: 0;
-  pointer-events: none;
-}
+.agent-workspace::before { content: none; }
 
 /* Overlay for Drawers */
 .d-overlay {
@@ -1680,30 +2626,66 @@ watch(
 /* 2. Sidebars (Left & Right)
 -------------------------------------------------- */
 .workspace-sidebar,
-.workspace-config {
+.workspace-config-pane {
   position: relative;
   z-index: 10;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.92);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   flex-shrink: 0;
 }
 
-.workspace-sidebar {
-  width: var(--left-pane-width);
-  border-right: 1px solid rgba(226, 232, 240, 0.8);
+
+.sidebar-tabs {
+  display: flex;
+  margin: 14px 14px 6px;
+  padding: 4px;
+  background: rgba(241, 245, 249, 0.9);
+  border: 1px solid var(--sidebar-line);
+  border-radius: 12px;
+  gap: 4px;
+}
+.sidebar-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sidebar-text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+.sidebar-tab:hover {
+  background: rgba(226, 232, 240, 0.7);
+  color: var(--sidebar-text);
+}
+.sidebar-tab.active {
+  background: #ffffff;
+  color: var(--sidebar-text-strong);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.sidebar-tab.active:hover {
+  background: #ffffff;
 }
 
-.workspace-config {
-  width: var(--right-pane-width);
-  pointer-events: none;
-  border-left: 1px solid rgba(226, 232, 240, 0.8);
+.workspace-config-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
+
+.workspace-sidebar {
+  width: var(--left-pane-width);
+  border-right: 1px solid var(--sidebar-line);
+}
+
+
 
 /* Drawer Modes */
 .workspace-sidebar.is-drawer {
@@ -1721,7 +2703,7 @@ watch(
   transform: translateX(0);
 }
 
-.workspace-config.is-drawer {
+.DELETED_SELECTOR {
   position: absolute;
   right: 0;
   top: 0;
@@ -1734,29 +2716,29 @@ watch(
   box-shadow: -8px 0 32px rgba(0,0,0,0.06);
   transform: translateX(100%);
 }
-.workspace-config.is-drawer:not(.is-collapsed) {
+.DELETED_SELECTOR:not(.is-collapsed) {
   transform: translateX(0);
 }
 
 /* Collapsed Modes (Desktop only) */
 .workspace-sidebar.is-collapsed:not(.is-drawer),
-.workspace-config.is-collapsed:not(.is-drawer) {
+.workspace-config-pane.is-collapsed:not(.is-drawer) {
   width: 64px;
 }
 
 /* Custom Scrollbars for Sidebars */
 .workspace-sidebar ::-webkit-scrollbar,
-.workspace-config ::-webkit-scrollbar {
+.workspace-config-pane ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 .workspace-sidebar ::-webkit-scrollbar-thumb,
-.workspace-config ::-webkit-scrollbar-thumb {
+.workspace-config-pane ::-webkit-scrollbar-thumb {
   background: rgba(203, 213, 225, 0.6);
   border-radius: 4px;
 }
 .workspace-sidebar ::-webkit-scrollbar-thumb:hover,
-.workspace-config ::-webkit-scrollbar-thumb:hover {
+.workspace-config-pane ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.8);
 }
 
@@ -1796,59 +2778,51 @@ watch(
   transition: 0.2s ease;
 }
 .collapse-btn:hover {
-  color: #3b82f6;
-  border-color: #bfdbfe;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  color: var(--sidebar-accent);
+  border-color: #99f6e4;
+  box-shadow: 0 4px 12px rgba(15, 159, 149, 0.12);
   transform: scale(1.05);
 }
 
 /* Sidebar Top */
 .sidebar-top {
-  padding: 20px 16px 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  position: relative;
+  border-bottom: 1px solid #e8e8e8;
+  background: transparent;
 }
 
 .sidebar-profile {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 10px;
+  margin-bottom: 2px;
 }
 
 .sidebar-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
   color: #ffffff;
   font-weight: 600;
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: none;
 }
 
 .sidebar-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--sidebar-text-strong);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.refresh-btn {
-  position: absolute;
-  top: 24px;
-  right: 16px;
-  color: #94a3b8;
-}
-
-.refresh-btn:hover {
-  color: #3b82f6;
 }
 
 .agent-switcher {
@@ -1856,61 +2830,68 @@ watch(
 }
 .agent-switcher :deep(.el-input__wrapper) {
   border-radius: 10px;
-  background: rgba(248, 250, 252, 0.6);
-  box-shadow: 0 0 0 1px #e2e8f0 inset !important;
+  background: var(--sidebar-soft-bg);
+  box-shadow: 0 0 0 1px var(--sidebar-line) inset !important;
+  min-height: 42px;
+}
+.agent-switcher :deep(.el-input__inner) {
+  font-size: 15px;
+  color: #4a5568;
 }
 
 .new-session-btn {
   width: 100%;
   border-radius: 10px;
-  height: 40px;
+  height: 38px;
   font-weight: 600;
-  background: var(--orin-primary, #3b82f6);
+  background: var(--sidebar-accent);
   border: none;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 3px 10px rgba(15, 159, 149, 0.26);
   transition: all 0.2s ease;
 }
 .new-session-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 6px 14px rgba(15, 159, 149, 0.32);
 }
 
 .session-search {
-  padding: 0 16px 12px;
+  padding: 12px 14px 10px;
 }
 .session-search :deep(.el-input__wrapper) {
-  border-radius: 10px;
-  background: rgba(248, 250, 252, 0.6);
-  box-shadow: 0 0 0 1px #e2e8f0 inset !important;
+  border-radius: 12px;
+  background: var(--sidebar-soft-bg);
+  box-shadow: 0 0 0 1px var(--sidebar-line) inset !important;
 }
 
 .session-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 12px 16px;
+  padding: 0 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px; /* Default finding preference: tight */
+  gap: 2px;
 }
 
 .session-item {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 9px 10px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
-  border: 1px solid transparent;
+  border: 1px solid var(--sidebar-line);
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .session-item:hover {
-  background: rgba(241, 245, 249, 0.6);
+  background: var(--sidebar-hover-bg);
+  border-color: rgba(203, 213, 225, 0.95);
 }
 
 .session-item.active {
-  background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  background: var(--sidebar-active-bg);
+  border-color: #99f6e4;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
 }
 
 .session-main {
@@ -1921,7 +2902,7 @@ watch(
 .session-title {
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--sidebar-text);
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -1930,7 +2911,7 @@ watch(
 
 .session-meta {
   font-size: 11px;
-  color: #94a3b8;
+  color: #8b9bb0;
 }
 
 .session-delete {
@@ -1955,10 +2936,10 @@ watch(
   width: 40px !important;
   height: 40px !important;
   font-size: 18px;
-  background: var(--orin-primary, #3b82f6);
+  background: var(--sidebar-accent);
   color: #fff;
   border: none;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 2px 8px rgba(15, 159, 149, 0.25);
 }
 
 /* 4. Main Workspace (Chat Area)
@@ -1971,7 +2952,7 @@ watch(
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  background: transparent; /* Rely on root bg */
+  background: #f6f9fb;
 }
 
 .state-panel {
@@ -2283,6 +3264,30 @@ watch(
   color: inherit !important;
   padding: 0;
 }
+.message-media {
+  padding: 12px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(226, 232, 240, 0.4);
+}
+.generated-image {
+  width: min(100%, 460px);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.generated-audio {
+  width: min(100%, 460px);
+}
+.generated-video {
+  width: min(100%, 520px);
+  border-radius: 12px;
+  background: #0f172a;
+}
+
+:deep(.el-image-viewer__wrapper) {
+  z-index: 4000 !important;
+}
 
 /* Input Area Fixed to Bottom */
 .input-area {
@@ -2389,6 +3394,42 @@ watch(
   background: #e2e8f0;
   color: #0f172a;
 }
+.plus-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.input-plus {
+  margin-right: 6px;
+}
+
+.attached-file-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.attached-file-name {
+  font-size: 12px;
+  color: #0f766e;
+  background: rgba(237, 249, 247, 0.92);
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.attached-file-remove {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+}
+.attached-file-remove:hover {
+  color: #ef4444;
+}
+
+.hidden-file-input {
+  display: none;
+}
 
 .composer-chip {
   background: rgba(241, 245, 249, 0.8);
@@ -2451,34 +3492,34 @@ watch(
 /* 5. Right Config Sidebar
 -------------------------------------------------- */
 .config-header {
-  padding: 16px;
+  padding: 12px 14px 10px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  border-bottom: 1px solid #e8e8e8;
+}
+.config-select {
+  flex: 1;
 }
 .config-header :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.8);
-  box-shadow: 0 0 0 1px #e2e8f0 inset !important;
+  border-radius: 10px;
+  background: #efefef;
+  box-shadow: 0 0 0 1px #e6e6e6 inset !important;
+  min-height: 42px;
 }
-
-.header-icon-btn {
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #64748b;
-}
-.header-icon-btn:hover {
-  background: #f8fafc;
-  color: #0f172a;
+.config-header :deep(.el-input__inner) {
+  font-size: 15px;
+  color: #4a5568;
 }
 
 .config-tabs {
-  padding: 0 16px;
+  padding: 10px 14px 0;
 }
 .config-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
 .config-tabs :deep(.el-tabs__nav) {
   width: 100%;
-  background: rgba(241, 245, 249, 0.8);
+  background: rgba(241, 245, 249, 0.92);
+  border: 1px solid var(--sidebar-line);
   border-radius: 12px;
   padding: 4px;
 }
@@ -2495,25 +3536,25 @@ watch(
 }
 .config-tabs :deep(.el-tabs__item.is-active) {
   background: #ffffff;
-  color: #0f172a;
+  color: var(--sidebar-text-strong);
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 .config-tabs :deep(.el-tabs__active-bar) { display: none; }
 
 .config-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 14px;
+  padding: 12px 14px 14px;
 }
 
 .config-card {
   background: rgba(255, 255, 255, 0.8);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--sidebar-line);
   border-radius: 14px;
-  padding: 14px;
+  padding: 12px;
   margin-bottom: 10px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 .config-card-head {
@@ -2526,20 +3567,20 @@ watch(
 .config-card-title {
   font-size: 14px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--sidebar-text-strong);
 }
 
 .config-badge {
   padding: 4px 10px;
   background: #f1f5f9;
-  color: #475569;
+  color: #52657a;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
 }
 .config-badge.soft {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: rgba(220, 252, 245, 0.9);
+  color: #0f766e;
 }
 
 .config-row {
@@ -2548,24 +3589,102 @@ watch(
   justify-content: space-between;
   padding: 8px 0;
   font-size: 13px;
-  color: #334155;
-  border-bottom: 1px solid #f1f5f9;
+  color: var(--sidebar-text);
+  border-bottom: 1px solid #eef3f8;
 }
 .config-row:last-child {
   border-bottom: none;
   padding-bottom: 0;
 }
 .config-row span {
+  color: var(--sidebar-text-muted);
+}
+.param-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef3f8;
+}
+.param-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.param-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.param-label-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.param-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.param-desc {
+  font-size: 12px;
   color: #64748b;
+}
+.value-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.config-row :deep(.el-input),
+.config-row :deep(.el-select),
+.config-row :deep(.el-input-number) {
+  width: 190px;
+}
+.param-group :deep(.el-textarea__inner) {
+  border-radius: 10px;
+}
+.editable-agent-name {
+  cursor: text;
+  border-bottom: 1px dashed rgba(15, 159, 149, 0.45);
+}
+.agent-name-input {
+  width: 220px;
+}
+.agent-name-input :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #99f6e4 inset !important;
+}
+.model-switcher {
+  width: 190px;
+}
+.model-switcher :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  background: var(--sidebar-soft-bg);
+  box-shadow: 0 0 0 1px var(--sidebar-line) inset !important;
+}
+.mode-readonly {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #0f766e;
+  background: rgba(237, 249, 247, 0.92);
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  padding: 2px 10px;
 }
 
 .config-description, .config-card-desc {
   font-size: 12px;
-  color: #64748b;
+  color: var(--sidebar-text-muted);
   line-height: 1.6;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eef3f8;
 }
 
 .selection-tags {
@@ -2576,18 +3695,18 @@ watch(
 }
 .selection-tag {
   padding: 4px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--sidebar-soft-bg);
+  border: 1px solid var(--sidebar-line);
   border-radius: 999px;
   font-size: 12px;
-  color: #475569;
+  color: #52657a;
   cursor: pointer;
   transition: 0.2s ease;
 }
 .selection-tag:hover, .selection-tag.active {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1d4ed8;
+  background: rgba(237, 249, 247, 0.92);
+  border-color: #99f6e4;
+  color: #0f766e;
 }
 
 .selection-list {
@@ -2610,17 +3729,17 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  background: #f8fafc;
+  padding: 10px 11px;
+  background: var(--sidebar-soft-bg);
   border-radius: 12px;
-  border: 1px solid transparent;
+  border: 1px solid var(--sidebar-line);
   cursor: pointer;
   transition: 0.2s ease;
 }
 .selection-item:hover {
-  background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  background: var(--sidebar-hover-bg);
+  border-color: rgba(203, 213, 225, 0.95);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .selection-info {
@@ -2630,7 +3749,7 @@ watch(
 .selection-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--sidebar-text);
   margin-bottom: 2px;
 }
 .selection-meta {
@@ -2639,17 +3758,18 @@ watch(
 }
 
 .config-footer {
-  padding: 16px;
-  border-top: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--sidebar-line);
+  background: rgba(255, 255, 255, 0.82);
 }
 .config-footer .el-button {
   width: 100%;
   border-radius: 10px;
-  height: 40px;
+  height: 38px;
   font-weight: 600;
+  border: none;
+  background: var(--sidebar-accent);
+  box-shadow: 0 3px 10px rgba(15, 159, 149, 0.26);
 }
 
 .loading-indicator {
