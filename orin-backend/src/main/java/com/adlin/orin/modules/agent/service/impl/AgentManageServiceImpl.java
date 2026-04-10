@@ -1619,6 +1619,11 @@ public class AgentManageServiceImpl implements AgentManageService {
 
             if (response != null && response.isPresent()) {
                 Object respObj = response.get();
+                if (!isProviderResponseSuccessful(respObj)) {
+                    errorMessage = extractProviderErrorMessage(respObj);
+                    log.warn("Provider returned failure payload: providerType={}, error={}", providerType, errorMessage);
+                    response = java.util.Optional.empty();
+                } else {
                 log.info("SiliconFlow response received, type: {}, keys: {}",
                     respObj.getClass().getSimpleName(),
                     respObj instanceof Map ? ((Map<?, ?>) respObj).keySet() : "N/A");
@@ -1679,6 +1684,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                 } catch (Exception e) {
                     log.warn("Failed to save audit log: {}", e.getMessage());
                 }
+                }
             } else {
                 // Failed or no response
                 ConversationLog conversationLog = ConversationLog.builder()
@@ -1724,6 +1730,38 @@ public class AgentManageServiceImpl implements AgentManageService {
         errorResult.put("error", errorMessage != null ? errorMessage : "Failed to get response from provider: " + providerType);
 
         return java.util.Optional.of(errorResult);
+    }
+
+    private boolean isProviderResponseSuccessful(Object respObj) {
+        if (!(respObj instanceof Map<?, ?> map)) {
+            return true;
+        }
+        Object statusObj = map.get("status");
+        if (statusObj == null) {
+            return true;
+        }
+        String status = String.valueOf(statusObj).trim().toUpperCase();
+        return !("FAILED".equals(status) || "ERROR".equals(status));
+    }
+
+    private String extractProviderErrorMessage(Object respObj) {
+        if (!(respObj instanceof Map<?, ?> map)) {
+            return "Unknown provider failure";
+        }
+        Object errorMessageObj = map.get("errorMessage");
+        if (errorMessageObj != null && !String.valueOf(errorMessageObj).isBlank()) {
+            return String.valueOf(errorMessageObj);
+        }
+        Object errorObj = map.get("error");
+        if (errorObj != null && !String.valueOf(errorObj).isBlank()) {
+            return String.valueOf(errorObj);
+        }
+        Object messageObj = map.get("message");
+        if (messageObj != null && !String.valueOf(messageObj).isBlank()) {
+            return String.valueOf(messageObj);
+        }
+        Object statusObj = map.get("status");
+        return "Provider returned non-success status: " + String.valueOf(statusObj);
     }
 
     /**

@@ -100,10 +100,64 @@ export const getServerHardwareHistory = (params = {}) => {
     return request.get('/monitor/server-hardware/history', { params });
 };
 
-export const getServerHardwareTrend = (period = '1h', serverId = null) => {
+const PERIOD_TO_MS = {
+    '5m': 5 * 60 * 1000,
+    '1h': 60 * 60 * 1000,
+    '24h': 24 * 60 * 60 * 1000,
+    '7d': 7 * 24 * 60 * 60 * 1000
+};
+
+const normalizeTrendPoint = (item = {}) => ({
+    timestamp: item.timestamp,
+    cpuUsage: item.cpuUsage || 0,
+    memoryUsage: item.memoryUsage || 0,
+    diskUsage: item.diskUsage || 0,
+    gpuUsage: item.gpuUsage || 0,
+    gpuMemoryUsage: item.gpuMemoryUsage || 0
+});
+
+const fallbackServerHardwareTrendByHistory = async (period, serverId) => {
+    const now = Date.now();
+    const range = PERIOD_TO_MS[period] || PERIOD_TO_MS['1h'];
+    const params = {
+        startTime: now - range,
+        endTime: now,
+        page: 0,
+        size: 500
+    };
+    if (serverId) params.serverId = serverId;
+
+    const history = await request.get('/monitor/server-hardware/history', {
+        params,
+        noRetry: true,
+        silentError: true
+    });
+
+    const points = Array.isArray(history?.content) ? history.content : [];
+    return points
+        .slice()
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+        .map(normalizeTrendPoint);
+};
+
+export const getServerHardwareTrend = async (period = '1h', serverId = null) => {
     const params = { period };
     if (serverId) params.serverId = serverId;
-    return request.get('/monitor/server-hardware/trend', { params });
+    try {
+        const trend = await request.get('/monitor/server-hardware/trend', {
+            params,
+            noRetry: true,
+            silentError: true
+        });
+        return (Array.isArray(trend) ? trend : []).map(normalizeTrendPoint);
+    } catch (error) {
+        const status = error?.response?.status;
+        if (status === 501 || status === 404) {
+            console.warn(`[monitor] trend endpoint unavailable (status ${status}), fallback to history endpoint`);
+            return fallbackServerHardwareTrendByHistory(period, serverId);
+        }
+        throw error;
+    }
 };
 
 export const getServerHardwareStats = () => {

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.function.BiConsumer;
 
 @Service
 @Slf4j
@@ -125,6 +126,22 @@ public class AgentChatService {
      */
     @Transactional
     public ChatMessageResponse sendMessage(String sessionId, ChatMessageRequest request) {
+        return sendMessageInternal(sessionId, request, null);
+    }
+
+    @Transactional
+    public ChatMessageResponse sendMessageStream(String sessionId, ChatMessageRequest request,
+            BiConsumer<String, Object> eventPublisher) {
+        return sendMessageInternal(sessionId, request, eventPublisher);
+    }
+
+    @Transactional
+    private ChatMessageResponse sendMessageInternal(String sessionId, ChatMessageRequest request,
+            BiConsumer<String, Object> eventPublisher) {
+        emitEvent(eventPublisher, "start", Map.of(
+                "status", "running",
+                "message", "开始处理请求"));
+
         AgentChatSession session = sessionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
         
@@ -158,19 +175,59 @@ public class AgentChatService {
         // 执行工具链
         if (request.getKbIds() != null && !request.getKbIds().isEmpty()) {
             try {
-                toolCtx.addTrace(kbStructureTool.execute(toolCtx));
-                toolCtx.addTrace(kbSearchTool.execute(toolCtx));
-                toolCtx.addTrace(kbRetrieveTool.execute(toolCtx));
+                emitEvent(eventPublisher, "progress", Map.of(
+                        "step", "KB_STRUCTURE",
+                        "message", "正在检查知识库结构..."));
+                emitEvent(eventPublisher, "trace", ChatMessageResponse.ToolTrace.builder()
+                        .type("KB_STRUCTURE")
+                        .kbId("multiple")
+                        .message("知识库结构检查中...")
+                        .status("running")
+                        .durationMs(0L)
+                        .build());
+                ChatMessageResponse.ToolTrace structureTrace = kbStructureTool.execute(toolCtx);
+                toolCtx.addTrace(structureTrace);
+                emitEvent(eventPublisher, "trace", structureTrace);
+
+                emitEvent(eventPublisher, "progress", Map.of(
+                        "step", "KB_SEARCH",
+                        "message", "正在检索相关知识..."));
+                emitEvent(eventPublisher, "trace", ChatMessageResponse.ToolTrace.builder()
+                        .type("KB_SEARCH")
+                        .kbId("multiple")
+                        .message("知识检索中...")
+                        .status("running")
+                        .durationMs(0L)
+                        .build());
+                ChatMessageResponse.ToolTrace searchTrace = kbSearchTool.execute(toolCtx);
+                toolCtx.addTrace(searchTrace);
+                emitEvent(eventPublisher, "trace", searchTrace);
+
+                emitEvent(eventPublisher, "progress", Map.of(
+                        "step", "KB_RETRIEVE",
+                        "message", "正在组装上下文..."));
+                emitEvent(eventPublisher, "trace", ChatMessageResponse.ToolTrace.builder()
+                        .type("KB_RETRIEVE")
+                        .kbId("multiple")
+                        .message("上下文组装中...")
+                        .status("running")
+                        .durationMs(0L)
+                        .build());
+                ChatMessageResponse.ToolTrace retrieveTrace = kbRetrieveTool.execute(toolCtx);
+                toolCtx.addTrace(retrieveTrace);
+                emitEvent(eventPublisher, "trace", retrieveTrace);
             } catch (Exception e) {
                 log.warn("工具链执行失败: {}", e.getMessage());
-                toolCtx.addTrace(ChatMessageResponse.ToolTrace.builder()
+                ChatMessageResponse.ToolTrace errorTrace = ChatMessageResponse.ToolTrace.builder()
                         .type("KB_PIPELINE")
                         .kbId("multiple")
                         .message("知识库检索链路异常，已跳过知识上下文")
                         .status("error")
                         .durationMs(0L)
                         .detail(Map.of("error", e.getMessage()))
-                        .build());
+                        .build();
+                toolCtx.addTrace(errorTrace);
+                emitEvent(eventPublisher, "trace", errorTrace);
             }
         }
 
@@ -192,6 +249,9 @@ public class AgentChatService {
                 context += "\n\n" + chunk.getContent();
             }
         }
+        emitEvent(eventPublisher, "retrieved", Map.of(
+                "count", retrievedChunks.size(),
+                "retrievedChunks", retrievedChunks));
 
         // 调用智能体
         log.info("检索上下文内容: retrievedChunks.size={}, context长度={}, context前200字={}",
@@ -201,7 +261,7 @@ public class AgentChatService {
 
         // 附加了知识库但未检索到任何内容时，给前端一个明确提醒（避免“静默失败”）。
         if (request.getKbIds() != null && !request.getKbIds().isEmpty() && retrievedChunks.isEmpty()) {
-            toolCtx.addTrace(ChatMessageResponse.ToolTrace.builder()
+            ChatMessageResponse.ToolTrace hintTrace = ChatMessageResponse.ToolTrace.builder()
                     .type("KB_HINT")
                     .kbId("multiple")
                     .message("未检索到可用知识：可能是向量服务不可用、文档未解析/未向量化，或查询词未命中。")
@@ -211,9 +271,14 @@ public class AgentChatService {
                             "kbIds", request.getKbIds(),
                             "kbDocFilters", request.getKbDocFilters() != null ? request.getKbDocFilters() : Collections.emptyMap(),
                             "retrievedCount", 0))
-                    .build());
+                    .build();
+            toolCtx.addTrace(hintTrace);
+            emitEvent(eventPublisher, "trace", hintTrace);
         }
 
+        emitEvent(eventPublisher, "progress", Map.of(
+                "step", "MODEL_CALL",
+                "message", "正在生成回复..."));
         Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, messages);
         String aiResponse = (String) agentResult.get("content");
 
@@ -249,7 +314,18 @@ public class AgentChatService {
         response.setProvider((String) agentResult.getOrDefault("provider", ""));
         response.setCreatedAt(java.time.LocalDateTime.now().toString());
 
+        emitEvent(eventPublisher, "done", response);
         return response;
+    }
+
+    private void emitEvent(BiConsumer<String, Object> eventPublisher, String eventType, Object payload) {
+        if (eventPublisher != null) {
+            try {
+                eventPublisher.accept(eventType, payload);
+            } catch (Exception e) {
+                log.warn("发送 SSE 事件失败: type={}, err={}", eventType, e.getMessage());
+            }
+        }
     }
 
     /**
@@ -281,15 +357,50 @@ public class AgentChatService {
                 if (resp instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> respMap = (Map<String, Object>) resp;
+                    log.info("智能体响应(map) keys={}", respMap.keySet());
                     String content = extractContent(respMap);
-                    if (content == null || content.isBlank()) {
-                        String errorText = extractErrorText(respMap);
-                        if (errorText != null && !errorText.isBlank()) {
-                            content = "模型调用失败: " + errorText;
+                    String errorText = extractErrorText(respMap);
+
+                    // 有检索上下文但未拿到正文时，自动回退一次“无上下文对话”，避免静默空白。
+                    if ((content == null || content.isBlank())
+                            && (errorText == null || errorText.isBlank())
+                            && context != null && !context.isBlank()) {
+                        log.warn("检索上下文调用未返回正文，触发无上下文回退重试: agentId={}", agentId);
+                        try {
+                            Optional<Object> fallbackResp = agentManageService.chat(agentId, userMessage, (String) null);
+                            if (fallbackResp.isPresent() && fallbackResp.get() instanceof Map) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> fallbackMap = (Map<String, Object>) fallbackResp.get();
+                                String fallbackContent = extractContent(fallbackMap);
+                                String fallbackError = extractErrorText(fallbackMap);
+                                if (fallbackContent != null && !fallbackContent.isBlank()) {
+                                    content = fallbackContent;
+                                    // 回退成功时使用回退请求的元信息
+                                    respMap = fallbackMap;
+                                    log.info("无上下文回退重试成功: agentId={}", agentId);
+                                } else if (fallbackError != null && !fallbackError.isBlank()) {
+                                    errorText = fallbackError;
+                                }
+                            } else if (fallbackResp.isPresent() && fallbackResp.get() instanceof String fallbackText) {
+                                if (!fallbackText.isBlank()) {
+                                    content = fallbackText;
+                                    log.info("无上下文回退重试成功(字符串响应): agentId={}", agentId);
+                                }
+                            }
+                        } catch (Exception fallbackEx) {
+                            log.warn("无上下文回退重试失败: {}", fallbackEx.getMessage());
                         }
                     }
+
+                    if ((content == null || content.isBlank())
+                            && errorText != null && !errorText.isBlank()) {
+                        content = "模型调用失败: " + errorText;
+                    }
                     if (content == null || content.isBlank()) {
-                        content = "检索流程已完成，但模型未返回正文。";
+                        boolean hasKbContext = context != null && !context.isBlank();
+                        content = hasKbContext
+                                ? "检索流程已完成，但模型未返回正文。"
+                                : "模型未返回正文，请重试。";
                     }
                     result.put("content", content);
                     result.put("promptTokens", respMap.getOrDefault("promptTokens", 0));
@@ -357,6 +468,46 @@ public class AgentChatService {
         if (message instanceof String s && !s.isBlank()) {
             return s;
         }
+        if (message instanceof Map<?, ?> messageMap) {
+            Object contentObj = messageMap.get("content");
+            if (contentObj instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            if (contentObj instanceof List<?> contentList) {
+                StringBuilder sb = new StringBuilder();
+                for (Object item : contentList) {
+                    if (item instanceof Map<?, ?> partMap) {
+                        Object textObj = partMap.get("text");
+                        if (textObj instanceof String text && !text.isBlank()) {
+                            if (sb.length() > 0) {
+                                sb.append('\n');
+                            }
+                            sb.append(text);
+                        }
+                    } else if (item instanceof String text && !text.isBlank()) {
+                        if (sb.length() > 0) {
+                            sb.append('\n');
+                        }
+                        sb.append(text);
+                    }
+                }
+                if (!sb.isEmpty()) {
+                    return sb.toString();
+                }
+            }
+        }
+
+        // Ollama 原生 generate 接口常见字段
+        Object responseObj = respMap.get("response");
+        if (responseObj instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        // 兜底兼容部分聚合网关字段
+        Object outputTextObj = respMap.get("output_text");
+        if (outputTextObj instanceof String s && !s.isBlank()) {
+            return s;
+        }
 
         return "";
     }
@@ -378,9 +529,14 @@ public class AgentChatService {
 
         Object status = respMap.get("status");
         Object message = respMap.get("message");
-        if (status != null && "ERROR".equalsIgnoreCase(String.valueOf(status))) {
+        if (status != null && ("ERROR".equalsIgnoreCase(String.valueOf(status))
+                || "FAILED".equalsIgnoreCase(String.valueOf(status)))) {
             if (message != null && !String.valueOf(message).isBlank()) {
                 return String.valueOf(message);
+            }
+            Object topErrorMessage = respMap.get("errorMessage");
+            if (topErrorMessage != null && !String.valueOf(topErrorMessage).isBlank()) {
+                return String.valueOf(topErrorMessage);
             }
             return "上游模型服务返回错误状态";
         }

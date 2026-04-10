@@ -82,8 +82,12 @@
                 <div class="config-card-title">
                   智能体信息
                 </div>
-                <div class="config-badge soft">
-                  运行中
+                <div
+                  class="config-badge soft"
+                  :class="`agent-status-${agentRuntimeStatus.level}`"
+                  :title="agentRuntimeStatus.hint"
+                >
+                  {{ agentRuntimeStatus.label }}
                 </div>
               </div>
               <div class="config-row">
@@ -739,22 +743,6 @@
                     </div>
                   </div>
                 </div>
-                <div
-                  v-if="msg.role === 'assistant' && msg.retrievedChunks?.length"
-                  class="message-citations"
-                >
-                  <span class="citation-label">来源:</span>
-                  <button
-                    v-for="(chunk, citationIdx) in msg.retrievedChunks.slice(0, 5)"
-                    :key="`citation-${index}-${citationIdx}`"
-                    type="button"
-                    class="citation-item"
-                    :title="chunk.docName || chunk.source || '未知来源'"
-                    @click="openCitation(chunk)"
-                  >
-                    [{{ citationIdx + 1 }}] {{ getChunkSourceLabel(chunk) }}
-                  </button>
-                </div>
                 <div v-if="getMessageImageUrl(msg)" class="message-media">
                   <el-image
                     :src="getMessageImageUrl(msg)"
@@ -804,7 +792,7 @@
               <el-icon class="is-loading">
                 <Loading />
               </el-icon>
-              <span>思考中...</span>
+              <span>{{ loadingHint }}</span>
             </div>
           </template>
         </div>
@@ -905,6 +893,7 @@ import {
   listChatSessions,
   listKnowledgeBases,
   sendChatMessage,
+  sendChatMessageStream,
   updateKbDocFilters
 } from '@/api/agent-chat';
 import { getModelList } from '@/api/model';
@@ -1017,6 +1006,9 @@ const sessionSearch = ref('');
 const kbSearch = ref('');
 const inputMessage = ref('');
 const loading = ref(false);
+const loadingHint = ref('思考中...');
+const runtimeStatusLevel = ref('idle'); // idle | running | fallback | error
+const runtimeStatusHint = ref('空闲');
 const sessionPaneCollapsed = ref(false);
 const sidebarTab = ref('session');
 const activeConfigTab = ref('tools');
@@ -1083,6 +1075,20 @@ const normalizeAgentViewType = (agent) => {
 };
 
 const currentInteractionLabel = computed(() => normalizeAgentViewType(currentAgent.value));
+const agentRuntimeStatus = computed(() => {
+  const level = runtimeStatusLevel.value || 'idle';
+  const map = {
+    idle: '空闲',
+    running: '思考中',
+    fallback: '回退中',
+    error: '失败'
+  };
+  return {
+    level,
+    label: map[level] || '空闲',
+    hint: runtimeStatusHint.value || map[level] || '空闲'
+  };
+});
 const INTERACTION_MODE_LABEL_MAP = {
   CHAT: '对话',
   TEXT_TO_IMAGE: '文生图',
@@ -1659,7 +1665,14 @@ const loadKnowledgeBases = async () => {
 
   knowledgeBases.value = list.map((kb) => ({
     ...kb,
-    id: normalizeId(kb.id || kb.kbId)
+    id: normalizeId(kb.id || kb.kbId),
+    documentCount: Number(
+      kb.documentCount
+        ?? kb.docCount
+        ?? kb.stats?.documentCount
+        ?? kb.stats?.docCount
+        ?? 0
+    )
   })).filter((kb) => kb.id);
 };
 
@@ -2298,31 +2311,126 @@ const sendMessage = async () => {
 
   inputMessage.value = '';
   loading.value = true;
+  loadingHint.value = '思考中...';
+  runtimeStatusLevel.value = 'running';
+  runtimeStatusHint.value = '请求已发出，正在处理';
   scrollToBottom();
 
   try {
     if (isImageModel.value || isVideoModel.value || isSpeechModel.value) {
       await sendMultimodalMessage(content || selectedUploadFileName.value || '');
     } else {
-      const res = await sendChatMessage(currentSessionId.value, {
-        message: outboundMessage,
-        kbIds: attachedKbIds.value.map(normalizeId),
-        kbDocFilters: normalizeKbDocFilters(kbDocFilters)
-      });
-
-      const data = res?.data || res || {};
-      const assistantContent = (data.content || '').trim();
-      messages.value.push(normalizeWorkspaceMessage({
+      const assistantMessage = normalizeWorkspaceMessage({
         role: 'assistant',
-        content: assistantContent || '（检索流程已完成，但模型未返回正文。请重试，或检查模型/网关配置。）',
-        retrievedChunks: currentConfig.showRetrievedContext ? data.retrievedChunks || [] : [],
-        toolTraces: data.toolTraces || [],
-        model: data.model || '',
-        provider: data.provider || '',
-        promptTokens: data.promptTokens || 0,
-        completionTokens: data.completionTokens || 0,
-        createdAt: data.createdAt || new Date().toISOString()
-      }));
+        content: '',
+        retrievedChunks: [],
+        toolTraces: [],
+        model: '',
+        provider: '',
+        promptTokens: 0,
+        completionTokens: 0,
+        createdAt: new Date().toISOString()
+      });
+      messages.value.push(assistantMessage);
+      let streamDonePayload = null;
+      const defaultEmptyText = attachedKbIds.value.length > 0
+        ? '（模型未返回正文。你当前启用了知识库，请重试；若持续出现，请检查模型/网关配置。）'
+        : '（模型未返回正文，请重试或检查模型/网关配置。）';
+
+      try {
+        await sendChatMessageStream(currentSessionId.value, {
+          message: outboundMessage,
+          kbIds: attachedKbIds.value.map(normalizeId),
+          kbDocFilters: normalizeKbDocFilters(kbDocFilters)
+        }, {
+          start: () => {
+            assistantMessage.content = '正在处理...';
+            loadingHint.value = '思考中...（流式连接已建立）';
+            runtimeStatusLevel.value = 'running';
+            runtimeStatusHint.value = '流式连接已建立';
+          },
+          progress: (payload) => {
+            const message = String(payload?.message || '').trim();
+            if (message) {
+              loadingHint.value = `思考中...（${message}）`;
+              runtimeStatusLevel.value = 'running';
+              runtimeStatusHint.value = message;
+            }
+          },
+          trace: (trace) => {
+            assistantMessage.toolTraces = upsertAssistantTrace(assistantMessage.toolTraces || [], trace);
+          },
+          retrieved: (payload) => {
+            const chunks = payload?.retrievedChunks || [];
+            assistantMessage.retrievedChunks = currentConfig.showRetrievedContext ? chunks : [];
+          },
+          done: (payload) => {
+            streamDonePayload = payload || {};
+            const content = payload?.content || '';
+            const isBackendError = content.startsWith('（请求失败：')
+              || content.startsWith('（模型未返回正文')
+              || content.startsWith('（检索流程已完成')
+              || content.startsWith('（模型调用失败：')
+              || content.startsWith('（智能体调用失败：')
+              || content.startsWith('（智能体返回为空');
+            if (isBackendError) {
+              loadingHint.value = '思考失败';
+              runtimeStatusLevel.value = 'error';
+              runtimeStatusHint.value = content.replace(/^（|）$/g, '');
+            } else {
+              loadingHint.value = '思考完成';
+              runtimeStatusLevel.value = 'idle';
+              runtimeStatusHint.value = '上一轮请求已完成';
+            }
+          },
+          error: (payload) => {
+            const message = payload?.message || '流式请求异常';
+            assistantMessage.content = `（请求失败：${message}）`;
+            loadingHint.value = '思考失败';
+            runtimeStatusLevel.value = 'error';
+            runtimeStatusHint.value = `流式异常：${message}`;
+          }
+        });
+      } catch (streamError) {
+        console.warn('SSE streaming unavailable, fallback to regular request:', streamError);
+        loadingHint.value = '思考中...（流式不可用，已回退普通请求）';
+        runtimeStatusLevel.value = 'fallback';
+        runtimeStatusHint.value = `流式不可用：${streamError?.message || '未知错误'}，已回退`;
+        assistantMessage.toolTraces = [
+          ...(assistantMessage.toolTraces || []),
+          {
+            type: 'STREAM_FALLBACK',
+            kbId: 'system',
+            message: '流式通道不可用，已自动回退为普通请求',
+            status: 'warning',
+            durationMs: 0
+          }
+        ];
+        // fallback to non-streaming if SSE is unavailable
+        const res = await sendChatMessage(currentSessionId.value, {
+          message: outboundMessage,
+          kbIds: attachedKbIds.value.map(normalizeId),
+          kbDocFilters: normalizeKbDocFilters(kbDocFilters)
+        });
+        streamDonePayload = res?.data || res || {};
+      }
+
+      const data = streamDonePayload || {};
+      const assistantContent = (data.content || '').trim();
+      assistantMessage.content = assistantContent || defaultEmptyText;
+      assistantMessage.retrievedChunks = currentConfig.showRetrievedContext
+        ? (data.retrievedChunks || assistantMessage.retrievedChunks || [])
+        : [];
+      assistantMessage.toolTraces = data.toolTraces || assistantMessage.toolTraces || [];
+      assistantMessage.model = data.model || assistantMessage.model || '';
+      assistantMessage.provider = data.provider || assistantMessage.provider || '';
+      assistantMessage.promptTokens = data.promptTokens || 0;
+      assistantMessage.completionTokens = data.completionTokens || 0;
+      assistantMessage.createdAt = data.createdAt || assistantMessage.createdAt || new Date().toISOString();
+      if (runtimeStatusLevel.value !== 'error') {
+        runtimeStatusLevel.value = 'idle';
+        runtimeStatusHint.value = '上一轮请求已完成';
+      }
     }
     setCachedSessionMessages(currentSessionId.value, messages.value);
     clearUploadedFile();
@@ -2349,6 +2457,8 @@ const sendMessage = async () => {
     }));
     setCachedSessionMessages(currentSessionId.value, messages.value);
     ElMessage.error(`发送消息失败：${finalReason}`);
+    runtimeStatusLevel.value = 'error';
+    runtimeStatusHint.value = `请求失败：${finalReason}`;
   } finally {
     loading.value = false;
     scrollToBottom();
@@ -2377,7 +2487,8 @@ const formatTraceType = (type) => {
     KB_SEARCH: '知识检索',
     KB_RETRIEVE: '上下文组装',
     KB_HINT: '检索提示',
-    KB_PIPELINE: '检索链路'
+    KB_PIPELINE: '检索链路',
+    STREAM_FALLBACK: '流式回退'
   };
   return labelMap[type] || type || '处理步骤';
 };
@@ -2385,9 +2496,39 @@ const formatTraceType = (type) => {
 const formatTraceStatus = (status) => {
   const s = (status || '').toLowerCase();
   if (s === 'success') return '成功';
+  if (s === 'running') return '进行中';
   if (s === 'warning') return '提醒';
   if (s === 'error') return '失败';
   return '处理中';
+};
+
+const upsertAssistantTrace = (existing, incoming) => {
+  if (!incoming || !incoming.type) return existing;
+  const traces = Array.isArray(existing) ? [...existing] : [];
+  const incomingStatus = String(incoming.status || '').toLowerCase();
+
+  // If a running trace exists for same type, replace it with latest status.
+  const runningIndex = traces.findIndex((t) => {
+    const sameType = String(t?.type || '') === String(incoming.type || '');
+    const isRunning = String(t?.status || '').toLowerCase() === 'running';
+    return sameType && isRunning;
+  });
+
+  if (runningIndex >= 0) {
+    traces[runningIndex] = { ...traces[runningIndex], ...incoming };
+    return traces;
+  }
+
+  // Deduplicate same terminal status message
+  const duplicate = traces.find((t) => {
+    return String(t?.type || '') === String(incoming.type || '')
+      && String(t?.status || '').toLowerCase() === incomingStatus
+      && String(t?.message || '') === String(incoming.message || '');
+  });
+  if (duplicate) return traces;
+
+  traces.push(incoming);
+  return traces;
 };
 
 const getTraceDetailKey = (msg, index, traceIdx) => {
@@ -3183,6 +3324,7 @@ watch(
 
 /* Trace Status colors */
 .trace-success .reasoning-step-dot { background: #dcfce7; color: #166534; }
+.trace-running .reasoning-step-dot { background: #dbeafe; color: #1d4ed8; }
 .trace-warning .reasoning-step-dot { background: #fef9c3; color: #854d0e; }
 .trace-error .reasoning-step-dot   { background: #fee2e2; color: #991b1b; }
 
@@ -3582,6 +3724,22 @@ watch(
   background: rgba(220, 252, 245, 0.9);
   color: #0f766e;
 }
+.config-badge.soft.agent-status-idle {
+  background: rgba(220, 252, 245, 0.9);
+  color: #0f766e;
+}
+.config-badge.soft.agent-status-running {
+  background: rgba(219, 234, 254, 0.92);
+  color: #1d4ed8;
+}
+.config-badge.soft.agent-status-fallback {
+  background: rgba(254, 249, 195, 0.95);
+  color: #854d0e;
+}
+.config-badge.soft.agent-status-error {
+  background: rgba(254, 226, 226, 0.95);
+  color: #991b1b;
+}
 
 .config-row {
   display: flex;
@@ -3818,5 +3976,492 @@ watch(
   .quick-prompts {
     justify-content: center;
   }
+}
+
+/* =========================================================================
+   Dark Mode Overrides — html.dark
+   ========================================================================= */
+html.dark .agent-workspace {
+  --sidebar-text-strong: #f1f5f9;
+  --sidebar-text: #94a3b8;
+  --sidebar-text-muted: #64748b;
+  --sidebar-line: rgba(255, 255, 255, 0.1);
+  --sidebar-soft-bg: rgba(15, 28, 28, 0.8);
+  --sidebar-hover-bg: rgba(30, 41, 59, 0.9);
+  --sidebar-active-bg: rgba(38, 255, 223, 0.08);
+  background-color: #0f172a;
+}
+
+html.dark .workspace-sidebar,
+html.dark .workspace-config-pane {
+  background: rgba(10, 22, 22, 0.95);
+}
+
+html.dark .d-overlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+html.dark .sidebar-tabs {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .sidebar-tab {
+  color: #94a3b8;
+}
+
+html.dark .sidebar-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+}
+
+html.dark .sidebar-tab.active {
+  background: #0f1c1c;
+  color: #f1f5f9;
+}
+
+html.dark .workspace-sidebar ::-webkit-scrollbar-thumb,
+html.dark .workspace-config-pane ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+html.dark .workspace-sidebar ::-webkit-scrollbar-thumb:hover,
+html.dark .workspace-config-pane ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+html.dark .session-item {
+  background: rgba(15, 28, 28, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .session-item:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.dark .session-item.active {
+  background: rgba(38, 255, 223, 0.08);
+  border-color: rgba(38, 255, 223, 0.3);
+  box-shadow: 0 1px 0 rgba(38, 255, 223, 0.1);
+}
+
+html.dark .session-title {
+  color: #cbd5e1;
+}
+
+html.dark .session-meta {
+  color: #64748b;
+}
+
+html.dark .session-delete {
+  color: #475569;
+}
+
+html.dark .session-delete:hover {
+  color: #ef4444;
+}
+
+html.dark .collapsed-new-btn {
+  background: #26FFDF;
+  color: #041010;
+  box-shadow: 0 2px 8px rgba(38, 255, 223, 0.3);
+}
+
+html.dark .workspace-main {
+  background: #0f172a;
+}
+
+html.dark .messages-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+html.dark .welcome-panel h2 {
+  color: #f1f5f9;
+}
+
+html.dark .mode-tag {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(15, 28, 28, 0.8) !important;
+  color: #94a3b8 !important;
+  box-shadow: none;
+}
+
+html.dark .mode-tag:hover {
+  background: rgba(30, 41, 59, 0.9) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .mode-tag.el-tag--primary {
+  border-color: rgba(38, 255, 223, 0.3) !important;
+  background: rgba(38, 255, 223, 0.1) !important;
+  color: #26FFDF !important;
+  box-shadow: 0 2px 8px rgba(38, 255, 223, 0.15);
+}
+
+html.dark .message-avatar {
+  background: rgba(30, 41, 59, 0.8);
+  color: #94a3b8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .message-item.user .message-avatar {
+  background: #26FFDF;
+  color: #041010;
+  box-shadow: 0 4px 12px rgba(38, 255, 223, 0.25);
+}
+
+html.dark .message-role {
+  color: #64748b;
+}
+
+html.dark .message-time,
+html.dark .message-meta {
+  color: #64748b;
+}
+
+html.dark .reasoning-section {
+  background: rgba(15, 28, 28, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .reasoning-title {
+  color: #94a3b8;
+}
+
+html.dark .reasoning-item {
+  background: #0f1c1c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .reasoning-item:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .reasoning-step-dot {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+html.dark .trace-success .reasoning-step-dot { background: rgba(38, 255, 223, 0.15); color: #26FFDF; }
+html.dark .trace-running .reasoning-step-dot { background: rgba(96, 165, 250, 0.2); color: #93c5fd; }
+html.dark .trace-warning .reasoning-step-dot { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+html.dark .trace-error .reasoning-step-dot { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
+html.dark .reasoning-msg {
+  color: #94a3b8;
+}
+
+html.dark .citation-item {
+  background: rgba(15, 28, 28, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .citation-item:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(38, 255, 223, 0.3);
+}
+
+html.dark .message-text {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .message-item.user .message-text {
+  background: linear-gradient(135deg, #26FFDF, #0f9f95);
+  color: #041010;
+  border: none;
+  box-shadow: 0 4px 12px rgba(38, 255, 223, 0.2);
+}
+
+html.dark .message-text :deep(pre) {
+  background: #0a1616;
+  color: #f1f5f9;
+}
+
+html.dark .message-item:not(.user) .message-text :deep(code) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #26FFDF;
+}
+
+html.dark .message-media {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .generated-video {
+  background: #0a1616;
+}
+
+html.dark .input-area {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.9) 30%, #0f172a 100%);
+}
+
+html.dark .input-area-wrapper,
+html.dark .composer-placeholder {
+  background: rgba(10, 22, 22, 0.9);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .input-area-wrapper:focus-within,
+html.dark .composer-placeholder:focus-within {
+  border-color: #26FFDF;
+  box-shadow: 0 8px 32px rgba(38, 255, 223, 0.15), 0 0 0 1px rgba(38, 255, 223, 0.3);
+}
+
+html.dark .input-area-wrapper :deep(.el-textarea__inner),
+html.dark .composer-placeholder :deep(.el-textarea__inner) {
+  color: #f1f5f9;
+}
+
+html.dark .input-area-wrapper :deep(.el-textarea__inner::placeholder),
+html.dark .composer-placeholder :deep(.el-textarea__inner::placeholder) {
+  color: #64748b;
+}
+
+html.dark .quick-config-chip {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(15, 28, 28, 0.8);
+  color: #94a3b8;
+}
+
+html.dark .quick-config-chip:hover {
+  border-color: rgba(38, 255, 223, 0.4);
+  color: #26FFDF;
+  background: rgba(38, 255, 223, 0.08);
+}
+
+html.dark .plus-trigger {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+html.dark .plus-trigger:hover {
+  background: #334155;
+  color: #26FFDF;
+}
+
+html.dark .attached-file-name {
+  color: #26FFDF;
+  background: rgba(38, 255, 223, 0.1);
+  border-color: rgba(38, 255, 223, 0.3);
+}
+
+html.dark .attached-file-remove {
+  color: #64748b;
+}
+
+html.dark .attached-file-remove:hover {
+  color: #f87171;
+}
+
+html.dark .composer-chip {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+
+html.dark .composer-send-btn,
+html.dark .input-actions .el-button--primary {
+  background: #26FFDF;
+  color: #041010;
+  box-shadow: 0 4px 12px rgba(38, 255, 223, 0.3);
+}
+
+html.dark .composer-send-btn:not(:disabled):hover,
+html.dark .input-actions .el-button--primary:not(:disabled):hover {
+  box-shadow: 0 6px 16px rgba(38, 255, 223, 0.4);
+}
+
+html.dark .input-hint {
+  color: #64748b;
+}
+
+html.dark .prompt-tag {
+  border-color: rgba(38, 255, 223, 0.3) !important;
+  background: rgba(38, 255, 223, 0.08) !important;
+  color: #26FFDF !important;
+}
+
+html.dark .prompt-tag:hover {
+  background: rgba(38, 255, 223, 0.15) !important;
+  border-color: rgba(38, 255, 223, 0.5) !important;
+  color: #5fffe5 !important;
+}
+
+html.dark .config-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .config-header :deep(.el-input__wrapper) {
+  background: #1e293b !important;
+  box-shadow: 0 0 0 1px #334155 inset !important;
+}
+
+html.dark .config-header :deep(.el-input__inner) {
+  color: #f1f5f9;
+}
+
+html.dark .config-tabs :deep(.el-tabs__nav) {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .config-tabs :deep(.el-tabs__item) {
+  color: #64748b;
+}
+
+html.dark .config-tabs :deep(.el-tabs__item.is-active) {
+  background: #0f1c1c;
+  color: #f1f5f9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .config-card {
+  background: rgba(10, 22, 22, 0.8);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .config-card-title {
+  color: #f1f5f9;
+}
+
+html.dark .config-badge {
+  background: rgba(30, 41, 59, 0.8);
+  color: #94a3b8;
+}
+
+html.dark .config-badge.soft {
+  background: rgba(38, 255, 223, 0.1);
+  color: #26FFDF;
+}
+html.dark .config-badge.soft.agent-status-idle {
+  background: rgba(38, 255, 223, 0.1);
+  color: #26FFDF;
+}
+html.dark .config-badge.soft.agent-status-running {
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
+}
+html.dark .config-badge.soft.agent-status-fallback {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fcd34d;
+}
+html.dark .config-badge.soft.agent-status-error {
+  background: rgba(248, 113, 113, 0.2);
+  color: #fca5a5;
+}
+
+html.dark .config-row {
+  color: #94a3b8;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .config-row span {
+  color: #64748b;
+}
+
+html.dark .param-group {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .param-label {
+  color: #cbd5e1;
+}
+
+html.dark .param-desc {
+  color: #64748b;
+}
+
+html.dark .value-badge {
+  background: rgba(30, 41, 59, 0.8);
+  color: #94a3b8;
+}
+
+html.dark .mode-readonly {
+  color: #26FFDF;
+  background: rgba(38, 255, 223, 0.1);
+  border-color: rgba(38, 255, 223, 0.3);
+}
+
+html.dark .config-description,
+html.dark .config-card-desc {
+  color: #64748b;
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .config-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+  background: rgba(10, 22, 22, 0.82);
+}
+
+html.dark .loading-indicator {
+  color: #64748b;
+}
+
+html.dark .quick-prompts :deep(.el-tag) {
+  background: rgba(15, 28, 28, 0.8);
+}
+
+html.dark .selection-tag {
+  background: rgba(15, 28, 28, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .selection-name {
+  color: #94a3b8;
+}
+
+html.dark .selection-meta {
+  color: #64748b;
+}
+
+html.dark .agent-name-input :deep(.el-input__wrapper) {
+  background: #0f1c1c !important;
+  box-shadow: 0 0 0 1px rgba(38, 255, 223, 0.3) inset !important;
+}
+
+html.dark .model-switcher :deep(.el-input__wrapper) {
+  background: rgba(15, 28, 28, 0.8) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+}
+
+html.dark .state-panel {
+  color: #64748b;
+}
+
+html.dark .empty-state-title {
+  color: #94a3b8;
+}
+
+html.dark .empty-state-desc {
+  color: #64748b;
+}
+
+/* Global scrollbar in dark mode for messages container */
+html.dark .messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+html.dark .messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html.dark .messages-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+html.dark .messages-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 </style>

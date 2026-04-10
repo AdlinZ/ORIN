@@ -93,12 +93,15 @@ public class RouterService {
      * @return Provider
      */
     public Optional<ProviderAdapter> selectProviderByModel(String modelName, ChatCompletionRequest request) {
+        String normalizedModel = modelName == null ? "" : modelName.toLowerCase();
+
         // 根据模型名称前缀判断Provider类型
-        if (modelName.startsWith("gpt-")) {
+        if (normalizedModel.startsWith("gpt-")) {
             return selectProviderByType("openai", request);
-        } else if (modelName.startsWith("dify-")) {
+        } else if (normalizedModel.startsWith("dify-")) {
             return selectProviderByType("dify", request);
-        } else if (modelName.contains("local") || modelName.contains("llama") || modelName.contains("qwen")) {
+        } else if (normalizedModel.contains("local") || normalizedModel.contains("llama")
+                || normalizedModel.contains("qwen")) {
             // Priority for Ollama if it involves local models
             Optional<ProviderAdapter> ollama = selectProviderByType("ollama", request);
             if (ollama.isPresent())

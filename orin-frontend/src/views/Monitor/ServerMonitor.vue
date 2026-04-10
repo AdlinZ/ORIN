@@ -377,6 +377,7 @@
                     y-axis-name="使用率 (%)"
                     height="260px"
                     color="#667eea"
+                    :max-points="200"
                   />
                   <el-empty v-else description="暂无趋势数据" :image-size="80" />
                 </div>
@@ -405,6 +406,7 @@
                     y-axis-name="使用率 (%)"
                     height="260px"
                     color="#f39c12"
+                    :max-points="200"
                   />
                   <el-empty v-else description="暂无磁盘数据" :image-size="80" />
                 </div>

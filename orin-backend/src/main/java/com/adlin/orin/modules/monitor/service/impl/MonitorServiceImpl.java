@@ -1279,6 +1279,7 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public List<Map<String, Object>> getServerHardwareTrend(String serverId, String period) {
+                log.info("[getServerHardwareTrend] serverId={}, period={}", serverId, period);
                 long now = System.currentTimeMillis();
                 long start;
                 switch (period) {
@@ -1302,11 +1303,53 @@ public class MonitorServiceImpl implements MonitorService {
                         serverId = "local";
                 }
 
-                List<ServerHardwareMetric> metrics = serverHardwareMetricRepository
-                        .findByServerIdInAndTimestampBetweenOrderByTimestampAsc(resolveMetricServerAliases(serverId), start, now);
+                List<String> serverIds = resolveMetricServerAliases(serverId);
+                log.info("[getServerHardwareTrend] resolved serverIds={}", serverIds);
+                if (serverIds == null || serverIds.isEmpty()) {
+                        log.info("[getServerHardwareTrend] returning empty - no serverIds");
+                        return new ArrayList<>();
+                }
+
+                // 限制返回的数据点数量，最多 500 条，避免大数据量传输和渲染性能问题
+                int maxPoints = 500;
+
+                // 查询所有匹配的数据（带限制），按时间倒序获取最新数据
+                Pageable pageable = PageRequest.of(0, maxPoints * 3); // 多取一些以便均匀采样
+                Page<ServerHardwareMetric> metricPage = serverHardwareMetricRepository
+                        .findByServerIdInAndTimestampBetweenOrderByTimestampDesc(serverIds, start, now, pageable);
+                log.info("[getServerHardwareTrend] query returned, totalElements={}", metricPage.getTotalElements());
+
+                List<ServerHardwareMetric> allMetrics = metricPage.getContent();
+                if (allMetrics.isEmpty()) {
+                        log.info("[getServerHardwareTrend] returning empty - no metrics");
+                        return new ArrayList<>();
+                }
+
+                // 反转为升序（图表需要）
+                Collections.reverse(allMetrics);
+
+                // 均匀采样：确保时间跨度完整，同时点数不超过限制
+                List<ServerHardwareMetric> sampled;
+                if (allMetrics.size() <= maxPoints) {
+                        sampled = allMetrics;
+                } else {
+                        sampled = new ArrayList<>();
+                        double step = (double) allMetrics.size() / maxPoints;
+                        for (int i = 0; i < maxPoints; i++) {
+                                int idx = (int) Math.round(i * step);
+                                idx = Math.min(idx, allMetrics.size() - 1);
+                                sampled.add(allMetrics.get(idx));
+                        }
+                        // 确保首尾点保留
+                        if (!sampled.isEmpty()) {
+                                sampled.set(0, allMetrics.get(0));
+                                sampled.set(sampled.size() - 1, allMetrics.get(allMetrics.size() - 1));
+                        }
+                }
+                log.info("[getServerHardwareTrend] sampled {} points from {} total", sampled.size(), allMetrics.size());
 
                 List<Map<String, Object>> result = new ArrayList<>();
-                for (ServerHardwareMetric m : metrics) {
+                for (ServerHardwareMetric m : sampled) {
                         Map<String, Object> item = new HashMap<>();
                         item.put("timestamp", m.getTimestamp());
                         item.put("cpuUsage", m.getCpuUsage());
@@ -1316,6 +1359,7 @@ public class MonitorServiceImpl implements MonitorService {
                         item.put("gpuMemoryUsage", m.getGpuMemoryUsage());
                         result.add(item);
                 }
+                log.info("[getServerHardwareTrend] returning {} points", result.size());
                 return result;
         }
 

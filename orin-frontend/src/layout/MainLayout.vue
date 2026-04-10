@@ -12,7 +12,8 @@
       :class="{
         'with-sidebar': appStore.menuMode === 'sidebar',
         'collapsed': appStore.menuMode === 'sidebar' && appStore.isCollapse,
-        'is-workspace-page': isWorkspaceRoute
+        'is-workspace-page': isWorkspaceRoute,
+        'has-topbar': appStore.menuMode === 'topbar'
       }"
     >
       <router-view v-slot="{ Component }">
@@ -79,8 +80,12 @@ const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.
 
 .content-area.is-workspace-page {
   padding: 0;
-  height: calc(100vh - var(--header-height, 64px));
+  height: 100vh;
   overflow: hidden;
+}
+
+.content-area.is-workspace-page.has-topbar {
+  height: calc(100vh - var(--header-height, 64px));
 }
 
 /* 页面切换动画 */

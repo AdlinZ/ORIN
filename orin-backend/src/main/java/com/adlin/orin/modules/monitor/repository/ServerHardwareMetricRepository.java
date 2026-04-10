@@ -91,6 +91,11 @@ public interface ServerHardwareMetricRepository extends JpaRepository<ServerHard
     List<ServerHardwareMetric> findByServerIdInAndTimestampBetweenOrderByTimestampAsc(List<String> serverIds, Long startTime, Long endTime);
 
     /**
+     * 查询指定节点集合在一段时间内的硬件监控数据（倒序，分页）
+     */
+    Page<ServerHardwareMetric> findByServerIdInAndTimestampBetweenOrderByTimestampDesc(List<String> serverIds, Long startTime, Long endTime, Pageable pageable);
+
+    /**
      * 获取所有不同的服务器节点
      */
     @Query("SELECT DISTINCT new map(m.serverId as id, m.serverName as name) FROM ServerHardwareMetric m WHERE m.serverId IS NOT NULL")

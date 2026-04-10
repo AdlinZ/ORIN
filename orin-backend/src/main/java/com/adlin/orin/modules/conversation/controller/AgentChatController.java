@@ -5,16 +5,21 @@ import com.adlin.orin.modules.conversation.service.AgentChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/v1/agents/chat")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "智能体对话", description = "智能体工作台 - 支持知识库附加的对话接口")
 public class AgentChatController {
 
@@ -45,6 +50,36 @@ public class AgentChatController {
             @PathVariable String sessionId,
             @RequestBody ChatMessageRequest request) {
         return ResponseEntity.ok(agentChatService.sendMessage(sessionId, request));
+    }
+
+    @Operation(summary = "发送消息（SSE 流式）")
+    @PostMapping(value = "/sessions/{sessionId}/messages/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter sendMessageStream(
+            @PathVariable String sessionId,
+            @RequestBody ChatMessageRequest request) {
+        SseEmitter emitter = new SseEmitter(180_000L);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                agentChatService.sendMessageStream(sessionId, request, (eventType, payload) -> {
+                    try {
+                        emitter.send(SseEmitter.event().name(eventType).data(payload));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("SSE chat failed for session {}: {}", sessionId, e.getMessage(), e);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data(Map.of("message", e.getMessage())));
+                } catch (Exception ignored) {
+                }
+                emitter.completeWithError(e);
+            }
+        });
+
+        return emitter;
     }
 
     @Operation(summary = "附加知识库到会话")

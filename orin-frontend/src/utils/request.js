@@ -100,8 +100,10 @@ service.interceptors.response.use(
         return response.data;
     },
     async (error) => {
-        console.error('Request Error:', error);
         const config = error.config;
+        if (!config?.silentError) {
+            console.error('Request Error:', error);
+        }
         if (error.response && error.response.status === 401) {
             console.warn(`401 Unauthorized for URL: ${config.url}`);
         }
@@ -216,7 +218,7 @@ service.interceptors.response.use(
 
 
         // 只在最后一次重试失败后才显示错误消息
-        if (config.retryCount >= MAX_RETRIES || !shouldRetry) {
+        if ((config.retryCount >= MAX_RETRIES || !shouldRetry) && !config.silentError) {
             ElMessage.error(message);
         }
 

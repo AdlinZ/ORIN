@@ -23,7 +23,9 @@ const props = defineProps({
   // 支持多系列数据
   series: { type: Array, default: () => [] },
   // 是否应用主题色解析 (如果是 CSS 变量则自动取值)
-  resolveColor: { type: Boolean, default: true }
+  resolveColor: { type: Boolean, default: true },
+  // 是否显示缩放滑块 (数据量大时建议关闭以提升性能)
+  showDataZoom: { type: Boolean, default: true }
 });
 
 // 检查是否为多系列数据模式
@@ -73,17 +75,74 @@ const initChart = async () => {
   resizeObserver.observe(chartRef.value);
 };
 
+// LTTB (Largest Triangle Three Buckets) downsampling algorithm
+// Preserves visual shape of the data while reducing points
+const lttbDownsample = (data, threshold) => {
+  if (threshold >= data.length || threshold <= 2) return data;
+
+  const sampled = [];
+  const bucketSize = (data.length - 2) / (threshold - 2);
+
+  // Always add first point
+  sampled.push(data[0]);
+
+  for (let i = 0; i < threshold - 2; i++) {
+    const avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
+    const avgRangeEnd = Math.min(Math.floor((i + 2) * bucketSize) + 1, data.length);
+    const avgRangeLength = avgRangeEnd - avgRangeStart;
+
+    let avgX = 0, avgY = 0;
+    for (let j = avgRangeStart; j < avgRangeEnd; j++) {
+      avgX += data[j].timestamp;
+      avgY += data[j].value;
+    }
+    avgX /= avgRangeLength;
+    avgY /= avgRangeLength;
+
+    const rangeStart = Math.floor(i * bucketSize) + 1;
+    const rangeEnd = Math.floor((i + 1) * bucketSize) + 1;
+
+    const pointAX = sampled[sampled.length - 1].timestamp;
+    const pointAY = sampled[sampled.length - 1].value;
+
+    let maxArea = -1;
+    let maxAreaPoint = data[rangeStart];
+
+    for (let j = rangeStart; j < rangeEnd; j++) {
+      const area = Math.abs(
+        (pointAX - avgX) * (data[j].value - pointAY) -
+        (pointAX - data[j].timestamp) * (avgY - pointAY)
+      ) * 0.5;
+      if (area > maxArea) {
+        maxArea = area;
+        maxAreaPoint = data[j];
+      }
+    }
+    sampled.push(maxAreaPoint);
+  }
+
+  // Always add last point
+  sampled.push(data[data.length - 1]);
+
+  return sampled;
+};
+
 const updateOption = () => {
   if (!chartInstance) return;
 
-  // 限制显示的点数
+  // 限制显示的点数，使用 LTTB 降采样保留视觉特征
   let displayData = props.data;
   if (props.maxPoints > 0 && props.data.length > props.maxPoints) {
-    displayData = props.data.slice(-props.maxPoints);
+    displayData = lttbDownsample(props.data, props.maxPoints);
   }
+  const isDenseData = displayData.length > 160;
+  const disableAnimation = displayData.length > 240;
 
   const option = {
     backgroundColor: 'transparent',
+    animation: !disableAnimation,
+    animationDuration: disableAnimation ? 0 : 300,
+    animationDurationUpdate: disableAnimation ? 0 : 300,
     title: { 
       text: props.title, 
       left: 10,
@@ -153,7 +212,7 @@ const updateOption = () => {
       axisLabel: { color: '#9ca3af', fontSize: 10 },
       axisLine: { show: false }
     },
-    dataZoom: [
+    dataZoom: props.showDataZoom ? [
       {
         type: 'slider',
         show: true,
@@ -183,20 +242,20 @@ const updateOption = () => {
         }
       },
       { type: 'inside' }
-    ],
+    ] : [{ type: 'inside' }],
     series: [
       {
         name: props.title,
         type: 'line',
-        smooth: 0.4,
-        showSymbol: true,
+        smooth: isDenseData ? 0.15 : 0.4,
+        showSymbol: !isDenseData,
         symbol: 'circle',
-        symbolSize: (val) => Math.min(Math.max(val[1] / 100, 6), 12),
+        symbolSize: isDenseData ? 0 : 6,
         itemStyle: { 
           color: actualColor.value,
-          borderWidth: 2,
+          borderWidth: isDenseData ? 0 : 2,
           borderColor: '#fff',
-          shadowBlur: 5,
+          shadowBlur: isDenseData ? 0 : 5,
           shadowColor: 'rgba(0,0,0,0.1)'
         },
         areaStyle: {
@@ -206,7 +265,13 @@ const updateOption = () => {
           ])
         },
         lineStyle: { width: 3, color: actualColor.value },
-        data: displayData.map(d => [d.timestamp, d.value])
+        data: displayData.map(d => [d.timestamp, d.value]),
+        // 大数据量优化：启用 large 模式
+        large: displayData.length > 100,
+        largeThreshold: 100,
+        sampling: 'lttb',
+        progressive: 300,
+        progressiveThreshold: 500
       }
     ]
   };

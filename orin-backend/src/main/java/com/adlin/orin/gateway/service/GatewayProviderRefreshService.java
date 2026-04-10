@@ -51,7 +51,8 @@ public class GatewayProviderRefreshService {
         }
 
         String baseUrl = config.getOllamaEndpoint().trim();
-        OllamaProviderAdapter ollamaAdapter = new OllamaProviderAdapter(PROVIDER_OLLAMA, baseUrl, restTemplate);
+        String apiKey = config.getOllamaApiKey() != null ? config.getOllamaApiKey().trim() : "";
+        OllamaProviderAdapter ollamaAdapter = new OllamaProviderAdapter(PROVIDER_OLLAMA, apiKey, baseUrl, restTemplate);
         providerRegistry.registerProvider(PROVIDER_OLLAMA, ollamaAdapter);
         log.info("Registered Ollama provider at {}", baseUrl);
     }

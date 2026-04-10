@@ -213,7 +213,7 @@
                 <el-card shadow="never" class="chart-card">
                   <template #header><div class="card-header"><el-icon><TrendCharts /></el-icon><span>CPU & 内存使用趋势</span></div></template>
                   <div v-loading="loading" style="height: 280px;">
-                    <LineChart v-if="trendData.length > 0" :data="trendData" title="" y-axis-name="使用率 (%)" height="260px" color="#667eea" />
+                    <LineChart v-if="trendData.length > 0" :data="trendData" title="" y-axis-name="使用率 (%)" height="260px" color="#667eea" :max-points="200" />
                     <el-empty v-else description="暂无趋势数据" :image-size="80" />
                   </div>
                 </el-card>
@@ -234,7 +234,7 @@
                     </div>
                   </template>
                   <div v-loading="loading" style="height: 280px;">
-                    <LineChart v-if="diskTrendData.length > 0" :data="diskTrendData" title="" y-axis-name="使用率 (%)" height="260px" color="#f39c12" />
+                    <LineChart v-if="diskTrendData.length > 0" :data="diskTrendData" title="" y-axis-name="使用率 (%)" height="260px" color="#f39c12" :max-points="200" />
                     <el-empty v-else description="暂无磁盘数据" :image-size="80" />
                   </div>
                 </el-card>

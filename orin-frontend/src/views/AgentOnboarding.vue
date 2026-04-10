@@ -297,10 +297,10 @@
           </el-form-item>
         </template>
 
-        <template v-else-if="form.providerType === 'local'">
+        <template v-else-if="form.providerType === 'ollama'">
           <el-form-item label="本地模型 API Endpoint" prop="endpointUrl">
-            <el-input 
-              v-model.trim="form.endpointUrl" 
+            <el-input
+              v-model.trim="form.endpointUrl"
               placeholder="http://localhost:11434/v1"
               size="large"
             >
@@ -310,7 +310,7 @@
             </el-input>
             <template #extra>
               <span style="color: var(--neutral-gray-500); font-size: var(--text-sm);">
-                支持Ollama、LocalAI等本地模型服务
+                支持Ollama、LocalAI等本地模型服务（支持局域网或云服务器）
               </span>
             </template>
           </el-form-item>
@@ -1061,7 +1061,7 @@ const handleProviderChange = () => {
   } else if (form.providerType === 'anthropic') {
     form.endpointUrl = 'https://api.anthropic.com/v1';
     form.model = 'claude-3-opus-20240229';
-  } else if (form.providerType === 'local') {
+  } else if (form.providerType === 'ollama') {
     form.endpointUrl = 'http://localhost:11434/v1';
     form.model = 'llama2';
   } else if (form.providerType === 'minimax') {
@@ -1142,7 +1142,7 @@ const testConnection = async () => {
           } else {
             ElMessage.error('MiniMax 连接测试失败，请检查配置信息');
           }
-        } else if (form.providerType === 'local') {
+        } else if (form.providerType === 'ollama') {
           const response = await testOllamaConnection(
             form.endpointUrl,
             form.apiKey,
@@ -1152,7 +1152,7 @@ const testConnection = async () => {
             ElMessage.success('Ollama 连接测试成功！');
             connectionTested.value = true;
           } else {
-            ElMessage.error('Ollama 连接测试失败，请确保本地 Ollama 已启动且模型已拉取');
+            ElMessage.error('Ollama 连接测试失败，请确保 Ollama 服务已启动且可访问');
           }
         } else if (form.providerType === 'moonshot') {
           const response = await testKimiConnection(
@@ -1229,7 +1229,7 @@ const onSubmit = async () => {
             providerType: 'MiniMax' // Backend identifies this, but we can clarify
           });
           ElMessage.success('MiniMax Agent 接入成功！');
-        } else if (form.providerType === 'local') {
+        } else if (form.providerType === 'ollama') {
           await onboardAgent({
             endpointUrl: form.endpointUrl,
             apiKey: form.apiKey,
@@ -1237,7 +1237,7 @@ const onSubmit = async () => {
             agentName: form.agentName,
             providerType: 'Ollama'
           });
-          ElMessage.success('Ollama 本地 Agent 接入成功！');
+          ElMessage.success('Ollama Agent 接入成功！');
         } else if (form.providerType === 'moonshot') {
           await onboardKimiAgent(
             form.endpointUrl,
