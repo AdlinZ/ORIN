@@ -143,17 +143,6 @@
         </el-badge>
       </div>
 
-      <!-- 分隔线 -->
-      <div class="action-divider" />
-
-      <!-- 系统 AI 按钮 -->
-      <el-tooltip content="系统 AI 助手" placement="bottom">
-        <div class="system-ai-btn" @click="showSystemAI">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>AI 助手</span>
-        </div>
-      </el-tooltip>
-
       <!-- 用户下拉菜单 -->
       <el-dropdown trigger="click" @command="handleUserCommand">
         <div class="user-info">
@@ -1000,39 +989,6 @@ onMounted(() => {
   margin: 0 4px;
 }
 
-.system-ai-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(0, 191, 165, 0.1) 0%, rgba(0, 191, 165, 0.05) 100%);
-  border: 1px solid rgba(0, 191, 165, 0.2);
-  color: var(--orin-primary);
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.system-ai-btn:hover {
-  background: var(--orin-primary);
-  color: white;
-  border-color: var(--orin-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(21, 94, 239, 0.2);
-}
-
-.system-ai-btn .el-icon {
-  font-size: 16px;
-}
-
-.system-ai-btn span {
-  font-size: 12px;
-  letter-spacing: 0.5px;
-}
-
 .user-info {
   display: flex;
   align-items: center;
@@ -1283,19 +1239,6 @@ html.dark .mobile-menu-item {
 
 html.dark .action-divider {
   background: rgba(255, 255, 255, 0.2);
-}
-
-html.dark .system-ai-btn {
-  background: linear-gradient(135deg, rgba(38, 255, 223, 0.1) 0%, rgba(38, 255, 223, 0.05) 100%);
-  border-color: rgba(38, 255, 223, 0.2);
-  color: #26FFDF;
-}
-
-html.dark .system-ai-btn:hover {
-  background: linear-gradient(135deg, rgba(38, 255, 223, 0.25) 0%, rgba(38, 255, 223, 0.15) 100%);
-  color: #26FFDF;
-  border-color: rgba(38, 255, 223, 0.4);
-  box-shadow: 0 2px 12px rgba(38, 255, 223, 0.25);
 }
 
 /* --- ORIN CORE (Adaptive Style) --- */

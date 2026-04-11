@@ -104,6 +104,11 @@
         </div>
       </div>
 
+      <div v-if="isOfflineMode" class="offline-banner">
+        <el-icon><Warning /></el-icon>
+        <span>离线模式 — 显示最近保存的数据，部分节点数据可能不是最新的</span>
+      </div>
+
       <div class="messages-container" v-loading="loading">
         <div class="dashboard-content">
           <div class="panel-section margin-bottom-lg">
@@ -664,7 +669,8 @@ import {
   Refresh,
   Search,
   Star,
-  TrendCharts
+  TrendCharts,
+  Warning
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import LineChart from '@/components/LineChart.vue';
@@ -872,6 +878,10 @@ const configuredNodeCount = computed(() =>
   normalizedNodes.value.filter((node) => node.configured).length
 );
 
+const isOfflineMode = computed(() =>
+  overviewNodes.value.some((node) => node.snapshot.online === false && (node.snapshot.recordedAt || node.snapshot.timestamp))
+);
+
 const fetchNodes = async () => {
   nodesLoading.value = true;
   try {
@@ -929,7 +939,9 @@ const fetchNodeSnapshots = async () => {
       const latest = data?.content?.[0];
       return [node.id, latest ? buildSnapshotFromMetric(latest, node) : createEmptySnapshot(node)];
     } catch (error) {
-      return [node.id, { ...createEmptySnapshot(node), online: false, errorMessage: error.message || '请求失败' }];
+      // Preserve previously fetched snapshot when offline, only mark as offline
+      const existing = nodeSnapshots.value[node.id];
+      return [node.id, existing ? { ...existing, online: false, errorMessage: error.message || '请求失败' } : { ...createEmptySnapshot(node), online: false, errorMessage: error.message || '请求失败' }];
     }
   }));
 
@@ -1367,6 +1379,17 @@ onUnmounted(() => {
 
 <style scoped>
 @import './server-monitor-shared.css';
+
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #fef3cd;
+  border-bottom: 1px solid #ffc107;
+  color: #856404;
+  font-size: 13px;
+}
 
 .node-dialog-header {
   display: flex;

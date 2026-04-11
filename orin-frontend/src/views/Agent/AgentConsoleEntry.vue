@@ -316,12 +316,15 @@ onMounted(() => {
 <style scoped>
 .console-entry-page {
   position: relative;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   background:
     radial-gradient(circle at top left, rgba(20, 184, 166, 0.18), transparent 28%),
     radial-gradient(circle at top right, rgba(14, 165, 233, 0.14), transparent 24%),
     linear-gradient(180deg, #f4fbfb 0%, #f7f9fc 52%, #f3f5f8 100%);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ambient {
