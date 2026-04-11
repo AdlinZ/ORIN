@@ -12,6 +12,8 @@ import com.adlin.orin.modules.knowledge.component.EmbeddingService;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -309,6 +311,7 @@ public class DifyKnowledgeSyncService {
      */
     @lombok.Data
     @lombok.Builder
+@NoArgsConstructor @AllArgsConstructor
     public static class DifyDataset {
         private String id;
         private String name;
@@ -324,7 +327,12 @@ public class DifyKnowledgeSyncService {
      */
     @lombok.Data
     @lombok.Builder
+@NoArgsConstructor @AllArgsConstructor
     public static class DifyDocument {
+        private String documentId;
+        private String knowledgeBaseId;
+        private String status;
+        private Integer wordCount;
         private String id;
         private String name;
         private String type;
@@ -337,6 +345,7 @@ public class DifyKnowledgeSyncService {
      */
     @lombok.Data
     @lombok.Builder
+@NoArgsConstructor @AllArgsConstructor
     public static class SyncResult {
         private boolean success;
         private String message;

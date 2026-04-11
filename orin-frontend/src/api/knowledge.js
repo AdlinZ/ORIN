@@ -190,6 +190,24 @@ export const testDifyConnection = (endpoint, apiKey) => {
     return request.post('/knowledge/sync/dify/test', { endpoint, apiKey });
 };
 
+// ==================== Dify 完整同步 ====================
+
+export const getDifySyncOverview = (agentId) => {
+    return request.get(`/sync/dify/overview/${agentId}`);
+};
+
+export const fullSyncDifyAll = (agentId) => {
+    return request.post(`/sync/dify/full/${agentId}`);
+};
+
+export const syncDifyWorkflows = (agentId) => {
+    return request.post(`/sync/dify/workflows/${agentId}`);
+};
+
+export const syncDifyConversations = (agentId, appId) => {
+    return request.post(`/sync/dify/conversations/${agentId}`, null, { params: { appId } });
+};
+
 // ==================== 端侧知识库同步 (Side Client Sync) ====================
 
 export const getClientChanges = (agentId, params = {}, config = {}) => {
