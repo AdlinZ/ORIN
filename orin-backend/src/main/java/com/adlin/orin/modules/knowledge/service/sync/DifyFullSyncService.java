@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service.sync;
 
+import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.knowledge.entity.*;
 import com.adlin.orin.modules.knowledge.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -206,10 +207,8 @@ public class DifyFullSyncService {
             kb.setId(dataset.getId());
             kb.setName(dataset.getName());
             kb.setDescription(dataset.getDescription());
-            kb.setSource("DIFY");
             kb.setSourceAgentId("");
-            kb.setStatus("ACTIVE");
-            kb.setDocumentCount(dataset.getDocumentCount());
+            kb.setDocCount(dataset.getDocumentCount());
             knowledgeBaseRepository.save(kb);
             added++;
             log.info("Created new knowledge base: {}", dataset.getName());
@@ -224,10 +223,10 @@ public class DifyFullSyncService {
             if (existingDoc.isEmpty()) {
                 KnowledgeDocument newDoc = new KnowledgeDocument();
                 newDoc.setId(doc.getId());
-                newDoc.setTitle(doc.getName());
+                newDoc.setFileName(doc.getName());
                 newDoc.setKnowledgeBaseId(dataset.getId());
-                newDoc.setSource("DIFY");
-                newDoc.setStatus("ACTIVE");
+                newDoc.setFileCategory("DIFY");
+                newDoc.setParseStatus("SUCCESS");
                 documentRepository.save(newDoc);
                 added++;
             }

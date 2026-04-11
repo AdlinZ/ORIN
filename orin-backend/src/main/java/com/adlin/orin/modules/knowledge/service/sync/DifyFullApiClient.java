@@ -281,8 +281,6 @@ public class DifyFullApiClient {
         dataset.setDescription(String.valueOf(item.get("description")));
         dataset.setDocumentCount(item.get("document_count") != null ? 
                 ((Number) item.get("document_count")).intValue() : 0);
-        dataset.setWordCount(item.get("word_count") != null ? 
-                ((Number) item.get("word_count")).intValue() : 0);
         
         String createdAt = String.valueOf(item.get("created_at"));
         if (createdAt != null && !createdAt.equals("null")) {

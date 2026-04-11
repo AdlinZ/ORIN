@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.collaboration.service;
 
-import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
@@ -36,11 +35,10 @@ public class LangGraphOrchestrator {
     /**
      * 通过 LangGraph 执行协作
      */
-    public CollaborationPackage executeWithLangGraph(String packageId, String intent, String mode) {
+    public CollaborationPackageEntity executeWithLangGraph(String packageId, String intent, String mode) {
         log.info("[LangGraph] 开始执行: packageId={}, mode={}", packageId, mode);
 
         try {
-            // 调用 Python LangGraph 服务
             String url = aiEngineUrl + "/api/collaboration/run";
             
             Map<String, Object> request = new HashMap<>();
@@ -58,16 +56,13 @@ public class LangGraphOrchestrator {
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> result = response.getBody();
                 
-                // 更新 Package 状态
-                CollaborationPackage pkg = packageRepository.findByPackageId(packageId);
-                if (pkg != null) {
+                Optional<CollaborationPackageEntity> pkgOpt = packageRepository.findByPackageId(packageId);
+                if (pkgOpt.isPresent()) {
+                    CollaborationPackageEntity pkg = pkgOpt.get();
                     pkg.setStatus((String) result.getOrDefault("status", "COMPLETED"));
                     pkg.setResult((String) result.get("final_result"));
                     pkg.setUpdatedAt(LocalDateTime.now());
                     packageRepository.save(pkg);
-                    
-                    // 发送完成事件
-                    eventBus.publish(CollaborationEventBus.EventType.TASK_COMPLETED, packageId, pkg);
                     
                     log.info("[LangGraph] 执行完成: packageId={}", packageId);
                     return pkg;
@@ -77,9 +72,9 @@ public class LangGraphOrchestrator {
         } catch (Exception e) {
             log.error("[LangGraph] 执行失败: packageId={}, error={}", packageId, e.getMessage());
             
-            // 更新失败状态
-            CollaborationPackage pkg = packageRepository.findByPackageId(packageId);
-            if (pkg != null) {
+            Optional<CollaborationPackageEntity> pkgOpt = packageRepository.findByPackageId(packageId);
+            if (pkgOpt.isPresent()) {
+                CollaborationPackageEntity pkg = pkgOpt.get();
                 pkg.setStatus("FAILED");
                 pkg.setErrorMessage(e.getMessage());
                 pkg.setUpdatedAt(LocalDateTime.now());

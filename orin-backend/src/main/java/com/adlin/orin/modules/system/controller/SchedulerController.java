@@ -43,7 +43,7 @@ public class SchedulerController {
             // 获取所有配置了 Dify 的 Agent
             List<String> agentIds = profileRepository.findAll().stream()
                     .filter(p -> p.getDatasetApiKey() != null && !p.getDatasetApiKey().isEmpty())
-                    .map(p -> p.getId().toString())
+                    .map(p -> p.getAgentId())
                     .toList();
             
             int successCount = 0;

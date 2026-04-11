@@ -129,8 +129,8 @@ public class KnowledgeTaskListener {
             summary = "[Error: " + e.getMessage() + "]";
         }
 
-        file.setCaption(summary);
-        file.setAnalysisStatus("SUCCESS");
+        // 保存 caption 到 aiSummary 字段
+        file.setAiSummary(summary);
         fileRepository.save(file);
 
         task.setStatus(TaskStatus.SUCCESS);
@@ -141,15 +141,15 @@ public class KnowledgeTaskListener {
 
     private void processEmbedding(KnowledgeTask task) {
         log.info("Embedding task {} processing", task.getId());
-        // 现有实现保持不变
         try {
             MultimodalFile file = fileRepository.findById(task.getAssetId()).orElseThrow();
 
             String textToEmbed = "";
-            if (file.getCaption() != null && !file.getCaption().isEmpty()) {
-                textToEmbed = file.getCaption();
-            } else if (file.getFileContent() != null) {
-                textToEmbed = new String(Base64.getDecoder().decode(file.getFileContent()));
+            // 使用 AI summary 或 OCR 结果
+            if (file.getAiSummary() != null && !file.getAiSummary().isEmpty()) {
+                textToEmbed = file.getAiSummary();
+            } else if (file.getOcrText() != null && !file.getOcrText().isEmpty()) {
+                textToEmbed = file.getOcrText();
             } else if (file.getStoragePath() != null) {
                 Path path = Paths.get(file.getStoragePath());
                 if (Files.exists(path)) {
@@ -186,13 +186,11 @@ public class KnowledgeTaskListener {
 
     /**
      * 处理图谱构建任务
-     * 从指定文档中抽取实体和关系，构建知识图谱
      */
     private void processGraphBuilding(KnowledgeTask task) {
         log.info("Graph building task {} started for asset {}", task.getId(), task.getAssetId());
 
         try {
-            // 1. 获取文档内容
             String assetId = task.getAssetId();
             Optional<MultimodalFile> fileOpt = fileRepository.findById(assetId);
             
@@ -200,28 +198,20 @@ public class KnowledgeTaskListener {
             
             if (fileOpt.isPresent()) {
                 MultimodalFile file = fileOpt.get();
-                // 优先使用 caption（已处理的内容）
-                if (file.getCaption() != null && !file.getCaption().isEmpty()) {
-                    textContent = file.getCaption();
+                // 优先使用 AI summary
+                if (file.getAiSummary() != null && !file.getAiSummary().isEmpty()) {
+                    textContent = file.getAiSummary();
                 } 
-                // 尝试读取文件
+                // 使用 OCR 结果
+                else if (file.getOcrText() != null && !file.getOcrText().isEmpty()) {
+                    textContent = file.getOcrText();
+                }
+                // 读取文件
                 else if (file.getStoragePath() != null) {
                     Path path = Paths.get(file.getStoragePath());
                     if (Files.exists(path)) {
                         textContent = Files.readString(path);
                     }
-                }
-                // 尝试 Base64
-                else if (file.getFileContent() != null) {
-                    textContent = new String(Base64.getDecoder().decode(file.getFileContent()));
-                }
-            }
-
-            if (textContent.isEmpty()) {
-                // 尝试从任务参数获取
-                String params = task.getParams();
-                if (params != null && !params.isEmpty()) {
-                    textContent = params;
                 }
             }
 
@@ -229,21 +219,14 @@ public class KnowledgeTaskListener {
                 throw new IllegalStateException("No content found for graph building");
             }
 
-            // 2. 构建图谱
-            String graphId = task.getKnowledgeBaseId();
-            if (graphId == null || graphId.isEmpty()) {
-                graphId = "default";
-            }
-            
-            // 3. 使用 GraphExtractionService 进行实体和关系抽取
-            graphExtractionService.buildGraph(graphId, assetId, textContent);
+            // 构建图谱
+            graphExtractionService.buildGraph("default", assetId, textContent);
 
-            // 4. 标记任务成功
             task.setStatus(TaskStatus.SUCCESS);
             task.setCompletedAt(LocalDateTime.now());
             taskRepository.save(task);
 
-            log.info("Graph building task {} completed for graph {}", task.getId(), graphId);
+            log.info("Graph building task {} completed", task.getId());
 
         } catch (Exception e) {
             log.error("Graph building failed for task {}: {}", task.getId(), e.getMessage(), e);
