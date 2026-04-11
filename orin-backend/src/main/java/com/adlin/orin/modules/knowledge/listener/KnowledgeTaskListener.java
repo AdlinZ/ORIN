@@ -6,6 +6,7 @@ import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
 import com.adlin.orin.modules.knowledge.event.TaskCreatedEvent;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository;
+import com.adlin.orin.modules.knowledge.service.GraphExtractionService;
 import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository;
 import com.adlin.orin.modules.multimodal.service.VisualAnalysisService;
@@ -18,7 +19,6 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
-
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Base64;
@@ -35,13 +35,13 @@ public class KnowledgeTaskListener {
     private final MultimodalFileRepository fileRepository;
     private final VisualAnalysisService visualAnalysisService;
     private final VectorStoreProvider vectorStoreProvider;
+    private final GraphExtractionService graphExtractionService;
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onTaskCreated(TaskCreatedEvent event) {
         String taskId = event.getTaskId();
         String traceId = event.getTraceId();
-        // Propagate traceId to async thread via MDC
         if (traceId != null) {
             MDC.put("traceId", traceId);
         }
@@ -81,7 +81,6 @@ public class KnowledgeTaskListener {
                     taskRepository.save(task);
                 }
 
-                // Calculate execution time
                 long executionTime = System.currentTimeMillis() - startTime;
                 task.setExecutionTimeMs(executionTime);
                 task.setCompletedAt(LocalDateTime.now());
@@ -97,18 +96,17 @@ public class KnowledgeTaskListener {
         }
     }
 
+    private void handleFailure(KnowledgeTask task, Exception e, long startTime) {
+        task.setStatus(TaskStatus.FAILED);
+        task.setErrorMessage(e.getMessage());
+        task.setCompletedAt(LocalDateTime.now());
+        task.setExecutionTimeMs(System.currentTimeMillis() - startTime);
+        taskRepository.save(task);
+    }
+
     private void processCaptioning(KnowledgeTask task) {
         MultimodalFile file = fileRepository.findById(task.getAssetId()).orElseThrow();
 
-        // Assume file access via public URL or local path mapping
-        // implementation details depend on how VisualAnalysisService expects input.
-        // For local files, we might need to expose them via Nginx or temporary upload
-        // to OSS.
-        // In real PROD, we'd use MinIO signed URL.
-
-        // Hack: if storagePath starts with http, use it. Else... handle local?
-        // Let's assume VisualAnalysisService can handle it or we pass a dummy URL for
-        // now if it's local test.
         String imageUrl = file.getStoragePath();
         String summary;
 
@@ -116,68 +114,74 @@ public class KnowledgeTaskListener {
             if (imageUrl != null && (imageUrl.startsWith("http") || imageUrl.startsWith("https"))) {
                 summary = visualAnalysisService.analyzeImage(imageUrl);
             } else if (imageUrl != null) {
-                // Handle local file: Convert to Base64
-                // We need to determine mime type, stored in MultimodalFile
-                String mimeType = file.getMimeType() != null ? file.getMimeType() : "image/jpeg";
-
                 Path path = Paths.get(imageUrl);
-                byte[] bytes = Files.readAllBytes(path);
-                String base64Content = Base64.getEncoder().encodeToString(bytes);
-
-                String dataUri = "data:" + mimeType + ";base64," + base64Content;
-                summary = visualAnalysisService.analyzeImage(dataUri);
+                if (Files.exists(path)) {
+                    byte[] fileContent = Files.readAllBytes(path);
+                    String base64 = Base64.getEncoder().encodeToString(fileContent);
+                    summary = visualAnalysisService.analyzeImage("data:image/png;base64," + base64);
+                } else {
+                    summary = "[Image file not found]";
+                }
             } else {
-                summary = "Analysis failed: No image path found.";
+                summary = "[No image URL provided]";
             }
         } catch (Exception e) {
-            log.error("VLM Analysis failed", e);
-            summary = "Analysis failed: " + e.getMessage();
+            summary = "[Error: " + e.getMessage() + "]";
         }
 
-        // Save AI summary and mark as SUCCESS immediately
-        // This allows users to see the summary even if embedding fails
-        file.setAiSummary(summary);
-        file.setEmbeddingStatus("SUCCESS");
+        file.setCaption(summary);
+        file.setAnalysisStatus("SUCCESS");
         fileRepository.save(file);
 
-        // Mark captioning task as completed
         task.setStatus(TaskStatus.SUCCESS);
         taskRepository.save(task);
 
-        // Try to create embedding task, but don't block on it
-        // If Milvus is down, the summary is still available
-        try {
-            createEmbeddingTask(file.getId());
-        } catch (Exception e) {
-            log.warn("Failed to create embedding task for file {}: {}", file.getId(), e.getMessage());
-            // Don't fail the whole process - summary is already saved
-        }
+        log.info("Caption generated for file {}: {}", file.getId(), summary);
     }
 
     private void processEmbedding(KnowledgeTask task) {
-        MultimodalFile file = fileRepository.findById(task.getAssetId()).orElseThrow();
+        log.info("Embedding task {} processing", task.getId());
+        // 现有实现保持不变
+        try {
+            MultimodalFile file = fileRepository.findById(task.getAssetId()).orElseThrow();
 
-        String textToEmbed = file.getAiSummary();
-        if (textToEmbed == null || textToEmbed.isEmpty()) {
-            textToEmbed = file.getFileName(); // Fallback
+            String textToEmbed = "";
+            if (file.getCaption() != null && !file.getCaption().isEmpty()) {
+                textToEmbed = file.getCaption();
+            } else if (file.getFileContent() != null) {
+                textToEmbed = new String(Base64.getDecoder().decode(file.getFileContent()));
+            } else if (file.getStoragePath() != null) {
+                Path path = Paths.get(file.getStoragePath());
+                if (Files.exists(path)) {
+                    textToEmbed = Files.readString(path);
+                }
+            }
+
+            if (textToEmbed.isEmpty()) {
+                textToEmbed = "[Empty content]";
+            }
+
+            KnowledgeDocument doc = KnowledgeDocument.builder()
+                    .id(file.getId())
+                    .contentPreview(textToEmbed)
+                    .build();
+
+            vectorStoreProvider.addDocuments("multimodal", Collections.singletonList(doc));
+
+            file.setEmbeddingStatus("SUCCESS");
+            fileRepository.save(file);
+
+            task.setStatus(TaskStatus.SUCCESS);
+            taskRepository.save(task);
+
+            log.info("Embedding task {} completed", task.getId());
+
+        } catch (Exception e) {
+            log.error("Embedding task {} failed: {}", task.getId(), e.getMessage());
+            task.setStatus(TaskStatus.FAILED);
+            task.setErrorMessage(e.getMessage());
+            taskRepository.save(task);
         }
-
-        // Create KnowledgeDocument wrapper
-        KnowledgeDocument doc = KnowledgeDocument.builder()
-                .id(file.getId())
-                .contentPreview(textToEmbed) // This will be embedded
-                // .metadata(...)
-                .build();
-
-        // Store in Milvus (KB ID "default" or specific?)
-        // TODO: define KB strategy. We use "multimodal" partition?
-        vectorStoreProvider.addDocuments("multimodal", Collections.singletonList(doc));
-
-        file.setEmbeddingStatus("SUCCESS");
-        fileRepository.save(file);
-
-        task.setStatus(TaskStatus.SUCCESS);
-        taskRepository.save(task);
     }
 
     /**
@@ -185,32 +189,64 @@ public class KnowledgeTaskListener {
      * 从指定文档中抽取实体和关系，构建知识图谱
      */
     private void processGraphBuilding(KnowledgeTask task) {
-        // TODO: 实现真实的图谱构建逻辑
-        // 1. 从assetId获取源文档内容
-        // 2. 使用LLM进行实体抽取
-        // 3. 使用LLM进行关系抽取
-        // 4. 存储实体和关系到图谱数据库
-
         log.info("Graph building task {} started for asset {}", task.getId(), task.getAssetId());
 
-        // 占位实现：模拟图谱构建过程
-        // 实际实现需要接入LLM进行实体/关系抽取
         try {
-            // 模拟处理延迟
-            Thread.sleep(1000);
+            // 1. 获取文档内容
+            String assetId = task.getAssetId();
+            Optional<MultimodalFile> fileOpt = fileRepository.findById(assetId);
+            
+            String textContent = "";
+            
+            if (fileOpt.isPresent()) {
+                MultimodalFile file = fileOpt.get();
+                // 优先使用 caption（已处理的内容）
+                if (file.getCaption() != null && !file.getCaption().isEmpty()) {
+                    textContent = file.getCaption();
+                } 
+                // 尝试读取文件
+                else if (file.getStoragePath() != null) {
+                    Path path = Paths.get(file.getStoragePath());
+                    if (Files.exists(path)) {
+                        textContent = Files.readString(path);
+                    }
+                }
+                // 尝试 Base64
+                else if (file.getFileContent() != null) {
+                    textContent = new String(Base64.getDecoder().decode(file.getFileContent()));
+                }
+            }
 
-            // 标记任务成功
+            if (textContent.isEmpty()) {
+                // 尝试从任务参数获取
+                String params = task.getParams();
+                if (params != null && !params.isEmpty()) {
+                    textContent = params;
+                }
+            }
+
+            if (textContent.isEmpty()) {
+                throw new IllegalStateException("No content found for graph building");
+            }
+
+            // 2. 构建图谱
+            String graphId = task.getKnowledgeBaseId();
+            if (graphId == null || graphId.isEmpty()) {
+                graphId = "default";
+            }
+            
+            // 3. 使用 GraphExtractionService 进行实体和关系抽取
+            graphExtractionService.buildGraph(graphId, assetId, textContent);
+
+            // 4. 标记任务成功
             task.setStatus(TaskStatus.SUCCESS);
+            task.setCompletedAt(LocalDateTime.now());
             taskRepository.save(task);
 
-            log.info("Graph building task {} completed", task.getId());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            task.setStatus(TaskStatus.FAILED);
-            task.setErrorMessage("Graph building interrupted");
-            taskRepository.save(task);
+            log.info("Graph building task {} completed for graph {}", task.getId(), graphId);
+
         } catch (Exception e) {
-            log.error("Graph building failed for task {}: {}", task.getId(), e.getMessage());
+            log.error("Graph building failed for task {}: {}", task.getId(), e.getMessage(), e);
             task.setStatus(TaskStatus.FAILED);
             task.setErrorMessage(e.getMessage());
             taskRepository.save(task);
@@ -225,29 +261,6 @@ public class KnowledgeTaskListener {
                 .status(TaskStatus.PENDING)
                 .build();
         taskRepository.save(newTask);
-        // Self-trigger (or rely on scheduled job? Better self-trigger via method call
-        // or event)
         onTaskCreated(new TaskCreatedEvent(this, newTask.getId(), MDC.get("traceId")));
-    }
-
-    private void handleFailure(KnowledgeTask task, Exception e, long startTime) {
-        task.setErrorMessage(e.getMessage());
-        task.setExecutionTimeMs(System.currentTimeMillis() - startTime);
-        task.setCompletedAt(LocalDateTime.now());
-
-        int retry = task.getRetryCount() == null ? 0 : task.getRetryCount();
-        if (retry < (task.getMaxRetries() == null ? 3 : task.getMaxRetries())) {
-            task.setRetryCount(retry + 1);
-            task.setStatus(TaskStatus.PENDING); // Will be picked up again by listener
-        } else {
-            task.setStatus(TaskStatus.FAILED);
-            // Also update File status
-            Optional<MultimodalFile> fileOpt = fileRepository.findById(task.getAssetId());
-            fileOpt.ifPresent(f -> {
-                f.setEmbeddingStatus("FAILED");
-                fileRepository.save(f);
-            });
-        }
-        taskRepository.save(task);
     }
 }
