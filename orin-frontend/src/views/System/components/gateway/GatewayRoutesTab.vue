@@ -61,6 +61,13 @@
         <el-form-item label="目标地址" required>
           <el-input v-model="form.targetUrl" placeholder="http://localhost:8080/api" />
         </el-form-item>
+        <el-form-item label="去除前缀">
+          <el-switch v-model="form.stripPrefix" />
+          <span class="form-tip">匹配路径去掉前缀后再转发</span>
+        </el-form-item>
+        <el-form-item label="重写路径">
+          <el-input v-model="form.rewritePath" placeholder="/api/v2" />
+        </el-form-item>
         <el-row :gutter="10">
           <el-col :span="12">
             <el-form-item label="超时(ms)">
@@ -118,6 +125,8 @@ const form = reactive({
   pathPattern: '',
   method: 'ALL',
   targetUrl: '',
+  stripPrefix: false,
+  rewritePath: '',
   timeoutMs: 30000,
   retryCount: 0,
   loadBalance: 'ROUND_ROBIN',
@@ -143,7 +152,7 @@ const loadRoutes = async () => {
 
 const openCreateDialog = () => {
   isEdit.value = false
-  Object.assign(form, { id: null, name: '', pathPattern: '', method: 'ALL', targetUrl: '', timeoutMs: 30000, retryCount: 0, loadBalance: 'ROUND_ROBIN', priority: 0, description: '' })
+  Object.assign(form, { id: null, name: '', pathPattern: '', method: 'ALL', targetUrl: '', stripPrefix: false, rewritePath: '', timeoutMs: 30000, retryCount: 0, loadBalance: 'ROUND_ROBIN', priority: 0, description: '' })
   dialogVisible.value = true
 }
 
