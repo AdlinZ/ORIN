@@ -674,6 +674,7 @@ const loadSegments = async () => {
     } catch (error) {
         console.error('Failed to load segments:', error);
         segments.value = [];
+        ElMessage.error('加载失败');
     } finally {
         loading.value = false;
     }

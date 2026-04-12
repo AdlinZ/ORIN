@@ -334,9 +334,11 @@ onMounted(async () => {
         }
       } catch (err) {
         console.error('获取监控面板数据失败:', err);
+      ElMessage.error('加载失败');
       }
     } catch (e) {
       console.error('获取用户信息失败:', e);
+      ElMessage.error('加载失败');
     }
   }
 });
@@ -374,6 +376,7 @@ const onAvatarFileChange = async (event) => {
     ElMessage.success('头像更新成功');
   } catch (e) {
     console.error('头像上传失败:', e);
+    ElMessage.error('上传失败');
     ElMessage.error('头像更新失败');
   } finally {
     if (avatarInput.value) {
@@ -396,6 +399,7 @@ const handleSave = async () => {
     ElMessage.success('资料更新成功');
   } catch (e) {
     console.error('更新资料失败:', e);
+    ElMessage.error('更新失败');
     ElMessage.error('更新失败，请重试');
   }
 };
