@@ -164,7 +164,7 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { getTrace, getTraceStats } from '@/api/trace'
 import * as echarts from 'echarts'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -194,19 +194,19 @@ onMounted(async () => {
 
 const loadTraces = async (traceId) => {
   try {
-    const response = await axios.get(`/api/traces/${traceId}`)
-    traces.value = response.data
+    const response = await getTrace(traceId)
+    traces.value = response.data || response
   } catch (error) {
-    ElMessage.error('加载追踪数据失败: ' + error.message)
+    ElMessage.error('加载追踪数据失败: ' + (error.message || error))
   }
 }
 
 const loadStats = async (traceId) => {
   try {
-    const response = await axios.get(`/api/traces/${traceId}/stats`)
-    stats.value = response.data
+    const response = await getTraceStats(traceId)
+    stats.value = response.data || response
   } catch (error) {
-    ElMessage.error('加载统计数据失败: ' + error.message)
+    ElMessage.error('加载统计数据失败: ' + (error.message || error))
   }
 }
 

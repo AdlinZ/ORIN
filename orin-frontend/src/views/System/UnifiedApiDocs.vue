@@ -655,6 +655,7 @@ data: [DONE]</pre>
 
 <script setup>
 import axios from 'axios'
+import request from '@/utils/request'
 import { computed, ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Search, View } from '@element-plus/icons-vue'
@@ -892,8 +893,8 @@ const runTryRequest = async () => {
       timeout: 120000
     }
     const res = isGet
-      ? await axios.get(selectedEndpoint.value, config)
-      : await axios.post(selectedEndpoint.value, payload, config)
+      ? await request.get(selectedEndpoint.value, config)
+      : await request.post(selectedEndpoint.value, payload, config)
     responseStatus.value = res.status
     responseText.value = JSON.stringify(res.data, null, 2)
     ElMessage.success('请求成功')

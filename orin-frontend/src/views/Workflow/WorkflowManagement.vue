@@ -148,7 +148,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import axios from 'axios'
+import { getWorkflows, createWorkflow, runWorkflowPreview, getWorkflowInstances } from '@/api/workflow'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -177,7 +177,7 @@ onMounted(() => {
 const loadWorkflows = async () => {
   loading.value = true
   try {
-    const response = await axios.get('/api/workflows')
+    const response = await getWorkflows()
     workflows.value = response.data
   } catch (error) {
     ElMessage.error('加载工作流列表失败: ' + error.message)
@@ -199,7 +199,7 @@ const showCreateDialog = () => {
 
 const submitForm = async () => {
   try {
-    await axios.post('/api/workflows', form.value)
+    await createWorkflow(form.value)
     ElMessage.success('工作流创建成功')
     dialogVisible.value = false
     loadWorkflows()
@@ -217,7 +217,7 @@ const executeWorkflow = (workflow) => {
 const confirmExecute = async () => {
   try {
     const inputs = JSON.parse(executeInputs.value)
-    const response = await axios.post(
+    const response = await runWorkflowPreview({
       `/api/workflows/${currentWorkflow.value.id}/execute`,
       inputs
     )
@@ -234,7 +234,7 @@ const viewInstances = async (workflow) => {
   instancesDialogVisible.value = true
   
   try {
-    const response = await axios.get(`/api/workflows/${workflow.id}/instances`)
+    const response = await getWorkflowInstances(workflow.id)
     instances.value = response.data
   } catch (error) {
     ElMessage.error('加载执行记录失败: ' + error.message)

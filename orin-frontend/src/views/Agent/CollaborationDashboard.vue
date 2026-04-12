@@ -436,6 +436,7 @@ const loadPackages = async () => {
     stats.completed = packages.value.filter(p => p.status === 'COMPLETED').length
   } catch (error) {
     console.error('加载任务包失败:', error)
+    ElMessage.error('加载失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -496,6 +497,7 @@ const viewTopology = async (pkg) => {
   } catch (error) {
     console.error('加载子任务失败:', error)
     subtasks.value = []
+    ElMessage.error('加载失败')
   }
 }
 
@@ -511,6 +513,7 @@ const viewTimeline = async (pkg) => {
   } catch (error) {
     console.error('加载事件历史失败:', error)
     events.value = []
+    ElMessage.error('加载失败')
   }
 }
 
