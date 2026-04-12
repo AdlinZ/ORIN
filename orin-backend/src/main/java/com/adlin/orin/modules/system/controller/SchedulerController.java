@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.system.controller;
 
+import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.knowledge.service.sync.DifyFullSyncService;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class SchedulerController {
 
     private final AgentAccessProfileRepository profileRepository;
     private final DifyFullSyncService difyFullSyncService;
+    private final AuditLogRepository auditLogRepository;
 
     private final AtomicLong syncTaskCount = new AtomicLong(0);
     private final AtomicLong cleanupTaskCount = new AtomicLong(0);
@@ -84,11 +86,9 @@ public class SchedulerController {
         try {
             // 清理 30 天前的审计日志
             LocalDateTime cutoffDate = LocalDateTime.now().minusDays(30);
+            int deletedCount = auditLogRepository.deleteByCreatedAtBefore(cutoffDate);
             
-            // TODO: 实现具体的日志清理逻辑
-            // 示例：auditLogRepository.deleteByCreatedAtBefore(cutoffDate);
-            
-            log.info("Scheduled log cleanup completed");
+            log.info("Scheduled log cleanup completed: deleted {} records", deletedCount);
             lastCleanupResult.set(1);
             
         } catch (Exception e) {
