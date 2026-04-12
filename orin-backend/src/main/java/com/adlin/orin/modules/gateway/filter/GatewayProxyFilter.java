@@ -49,6 +49,10 @@ public class GatewayProxyFilter implements Filter {
 
         // 查找匹配的路由
         List<GatewayRoute> routes = routeRepository.findActiveRoutesOrderByPriority();
+        log.debug("Found {} active routes", routes.size());
+        for (GatewayRoute r : routes) {
+            log.debug("Route: {} pattern={} enabled={}", r.getName(), r.getPathPattern(), r.getEnabled());
+        }
         GatewayRoute matchedRoute = routes.stream()
                 .filter(r -> matchesPath(r.getPathPattern(), path))
                 .filter(r -> matchesMethod(r.getMethod(), method))
@@ -57,9 +61,12 @@ public class GatewayProxyFilter implements Filter {
 
         if (matchedRoute == null) {
             // 没有匹配的路由，继续下游
+            log.debug("No route matched for: {} {}", method, path);
             chain.doFilter(request, response);
             return;
         }
+
+        log.info("Route matched: {} -> {}", matchedRoute.getName(), matchedRoute.getTargetUrl());
 
         // ACL 检查
         String clientIp = httpRequest.getRemoteAddr();
@@ -119,14 +126,19 @@ public class GatewayProxyFilter implements Filter {
     private boolean matchesPath(String pattern, String path) {
         if (pattern == null || path == null) return false;
         
+        boolean matched = false;
         if (pattern.contains("*")) {
-            String regex = pattern.replace("**", ".*").replace("*", "[^/]*");
-            return path.matches(regex);
+            // 先替换 ** 为临时占位符，避免被 * 替换覆盖
+            String tempPattern = pattern.replace("**", "__DOUBLE_STAR__");
+            String regex = tempPattern.replace("*", "[^/]*").replace("__DOUBLE_STAR__", ".*");
+            matched = path.matches(regex);
+            log.debug("Pattern {} regex {} match {} for path {}", pattern, regex, matched, path);
+        } else {
+            matched = pattern.endsWith("/**") 
+                ? path.startsWith(pattern.substring(0, pattern.length() - 3))
+                : path.equals(pattern);
         }
-        
-        return pattern.endsWith("/**") 
-            ? path.startsWith(pattern.substring(0, pattern.length() - 3))
-            : path.equals(pattern);
+        return matched;
     }
 
     /**

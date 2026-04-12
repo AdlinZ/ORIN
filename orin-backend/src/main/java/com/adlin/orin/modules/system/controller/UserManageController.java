@@ -31,6 +31,7 @@ public class UserManageController {
 
     private final SysUserRepository userRepository;
     private final AuditHelper auditHelper;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Operation(summary = "获取用户列表")
     @GetMapping
@@ -142,6 +143,11 @@ public class UserManageController {
         // 设置默认角色
         if (user.getRole() == null || user.getRole().isEmpty()) {
             user.setRole("ROLE_USER");
+        }
+
+        // 密码BCrypt编码
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
 
         // 注意：不设置默认部门，让 departmentId 为 null
