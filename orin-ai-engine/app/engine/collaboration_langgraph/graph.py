@@ -7,6 +7,11 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from .state import CollaborationState, CollaborationStatus
+from app.core.collab_state import (
+    write_status,
+    save_checkpoint,
+    wait_if_paused,
+)
 from .nodes import (
     planner_node,
     delegate_node,
@@ -125,23 +130,54 @@ async def run_collaboration(
     intent: str,
     collaboration_mode: str = "SEQUENTIAL",
     trace_id: str = None,
+    restore_from_checkpoint: str = None,
     **kwargs
 ) -> Dict[str, Any]:
     """
     运行协作图
-    
+
     Args:
         package_id: 任务包 ID
         intent: 用户意图
         collaboration_mode: 协作模式
         trace_id: 追踪 ID
-    
+        restore_from_checkpoint: 如提供则从指定检查点快照恢复参数后重跑
+
     Returns:
         最终状态
     """
     logger.info(f"[LangGraph] 开始协作: {package_id}, mode: {collaboration_mode}")
-    
-    # 初始状态
+
+    # ── 若有检查点快照，以快照参数覆盖传入参数 ───────────────────────────
+    if restore_from_checkpoint:
+        from app.core.collab_state import load_checkpoint
+        snapshot = load_checkpoint(package_id, restore_from_checkpoint)
+        if snapshot:
+            logger.info(
+                f"[LangGraph] 从检查点恢复: {restore_from_checkpoint}, package={package_id}"
+            )
+            intent = snapshot.get("intent", intent)
+            collaboration_mode = snapshot.get("collaboration_mode", collaboration_mode)
+            trace_id = snapshot.get("trace_id", trace_id)
+            kwargs = {k: v for k, v in snapshot.items()
+                      if k not in ("intent", "collaboration_mode", "trace_id", "package_id")}
+        else:
+            logger.warning(
+                f"[LangGraph] 检查点 {restore_from_checkpoint} 不存在, 从头执行"
+            )
+
+    # ── 等待 pause 解除（多实例重启后可能残留暂停标志）────────────────────
+    resumed = await wait_if_paused(package_id, timeout=10.0)
+    if not resumed:
+        write_status(package_id, CollaborationStatus.FAILED.value,
+                     error_message="start timeout: still paused")
+        return {
+            "package_id": package_id,
+            "status": CollaborationStatus.FAILED.value,
+            "error_message": "start timeout: still paused",
+        }
+
+    # ── 构建初始状态 ─────────────────────────────────────────────────────
     initial_state: CollaborationState = {
         "package_id": package_id,
         "intent": intent,
@@ -156,22 +192,45 @@ async def run_collaboration(
         "status": CollaborationStatus.PLANNING.value,
         "error_message": None,
         "savepoint_id": None,
-        **kwargs
+        **kwargs,
     }
-    
-    # 运行图
+
+    # ── 保存初始快照作为 "initial" 检查点，支持后续回滚 ──────────────────
+    initial_snapshot = {
+        "package_id": package_id,
+        "intent": intent,
+        "collaboration_mode": collaboration_mode,
+        "trace_id": trace_id,
+    }
+    save_checkpoint(package_id, "initial", initial_snapshot)
+
+    # ── 写入 PLANNING 状态 ────────────────────────────────────────────────
+    write_status(package_id, CollaborationStatus.PLANNING.value)
+
+    # ── 运行图 ────────────────────────────────────────────────────────────
     graph = get_collaboration_graph(checkpoint=False)
-    
+
+    # 写入 EXECUTING 状态（图开始执行前）
+    write_status(package_id, CollaborationStatus.EXECUTING.value)
+
     try:
         result = await graph.ainvoke(initial_state)
-        logger.info(f"[LangGraph] 协作完成: {package_id}, status: {result.get('status')}")
+        final_status = result.get("status", CollaborationStatus.COMPLETED.value)
+        write_status(
+            package_id,
+            final_status,
+            final_result=result.get("final_result"),
+            error_message=result.get("error_message"),
+        )
+        logger.info(f"[LangGraph] 协作完成: {package_id}, status: {final_status}")
         return result
     except Exception as e:
         logger.error(f"[LangGraph] 协作失败: {e}")
+        write_status(package_id, CollaborationStatus.FAILED.value, error_message=str(e))
         return {
             **initial_state,
             "status": CollaborationStatus.FAILED.value,
-            "error_message": str(e)
+            "error_message": str(e),
         }
 
 

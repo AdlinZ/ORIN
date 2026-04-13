@@ -427,6 +427,39 @@ class CollabMQWorker:
 # Global worker instance
 collab_mq_worker = CollabMQWorker()
 
+# ── 共享 RabbitMQ 连接 ──────────────────────────────────────────────────────
+
+_rabbitmq_channel: Optional[aio_pika.Channel] = None
+_rabbitmq_connection: Optional[aio_pika.RobustConnection] = None
+
+
+async def get_rabbitmq_channel() -> aio_pika.Channel:
+    """
+    获取共享的 RabbitMQ channel（延迟初始化，全局复用）。
+    LangGraph 节点通过这个发 MQ 消息。
+    """
+    global _rabbitmq_channel, _rabbitmq_connection
+
+    if _rabbitmq_channel is None or _rabbitmq_connection is None or _rabbitmq_connection.is_closed:
+        rabbitmq_url = getattr(settings, "RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+        _rabbitmq_connection = await aio_pika.connect_robust(rabbitmq_url)
+        _rabbitmq_channel = await _rabbitmq_connection.channel()
+        logger.info("[MQ] 共享 channel 已初始化")
+
+    return _rabbitmq_channel
+
+
+async def close_rabbitmq_connection():
+    """关闭共享连接（应用退出时调用）"""
+    global _rabbitmq_channel, _rabbitmq_connection
+
+    if _rabbitmq_channel:
+        await _rabbitmq_channel.close()
+        _rabbitmq_channel = None
+    if _rabbitmq_connection:
+        await _rabbitmq_connection.close()
+        _rabbitmq_connection = None
+
 
 async def start_worker():
     """Start the MQ worker"""

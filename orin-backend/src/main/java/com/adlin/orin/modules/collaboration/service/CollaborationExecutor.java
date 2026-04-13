@@ -89,6 +89,29 @@ public class CollaborationExecutor {
         String expectedRole = subtask.getExpectedRole();
         String executorType = determineExecutorType(expectedRole);
 
+        // 幂等保护：已终态的子任务不重复执行（除非上游显式改回 PENDING 触发重试）。
+        String currentStatus = subtask.getStatus();
+        if ("COMPLETED".equals(currentStatus)) {
+            log.info("[Idempotent] skip completed subtask execution: packageId={}, subTaskId={}", packageId, subTaskId);
+            if (subtask.getResult() != null && !subtask.getResult().isBlank()) {
+                return CompletableFuture.completedFuture(subtask.getResult());
+            }
+            return CompletableFuture.completedFuture("Subtask already completed");
+        }
+        if ("FAILED".equals(currentStatus) || "SKIPPED".equals(currentStatus) || "CANCELLED".equals(currentStatus)) {
+            log.info("[Idempotent] skip terminal subtask execution: packageId={}, subTaskId={}, status={}",
+                    packageId, subTaskId, currentStatus);
+            return CompletableFuture.completedFuture("Subtask already in terminal status: " + currentStatus);
+        }
+
+        // 幂等保护：如果 branch_result 已经写入统一上下文，直接返回，不重复发 MQ。
+        Optional<Object> existingBranchResult = redisService.getContextField(packageId, "branch_result:" + subTaskId);
+        if (existingBranchResult.isPresent()) {
+            log.info("[Idempotent] subtask already has branch_result in ctx, skip re-execute: packageId={}, subTaskId={}",
+                    packageId, subTaskId);
+            return CompletableFuture.completedFuture(extractBranchResultValue(existingBranchResult.get()));
+        }
+
         log.info("Executing subtask: {} for package: {} with role: {} (type: {})", subTaskId, packageId, expectedRole, executorType);
 
         String lockToken = UUID.randomUUID().toString();
@@ -228,6 +251,23 @@ public class CollaborationExecutor {
 
     private String buildPendingTaskField(String subTaskId) {
         return "pending_task:" + subTaskId;
+    }
+
+    private String extractBranchResultValue(Object branchResult) {
+        if (branchResult == null) {
+            return "Subtask already has branch result";
+        }
+        if (branchResult instanceof Map<?, ?> map) {
+            Object result = map.get("result");
+            if (result != null) {
+                return String.valueOf(result);
+            }
+        }
+        try {
+            return objectMapper.writeValueAsString(branchResult);
+        } catch (Exception e) {
+            return String.valueOf(branchResult);
+        }
     }
 
     /**

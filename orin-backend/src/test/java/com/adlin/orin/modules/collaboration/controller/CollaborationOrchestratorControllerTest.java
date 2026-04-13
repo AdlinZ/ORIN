@@ -73,7 +73,7 @@ class CollaborationOrchestratorControllerTest {
                 .thenReturn(false);
 
         ResponseEntity<Map<String, Object>> response =
-                controller.executeSubtask("pkg-ctrl-001", "sub-1", "trace-ctrl-001");
+                controller.executeSubtask("pkg-ctrl-001", "sub-1", "trace-ctrl-001", null);
 
         assertEquals(202, response.getStatusCode().value());
         verify(orchestrator).updateSubtaskStatus("pkg-ctrl-001", "sub-1", "RUNNING", null, null);

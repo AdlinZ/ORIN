@@ -359,7 +359,8 @@ public class CollaborationOrchestratorController {
     public ResponseEntity<Map<String, Object>> executeSubtask(
             @PathVariable String packageId,
             @PathVariable String subTaskId,
-            @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId,
+            @RequestHeader(value = "X-Orchestrator-Mode", required = false) String orchestratorMode) {
 
         // 获取子任务
         List<CollabSubtaskEntity> subtasks = orchestrator.getSubtasks(packageId);
@@ -379,19 +380,26 @@ public class CollaborationOrchestratorController {
         // 更新状态为 RUNNING
         orchestrator.updateSubtaskStatus(packageId, subTaskId, "RUNNING", null, null);
 
+        boolean langGraphOrchestrator = "LANGGRAPH".equalsIgnoreCase(orchestratorMode);
+
         // 异步执行
         executor.executeSubtask(subtask, packageId, traceId).thenAccept(result -> {
             // 执行完成后更新状态（仅在 RUNNING 状态下推进，避免 MQ 回调与 Controller 回调重复更新）
             safeUpdateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
 
-            // 依赖驱动自动调度：尝试调度后续子任务
-            scheduleNextSubtasks(packageId, traceId);
+            // 依赖驱动自动调度：LangGraph 编排模式下由 Python 侧推进，避免双编排撞车。
+            if (!langGraphOrchestrator) {
+                scheduleNextSubtasks(packageId, traceId);
+            }
         }).exceptionally(e -> {
             log.error("Subtask execution failed: {}", subTaskId, e);
             // 仅在 RUNNING 状态下推进，避免重复失败流转
             safeUpdateSubtaskStatus(packageId, subTaskId, "FAILED", null, e.getMessage());
-            // 失败后也尝试调度（可能有依赖该失败任务的替代路径）
-            scheduleNextSubtasks(packageId, traceId);
+            // 失败后也尝试调度（可能有依赖该失败任务的替代路径）。
+            // LangGraph 编排模式下由 Python 侧决定下一步。
+            if (!langGraphOrchestrator) {
+                scheduleNextSubtasks(packageId, traceId);
+            }
             return null;
         });
 

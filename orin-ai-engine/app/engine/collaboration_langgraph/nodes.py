@@ -8,6 +8,7 @@ from langgraph.graph import END
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .state import CollaborationState, CollaborationStatus, SubTask
+from app.core.collab_state import wait_if_paused, write_status
 
 logger = logging.getLogger(__name__)
 
@@ -16,89 +17,56 @@ logger = logging.getLogger(__name__)
 
 async def planner_node(state: CollaborationState) -> Dict[str, Any]:
     """
-    规划节点 - 任务分解
-    调用 LLM 将用户意图分解为子任务
+    规划节点 - 任务读取（不做 LLM 分解）
+
+    Java CollaborationExecutor 已将任务分解结果写入 collab:{packageId}:ctx['sub_tasks']。
+    这里只读取 + 基础校验，不再调 LLM。
     """
-    intent = state.get("intent", "")
     package_id = state.get("package_id", "")
-    
-    logger.info(f"[Planner] 开始分解任务: {package_id}, intent: {intent[:50]}...")
-    
-    # 调用 LLM 进行任务分解
-    from app.engine.handlers.llm import RealLLMNodeHandler
-    from app.models.workflow import Node
-    
-    prompt = f"""请将以下任务分解为子任务列表：
-任务：{intent}
 
-请以 JSON 数组格式返回，每个子任务包含：
-- id: 子任务ID
-- description: 描述
-- role: 角色 (PLANNER/SPECIALIST/REVIEWER/CRITIC)
-- dependsOn: 依赖的子任务ID列表
-- promptTemplate: 执行提示词模板
+    # ── pause check ──────────────────────────────────────────────────────
+    if not await wait_if_paused(package_id):
+        return {**state, "status": CollaborationStatus.FAILED.value,
+                "error_message": "planner_node: paused timeout"}
 
-直接返回 JSON，不要其他内容。"""
+    logger.info(f"[Planner] 读取已分解任务: {package_id}")
 
-    llm_node = Node(
-        id="planner_llm",
-        type="llm",
-        data={
-            "prompt": prompt,
-            "model": "default",
-            "temperature": 0.3,
-        }
-    )
-    
-    llm_handler = RealLLMNodeHandler()
-    
-    try:
-        from app.models.workflow import NodeExecutionOutput
-        output: NodeExecutionOutput = await llm_handler.run(llm_node, {"intent": intent})
-        result_text = output.outputs.get("text", "") if output.outputs else ""
-        
-        # 解析 JSON
-        import json
-        try:
-            # 尝试从结果中提取 JSON
-            if "[" in result_text:
-                start = result_text.index("[")
-                end = result_text.rindex("]") + 1
-                sub_tasks_data = json.loads(result_text[start:end])
-            else:
-                sub_tasks_data = json.loads(result_text)
-            
-            sub_tasks: List[SubTask] = []
-            for i, st in enumerate(sub_tasks_data):
-                sub_tasks.append({
-                    "id": st.get("id", f"task_{i}"),
-                    "description": st.get("description", ""),
-                    "role": st.get("role", "SPECIALIST"),
-                    "dependsOn": st.get("dependsOn", []),
-                    "promptTemplate": st.get("promptTemplate", "{description}"),
-                    "inputData": st.get("inputData", {}),
-                    "status": "pending",
-                    "result": None
-                })
-            
-            logger.info(f"[Planner] 分解完成，共 {len(sub_tasks)} 个子任务")
-            
-            return {
-                "sub_tasks": sub_tasks,
-                "completed_subtasks": [],
-                "current_task_index": 0,
-                "status": CollaborationStatus.DECOMPOSING.value
-            }
-        except json.JSONDecodeError as e:
-            logger.error(f"[Planner] JSON 解析失败: {e}")
-            raise
-            
-    except Exception as e:
-        logger.error(f"[Planner] 分解失败: {e}")
+    # 从 Java 上下文中读取已分解的 sub_tasks
+    from app.core.collab_state import read_sub_tasks_from_ctx
+
+    sub_tasks_data = read_sub_tasks_from_ctx(package_id)
+
+    if sub_tasks_data is None:
+        logger.warning(f"[Planner] ctx 中无 sub_tasks，package={package_id}")
         return {
-            "status": CollaborationStatus.FAILED.value,
-            "error_message": f"任务分解失败: {str(e)}"
+            "status": CollaborationStatus.EXECUTING.value,
+            "sub_tasks": [],
+            "completed_subtasks": [],
+            "current_task_index": 0,
         }
+
+    # 标准化为 SubTask 结构
+    sub_tasks: List[SubTask] = []
+    for i, st in enumerate(sub_tasks_data):
+        sub_tasks.append({
+            "id": st.get("id", st.get("subTaskId", f"task_{i}")),
+            "description": st.get("description", st.get("desc", "")),
+            "role": st.get("role", st.get("expectedRole", "SPECIALIST")),
+            "dependsOn": st.get("dependsOn", st.get("depends_on", [])),
+            "promptTemplate": st.get("promptTemplate", "{description}"),
+            "inputData": st.get("inputData", st.get("input_data", {})),
+            "status": "pending",
+            "result": None
+        })
+
+    logger.info(f"[Planner] 读取到 {len(sub_tasks)} 个子任务，package={package_id}")
+
+    return {
+        "sub_tasks": sub_tasks,
+        "completed_subtasks": [],
+        "current_task_index": 0,
+        "status": CollaborationStatus.EXECUTING.value
+    }
 
 
 # ==================== 委托节点 ====================
@@ -106,165 +74,243 @@ async def planner_node(state: CollaborationState) -> Dict[str, Any]:
 async def delegate_node(state: CollaborationState) -> Dict[str, Any]:
     """
     委托节点 - 串行分派子任务
-    按顺序执行子任务，支持依赖链
+    1. 查找下一个可执行子任务（满足依赖）
+    2. 发 MQ 消息到 collaboration-task-queue（camelCase 格式）
+    3. 轮询等待 branch_result:{subTaskId} 出现
     """
+    package_id = state.get("package_id", "")
+
+    # ── pause check ──────────────────────────────────────────────────────
+    if not await wait_if_paused(package_id):
+        return {**state, "status": CollaborationStatus.FAILED.value,
+                "error_message": "delegate_node: paused timeout"}
+
     sub_tasks = state.get("sub_tasks", [])
     completed_subtasks = state.get("completed_subtasks", [])
     current_index = state.get("current_task_index", 0)
-    package_id = state.get("package_id", "")
-    
-    logger.info(f"[Delegate] 开始执行子任务，当前索引: {current_index}")
-    
+
+    logger.info(f"[Delegate] 检查子任务，completed={len(completed_subtasks)}/{len(sub_tasks)}")
+
     # 查找下一个可执行的子任务
     current_task = None
     for i, st in enumerate(sub_tasks):
         st_id = st.get("id", f"task_{i}")
         if st_id in completed_subtasks:
             continue
-        
-        # 检查依赖是否满足
         depends_on = st.get("dependsOn", [])
         if all(dep_id in completed_subtasks for dep_id in depends_on):
             current_task = st
             current_index = i
             break
-    
+
     if current_task is None:
-        logger.info(f"[Delegate] 所有子任务已完成")
-        return {
-            "status": CollaborationStatus.CONSENSUS.value
-        }
-    
-    # 执行当前子任务
+        logger.info(f"[Delegate] 所有子任务已完成，进入 consensus")
+        return {"status": CollaborationStatus.CONSENSUS.value}
+
     task_id = current_task.get("id")
     role = current_task.get("role", "SPECIALIST")
     description = current_task.get("description", "")
-    prompt_template = current_task.get("promptTemplate", "{description}")
     input_data = current_task.get("inputData", {})
-    
-    # 填充模板
-    resolved_inputs = {**input_data, "description": description}
-    prompt = prompt_template.format(**resolved_inputs)
-    
-    logger.info(f"[Delegate] 执行子任务: {task_id}, role: {role}")
-    
-    # 调用 LLM 执行
-    from app.engine.handlers.llm import RealLLMNodeHandler
-    from app.models.workflow import Node, NodeExecutionOutput
-    
-    llm_node = Node(
-        id=f"delegate_{task_id}",
-        type="llm",
-        data={
-            "prompt": prompt,
-            "model": "default",
-            "temperature": 0.7,
-            "expectedRole": role
-        }
+    prompt_template = current_task.get("promptTemplate", "{description}")
+
+    logger.info(f"[Delegate] 发送子任务到 MQ: {task_id}, role: {role}")
+
+    # ── HTTP 触发子任务（由 Java 侧执行+回调写入 Redis）─────────────────────
+    from app.core.config import settings
+    import httpx
+
+    execute_url = (
+        f"{settings.ORIN_BACKEND_URL or 'http://localhost:8080'}"
+        f"/api/v1/collaboration/packages/{package_id}/subtasks/{task_id}/execute"
     )
-    
-    llm_handler = RealLLMNodeHandler()
-    
+    trigger_payload = {
+        "expectedRole": role,
+        "description": description,
+        "inputData": input_data,
+        "contextSnapshot": {
+            "intent": state.get("intent", ""),
+            "shared_context": state.get("shared_context", {}),
+        },
+    }
+
     try:
-        output: NodeExecutionOutput = await llm_handler.run(llm_node, state)
-        result = output.outputs.get("text", "") if output.outputs else ""
-        
-        # 更新状态
-        completed_subtasks.append(task_id)
-        
-        # 写入共享上下文
-        shared_context = state.get("shared_context", {})
-        shared_context[f"task_{task_id}_result"] = result
-        
-        logger.info(f"[Delegate] 子任务完成: {task_id}")
-        
-        return {
-            "completed_subtasks": completed_subtasks,
-            "shared_context": shared_context,
-            "current_task_index": current_index + 1,
-            "status": CollaborationStatus.EXECUTING.value
-        }
-        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                execute_url,
+                json=trigger_payload,
+                headers={"X-Orchestrator-Mode": "LANGGRAPH"},
+            )
+            if resp.status_code >= 400:
+                logger.error(
+                    f"[Delegate] HTTP 触发失败 {resp.status_code}: {resp.text[:100]}"
+                )
+                return {
+                    "error_message": f"触发子任务 {task_id} 失败: HTTP {resp.status_code}",
+                    "status": CollaborationStatus.FAILED.value,
+                }
+            logger.info(f"[Delegate] HTTP 触发成功: {task_id}, status={resp.status_code}")
     except Exception as e:
-        logger.error(f"[Delegate] 子任务执行失败: {e}")
+        logger.error(f"[Delegate] HTTP 触发异常: {e}")
         return {
-            "error_message": f"子任务 {task_id} 执行失败: {str(e)}",
+            "error_message": f"触发子任务 {task_id} 异常: {str(e)}",
+            "status": CollaborationStatus.FAILED.value,
+        }
+
+    # ── 轮询等待 branch_result:{subTaskId} ─────────────────────────────────────
+    from app.core.collab_state import poll_branch_result
+
+    result = await poll_branch_result(
+        package_id=package_id,
+        sub_task_id=task_id,
+        timeout=300.0,
+        poll_interval=1.0,
+    )
+
+    if result is None:
+        logger.error(f"[Delegate] 等待结果超时: {task_id}")
+        return {
+            "error_message": f"子任务 {task_id} 执行超时",
             "status": CollaborationStatus.FAILED.value
         }
+
+    # 更新状态
+    completed_subtasks.append(task_id)
+    shared_context = state.get("shared_context", {})
+    shared_context[f"task_{task_id}_result"] = result
+
+    logger.info(f"[Delegate] 子任务完成: {task_id}")
+
+    return {
+        "completed_subtasks": completed_subtasks,
+        "shared_context": shared_context,
+        "current_task_index": current_index + 1,
+        "status": CollaborationStatus.EXECUTING.value
+    }
 
 
 # ==================== 并行分叉节点 ====================
 
 async def parallel_fork_node(state: CollaborationState) -> Dict[str, Any]:
     """
-    并行分叉节点 - 并行执行多个子任务
+    并行分叉节点 - 批量发 MQ 消息，并行等待所有结果
     """
     sub_tasks = state.get("sub_tasks", [])
     package_id = state.get("package_id", "")
-    
+
     logger.info(f"[ParallelFork] 开始并行执行，共 {len(sub_tasks)} 个任务")
-    
+
     # 获取没有依赖的子任务（可以并行执行）
     ready_tasks = [st for st in sub_tasks if not st.get("dependsOn")]
-    
+
     if not ready_tasks:
         return {
             "status": CollaborationStatus.CONSENSUS.value,
             "error_message": "没有可并行执行的任务"
         }
-    
-    # 并行执行
-    async def execute_task(st: Dict) -> tuple:
+
+    logger.info(f"[ParallelFork] 准备并发执行 {len(ready_tasks)} 个任务")
+
+    # ── 批量 HTTP 触发子任务 ─────────────────────────────────────────────────
+    from app.core.config import settings
+    import httpx
+
+    backend_url = settings.ORIN_BACKEND_URL or "http://localhost:8080"
+    sent_tasks = []
+
+    async def trigger_one(st: Dict) -> Optional[str]:
         task_id = st.get("id", "")
         role = st.get("role", "SPECIALIST")
         description = st.get("description", "")
-        prompt_template = st.get("promptTemplate", "{description}")
-        
-        prompt = prompt_template.format(description=description)
-        
-        from app.engine.handlers.llm import RealLLMNodeHandler
-        from app.models.workflow import Node, NodeExecutionOutput
-        
-        llm_node = Node(
-            id=f"parallel_{task_id}",
-            type="llm",
-            data={
-                "prompt": prompt,
-                "model": "default",
-                "temperature": 0.7,
-            }
+        input_data = st.get("inputData", {})
+
+        execute_url = (
+            f"{backend_url}"
+            f"/api/v1/collaboration/packages/{package_id}/subtasks/{task_id}/execute"
         )
-        
-        llm_handler = RealLLMNodeHandler()
-        
+        trigger_payload = {
+            "expectedRole": role,
+            "description": description,
+            "inputData": input_data,
+            "contextSnapshot": {
+                "intent": state.get("intent", ""),
+                "shared_context": state.get("shared_context", {}),
+            },
+        }
+
         try:
-            output: NodeExecutionOutput = await llm_handler.run(llm_node, state)
-            result = output.outputs.get("text", "") if output.outputs else ""
-            return task_id, result
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    execute_url,
+                    json=trigger_payload,
+                    headers={"X-Orchestrator-Mode": "LANGGRAPH"},
+                )
+                if resp.status_code >= 400:
+                    logger.error(
+                        f"[ParallelFork] HTTP 触发失败 {task_id}: {resp.status_code}"
+                    )
+                    return None
+                logger.info(
+                    f"[ParallelFork] HTTP 触发成功 {task_id}: status={resp.status_code}"
+                )
+                return task_id
         except Exception as e:
-            return task_id, f"[ERROR] {str(e)}"
-    
-    # 并发执行
-    tasks = [execute_task(st) for st in ready_tasks]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+            logger.warning(f"[ParallelFork] HTTP 触发失败 {task_id}: {e}")
+            return None
+
+    # 并发触发所有任务
+    trigger_tasks = [trigger_one(st) for st in ready_tasks]
+    trigger_results = await asyncio.gather(*trigger_tasks, return_exceptions=True)
+    for r in trigger_results:
+        if isinstance(r, str):
+            sent_tasks.append(r)
+
+    # ── 并发轮询所有任务结果 ─────────────────────────────────────────────────
+    async def poll_one(task_id: str) -> tuple:
+        from app.core.collab_state import poll_branch_result
+        result = await poll_branch_result(
+            package_id=package_id,
+            sub_task_id=task_id,
+            timeout=300.0,
+            poll_interval=1.0,
+        )
+        return task_id, result
+
+    poll_tasks = [poll_one(tid) for tid in sent_tasks]
+    poll_results = await asyncio.gather(*poll_tasks, return_exceptions=True)
+
     branch_results = {}
-    for r in results:
+    completed_subtasks = []
+    for r in poll_results:
         if isinstance(r, Exception):
             continue
         task_id, result = r
-        branch_results[task_id] = result
-    
-    # 更新共享上下文
+        if result is not None:
+            branch_results[task_id] = result
+            completed_subtasks.append(task_id)
+
     shared_context = state.get("shared_context", {})
     shared_context["__parallel_results"] = branch_results
-    
-    logger.info(f"[ParallelFork] 并行执行完成，{len(branch_results)} 个结果")
-    
+
+    logger.info(f"[ParallelFork] 并行执行完成，{len(branch_results)}/{len(sent_tasks)} 个结果")
+
+    # ── 部分失败：没有拿到全部结果，不进 consensus，直接标记失败 ─────────────
+    if len(branch_results) < len(sent_tasks):
+        failed_count = len(sent_tasks) - len(branch_results)
+        logger.warning(
+            f"[ParallelFork] {failed_count} 个任务未拿到结果，不进 consensus"
+        )
+        return {
+            "branch_results": branch_results,
+            "shared_context": shared_context,
+            "completed_subtasks": completed_subtasks,
+            "status": CollaborationStatus.FAILED.value,
+            "error_message": f"{failed_count} 个并行任务执行失败或超时"
+        }
+
     return {
         "branch_results": branch_results,
         "shared_context": shared_context,
-        "completed_subtasks": list(branch_results.keys()),
+        "completed_subtasks": completed_subtasks,
         "status": CollaborationStatus.CONSENSUS.value
     }
 
@@ -433,13 +479,22 @@ async def memory_write_node(state: CollaborationState) -> Dict[str, Any]:
 # ==================== 路由函数 ====================
 
 def should_continue_delegate(state: CollaborationState) -> str:
-    """委托节点的路由决策"""
+    """
+    委托节点路由决策。
+
+    失败安全：任意节点设置 FAILED 状态后立即停止重试，
+    防止已失败状态下图仍回 delegate 形成无限循环。
+    """
+    status = state.get("status", "")
+    if status == CollaborationStatus.FAILED.value:
+        return END  # 失败后直接终止，不继续 delegate 循环
+
     sub_tasks = state.get("sub_tasks", [])
     completed_subtasks = state.get("completed_subtasks", [])
-    
+
     if len(completed_subtasks) >= len(sub_tasks):
         return "consensus"
-    
+
     return "delegate"
 
 
