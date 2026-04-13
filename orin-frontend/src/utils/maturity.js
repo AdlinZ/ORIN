@@ -1,7 +1,9 @@
+import { UI_TEXT } from '@/constants/uiText'
+
 const MATURITY_TEXT = Object.freeze({
-  planned: '规划中',
-  beta: '内测',
-  available: '可用'
+  planned: UI_TEXT.maturity.planned,
+  beta: UI_TEXT.maturity.beta,
+  available: UI_TEXT.maturity.available,
 })
 
 const MATURITY_TAG_TYPE = Object.freeze({

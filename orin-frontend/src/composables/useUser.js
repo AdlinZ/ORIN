@@ -7,12 +7,13 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Cookies from 'js-cookie'
+import { UI_TEXT } from '@/constants/uiText'
 
 const roleNameMap = {
-  ROLE_ADMIN: '管理员',
-  ROLE_USER: '用户',
-  ADMIN: 'ADMIN',
-  USER: 'USER',
+  ROLE_ADMIN: UI_TEXT.role.ROLE_ADMIN,
+  ROLE_USER: UI_TEXT.role.ROLE_USER,
+  ADMIN: UI_TEXT.role.ADMIN,
+  USER: UI_TEXT.role.USER,
 }
 
 export function useUser() {

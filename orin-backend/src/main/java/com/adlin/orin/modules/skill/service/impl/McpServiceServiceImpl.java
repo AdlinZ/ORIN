@@ -40,6 +40,9 @@ public class McpServiceServiceImpl implements McpServiceService {
         if (mcpServiceRepository.existsByName(service.getName())) {
             throw new RuntimeException("服务名称已存在: " + service.getName());
         }
+        if (service.getEnabled() == null) {
+            service.setEnabled(true);
+        }
         service.setStatus(McpService.McpStatus.DISCONNECTED);
         service.setHealthScore(100);
         return mcpServiceRepository.save(service);
@@ -62,6 +65,8 @@ public class McpServiceServiceImpl implements McpServiceService {
         existing.setUrl(service.getUrl());
         existing.setEnvVars(service.getEnvVars());
         existing.setDescription(service.getDescription());
+        existing.setToolKey(service.getToolKey());
+        existing.setEnabled(service.getEnabled() != null ? service.getEnabled() : existing.getEnabled());
 
         return mcpServiceRepository.save(existing);
     }
@@ -80,6 +85,15 @@ public class McpServiceServiceImpl implements McpServiceService {
         Map<String, Object> result = new HashMap<>();
 
         try {
+            if (!Boolean.TRUE.equals(service.getEnabled())) {
+                service.setStatus(McpService.McpStatus.DISCONNECTED);
+                mcpServiceRepository.save(service);
+                result.put("success", false);
+                result.put("message", "服务已禁用");
+                result.put("errorDetail", "请先启用服务后再测试连接");
+                return result;
+            }
+
             // 标记为测试中
             service.setStatus(McpService.McpStatus.TESTING);
             mcpServiceRepository.save(service);
@@ -168,5 +182,17 @@ public class McpServiceServiceImpl implements McpServiceService {
     @Override
     public List<McpService> getServicesByType(McpService.McpType type) {
         return mcpServiceRepository.findByType(type);
+    }
+
+    @Override
+    @Transactional
+    public McpService setServiceEnabled(Long id, boolean enabled) {
+        McpService service = getServiceById(id);
+        service.setEnabled(enabled);
+        if (!enabled) {
+            service.setStatus(McpService.McpStatus.DISCONNECTED);
+            service.setLastError(null);
+        }
+        return mcpServiceRepository.save(service);
     }
 }

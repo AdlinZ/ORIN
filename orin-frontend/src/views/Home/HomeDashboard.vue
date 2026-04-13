@@ -1,1085 +1,2156 @@
 <template>
-  <div class="command-center-root" :class="{ 'theme-dark': isDark, 'with-sidebar': isSidebarMode, 'is-collapsed': appStore.isCollapse }">
-    <!-- Loading Overlay -->
-    <div v-if="loading" class="loading-overlay">
-      <div class="loading-spinner">
-        <div class="spinner-ring" />
-        <span class="loading-text">正在加载监控数据...</span>
+  <div class="dashboard-home command-center-root">
+    <header class="page-header cc-header-glass">
+      <!-- 1. 品牌区 -->
+      <div class="header-brand">
+        <h1 class="logo-text">ORIN<span class="logo-dot">.</span>ASIA</h1>
+        <span class="header-divider"></span>
+        <p class="header-subtitle">统一运营与运维决策中心</p>
       </div>
-    </div>
 
-    <!-- TOP BAR: Readable & High-End -->
-    <header class="cc-header-glass">
-      <div class="h-brand">
-        <h1 class="logo-text">
-          ORIN<span class="logo-dot">.</span>COMMAND
-        </h1>
-        <div class="status-indicator" :class="{ 'is-load': summary.highLoadAgents > 0 }">
-          <span class="dot" />
-          <span class="txt">{{ summary.highLoadAgents > 0 ? '负载过高' : '运行正常' }}</span>
+      <!-- 2. 状态区 -->
+      <div class="header-status">
+        <div class="status-core" :class="healthStatusClass">
+          <span class="status-dot"></span>
+          <span class="status-text">平台状态：{{ healthStatusText }} · 最近检测：{{ lastHealthCheck }}</span>
         </div>
-      </div>
-      
-      <div class="h-utility">
-        <div class="uptime-orb">
-          <el-icon class="orb-icon">
-            <Timer />
-          </el-icon>
-          <div class="orb-content">
-            <span class="orb-val" v-html="formattedUptime" />
-            <span class="orb-lbl">稳定运行时长</span>
+        <div class="status-secondary">
+          <div class="status-chip">
+            <span class="chip-label">运行时长:</span>
+            <span class="chip-val">{{ uptimeText }}</span>
           </div>
         </div>
-        <div class="h-divider" />
-        <div class="h-clock">
-          <span class="c-time">{{ currentTime }}</span>
-          <span class="c-date">{{ currentDate }}</span>
-        </div>
+      </div>
+
+      <!-- 3. 操作区 -->
+      <div class="header-actions">
+        <span v-if="lastRefreshTime" class="last-refresh-time">
+          <el-icon :size="13"><Clock /></el-icon>
+          上次: {{ lastRefreshTime }}
+        </span>
+        <el-button type="primary" :loading="isRefreshing" @click="loadDashboardData" round>
+          {{ isRefreshing ? '刷新中...' : '刷新数据' }}
+        </el-button>
       </div>
     </header>
 
-    <main class="cc-layout-grid">
-      <!-- LEFT: Telemetry -->
-      <aside class="col-telemetry">
-        <!-- Assets -->
-        <div class="premium-card">
-          <div class="card-glow" />
-          <h3 class="card-head clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">
-            资产中枢<span class="head-line" />
-          </h3>
-          <div class="asset-bubbles">
-            <div class="bubble-item clickable" @click="goToPage(ROUTES.RESOURCES.KNOWLEDGE)">
-              <el-icon><Collection /></el-icon>
-              <div class="b-text">
-                <span class="b-num">{{ summary.total_knowledge || 0 }}</span><span class="b-lbl">知识库数量</span>
-              </div>
+    <section class="kpi-overview">
+      <div class="kpi-grid kpi-grid-primary">
+        <article class="kpi-card featured">
+          <span class="kpi-label">活跃智能体数</span>
+          <span class="kpi-value">{{ kpi.activeAgents }}</span>
+          <span class="kpi-meta">{{ formatDelta(kpi.activeAgentsDelta, '较昨日') }}</span>
+        </article>
+        <article class="kpi-card featured">
+          <span class="kpi-label">今日调用量</span>
+          <span class="kpi-value">{{ kpi.todayCalls }}</span>
+          <span class="kpi-meta">{{ formatDelta(kpi.callsDelta, '较昨日') }}</span>
+        </article>
+        <article class="kpi-card featured">
+          <span class="kpi-label">平均响应时延</span>
+          <span class="kpi-value">{{ kpi.avgLatency }}</span>
+          <span class="kpi-meta">{{ kpi.latencyNote }}</span>
+        </article>
+        <article class="kpi-card featured" :class="{ 'kpi-danger': kpi.alertCount > 0 }">
+          <span class="kpi-label">异常告警数</span>
+          <span class="kpi-value">{{ kpi.alertCount }}</span>
+          <span class="kpi-meta">{{ formatDelta(kpi.alertDelta, '较昨日') }}</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <div class="content-col">
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>近 7 天调用趋势</span>
+            <span class="panel-sub">单位：请求次数</span>
+          </div>
+        </template>
+        <div v-if="trendData.length" class="trend-panel">
+          <div class="line-chart-shell">
+            <div class="line-y-axis">
+              <span v-for="tick in trendGridTicks" :key="`trend-y-${tick.y}`">{{ tick.label }}</span>
             </div>
-            <div class="bubble-item">
-              <el-icon><Connection /></el-icon>
-              <div class="b-text">
-                <span class="b-num">{{ summary.total_documents || 0 }}</span><span class="b-lbl">文档总数</span>
+            <div class="line-main">
+              <svg viewBox="0 0 700 220" preserveAspectRatio="none" class="trend-svg">
+                <line
+                  v-for="tick in trendGridTicks"
+                  :key="`trend-grid-${tick.y}`"
+                  :x1="40"
+                  :x2="660"
+                  :y1="tick.y"
+                  :y2="tick.y"
+                  class="trend-grid-line"
+                />
+                <polyline class="trend-line" :points="trendPoints" />
+                <circle
+                  v-for="point in chartPoints"
+                  :key="point.label"
+                  :cx="point.x"
+                  :cy="point.y"
+                  r="4"
+                  class="trend-dot"
+                />
+              </svg>
+              <div class="trend-axis">
+                <span v-for="item in trendData" :key="item.label">{{ item.label }}</span>
               </div>
             </div>
           </div>
         </div>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
 
-        <!-- Resources -->
-        <div class="premium-card clickable" @click="goToPage(ROUTES.MONITOR.TOKENS)">
-          <div class="card-glow" />
-          <h3 class="card-head">
-            资源矩阵<span class="head-line" />
-          </h3>
-          <div class="matrix-grid">
-            <div class="m-box">
-              <span class="m-lbl">今日消耗 TOKEN</span>
-              <div class="m-val-group">
-                <span class="m-num primary-text">{{ formatK(summary.total_tokens) }}</span>
-                <span class="m-trend" :class="summary.total_tokens_trend >= 0 ? 'up' : 'down'">
-                  {{ summary.total_tokens_trend >= 0 ? '↑' : '↓' }} {{ Math.abs(summary.total_tokens_trend || 0) }}%
-                </span>
-              </div>
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>平均时延趋势</span>
+            <span class="panel-sub">单位：ms（近 7 天）</span>
+          </div>
+        </template>
+        <div v-if="latencyTrendData.length" class="trend-panel">
+          <div class="line-chart-shell">
+            <div class="line-y-axis">
+              <span v-for="tick in latencyGridTicks" :key="`latency-y-${tick.y}`">{{ tick.label }}</span>
             </div>
-            <div class="m-box">
-              <span class="m-lbl">估算成本 COST</span>
-              <div class="m-val-group">
-                <span class="m-num">¥{{ (summary.todayCost || 0).toFixed(2) }}</span>
-                <span class="m-trend" :class="summary.today_cost_trend >= 0 ? 'up' : 'down'">
-                  {{ summary.today_cost_trend >= 0 ? '↑' : '↓' }} {{ Math.abs(summary.today_cost_trend || 0) }}%
-                </span>
+            <div class="line-main">
+              <svg viewBox="0 0 700 220" preserveAspectRatio="none" class="trend-svg">
+                <line
+                  v-for="tick in latencyGridTicks"
+                  :key="`latency-grid-${tick.y}`"
+                  :x1="40"
+                  :x2="660"
+                  :y1="tick.y"
+                  :y2="tick.y"
+                  class="trend-grid-line"
+                />
+                <polyline class="trend-line latency" :points="latencyTrendPoints" />
+                <circle
+                  v-for="point in latencyChartPoints"
+                  :key="point.label"
+                  :cx="point.x"
+                  :cy="point.y"
+                  r="4"
+                  class="trend-dot latency"
+                />
+              </svg>
+              <div class="trend-axis">
+                <span v-for="item in latencyTrendData" :key="item.label">{{ item.label }}</span>
               </div>
             </div>
           </div>
         </div>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
 
-        <!-- Load -->
-        <div class="premium-card flex-grow shadow-soft clickable" @click="goToPage(ROUTES.MONITOR.SERVER)">
-          <div class="card-glow" />
-          <h3 class="card-head">
-            物理负载<span class="head-line" />
-          </h3>
-          <div class="load-node-id">
-            <span>当前节点 ID</span>
-            <span class="node-id-val">{{ currentHardwareNodeId }}</span>
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>今日成本趋势</span>
+            <span class="panel-sub">按小时（¥）</span>
           </div>
-          <div class="load-bars">
-            <div class="l-item">
-              <div class="l-info">
-                <span>CPU 负载</span><span class="l-val">{{ (hardware.cpuUsage || 0).toFixed(1) }}%</span>
+        </template>
+        <div v-if="todayCostTrend.length" class="cost-trend">
+          <div class="cost-bars">
+            <div v-for="item in todayCostTrend" :key="item.hour" class="cost-bar-item">
+              <div class="cost-bar-rail">
+                <div class="cost-bar-fill" :style="{ height: `${item.height}%` }" />
               </div>
-              <div class="l-rail">
-                <div class="l-fill" :style="{ width: hardware.cpuUsage + '%', background: getBarColor(hardware.cpuUsage) }" />
+              <span class="cost-hour">{{ item.hour }}</span>
+            </div>
+          </div>
+          <div class="cost-total">今日累计成本：¥{{ todayCostTotal.toFixed(2) }}</div>
+        </div>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>请求结构与负载占比</span>
+            <span class="panel-sub">环形图</span>
+          </div>
+        </template>
+        <div class="donut-grid">
+          <div class="donut-block">
+            <div class="donut-ring" :style="{ background: requestDonutGradient }">
+              <div class="donut-inner">
+                <strong>{{ requestSuccessRate }}%</strong>
+                <span>成功率</span>
               </div>
             </div>
-            <div class="l-item">
-              <div class="l-info">
-                <span>GPU 负载</span><span class="l-val">{{ (hardware.gpuUsage || 0).toFixed(1) }}%</span>
-              </div>
-              <div class="l-rail">
-                <div class="l-fill" :style="{ width: hardware.gpuUsage + '%', background: getBarColor(hardware.gpuUsage) }" />
+            <div class="donut-legend">
+              <span><i class="dot success" />成功 {{ requestSummary.success }}</span>
+              <span><i class="dot danger" />失败 {{ requestSummary.failure }}</span>
+            </div>
+          </div>
+          <div class="donut-block">
+            <div class="donut-ring" :style="{ background: resourceDonutGradient }">
+              <div class="donut-inner">
+                <strong>{{ resourceUsageAvg.toFixed(1) }}%</strong>
+                <span>平均负载</span>
               </div>
             </div>
-            <div class="l-item">
-              <div class="l-info">
-                <span>内存 负载</span><span class="l-val">{{ (hardware.memoryUsage || 0).toFixed(1) }}%</span>
-              </div>
-              <div class="l-rail">
-                <div class="l-fill" :style="{ width: hardware.memoryUsage + '%', background: getBarColor(hardware.memoryUsage) }" />
-              </div>
-            </div>
-            <div class="l-item">
-              <div class="l-info">
-                <span>磁盘 负载</span><span class="l-val">{{ (hardware.diskUsage || 0).toFixed(1) }}%</span>
-              </div>
-              <div class="l-rail">
-                <div class="l-fill" :style="{ width: hardware.diskUsage + '%', background: getBarColor(hardware.diskUsage) }" />
-              </div>
+            <div class="donut-legend">
+              <span><i class="dot cpu" />CPU {{ safeNumber(hardware.cpuUsage).toFixed(1) }}%</span>
+              <span><i class="dot gpu" />GPU {{ safeNumber(hardware.gpuUsage).toFixed(1) }}%</span>
+              <span><i class="dot mem" />内存 {{ safeNumber(hardware.memoryUsage).toFixed(1) }}%</span>
+              <span><i class="dot disk" />磁盘 {{ safeNumber(hardware.diskUsage).toFixed(1) }}%</span>
             </div>
           </div>
         </div>
-      </aside>
+        </el-card>
 
-      <!-- CENTER: Integrated Operations Hub -->
-      <article class="col-insight">
-        <div class="hub-container">
-          <!-- Main Chart Panel -->
-          <div class="hub-visual-panel">
-            <div class="panel-top">
-              <div class="p-meta">
-                <div class="pm-item">
-                  <span class="p-lbl">今日请求</span><span class="p-val accent-blue">{{ summary.daily_requests || 0 }}</span>
-                </div>
-                <div class="pm-item">
-                  <span class="p-lbl">平均延时</span><span class="p-val accent-green">{{ summary.avg_latency || '0ms' }}</span>
-                </div>
-              </div>
-              <div class="p-chart-controls">
-                <div class="ctrl-group main-tabs">
-                  <button :class="{ active: chartType === 'tokens' }" @click="chartType = 'tokens'">
-                    令牌
-                  </button>
-                  <button :class="{ active: chartType === 'latency' }" @click="chartType = 'latency'">
-                    延时
-                  </button>
-                  <button :class="{ active: chartType === 'hardware' }" @click="chartType = 'hardware'">
-                    硬件
-                  </button>
-                </div>
-                <div v-if="chartType === 'hardware'" class="ctrl-group sub-tabs">
-                  <button :class="{ active: hardwareMetric === 'cpuUsage' }" @click="hardwareMetric = 'cpuUsage'">
-                    CPU
-                  </button>
-                  <button :class="{ active: hardwareMetric === 'memoryUsage' }" @click="hardwareMetric = 'memoryUsage'">
-                    内存
-                  </button>
-                  <button :class="{ active: hardwareMetric === 'diskUsage' }" @click="hardwareMetric = 'diskUsage'">
-                    磁盘
-                  </button>
-                  <button :class="{ active: hardwareMetric === 'gpuUsage' }" @click="hardwareMetric = 'gpuUsage'">
-                    GPU
-                  </button>
-                </div>
-                <div v-else class="ctrl-group time-range">
-                  <span
-                    v-for="r in ranges"
-                    :key="r"
-                    class="r-pill-v2"
-                    :class="{ active: r === currentRange }"
-                    @click="handleRangeChange(r)"
-                  >
-                    {{ r }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div class="p-chart-wrap">
-              <LineChart
-                :data="trendData"
-                :title="chartType === 'tokens' ? 'Token 消耗趋势' : chartType === 'latency' ? '响应延时趋势' : getHardwareTitle()"
-                :y-axis-name="chartType === 'tokens' ? 'Tokens' : chartType === 'latency' ? 'ms' : '%'"
-                :max-points="30"
-                height="100%"
-                :color="isDark ? '#26FFDF' : '#0d9488'"
-              />
-            </div>
+      </div>
+
+      <div class="content-col">
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>节点健康概览</span>
+            <span class="panel-sub">共 {{ totalNodesCount }} 个节点</span>
           </div>
-
-          <!-- Semantic Cloud -->
-          <div class="hub-semantic-panel">
-            <div class="semantic-hdr">
-              <span class="sh-txt">语义联想与决策空间</span>
-              <span class="sh-code">实时获取中</span>
-            </div>
-            <div class="semantic-world">
-              <div class="tags-container">
-                <div
-                  v-for="(tag, idx) in intentTags"
-                  :key="tag.label + keywordPage"
-                  class="s-tag-v4"
-                  :style="{
-                    '--f-size': (tag.size + 2) + 'px',
-                    '--op': tag.opacity,
-                    '--c': tag.color,
-                    'animation-delay': tag.delay + 's'
-                  }"
-                >
-                  #{{ tag.label }}
-                </div>
-              </div>
-            </div>
+        </template>
+        <div class="node-summary">
+          <div class="node-stat ok">
+            <span class="node-stat-label">在线</span>
+            <strong class="node-stat-value">{{ nodeStatusSummary.online }}</strong>
           </div>
-
-          <footer class="hub-footer">
-            <div class="f-left">
-              <span class="f-status-dot" />
-              <span class="f-tag">映射引擎 // 系统监控开启</span>
-            </div>
-            <div class="f-right">
-              <span class="f-code-tag">BUILD: {{ buildDate }}</span>
-            </div>
-          </footer>
-        </div>
-      </article>
-
-      <!-- RIGHT: Tactical Board -->
-      <aside class="col-battle">
-        <!-- Top KPIs -->
-        <div class="premium-card clickable" @click="goToPage(ROUTES.MONITOR.DASHBOARD)">
-          <div class="card-glow" />
-          <div class="mini-kpi-grid">
-            <div class="mk-box">
-              <span class="mk-lbl">活跃智能体数</span>
-              <span class="mk-val blue">{{ summary.online_agents || 0 }}<small>智能体</small></span>
-            </div>
-            <div class="mk-box">
-              <span class="mk-lbl">运行健康评分</span>
-              <span class="mk-val green">{{ summary.averageHealthScore || 0 }}<small>%</small></span>
-            </div>
+          <div class="node-stat warn">
+            <span class="node-stat-label">告警</span>
+            <strong class="node-stat-value">{{ nodeStatusSummary.warning }}</strong>
+          </div>
+          <div class="node-stat danger">
+            <span class="node-stat-label">离线</span>
+            <strong class="node-stat-value">{{ nodeStatusSummary.offline }}</strong>
           </div>
         </div>
-
-        <!-- Rank List -->
-        <div class="premium-card flex-grow battle-card clickable" @click="goToPage(ROUTES.MONITOR.TOKENS)">
-          <div class="card-glow" />
-          <div class="battle-header">
-            <h3 class="b-title">
-              资源分布（按智能体）
-            </h3>
-            <span class="b-count">{{ distribution.length }} 活跃</span>
+        <ul v-if="nodePreviewList.length" class="node-list">
+          <li v-for="node in nodePreviewList" :key="node.id">
+            <span class="node-id">{{ node.id }}</span>
+            <span class="node-status" :class="node.statusClass">{{ node.statusText }}</span>
+          </li>
+        </ul>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        <div class="node-load-block">
+          <div class="node-load-head">
+            <span>节点负载</span>
+            <span class="panel-sub">节点：{{ snapshotNodeId }} · 采样：{{ snapshotTimeText }}</span>
           </div>
+          <template v-if="hasHardwareMetrics">
+            <div class="load-grid">
+              <div class="load-tile">
+                <div class="tile-header">
+                  <span>CPU</span>
+                  <strong>{{ safeNumber(hardware.cpuUsage).toFixed(1) }}%</strong>
+                </div>
+                <div class="tile-rail">
+                  <el-tooltip :content="`CPU: ${safeNumber(hardware.cpuUsage).toFixed(1)}%`" placement="top">
+                    <div class="tile-fill cpu" :class="getTileThresholdClass(hardware.cpuUsage)"
+                      :style="{ width: `${safeNumber(hardware.cpuUsage)}%`, background: getTileFillGradient(hardware.cpuUsage) }">
+                    </div>
+                  </el-tooltip>
+                </div>
+              </div>
+              <div class="load-tile">
+                <div class="tile-header">
+                  <span>GPU</span>
+                  <strong>{{ safeNumber(hardware.gpuUsage).toFixed(1) }}%</strong>
+                </div>
+                <div class="tile-rail">
+                  <el-tooltip :content="`GPU: ${safeNumber(hardware.gpuUsage).toFixed(1)}%`" placement="top">
+                    <div class="tile-fill gpu" :class="getTileThresholdClass(hardware.gpuUsage)"
+                      :style="{ width: `${safeNumber(hardware.gpuUsage)}%`, background: getTileFillGradient(hardware.gpuUsage) }">
+                    </div>
+                  </el-tooltip>
+                </div>
+              </div>
+              <div class="load-tile">
+                <div class="tile-header">
+                  <span>内存</span>
+                  <strong>{{ safeNumber(hardware.memoryUsage).toFixed(1) }}%</strong>
+                </div>
+                <div class="tile-rail">
+                  <el-tooltip :content="`内存: ${safeNumber(hardware.memoryUsage).toFixed(1)}%`" placement="top">
+                    <div class="tile-fill memory" :class="getTileThresholdClass(hardware.memoryUsage)"
+                      :style="{ width: `${safeNumber(hardware.memoryUsage)}%`, background: getTileFillGradient(hardware.memoryUsage) }">
+                    </div>
+                  </el-tooltip>
+                </div>
+              </div>
+              <div class="load-tile">
+                <div class="tile-header">
+                  <span>磁盘</span>
+                  <strong>{{ safeNumber(hardware.diskUsage).toFixed(1) }}%</strong>
+                </div>
+                <div class="tile-rail">
+                  <el-tooltip :content="`磁盘: ${safeNumber(hardware.diskUsage).toFixed(1)}%`" placement="top">
+                    <div class="tile-fill disk" :class="getTileThresholdClass(hardware.diskUsage)"
+                      :style="{ width: `${safeNumber(hardware.diskUsage)}%`, background: getTileFillGradient(hardware.diskUsage) }">
+                    </div>
+                  </el-tooltip>
+                </div>
+              </div>
+            </div>
+          </template>
+          <el-empty
+            v-else
+            description="当前节点暂无硬件监控数据"
+            :image-size="56"
+          />
+        </div>
+        </el-card>
 
-          <div class="rank-list-v4">
-            <div v-for="(item, idx) in topAgents" :key="item.name" class="rk-item">
-              <div class="rk-top">
-                <span class="rk-idx">0{{ idx+1 }}</span>
-                <span class="rk-name" :title="item.name">{{ item.name }}</span>
-                <span class="rk-num">{{ formatK(item.value) }}</span>
-              </div>
-              <div class="rk-bar-bg">
-                <div class="rk-bar-fill" :style="{ width: getRkWidth(item.value) + '%' }" />
-              </div>
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>资产与运行负载</span>
+            <span class="panel-sub">沿用原首页核心卡片内容</span>
+          </div>
+        </template>
+        <div class="asset-load-wrapper">
+          <div class="asset-card primary">
+            <div class="asset-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              </svg>
+            </div>
+            <div class="asset-info">
+              <span class="asset-label">知识库数量</span>
+              <strong class="asset-value">{{ summaryData.total_knowledge || 0 }}</strong>
+            </div>
+            <div class="asset-divider"></div>
+            <div class="asset-info">
+              <span class="asset-label">文档总数</span>
+              <strong class="asset-value">{{ summaryData.total_documents || 0 }}</strong>
             </div>
           </div>
 
-          <div class="recent-events-v3">
-            <h4 class="re-title">
-              实时审计日志
-            </h4>
-            <div class="re-list">
-              <div v-for="(ev, idx) in recentLogs.slice(0, 3)" :key="idx" class="re-node">
-                <div class="re-line" :class="ev.status" />
-                <div class="re-body">
-                  <span class="re-txt">{{ ev.text }}</span>
-                  <div class="re-tm-row">
-                    <span class="re-tm">{{ ev.time }}</span>
-                    <span class="re-status-dot" :class="ev.status" />
-                  </div>
-                </div>
-              </div>
+          <div class="asset-card secondary">
+            <div class="asset-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              </svg>
+            </div>
+            <div class="asset-info">
+              <span class="asset-label">今日消耗 Token</span>
+              <strong class="asset-value">{{ formatK(summaryData.total_tokens || 0) }}</strong>
+            </div>
+            <div class="asset-divider"></div>
+            <div class="asset-info">
+              <span class="asset-label">估算成本</span>
+              <strong class="asset-value">¥{{ safeNumber(summaryData.todayCost).toFixed(2) }}</strong>
             </div>
           </div>
         </div>
-      </aside>
-    </main>
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>平台态势摘要</span>
+            <span class="panel-sub">实时汇总</span>
+          </div>
+        </template>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="summary-label">健康状态</span>
+            <strong class="summary-value">{{ healthStatusText }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">平均时延</span>
+            <strong class="summary-value">{{ kpi.avgLatency }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">活跃智能体</span>
+            <strong class="summary-value">{{ kpi.activeAgents }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">今日调用</span>
+            <strong class="summary-value">{{ kpi.todayCalls }}</strong>
+          </div>
+        </div>
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>队列与任务积压</span>
+            <span class="panel-sub">实时任务状态</span>
+          </div>
+        </template>
+        <div class="queue-grid">
+          <div class="queue-item">
+            <span>待处理</span>
+            <strong>{{ queueStats.pending }}</strong>
+          </div>
+          <div class="queue-item">
+            <span>处理中</span>
+            <strong>{{ queueStats.running }}</strong>
+          </div>
+          <div class="queue-item">
+            <span>失败</span>
+            <strong>{{ queueStats.failed }}</strong>
+          </div>
+        </div>
+        </el-card>
+      </div>
+
+      <div class="content-col">
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>实时审计日志</span>
+            <span class="panel-sub">最近 6 条</span>
+          </div>
+        </template>
+        <ul class="event-list" v-if="recentLogs.length">
+          <li v-for="item in recentLogs" :key="`${item.time}-${item.text}`">
+            <span class="event-time">{{ item.time }}</span>
+            <span class="event-text">{{ item.text }}</span>
+            <el-tag size="small" :type="item.status === 'healthy' ? 'success' : 'danger'">
+              {{ item.status === 'healthy' ? '正常' : '异常' }}
+            </el-tag>
+          </li>
+        </ul>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>资源分布（按智能体）</span>
+            <span class="panel-sub">{{ distribution.length }} 个活跃主体</span>
+          </div>
+        </template>
+        <div v-if="topAgents.length" class="rank-list">
+          <div v-for="(item, idx) in topAgents" :key="item.name" class="rank-item">
+            <div class="rank-top">
+              <span class="rank-index">{{ `0${idx + 1}` }}</span>
+              <span class="rank-name">{{ item.name }}</span>
+              <span class="rank-value">{{ formatK(item.value) }}</span>
+            </div>
+            <div class="rank-rail">
+              <div class="rank-fill" :style="{ width: `${getRkWidth(item.value)}%` }" />
+            </div>
+          </div>
+        </div>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>慢请求 Top 5</span>
+            <span class="panel-sub">按请求耗时排序</span>
+          </div>
+        </template>
+        <ul v-if="slowRequestTop.length" class="mini-rank-list">
+          <li v-for="(item, idx) in slowRequestTop" :key="`${item.name}-${idx}`">
+            <span class="mini-rank-index">{{ idx + 1 }}</span>
+            <span class="mini-rank-name">{{ item.name }}</span>
+            <strong class="mini-rank-value">{{ item.value }}ms</strong>
+          </li>
+        </ul>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+        <template #header>
+          <div class="panel-header">
+            <span>错误类型 Top 5</span>
+            <span class="panel-sub">按出现次数统计</span>
+          </div>
+        </template>
+        <ul v-if="errorTypeTop.length" class="mini-rank-list">
+          <li v-for="(item, idx) in errorTypeTop" :key="`${item.name}-${idx}`">
+            <span class="mini-rank-index">{{ idx + 1 }}</span>
+            <span class="mini-rank-name">{{ item.name }}</span>
+            <strong class="mini-rank-value">{{ item.value }}</strong>
+          </li>
+        </ul>
+        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { useDark } from '@vueuse/core'
-import { useAppStore } from '@/stores/app'
-import { Timer, Collection, Connection } from '@element-plus/icons-vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
-import 'dayjs/locale/zh-cn'
+import { ElMessage } from 'element-plus'
+import { getAgentList } from '@/api/agent'
 import {
   getGlobalSummary,
-  getAgentList,
-  getServerHardware,
-  getServerNodes,
   getTokenHistory,
-  getTokenTrend,
-  getLatencyTrend,
+  getLatencyStats,
   getTokenDistribution,
-  getServerHardwareTrend
+  getServerHardware,
+  getServerHardwareTrend,
+  getServerNodes,
+  getSystemHealth,
 } from '@/api/monitor'
-import { getSemanticKeywords } from '@/api/knowledge'
-import { ROUTES } from '@/router/routes'
-import LineChart from '@/components/LineChart.vue'
+import { UI_TEXT } from '@/constants/uiText'
 
-const router = useRouter()
-const appStore = useAppStore()
-
-// 构建日期（Vite 构建时注入）
-const buildDate = __BUILD_DATE__ || new Date().toISOString().split('T')[0]
-
-const isDark = useDark()
-
-// 是否使用侧边栏模式
-const isSidebarMode = computed(() => appStore.menuMode === 'sidebar')
-const loading = ref(true)
-
-const currentTime = ref('')
-const currentDate = ref('')
-const uptimeDays = ref(0)
-const uptimeHours = ref(24)
-const uptimeMinutes = ref(15)
-const currentRange = ref('1H')
-const ranges = ['5M', '1H', '24H', '7D']
-
-// 格式化运行时长显示
-const formattedUptime = computed(() => {
-  if (uptimeDays.value > 0) {
-    return `${uptimeDays.value}<small>d</small> ${uptimeHours.value}<small>h</small>`
-  } else if (uptimeHours.value > 0) {
-    return `${uptimeHours.value}<small>h</small> ${uptimeMinutes.value}<small>m</small>`
-  } else {
-    return `${uptimeMinutes.value}<small>m</small>`
-  }
+const loading = ref(false)
+const isRefreshing = ref(false)
+const lastRefreshTime = ref(null)
+const summaryData = ref({})
+const uptimeMs = ref(0)
+const healthStatusText = ref('待检测')
+const healthStatusClass = ref('status-warn')
+const lastHealthCheck = ref('--:--:--')
+const kpi = ref({
+  activeAgents: 0,
+  activeAgentsDelta: 0,
+  todayCalls: 0,
+  callsDelta: 0,
+  avgLatency: '0ms',
+  latencyValue: 0,
+  latencyNote: '暂无波动数据',
+  alertCount: 0,
+  alertDelta: 0,
 })
 
-const chartType = ref('tokens')
-const hardwareMetric = ref('cpuUsage') // 硬件指标: cpuUsage, memoryUsage, diskUsage, gpuUsage
 const trendData = ref([])
-
-const summary = ref({})
-const agents = ref([])
-const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0, gpuModel: '' })
-const serverNodes = ref([])
-const recentLogs = ref([])
 const distribution = ref([])
-const intentTags = ref([])
-const allKeywords = ref([]) // 保存所有关键词
-const keywordPage = ref(0)
-const KEYWORDS_PER_PAGE = 15 // 每页显示数量
-let keywordInterval = null
+const recentLogs = ref([])
+const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0 })
+const serverNodes = ref([])
+const snapshotNodeId = ref('未知节点')
+const snapshotTimeText = ref('--:--:--')
+const hardwareSnapshotValid = ref(false)
+const errorTypeTop = ref([])
+const slowRequestTop = ref([])
+const todayCostTrendRaw = ref([])
+const queueStats = ref({ pending: 0, running: 0, failed: 0 })
+const latencyTrendData = ref([])
+const requestSummary = ref({ success: 0, failure: 0 })
 
-// 静态后备标签（API失败时使用）
-const fallbackTags = [
-  { label: '知识库检索', size: 14, opacity: 1, delay: 0.1, color: 'var(--orin-primary)' },
-  { label: '语义理解', size: 11, opacity: 0.7, delay: 0.5, color: 'var(--neutral-gray-400)' },
-  { label: '逻辑推理', size: 13, opacity: 0.9, delay: 0.8, color: 'var(--orin-primary)' },
-  { label: 'DeepSeek-R1', size: 16, opacity: 1, delay: 0.3, color: 'var(--success-500)' },
-  { label: 'Agent_Thinking', size: 10, opacity: 0.5, delay: 1.5, color: 'var(--neutral-gray-500)' },
-  { label: '文本纠错', size: 11, opacity: 0.8, delay: 0.9, color: 'var(--info-500)' },
-  { label: '跨库关联', size: 12, opacity: 0.8, delay: 0.4, color: 'var(--orin-primary)' },
-  { label: '用户建模', size: 11, opacity: 0.6, delay: 1.8, color: 'var(--neutral-gray-400)' }
-]
+const CHART_CONFIG = {
+  left: 40,
+  right: 660,
+  top: 24,
+  bottom: 176,
+}
 
-// 获取语义关键词
-const fetchKeywords = async () => {
-  try {
-    const res = await getSemanticKeywords({ limit: 30 })
-    if (res && res.length > 0) {
-      // 转换后端数据格式以匹配前端展示
-      allKeywords.value = res.map((tag, idx) => ({
-        label: tag.label,
-        size: tag.size || 12,
-        opacity: tag.opacity || 0.8,
-        delay: tag.delay || (idx * 0.2),
-        color: tag.color || 'var(--orin-primary)'
-      }))
-      rotateKeywords()
-    } else {
-      allKeywords.value = fallbackTags
-      intentTags.value = fallbackTags
+const buildLinePoints = (series) => {
+  if (!series.length) return []
+  const maxValue = Math.max(...series.map((item) => safeNumber(item.value)), 1)
+  const step = series.length > 1 ? (CHART_CONFIG.right - CHART_CONFIG.left) / (series.length - 1) : CHART_CONFIG.right - CHART_CONFIG.left
+  return series.map((item, index) => {
+    const ratio = safeNumber(item.value) / maxValue
+    return {
+      label: item.label,
+      x: CHART_CONFIG.left + index * step,
+      y: CHART_CONFIG.bottom - ratio * (CHART_CONFIG.bottom - CHART_CONFIG.top),
     }
-  } catch (e) {
-    console.error('获取关键词失败，使用默认标签', e)
-    allKeywords.value = fallbackTags
-    intentTags.value = fallbackTags
-  }
+  })
 }
 
-// 轮换显示关键词
-const rotateKeywords = () => {
-  if (!allKeywords.value || allKeywords.value.length <= KEYWORDS_PER_PAGE) {
-    intentTags.value = allKeywords.value
-    return
-  }
-  const start = keywordPage.value * KEYWORDS_PER_PAGE
-  const end = start + KEYWORDS_PER_PAGE
-  intentTags.value = allKeywords.value.slice(start, end)
-  keywordPage.value = (keywordPage.value + 1) % Math.ceil(allKeywords.value.length / KEYWORDS_PER_PAGE)
-}
+const chartPoints = computed(() => buildLinePoints(trendData.value))
+const latencyChartPoints = computed(() => buildLinePoints(latencyTrendData.value))
 
-const formatK = (v) => {
-  if (!v) return '0'
-  return v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v
+const trendPoints = computed(() => chartPoints.value.map((point) => `${point.x},${point.y}`).join(' '))
+const latencyTrendPoints = computed(() => latencyChartPoints.value.map((point) => `${point.x},${point.y}`).join(' '))
+const buildGridTicks = (series, digits = 0, suffix = '') => {
+  const maxValue = Math.max(...series.map((item) => safeNumber(item.value)), 1)
+  const scales = [1, 0.75, 0.5, 0.25, 0]
+  return scales.map((scale) => ({
+    y: CHART_CONFIG.top + (1 - scale) * (CHART_CONFIG.bottom - CHART_CONFIG.top),
+    label: `${(maxValue * scale).toFixed(digits)}${suffix}`,
+  }))
 }
-
-const getRkWidth = (v) => {
-  if (distribution.value.length === 0) return 0
-  const max = Math.max(...distribution.value.map(d => d.value))
-  return (v / max) * 100
-}
-
+const trendGridTicks = computed(() => buildGridTicks(trendData.value, 0))
+const latencyGridTicks = computed(() => buildGridTicks(latencyTrendData.value, 0, 'ms'))
 const topAgents = computed(() => distribution.value.slice(0, 3))
-
-const getBarColor = (v) => v > 80 ? 'var(--error-500)' : v > 60 ? 'var(--warning-500)' : 'var(--info-500)'
-
-const normalizeUrl = (url = '') => String(url || '').trim().replace(/\/+$/, '')
-
 const currentHardwareNodeId = computed(() => {
   const directId = hardware.value?.serverId || hardware.value?.nodeId || hardware.value?.id
   if (directId) return String(directId)
-
-  const probedUrl = normalizeUrl(hardware.value?.probedUrl || hardware.value?.probeUrl || '')
-  if (probedUrl && serverNodes.value.length) {
-    const matched = serverNodes.value.find((node) => normalizeUrl(node?.prometheusUrl) === probedUrl)
-    if (matched?.id) return String(matched.id)
-  }
-
   const localNode = serverNodes.value.find((node) => String(node?.id || '').toLowerCase() === 'local')
-  if (localNode?.id) return String(localNode.id)
-
-  return 'local'
+  return localNode?.id || 'local'
+})
+const preferredBusinessNodeId = computed(() => {
+  if (!Array.isArray(serverNodes.value) || !serverNodes.value.length) return null
+  const normalizeStatus = (node) => String(node?.status || node?.state || '').toUpperCase()
+  const online = serverNodes.value.filter((node) => {
+    const status = normalizeStatus(node)
+    if (!status) return true
+    return status.includes('UP') || status.includes('ONLINE') || status.includes('HEALTHY')
+  })
+  const nonLocalOnline = online.find((node) => String(node?.id || '').toLowerCase() !== 'local')
+  if (nonLocalOnline?.id) return String(nonLocalOnline.id)
+  const nonLocalAny = serverNodes.value.find((node) => String(node?.id || '').toLowerCase() !== 'local')
+  if (nonLocalAny?.id) return String(nonLocalAny.id)
+  return null
+})
+const totalNodesCount = computed(() => (Array.isArray(serverNodes.value) ? serverNodes.value.length : 0))
+const activeNodesCount = computed(() => {
+  if (!Array.isArray(serverNodes.value) || !serverNodes.value.length) return 0
+  return serverNodes.value.filter((node) => {
+    const status = String(node?.status || node?.state || '').toUpperCase()
+    return status.includes('UP') || status.includes('ONLINE') || status.includes('HEALTHY')
+  }).length
+})
+const offlineNodesCount = computed(() => Math.max(totalNodesCount.value - activeNodesCount.value, 0))
+const normalizeNodeStatus = (node) => {
+  const raw = String(node?.status || node?.state || '').toUpperCase()
+  if (raw.includes('UP') || raw.includes('ONLINE') || raw.includes('HEALTHY')) {
+    return { statusClass: 'ok', statusText: '在线' }
+  }
+  if (raw.includes('WARN') || raw.includes('DEGRADED')) {
+    return { statusClass: 'warn', statusText: '告警' }
+  }
+  return { statusClass: 'danger', statusText: '离线' }
+}
+const nodeStatusSummary = computed(() => {
+  const summary = { online: 0, warning: 0, offline: 0 }
+  const list = Array.isArray(serverNodes.value) ? serverNodes.value : []
+  list.forEach((node) => {
+    const status = normalizeNodeStatus(node)
+    if (status.statusClass === 'ok') summary.online += 1
+    else if (status.statusClass === 'danger') summary.offline += 1
+    else summary.warning += 1
+  })
+  return summary
+})
+const nodePreviewList = computed(() => {
+  if (!Array.isArray(serverNodes.value)) return []
+  return serverNodes.value.slice(0, 6).map((node, idx) => {
+    const status = normalizeNodeStatus(node)
+    return {
+      id: String(node?.id || node?.name || `node-${idx + 1}`),
+      ...status,
+    }
+  })
+})
+const hasHardwareMetrics = computed(() => {
+  if (!hardwareSnapshotValid.value) return false
+  const source = hardware.value || {}
+  const hasValue = ['cpuUsage', 'gpuUsage', 'memoryUsage', 'diskUsage'].some((key) => {
+    return safeNumber(source[key]) > 0
+  })
+  return hasValue && Boolean(snapshotNodeId.value) && snapshotTimeText.value !== '--:--:--'
+})
+const todayCostTrend = computed(() => {
+  if (!Array.isArray(todayCostTrendRaw.value) || !todayCostTrendRaw.value.length) return []
+  const max = Math.max(...todayCostTrendRaw.value.map((item) => safeNumber(item.value)), 1)
+  return todayCostTrendRaw.value.map((item) => ({
+    hour: item.hour,
+    value: safeNumber(item.value),
+    height: Math.max((safeNumber(item.value) / max) * 100, 8),
+  }))
+})
+const todayCostTotal = computed(() => todayCostTrend.value.reduce((sum, item) => sum + safeNumber(item.value), 0))
+const requestSuccessRate = computed(() => {
+  const total = safeNumber(requestSummary.value.success) + safeNumber(requestSummary.value.failure)
+  if (!total) return 0
+  return Math.round((safeNumber(requestSummary.value.success) / total) * 100)
+})
+const requestDonutGradient = computed(() => {
+  const angle = (requestSuccessRate.value / 100) * 360
+  return `conic-gradient(#10b981 0deg ${angle}deg, #ef4444 ${angle}deg 360deg)`
+})
+const resourceUsageAvg = computed(() => {
+  const values = [
+    safeNumber(hardware.value?.cpuUsage),
+    safeNumber(hardware.value?.gpuUsage),
+    safeNumber(hardware.value?.memoryUsage),
+    safeNumber(hardware.value?.diskUsage),
+  ]
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+})
+const resourceDonutGradient = computed(() => {
+  const raw = [
+    safeNumber(hardware.value?.cpuUsage),
+    safeNumber(hardware.value?.gpuUsage),
+    safeNumber(hardware.value?.memoryUsage),
+    safeNumber(hardware.value?.diskUsage),
+  ]
+  const fallback = [25, 25, 25, 25]
+  const values = raw.some((item) => item > 0) ? raw : fallback
+  const total = Math.max(values.reduce((sum, value) => sum + value, 0), 1)
+  const cpuAngle = (values[0] / total) * 360
+  const gpuAngle = cpuAngle + (values[1] / total) * 360
+  const memAngle = gpuAngle + (values[2] / total) * 360
+  return `conic-gradient(#0ea5e9 0deg ${cpuAngle}deg, #8b5cf6 ${cpuAngle}deg ${gpuAngle}deg, #22c55e ${gpuAngle}deg ${memAngle}deg, #f59e0b ${memAngle}deg 360deg)`
 })
 
-const getHardwareTitle = () => {
-  const titles = {
-    cpuUsage: 'CPU 使用率',
-    memoryUsage: '内存使用率',
-    diskUsage: '磁盘使用率',
-    gpuUsage: 'GPU 使用率'
-  }
-  return titles[hardwareMetric.value] || '硬件使用率'
+const uptimeText = computed(() => {
+  const totalSeconds = Math.floor(safeNumber(uptimeMs.value) / 1000)
+  if (totalSeconds <= 0) return '暂无数据'
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  if (days > 0) return `${days}天 ${hours}小时 ${minutes}分钟`
+  if (hours > 0) return `${hours}小时 ${minutes}分钟`
+  return `${minutes}分钟`
+})
+
+const safeNumber = (value, fallback = 0) => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
 }
 
-const updateTime = () => {
-  const now = new Date()
-  currentTime.value = now.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  currentDate.value = now.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' })
+const formatCheckTime = (value) => {
+  if (!value) return dayjs().format('HH:mm:ss')
+  const parsed = dayjs(value)
+  if (parsed.isValid()) return parsed.format('HH:mm:ss')
+  return dayjs().format('HH:mm:ss')
 }
 
-const handleRangeChange = (r) => {
-  currentRange.value = r
-  fetchTrend()
+const unwrapResponse = (res, fallback = null) => {
+  if (res?.data !== undefined) return res.data
+  if (res !== undefined && res !== null) return res
+  return fallback
 }
 
-const goToPage = (path) => {
-  router.push(path)
+const formatDelta = (delta, prefix) => {
+  const value = safeNumber(delta)
+  const sign = value >= 0 ? '+' : '-'
+  return `${prefix} ${sign}${Math.abs(value).toFixed(0)}%`
 }
 
-const fetchTrend = async () => {
-  try {
-    const period = currentRange.value.toLowerCase()
-    let res = []
-    if (chartType.value === 'tokens') {
-      res = await getTokenTrend(period)
-      trendData.value = res.map(i => ({
-        timestamp: i.timestamp,
-        value: i.tokens || 0
-      }))
-    } else if (chartType.value === 'latency') {
-      res = await getLatencyTrend(period)
-      trendData.value = res.map(i => ({
-        timestamp: i.timestamp,
-        value: i.latency || 0
-      }))
-    } else if (chartType.value === 'hardware') {
-      res = await getServerHardwareTrend(period)
-      trendData.value = res.map(i => ({
-        timestamp: i.timestamp,
-        value: i[hardwareMetric.value] || 0
-      }))
+const formatK = (v) => {
+  const value = safeNumber(v)
+  if (!value) return '0'
+  return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)
+}
+
+const getRkWidth = (v) => {
+  if (!distribution.value.length) return 0
+  const max = Math.max(...distribution.value.map((item) => safeNumber(item.value)), 1)
+  return (safeNumber(v) / max) * 100
+}
+
+/* 进度条阈值状态计算 */
+const getTileThresholdClass = (value) => {
+  const numValue = safeNumber(value)
+  if (numValue >= 85) return 'critical'
+  if (numValue >= 70) return 'warning'
+  return 'normal'
+}
+
+const getTileFillGradient = (value) => {
+  const numValue = safeNumber(value)
+  if (numValue >= 85) return 'linear-gradient(90deg, var(--progress-critical-start), var(--progress-critical-end))'
+  if (numValue >= 70) return 'linear-gradient(90deg, var(--progress-warning-start), var(--progress-warning-end))'
+  return 'linear-gradient(90deg, var(--success-400), var(--success-500))'
+}
+
+const buildTrendData = (historyList) => {
+  const dayKeys = Array.from({ length: 7 }, (_, idx) => dayjs().subtract(6 - idx, 'day').format('YYYY-MM-DD'))
+  const dayMap = dayKeys.reduce((acc, key) => {
+    acc[key] = 0
+    return acc
+  }, {})
+
+  historyList.forEach((item) => {
+    const time = item.createdAt || item.timestamp || item.time
+    if (!time) return
+    const dayKey = dayjs(time).format('YYYY-MM-DD')
+    if (!(dayKey in dayMap)) return
+    dayMap[dayKey] += safeNumber(item.totalRequests, safeNumber(item.totalTokens, 1))
+  })
+
+  trendData.value = dayKeys.map((dayKey) => ({
+    label: dayjs(dayKey).format('MM-DD'),
+    value: dayMap[dayKey],
+  }))
+}
+
+const buildLatencyTrendData = (historyList) => {
+  const dayKeys = Array.from({ length: 7 }, (_, idx) => dayjs().subtract(6 - idx, 'day').format('YYYY-MM-DD'))
+  const latencyMap = dayKeys.reduce((acc, key) => {
+    acc[key] = { total: 0, count: 0 }
+    return acc
+  }, {})
+
+  historyList.forEach((item) => {
+    const time = item.createdAt || item.timestamp || item.time
+    if (!time) return
+    const dayKey = dayjs(time).format('YYYY-MM-DD')
+    if (!(dayKey in latencyMap)) return
+    const latency = safeNumber(item.latencyMs, safeNumber(item.durationMs, safeNumber(item.responseMs)))
+    if (latency <= 0) return
+    latencyMap[dayKey].total += latency
+    latencyMap[dayKey].count += 1
+  })
+
+  latencyTrendData.value = dayKeys.map((dayKey) => ({
+    label: dayjs(dayKey).format('MM-DD'),
+    value: latencyMap[dayKey].count ? latencyMap[dayKey].total / latencyMap[dayKey].count : 0,
+  }))
+}
+
+const buildTopLists = (historyList) => {
+  const errorMap = new Map()
+  const slowList = []
+  const hourCostMap = new Map()
+  const todayKey = dayjs().format('YYYY-MM-DD')
+  let successCount = 0
+  let failureCount = 0
+
+  historyList.forEach((item) => {
+    const isSuccess = item.success !== false
+    if (!isSuccess) {
+      failureCount += 1
+      const code = item.errorCode || item.errorType || item.statusCode || 'UNKNOWN'
+      errorMap.set(code, (errorMap.get(code) || 0) + 1)
+    } else {
+      successCount += 1
     }
-  } catch (e) { console.error(e) }
-}
 
-const fetchData = async () => {
-  try {
-    const [s, a, h, l, d, n] = await Promise.allSettled([
-      getGlobalSummary(), getAgentList(), getServerHardware(), getTokenHistory({ size: 10 }), getTokenDistribution(), getServerNodes()
-    ])
-    if (s.status === 'fulfilled') {
-      summary.value = s.value
-      if (s.value.system_uptime) {
-        const totalMinutes = Math.floor(s.value.system_uptime / (1000 * 60))
-        uptimeDays.value = Math.floor(totalMinutes / (60 * 24))
-        uptimeHours.value = Math.floor((totalMinutes % (60 * 24)) / 60)
-        uptimeMinutes.value = totalMinutes % 60
-      }
-    }
-    if (a.status === 'fulfilled') agents.value = a.value
-    if (h.status === 'fulfilled') hardware.value = h.value
-    if (l.status === 'fulfilled' && l.value.content) {
-      recentLogs.value = l.value.content.map(i => {
-        let name = i.agentName || i.providerId || 'SYSTEM';
-        if (name.length > 12) name = name.substring(0, 8) + '...';
-
-        return {
-          // 使用 dayjs 解析时间，确保时区正确
-          time: dayjs(i.createdAt).format('HH:mm'),
-          text: `${name} | ${i.endpoint?.split('/').pop() || 'Processing'}`,
-          status: i.success ? 'healthy' : 'critical'
-        };
+    const latency = safeNumber(item.latencyMs, safeNumber(item.durationMs, safeNumber(item.responseMs)))
+    if (latency > 0) {
+      slowList.push({
+        name: item.endpoint?.split('/').pop() || item.agentName || item.providerId || '请求',
+        value: Math.round(latency),
       })
     }
-    if (d.status === 'fulfilled') distribution.value = d.value.sort((a,b) => b.value - a.value)
-    if (n.status === 'fulfilled') serverNodes.value = n.value || []
-    await fetchTrend()
-  } catch (e) { console.error(e) }
-  finally {
+
+    const ts = item.createdAt || item.timestamp || item.time
+    if (ts && dayjs(ts).format('YYYY-MM-DD') === todayKey) {
+      const hour = dayjs(ts).format('HH:00')
+      const cost = safeNumber(item.cost, safeNumber(item.estimatedCost))
+      hourCostMap.set(hour, (hourCostMap.get(hour) || 0) + cost)
+    }
+  })
+
+  errorTypeTop.value = Array.from(errorMap.entries())
+    .map(([name, value]) => ({ name: String(name), value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5)
+
+  slowRequestTop.value = slowList.sort((a, b) => b.value - a.value).slice(0, 5)
+
+  todayCostTrendRaw.value = Array.from({ length: 24 }, (_, idx) => {
+    const hour = `${String(idx).padStart(2, '0')}:00`
+    return { hour, value: safeNumber(hourCostMap.get(hour), 0) }
+  }).filter((item) => item.value > 0)
+
+  requestSummary.value = { success: successCount, failure: failureCount }
+}
+
+const hydrateHardwareSnapshot = async (fallbackHardware) => {
+  hardwareSnapshotValid.value = false
+  const candidateNodeId = preferredBusinessNodeId.value
+  if (candidateNodeId) {
+    try {
+      const trend = await getServerHardwareTrend('1h', candidateNodeId)
+      const latest = Array.isArray(trend) && trend.length ? trend[trend.length - 1] : null
+      if (latest) {
+        hardware.value = {
+          cpuUsage: safeNumber(latest.cpuUsage),
+          gpuUsage: safeNumber(latest.gpuUsage),
+          memoryUsage: safeNumber(latest.memoryUsage),
+          diskUsage: safeNumber(latest.diskUsage),
+          serverId: candidateNodeId,
+        }
+        snapshotNodeId.value = candidateNodeId
+        snapshotTimeText.value = formatCheckTime(latest.timestamp)
+        hardwareSnapshotValid.value = true
+        return
+      }
+    } catch (error) {
+      // Graceful fallback to local snapshot API
+    }
+  }
+
+  const fallbackNodeId = String(
+    fallbackHardware?.serverId ||
+    fallbackHardware?.nodeId ||
+    fallbackHardware?.id ||
+    preferredBusinessNodeId.value ||
+    currentHardwareNodeId.value ||
+    '未知节点'
+  )
+  const fallbackTime = fallbackHardware?.timestamp || fallbackHardware?.checkedAt || fallbackHardware?.updateTime
+  const hasFallbackMetrics = ['cpuUsage', 'gpuUsage', 'memoryUsage', 'diskUsage'].some((key) => {
+    const value = fallbackHardware?.[key]
+    return value !== undefined && value !== null && Number.isFinite(Number(value))
+  })
+
+  hardware.value = {
+    cpuUsage: safeNumber(fallbackHardware?.cpuUsage),
+    gpuUsage: safeNumber(fallbackHardware?.gpuUsage),
+    memoryUsage: safeNumber(fallbackHardware?.memoryUsage),
+    diskUsage: safeNumber(fallbackHardware?.diskUsage),
+    serverId: fallbackNodeId,
+  }
+  snapshotNodeId.value = fallbackNodeId
+  snapshotTimeText.value = fallbackTime ? formatCheckTime(fallbackTime) : '--:--:--'
+  hardwareSnapshotValid.value = hasFallbackMetrics && Boolean(fallbackTime)
+}
+
+
+const loadDashboardData = async () => {
+  loading.value = true
+  isRefreshing.value = true
+  try {
+    const [summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes] = await Promise.all([
+      getGlobalSummary(),
+      getAgentList(),
+      getTokenHistory({ size: 200 }),
+      getLatencyStats().catch(() => ({})),
+      getServerHardware().catch(() => ({})),
+      getSystemHealth().catch(() => ({})),
+      getTokenDistribution().catch(() => ([])),
+      getServerNodes().catch(() => ([])),
+    ])
+
+    const summary = unwrapResponse(summaryRes, {}) || {}
+    const agents = unwrapResponse(agentsRes, []) || []
+    const tokenHistoryPayload = unwrapResponse(tokenHistoryRes, {}) || {}
+    const historyList = Array.isArray(tokenHistoryPayload)
+      ? tokenHistoryPayload
+      : Array.isArray(tokenHistoryPayload.content)
+        ? tokenHistoryPayload.content
+        : []
+
+    const latencyData = unwrapResponse(latencyRes, {}) || {}
+    const hardware = unwrapResponse(hardwareRes, {}) || {}
+    const health = unwrapResponse(healthRes, {}) || {}
+    const distributionData = unwrapResponse(distributionRes, []) || []
+    const nodesData = unwrapResponse(nodesRes, []) || []
+
+    const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length
+    const todayCalls = safeNumber(summary.daily_requests, historyList.filter((item) => dayjs(item.createdAt || item.timestamp).isSame(dayjs(), 'day')).length)
+    const avgLatencyValue = safeNumber(summary.avgLatencyMs, safeNumber(summary.avg_latency_ms, safeNumber(latencyData.avgLatency, safeNumber(summary.avg_latency))))
+    const alertCount = safeNumber(summary.alertCount, safeNumber(summary.highLoadAgents))
+
+    summaryData.value = summary
+    serverNodes.value = Array.isArray(nodesData) ? nodesData : []
+    await hydrateHardwareSnapshot(hardware)
+    uptimeMs.value = safeNumber(summary.system_uptime, safeNumber(summary.systemUptime))
+
+    const healthRaw = String(health?.status || health?.code || '').toUpperCase()
+    if (healthRaw.includes('UP') || healthRaw.includes('OK') || healthRaw.includes('SUCCESS')) {
+      healthStatusText.value = '运行正常'
+      healthStatusClass.value = 'status-ok'
+    } else if (healthRaw) {
+      healthStatusText.value = '存在异常'
+      healthStatusClass.value = 'status-danger'
+    } else {
+      healthStatusText.value = '待检测'
+      healthStatusClass.value = 'status-warn'
+    }
+    lastHealthCheck.value = formatCheckTime(
+      health?.checkedAt || health?.timestamp || summary?.lastHealthCheckAt || summary?.updateTime
+    )
+    kpi.value = {
+      activeAgents,
+      activeAgentsDelta: safeNumber(summary.onlineAgentsTrend, safeNumber(summary.online_agents_trend)),
+      todayCalls,
+      callsDelta: safeNumber(summary.dailyRequestsTrend, safeNumber(summary.daily_requests_trend)),
+      avgLatency: `${avgLatencyValue.toFixed(0)}ms`,
+      latencyValue: avgLatencyValue,
+      latencyNote: avgLatencyValue <= 800 ? '响应稳定，建议保持当前配置' : '时延偏高，建议优化慢链路',
+      alertCount,
+      alertDelta: safeNumber(summary.alertTrend, safeNumber(summary.alert_count_trend)),
+    }
+
+    buildTrendData(historyList)
+    buildLatencyTrendData(historyList)
+    buildTopLists(historyList)
+    distribution.value = Array.isArray(distributionData)
+      ? distributionData
+          .map((item) => ({ name: item.name || item.agentName || '未知主体', value: safeNumber(item.value) }))
+          .sort((a, b) => b.value - a.value)
+      : []
+    recentLogs.value = historyList.slice(0, 6).map((item) => ({
+      time: dayjs(item.createdAt || item.timestamp || Date.now()).format('MM-DD HH:mm'),
+      text: `${item.agentName || item.providerId || '系统'} | ${item.endpoint?.split('/').pop() || '处理任务'}`,
+      status: item.success === false ? 'critical' : 'healthy',
+    }))
+    if (!recentLogs.value.length) {
+      recentLogs.value = [
+        { time: '- -', text: health?.status ? `平台状态：${health.status}` : UI_TEXT.common.noData, status: 'healthy' },
+      ]
+    }
+
+    queueStats.value = {
+      pending: safeNumber(summary.pendingTasks, safeNumber(summary.queuePending)),
+      running: safeNumber(summary.runningTasks, safeNumber(summary.queueRunning)),
+      failed: safeNumber(summary.failedTasks, safeNumber(summary.queueFailed)),
+    }
+  } catch (error) {
+    ElMessage.error('加载首页数据失败，请稍后重试')
+    lastHealthCheck.value = dayjs().format('HH:mm:ss')
+  } finally {
     loading.value = false
+    isRefreshing.value = false
+    lastRefreshTime.value = dayjs().format('HH:mm:ss')
     window.dispatchEvent(new Event('page-refresh-done'))
   }
 }
 
-watch([chartType, currentRange, hardwareMetric], fetchTrend)
+const handleRefresh = () => {
+  loadDashboardData()
+}
+
 onMounted(() => {
-  updateTime(); fetchData(); fetchKeywords();
-  setInterval(updateTime, 1000);
-  setInterval(fetchData, 10000);
-  // 每5分钟刷新关键词
-  setInterval(fetchKeywords, 5 * 60 * 1000);
-  // 每8秒轮换显示下一批关键词
-  keywordInterval = setInterval(rotateKeywords, 8000);
-  window.addEventListener('page-refresh', fetchData);
+  loadDashboardData()
+  window.addEventListener('page-refresh', handleRefresh)
 })
-onUnmounted(() => {
-  window.removeEventListener('page-refresh', fetchData);
-  if (keywordInterval) clearInterval(keywordInterval);
+
+onBeforeUnmount(() => {
+  window.removeEventListener('page-refresh', handleRefresh)
 })
 </script>
 
 <style scoped>
 .command-center-root {
-  height: calc(100vh - 84px);
-  padding: 16px;
-  background-color: var(--neutral-gray-50);
-  color: var(--neutral-gray-900);
+  --bg-page: #f4f7fb;
+  --bg-card: #ffffff;
+  --bg-card-soft: #f8fbfd;
+  --border-soft: rgba(148, 163, 184, 0.22);
+  --text-strong: #0f172a;
+  --text-main: #1e293b;
+  --text-subtle: #64748b;
+  --primary-400: #22b3a5;
+  --primary-500: #0d9488;
+  --primary-600: #0f766e;
+  --info-400: #60a5fa;
+  --info-500: #2563eb;
+  --accent-400: #a78bfa;
+  --accent-500: #7c3aed;
+  --success-400: #4ade80;
+  --success-500: #10b981;
+  --warning-400: #fbbf24;
+  --warning-500: #f59e0b;
+  --danger-400: #f87171;
+  --danger-500: #ef4444;
+  --progress-warning-start: #f59e0b;
+  --progress-warning-end: #f97316;
+  --progress-critical-start: #f43f5e;
+  --progress-critical-end: #ef4444;
+  --status-badge-success-fg: #047857;
+  --status-badge-success-bg: rgba(16, 185, 129, 0.12);
+  --status-badge-success-border: rgba(16, 185, 129, 0.36);
+  --status-badge-warning-fg: #b45309;
+  --status-badge-warning-bg: rgba(245, 158, 11, 0.12);
+  --status-badge-warning-border: rgba(245, 158, 11, 0.36);
+  --status-badge-danger-fg: #b91c1c;
+  --status-badge-danger-bg: rgba(239, 68, 68, 0.12);
+  --status-badge-danger-border: rgba(239, 68, 68, 0.36);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow: hidden;
-  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
-  position: relative;
+  padding: 16px;
+  min-height: calc(100vh - 76px);
+  background: var(--bg-page);
 }
 
-/* 侧边栏模式适配 - 核心修复：确保宽度自适应，不溢出 */
-.command-center-root.with-sidebar {
-  height: calc(100vh - 24px); 
-  padding: 12px;
-  width: 100%;
+.cc-header-glass {
+  display: grid;
+  grid-template-columns: minmax(240px, auto) minmax(320px, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 24px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   min-width: 0;
 }
 
-/* 当侧边栏展开时，进一步压缩两侧支柱宽度以保护中间核心图表 */
-.command-center-root.with-sidebar:not(.is-collapsed) .cc-layout-grid {
-  grid-template-columns: minmax(180px, 240px) 1fr minmax(220px, 280px);
+.logo-text {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--text-strong);
+}
+
+.logo-dot {
+  color: var(--primary-500);
+}
+
+.header-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(148, 163, 184, 0.3);
+}
+
+.header-subtitle {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+  justify-self: end;
+}
+
+.last-refresh-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.kpi-grid {
+  display: grid;
   gap: 12px;
 }
 
-/* 当侧边栏收起时，恢复较宽的侧边栏 */
-.command-center-root.with-sidebar.is-collapsed .cc-layout-grid {
-  grid-template-columns: 280px 1fr 320px;
-  gap: 16px;
+.kpi-grid-primary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-/* 确保所有网格项都能缩小 */
-.col-telemetry, .col-insight, .col-battle {
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+}
+
+.kpi-card.kpi-danger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.kpi-overview {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  color: var(--text-strong);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.kpi-value-sm {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.kpi-meta {
+  color: var(--primary-600);
+  font-size: 12px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.content-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   min-width: 0;
 }
 
-/* Loading Overlay */
-.loading-overlay {
+:deep(.panel-card.el-card) {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+:deep(.panel-card .el-card__header) {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 12px 16px;
+}
+
+:deep(.panel-card .el-card__body) {
+  padding: 12px 16px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.panel-sub {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.trend-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.line-chart-shell {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.line-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-subtle);
+  text-align: right;
+  padding-top: 2px;
+  padding-bottom: 22px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.line-main {
+  min-width: 0;
+}
+
+.trend-svg {
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(241, 245, 249, 0.5) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.02);
+  transition: box-shadow 0.3s ease;
+}
+
+.trend-svg:hover {
+  box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.01), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.trend-grid-line {
+  stroke: rgba(148, 163, 184, 0.2);
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--primary-500);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 4px 6px rgba(13, 148, 136, 0.25));
+}
+
+.trend-line.latency {
+  stroke: var(--info-500);
+  filter: drop-shadow(0 4px 6px rgba(37, 99, 235, 0.25));
+}
+
+.trend-dot {
+  fill: var(--primary-500);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.trend-dot.latency {
+  fill: var(--info-500);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.trend-axis {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  margin-top: 6px;
+}
+
+.asset-load-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.asset-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  gap: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.asset-card::before {
+  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
+  top: 0; left: 0; right: 0; bottom: 0;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.asset-card.primary {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+.asset-card.primary::before {
+  background: radial-gradient(circle at top right, #0ea5e9, transparent 60%);
+}
+.asset-card.primary .asset-icon {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0284c7;
+}
+
+.asset-card.secondary {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+.asset-card.secondary::before {
+  background: radial-gradient(circle at top right, #10b981, transparent 60%);
+}
+.asset-card.secondary .asset-icon {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #059669;
+}
+
+.asset-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  border-radius: 14px;
-}
-
-.theme-dark .loading-overlay {
-  background: rgba(19, 23, 31, 0.95);
-}
-
-.loading-spinner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-}
-
-.spinner-ring {
-  width: 48px;
-  height: 48px;
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-top-color: var(--orin-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.theme-dark .spinner-ring {
-  border-color: rgba(255, 255, 255, 0.1);
-  border-top-color: var(--orin-primary);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--neutral-gray-600);
-}
-
-.theme-dark .loading-text {
-  color: var(--neutral-gray-300);
-}
-.theme-dark { background-color: var(--neutral-gray-50); color: var(--neutral-gray-900); }
-
-/* HEADER */
-.cc-header-glass {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-  border: 1px solid rgba(0,0,0,0.05);
-}
-.theme-dark .cc-header-glass { background: rgba(21, 26, 35, 0.85); box-shadow: none; border: 1px solid rgba(255,255,255,0.06); }
-
-.h-brand { display: flex; align-items: center; gap: 24px; }
-.logo-text { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; }
-.logo-dot { color: var(--orin-primary); }
-
-.status-indicator { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800; color: var(--success-500); padding: 6px 14px; background: var(--success-light); border-radius: 8px; }
-.status-indicator.is-load { color: var(--warning-500); background: var(--warning-light); }
-.status-indicator .dot { width: 7px; height: 7px; background: currentColor; border-radius: 50%; animation: breathe 2s infinite; }
-
-.h-utility { display: flex; align-items: center; gap: 32px; }
-.uptime-orb { display: flex; align-items: center; gap: 14px; }
-.orb-icon { font-size: 24px; color: var(--orin-primary); }
-.orb-content { display: flex; flex-direction: column; line-height: 1.1; }
-.orb-val { font-size: 18px; font-weight: 800; }
-.orb-val small { font-size: 11px; opacity: 0.5; margin: 0 1px; }
-.orb-lbl { font-size: 9px; font-weight: 700; color: #94a3b8; }
-
-.h-clock { text-align: right; display: flex; flex-direction: column; }
-.c-time { font-size: 18px; font-weight: 700; line-height: 1; }
-.c-date { font-size: 10px; color: #94a3b8; font-weight: 700; margin-top: 4px; }
-
-/* GRID */
-.cc-layout-grid {
-  display: grid;
-  grid-template-columns: 280px 1fr 320px;
-  gap: 16px;
-  flex: 1;
-  min-height: 0;
-}
-
-.col-telemetry, .col-battle { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
-.flex-grow { flex: 1; }
-
-/* CARD SYSTEM */
-.premium-card {
-  position: relative;
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(0,0,0,0.05);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-}
-
-.premium-card.clickable {
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.premium-card.clickable:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-  border-color: var(--orin-primary);
-}
-.theme-dark .premium-card { background: rgba(19, 23, 31, 0.6); border-color: rgba(255,255,255,0.06); box-shadow: none; }
-
-.card-head { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
-.head-line { flex: 1; height: 1px; background: rgba(148, 163, 184, 0.15); }
-
-/* CONTENT */
-.asset-bubbles { display: flex; flex-direction: column; gap: 10px; }
-.bubble-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; background: #f8fafc; }
-.theme-dark .bubble-item { background: rgba(255,255,255,0.03); }
-.bubble-item .el-icon { font-size: 20px; color: var(--orin-primary); }
-.b-num { font-size: 18px; font-weight: 800; display: block; }
-.b-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; }
-
-.matrix-grid { display: grid; gap: 8px; }
-.m-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; }
-.m-num { font-size: 18px; font-weight: 800; }
-.m-num.primary-text { color: var(--orin-primary); }
-.m-trend { font-size: 11px; font-weight: 800; margin-left: 8px; }
-.m-trend.up { color: #ef4444; } .m-trend.down { color: #10b981; }
-
-.load-bars { display: flex; flex-direction: column; gap: 10px; }
-.load-node-id {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: -2px 0 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-}
-.node-id-val {
-  max-width: 62%;
-  color: #0f172a;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.l-item { display: flex; flex-direction: column; gap: 4px; }
-.l-info { display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; color: #64748b; }
-.l-val { color: #1a1c21; }
-.theme-dark .l-val { color: #f9fafb; }
-.l-rail { height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }
-.theme-dark .l-rail { background: rgba(255,255,255,0.06); }
-.l-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
-
-/* INSIGHT HUB */
-.col-insight { display: flex; flex-direction: column; min-height: 0; }
-.hub-container {
-  flex: 1; display: flex; flex-direction: column;
-  background: #ffffff;
-  border-radius: 18px; padding: 24px; gap: 24px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-  border: 1px solid rgba(0,0,0,0.04);
-}
-.theme-dark .hub-container { background: rgba(19, 23, 31, 0.7); border-color: rgba(255,255,255,0.05); }
-
-.hub-visual-panel { flex: 1.5; display: flex; flex-direction: column; min-height: 0; }
-.p-title-compact { 
-  font-size: 13px; 
-  font-weight: 800; 
-  margin: 0; 
-  color: #475569; 
-  opacity: 0.8; 
-  white-space: nowrap; 
   flex-shrink: 0;
 }
-.theme-dark .p-title-compact { color: #cbd5e1; }
-.panel-top {
+
+.asset-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.asset-label {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.asset-value {
+  font-size: 20px;
+  color: var(--text-strong);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.asset-divider {
+  width: 1px;
+  height: 32px;
+  background: rgba(148, 163, 184, 0.2);
+  margin: 0 8px;
+}
+
+.asset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+}
+
+.legacy-node {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-bottom: 8px;
+}
+
+.meter-item {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.meter-item em {
+  color: #475569;
+  font-style: normal;
+  font-size: 12px;
+}
+
+.meter-rail {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e 0%, #0ea5e9 100%);
+}
+
+.meter-fill.warning {
+  background: linear-gradient(90deg, #f59e0b 0%, #f97316 100%);
+}
+
+.meter-fill.danger {
+  background: linear-gradient(90deg, #f43f5e 0%, #ef4444 100%);
+}
+
+.meter-fill.success {
+  background: linear-gradient(90deg, #22c55e 0%, #10b981 100%);
+}
+
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rank-item {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.rank-top {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rank-index {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--primary-500);
+}
+
+.rank-name {
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.rank-value {
+  color: var(--text-strong);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.rank-rail {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.rank-fill {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--success-500) 0%, var(--info-500) 100%);
+}
+
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-list li {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.event-time {
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.event-text {
+  color: var(--text-main);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-summary {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.node-stat {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.node-stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+}
+
+.node-stat.ok::before {
+  background: linear-gradient(90deg, #22c55e, #86efac);
+}
+
+.node-stat.warn::before {
+  background: linear-gradient(90deg, #f59e0b, #fcd34d);
+}
+
+.node-stat.danger::before {
+  background: linear-gradient(90deg, #ef4444, #fca5a5);
+}
+
+.node-stat-label {
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.node-stat-value {
+  color: var(--text-strong);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.node-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(248, 250, 252, 0.6);
+  transition: all 0.2s ease;
+}
+
+.node-list li:hover {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  transform: translateY(-1px);
+}
+
+.node-id {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.node-status {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.node-status.ok {
+  color: var(--status-badge-success-fg);
+  background: var(--status-badge-success-bg);
+  border: 1px solid var(--status-badge-success-border);
+}
+
+.node-status.warn {
+  color: var(--status-badge-warning-fg);
+  background: var(--status-badge-warning-bg);
+  border: 1px solid var(--status-badge-warning-border);
+}
+
+.node-status.danger {
+  color: var(--status-badge-danger-fg);
+  background: var(--status-badge-danger-bg);
+  border: 1px solid var(--status-badge-danger-border);
+}
+
+.node-load-block {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.3);
+}
+
+.node-load-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.p-chart-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.ctrl-group {
-  display: flex;
-  align-items: center;
-  background: rgba(0,0,0,0.03);
-  border: 1px solid rgba(0,0,0,0.04);
-  border-radius: 100px;
-  padding: 3px;
-}
-
-.ctrl-group button,
-.ctrl-group .r-pill-v2 {
-  font-size: 10px;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--text-main);
+  font-size: 13px;
   font-weight: 700;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 100px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: transparent;
-  color: #94a3b8;
+}
+
+.node-load-head span:first-child {
   white-space: nowrap;
 }
 
-.ctrl-group button.active,
-.ctrl-group .r-pill-v2.active {
-  background: var(--orin-primary);
-  color: #fff;
-  box-shadow: 0 2px 6px var(--primary-glow);
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.ctrl-group button:hover:not(.active),
-.ctrl-group .r-pill-v2:hover:not(.active) {
-  color: var(--orin-primary);
+.summary-item {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(248, 250, 252, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.ctrl-group.main-tabs {
+.summary-label {
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.summary-value {
+  color: var(--text-strong);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.load-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.load-tile {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248, 250, 252, 0.6) 100%);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.load-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tile-header span {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tile-header strong {
+  color: var(--text-strong);
+  font-size: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.tile-rail {
+  width: 100%;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.tile-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease, background 0.3s ease;
+  cursor: pointer;
+}
+/* 按资源类型区分基色 */
+.tile-fill.cpu  { background: linear-gradient(90deg, var(--info-400), var(--info-500)); }
+.tile-fill.gpu  { background: linear-gradient(90deg, var(--accent-400), var(--accent-500)); }
+.tile-fill.memory { background: linear-gradient(90deg, var(--success-400), var(--success-500)); }
+.tile-fill.disk  { background: linear-gradient(90deg, var(--warning-400), var(--warning-500)); }
+/* 阈值覆盖色 */
+.tile-fill.warning  { background: linear-gradient(90deg, var(--progress-warning-start), var(--progress-warning-end)) !important; }
+.tile-fill.critical { background: linear-gradient(90deg, var(--progress-critical-start), var(--progress-critical-end)) !important; }
+
+.mini-rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-rank-list li {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.mini-rank-index {
+  color: var(--primary-500);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mini-rank-name {
+  color: var(--text-main);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-rank-value {
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.cost-trend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cost-bars {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cost-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.cost-bar-rail {
+  width: 100%;
+  height: 70px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(248, 250, 252, 0.7);
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  padding: 4px;
+}
+
+.cost-bar-fill {
+  width: 100%;
+  border-radius: 5px;
+  background: linear-gradient(180deg, var(--info-400) 0%, var(--primary-500) 100%);
+}
+
+.cost-hour {
+  color: var(--text-subtle);
+  font-size: 11px;
+}
+
+.cost-total {
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+.donut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.donut-block {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.75);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.donut-ring {
+  width: 110px;
+  height: 110px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}
+
+.donut-inner {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 2px;
 }
 
-.ctrl-group.sub-tabs,
-.ctrl-group.time-range {
-  gap: 2px;
+.donut-inner strong {
+  color: var(--text-strong);
+  font-size: 16px;
 }
 
-.theme-dark .ctrl-group {
-  background: rgba(0,0,0,0.3);
-  border-color: rgba(255,255,255,0.06);
+.donut-inner span {
+  color: var(--text-subtle);
+  font-size: 11px;
 }
 
-.p-meta { display: flex; gap: 32px; }
-.p-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px; }
-.p-val { font-size: 24px; font-weight: 900; }
-.accent-blue { color: var(--orin-primary); } .accent-green { color: #10b981; }
-
-.p-chart-wrap { 
-  flex: 1; 
-  min-height: 0; 
-  min-width: 0; 
-  width: 100%; 
-  overflow: hidden; /* 防止图表内容溢出 */
+.donut-legend {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.hub-semantic-panel { flex: 0.6; background: #f8fafc; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; }
-.theme-dark .hub-semantic-panel { background: rgba(255,255,255,0.02); }
-.sh-txt { font-size: 12px; font-weight: 800; color: var(--orin-primary); }
-.sh-code { font-size: 10px; font-weight: 900; color: #cbd5e1; opacity: 0.6; }
-
-.semantic-world { flex: 1; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; align-content: flex-start; padding: 8px; max-height: 100px; overflow: hidden; position: relative; }
-.tags-container { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-.semantic-world::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 20px; background: linear-gradient(transparent, #f8fafc); pointer-events: none; }
-.theme-dark .semantic-world::after { background: linear-gradient(transparent, rgba(19,23,31,0.85)); }
-.s-tag-v4 {
-  font-size: var(--f-size); opacity: var(--op); color: var(--c);
-  background: #fff; border: 1px solid rgba(0,0,0,0.06);
-  padding: 4px 12px; border-radius: 16px; font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-  animation: fadeInUp 0.4s ease-out forwards, sFloat 4s ease-in-out infinite;
+.donut-legend span {
+  color: var(--text-main);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: var(--op); transform: translateY(0); }
-}
-.theme-dark .s-tag-v4 { background: rgba(255,255,255,0.05); border-color: transparent; }
-
-.hub-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding: 12px 0 0 0; margin-top: auto; }
-.theme-dark .hub-footer { border-color: rgba(255,255,255,0.06); }
-.f-left { display: flex; align-items: center; gap: 8px; }
-.f-status-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
-.f-tag, .f-code-tag { font-size: 10px; font-weight: 900; color: #cbd5e1; letter-spacing: 0.5px; }
-.f-code-tag { opacity: 0.5; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 4px; }
-.theme-dark .f-code-tag { background: rgba(255,255,255,0.05); }
-
-/* BATTLE BOARD */
-.mini-kpi-grid { 
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap: 8px; /* 减小间距 */
-}
-.mk-box { display: flex; flex-direction: column; gap: 4px; }
-.mk-lbl { font-size: 10px; font-weight: 800; color: #94a3b8; }
-.mk-val { font-size: 22px; font-weight: 900; }
-.mk-val small { font-size: 11px; font-weight: 400; margin-left: 4px; }
-.mk-val.blue { color: var(--orin-primary); } .mk-val.green { color: #10b981; }
-
-.battle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.b-title { font-size: 14px; font-weight: 900; margin: 0; }
-.b-count { font-size: 10px; font-weight: 800; color: var(--orin-primary); background: var(--orin-primary-soft); padding: 4px 12px; border-radius: 6px; }
-
-.rank-list-v4 { display: flex; flex-direction: column; gap: 12px; flex: 1; }
-.rk-item { padding: 14px; background: #f8fafc; border-radius: 12px; border: 1px solid transparent; transition: 0.2s; }
-.rk-item:hover { background: #fff; border-color: var(--orin-primary-fade); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
-.theme-dark .rk-item { background: rgba(255,255,255,0.03); }
-.theme-dark .rk-item:hover { background: rgba(255,255,255,0.06); }
-.theme-dark .rk-item:hover { background: rgba(255,255,255,0.05); }
-
-.rk-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.rk-idx { font-size: 14px; font-weight: 900; color: #cbd5e1; }
-.rk-name { flex: 1; font-size: 13px; font-weight: 700; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.theme-dark .rk-name { color: #cbd5e1; }
-.rk-num { font-size: 14px; font-weight: 900; color: var(--orin-primary); }
-.rk-bar-bg { height: 4px; background: rgba(0,0,0,0.05); border-radius: 2px; }
-.theme-dark .rk-bar-bg { background: rgba(255,255,255,0.06); }
-.rk-bar-fill { height: 100%; background: var(--orin-primary); border-radius: 2px; }
-
-.recent-events-v3 { margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
-.theme-dark .recent-events-v3 { border-color: rgba(255,255,255,0.06); }
-.re-title { font-size: 11px; font-weight: 800; color: #94a3b8; margin: 0 0 16px 0; }
-.re-list { display: flex; flex-direction: column; gap: 14px; }
-.re-node { display: flex; gap: 14px; position: relative; }
-.re-line { width: 3px; height: 100%; position: absolute; left: 0; border-radius: 2px; }
-.re-line.healthy { background: var(--orin-primary); }
-.re-line.critical { background: #ef4444; }
-.re-body { padding-left: 14px; display: flex; flex-direction: column; gap: 4px; }
-.re-txt { font-size: 12px; font-weight: 700; color: #334155; line-height: 1.4; }
-.theme-dark .re-txt { color: #cbd5e1; }
-.re-tm-row { display: flex; align-items: center; gap: 8px; }
-.re-tm { font-size: 10px; font-weight: 700; color: #94a3b8; }
-.re-status-dot { width: 4px; height: 4px; border-radius: 50%; }
-.re-status-dot.healthy { background: var(--orin-primary); box-shadow: 0 0 4px var(--orin-primary); }
-.re-status-dot.critical { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
-
-@keyframes breathe { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
-@keyframes sFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-
-@media (max-width: 1440px) {
-  .h-brand { gap: 12px; }
-  .h-utility { gap: 16px; }
-  .p-meta { gap: 16px; }
+.donut-legend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
 }
 
-@media (max-width: 1280px) {
-  .logo-text { font-size: 16px; }
-  .status-indicator { padding: 4px 8px; }
-  .orb-val { font-size: 14px; }
-  .c-time { font-size: 14px; }
-  .p-val { font-size: 18px; }
+.donut-legend .dot.success { background: #10b981; }
+.donut-legend .dot.danger { background: #ef4444; }
+.donut-legend .dot.cpu { background: #0ea5e9; }
+.donut-legend .dot.gpu { background: #8b5cf6; }
+.donut-legend .dot.mem { background: #22c55e; }
+.donut-legend .dot.disk { background: #f59e0b; }
+
+.queue-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
-@media (max-width: 1680px) { 
-  .cc-layout-grid { grid-template-columns: 240px 1fr 280px; } 
-}
-@media (max-width: 1440px) { 
-  .cc-layout-grid { grid-template-columns: 200px 1fr 240px; } 
-}
-@media (max-width: 1280px) { 
-  .cc-layout-grid { grid-template-columns: 180px 1fr 220px; gap: 10px; } 
-  .p-meta { display: none; } /* 空间不足时隐藏次要元数据 */
-}
-@media (max-width: 1100px) {
-  .cc-layout-grid { grid-template-columns: 1fr; }
-  .col-battle { display: none; }
-}
-/* Unify semantic cloud colors in dark mode */
-html.dark .s-tag-v4 {
-  background: var(--neutral-gray-100);
+.queue-item {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.75);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-html.dark .rk-item {
-  background: var(--neutral-gray-50);
+.queue-item span {
+  color: var(--text-subtle);
+  font-size: 12px;
 }
 
-html.dark .rk-item:hover {
-  background: var(--neutral-gray-100);
+.queue-item strong {
+  color: var(--text-strong);
+  font-size: 20px;
 }
 
-/* 黑夜模式全局适配 - 卡片和背景颜色 */
-html.dark .premium-card {
-  background: rgba(19, 23, 31, 0.8) !important;
+.status-core {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
 }
 
-html.dark .hub-container {
-  background: rgba(19, 23, 31, 0.85) !important;
+.status-core.status-ok {
+  color: var(--status-badge-success-fg);
+  background: var(--status-badge-success-bg);
+  border-color: rgba(16, 185, 129, 0.35);
 }
 
-html.dark .hub-semantic-panel {
-  background: rgba(255, 255, 255, 0.03) !important;
+.status-core.status-warn {
+  color: var(--status-badge-warning-fg);
+  background: var(--status-badge-warning-bg);
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
-html.dark .bubble-item {
-  background: rgba(255, 255, 255, 0.05) !important;
+.status-core.status-danger {
+  color: var(--status-badge-danger-fg);
+  background: var(--status-badge-danger-bg);
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
-html.dark .l-rail {
-  background: rgba(255, 255, 255, 0.1) !important;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
 }
 
-html.dark .load-node-id {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(148, 163, 184, 0.3);
-  color: #94a3b8;
+.status-text {
+  max-width: min(46vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-html.dark .node-id-val {
-  color: #e2e8f0;
+.status-secondary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-html.dark .rk-item {
-  background: rgba(255, 255, 255, 0.05) !important;
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(241, 245, 249, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 12px;
 }
 
-html.dark .p-chart-tabs {
-  background: rgba(0, 0, 0, 0.4) !important;
+.chip-label {
+  color: var(--text-subtle);
 }
 
-/* 黑夜模式 - 文字颜色 */
-html.dark .card-head,
-html.dark .l-info,
-html.dark .b-lbl,
-html.dark .m-lbl,
-html.dark .p-lbl,
-html.dark .mk-lbl,
-html.dark .re-title,
-html.dark .re-tm,
-html.dark .orb-lbl,
-html.dark .c-date,
-html.dark .pill-group button {
-  color: #94a3b8 !important;
+.chip-val {
+  color: var(--text-main);
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-html.dark .p-title-compact,
-html.dark .rk-name,
-html.dark .re-txt,
-html.dark .l-val {
-  color: #e2e8f0 !important;
+@media (min-width: 1600px) {
+  .command-center-root {
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .content-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .kpi-card {
+    min-height: 118px;
+  }
 }
 
-html.dark .sh-code,
-html.dark .rk-idx {
-  color: #64748b !important;
+@media (min-width: 1920px) {
+  .command-center-root {
+    gap: 20px;
+    padding: 24px;
+  }
+
+  .content-grid {
+    gap: 16px;
+  }
+
+  :deep(.panel-card .el-card__header),
+  :deep(.panel-card .el-card__body) {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
 }
 
-/* 黑夜模式 - 边框颜色 */
-html.dark .hub-footer,
-html.dark .recent-events-v3 {
-  border-color: rgba(255, 255, 255, 0.1) !important;
+@media (max-width: 1200px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
-html.dark .head-line {
-  background: rgba(148, 163, 184, 0.2) !important;
+@media (max-width: 900px) {
+  .dashboard-home {
+    padding: 12px;
+  }
+
+  .page-header {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .header-actions {
+    justify-self: start;
+  }
+
+  .ops-meta {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .kpi-grid,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .load-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cost-bars {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .donut-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-axis {
+    grid-template-columns: repeat(7, minmax(42px, 1fr));
+    overflow-x: auto;
+  }
 }
 
-/* 黑夜模式 - 悬停效果 */
-html.dark .rk-item:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+html.dark .command-center-root {
+  background: #0f172a;
 }
 
-html.dark .pill-group button:hover:not(.active) {
-  color: var(--orin-primary) !important;
+html.dark .cc-header-glass {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .logo-text,
+html.dark .panel-header,
+html.dark .kpi-value,
+html.dark .asset-value,
+html.dark .node-load-head,
+html.dark .summary-value {
+  color: #f1f5f9;
+}
+
+html.dark .kpi-card,
+html.dark :deep(.panel-card.el-card) {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .kpi-card:hover {
+  background: rgba(30, 41, 59, 0.9);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
+}
+
+html.dark :deep(.panel-card .el-card__header) {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .load-tile,
+html.dark .summary-item,
+html.dark .queue-item,
+html.dark .donut-block,
+html.dark .mini-rank-list li,
+html.dark .cost-bar-rail,
+html.dark .rank-item,
+html.dark .event-list li,
+html.dark .node-list li,
+html.dark .node-stat,
+html.dark .asset-card.primary,
+html.dark .asset-card.secondary {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 </style>

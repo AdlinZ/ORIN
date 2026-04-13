@@ -15,6 +15,7 @@ public class ToolExecutionContext {
     private String sessionId;
     private String query;
     private List<String> kbIds;
+    private List<Long> mcpIds;
     private Map<String, List<String>> kbDocFilters;
     private List<ToolTrace> traces;
     private Map<String, Object> sharedState;

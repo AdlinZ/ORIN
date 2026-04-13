@@ -26,6 +26,9 @@ public class McpService {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    @Column(name = "tool_key", length = 100)
+    private String toolKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
     @Builder.Default
@@ -42,6 +45,10 @@ public class McpService {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "enabled", nullable = false)
+    @Builder.Default
+    private Boolean enabled = true;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)

@@ -2341,6 +2341,7 @@ const sendMessage = async () => {
         await sendChatMessageStream(currentSessionId.value, {
           message: outboundMessage,
           kbIds: attachedKbIds.value.map(normalizeId),
+          mcpIds: currentConfig.mcpIds || [],
           kbDocFilters: normalizeKbDocFilters(kbDocFilters)
         }, {
           start: () => {
@@ -2410,6 +2411,7 @@ const sendMessage = async () => {
         const res = await sendChatMessage(currentSessionId.value, {
           message: outboundMessage,
           kbIds: attachedKbIds.value.map(normalizeId),
+          mcpIds: currentConfig.mcpIds || [],
           kbDocFilters: normalizeKbDocFilters(kbDocFilters)
         });
         streamDonePayload = res?.data || res || {};

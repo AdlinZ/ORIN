@@ -26,11 +26,11 @@ const props = defineProps({
 const config = computed(() => {
   switch ((props.level || '').toLowerCase()) {
     case 'beta':
-      return { type: 'warning', text: '内测' }
+      return { type: 'warning', text: '试运行' }
     case 'planned':
       return { type: 'info', text: '规划中' }
     default:
-      return { type: 'success', text: '可用' }
+      return { type: 'success', text: '已上线' }
   }
 })
 

@@ -102,7 +102,7 @@
               <div class="avatar-wrapper shadow-hover">
                 <div class="user-info-text">
                   <span class="user-name">{{ userInfo.name || '用户' }}</span>
-                  <span class="user-tag">{{ userInfo.role || 'USER' }}</span>
+                  <span class="user-tag">{{ userInfo.role || '普通用户' }}</span>
                 </div>
                 <el-avatar
                   :size="36"
@@ -183,7 +183,7 @@
             </div>
             <div class="stat-divider" />
             <div class="stat-item">
-              <span class="stat-value">Unlimited</span>
+              <span class="stat-value">弹性扩展</span>
               <span class="stat-label">横向扩展能力</span>
             </div>
           </div>
@@ -359,10 +359,9 @@
           </a>
         </p>
         <div class="links">
-          <a href="https://github.com/AdlinZ/ORIN/" target="_blank">GitHub</a>
           <a href="/unified-docs" target="_blank">API 文档</a>
-          <span>Privacy Policy</span>
-          <a href="/unified-docs" target="_blank">API References</a>
+          <span>使用条款</span>
+          <a href="/unified-docs" target="_blank">接口说明</a>
         </div>
       </footer>
     </div>
@@ -501,10 +500,10 @@ const checkLoginStatus = () => {
       userInfo.avatar = userStore.userInfo.avatar || '';
 
       if (userStore.roles && userStore.roles.length > 0) {
-         const roleMap = { 'ROLE_ADMIN': 'ADMIN', 'ROLE_USER': 'USER' };
+         const roleMap = { 'ROLE_ADMIN': '管理员', 'ROLE_USER': '普通用户' };
          userInfo.role = roleMap[userStore.roles[0]] || userStore.roles[0];
       } else {
-         userInfo.role = 'USER';
+         userInfo.role = '普通用户';
       }
     } else {
        userStore.restoreFromCookies();
@@ -512,10 +511,10 @@ const checkLoginStatus = () => {
           userInfo.name = userStore.userInfo.username || userStore.userInfo.nickname || '用户';
           userInfo.avatar = userStore.userInfo.avatar || '';
           if (userStore.roles && userStore.roles.length > 0) {
-             const roleMap = { 'ROLE_ADMIN': 'ADMIN', 'ROLE_USER': 'USER' };
+             const roleMap = { 'ROLE_ADMIN': '管理员', 'ROLE_USER': '普通用户' };
              userInfo.role = roleMap[userStore.roles[0]] || userStore.roles[0];
           } else {
-             userInfo.role = 'USER';
+             userInfo.role = '普通用户';
           }
        }
     }

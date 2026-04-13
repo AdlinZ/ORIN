@@ -214,6 +214,34 @@
   --ep-border-base:    var(--neutral-gray-200); /* 替代 #DCDFE6 */
   --ep-border-light:   var(--neutral-gray-100); /* 替代 #E4E7ED */
 
+  /* ==================== Status Badge Colors (Dashboard) ==================== */
+  /* 替换 HomeDashboard.vue 中硬编码的 #166534/#dcfce7 等 */
+  --status-badge-success-bg: var(--success-100);
+  --status-badge-success-fg: var(--success-700);
+  --status-badge-success-border: var(--success-200);
+  --status-badge-warning-bg: var(--warning-100);
+  --status-badge-warning-fg: var(--warning-700);
+  --status-badge-warning-border: var(--warning-200);
+  --status-badge-danger-bg: var(--error-100);
+  --status-badge-danger-fg: var(--error-700);
+  --status-badge-danger-border: var(--error-200);
+
+  /* ==================== Resource Metric Colors (Progress Bars) ==================== */
+  /* 进度条按资源类型区分颜色 */
+  --metric-cpu-color: var(--info-500);        /* 蓝色 */
+  --metric-gpu-color: var(--accent-500);      /* 紫色 */
+  --metric-memory-color: var(--success-500);  /* 绿色 */
+  --metric-disk-color: var(--warning-500);     /* 橙色 */
+
+  /* ==================== Usage Threshold Gradients ==================== */
+  /* 阈值驱动的进度条渐变色 */
+  --progress-normal-start: var(--success-400);
+  --progress-normal-end: var(--success-500);
+  --progress-warning-start: var(--warning-400);
+  --progress-warning-end: var(--warning-500);
+  --progress-critical-start: var(--error-400);
+  --progress-critical-end: var(--error-500);
+
   /* Neutral Colors (Light Mode) */
   --neutral-bg: var(--orin-bg);
   --neutral-white: #ffffff;

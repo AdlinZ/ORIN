@@ -10,9 +10,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * MCP 服务管理控制器
@@ -25,6 +27,29 @@ import java.util.Map;
 public class McpManageController {
 
     private final McpServiceService mcpServiceService;
+    private static final List<Map<String, Object>> MARKET_TEMPLATES = List.of(
+            template("filesystem", "Filesystem", "本地文件系统读写与检索", "STDIO",
+                    "npx -y @modelcontextprotocol/server-filesystem /path/to/workspace", null),
+            template("git", "Git", "Git 仓库状态与提交查询", "STDIO",
+                    "npx -y @modelcontextprotocol/server-git /path/to/repo", null),
+            template("fetch", "Fetch", "HTTP 内容抓取和网页读取", "STDIO",
+                    "uvx mcp-server-fetch", null),
+            template("postgres", "PostgreSQL", "数据库查询与结构探索", "STDIO",
+                    "npx -y @modelcontextprotocol/server-postgres", null),
+            template("sse-proxy", "SSE Proxy", "通过 SSE 方式接入远程 MCP 服务", "SSE",
+                    null, "http://localhost:3000/sse"));
+
+    private static Map<String, Object> template(String key, String name, String description, String type,
+            String command, String url) {
+        Map<String, Object> template = new HashMap<>();
+        template.put("key", key);
+        template.put("name", name);
+        template.put("description", description);
+        template.put("type", type);
+        template.put("command", command);
+        template.put("url", url);
+        return template;
+    }
 
     @GetMapping("/services")
     @Operation(summary = "获取 MCP 服务列表")
@@ -76,21 +101,89 @@ public class McpManageController {
     @GetMapping("/tools")
     @Operation(summary = "获取 MCP 工具列表")
     public ResponseEntity<List<Map<String, Object>>> getTools() {
-        // 这里复用现有技能作为工具来源
-        // 后续可扩展为真正的 MCP 工具市场
         List<McpService> services = mcpServiceService.getAllServices();
-        List<Map<String, Object>> tools = new ArrayList<>();
-        for (McpService s : services) {
-            if (s.getStatus() == McpService.McpStatus.CONNECTED) {
-                Map<String, Object> tool = new HashMap<>();
-                tool.put("id", s.getId());
-                tool.put("name", s.getName());
-                tool.put("description", s.getDescription() != null ? s.getDescription() : "");
-                tool.put("type", s.getType().name());
-                tool.put("installed", true);
-                tools.add(tool);
+        Map<String, McpService> serviceByToolKey = new HashMap<>();
+        for (McpService service : services) {
+            if (service.getToolKey() != null && !service.getToolKey().isBlank()) {
+                serviceByToolKey.put(service.getToolKey(), service);
             }
         }
+
+        List<Map<String, Object>> tools = new ArrayList<>();
+        for (Map<String, Object> tpl : MARKET_TEMPLATES) {
+            String key = String.valueOf(tpl.get("key"));
+            McpService installed = serviceByToolKey.get(key);
+            Map<String, Object> tool = new HashMap<>(tpl);
+            tool.put("id", key);
+            tool.put("installed", installed != null);
+            tool.put("serviceId", installed != null ? installed.getId() : null);
+            tool.put("enabled", installed != null && Boolean.TRUE.equals(installed.getEnabled()));
+            tool.put("status", installed != null ? installed.getStatus() : null);
+            if (installed != null) {
+                tool.put("command", installed.getCommand());
+                tool.put("url", installed.getUrl());
+            }
+            tools.add(tool);
+        }
+
+        services.stream()
+                .filter(s -> s.getToolKey() == null || s.getToolKey().isBlank())
+                .sorted(Comparator.comparing(McpService::getId))
+                .forEach(s -> {
+                    Map<String, Object> tool = new HashMap<>();
+                    tool.put("id", "service-" + s.getId());
+                    tool.put("key", null);
+                    tool.put("name", s.getName());
+                    tool.put("description", s.getDescription() != null ? s.getDescription() : "");
+                    tool.put("type", s.getType().name());
+                    tool.put("installed", true);
+                    tool.put("serviceId", s.getId());
+                    tool.put("enabled", Boolean.TRUE.equals(s.getEnabled()));
+                    tool.put("status", s.getStatus());
+                    tool.put("command", s.getCommand());
+                    tool.put("url", s.getUrl());
+                    tools.add(tool);
+                });
+
         return ResponseEntity.ok(tools);
+    }
+
+    @PostMapping("/tools/{toolKey}/install")
+    @Operation(summary = "从市场模板安装 MCP 工具")
+    public ResponseEntity<McpService> installTool(@PathVariable String toolKey) {
+        Optional<Map<String, Object>> templateOpt = MARKET_TEMPLATES.stream()
+                .filter(t -> toolKey.equals(t.get("key")))
+                .findFirst();
+        if (templateOpt.isEmpty()) {
+            throw new IllegalArgumentException("未找到工具模板: " + toolKey);
+        }
+
+        Map<String, Object> template = templateOpt.get();
+        List<McpService> existing = mcpServiceService.getAllServices();
+        Optional<McpService> installedOpt = existing.stream()
+                .filter(s -> toolKey.equals(s.getToolKey()))
+                .findFirst();
+        if (installedOpt.isPresent()) {
+            return ResponseEntity.ok(installedOpt.get());
+        }
+
+        McpService service = McpService.builder()
+                .name(String.valueOf(template.get("name")))
+                .toolKey(toolKey)
+                .type(McpService.McpType.valueOf(String.valueOf(template.get("type"))))
+                .command((String) template.get("command"))
+                .url((String) template.get("url"))
+                .description((String) template.get("description"))
+                .enabled(true)
+                .build();
+
+        return ResponseEntity.ok(mcpServiceService.createService(service));
+    }
+
+    @PutMapping("/services/{id}/enabled")
+    @Operation(summary = "启用/禁用 MCP 服务")
+    public ResponseEntity<McpService> setServiceEnabled(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
+        return ResponseEntity.ok(mcpServiceService.setServiceEnabled(id, enabled));
     }
 }

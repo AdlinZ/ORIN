@@ -8,6 +8,8 @@ import com.adlin.orin.modules.conversation.tool.*;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.skill.entity.McpService;
+import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ public class AgentChatService {
     private final RetrievalService retrievalService;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeDocumentRepository documentRepository;
+    private final McpServiceRepository mcpServiceRepository;
     private final ObjectMapper objectMapper;
 
     private KbStructureTool kbStructureTool;
@@ -39,12 +42,14 @@ public class AgentChatService {
             RetrievalService retrievalService,
             KnowledgeBaseRepository knowledgeBaseRepository,
             KnowledgeDocumentRepository documentRepository,
+            McpServiceRepository mcpServiceRepository,
             ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
         this.agentManageService = agentManageService;
         this.retrievalService = retrievalService;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
+        this.mcpServiceRepository = mcpServiceRepository;
         this.objectMapper = objectMapper;
         // Initialize tools
         this.kbStructureTool = new KbStructureTool(knowledgeBaseRepository, documentRepository);
@@ -166,6 +171,7 @@ public class AgentChatService {
                 .sessionId(sessionId)
                 .query(request.getMessage())
                 .kbIds(request.getKbIds())
+                .mcpIds(request.getMcpIds())
                 .kbDocFilters(request.getKbDocFilters())
                 .traces(new ArrayList<>())
                 .sharedState(new HashMap<>())
@@ -231,6 +237,11 @@ public class AgentChatService {
             }
         }
 
+        // 绑定 MCP 服务到本轮对话上下文
+        if (request.getMcpIds() != null && !request.getMcpIds().isEmpty()) {
+            runMcpBinding(toolCtx, eventPublisher);
+        }
+
         // 从工具上下文构建检索结果
         List<RetrievedChunk> retrievedChunks = new ArrayList<>();
         String context = "";
@@ -279,7 +290,7 @@ public class AgentChatService {
         emitEvent(eventPublisher, "progress", Map.of(
                 "step", "MODEL_CALL",
                 "message", "正在生成回复..."));
-        Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, messages);
+        Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, toolCtx, messages);
         String aiResponse = (String) agentResult.get("content");
 
         // 添加 AI 响应
@@ -318,6 +329,77 @@ public class AgentChatService {
         return response;
     }
 
+    private void runMcpBinding(ToolExecutionContext toolCtx, BiConsumer<String, Object> eventPublisher) {
+        List<Long> mcpIds = toolCtx.getMcpIds();
+        if (mcpIds == null || mcpIds.isEmpty()) {
+            return;
+        }
+
+        emitEvent(eventPublisher, "progress", Map.of(
+                "step", "MCP_BIND",
+                "message", "正在绑定 MCP 服务..."));
+
+        StringBuilder mcpContext = new StringBuilder();
+        for (Long mcpId : mcpIds) {
+            Optional<McpService> serviceOpt = mcpServiceRepository.findById(mcpId);
+            if (serviceOpt.isEmpty()) {
+                ChatMessageResponse.ToolTrace trace = ChatMessageResponse.ToolTrace.builder()
+                        .type("MCP_BIND")
+                        .kbId(String.valueOf(mcpId))
+                        .message("MCP 服务不存在，已跳过")
+                        .status("error")
+                        .durationMs(0L)
+                        .build();
+                toolCtx.addTrace(trace);
+                emitEvent(eventPublisher, "trace", trace);
+                continue;
+            }
+
+            McpService service = serviceOpt.get();
+            if (!Boolean.TRUE.equals(service.getEnabled())) {
+                ChatMessageResponse.ToolTrace trace = ChatMessageResponse.ToolTrace.builder()
+                        .type("MCP_BIND")
+                        .kbId(String.valueOf(service.getId()))
+                        .message("MCP 服务已禁用，已跳过")
+                        .status("warning")
+                        .durationMs(0L)
+                        .detail(Map.of("name", service.getName()))
+                        .build();
+                toolCtx.addTrace(trace);
+                emitEvent(eventPublisher, "trace", trace);
+                continue;
+            }
+
+            if (mcpContext.length() > 0) {
+                mcpContext.append("\n");
+            }
+            mcpContext.append("- ")
+                    .append(service.getName())
+                    .append(" (").append(service.getType()).append(")");
+            if (service.getDescription() != null && !service.getDescription().isBlank()) {
+                mcpContext.append(": ").append(service.getDescription());
+            }
+
+            ChatMessageResponse.ToolTrace trace = ChatMessageResponse.ToolTrace.builder()
+                    .type("MCP_BIND")
+                    .kbId(String.valueOf(service.getId()))
+                    .message("MCP 服务已接入本轮对话上下文")
+                    .status("success")
+                    .durationMs(0L)
+                    .detail(Map.of(
+                            "name", service.getName(),
+                            "type", service.getType(),
+                            "toolKey", service.getToolKey() != null ? service.getToolKey() : "custom"))
+                    .build();
+            toolCtx.addTrace(trace);
+            emitEvent(eventPublisher, "trace", trace);
+        }
+
+        if (mcpContext.length() > 0) {
+            toolCtx.putSharedState("mcpContext", mcpContext.toString());
+        }
+    }
+
     private void emitEvent(BiConsumer<String, Object> eventPublisher, String eventType, Object payload) {
         if (eventPublisher != null) {
             try {
@@ -332,7 +414,7 @@ public class AgentChatService {
      * 调用智能体，返回内容和usage信息
      */
     private Map<String, Object> callAgent(String agentId, String userMessage, String context,
-                             List<Map<String, Object>> history) {
+                             ToolExecutionContext toolCtx, List<Map<String, Object>> history) {
         Map<String, Object> result = new HashMap<>();
         result.put("content", "");
         result.put("promptTokens", 0);
@@ -341,10 +423,14 @@ public class AgentChatService {
         result.put("provider", "");
 
         try {
-            // 构建完整的消息，包含知识库上下文
+            // 构建完整的消息，包含知识库和 MCP 上下文
             String fullMessage = userMessage;
             if (context != null && !context.isEmpty()) {
                 fullMessage = "参考知识库内容:\n" + context + "\n\n用户: " + userMessage;
+            }
+            String mcpContext = toolCtx != null ? (String) toolCtx.getSharedState("mcpContext") : null;
+            if (mcpContext != null && !mcpContext.isBlank()) {
+                fullMessage = fullMessage + "\n\n可用 MCP 服务:\n" + mcpContext;
             }
 
             log.info("调用智能体 {}，消息长度: {}", agentId, fullMessage.length());

@@ -62,6 +62,13 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column prop="enabled" label="启用" width="80">
+              <template #default="{ row }">
+                <el-tag :type="row.enabled ? 'success' : 'info'">
+                  {{ row.enabled ? '是' : '否' }}
+                </el-tag>
+              </template>
+            </el-table-column>
             <el-table-column prop="healthScore" label="健康分" width="80">
               <template #default="{ row }">
                 <span :class="['health-score', getHealthClass(row.healthScore)]">
@@ -156,6 +163,24 @@
                   {{ tool.description || '暂无描述' }}
                 </p>
                 <div class="tool-actions">
+                  <el-button
+                    v-if="!tool.installed && tool.key"
+                    size="small"
+                    type="primary"
+                    :loading="installingToolKey === tool.key"
+                    @click="installTool(tool)"
+                  >
+                    安装
+                  </el-button>
+                  <el-button
+                    v-else-if="tool.installed && tool.serviceId"
+                    size="small"
+                    :type="tool.enabled ? 'warning' : 'success'"
+                    :loading="toggleServiceId === tool.serviceId"
+                    @click="toggleTool(tool)"
+                  >
+                    {{ tool.enabled ? '禁用' : '启用' }}
+                  </el-button>
                   <el-button size="small" @click="viewToolDetail(tool)">
                     详情
                   </el-button>
@@ -240,7 +265,9 @@ import {
   updateMcpService,
   deleteMcpService,
   testMcpConnection,
-  getMcpTools
+  getMcpTools,
+  installMcpTool,
+  setMcpServiceEnabled
 } from '@/api/mcp'
 
 const activeTab = ref('list')
@@ -252,6 +279,8 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const saving = ref(false)
 const testingId = ref(null)
+const installingToolKey = ref('')
+const toggleServiceId = ref(null)
 const formRef = ref(null)
 
 // 分页和搜索
@@ -367,6 +396,35 @@ const refreshTools = () => {
   ElMessage.success('已刷新')
 }
 
+const installTool = async (tool) => {
+  if (!tool?.key) return
+  installingToolKey.value = tool.key
+  try {
+    await installMcpTool(tool.key)
+    ElMessage.success(`已安装: ${tool.name}`)
+    await Promise.all([loadAvailableTools(), loadMcpServices()])
+  } catch (e) {
+    ElMessage.error('安装失败: ' + (e.message || e))
+  } finally {
+    installingToolKey.value = ''
+  }
+}
+
+const toggleTool = async (tool) => {
+  if (!tool?.serviceId) return
+  toggleServiceId.value = tool.serviceId
+  try {
+    const enabled = !tool.enabled
+    await setMcpServiceEnabled(tool.serviceId, enabled)
+    ElMessage.success(enabled ? '服务已启用' : '服务已禁用')
+    await Promise.all([loadAvailableTools(), loadMcpServices()])
+  } catch (e) {
+    ElMessage.error('更新状态失败: ' + (e.message || e))
+  } finally {
+    toggleServiceId.value = null
+  }
+}
+
 // 打开添加对话框
 const openAddDialog = async () => {
   isEdit.value = false
@@ -474,7 +532,8 @@ const testConnection = async (row) => {
 
 // 查看工具详情
 const viewToolDetail = (tool) => {
-  ElMessage.info(`工具详情: ${tool.name}`)
+  const endpoint = tool.type === 'STDIO' ? (tool.command || '未配置命令') : (tool.url || '未配置 URL')
+  ElMessage.info(`工具详情: ${tool.name} (${tool.type}) - ${endpoint}`)
 }
 
 const getTypeText = (type) => {

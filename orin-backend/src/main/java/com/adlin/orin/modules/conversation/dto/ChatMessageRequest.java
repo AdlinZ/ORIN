@@ -9,6 +9,7 @@ import java.util.Map;
 public class ChatMessageRequest {
     private String message;
     private List<String> kbIds;
+    private List<Long> mcpIds;
 
     /** kbId -> documentIds mapping for filtering retrieval scope */
     private Map<String, List<String>> kbDocFilters;

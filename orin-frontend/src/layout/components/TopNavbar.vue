@@ -272,7 +272,7 @@
     </div>
   </el-drawer>
 
-  <!-- System AI Assistant Dialog (ORIN CORE) -->
+  <!-- 系统智能助手对话框 -->
   <el-dialog
     v-model="showSystemEval"
     :show-close="false"
@@ -303,7 +303,7 @@
         <div class="header-right">
           <div class="sys-status">
             <div class="status-dot" />
-            <span>SYSTEM_OK</span>
+            <span>系统正常</span>
           </div>
           <el-icon class="close-icon" @click="showSystemEval = false">
             <Close />
@@ -327,7 +327,7 @@
             </div>
             <div class="t-content-group">
               <div v-if="msg.role === 'ai'" class="t-sender-name">
-                ORIN AI ASSISTANT
+                ORIN 系统助手
               </div>
               <div class="t-msg-card">
                 <div v-if="msg.role === 'ai' && index === 0" class="marketing-text">
@@ -356,10 +356,10 @@
             </div>
             <div class="t-content-group">
               <div class="t-sender-name">
-                ORIN AI ASSISTANT
+                ORIN 系统助手
               </div>
               <div class="t-msg-card typing">
-                _COMPUTING...
+                正在计算...
               </div>
             </div>
           </div>
@@ -379,14 +379,14 @@
             <div class="cmd-actions">
               <span class="cmd-hint">ENTER</span>
               <button class="run-btn" :disabled="systemLoading" @click="sendSystemMessage">
-                RUN
+                执行
               </button>
             </div>
           </div>
           <div class="cmd-statusbar">
-            <span>READY_FOR_COMMAND</span>
-            <span class="secure"><el-icon><Lock /></el-icon> ENCRYPTED</span>
-            <span>ROOT_ACCESS</span>
+            <span>等待指令</span>
+            <span class="secure"><el-icon><Lock /></el-icon> 安全通道</span>
+            <span>系统管理权限</span>
           </div>
         </div>
       </template>

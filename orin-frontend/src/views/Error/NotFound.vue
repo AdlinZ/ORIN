@@ -9,7 +9,7 @@
           您的页面遇到问题，需要重新寻找。
         </h2>
         <p class="secondary-msg">
-          我们只收集一些错误信息，然后您可以尝试返回首页。 (已经完成 404%)
+          我们已记录异常信息，请尝试返回首页或上一页继续操作。
         </p>
       </div>
 
@@ -82,8 +82,8 @@
           </svg>
         </div>
         <div class="info-details">
-          <p>有关此问题的详细信息和可能的解决方法，请访问：</p>
-          <p><a href="https://github.com/AdlinZ/ORIN" target="_blank" class="link">https://github.com/AdlinZ/ORIN</a></p>
+          <p>有关此问题的详细说明和处理建议，请访问：</p>
+          <p><a href="/unified-docs" target="_blank" class="link">统一文档中心</a></p>
           <div class="stop-code">
             <span>终止代码: </span>
             <span class="bold">PAGE_NOT_FOUND_404</span>
@@ -96,7 +96,7 @@
           返回上一页
         </el-button>
         <el-button size="large" class="bsod-btn" @click="$router.push('/')">
-          回到现实首页
+          返回首页
         </el-button>
       </div>
     </div>

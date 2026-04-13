@@ -36,4 +36,9 @@ public interface McpServiceRepository extends JpaRepository<McpService, Long> {
      * 检查服务名称是否存在（排除指定 ID）
      */
     boolean existsByNameAndIdNot(String name, Long id);
-}
+
+    /**
+     * 根据工具键查询
+     */
+    java.util.Optional<McpService> findByToolKey(String toolKey);
+} 

@@ -5,7 +5,7 @@
       <div class="logo-box">
         <BrandingLogo :height="appStore.isCollapse ? 28 : 32" class="logo" />
       </div>
-      <span v-if="!appStore.isCollapse" class="title"><span class="highlight">Monitor</span></span>
+      <span v-if="!appStore.isCollapse" class="title"><span class="highlight">管理平台</span></span>
     </div>
 
     <!-- Menu Section (scrollable) -->
@@ -17,13 +17,7 @@
         unique-opened
         class="el-menu-vertical"
       >
-        <!-- 首页 -->
-        <el-menu-item index="/dashboard/home" class="home-menu-item">
-          <el-icon><House /></el-icon>
-          <span>首页</span>
-        </el-menu-item>
-
-        <!-- 动态渲染四大模块 -->
+        <!-- 动态渲染一级模块 -->
         <template v-for="menu in visibleMenus" :key="menu.id">
           <el-sub-menu :index="getSubMenuIndex('menu', menu)" :class="`menu-${menu.id}`">
             <template #title>

@@ -49,4 +49,9 @@ public interface McpServiceService {
      * 根据服务类型获取服务列表
      */
     List<McpService> getServicesByType(McpService.McpType type);
+
+    /**
+     * 启用/禁用服务
+     */
+    McpService setServiceEnabled(Long id, boolean enabled);
 }

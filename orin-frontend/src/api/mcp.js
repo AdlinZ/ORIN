@@ -34,3 +34,13 @@ export const testMcpConnection = (id) => {
 export const getMcpTools = () => {
     return request.get('/api/system/mcp/tools', { baseURL: '' });
 };
+
+// 从市场安装工具
+export const installMcpTool = (toolKey) => {
+    return request.post(`/api/system/mcp/tools/${toolKey}/install`, null, { baseURL: '' });
+};
+
+// 启用/禁用服务
+export const setMcpServiceEnabled = (id, enabled) => {
+    return request.put(`/api/system/mcp/services/${id}/enabled`, { enabled }, { baseURL: '' });
+};
