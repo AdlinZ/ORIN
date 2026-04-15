@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LEGACY_ROUTE_REDIRECTS, ROUTES } from '@/router/routes'
 
-describe('legacy redirects normalization', () => {
+describe('route cleanup contracts', () => {
   it('contains no self redirect entries', () => {
     const entries = Object.entries(LEGACY_ROUTE_REDIRECTS)
     const hasSelfRedirect = entries.some(([from, to]) => from === to)
@@ -13,7 +13,23 @@ describe('legacy redirects normalization', () => {
     expect(LEGACY_ROUTE_REDIRECTS['/system/api-keys']).toBe('/dashboard/control/api-keys')
   })
 
-  it('exports system revamp rollout route constant', () => {
-    expect(ROUTES.SYSTEM.REVAMP_ROLLOUT).toBe('/dashboard/control/revamp-rollout')
+  it('redirects collapsed duplicate paths to canonical routes', () => {
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/tasks']).toBe(
+      ROUTES.AGENTS.COLLABORATION
+    )
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/config']).toBe(
+      ROUTES.AGENTS.COLLABORATION
+    )
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/tools']).toBe(
+      '/dashboard/applications/mcp'
+    )
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/runtime/alert-rules']).toBe(
+      ROUTES.MONITOR.ALERTS
+    )
+  })
+
+  it('removes rollout constants and keeps alert alias compatible', () => {
+    expect(ROUTES.SYSTEM.REVAMP_ROLLOUT).toBeUndefined()
+    expect(ROUTES.MONITOR.ALERT_RULES).toBe(ROUTES.MONITOR.ALERTS)
   })
 })

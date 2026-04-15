@@ -1,35 +1,22 @@
-# ORIN Revamp Rollback Drill
+# ORIN Frontend Route Rollback Drill
 
-Generated at: 2026-04-08T17:44:51.277Z
+Generated at: 2026-04-15T09:20:04.348Z
 
 ## 1. Preconditions
-- [ ] `npm run smoke:revamp` currently passes
-- [ ] Operator has admin access to `/dashboard/control/revamp-rollout`
+- [ ] `npm test` and `npm run smoke:revamp` pass on current branch
+- [ ] Confirm target rollback scope (single module vs full router map)
 
-## 2. Full Rollback Steps
-- [ ] In rollout console, click `全部关闭`
-- [ ] Run `npm run smoke:revamp` and verify all routes still resolve
-- [ ] Verify core pages fallback to legacy views
+## 2. Single-Module Rollback
+- [ ] Revert only the target route/component mapping in `src/router/index.js`
+- [ ] Keep legacy redirects intact in `src/router/routes.js`
+- [ ] Run `npm test` and verify no new dead-route/duplicate-route failures
 
-## 3. Browser Console Fallback Script
-```js
-(() => {
-  localStorage.setItem('orin_ff_revampAgentsHub', 'false')
-  localStorage.setItem('orin_ff_revampKnowledgeHub', 'false')
-  localStorage.setItem('orin_ff_revampWorkflowHub', 'false')
-  localStorage.setItem('orin_ff_revampCollaboration', 'false')
-  localStorage.setItem('orin_ff_revampRuntimeOverview', 'false')
-  localStorage.setItem('orin_ff_revampSystemGateway', 'false')
-  localStorage.setItem('orin_ff_revampAuditCenter', 'false')
-  localStorage.setItem('orin_ff_revampSystemConfigHub', 'false')
-  console.log('revamp flags disabled')
-})()
-```
+## 3. Full Rollback
+- [ ] Restore previous router and route constants commit
+- [ ] Re-run `npm run smoke:revamp` and confirm redirected legacy URLs still resolve
+- [ ] Re-run `npm run build` before merge
 
-## 4. Recovery Steps
-- [ ] Re-enable by stage order in rollout console
-- [ ] Re-run `npm run smoke:revamp && npm run test:revamp`
-- [ ] Confirm audit logs include rollback operator and timestamp
-
-## 5. Consistency Check
-- Rollout flags and feature flag registry are consistent
+## 4. Post-Rollback Validation
+- [ ] `/dashboard/control/gateway` and `/dashboard/runtime/overview` functional smoke
+- [ ] `/dashboard/applications/workflows` imports/exports and diagnostics smoke
+- [ ] `/dashboard/resources/knowledge` list actions smoke

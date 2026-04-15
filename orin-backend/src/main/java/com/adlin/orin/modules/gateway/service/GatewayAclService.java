@@ -94,12 +94,14 @@ public class GatewayAclService {
                 result.put("ruleName", rule.getName());
                 result.put("ruleType", rule.getType());
                 result.put("action", "WHITELIST".equals(rule.getType()) ? "ALLOW" : "DENY");
+                result.put("apiKeyRequired", Boolean.TRUE.equals(rule.getApiKeyRequired()));
                 return result;
             }
         }
 
         result.put("matched", false);
         result.put("action", "ALLOW");
+        result.put("apiKeyRequired", false);
         return result;
     }
 

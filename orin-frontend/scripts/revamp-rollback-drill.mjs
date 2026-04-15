@@ -1,9 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { FEATURE_FLAG_KEYS } from '../src/config/featureFlags.js'
-import { REVAMP_ROLLOUT_ITEMS } from '../src/config/revampRollout.js'
-
-const REVAMP_FLAGS = FEATURE_FLAG_KEYS.filter((key) => key.startsWith('revamp'))
 
 function getArgValue(name) {
   const idx = process.argv.indexOf(name)
@@ -24,45 +20,28 @@ function writeIfNeeded(target, content) {
   console.log(`Rollback drill guide written to ${resolved}`)
 }
 
-const rolloutFlags = REVAMP_ROLLOUT_ITEMS.map((item) => item.key)
-const missingFlags = rolloutFlags.filter((flag) => !REVAMP_FLAGS.includes(flag))
-
-const localStorageSnippet = [
-  "(() => {",
-  ...REVAMP_FLAGS.map((flag) => `  localStorage.setItem('orin_ff_${flag}', 'false')`),
-  "  console.log('revamp flags disabled')",
-  "})()"
-].join('\n')
-
 const lines = []
-lines.push('# ORIN Revamp Rollback Drill')
+lines.push('# ORIN Frontend Route Rollback Drill')
 lines.push('')
 lines.push(`Generated at: ${new Date().toISOString()}`)
 lines.push('')
 lines.push('## 1. Preconditions')
-lines.push('- [ ] `npm run smoke:revamp` currently passes')
-lines.push('- [ ] Operator has admin access to `/dashboard/control/revamp-rollout`')
+lines.push('- [ ] `npm test` and `npm run smoke:revamp` pass on current branch')
+lines.push('- [ ] Confirm target rollback scope (single module vs full router map)')
 lines.push('')
-lines.push('## 2. Full Rollback Steps')
-lines.push('- [ ] In rollout console, click `全部关闭`')
-lines.push('- [ ] Run `npm run smoke:revamp` and verify all routes still resolve')
-lines.push('- [ ] Verify core pages fallback to legacy views')
+lines.push('## 2. Single-Module Rollback')
+lines.push('- [ ] Revert only the target route/component mapping in `src/router/index.js`')
+lines.push('- [ ] Keep legacy redirects intact in `src/router/routes.js`')
+lines.push('- [ ] Run `npm test` and verify no new dead-route/duplicate-route failures')
 lines.push('')
-lines.push('## 3. Browser Console Fallback Script')
-lines.push('```js')
-lines.push(localStorageSnippet)
-lines.push('```')
+lines.push('## 3. Full Rollback')
+lines.push('- [ ] Restore previous router and route constants commit')
+lines.push('- [ ] Re-run `npm run smoke:revamp` and confirm redirected legacy URLs still resolve')
+lines.push('- [ ] Re-run `npm run build` before merge')
 lines.push('')
-lines.push('## 4. Recovery Steps')
-lines.push('- [ ] Re-enable by stage order in rollout console')
-lines.push('- [ ] Re-run `npm run smoke:revamp && npm run test:revamp`')
-lines.push('- [ ] Confirm audit logs include rollback operator and timestamp')
-lines.push('')
-lines.push('## 5. Consistency Check')
-if (missingFlags.length === 0) {
-  lines.push('- Rollout flags and feature flag registry are consistent')
-} else {
-  lines.push(`- Missing flags in registry: ${missingFlags.join(', ')}`)
-}
+lines.push('## 4. Post-Rollback Validation')
+lines.push('- [ ] `/dashboard/control/gateway` and `/dashboard/runtime/overview` functional smoke')
+lines.push('- [ ] `/dashboard/applications/workflows` imports/exports and diagnostics smoke')
+lines.push('- [ ] `/dashboard/resources/knowledge` list actions smoke')
 
 writeIfNeeded(getArgValue('--out'), lines.join('\n'))

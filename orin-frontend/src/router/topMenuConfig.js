@@ -113,15 +113,9 @@ export const TOP_MENU_CONFIG = [
             status: 'available',
           },
           {
-            title: '服务接入',
+            title: 'MCP 服务',
             path: ROUTES.AGENTS.MCP,
             icon: 'Connection',
-            status: 'available',
-          },
-          {
-            title: '工具配置',
-            path: ROUTES.AGENTS.TOOLS,
-            icon: 'Tool',
             status: 'available',
           },
           {
@@ -286,20 +280,7 @@ export const TOP_MENU_CONFIG = [
         title: '告警中心',
         path: ROUTES.MONITOR.ALERTS,
         icon: 'Bell',
-        children: [
-          {
-            title: '告警管理',
-            path: ROUTES.MONITOR.ALERTS,
-            icon: 'Bell',
-            status: 'available',
-          },
-          {
-            title: '规则配置',
-            path: ROUTES.MONITOR.ALERT_RULES,
-            icon: 'Setting',
-            status: 'beta',
-          },
-        ],
+        status: 'available',
       },
       { divider: true },
       {
@@ -378,12 +359,6 @@ export const TOP_MENU_CONFIG = [
             title: '同步配置',
             path: ROUTES.SYSTEM.SETTINGS_SYNC,
             icon: 'Clock',
-            status: 'beta',
-          },
-          {
-            title: '灰度配置',
-            path: ROUTES.SYSTEM.REVAMP_ROLLOUT,
-            icon: 'Operation',
             status: 'beta',
           },
         ],

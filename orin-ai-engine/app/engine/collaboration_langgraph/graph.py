@@ -244,16 +244,48 @@ async def publish_collaboration_task(
 ):
     """
     发布协作任务到 MQ
-    TODO: 集成现有 mq_worker
     """
-    logger.info(f"[MQ] 发布任务: {package_id} (TODO)")
-    pass
+    import json
+    import time
+    from aio_pika import Message, DeliveryMode
+    from app.core.config import settings
+    from app.engine.mq_worker import get_rabbitmq_channel
+
+    channel = await get_rabbitmq_channel()
+    queue_name = getattr(settings, "COLLAB_QUEUE_NAME", "collaboration-task-queue")
+    await channel.declare_queue(queue_name, durable=True)
+
+    payload = {
+        "packageId": package_id,
+        "subTaskId": kwargs.get("sub_task_id", f"{package_id}:root"),
+        "traceId": kwargs.get("trace_id"),
+        "attempt": kwargs.get("attempt", 0),
+        "collaborationMode": collaboration_mode,
+        "expectedRole": kwargs.get("expected_role", "SPECIALIST"),
+        "description": intent,
+        "inputData": json.dumps(kwargs.get("input_data", {}), ensure_ascii=False),
+        "dependsOn": kwargs.get("depends_on", []),
+        "contextSnapshot": kwargs.get("context_snapshot", {}),
+        "maxRetries": kwargs.get("max_retries", 3),
+        "timeoutMillis": kwargs.get("timeout_millis", 300000),
+        "executionStrategy": kwargs.get("execution_strategy", "AGENT"),
+        "enqueuedAt": int(time.time() * 1000),
+    }
+
+    await channel.default_exchange.publish(
+        Message(
+            body=json.dumps(payload, ensure_ascii=False).encode(),
+            delivery_mode=DeliveryMode.PERSISTENT,
+        ),
+        routing_key=queue_name,
+    )
+    logger.info("[MQ] 已发布协作任务: package=%s queue=%s", package_id, queue_name)
 
 
 async def subscribe_collaboration_tasks():
     """
     订阅协作任务
-    TODO: 集成现有 mq_worker
     """
-    logger.info("[MQ] 订阅任务 (TODO)")
-    pass
+    from app.engine.mq_worker import start_worker
+    logger.info("[MQ] 使用统一 mq_worker 订阅协作任务")
+    await start_worker()

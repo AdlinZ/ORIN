@@ -60,8 +60,9 @@
     </section>
 
     <section class="content-grid">
-      <div class="content-col">
-        <el-card class="panel-card premium-card" shadow="never">
+      <div class="content-col col-analytics">
+        <div class="col-head">趋势与成本</div>
+        <el-card class="panel-card premium-card panel-trend" shadow="never">
         <template #header>
           <div class="panel-header">
             <span>近 7 天调用趋势</span>
@@ -103,7 +104,7 @@
         <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card premium-card panel-trend" shadow="never">
         <template #header>
           <div class="panel-header">
             <span>平均时延趋势</span>
@@ -145,7 +146,7 @@
         <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card premium-card panel-medium" shadow="never">
         <template #header>
           <div class="panel-header">
             <span>今日成本趋势</span>
@@ -166,7 +167,7 @@
         <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card premium-card panel-medium" shadow="never">
         <template #header>
           <div class="panel-header">
             <span>请求结构与负载占比</span>
@@ -205,8 +206,9 @@
 
       </div>
 
-      <div class="content-col">
-        <el-card class="panel-card premium-card" shadow="never">
+      <div class="content-col col-operations">
+        <div class="col-head">节点与资产</div>
+        <el-card class="panel-card premium-card panel-main" shadow="never">
         <template #header>
           <div class="panel-header">
             <span>节点健康概览</span>
@@ -401,8 +403,9 @@
         </el-card>
       </div>
 
-      <div class="content-col">
-        <el-card class="panel-card premium-card" shadow="never">
+      <div class="content-col col-risk">
+        <div class="col-head">风险与审计</div>
+        <el-card class="panel-card premium-card panel-main" shadow="never">
         <template #header>
           <div class="panel-header">
             <span>实时审计日志</span>
@@ -1186,7 +1189,7 @@ onBeforeUnmount(() => {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.2fr) minmax(320px, 1fr);
   gap: 12px;
   align-items: start;
 }
@@ -1196,6 +1199,24 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+.col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.col-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  margin-left: 8px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.55), transparent);
 }
 
 :deep(.panel-card.el-card) {
@@ -1214,6 +1235,14 @@ onBeforeUnmount(() => {
 
 :deep(.panel-card .el-card__body) {
   padding: 12px 16px;
+}
+
+.panel-main :deep(.el-card__body) {
+  min-height: 320px;
+}
+
+.panel-trend :deep(.el-card__body) {
+  min-height: 250px;
 }
 
 .panel-header {
@@ -2084,6 +2113,11 @@ onBeforeUnmount(() => {
   .kpi-grid,
   .content-grid {
     grid-template-columns: 1fr;
+  }
+
+  .panel-main :deep(.el-card__body),
+  .panel-trend :deep(.el-card__body) {
+    min-height: 0;
   }
 
   .load-grid {

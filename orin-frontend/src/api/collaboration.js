@@ -323,8 +323,10 @@ export async function openCollabSessionStream(sessionId, turnId, token, onEvent)
     dataLines = []
   }
 
-  while (true) {
+  let streamDone = false
+  while (!streamDone) {
     const { value, done } = await reader.read()
+    streamDone = done
     if (done) {
       flushEvent()
       break

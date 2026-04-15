@@ -11,7 +11,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +27,7 @@ public class GatewayController {
     private final GatewayAclService aclService;
     private final GatewayPolicyService policyService;
     private final GatewayStatsService statsService;
+    private final GatewayRuntimeRoutingService runtimeRoutingService;
 
     // ==================== Overview ====================
 
@@ -90,12 +90,26 @@ public class GatewayController {
     @PostMapping("/routes/test")
     @Operation(summary = "测试路由配置")
     public GatewayTestRouteResponse testRoute(@RequestBody GatewayTestRouteRequest request) {
-        return GatewayTestRouteResponse.builder()
-                .success(true)
-                .matchedRoute(null)
-                .targetUrl(request.getTargetUrl())
-                .message("Route test not yet implemented - requires runtime proxy")
-                .build();
+        long start = System.currentTimeMillis();
+        String method = request.getMethod() != null ? request.getMethod() : "GET";
+
+        return runtimeRoutingService.resolveRoute(request.getPath(), method, null)
+                .map(resolved -> GatewayTestRouteResponse.builder()
+                        .success(true)
+                        .statusCode(200)
+                        .latencyMs(System.currentTimeMillis() - start)
+                        .matchedRoute(resolved.getRoute().getName())
+                        .targetUrl(resolved.getTargetUrl())
+                        .message("Route matched successfully")
+                        .build())
+                .orElseGet(() -> GatewayTestRouteResponse.builder()
+                        .success(false)
+                        .statusCode(404)
+                        .latencyMs(System.currentTimeMillis() - start)
+                        .matchedRoute(null)
+                        .targetUrl(null)
+                        .message("No matching route found")
+                        .build());
     }
 
     // ==================== Services ====================

@@ -125,17 +125,23 @@ export async function sendChatMessageStream(sessionId, data, handlers = {}) {
     dispatch(eventName, payload);
   };
 
-  while (true) {
+  let streamDone = false;
+  while (!streamDone) {
     const { value, done } = await reader.read();
+    streamDone = done;
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
     let separatorIndex = -1;
     let separatorLength = 0;
-    while (true) {
+    let hasSeparator = true;
+    while (hasSeparator) {
       const idxN = buffer.indexOf('\n\n');
       const idxRN = buffer.indexOf('\r\n\r\n');
-      if (idxN === -1 && idxRN === -1) break;
+      if (idxN === -1 && idxRN === -1) {
+        hasSeparator = false;
+        continue;
+      }
       if (idxRN !== -1 && (idxN === -1 || idxRN < idxN)) {
         separatorIndex = idxRN;
         separatorLength = 4;

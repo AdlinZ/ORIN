@@ -1,22 +1,35 @@
 package com.adlin.orin.modules.gateway.filter;
 
+import com.adlin.orin.modules.apikey.entity.ApiKey;
+import com.adlin.orin.modules.apikey.service.ApiKeyService;
+import com.adlin.orin.modules.gateway.config.GatewayStatsService;
+import com.adlin.orin.modules.gateway.entity.GatewayAuditLog;
 import com.adlin.orin.modules.gateway.entity.GatewayRoute;
-import com.adlin.orin.modules.gateway.repository.GatewayRouteRepository;
+import com.adlin.orin.modules.gateway.repository.GatewayAuditLogRepository;
 import com.adlin.orin.modules.gateway.service.GatewayAclService;
+import com.adlin.orin.modules.gateway.service.GatewayRuntimeRoutingService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClientException;
 
 import java.io.IOException;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.*;
 
 /**
  * 网关请求转发过滤器
@@ -28,12 +41,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GatewayProxyFilter implements Filter {
 
-    private final GatewayRouteRepository routeRepository;
     private final GatewayAclService aclService;
-    private final RestTemplate restTemplate;
+    private final GatewayRuntimeRoutingService routingService;
+    private final GatewayStatsService statsService;
+    private final GatewayAuditLogRepository auditLogRepository;
+    private final ApiKeyService apiKeyService;
+    private final ObjectMapper objectMapper;
 
     private static final String ATTR_ROUTE = "gateway.route";
     private static final String ATTR_TARGET_URL = "gateway.targetUrl";
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
+    private static final String TRACE_ID_MDC_KEY = "traceId";
+    private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
+            "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+            "te", "trailers", "transfer-encoding", "upgrade");
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -47,37 +68,55 @@ public class GatewayProxyFilter implements Filter {
 
         log.debug("Gateway processing: {} {}", method, path);
 
-        // 查找匹配的路由
-        List<GatewayRoute> routes = routeRepository.findActiveRoutesOrderByPriority();
-        log.debug("Found {} active routes", routes.size());
-        for (GatewayRoute r : routes) {
-            log.debug("Route: {} pattern={} enabled={}", r.getName(), r.getPathPattern(), r.getEnabled());
-        }
-        GatewayRoute matchedRoute = routes.stream()
-                .filter(r -> matchesPath(r.getPathPattern(), path))
-                .filter(r -> matchesMethod(r.getMethod(), method))
-                .findFirst()
-                .orElse(null);
-
-        if (matchedRoute == null) {
+        Optional<GatewayRuntimeRoutingService.ResolvedRoute> resolvedRouteOpt =
+                routingService.resolveRoute(path, method, httpRequest.getQueryString());
+        if (resolvedRouteOpt.isEmpty()) {
             // 没有匹配的路由，继续下游
             log.debug("No route matched for: {} {}", method, path);
             chain.doFilter(request, response);
             return;
         }
 
+        GatewayRuntimeRoutingService.ResolvedRoute resolvedRoute = resolvedRouteOpt.get();
+        GatewayRoute matchedRoute = resolvedRoute.getRoute();
+        statsService.incrementRequestCount();
+
         log.info("Route matched: {} -> {}", matchedRoute.getName(), matchedRoute.getTargetUrl());
 
         // ACL 检查
-        String clientIp = httpRequest.getRemoteAddr();
-        if (!aclService.isAllowed(clientIp, path)) {
+        String clientIp = extractClientIp(httpRequest);
+        Map<String, Object> aclDecision = aclService.testIp(clientIp, path);
+        if (!"ALLOW".equals(aclDecision.get("action"))) {
             log.warn("ACL denied: {} {}", method, path);
-            httpResponse.setStatus(HttpStatus.FORBIDDEN.value());
+            statsService.incrementErrorCount();
+            writeError(httpRequest, httpResponse, HttpStatus.FORBIDDEN, "ACL denied", resolveTraceId(httpRequest));
+            saveAuditLog(httpRequest, matchedRoute, resolvedRoute.getTargetUrl(), resolvedRoute.getTargetService(),
+                    HttpStatus.FORBIDDEN.value(), "DENY", "ACL denied", 0L);
             return;
         }
 
-        // 构建目标URL
-        String targetUrl = buildTargetUrl(matchedRoute, path);
+        Optional<ApiKey> apiKeyOpt = resolveApiKey(httpRequest);
+        boolean hasJwt = hasJwtAuthentication(httpRequest);
+
+        if (Boolean.TRUE.equals(matchedRoute.getAuthRequired()) && apiKeyOpt.isEmpty() && !hasJwt) {
+            statsService.incrementErrorCount();
+            writeError(httpRequest, httpResponse, HttpStatus.UNAUTHORIZED,
+                    "Authentication required for this route", resolveTraceId(httpRequest));
+            saveAuditLog(httpRequest, matchedRoute, resolvedRoute.getTargetUrl(), resolvedRoute.getTargetService(),
+                    HttpStatus.UNAUTHORIZED.value(), "DENY", "Missing authentication", 0L);
+            return;
+        }
+
+        if (Boolean.TRUE.equals(aclDecision.get("apiKeyRequired")) && apiKeyOpt.isEmpty()) {
+            statsService.incrementErrorCount();
+            writeError(httpRequest, httpResponse, HttpStatus.UNAUTHORIZED,
+                    "API key required by ACL rule", resolveTraceId(httpRequest));
+            saveAuditLog(httpRequest, matchedRoute, resolvedRoute.getTargetUrl(), resolvedRoute.getTargetService(),
+                    HttpStatus.UNAUTHORIZED.value(), "DENY", "ACL requires API key", 0L);
+            return;
+        }
+
+        String targetUrl = resolvedRoute.getTargetUrl();
         log.info("Proxy to: {} {}", method, targetUrl);
 
         // 存储到request属性
@@ -85,17 +124,26 @@ public class GatewayProxyFilter implements Filter {
         httpRequest.setAttribute(ATTR_TARGET_URL, targetUrl);
 
         // 调用目标服务
+        long start = System.currentTimeMillis();
+        String traceId = resolveTraceId(httpRequest);
         try {
             int timeout = matchedRoute.getTimeoutMs() != null ? matchedRoute.getTimeoutMs() : 30000;
-            
-            org.springframework.http.HttpMethod httpMethod = HttpMethod.valueOf(method);
-            
-            org.springframework.http.HttpEntity<?> entity = new org.springframework.http.HttpEntity<>(
-                    httpRequest.getInputStream() != null ? httpRequest.getInputStream() : new byte[0],
-                    getHeaders(httpRequest)
-            );
+            org.springframework.http.HttpMethod httpMethod;
+            try {
+                httpMethod = org.springframework.http.HttpMethod.valueOf(method.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                writeError(httpRequest, httpResponse, HttpStatus.METHOD_NOT_ALLOWED,
+                        "Unsupported method: " + method, traceId);
+                saveAuditLog(httpRequest, matchedRoute, targetUrl, resolvedRoute.getTargetService(),
+                        HttpStatus.METHOD_NOT_ALLOWED.value(), "ERROR", "Unsupported method", 0L);
+                return;
+            }
 
-            org.springframework.http.ResponseEntity<byte[]> result = restTemplate.exchange(
+            byte[] requestBody = StreamUtils.copyToByteArray(httpRequest.getInputStream());
+            HttpEntity<byte[]> entity = new HttpEntity<>(requestBody, buildRequestHeaders(httpRequest, matchedRoute, traceId));
+
+            RestTemplate restTemplate = createRestTemplate(timeout);
+            ResponseEntity<byte[]> result = restTemplate.exchange(
                     targetUrl,
                     httpMethod,
                     entity,
@@ -109,117 +157,181 @@ public class GatewayProxyFilter implements Filter {
                     values.forEach(v -> httpResponse.addHeader(name, v));
                 }
             });
+            httpResponse.setHeader(TRACE_ID_HEADER, traceId);
 
             if (result.getBody() != null) {
                 httpResponse.getOutputStream().write(result.getBody());
             }
+            long latency = System.currentTimeMillis() - start;
+            saveAuditLog(httpRequest, matchedRoute, targetUrl, resolvedRoute.getTargetService(),
+                    result.getStatusCode().value(),
+                    result.getStatusCode().is2xxSuccessful() ? "SUCCESS" : "ERROR",
+                    null, latency);
+            if (!result.getStatusCode().is2xxSuccessful()) {
+                statsService.incrementErrorCount();
+            }
 
-        } catch (Exception e) {
+        } catch (RestClientException e) {
             log.error("Proxy failed: {} - {}", targetUrl, e.getMessage());
-            httpResponse.setStatus(HttpStatus.BAD_GATEWAY.value());
+            statsService.incrementErrorCount();
+            writeError(httpRequest, httpResponse, HttpStatus.BAD_GATEWAY,
+                    "Gateway upstream request failed", traceId);
+            long latency = System.currentTimeMillis() - start;
+            saveAuditLog(httpRequest, matchedRoute, targetUrl, resolvedRoute.getTargetService(),
+                    HttpStatus.BAD_GATEWAY.value(), "ERROR", e.getMessage(), latency);
         }
     }
 
-    /**
-     * 检查路径是否匹配
-     */
-    private boolean matchesPath(String pattern, String path) {
-        if (pattern == null || path == null) return false;
-        
-        boolean matched = false;
-        if (pattern.contains("*")) {
-            // 先替换 ** 为临时占位符，避免被 * 替换覆盖
-            String tempPattern = pattern.replace("**", "__DOUBLE_STAR__");
-            String regex = tempPattern.replace("*", "[^/]*").replace("__DOUBLE_STAR__", ".*");
-            matched = path.matches(regex);
-            log.debug("Pattern {} regex {} match {} for path {}", pattern, regex, matched, path);
-        } else {
-            matched = pattern.endsWith("/**") 
-                ? path.startsWith(pattern.substring(0, pattern.length() - 3))
-                : path.equals(pattern);
-        }
-        return matched;
+    private RestTemplate createRestTemplate(int timeoutMs) {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(timeoutMs);
+        factory.setReadTimeout(timeoutMs);
+        return new RestTemplate(factory);
     }
 
-    /**
-     * 检查方法是否匹配
-     */
-    private boolean matchesMethod(String routeMethod, String requestMethod) {
-        if (routeMethod == null || routeMethod.isEmpty()) return true;
-        if ("ALL".equalsIgnoreCase(routeMethod)) return true;
-        return routeMethod.equalsIgnoreCase(requestMethod);
-    }
-
-    /**
-     * 构建目标URL
-     */
-    private String buildTargetUrl(GatewayRoute route, String requestPath) {
-        String targetUrl = route.getTargetUrl();
-        if (targetUrl == null || targetUrl.isEmpty()) {
-            throw new IllegalStateException("Target URL not configured for route: " + route.getName());
+    private Optional<ApiKey> resolveApiKey(HttpServletRequest request) {
+        Object apiKeyObj = request.getAttribute("apiKey");
+        if (apiKeyObj instanceof ApiKey apiKey) {
+            return Optional.of(apiKey);
         }
 
-        String targetPath = requestPath;
-        
-        // stripPrefix
-        if (Boolean.TRUE.equals(route.getStripPrefix())) {
-            String pattern = route.getPathPattern();
-            if (pattern.endsWith("/**")) {
-                pattern = pattern.substring(0, pattern.length() - 3);
+        String apiKey = extractApiKey(request);
+        if (apiKey == null || apiKey.isBlank()) {
+            return Optional.empty();
+        }
+
+        Optional<ApiKey> validated = apiKeyService.validateApiKey(apiKey);
+        validated.ifPresent(value -> request.setAttribute("apiKey", value));
+        return validated;
+    }
+
+    private String extractApiKey(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (token.startsWith("sk-orin-")) {
+                return token;
             }
-            if (requestPath.startsWith(pattern)) {
-                targetPath = requestPath.substring(pattern.length());
-            }
-            if (targetPath.isEmpty()) targetPath = "/";
         }
 
-        // rewritePath
-        if (route.getRewritePath() != null && !route.getRewritePath().isEmpty()) {
-            targetPath = route.getRewritePath();
+        String headerApiKey = request.getHeader("X-API-Key");
+        if (headerApiKey != null && !headerApiKey.isBlank()) {
+            return headerApiKey;
         }
-
-        // 拼接
-        if (!targetUrl.endsWith("/") && !targetPath.startsWith("/")) {
-            targetUrl += "/";
-        }
-        
-        return targetUrl + targetPath;
+        return null;
     }
 
-    /**
-     * 获取请求头
-     */
-    private org.springframework.http.HttpHeaders getHeaders(HttpServletRequest request) {
-        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-        
+    private boolean hasJwtAuthentication(HttpServletRequest request) {
+        org.springframework.security.core.Authentication authentication =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof org.springframework.security.authentication.AnonymousAuthenticationToken)) {
+            return true;
+        }
+
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            return token.startsWith("eyJ");
+        }
+        return false;
+    }
+
+    private HttpHeaders buildRequestHeaders(HttpServletRequest request, GatewayRoute route, String traceId) {
+        HttpHeaders headers = new HttpHeaders();
         request.getHeaderNames().asIterator().forEachRemaining(name -> {
             if (!isHopByHopHeader(name)) {
-                headers.add(name, request.getHeader(name));
+                Enumeration<String> values = request.getHeaders(name);
+                while (values.hasMoreElements()) {
+                    headers.add(name, values.nextElement());
+                }
             }
         });
-        
+
+        headers.set(TRACE_ID_HEADER, traceId);
         headers.add("X-Forwarded-For", request.getRemoteAddr());
         headers.add("X-Original-URI", request.getRequestURI());
-        
-        GatewayRoute route = (GatewayRoute) request.getAttribute(ATTR_ROUTE);
-        if (route != null) {
-            headers.add("X-Gateway-Route", route.getName());
-        }
-        
+        headers.add("X-Gateway-Route", route.getName());
         return headers;
     }
 
-    /**
-     * 是否是Hop-by-Hop Header
-     */
     private boolean isHopByHopHeader(String name) {
-        return "connection".equalsIgnoreCase(name)
-                || "keep-alive".equalsIgnoreCase(name)
-                || "proxy-authenticate".equalsIgnoreCase(name)
-                || "proxy-authorization".equalsIgnoreCase(name)
-                || "te".equalsIgnoreCase(name)
-                || "trailers".equalsIgnoreCase(name)
-                || "transfer-encoding".equalsIgnoreCase(name)
-                || "upgrade".equalsIgnoreCase(name);
+        return name != null && HOP_BY_HOP_HEADERS.contains(name.toLowerCase(Locale.ROOT));
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private String resolveTraceId(HttpServletRequest request) {
+        String traceId = request.getHeader(TRACE_ID_HEADER);
+        if (traceId == null || traceId.isBlank()) {
+            traceId = MDC.get(TRACE_ID_MDC_KEY);
+        }
+        if (traceId == null || traceId.isBlank()) {
+            traceId = UUID.randomUUID().toString();
+        }
+        return traceId;
+    }
+
+    private void writeError(HttpServletRequest request,
+                            HttpServletResponse response,
+                            HttpStatus status,
+                            String message,
+                            String traceId) throws IOException {
+        response.setStatus(status.value());
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType("application/json");
+        response.setHeader(TRACE_ID_HEADER, traceId);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("code", String.valueOf(status.value()));
+        body.put("message", message);
+        body.put("path", request.getRequestURI());
+        body.put("traceId", traceId);
+        response.getWriter().write(objectMapper.writeValueAsString(body));
+    }
+
+    private void saveAuditLog(HttpServletRequest request,
+                              GatewayRoute route,
+                              String targetUrl,
+                              String targetService,
+                              Integer statusCode,
+                              String result,
+                              String errorMessage,
+                              long latencyMs) {
+        try {
+            ApiKey apiKey = null;
+            Object apiKeyObj = request.getAttribute("apiKey");
+            if (apiKeyObj instanceof ApiKey value) {
+                apiKey = value;
+            }
+
+            GatewayAuditLog logEntity = GatewayAuditLog.builder()
+                    .routeId(route.getId())
+                    .traceId(resolveTraceId(request))
+                    .method(request.getMethod())
+                    .path(request.getRequestURI())
+                    .targetService(targetService)
+                    .targetUrl(targetUrl)
+                    .statusCode(statusCode)
+                    .latencyMs(latencyMs)
+                    .clientIp(extractClientIp(request))
+                    .userAgent(request.getHeader("User-Agent"))
+                    .apiKeyId(apiKey != null ? apiKey.getId() : null)
+                    .result(result)
+                    .errorMessage(errorMessage)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            auditLogRepository.save(logEntity);
+        } catch (Exception ex) {
+            log.warn("Failed to save gateway audit log: {}", ex.getMessage());
+        }
     }
 }

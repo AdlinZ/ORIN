@@ -271,30 +271,12 @@ const fetchTrendData = async () => {
   try {
     const res = await getLatencyTrend(trendPeriod.value);
     if (isUnmounted) return;
-
-    if (res && res.length > 0) {
-      renderTrendChart(res);
-    } else {
-      throw new Error('No data');
-    }
+    renderTrendChart(Array.isArray(res) ? res : []);
   } catch (error) {
-    // Mock 趋势数据
-    const mockTrend = [];
-    const days = trendPeriod.value === 'monthly' ? 30 : (trendPeriod.value === 'weekly' ? 12 : 7);
-
-    for (let i = days - 1; i >= 0; i--) {
-        const d = new Date();
-        if (trendPeriod.value === 'weekly') {
-             d.setDate(d.getDate() - i * 7);
-        } else {
-             d.setDate(d.getDate() - i);
-        }
-        mockTrend.push({
-            date: d.toISOString().slice(5, 10),
-            latency: Math.floor(Math.random() * 800) + 100 + (Math.random() * 200)
-        });
+    if (!isUnmounted) {
+      console.warn('获取延迟趋势失败', error);
+      renderTrendChart([]);
     }
-    renderTrendChart(mockTrend);
   } finally {
     trendLoading.value = false;
   }
@@ -409,26 +391,13 @@ const fetchHistoryData = async () => {
       updateDistribution(historyData.value);
     }
   } catch (error) {
-    console.warn('获取历史数据失败，使用模拟数据:', error);
-    
-    // Mock History
-    const mockHistory = [];
-    for (let i = 0; i < 10; i++) {
-        const latency = Math.floor(Math.random() * 3000) + 100;
-        mockHistory.push({
-            createdAt: new Date().toISOString(),
-            providerId: 'demo-agent-' + Math.floor(Math.random()*5),
-            responseTime: latency,
-            totalTokens: Math.floor(Math.random() * 2000),
-            status: 'success'
-        });
-    }
     if (!isUnmounted) {
-      historyData.value = mockHistory;
-      total.value = 50;
-      updateDistribution(mockHistory);
+      console.warn('获取延迟历史失败', error);
+      historyData.value = [];
+      total.value = 0;
+      updateDistribution([]);
+      ElMessage.error('获取延迟历史数据失败');
     }
-
   } finally {
     historyLoading.value = false;
     window.dispatchEvent(new Event('page-refresh-done'));

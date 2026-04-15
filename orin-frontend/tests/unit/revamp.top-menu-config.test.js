@@ -12,8 +12,8 @@ describe('top menu IA behavior', () => {
 
   it('matches active top-level domain by route path', () => {
     expect(getActiveMenuId('/dashboard/applications/agents')).toBe('agents')
+    expect(getActiveMenuId('/dashboard/applications/mcp')).toBe('agents')
     expect(getActiveMenuId('/dashboard/runtime/overview')).toBe('monitor')
     expect(getActiveMenuId('/dashboard/control/users')).toBe('system')
-    expect(getActiveMenuId('/dashboard/control/revamp-rollout')).toBe('system')
   })
 })

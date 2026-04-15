@@ -5,17 +5,15 @@ Consumes tasks from RabbitMQ and writes results back
 import asyncio
 import json
 import logging
-from dataclasses import asdict
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 import aio_pika
-import httpx
 from aio_pika import Message, DeliveryMode
 from aio_pika.abc import AbstractIncomingMessage
 
 from app.core.config import settings
-from app.engine.collaboration_executor import collaboration_executor
+from app.engine.task_runtime import TaskRuntime
 from app.core.shared_memory import shared_memory
 
 logger = logging.getLogger(__name__)
@@ -136,6 +134,7 @@ class CollabMQWorker:
         self.channel: Optional[aio_pika.Channel] = None
         self._running = False
         self._redis = None
+        self.task_runtime = TaskRuntime()
 
         # Configuration from settings
         self.rabbitmq_url = getattr(settings, "RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
@@ -323,74 +322,24 @@ class CollabMQWorker:
 
     async def _execute_agent(self, task: CollabTaskMessage, context: Dict[str, Any]) -> str:
         """Execute via agent (delegation)"""
-        # For now, use the collaboration executor's single task execution
-        # This eventually should use the handler path
-        try:
-            result = await collaboration_executor.execute_single_task(
-                description=task.description,
-                expected_role=task.expected_role,
-                context=context
-            )
-            return str(result) if result else "No result"
-        except Exception as e:
-            logger.error("Agent execution failed: %s", e)
-            raise
+        return await self.task_runtime.execute_agent_task(
+            description=task.description,
+            expected_role=task.expected_role,
+            context=context,
+        )
 
     async def _execute_workflow(self, task: CollabTaskMessage, context: Dict[str, Any]) -> str:
         """Execute via workflow"""
-        workflow_id = None
-        workflow_inputs: Dict[str, Any] = {
-            "description": task.description,
-            "packageId": task.package_id,
-            "subTaskId": task.sub_task_id,
-        }
-
-        # Try to parse workflowId / inputs from task.input_data JSON
-        if task.input_data:
-            try:
-                input_data = json.loads(task.input_data)
-                if isinstance(input_data, dict):
-                    workflow_id = input_data.get("workflowId")
-                    input_inputs = input_data.get("inputs")
-                    if isinstance(input_inputs, dict):
-                        workflow_inputs.update(input_inputs)
-            except json.JSONDecodeError:
-                logger.warning("Invalid input_data JSON for workflow task: %s", task.sub_task_id)
-
-        # Fallback: support context snapshot payloads
-        if workflow_id is None:
-            workflow_id = context.get("workflowId")
-
-        if workflow_id is None:
-            raise ValueError(f"No workflowId found for workflow task: {task.sub_task_id}")
-
-        # Normalize workflow id type
-        try:
-            workflow_id = int(workflow_id)
-        except (TypeError, ValueError):
-            raise ValueError(f"Invalid workflowId: {workflow_id}")
-
-        backend_base = (settings.ORIN_BACKEND_URL or "http://localhost:8080").rstrip("/")
-        url = f"{backend_base}/api/workflows/{workflow_id}/execute"
-        timeout_seconds = max(10.0, (task.timeout_millis or 300000) / 1000.0)
-
-        headers = {"Content-Type": "application/json"}
-        if task.trace_id:
-            headers["X-Trace-Id"] = task.trace_id
-
-        params = {"triggeredBy": "collab_mq_worker"}
-
-        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-            response = await client.post(url, json=workflow_inputs, params=params, headers=headers)
-            response.raise_for_status()
-
-            payload = response.json()
-            if isinstance(payload, dict):
-                instance_id = payload.get("instanceId")
-                if instance_id is not None:
-                    return f"Workflow executed: instanceId={instance_id}"
-                return json.dumps(payload, ensure_ascii=False)
-            return str(payload)
+        return await self.task_runtime.execute_workflow_task(
+            package_id=task.package_id,
+            sub_task_id=task.sub_task_id,
+            trace_id=task.trace_id,
+            timeout_millis=task.timeout_millis,
+            description=task.description,
+            input_data_raw=task.input_data,
+            context=context,
+            triggered_by="collab_mq_worker",
+        )
 
     async def _write_result(self, result: CollabTaskResult):
         """Write task result back to result queue"""

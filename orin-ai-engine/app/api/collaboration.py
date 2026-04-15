@@ -8,10 +8,9 @@ from pydantic import BaseModel
 
 from app.engine.collaboration_langgraph import (
     run_collaboration,
-    start_langgraph_worker,
-    stop_langgraph_worker,
     CollaborationStatus,
 )
+from app.engine.mq_worker import start_worker as start_mq_worker, stop_worker as stop_mq_worker
 from app.core.collab_state import (
     read_status,
     set_paused,
@@ -204,7 +203,7 @@ async def start_worker():
     global _worker_started
 
     if not _worker_started:
-        await start_langgraph_worker()
+        await start_mq_worker()
         _worker_started = True
 
     return {"status": "started"}
@@ -216,7 +215,7 @@ async def stop_worker():
     global _worker_started
 
     if _worker_started:
-        await stop_langgraph_worker()
+        await stop_mq_worker()
         _worker_started = False
 
     return {"status": "stopped"}

@@ -50,8 +50,8 @@ class TestMqWorkerWorkflowSmoke:
         mock_async_client.__aenter__.return_value = mock_client
         mock_async_client.__aexit__.return_value = None
 
-        with patch("app.engine.mq_worker.settings.ORIN_BACKEND_URL", "http://backend.test"), \
-             patch("app.engine.mq_worker.httpx.AsyncClient", return_value=mock_async_client):
+        with patch("app.engine.task_runtime.settings.ORIN_BACKEND_URL", "http://backend.test"), \
+             patch("app.engine.task_runtime.httpx.AsyncClient", return_value=mock_async_client):
             result = await worker._execute_workflow(task, {})
 
         assert result == "Workflow executed: instanceId=98765"

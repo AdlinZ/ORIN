@@ -1,18 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { FEATURE_FLAG_KEYS } from '../src/config/featureFlags.js'
-import { ROUTES } from '../src/router/routes.js'
-import { REVAMP_ROLLOUT_ITEMS, REVAMP_ROLLOUT_STAGES } from '../src/config/revampRollout.js'
+import { ROUTES, LEGACY_ROUTE_REDIRECTS } from '../src/router/routes.js'
 import { buildSmokeReport, toConsoleLines, toMarkdownSummary } from '../src/utils/revampSmokeReport.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.resolve(__dirname, '..')
-
-const read = (relativePath) => fs.readFileSync(path.join(projectRoot, relativePath), 'utf8')
-const exists = (relativePath) => fs.existsSync(path.join(projectRoot, relativePath))
-const ensureDir = (targetPath) => fs.mkdirSync(path.dirname(targetPath), { recursive: true })
 
 function getArgValue(name) {
   const idx = process.argv.indexOf(name)
@@ -23,79 +17,79 @@ function getArgValue(name) {
 }
 
 function writeOutput(targetPath, content) {
-  if (!targetPath) {
-    return
-  }
+  if (!targetPath) return
   const resolved = path.isAbsolute(targetPath) ? targetPath : path.resolve(process.cwd(), targetPath)
-  ensureDir(resolved)
+  fs.mkdirSync(path.dirname(resolved), { recursive: true })
   fs.writeFileSync(resolved, content, 'utf8')
 }
 
 const checks = [
-  ...REVAMP_ROLLOUT_ITEMS.map((item) => ({
-    flag: item.key,
-    route: item.route,
-    v2File: item.v2View.replace('@/', 'src/'),
-    routerNeedle: `resolveDomainView(\n                            '${item.key}'`
-  }))
+  {
+    key: 'legacy.collaboration.tasks',
+    route: '/dashboard/applications/collaboration/tasks',
+    passed: LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/tasks'] === ROUTES.AGENTS.COLLABORATION,
+    reason: '协作任务历史路由应重定向到协作主入口'
+  },
+  {
+    key: 'legacy.collaboration.config',
+    route: '/dashboard/applications/collaboration/config',
+    passed: LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/config'] === ROUTES.AGENTS.COLLABORATION,
+    reason: '协作配置历史路由应重定向到协作主入口'
+  },
+  {
+    key: 'legacy.tools',
+    route: '/dashboard/applications/tools',
+    passed: LEGACY_ROUTE_REDIRECTS['/dashboard/applications/tools'] === ROUTES.AGENTS.MCP,
+    reason: 'Tools 历史路由应指向 MCP 入口'
+  },
+  {
+    key: 'legacy.alert-rules',
+    route: '/dashboard/runtime/alert-rules',
+    passed: LEGACY_ROUTE_REDIRECTS['/dashboard/runtime/alert-rules'] === ROUTES.MONITOR.ALERTS,
+    reason: '告警规则历史路由应指向告警中心'
+  },
+  {
+    key: 'route.rollout.removed',
+    route: 'ROUTES.SYSTEM.REVAMP_ROLLOUT',
+    passed: ROUTES.SYSTEM.REVAMP_ROLLOUT === undefined,
+    reason: '灰度开关路由常量应已移除'
+  },
+  {
+    key: 'route.alert.alias',
+    route: 'ROUTES.MONITOR.ALERT_RULES',
+    passed: ROUTES.MONITOR.ALERT_RULES === ROUTES.MONITOR.ALERTS,
+    reason: '告警规则常量应保持与告警中心同一路径'
+  },
+  {
+    key: 'file.system-gateway-v2.removed',
+    route: 'src/views/revamp/system/SystemGatewayV2.vue',
+    passed: !fs.existsSync(path.join(projectRoot, 'src/views/revamp/system/SystemGatewayV2.vue')),
+    reason: '已判定回归的 V2 网关页不应重新出现'
+  },
+  {
+    key: 'file.kb-list.removed',
+    route: 'src/views/Knowledge/KBList.vue',
+    passed: !fs.existsSync(path.join(projectRoot, 'src/views/Knowledge/KBList.vue')),
+    reason: '含本地 mock 文档逻辑的旧知识库页面不应重新出现'
+  }
 ]
 
-const routerIndex = read('src/router/index.js')
-const missingFlags = checks.filter((item) => !FEATURE_FLAG_KEYS.includes(item.flag))
-const missingRoutes = checks.filter((item) => !item.route || typeof item.route !== 'string')
-const missingFiles = checks.filter((item) => !exists(item.v2File))
-const missingRouterBindings = checks.filter((item) => !routerIndex.includes(item.routerNeedle))
-
-const failedSet = new Set()
-for (const item of missingFlags) failedSet.add(item.flag)
-for (const item of missingRoutes) failedSet.add(item.flag)
-for (const item of missingFiles) failedSet.add(item.flag)
-for (const item of missingRouterBindings) failedSet.add(item.flag)
-
-const rows = checks.map((item) => {
-  const errors = []
-  if (missingFlags.some((entry) => entry.flag === item.flag)) {
-    errors.push('Missing feature flag key')
-  }
-  if (missingRoutes.some((entry) => entry.flag === item.flag)) {
-    errors.push('Missing route constant binding')
-  }
-  if (missingFiles.some((entry) => entry.flag === item.flag)) {
-    errors.push('Missing V2 file')
-  }
-  if (missingRouterBindings.some((entry) => entry.flag === item.flag)) {
-    errors.push('Missing resolveDomainView binding')
-  }
-  return {
-    key: item.flag,
-    flag: item.flag,
-    route: item.route,
-    v2File: item.v2File,
-    passed: !failedSet.has(item.flag),
-    reason: errors.length > 0 ? errors.join('; ') : '通过'
-  }
-})
-
-if (ROUTES.SYSTEM.REVAMP_ROLLOUT !== '/dashboard/control/revamp-rollout') {
-  rows.push({
-    key: 'ROUTES.SYSTEM.REVAMP_ROLLOUT',
-    flag: 'ROUTES.SYSTEM.REVAMP_ROLLOUT',
-    route: ROUTES.SYSTEM.REVAMP_ROLLOUT,
-    v2File: '-',
-    passed: false,
-    reason: 'Route constant mismatch'
-  })
-}
+const rows = checks.map((item) => ({
+  key: item.key,
+  flag: item.key,
+  route: item.route,
+  passed: item.passed,
+  reason: item.passed ? '通过' : item.reason
+}))
 
 const report = buildSmokeReport({
-  source: 'ci-script',
+  source: 'cleanup-smoke',
   rows,
-  stageMatrix: REVAMP_ROLLOUT_STAGES,
-  lastRunAt: new Date().toISOString()
+  lastRunAt: new Date().toISOString(),
+  stageMatrix: []
 })
 
-const consoleOutput = toConsoleLines(report).join('\n')
-console.log(consoleOutput)
+console.log(toConsoleLines(report).join('\n'))
 
 const jsonOut = getArgValue('--json-out')
 const summaryOut = getArgValue('--summary-out')
