@@ -27,53 +27,50 @@
               <span>{{ menu.title }}</span>
             </template>
 
-            <!-- 二级菜单 -->
-            <template v-for="child in menu.children.filter(c => !c.divider)" :key="child.path">
-              <!-- 有三级菜单的二级菜单 -->
-              <el-sub-menu v-if="child.children && child.children.length > 0" :index="getSubMenuIndex('child', child, menu.id)">
-                <template #title>
-                  <el-icon v-if="child.icon">
-                    <component :is="getIconComponent(child.icon)" />
-                  </el-icon>
-                  <span>{{ child.title }}</span>
-                </template>
-                <!-- 三级菜单 -->
+            <!-- 二级菜单：按 section 分组，flat 结构 -->
+            <template v-for="group in groupMenuItems(menu.children)" :key="group.title || '_ungrouped'">
+              <el-menu-item-group v-if="group.title" :title="group.title">
                 <el-menu-item
-                  v-for="subChild in child.children.filter(c => !c.divider)"
-                  :key="subChild.path"
-                  :index="subChild.path"
+                  v-for="item in group.items"
+                  :key="item.path"
+                  :index="item.path"
                 >
-                  <el-icon v-if="subChild.icon">
-                    <component :is="getIconComponent(subChild.icon)" />
+                  <el-icon v-if="item.icon">
+                    <component :is="getIconComponent(item.icon)" />
                   </el-icon>
-                  <span>{{ subChild.title }}</span>
+                  <span>{{ item.title }}</span>
                   <el-tag
-                    v-if="subChild.status"
+                    v-if="item.status"
                     size="small"
-                    :type="getMaturityTagType(subChild.status)"
+                    :type="getMaturityTagType(item.status)"
                     effect="plain"
                     class="menu-status-tag"
                   >
-                    {{ getMaturityText(subChild.status) }}
+                    {{ getMaturityText(item.status) }}
                   </el-tag>
                 </el-menu-item>
-              </el-sub-menu>
-              <!-- 无三级菜单的二级菜单 -->
-              <el-menu-item v-else :index="child.path">
-                <el-icon v-if="child.icon">
-                  <component :is="getIconComponent(child.icon)" />
-                </el-icon>
-                <span>{{ child.title }}</span>
-                <el-tag
-                  v-if="child.status"
-                  size="small"
-                  :type="getMaturityTagType(child.status)"
-                  effect="plain"
-                  class="menu-status-tag"
+              </el-menu-item-group>
+              <template v-else>
+                <el-menu-item
+                  v-for="item in group.items"
+                  :key="item.path"
+                  :index="item.path"
                 >
-                  {{ getMaturityText(child.status) }}
-                </el-tag>
-              </el-menu-item>
+                  <el-icon v-if="item.icon">
+                    <component :is="getIconComponent(item.icon)" />
+                  </el-icon>
+                  <span>{{ item.title }}</span>
+                  <el-tag
+                    v-if="item.status"
+                    size="small"
+                    :type="getMaturityTagType(item.status)"
+                    effect="plain"
+                    class="menu-status-tag"
+                  >
+                    {{ getMaturityText(item.status) }}
+                  </el-tag>
+                </el-menu-item>
+              </template>
             </template>
           </el-sub-menu>
         </template>
@@ -182,6 +179,21 @@ const visibleMenus = computed(() => getVisibleMenus(isAdmin.value))
 const getSubMenuIndex = (level, item, parentId = '') => {
   const identity = item.id || item.path || item.title || 'menu'
   return `${level}:${parentId}:${identity}`
+}
+
+/**
+ * 将平铺的菜单项数组按 section 分组，供 el-menu-item-group 使用
+ * topMenuConfig 已无 section/divider，直接返回单组平铺结构
+ */
+const groupMenuItems = (children) => {
+  const groups = []
+  let current = { title: null, items: [] }
+  for (const child of children) {
+    if (child.type === 'section' || child.divider) continue
+    current.items.push(child)
+  }
+  if (current.items.length > 0) groups.push(current)
+  return groups
 }
 
 const handleRefresh = () => {

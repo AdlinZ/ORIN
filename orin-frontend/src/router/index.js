@@ -125,12 +125,6 @@ const routes = [
                         meta: { title: '模型管理', icon: 'Cpu' }
                     },
                     {
-                        path: 'models/config',
-                        name: 'ModelConfig',
-                        component: () => import('@/views/ModelConfig/ModelSystemConfig.vue'),
-                        meta: { title: '模型配置', hidden: true }
-                    },
-                    {
                         path: 'models/add',
                         name: 'ModelAdd',
                         component: () => import('@/views/ModelConfig/AddModel.vue'),
@@ -157,10 +151,10 @@ const routes = [
                         meta: { title: 'MCP 管理', icon: 'Connection' }
                     },
                     {
-                        path: 'external-frameworks',
-                        name: 'ApplicationExternalFrameworks',
-                        component: () => import('@/views/System/ExternalFrameworks.vue'),
-                        meta: { title: '外部框架', icon: 'Connection' }
+                        path: 'extensions',
+                        name: 'ApplicationExtensions',
+                        component: () => import('@/views/Agent/AgentExtensions.vue'),
+                        meta: { title: '智能体扩展', icon: 'MagicStick' }
                     },
 
                     // 流程编排
@@ -219,9 +213,7 @@ const routes = [
                     },
                     {
                         path: 'costs',
-                        name: 'RuntimeCosts',
-                        component: () => import('@/views/Monitor/CostStats.vue'),
-                        meta: { title: '成本分析', icon: 'Coin' }
+                        redirect: '/dashboard/control/pricing'
                     },
                     {
                         path: 'latency',
@@ -492,12 +484,6 @@ const routes = [
                         meta: { title: '分布式锁', icon: 'Lock', roles: ['ROLE_ADMIN'] }
                     },
                     {
-                        path: 'external-frameworks',
-                        name: 'ControlExternalFrameworks',
-                        component: () => import('@/views/System/ExternalFrameworks.vue'),
-                        meta: { title: '外部框架', icon: 'Connection', roles: ['ROLE_ADMIN'] }
-                    },
-                    {
                         path: 'mcp-service',
                         name: 'ControlMcpService',
                         component: () => import('@/views/System/McpService.vue'),
@@ -514,26 +500,6 @@ const routes = [
                         name: 'ControlStatistics',
                         component: () => import('@/views/System/Statistics.vue'),
                         meta: { title: '统计分析', icon: 'DataAnalysis', roles: ['ROLE_ADMIN'] }
-                    },
-                    {
-                        path: 'maintenance',
-                        name: 'ControlMaintenance',
-                        component: () => import('@/views/System/SystemMaintenance.vue'),
-                        meta: { title: '系统维护', icon: 'Tools', roles: ['ROLE_ADMIN'] }
-                    },
-                    {
-                        path: 'rate-limit',
-                        name: 'ControlRateLimit',
-                        component: () => import('@/views/System/RateLimitConfig.vue'),
-                        meta: { title: '限流规则', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 知识库配置
-                    {
-                        path: 'knowledge-config',
-                        name: 'ControlKnowledgeConfig',
-                        component: () => import('@/views/System/KnowledgeConfig.vue'),
-                        meta: { title: '知识库配置', icon: 'Collection', roles: ['ROLE_ADMIN'] }
                     },
 
                     // 通知中心（统一入口）

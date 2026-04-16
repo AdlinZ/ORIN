@@ -34,6 +34,7 @@
       </div>
     </header>
 
+    <!-- KPI 总览行 -->
     <section class="kpi-overview">
       <div class="kpi-grid kpi-grid-primary">
         <article class="kpi-card featured">
@@ -59,427 +60,398 @@
       </div>
     </section>
 
-    <section class="content-grid">
-      <div class="content-col col-analytics">
-        <div class="col-head">趋势与成本</div>
+    <!-- 中间两列：趋势图 + 节点活跃分析 -->
+    <section class="middle-section">
+      <!-- 左侧：趋势与成本 -->
+      <div class="middle-col-main">
         <el-card class="panel-card premium-card panel-trend" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>近 7 天调用趋势</span>
-            <span class="panel-sub">单位：请求次数</span>
-          </div>
-        </template>
-        <div v-if="trendData.length" class="trend-panel">
-          <div class="line-chart-shell">
-            <div class="line-y-axis">
-              <span v-for="tick in trendGridTicks" :key="`trend-y-${tick.y}`">{{ tick.label }}</span>
-            </div>
-            <div class="line-main">
-              <svg viewBox="0 0 700 220" preserveAspectRatio="none" class="trend-svg">
-                <line
-                  v-for="tick in trendGridTicks"
-                  :key="`trend-grid-${tick.y}`"
-                  :x1="40"
-                  :x2="660"
-                  :y1="tick.y"
-                  :y2="tick.y"
-                  class="trend-grid-line"
-                />
-                <polyline class="trend-line" :points="trendPoints" />
-                <circle
-                  v-for="point in chartPoints"
-                  :key="point.label"
-                  :cx="point.x"
-                  :cy="point.y"
-                  r="4"
-                  class="trend-dot"
-                />
-              </svg>
-              <div class="trend-axis">
-                <span v-for="item in trendData" :key="item.label">{{ item.label }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
-        </el-card>
-
-        <el-card class="panel-card premium-card panel-trend" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>平均时延趋势</span>
-            <span class="panel-sub">单位：ms（近 7 天）</span>
-          </div>
-        </template>
-        <div v-if="latencyTrendData.length" class="trend-panel">
-          <div class="line-chart-shell">
-            <div class="line-y-axis">
-              <span v-for="tick in latencyGridTicks" :key="`latency-y-${tick.y}`">{{ tick.label }}</span>
-            </div>
-            <div class="line-main">
-              <svg viewBox="0 0 700 220" preserveAspectRatio="none" class="trend-svg">
-                <line
-                  v-for="tick in latencyGridTicks"
-                  :key="`latency-grid-${tick.y}`"
-                  :x1="40"
-                  :x2="660"
-                  :y1="tick.y"
-                  :y2="tick.y"
-                  class="trend-grid-line"
-                />
-                <polyline class="trend-line latency" :points="latencyTrendPoints" />
-                <circle
-                  v-for="point in latencyChartPoints"
-                  :key="point.label"
-                  :cx="point.x"
-                  :cy="point.y"
-                  r="4"
-                  class="trend-dot latency"
-                />
-              </svg>
-              <div class="trend-axis">
-                <span v-for="item in latencyTrendData" :key="item.label">{{ item.label }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
-        </el-card>
-
-        <el-card class="panel-card premium-card panel-medium" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>今日成本趋势</span>
-            <span class="panel-sub">按小时（¥）</span>
-          </div>
-        </template>
-        <div v-if="todayCostTrend.length" class="cost-trend">
-          <div class="cost-bars">
-            <div v-for="item in todayCostTrend" :key="item.hour" class="cost-bar-item">
-              <div class="cost-bar-rail">
-                <div class="cost-bar-fill" :style="{ height: `${item.height}%` }" />
-              </div>
-              <span class="cost-hour">{{ item.hour }}</span>
-            </div>
-          </div>
-          <div class="cost-total">今日累计成本：¥{{ todayCostTotal.toFixed(2) }}</div>
-        </div>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
-        </el-card>
-
-        <el-card class="panel-card premium-card panel-medium" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>请求结构与负载占比</span>
-            <span class="panel-sub">环形图</span>
-          </div>
-        </template>
-        <div class="donut-grid">
-          <div class="donut-block">
-            <div class="donut-ring" :style="{ background: requestDonutGradient }">
-              <div class="donut-inner">
-                <strong>{{ requestSuccessRate }}%</strong>
-                <span>成功率</span>
-              </div>
-            </div>
-            <div class="donut-legend">
-              <span><i class="dot success" />成功 {{ requestSummary.success }}</span>
-              <span><i class="dot danger" />失败 {{ requestSummary.failure }}</span>
-            </div>
-          </div>
-          <div class="donut-block">
-            <div class="donut-ring" :style="{ background: resourceDonutGradient }">
-              <div class="donut-inner">
-                <strong>{{ resourceUsageAvg.toFixed(1) }}%</strong>
-                <span>平均负载</span>
-              </div>
-            </div>
-            <div class="donut-legend">
-              <span><i class="dot cpu" />CPU {{ safeNumber(hardware.cpuUsage).toFixed(1) }}%</span>
-              <span><i class="dot gpu" />GPU {{ safeNumber(hardware.gpuUsage).toFixed(1) }}%</span>
-              <span><i class="dot mem" />内存 {{ safeNumber(hardware.memoryUsage).toFixed(1) }}%</span>
-              <span><i class="dot disk" />磁盘 {{ safeNumber(hardware.diskUsage).toFixed(1) }}%</span>
-            </div>
-          </div>
-        </div>
-        </el-card>
-
-      </div>
-
-      <div class="content-col col-operations">
-        <div class="col-head">节点与资产</div>
-        <el-card class="panel-card premium-card panel-main" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>节点健康概览</span>
-            <span class="panel-sub">共 {{ totalNodesCount }} 个节点</span>
-          </div>
-        </template>
-        <div class="node-summary">
-          <div class="node-stat ok">
-            <span class="node-stat-label">在线</span>
-            <strong class="node-stat-value">{{ nodeStatusSummary.online }}</strong>
-          </div>
-          <div class="node-stat warn">
-            <span class="node-stat-label">告警</span>
-            <strong class="node-stat-value">{{ nodeStatusSummary.warning }}</strong>
-          </div>
-          <div class="node-stat danger">
-            <span class="node-stat-label">离线</span>
-            <strong class="node-stat-value">{{ nodeStatusSummary.offline }}</strong>
-          </div>
-        </div>
-        <ul v-if="nodePreviewList.length" class="node-list">
-          <li v-for="node in nodePreviewList" :key="node.id">
-            <span class="node-id">{{ node.id }}</span>
-            <span class="node-status" :class="node.statusClass">{{ node.statusText }}</span>
-          </li>
-        </ul>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
-        <div class="node-load-block">
-          <div class="node-load-head">
-            <span>节点负载</span>
-            <span class="panel-sub">节点：{{ snapshotNodeId }} · 采样：{{ snapshotTimeText }}</span>
-          </div>
-          <template v-if="hasHardwareMetrics">
-            <div class="load-grid">
-              <div class="load-tile">
-                <div class="tile-header">
-                  <span>CPU</span>
-                  <strong>{{ safeNumber(hardware.cpuUsage).toFixed(1) }}%</strong>
-                </div>
-                <div class="tile-rail">
-                  <el-tooltip :content="`CPU: ${safeNumber(hardware.cpuUsage).toFixed(1)}%`" placement="top">
-                    <div class="tile-fill cpu" :class="getTileThresholdClass(hardware.cpuUsage)"
-                      :style="{ width: `${safeNumber(hardware.cpuUsage)}%`, background: getTileFillGradient(hardware.cpuUsage) }">
-                    </div>
-                  </el-tooltip>
-                </div>
-              </div>
-              <div class="load-tile">
-                <div class="tile-header">
-                  <span>GPU</span>
-                  <strong>{{ safeNumber(hardware.gpuUsage).toFixed(1) }}%</strong>
-                </div>
-                <div class="tile-rail">
-                  <el-tooltip :content="`GPU: ${safeNumber(hardware.gpuUsage).toFixed(1)}%`" placement="top">
-                    <div class="tile-fill gpu" :class="getTileThresholdClass(hardware.gpuUsage)"
-                      :style="{ width: `${safeNumber(hardware.gpuUsage)}%`, background: getTileFillGradient(hardware.gpuUsage) }">
-                    </div>
-                  </el-tooltip>
-                </div>
-              </div>
-              <div class="load-tile">
-                <div class="tile-header">
-                  <span>内存</span>
-                  <strong>{{ safeNumber(hardware.memoryUsage).toFixed(1) }}%</strong>
-                </div>
-                <div class="tile-rail">
-                  <el-tooltip :content="`内存: ${safeNumber(hardware.memoryUsage).toFixed(1)}%`" placement="top">
-                    <div class="tile-fill memory" :class="getTileThresholdClass(hardware.memoryUsage)"
-                      :style="{ width: `${safeNumber(hardware.memoryUsage)}%`, background: getTileFillGradient(hardware.memoryUsage) }">
-                    </div>
-                  </el-tooltip>
-                </div>
-              </div>
-              <div class="load-tile">
-                <div class="tile-header">
-                  <span>磁盘</span>
-                  <strong>{{ safeNumber(hardware.diskUsage).toFixed(1) }}%</strong>
-                </div>
-                <div class="tile-rail">
-                  <el-tooltip :content="`磁盘: ${safeNumber(hardware.diskUsage).toFixed(1)}%`" placement="top">
-                    <div class="tile-fill disk" :class="getTileThresholdClass(hardware.diskUsage)"
-                      :style="{ width: `${safeNumber(hardware.diskUsage)}%`, background: getTileFillGradient(hardware.diskUsage) }">
-                    </div>
-                  </el-tooltip>
-                </div>
-              </div>
+          <template #header>
+            <div class="panel-header">
+              <span>近 7 天调用趋势</span>
+              <span class="panel-sub">单位：请求次数</span>
             </div>
           </template>
-          <el-empty
-            v-else
-            description="当前节点暂无硬件监控数据"
-            :image-size="56"
-          />
-        </div>
+          <div v-if="trendData.length" class="trend-panel">
+            <div class="line-chart-shell">
+              <div class="line-y-axis">
+                <span v-for="tick in trendGridTicks" :key="`trend-y-${tick.y}`">{{ tick.label }}</span>
+              </div>
+              <div class="line-main">
+                <svg viewBox="0 0 700 220" preserveAspectRatio="none" class="trend-svg">
+                  <line
+                    v-for="tick in trendGridTicks"
+                    :key="`trend-grid-${tick.y}`"
+                    :x1="40" :x2="660"
+                    :y1="tick.y" :y2="tick.y"
+                    class="trend-grid-line"
+                  />
+                  <polygon class="trend-area" :points="trendAreaPoints" />
+                  <polyline class="trend-line" :points="trendPoints" />
+                  <circle
+                    v-for="point in chartPoints"
+                    :key="point.label"
+                    :cx="point.x" :cy="point.y"
+                    r="4" class="trend-dot"
+                  />
+                </svg>
+                <div class="trend-axis">
+                  <span v-for="item in trendData" :key="item.label">{{ item.label }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>资产与运行负载</span>
-            <span class="panel-sub">沿用原首页核心卡片内容</span>
-          </div>
-        </template>
-        <div class="asset-load-wrapper">
-          <div class="asset-card primary">
-            <div class="asset-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
-                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-              </svg>
+        <el-card class="panel-card premium-card panel-trend" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>平均时延趋势</span>
+              <span class="panel-sub">单位：ms（近 7 天）</span>
             </div>
-            <div class="asset-info">
-              <span class="asset-label">知识库数量</span>
-              <strong class="asset-value">{{ summaryData.total_knowledge || 0 }}</strong>
-            </div>
-            <div class="asset-divider"></div>
-            <div class="asset-info">
-              <span class="asset-label">文档总数</span>
-              <strong class="asset-value">{{ summaryData.total_documents || 0 }}</strong>
-            </div>
-          </div>
-
-          <div class="asset-card secondary">
-            <div class="asset-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-              </svg>
-            </div>
-            <div class="asset-info">
-              <span class="asset-label">今日消耗 Token</span>
-              <strong class="asset-value">{{ formatK(summaryData.total_tokens || 0) }}</strong>
-            </div>
-            <div class="asset-divider"></div>
-            <div class="asset-info">
-              <span class="asset-label">估算成本</span>
-              <strong class="asset-value">¥{{ safeNumber(summaryData.todayCost).toFixed(2) }}</strong>
+          </template>
+          <div v-if="latencyTrendData.length" class="trend-panel">
+            <div class="line-chart-shell">
+              <div class="line-y-axis">
+                <span v-for="tick in latencyGridTicks" :key="`latency-y-${tick.y}`">{{ tick.label }}</span>
+              </div>
+              <div class="line-main">
+                <svg viewBox="0 0 700 220" preserveAspectRatio="none" class="trend-svg">
+                  <line
+                    v-for="tick in latencyGridTicks"
+                    :key="`latency-grid-${tick.y}`"
+                    :x1="40" :x2="660"
+                    :y1="tick.y" :y2="tick.y"
+                    class="trend-grid-line"
+                  />
+                  <polygon class="trend-area latency" :points="latencyAreaPoints" />
+                  <polyline class="trend-line latency" :points="latencyTrendPoints" />
+                  <circle
+                    v-for="point in latencyChartPoints"
+                    :key="point.label"
+                    :cx="point.x" :cy="point.y"
+                    r="4" class="trend-dot latency"
+                  />
+                </svg>
+                <div class="trend-axis">
+                  <span v-for="item in latencyTrendData" :key="item.label">{{ item.label }}</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        </el-card>
-
-        <el-card class="panel-card premium-card" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>平台态势摘要</span>
-            <span class="panel-sub">实时汇总</span>
-          </div>
-        </template>
-        <div class="summary-grid">
-          <div class="summary-item">
-            <span class="summary-label">健康状态</span>
-            <strong class="summary-value">{{ healthStatusText }}</strong>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">平均时延</span>
-            <strong class="summary-value">{{ kpi.avgLatency }}</strong>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">活跃智能体</span>
-            <strong class="summary-value">{{ kpi.activeAgents }}</strong>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">今日调用</span>
-            <strong class="summary-value">{{ kpi.todayCalls }}</strong>
-          </div>
-        </div>
-        </el-card>
-
-        <el-card class="panel-card premium-card" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>队列与任务积压</span>
-            <span class="panel-sub">实时任务状态</span>
-          </div>
-        </template>
-        <div class="queue-grid">
-          <div class="queue-item">
-            <span>待处理</span>
-            <strong>{{ queueStats.pending }}</strong>
-          </div>
-          <div class="queue-item">
-            <span>处理中</span>
-            <strong>{{ queueStats.running }}</strong>
-          </div>
-          <div class="queue-item">
-            <span>失败</span>
-            <strong>{{ queueStats.failed }}</strong>
-          </div>
-        </div>
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
       </div>
 
-      <div class="content-col col-risk">
-        <div class="col-head">风险与审计</div>
+      <!-- 右侧：节点健康 + 平台态势 -->
+      <div class="middle-col-side">
         <el-card class="panel-card premium-card panel-main" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>实时审计日志</span>
-            <span class="panel-sub">最近 6 条</span>
-          </div>
-        </template>
-        <ul class="event-list" v-if="recentLogs.length">
-          <li v-for="item in recentLogs" :key="`${item.time}-${item.text}`">
-            <span class="event-time">{{ item.time }}</span>
-            <span class="event-text">{{ item.text }}</span>
-            <el-tag size="small" :type="item.status === 'healthy' ? 'success' : 'danger'">
-              {{ item.status === 'healthy' ? '正常' : '异常' }}
-            </el-tag>
-          </li>
-        </ul>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
-        </el-card>
-
-        <el-card class="panel-card premium-card" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>资源分布（按智能体）</span>
-            <span class="panel-sub">{{ distribution.length }} 个活跃主体</span>
-          </div>
-        </template>
-        <div v-if="topAgents.length" class="rank-list">
-          <div v-for="(item, idx) in topAgents" :key="item.name" class="rank-item">
-            <div class="rank-top">
-              <span class="rank-index">{{ `0${idx + 1}` }}</span>
-              <span class="rank-name">{{ item.name }}</span>
-              <span class="rank-value">{{ formatK(item.value) }}</span>
+          <template #header>
+            <div class="panel-header">
+              <span>节点健康概览</span>
+              <span class="panel-sub">共 {{ totalNodesCount }} 个节点</span>
             </div>
-            <div class="rank-rail">
-              <div class="rank-fill" :style="{ width: `${getRkWidth(item.value)}%` }" />
+          </template>
+          <div class="node-summary">
+            <div class="node-stat ok">
+              <span class="node-stat-label">在线</span>
+              <strong class="node-stat-value">{{ nodeStatusSummary.online }}</strong>
+            </div>
+            <div class="node-stat warn">
+              <span class="node-stat-label">告警</span>
+              <strong class="node-stat-value">{{ nodeStatusSummary.warning }}</strong>
+            </div>
+            <div class="node-stat danger">
+              <span class="node-stat-label">离线</span>
+              <strong class="node-stat-value">{{ nodeStatusSummary.offline }}</strong>
             </div>
           </div>
-        </div>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <ul v-if="nodePreviewList.length" class="node-list">
+            <li v-for="node in nodePreviewList" :key="node.id">
+              <span class="node-id">{{ node.id }}</span>
+              <span class="node-status" :class="node.statusClass">{{ node.statusText }}</span>
+            </li>
+          </ul>
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <div class="node-load-block">
+            <div class="node-load-head">
+              <span>节点负载</span>
+              <span class="panel-sub">节点：{{ snapshotNodeId }} · 采样：{{ snapshotTimeText }}</span>
+            </div>
+            <template v-if="hasHardwareMetrics">
+              <div class="load-grid">
+                <div class="load-tile">
+                  <div class="tile-header">
+                    <span>CPU</span>
+                    <strong>{{ safeNumber(hardware.cpuUsage).toFixed(1) }}%</strong>
+                  </div>
+                  <div class="tile-rail">
+                    <el-tooltip :content="`CPU: ${safeNumber(hardware.cpuUsage).toFixed(1)}%`" placement="top">
+                      <div class="tile-fill cpu" :class="getTileThresholdClass(hardware.cpuUsage)"
+                        :style="{ width: `${safeNumber(hardware.cpuUsage)}%`, background: getTileFillGradient(hardware.cpuUsage) }">
+                      </div>
+                    </el-tooltip>
+                  </div>
+                </div>
+                <div class="load-tile">
+                  <div class="tile-header">
+                    <span>GPU</span>
+                    <strong>{{ safeNumber(hardware.gpuUsage).toFixed(1) }}%</strong>
+                  </div>
+                  <div class="tile-rail">
+                    <el-tooltip :content="`GPU: ${safeNumber(hardware.gpuUsage).toFixed(1)}%`" placement="top">
+                      <div class="tile-fill gpu" :class="getTileThresholdClass(hardware.gpuUsage)"
+                        :style="{ width: `${safeNumber(hardware.gpuUsage)}%`, background: getTileFillGradient(hardware.gpuUsage) }">
+                      </div>
+                    </el-tooltip>
+                  </div>
+                </div>
+                <div class="load-tile">
+                  <div class="tile-header">
+                    <span>内存</span>
+                    <strong>{{ safeNumber(hardware.memoryUsage).toFixed(1) }}%</strong>
+                  </div>
+                  <div class="tile-rail">
+                    <el-tooltip :content="`内存: ${safeNumber(hardware.memoryUsage).toFixed(1)}%`" placement="top">
+                      <div class="tile-fill memory" :class="getTileThresholdClass(hardware.memoryUsage)"
+                        :style="{ width: `${safeNumber(hardware.memoryUsage)}%`, background: getTileFillGradient(hardware.memoryUsage) }">
+                      </div>
+                    </el-tooltip>
+                  </div>
+                </div>
+                <div class="load-tile">
+                  <div class="tile-header">
+                    <span>磁盘</span>
+                    <strong>{{ safeNumber(hardware.diskUsage).toFixed(1) }}%</strong>
+                  </div>
+                  <div class="tile-rail">
+                    <el-tooltip :content="`磁盘: ${safeNumber(hardware.diskUsage).toFixed(1)}%`" placement="top">
+                      <div class="tile-fill disk" :class="getTileThresholdClass(hardware.diskUsage)"
+                        :style="{ width: `${safeNumber(hardware.diskUsage)}%`, background: getTileFillGradient(hardware.diskUsage) }">
+                      </div>
+                    </el-tooltip>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <el-empty v-else description="当前节点暂无硬件监控数据" :image-size="56" />
+          </div>
+        </el-card>
+
+      </div>
+    </section>
+
+    <!-- 底部三列 -->
+    <section class="bottom-section">
+      <!-- 成本与负载 -->
+      <div class="bottom-col">
+        <el-card class="panel-card premium-card panel-medium" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>今日成本趋势</span>
+              <span class="panel-sub">按小时（¥）</span>
+            </div>
+          </template>
+          <div v-if="todayCostTrend.length" class="cost-trend">
+            <div class="cost-bars">
+              <div v-for="item in todayCostTrend" :key="item.hour" class="cost-bar-item">
+                <div class="cost-bar-rail">
+                  <div class="cost-bar-fill" :style="{ height: `${item.height}%` }" />
+                </div>
+                <span class="cost-hour">{{ item.hour }}</span>
+              </div>
+            </div>
+            <div class="cost-total">今日累计成本：¥{{ todayCostTotal.toFixed(2) }}</div>
+          </div>
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
 
         <el-card class="panel-card premium-card" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>慢请求 Top 5</span>
-            <span class="panel-sub">按请求耗时排序</span>
+          <template #header>
+            <div class="panel-header">
+              <span>资产与运行负载</span>
+              <span class="panel-sub">沿用原首页核心卡片内容</span>
+            </div>
+          </template>
+          <div class="asset-load-wrapper">
+            <div class="asset-card primary">
+              <div class="asset-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                </svg>
+              </div>
+              <div class="asset-info">
+                <span class="asset-label">知识库数量</span>
+                <strong class="asset-value">{{ summaryData.total_knowledge || 0 }}</strong>
+              </div>
+              <div class="asset-divider"></div>
+              <div class="asset-info">
+                <span class="asset-label">文档总数</span>
+                <strong class="asset-value">{{ summaryData.total_documents || 0 }}</strong>
+              </div>
+            </div>
+            <div class="asset-card secondary">
+              <div class="asset-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                </svg>
+              </div>
+              <div class="asset-info">
+                <span class="asset-label">今日消耗 Token</span>
+                <strong class="asset-value">{{ formatK(summaryData.total_tokens || 0) }}</strong>
+              </div>
+              <div class="asset-divider"></div>
+              <div class="asset-info">
+                <span class="asset-label">估算成本</span>
+                <strong class="asset-value">¥{{ safeNumber(summaryData.todayCost).toFixed(2) }}</strong>
+              </div>
+            </div>
           </div>
-        </template>
-        <ul v-if="slowRequestTop.length" class="mini-rank-list">
-          <li v-for="(item, idx) in slowRequestTop" :key="`${item.name}-${idx}`">
-            <span class="mini-rank-index">{{ idx + 1 }}</span>
-            <span class="mini-rank-name">{{ item.name }}</span>
-            <strong class="mini-rank-value">{{ item.value }}ms</strong>
-          </li>
-        </ul>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+      </div>
+
+      <!-- 请求结构与资源分布 -->
+      <div class="bottom-col">
+        <el-card class="panel-card premium-card panel-medium" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>请求结构与负载占比</span>
+              <span class="panel-sub">环形图</span>
+            </div>
+          </template>
+          <div class="donut-grid">
+            <div class="donut-block">
+              <div class="donut-ring" :style="{ background: requestDonutGradient }">
+                <div class="donut-inner">
+                  <strong>{{ requestSuccessRate }}%</strong>
+                  <span>成功率</span>
+                </div>
+              </div>
+              <div class="donut-legend">
+                <span><i class="dot success" />成功 {{ requestSummary.success }}</span>
+                <span><i class="dot danger" />失败 {{ requestSummary.failure }}</span>
+              </div>
+            </div>
+            <div class="donut-block">
+              <div class="donut-ring" :style="{ background: resourceDonutGradient }">
+                <div class="donut-inner">
+                  <strong>{{ resourceUsageAvg.toFixed(1) }}%</strong>
+                  <span>平均负载</span>
+                </div>
+              </div>
+              <div class="donut-legend">
+                <span><i class="dot cpu" />CPU {{ safeNumber(hardware.cpuUsage).toFixed(1) }}%</span>
+                <span><i class="dot gpu" />GPU {{ safeNumber(hardware.gpuUsage).toFixed(1) }}%</span>
+                <span><i class="dot mem" />内存 {{ safeNumber(hardware.memoryUsage).toFixed(1) }}%</span>
+                <span><i class="dot disk" />磁盘 {{ safeNumber(hardware.diskUsage).toFixed(1) }}%</span>
+              </div>
+            </div>
+          </div>
         </el-card>
 
         <el-card class="panel-card premium-card" shadow="never">
-        <template #header>
-          <div class="panel-header">
-            <span>错误类型 Top 5</span>
-            <span class="panel-sub">按出现次数统计</span>
+          <template #header>
+            <div class="panel-header">
+              <span>资源分布（按智能体）</span>
+              <span class="panel-sub">{{ distribution.length }} 个活跃主体</span>
+            </div>
+          </template>
+          <div v-if="topAgents.length" class="rank-list">
+            <div v-for="(item, idx) in topAgents" :key="item.name" class="rank-item">
+              <div class="rank-top">
+                <span class="rank-index">{{ `0${idx + 1}` }}</span>
+                <span class="rank-name">{{ item.name }}</span>
+                <span class="rank-value">{{ formatK(item.value) }}</span>
+              </div>
+              <div class="rank-rail">
+                <div class="rank-fill" :style="{ width: `${getRkWidth(item.value)}%` }" />
+              </div>
+            </div>
           </div>
-        </template>
-        <ul v-if="errorTypeTop.length" class="mini-rank-list">
-          <li v-for="(item, idx) in errorTypeTop" :key="`${item.name}-${idx}`">
-            <span class="mini-rank-index">{{ idx + 1 }}</span>
-            <span class="mini-rank-name">{{ item.name }}</span>
-            <strong class="mini-rank-value">{{ item.value }}</strong>
-          </li>
-        </ul>
-        <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
 
+        <el-card class="panel-card premium-card" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>队列与任务积压</span>
+              <span class="panel-sub">实时任务状态</span>
+            </div>
+          </template>
+          <div class="queue-grid">
+            <div class="queue-item">
+              <span>待处理</span>
+              <strong>{{ queueStats.pending }}</strong>
+            </div>
+            <div class="queue-item">
+              <span>处理中</span>
+              <strong>{{ queueStats.running }}</strong>
+            </div>
+            <div class="queue-item">
+              <span>失败</span>
+              <strong>{{ queueStats.failed }}</strong>
+            </div>
+          </div>
+        </el-card>
+      </div>
+
+      <!-- 风险与审计 -->
+      <div class="bottom-col">
+        <el-card class="panel-card premium-card panel-main" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>实时审计日志</span>
+              <span class="panel-sub">最近 6 条</span>
+            </div>
+          </template>
+          <ul class="event-list" v-if="recentLogs.length">
+            <li v-for="item in recentLogs" :key="`${item.time}-${item.text}`">
+              <span class="event-time">{{ item.time }}</span>
+              <span class="event-text">{{ item.text }}</span>
+              <el-tag size="small" :type="item.status === 'healthy' ? 'success' : 'danger'">
+                {{ item.status === 'healthy' ? '正常' : '异常' }}
+              </el-tag>
+            </li>
+          </ul>
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>慢请求 Top 5</span>
+              <span class="panel-sub">按请求耗时排序</span>
+            </div>
+          </template>
+          <ul v-if="slowRequestTop.length" class="mini-rank-list">
+            <li v-for="(item, idx) in slowRequestTop" :key="`${item.name}-${idx}`">
+              <span class="mini-rank-index">{{ idx + 1 }}</span>
+              <span class="mini-rank-name">{{ item.name }}</span>
+              <strong class="mini-rank-value">{{ item.value }}ms</strong>
+            </li>
+          </ul>
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>错误类型 Top 5</span>
+              <span class="panel-sub">按出现次数统计</span>
+            </div>
+          </template>
+          <ul v-if="errorTypeTop.length" class="mini-rank-list">
+            <li v-for="(item, idx) in errorTypeTop" :key="`${item.name}-${idx}`">
+              <span class="mini-rank-index">{{ idx + 1 }}</span>
+              <span class="mini-rank-name">{{ item.name }}</span>
+              <strong class="mini-rank-value">{{ item.value }}</strong>
+            </li>
+          </ul>
+          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+        </el-card>
       </div>
     </section>
   </div>
@@ -544,12 +516,59 @@ const CHART_CONFIG = {
   bottom: 176,
 }
 
-const buildLinePoints = (series) => {
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
+
+const buildChartScale = (series, { preferZeroBaseline = false } = {}) => {
+  const values = series.map((item) => safeNumber(item.value)).filter((value) => Number.isFinite(value))
+  if (!values.length) {
+    return { min: 0, max: 1, range: 1, rawMin: 0, rawMax: 0 }
+  }
+
+  const rawMin = Math.min(...values)
+  const rawMax = Math.max(...values)
+
+  if (rawMax === rawMin) {
+    if (rawMax === 0) {
+      return { min: 0, max: 1, range: 1, rawMin, rawMax }
+    }
+    const padding = Math.max(Math.abs(rawMax) * 0.2, 1)
+    const min = preferZeroBaseline && rawMin > 0 ? 0 : rawMin - padding
+    const max = rawMax + padding
+    return { min, max, range: max - min, rawMin, rawMax }
+  }
+
+  const rawRange = rawMax - rawMin
+  let min = rawMin - rawRange * 0.12
+  let max = rawMax + rawRange * 0.18
+
+  if (preferZeroBaseline && rawMin >= 0 && rawMin / rawMax < 0.35) {
+    min = 0
+  }
+
+  if (rawMin >= 0) {
+    min = Math.max(0, min)
+  }
+
+  return { min, max, range: max - min, rawMin, rawMax }
+}
+
+const formatTickValue = (value, range, suffix = '') => {
+  const absRange = Math.abs(range)
+  const digits = absRange < 1 ? 2 : absRange < 10 ? 1 : 0
+  const formatted = Number(value).toLocaleString('zh-CN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  })
+  return `${formatted}${suffix}`
+}
+
+const buildLinePoints = (series, scale) => {
   if (!series.length) return []
-  const maxValue = Math.max(...series.map((item) => safeNumber(item.value)), 1)
+  const valueRange = Math.max(scale.max - scale.min, 1e-6)
   const step = series.length > 1 ? (CHART_CONFIG.right - CHART_CONFIG.left) / (series.length - 1) : CHART_CONFIG.right - CHART_CONFIG.left
   return series.map((item, index) => {
-    const ratio = safeNumber(item.value) / maxValue
+    const normalized = (safeNumber(item.value) - scale.min) / valueRange
+    const ratio = clamp(normalized, 0, 1)
     return {
       label: item.label,
       x: CHART_CONFIG.left + index * step,
@@ -558,21 +577,38 @@ const buildLinePoints = (series) => {
   })
 }
 
-const chartPoints = computed(() => buildLinePoints(trendData.value))
-const latencyChartPoints = computed(() => buildLinePoints(latencyTrendData.value))
+const trendScale = computed(() => buildChartScale(trendData.value))
+const latencyScale = computed(() => buildChartScale(latencyTrendData.value))
+
+const chartPoints = computed(() => buildLinePoints(trendData.value, trendScale.value))
+const latencyChartPoints = computed(() => buildLinePoints(latencyTrendData.value, latencyScale.value))
 
 const trendPoints = computed(() => chartPoints.value.map((point) => `${point.x},${point.y}`).join(' '))
 const latencyTrendPoints = computed(() => latencyChartPoints.value.map((point) => `${point.x},${point.y}`).join(' '))
-const buildGridTicks = (series, digits = 0, suffix = '') => {
-  const maxValue = Math.max(...series.map((item) => safeNumber(item.value)), 1)
+
+const buildAreaPoints = (points) => {
+  if (!points.length) return ''
+  const firstX = points[0].x
+  const lastX = points[points.length - 1].x
+  return `${firstX},${CHART_CONFIG.bottom} ${points.map((point) => `${point.x},${point.y}`).join(' ')} ${lastX},${CHART_CONFIG.bottom}`
+}
+
+const trendAreaPoints = computed(() => buildAreaPoints(chartPoints.value))
+const latencyAreaPoints = computed(() => buildAreaPoints(latencyChartPoints.value))
+
+const buildGridTicks = (domain, suffix = '') => {
   const scales = [1, 0.75, 0.5, 0.25, 0]
-  return scales.map((scale) => ({
-    y: CHART_CONFIG.top + (1 - scale) * (CHART_CONFIG.bottom - CHART_CONFIG.top),
-    label: `${(maxValue * scale).toFixed(digits)}${suffix}`,
+  return scales.map((ratio) => ({
+    y: CHART_CONFIG.top + (1 - ratio) * (CHART_CONFIG.bottom - CHART_CONFIG.top),
+    label: formatTickValue(
+      domain.min + (domain.max - domain.min) * ratio,
+      domain.range,
+      suffix,
+    ),
   }))
 }
-const trendGridTicks = computed(() => buildGridTicks(trendData.value, 0))
-const latencyGridTicks = computed(() => buildGridTicks(latencyTrendData.value, 0, 'ms'))
+const trendGridTicks = computed(() => buildGridTicks(trendScale.value))
+const latencyGridTicks = computed(() => buildGridTicks(latencyScale.value, 'ms'))
 const topAgents = computed(() => distribution.value.slice(0, 3))
 const currentHardwareNodeId = computed(() => {
   const directId = hardware.value?.serverId || hardware.value?.nodeId || hardware.value?.id
@@ -733,7 +769,6 @@ const getRkWidth = (v) => {
   return (safeNumber(v) / max) * 100
 }
 
-/* 进度条阈值状态计算 */
 const getTileThresholdClass = (value) => {
   const numValue = safeNumber(value)
   if (numValue >= 85) return 'critical'
@@ -1125,6 +1160,12 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+/* KPI 总览 */
+.kpi-overview {
+  display: flex;
+  flex-direction: column;
+}
+
 .kpi-grid {
   display: grid;
   gap: 12px;
@@ -1157,11 +1198,6 @@ onBeforeUnmount(() => {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
-.kpi-overview {
-  display: flex;
-  flex-direction: column;
-}
-
 .kpi-label {
   color: var(--text-subtle);
   font-size: 12px;
@@ -1187,38 +1223,38 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.content-grid {
+/* 中间两列 */
+.middle-section {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.2fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
   gap: 12px;
   align-items: start;
 }
 
-.content-col {
+.middle-col-main,
+.middle-col-side {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
 }
 
-.col-head {
+/* 底部三列 */
+.bottom-section {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.bottom-col {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text-main);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 0 4px;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 
-.col-head::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  margin-left: 8px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.55), transparent);
-}
-
+/* Panel cards */
 :deep(.panel-card.el-card) {
   position: relative;
   overflow: hidden;
@@ -1243,6 +1279,8 @@ onBeforeUnmount(() => {
 
 .panel-trend :deep(.el-card__body) {
   min-height: 250px;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-header {
@@ -1259,10 +1297,13 @@ onBeforeUnmount(() => {
   color: var(--text-subtle);
 }
 
+/* Trend charts */
 .trend-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-height: 0;
 }
 
 .line-chart-shell {
@@ -1270,6 +1311,8 @@ onBeforeUnmount(() => {
   grid-template-columns: 42px 1fr;
   gap: 8px;
   align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 
 .line-y-axis {
@@ -1286,46 +1329,54 @@ onBeforeUnmount(() => {
 
 .line-main {
   min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 6px;
 }
 
 .trend-svg {
   width: 100%;
-  height: 120px;
+  height: 100%;
+  min-height: 140px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(241, 245, 249, 0.5) 100%);
   border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 12px;
   box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.02);
-  transition: box-shadow 0.3s ease;
-}
-
-.trend-svg:hover {
-  box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.01), 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
 .trend-grid-line {
-  stroke: rgba(148, 163, 184, 0.2);
+  stroke: rgba(148, 163, 184, 0.18);
   stroke-width: 1;
   stroke-dasharray: 6 4;
+}
+
+.trend-area {
+  fill: color-mix(in srgb, var(--primary-500) 16%, transparent);
+}
+
+.trend-area.latency {
+  fill: color-mix(in srgb, var(--info-500) 14%, transparent);
 }
 
 .trend-line {
   fill: none;
   stroke: var(--primary-500);
-  stroke-width: 3.5;
+  stroke-width: 2.8;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 4px 6px rgba(13, 148, 136, 0.25));
+  filter: drop-shadow(0 3px 5px rgba(13, 148, 136, 0.2));
 }
 
 .trend-line.latency {
   stroke: var(--info-500);
-  filter: drop-shadow(0 4px 6px rgba(37, 99, 235, 0.25));
+  filter: drop-shadow(0 3px 5px rgba(37, 99, 235, 0.2));
 }
 
 .trend-dot {
   fill: var(--primary-500);
   stroke: #ffffff;
-  stroke-width: 1.5;
+  stroke-width: 1.25;
 }
 
 .trend-dot.latency {
@@ -1335,237 +1386,18 @@ onBeforeUnmount(() => {
 }
 
 .trend-axis {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  display: flex;
+  justify-content: space-between;
+  padding-left: calc(40 / 700 * 100%);
+  padding-right: calc(40 / 700 * 100%);
   color: var(--text-subtle);
   font-size: 11px;
   font-weight: 500;
   text-align: center;
-  margin-top: 6px;
+  margin-top: 0;
 }
 
-.asset-load-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.asset-card {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  gap: 16px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.asset-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  opacity: 0.1;
-  pointer-events: none;
-}
-
-.asset-card.primary {
-  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
-}
-.asset-card.primary::before {
-  background: radial-gradient(circle at top right, #0ea5e9, transparent 60%);
-}
-.asset-card.primary .asset-icon {
-  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-  color: #0284c7;
-}
-
-.asset-card.secondary {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
-}
-.asset-card.secondary::before {
-  background: radial-gradient(circle at top right, #10b981, transparent 60%);
-}
-.asset-card.secondary .asset-icon {
-  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-  color: #059669;
-}
-
-.asset-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.asset-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.asset-label {
-  font-size: 13px;
-  color: var(--text-subtle);
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
-.asset-value {
-  font-size: 20px;
-  color: var(--text-strong);
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.asset-divider {
-  width: 1px;
-  height: 32px;
-  background: rgba(148, 163, 184, 0.2);
-  margin: 0 8px;
-}
-
-.asset-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
-}
-
-.legacy-node {
-  font-size: 12px;
-  color: var(--text-subtle);
-  margin-bottom: 8px;
-}
-
-.meter-item {
-  display: grid;
-  grid-template-columns: 30px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.meter-item em {
-  color: #475569;
-  font-style: normal;
-  font-size: 12px;
-}
-
-.meter-rail {
-  width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  background: #e2e8f0;
-  overflow: hidden;
-}
-
-.meter-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #22c55e 0%, #0ea5e9 100%);
-}
-
-.meter-fill.warning {
-  background: linear-gradient(90deg, #f59e0b 0%, #f97316 100%);
-}
-
-.meter-fill.danger {
-  background: linear-gradient(90deg, #f43f5e 0%, #ef4444 100%);
-}
-
-.meter-fill.success {
-  background: linear-gradient(90deg, #22c55e 0%, #10b981 100%);
-}
-
-.rank-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rank-item {
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 10px;
-  padding: 8px;
-  background: rgba(248, 250, 252, 0.75);
-}
-
-.rank-top {
-  display: grid;
-  grid-template-columns: 40px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.rank-index {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--primary-500);
-}
-
-.rank-name {
-  color: var(--text-main);
-  font-size: 13px;
-}
-
-.rank-value {
-  color: var(--text-strong);
-  font-weight: 700;
-  font-size: 12px;
-}
-
-.rank-rail {
-  width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  background: #e2e8f0;
-}
-
-.rank-fill {
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--success-500) 0%, var(--info-500) 100%);
-}
-
-.event-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.event-list li {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
-  padding: 8px;
-  display: grid;
-  grid-template-columns: 96px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  background: rgba(248, 250, 252, 0.7);
-}
-
-.event-time {
-  color: var(--text-subtle);
-  font-size: 12px;
-}
-
-.event-text {
-  color: var(--text-main);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* Node health */
 .node-summary {
   display: flex;
   gap: 12px;
@@ -1592,17 +1424,9 @@ onBeforeUnmount(() => {
   top: 0; left: 0; right: 0; height: 3px;
 }
 
-.node-stat.ok::before {
-  background: linear-gradient(90deg, #22c55e, #86efac);
-}
-
-.node-stat.warn::before {
-  background: linear-gradient(90deg, #f59e0b, #fcd34d);
-}
-
-.node-stat.danger::before {
-  background: linear-gradient(90deg, #ef4444, #fca5a5);
-}
+.node-stat.ok::before { background: linear-gradient(90deg, #22c55e, #86efac); }
+.node-stat.warn::before { background: linear-gradient(90deg, #f59e0b, #fcd34d); }
+.node-stat.danger::before { background: linear-gradient(90deg, #ef4444, #fca5a5); }
 
 .node-stat-label {
   color: var(--text-subtle);
@@ -1694,37 +1518,6 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
-.node-load-head span:first-child {
-  white-space: nowrap;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.summary-item {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
-  padding: 10px;
-  background: rgba(248, 250, 252, 0.7);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.summary-label {
-  color: var(--text-subtle);
-  font-size: 12px;
-}
-
-.summary-value {
-  color: var(--text-strong);
-  font-size: 20px;
-  line-height: 1.2;
-}
-
 .load-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1779,54 +1572,15 @@ onBeforeUnmount(() => {
   transition: width 0.3s ease, background 0.3s ease;
   cursor: pointer;
 }
-/* 按资源类型区分基色 */
+
 .tile-fill.cpu  { background: linear-gradient(90deg, var(--info-400), var(--info-500)); }
 .tile-fill.gpu  { background: linear-gradient(90deg, var(--accent-400), var(--accent-500)); }
 .tile-fill.memory { background: linear-gradient(90deg, var(--success-400), var(--success-500)); }
 .tile-fill.disk  { background: linear-gradient(90deg, var(--warning-400), var(--warning-500)); }
-/* 阈值覆盖色 */
 .tile-fill.warning  { background: linear-gradient(90deg, var(--progress-warning-start), var(--progress-warning-end)) !important; }
 .tile-fill.critical { background: linear-gradient(90deg, var(--progress-critical-start), var(--progress-critical-end)) !important; }
 
-.mini-rank-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mini-rank-list li {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: grid;
-  grid-template-columns: 26px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  background: rgba(248, 250, 252, 0.75);
-}
-
-.mini-rank-index {
-  color: var(--primary-500);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.mini-rank-name {
-  color: var(--text-main);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mini-rank-value {
-  color: var(--text-strong);
-  font-size: 13px;
-}
-
+/* Cost trend */
 .cost-trend {
   display: flex;
   flex-direction: column;
@@ -1874,6 +1628,90 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
+/* Asset cards */
+.asset-load-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.asset-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  gap: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.asset-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.asset-card.primary {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+.asset-card.primary::before { background: radial-gradient(circle at top right, #0ea5e9, transparent 60%); }
+.asset-card.primary .asset-icon { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); color: #0284c7; }
+
+.asset-card.secondary {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+.asset-card.secondary::before { background: radial-gradient(circle at top right, #10b981, transparent 60%); }
+.asset-card.secondary .asset-icon { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #059669; }
+
+.asset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+}
+
+.asset-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.asset-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.asset-label {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.asset-value {
+  font-size: 20px;
+  color: var(--text-strong);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.asset-divider {
+  width: 1px;
+  height: 32px;
+  background: rgba(148, 163, 184, 0.2);
+  margin: 0 8px;
+}
+
+/* Donut */
 .donut-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1912,15 +1750,8 @@ onBeforeUnmount(() => {
   gap: 2px;
 }
 
-.donut-inner strong {
-  color: var(--text-strong);
-  font-size: 16px;
-}
-
-.donut-inner span {
-  color: var(--text-subtle);
-  font-size: 11px;
-}
+.donut-inner strong { color: var(--text-strong); font-size: 16px; }
+.donut-inner span { color: var(--text-subtle); font-size: 11px; }
 
 .donut-legend {
   width: 100%;
@@ -1938,19 +1769,58 @@ onBeforeUnmount(() => {
 }
 
 .donut-legend .dot {
-  width: 8px;
-  height: 8px;
+  width: 8px; height: 8px;
   border-radius: 999px;
   display: inline-block;
 }
 
 .donut-legend .dot.success { background: #10b981; }
-.donut-legend .dot.danger { background: #ef4444; }
-.donut-legend .dot.cpu { background: #0ea5e9; }
-.donut-legend .dot.gpu { background: #8b5cf6; }
-.donut-legend .dot.mem { background: #22c55e; }
-.donut-legend .dot.disk { background: #f59e0b; }
+.donut-legend .dot.danger  { background: #ef4444; }
+.donut-legend .dot.cpu     { background: #0ea5e9; }
+.donut-legend .dot.gpu     { background: #8b5cf6; }
+.donut-legend .dot.mem     { background: #22c55e; }
+.donut-legend .dot.disk    { background: #f59e0b; }
 
+/* Rank list */
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rank-item {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.rank-top {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rank-index { font-size: 12px; font-weight: 800; color: var(--primary-500); }
+.rank-name  { color: var(--text-main); font-size: 13px; }
+.rank-value { color: var(--text-strong); font-weight: 700; font-size: 12px; }
+
+.rank-rail {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.rank-fill {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--success-500) 0%, var(--info-500) 100%);
+}
+
+/* Queue */
 .queue-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1967,16 +1837,59 @@ onBeforeUnmount(() => {
   gap: 4px;
 }
 
-.queue-item span {
-  color: var(--text-subtle);
-  font-size: 12px;
+.queue-item span  { color: var(--text-subtle); font-size: 12px; }
+.queue-item strong { color: var(--text-strong); font-size: 20px; }
+
+/* Event list */
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.queue-item strong {
-  color: var(--text-strong);
-  font-size: 20px;
+.event-list li {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: rgba(248, 250, 252, 0.7);
 }
 
+.event-time  { color: var(--text-subtle); font-size: 12px; }
+.event-text  { color: var(--text-main); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Mini rank */
+.mini-rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-rank-list li {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.mini-rank-index { color: var(--primary-500); font-size: 12px; font-weight: 700; }
+.mini-rank-name  { color: var(--text-main); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-rank-value { color: var(--text-strong); font-size: 13px; }
+
+/* Status badges */
 .status-core {
   display: inline-flex;
   align-items: center;
@@ -2007,8 +1920,7 @@ onBeforeUnmount(() => {
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 8px; height: 8px;
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 8px currentColor;
@@ -2038,55 +1950,22 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.chip-label {
-  color: var(--text-subtle);
-}
+.chip-label { color: var(--text-subtle); }
+.chip-val   { color: var(--text-main); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
-.chip-val {
-  color: var(--text-main);
-  font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-@media (min-width: 1600px) {
-  .command-center-root {
-    gap: 18px;
-    padding: 20px;
-  }
-
-  .content-grid {
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.15fr) minmax(0, 1fr);
-    gap: 14px;
-  }
-
-  .kpi-card {
-    min-height: 118px;
-  }
-}
-
-@media (min-width: 1920px) {
-  .command-center-root {
-    gap: 20px;
-    padding: 24px;
-  }
-
-  .content-grid {
-    gap: 16px;
-  }
-
-  :deep(.panel-card .el-card__header),
-  :deep(.panel-card .el-card__body) {
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-}
-
+/* Responsive */
 @media (max-width: 1200px) {
-  .kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .kpi-grid-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .middle-section {
+    grid-template-columns: 1fr;
   }
 
-  .content-grid {
+  .bottom-section {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -2105,13 +1984,8 @@ onBeforeUnmount(() => {
     justify-self: start;
   }
 
-  .ops-meta {
-    width: 100%;
-    gap: 6px;
-  }
-
-  .kpi-grid,
-  .content-grid {
+  .kpi-grid-primary,
+  .bottom-section {
     grid-template-columns: 1fr;
   }
 
@@ -2131,13 +2005,9 @@ onBeforeUnmount(() => {
   .donut-grid {
     grid-template-columns: 1fr;
   }
-
-  .trend-axis {
-    grid-template-columns: repeat(7, minmax(42px, 1fr));
-    overflow-x: auto;
-  }
 }
 
+/* Dark mode */
 html.dark .command-center-root {
   background: #0f172a;
 }
@@ -2152,8 +2022,7 @@ html.dark .logo-text,
 html.dark .panel-header,
 html.dark .kpi-value,
 html.dark .asset-value,
-html.dark .node-load-head,
-html.dark .summary-value {
+html.dark .node-load-head {
   color: #f1f5f9;
 }
 
@@ -2173,7 +2042,6 @@ html.dark :deep(.panel-card .el-card__header) {
 }
 
 html.dark .load-tile,
-html.dark .summary-item,
 html.dark .queue-item,
 html.dark .donut-block,
 html.dark .mini-rank-list li,

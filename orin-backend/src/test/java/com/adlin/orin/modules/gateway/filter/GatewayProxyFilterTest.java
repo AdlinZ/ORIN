@@ -4,7 +4,10 @@ import com.adlin.orin.modules.apikey.service.ApiKeyService;
 import com.adlin.orin.modules.gateway.config.GatewayStatsService;
 import com.adlin.orin.modules.gateway.entity.GatewayRoute;
 import com.adlin.orin.modules.gateway.repository.GatewayAuditLogRepository;
+import com.adlin.orin.modules.gateway.repository.GatewayRetryPolicyRepository;
 import com.adlin.orin.modules.gateway.service.GatewayAclService;
+import com.adlin.orin.modules.gateway.service.GatewayCircuitBreakerService;
+import com.adlin.orin.modules.gateway.service.GatewayRateLimiterService;
 import com.adlin.orin.modules.gateway.service.GatewayRuntimeRoutingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.mockwebserver.MockResponse;
@@ -40,6 +43,12 @@ class GatewayProxyFilterTest {
     private GatewayAuditLogRepository auditLogRepository;
     @Mock
     private ApiKeyService apiKeyService;
+    @Mock
+    private GatewayRateLimiterService rateLimiterService;
+    @Mock
+    private GatewayCircuitBreakerService circuitBreakerService;
+    @Mock
+    private GatewayRetryPolicyRepository retryPolicyRepository;
 
     private GatewayProxyFilter gatewayProxyFilter;
 
@@ -53,7 +62,13 @@ class GatewayProxyFilterTest {
                 statsService,
                 auditLogRepository,
                 apiKeyService,
-                new ObjectMapper());
+                new ObjectMapper(),
+                rateLimiterService,
+                circuitBreakerService,
+                retryPolicyRepository);
+        // 默认放行限流和熔断，不影响现有测试逻辑
+        lenient().when(rateLimiterService.tryAcquire(any(), any(), any())).thenReturn(true);
+        lenient().when(circuitBreakerService.allowRequest(any())).thenReturn(true);
     }
 
     @AfterEach
@@ -91,18 +106,8 @@ class GatewayProxyFilterTest {
     }
 
     @Test
-    void doFilter_shouldReturn403WhenAclDenied() throws Exception {
-        GatewayRoute route = GatewayRoute.builder()
-                .id(2L)
-                .name("acl")
-                .pathPattern("/api/proxy/**")
-                .authRequired(false)
-                .build();
-        GatewayRuntimeRoutingService.ResolvedRoute resolved = GatewayRuntimeRoutingService.ResolvedRoute.builder()
-                .route(route)
-                .targetUrl("http://localhost:18080/test")
-                .build();
-        when(routingService.resolveRoute("/api/proxy/test", "GET", null)).thenReturn(Optional.of(resolved));
+    void doFilter_shouldReturn403WhenGlobalAclDenied() throws Exception {
+        // 全局 ACL 在路由匹配之前执行，即使无匹配路由也应拒绝
         when(aclService.testIp(anyString(), anyString())).thenReturn(Map.of("action", "DENY", "apiKeyRequired", false));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/proxy/test");
@@ -112,9 +117,49 @@ class GatewayProxyFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(403);
         assertThat(response.getContentAsString()).contains("ACL denied");
-        verify(statsService).incrementRequestCount();
+        // 全局 ACL 阶段：路由未匹配，不计入请求统计，不写审计日志
+        verify(statsService, never()).incrementRequestCount();
         verify(statsService).incrementErrorCount();
+        verify(auditLogRepository, never()).save(ArgumentMatchers.any());
+        // 全局 ACL 触发时路由服务不应被调用
+        verify(routingService, never()).resolveRoute(anyString(), anyString(), any());
+    }
+
+    @Test
+    void doFilter_shouldPassThroughAndAuditForLocalRoute() throws Exception {
+        // 本地路由（无 targetUrl、无 serviceId）：经过策略后放行到 Spring MVC，并写审计日志
+        GatewayRoute localRoute = GatewayRoute.builder()
+                .id(10L)
+                .name("local-api")
+                .pathPattern("/api/v1/agents/**")
+                .authRequired(false)
+                // 无 targetUrl、无 serviceId → LOCAL 路由
+                .build();
+        GatewayRuntimeRoutingService.ResolvedRoute resolved = GatewayRuntimeRoutingService.ResolvedRoute.builder()
+                .route(localRoute)
+                .targetUrl(null)
+                .targetService(null)
+                .build();
+        when(routingService.resolveRoute("/api/v1/agents/list", "GET", null))
+                .thenReturn(Optional.of(resolved));
+        when(aclService.testIp(anyString(), anyString()))
+                .thenReturn(Map.of("action", "ALLOW", "apiKeyRequired", false));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/agents/list");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        // 模拟下游 Controller 写了 200
+        MockFilterChain chain = new MockFilterChain();
+
+        gatewayProxyFilter.doFilter(request, response, chain);
+
+        // 应放行到下游（chain.doFilter 被调用）
+        assertThat(chain.getRequest()).isNotNull();
+        // 统计和审计
+        verify(statsService).incrementRequestCount();
         verify(auditLogRepository).save(ArgumentMatchers.any());
+        // 熔断服务不应被调用（本地路由不走代理）
+        verify(circuitBreakerService, never()).allowRequest(any());
+        verify(circuitBreakerService, never()).recordResult(any(), anyBoolean());
     }
 
     @Test

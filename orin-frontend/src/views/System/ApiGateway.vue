@@ -22,6 +22,9 @@
       <el-tab-pane label="策略管理" name="policies" :lazy="true">
         <GatewayPoliciesTab />
       </el-tab-pane>
+      <el-tab-pane label="全局限流" name="rate-limit" :lazy="true">
+        <GatewayRateLimitTab />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -34,6 +37,7 @@ import GatewayRoutesTab from './components/gateway/GatewayRoutesTab.vue'
 import GatewayServicesTab from './components/gateway/GatewayServicesTab.vue'
 import GatewayAclTab from './components/gateway/GatewayAclTab.vue'
 import GatewayPoliciesTab from './components/gateway/GatewayPoliciesTab.vue'
+import GatewayRateLimitTab from './components/gateway/GatewayRateLimitTab.vue'
 
 const activeTab = ref('overview')
 </script>
