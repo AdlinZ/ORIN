@@ -44,14 +44,6 @@ const routes = [
         component: MainLayout,
         redirect: ROUTES.HOME,
         children: [
-            // ==================== 首页 ====================
-            {
-                path: 'home',
-                name: 'HomeDashboard',
-                component: () => import('@/views/Home/HomeDashboard.vue'),
-                meta: { title: '首页', icon: 'HomeFilled' }
-            },
-
             // ==================== 个人中心 ====================
             {
                 path: 'profile',
@@ -75,7 +67,7 @@ const routes = [
                     {
                         path: 'agents/console',
                         name: 'AgentConsoleEntry',
-                        component: () => import('@/views/Agent/AgentConsoleEntry.vue'),
+                        redirect: ROUTES.AGENTS.LIST,
                         meta: { title: '应用控制台', icon: 'Monitor' }
                     },
                     {
@@ -105,16 +97,18 @@ const routes = [
                         meta: { title: '智能体工作台', icon: 'Monitor' }
                     },
                     {
+                        path: 'workflows/execution',
+                        name: 'ApplicationWorkflowExecution',
+                        component: () => import('@/views/Workflow/WorkflowExecution.vue'),
+                        meta: { title: '工作流执行', icon: 'VideoPlay' }
+                    },
+                    {
                         path: 'collaboration',
-                        name: 'ApplicationCollaboration',
-                        component: () => import('@/views/Agent/Collaboration.vue'),
-                        meta: { title: '协作任务列表', icon: 'Avatar' }
+                        redirect: ROUTES.AGENTS.WORKFLOW_EXECUTION
                     },
                     {
                         path: 'collaboration/dashboard',
-                        name: 'ApplicationCollaborationDashboard',
-                        component: () => import('@/views/revamp/collaboration/CollaborationDashboardV2.vue'),
-                        meta: { title: '协作仪表盘', icon: 'DataAnalysis' }
+                        redirect: ROUTES.AGENTS.WORKFLOW_EXECUTION
                     },
 
                     // 模型管理
@@ -196,12 +190,12 @@ const routes = [
                 path: 'runtime',
                 meta: { title: '运行', category: 'runtime' },
                 children: [
-                    // 运行概览
+                    // 首页
                     {
-                        path: 'overview',
-                        name: 'RuntimeOverview',
-                        component: () => import('@/views/MonitorDashboard.vue'),
-                        meta: { title: '运行概览', icon: 'DataAnalysis' }
+                        path: 'home',
+                        name: 'HomeDashboard',
+                        component: () => import('@/views/Home/HomeDashboard.vue'),
+                        meta: { title: '首页', icon: 'HomeFilled' }
                     },
 
                     // 实时指标

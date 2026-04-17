@@ -1,17 +1,18 @@
 <template>
   <div class="gateway-services-tab">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>上游服务管理</span>
-          <el-button type="primary" @click="openServiceDialog(null)">
-            <el-icon><Plus /></el-icon>
-            添加服务
-          </el-button>
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <el-icon style="color:#059669"><SetUp /></el-icon>
+          上游服务管理
         </div>
-      </template>
+        <el-button type="primary" size="small" @click="openServiceDialog(null)">
+          <el-icon><Plus /></el-icon>
+          添加服务
+        </el-button>
+      </div>
 
-      <el-table v-loading="loading" :data="services" stripe>
+      <el-table v-loading="loading" :data="services" stripe style="border-radius:0">
         <el-table-column type="expand">
           <template #default="{ row }">
             <div style="padding: 10px 50px;">
@@ -62,7 +63,7 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+    </div>
 
     <!-- Service Dialog -->
     <el-dialog v-model="serviceDialogVisible" :title="isServiceEdit ? '编辑服务' : '添加服务'" width="500px">
@@ -121,6 +122,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { SetUp, Plus } from '@element-plus/icons-vue'
 import { getServices, createService, updateService, deleteService as deleteServiceApi,
          getServiceInstances, createServiceInstance, updateServiceInstance,
          deleteServiceInstance, triggerHealthCheck } from '@/api/gateway'
@@ -260,9 +262,27 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card-header {
+.section-card {
+  background: #fff;
+  border: 1px solid var(--neutral-gray-100, #f0f0f0);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.section-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--neutral-gray-100, #f0f0f0);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--neutral-gray-700, #374151);
 }
 </style>

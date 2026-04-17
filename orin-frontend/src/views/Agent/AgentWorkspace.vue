@@ -29,18 +29,21 @@
         </div>
 
         <template v-else>
-          <div class="session-search">
-            <el-input
-              v-model="sessionSearch"
-              placeholder="搜索会话..."
-              :prefix-icon="Search"
-              clearable
-            />
+          <div class="session-actions">
+            <el-button
+              class="new-session-btn"
+              type="primary"
+              :icon="Plus"
+              :disabled="!currentAgentId"
+              @click="newSession"
+            >
+              新建对话
+            </el-button>
           </div>
 
           <div class="session-list">
             <div
-              v-for="session in filteredSessions"
+              v-for="session in sessions"
               :key="session.id"
               :class="['session-item', { active: currentSessionId === session.id }]"
               @click="selectSession(session)"
@@ -61,7 +64,7 @@
               />
             </div>
 
-            <el-empty v-if="currentAgentId && filteredSessions.length === 0" :image-size="56" description="暂无会话" />
+            <el-empty v-if="currentAgentId && sessions.length === 0" :image-size="56" description="暂无会话" />
             <el-empty v-else-if="!currentAgentId" :image-size="56" description="请先选择智能体" />
           </div>
 
@@ -1002,7 +1005,6 @@ const expandedKbIds = ref(new Set());
 const currentAgentId = ref('');
 const currentAgent = ref(null);
 const currentSessionId = ref('');
-const sessionSearch = ref('');
 const kbSearch = ref('');
 const inputMessage = ref('');
 const loading = ref(false);
@@ -1045,12 +1047,6 @@ const isMobile = isNarrow;
 
 const configProfiles = [{ id: 'default', name: '初始配置（默认）' }];
 
-
-const filteredSessions = computed(() => {
-  if (!sessionSearch.value) return sessions.value;
-  const keyword = sessionSearch.value.toLowerCase();
-  return sessions.value.filter((session) => (session.title || '').toLowerCase().includes(keyword));
-});
 
 const filteredKnowledgeBases = computed(() => {
   if (!kbSearch.value) return knowledgeBases.value;
@@ -2997,19 +2993,14 @@ watch(
   box-shadow: 0 6px 14px rgba(15, 159, 149, 0.32);
 }
 
-.session-search {
-  padding: 12px 14px 10px;
-}
-.session-search :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  background: var(--sidebar-soft-bg);
-  box-shadow: 0 0 0 1px var(--sidebar-line) inset !important;
+.session-actions {
+  padding: 12px 14px 0;
 }
 
 .session-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 10px 14px;
+  padding: 12px 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 2px;

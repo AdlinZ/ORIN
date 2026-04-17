@@ -1,17 +1,18 @@
 <template>
   <div class="gateway-acl-tab">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>访问控制规则</span>
-          <el-button type="primary" @click="openDialog(null)">
-            <el-icon><Plus /></el-icon>
-            添加规则
-          </el-button>
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <el-icon style="color:#7c3aed"><Lock /></el-icon>
+          访问控制规则
         </div>
-      </template>
+        <el-button type="primary" size="small" @click="openDialog(null)">
+          <el-icon><Plus /></el-icon>
+          添加规则
+        </el-button>
+      </div>
 
-      <el-table v-loading="loading" :data="rules" stripe>
+      <el-table v-loading="loading" :data="rules" stripe style="border-radius:0">
         <el-table-column prop="name" label="规则名称" width="150" />
         <el-table-column prop="type" label="类型" width="100">
           <template #default="{ row }">
@@ -42,14 +43,14 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+    </div>
 
     <!-- Test Dialog -->
-    <el-card style="margin-top: 20px;">
-      <template #header>
-        <span>IP 测试</span>
-      </template>
-      <el-form inline>
+    <div class="section-card" style="margin-top: 16px;">
+      <div class="section-header">
+        <div class="section-title"><el-icon style="color:#d97706"><Search /></el-icon> IP 访问测试</div>
+      </div>
+      <el-form inline style="padding: 16px 16px 0">
         <el-form-item label="IP 地址">
           <el-input v-model="testIp" placeholder="192.168.1.1" style="width: 200px;" />
         </el-form-item>
@@ -60,10 +61,10 @@
           <el-button type="primary" @click="testIpMatch">测试</el-button>
         </el-form-item>
       </el-form>
-      <div v-if="testResult" style="margin-top: 10px;">
+      <div v-if="testResult" style="padding: 0 16px 16px;">
         <el-alert :type="testResult.action === 'ALLOW' ? 'success' : 'error'" :title="`${testResult.action === 'ALLOW' ? '允许' : '拒绝'} - ${testResult.ruleName || '无匹配规则'}`" show-icon />
       </div>
-    </el-card>
+    </div>
 
     <!-- Create/Edit Dialog -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑规则' : '添加规则'" width="500px">
@@ -104,6 +105,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Lock, Plus, Search } from '@element-plus/icons-vue'
 import { getAclRules, createAclRule, updateAclRule, deleteAclRule, testAclRule } from '@/api/gateway'
 
 const loading = ref(false)
@@ -195,9 +197,27 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card-header {
+.section-card {
+  background: #fff;
+  border: 1px solid var(--neutral-gray-100, #f0f0f0);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.section-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--neutral-gray-100, #f0f0f0);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--neutral-gray-700, #374151);
 }
 </style>

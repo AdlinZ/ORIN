@@ -1,23 +1,24 @@
 <template>
   <div class="gateway-routes-tab">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>API 路由</span>
-          <div class="header-actions">
-            <el-button size="small" @click="openTestDialog">
-              <el-icon><Connection /></el-icon>
-              测试路由
-            </el-button>
-            <el-button type="primary" @click="openCreateDialog">
-              <el-icon><Plus /></el-icon>
-              添加路由
-            </el-button>
-          </div>
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <el-icon style="color:#2563eb"><Share /></el-icon>
+          API 路由
         </div>
-      </template>
+        <div class="header-actions">
+          <el-button size="small" @click="openTestDialog">
+            <el-icon><Connection /></el-icon>
+            测试路由
+          </el-button>
+          <el-button type="primary" size="small" @click="openCreateDialog">
+            <el-icon><Plus /></el-icon>
+            添加路由
+          </el-button>
+        </div>
+      </div>
 
-      <el-table v-loading="loading" :data="routes" stripe>
+      <el-table v-loading="loading" :data="routes" stripe style="border-radius:0">
         <el-table-column prop="name" label="名称" width="140" />
         <el-table-column prop="pathPattern" label="路径" min-width="180" show-overflow-tooltip />
         <el-table-column prop="method" label="方法" width="80">
@@ -59,7 +60,7 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+    </div>
 
     <!-- Create/Edit Dialog -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑路由' : '添加路由'" width="760px">
@@ -233,7 +234,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Connection, Plus } from '@element-plus/icons-vue'
+import { Connection, Plus, Share } from '@element-plus/icons-vue'
 import {
   getRoutes, createRoute, updateRoute, deleteRoute as removeRoute, patchRoute, testRoute,
   getAllPolicies, getServices
@@ -398,11 +399,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.section-card {
+  background: #fff;
+  border: 1px solid var(--neutral-gray-100, #f0f0f0);
+  border-radius: 10px;
+  overflow: hidden;
 }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--neutral-gray-100, #f0f0f0);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--neutral-gray-700, #374151);
+}
+
 .header-actions {
   display: flex;
   gap: 8px;

@@ -368,6 +368,139 @@
             mail-dependency-text="邮件通知依赖于&quot;邮件渠道&quot;标签页中的邮件配置"
           />
         </el-tab-pane>
+
+        <!-- 标签3: 站内消息 -->
+        <el-tab-pane label="站内消息" name="messages">
+          <el-card class="messages-card">
+            <template #header>
+              <div class="card-header">
+                <span><el-icon><Bell /></el-icon> 消息列表</span>
+                <el-button
+                  type="primary"
+                  plain
+                  size="small"
+                  :loading="markingAllAsRead"
+                  @click="handleMarkAllAsRead"
+                >
+                  全部已读
+                </el-button>
+              </div>
+            </template>
+
+            <el-table
+              v-loading="loadingNotifications"
+              :data="notificationList"
+              style="width: 100%"
+              empty-text="暂无消息"
+            >
+              <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="content" label="内容" min-width="280" show-overflow-tooltip />
+              <el-table-column prop="type" label="类型" width="100">
+                <template #default="{ row }">
+                  <el-tag
+                    size="small"
+                    :type="row.type === 'ERROR' ? 'danger' : row.type === 'WARNING' ? 'warning' : row.type === 'SYSTEM' ? 'info' : 'success'"
+                  >
+                    {{ row.type || 'INFO' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="scope" label="范围" width="80">
+                <template #default="{ row }">
+                  {{ row.scope === 'BROADCAST' ? '广播' : '用户' }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="createdAt" label="时间" width="160">
+                <template #default="{ row }">
+                  {{ formatDateTime(row.createdAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="100" fixed="right">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="!row.read"
+                    type="primary"
+                    link
+                    size="small"
+                    @click="handleMarkAsRead(row.id)"
+                  >
+                    标记已读
+                  </el-button>
+                  <span v-else class="text-muted">已读</span>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div class="pagination-wrapper">
+              <el-pagination
+                v-model:current-page="notificationPage"
+                v-model:page-size="notificationPageSize"
+                :total="notificationTotal"
+                :page-sizes="[10, 20, 50]"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="loadNotifications"
+                @current-change="loadNotifications"
+              />
+            </div>
+          </el-card>
+        </el-tab-pane>
+
+        <!-- 标签4: 消息发信 -->
+        <el-tab-pane label="消息发信" name="send-notification">
+          <el-card class="send-notification-card">
+            <template #header>
+              <div class="card-header">
+                <span><el-icon><Promotion /></el-icon> 发送站内消息</span>
+              </div>
+            </template>
+
+            <el-form :model="sendNotificationForm" label-width="100px" class="send-form">
+              <el-form-item label="消息标题" required>
+                <el-input
+                  v-model="sendNotificationForm.title"
+                  placeholder="请输入消息标题"
+                  maxlength="100"
+                  show-word-limit
+                />
+              </el-form-item>
+
+              <el-form-item label="消息内容" required>
+                <el-input
+                  v-model="sendNotificationForm.content"
+                  type="textarea"
+                  :rows="6"
+                  placeholder="请输入消息内容"
+                  maxlength="1000"
+                  show-word-limit
+                />
+              </el-form-item>
+
+              <el-form-item label="发送范围" required>
+                <el-radio-group v-model="sendNotificationForm.scope">
+                  <el-radio value="BROADCAST">广播全员</el-radio>
+                  <el-radio value="USER">指定用户</el-radio>
+                </el-radio-group>
+              </el-form-item>
+
+              <el-form-item v-if="sendNotificationForm.scope === 'USER'" label="用户ID">
+                <el-input
+                  v-model="sendNotificationForm.receiverId"
+                  placeholder="请输入用户ID"
+                />
+              </el-form-item>
+
+              <el-form-item>
+                <el-button
+                  type="primary"
+                  :loading="sendingNotification"
+                  @click="handleSendNotification"
+                >
+                  发送消息
+                </el-button>
+              </el-form-item>
+            </el-form>
+          </el-card>
+        </el-tab-pane>
       </el-tabs>
     </div>
 
@@ -408,12 +541,18 @@ import { ElMessage } from 'element-plus'
 import {
   Setting, Connection, Warning, Promotion, ArrowRight, ArrowLeft,
   CircleCheck, MessageBox, Key, Message, User, Monitor, Lock, Check,
-  EditPen, Document, List, Lightning
+  EditPen, Document, List, Lightning, Bell
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import PageHeader from '@/components/PageHeader.vue'
 import NotificationChannelsPanel from '@/components/notification/NotificationChannelsPanel.vue'
 import { ROUTES } from '@/router/routes'
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  sendNotification as sendNotificationApi
+} from '@/api/notification'
 
 const router = useRouter()
 const route = useRoute()
@@ -656,7 +795,111 @@ watch(
 
 onMounted(() => {
   loadMailConfig()
+  loadNotifications()
 })
+
+// ==================== 站内消息相关 ====================
+
+const notificationList = ref([])
+const notificationPage = ref(1)
+const notificationPageSize = ref(20)
+const notificationTotal = ref(0)
+const loadingNotifications = ref(false)
+const markingAllAsRead = ref(false)
+const sendingNotification = ref(false)
+const sendNotificationForm = reactive({
+  title: '',
+  content: '',
+  scope: 'BROADCAST',
+  receiverId: ''
+})
+
+const loadNotifications = async () => {
+  loadingNotifications.value = true
+  try {
+    const res = await getNotifications({
+      page: notificationPage.value - 1,
+      size: notificationPageSize.value
+    })
+    notificationList.value = res?.content || []
+    notificationTotal.value = res?.totalElements || 0
+  } catch (e) {
+    console.error('加载消息失败:', e)
+    ElMessage.error('加载消息失败')
+  } finally {
+    loadingNotifications.value = false
+  }
+}
+
+const handleMarkAsRead = async (id) => {
+  try {
+    await markAsRead(id)
+    ElMessage.success('已标记为已读')
+    loadNotifications()
+  } catch (e) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const handleMarkAllAsRead = async () => {
+  markingAllAsRead.value = true
+  try {
+    await markAllAsRead()
+    ElMessage.success('已全部标记为已读')
+    loadNotifications()
+  } catch (e) {
+    ElMessage.error('操作失败')
+  } finally {
+    markingAllAsRead.value = false
+  }
+}
+
+const handleSendNotification = async () => {
+  if (!sendNotificationForm.title.trim()) {
+    ElMessage.warning('请输入消息标题')
+    return
+  }
+  if (!sendNotificationForm.content.trim()) {
+    ElMessage.warning('请输入消息内容')
+    return
+  }
+  if (sendNotificationForm.scope === 'USER' && !sendNotificationForm.receiverId.trim()) {
+    ElMessage.warning('请输入用户ID')
+    return
+  }
+
+  sendingNotification.value = true
+  try {
+    await sendNotificationApi({
+      title: sendNotificationForm.title,
+      content: sendNotificationForm.content,
+      type: 'INFO',
+      scope: sendNotificationForm.scope,
+      receiverId: sendNotificationForm.scope === 'USER' ? sendNotificationForm.receiverId : null
+    })
+    ElMessage.success('消息发送成功')
+    sendNotificationForm.title = ''
+    sendNotificationForm.content = ''
+    sendNotificationForm.scope = 'BROADCAST'
+    sendNotificationForm.receiverId = ''
+    loadNotifications()
+  } catch (e) {
+    ElMessage.error('发送失败: ' + (e.message || '未知错误'))
+  } finally {
+    sendingNotification.value = false
+  }
+}
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
 </script>
 
 <style scoped>
@@ -896,6 +1139,30 @@ onMounted(() => {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+/* 消息卡片 */
+.messages-card,
+.send-notification-card {
+  margin-bottom: 20px;
+}
+
+.text-muted {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+/* 发送表单 */
+.send-form {
+  max-width: 600px;
+  padding: 20px 0;
+}
+
+/* 分页 */
+.pagination-wrapper {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 </style>

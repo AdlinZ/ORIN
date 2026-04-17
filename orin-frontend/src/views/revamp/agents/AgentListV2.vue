@@ -2,7 +2,7 @@
   <div class="page-container">
     <OrinPageShell
       title="智能体中枢"
-      description="统一管理智能体、模型绑定、工作流入口和运行状态"
+      description="统一管理智能体、快速继续最近工作，并进入单智能体控制台"
       icon="UserFilled"
       domain="智能体中枢"
       maturity="available"
@@ -39,18 +39,85 @@
       </template>
     </OrinPageShell>
 
+    <section class="agent-overview-grid">
+      <el-card shadow="never" class="overview-card overview-card-accent">
+        <span class="overview-label">智能体总数</span>
+        <strong class="overview-value">{{ rows.length }}</strong>
+        <span class="overview-meta">覆盖对话、工作流和多模态执行</span>
+      </el-card>
+      <el-card shadow="never" class="overview-card">
+        <span class="overview-label">运行中</span>
+        <strong class="overview-value">{{ runningCount }}</strong>
+        <span class="overview-meta">当前可直接进入控制台的智能体</span>
+      </el-card>
+      <el-card shadow="never" class="overview-card">
+        <span class="overview-label">最近访问</span>
+        <strong class="overview-value">{{ recentAgents.length }}</strong>
+        <span class="overview-meta">从下方卡片可继续最近的工作现场</span>
+      </el-card>
+    </section>
+
+    <el-card v-if="recentAgents.length" shadow="never" class="recent-panel">
+      <template #header>
+        <div class="recent-panel-header">
+          <div>
+            <div class="recent-kicker">继续工作</div>
+            <strong>最近访问的控制台</strong>
+          </div>
+          <span class="recent-note">保留最近打开过的智能体入口</span>
+        </div>
+      </template>
+      <div class="recent-grid">
+        <button
+          v-for="agent in recentAgents"
+          :key="agent.id"
+          type="button"
+          class="recent-card"
+          @click="openConsole(agent)"
+        >
+          <div class="recent-icon" :style="{ background: getAgentAccent(agent).soft, color: getAgentAccent(agent).strong }">
+            <el-icon><component :is="getAgentIcon(agent.viewType)" /></el-icon>
+          </div>
+          <div class="recent-body">
+            <div class="recent-title-row">
+              <span class="recent-title">{{ agent.agentName }}</span>
+              <el-tag size="small" effect="plain">
+                {{ formatAgentType(agent.viewType) }}
+              </el-tag>
+            </div>
+            <div class="recent-desc">
+              {{ agent.providerType }} · {{ agent.modelName }}
+            </div>
+            <div class="recent-meta">
+              <span>状态：{{ agent.status }}</span>
+              <span>{{ formatRecentTime(agent.lastAccess) }}</span>
+            </div>
+          </div>
+          <el-icon class="recent-arrow"><Right /></el-icon>
+        </button>
+      </div>
+    </el-card>
+
     <el-card shadow="never">
       <OrinAsyncState :status="state.status" empty-text="暂无智能体数据" @retry="loadData">
         <el-table
+          class="agent-list-table"
           :data="viewRows"
           stripe
           border
+          table-layout="auto"
           @row-click="goConsole"
         >
-          <el-table-column prop="agentName" label="智能体名称" min-width="220" />
+          <el-table-column prop="agentName" label="智能体名称" min-width="240" show-overflow-tooltip />
           <el-table-column prop="providerType" label="服务商" width="130" />
-          <el-table-column prop="viewType" label="类型" width="120" />
-          <el-table-column prop="modelName" label="核心模型" min-width="220" />
+          <el-table-column prop="viewType" label="类型" width="140" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tag size="small" effect="plain">
+                {{ formatAgentType(row.viewType) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="modelName" label="核心模型" min-width="220" show-overflow-tooltip />
           <el-table-column
             prop="status"
             label="状态"
@@ -63,18 +130,15 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="lastHeartbeat" label="最后活跃" width="180">
+          <el-table-column prop="lastHeartbeat" label="最后活跃" width="168" show-overflow-tooltip>
             <template #default="{ row }">
               {{ formatTime(row.lastHeartbeat) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="220" fixed="right">
+          <el-table-column label="操作" width="160" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button link type="primary" @click.stop="goConsole(row)">
+              <el-button link type="primary" @click.stop="openConsole(row)">
                 控制台
-              </el-button>
-              <el-button link type="info" @click.stop="openWorkspace">
-                工作台
               </el-button>
               <el-button link type="danger" @click.stop="handleDelete(row)">
                 删除
@@ -91,7 +155,18 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Search } from '@element-plus/icons-vue'
+import {
+  Plus,
+  Refresh,
+  Search,
+  Right,
+  ChatDotRound,
+  Connection,
+  Microphone,
+  Headset,
+  PictureFilled,
+  VideoCamera
+} from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { ROUTES } from '@/router/routes'
 import { getAgentList } from '@/api/monitor'
@@ -114,6 +189,10 @@ const state = reactive(createAsyncState())
 const rows = ref([])
 const search = ref('')
 const statusFilter = ref('')
+const recentAgents = ref([])
+
+const RECENT_AGENTS_KEY = 'recent-agents'
+const RECENT_AGENTS_META_KEY = 'recent-agents-meta'
 
 const viewRows = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -127,11 +206,14 @@ const viewRows = computed(() => {
   })
 })
 
+const runningCount = computed(() => rows.value.filter((row) => row.status === 'RUNNING').length)
+
 const loadData = async () => {
   markLoading(state)
   try {
     const response = await getAgentList()
     rows.value = toAgentListViewModel(response)
+    loadRecentAgents()
     if (rows.value.length === 0) {
       markEmpty(state)
     } else {
@@ -142,15 +224,23 @@ const loadData = async () => {
   }
 }
 
-const goConsole = (row) => {
+const openConsole = (row) => {
   const id = row?.id || row?.raw?.id
   if (!id) return
+  const recentIds = JSON.parse(localStorage.getItem(RECENT_AGENTS_KEY) || '[]')
+  const recentMeta = JSON.parse(localStorage.getItem(RECENT_AGENTS_META_KEY) || '{}')
+  const now = Date.now()
+  const nextRecentIds = [id, ...recentIds.filter((item) => item !== id)].slice(0, 10)
+
+  recentMeta[id] = now
+
+  localStorage.setItem(RECENT_AGENTS_KEY, JSON.stringify(nextRecentIds))
+  localStorage.setItem(RECENT_AGENTS_META_KEY, JSON.stringify(recentMeta))
+  loadRecentAgents()
   router.push(ROUTES.AGENTS.CONSOLE.replace(':id', id))
 }
 
-const openWorkspace = () => {
-  router.push(ROUTES.AGENTS.WORKSPACE)
-}
+const goConsole = (row) => openConsole(row)
 
 const handleDelete = async (row) => {
   if (!row?.id) {
@@ -173,7 +263,270 @@ const getStatusType = (status) => {
   }
 }
 
-const formatTime = (val) => (val ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : '-')
+const formatTime = (val) => (val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '-')
+
+const formatRecentTime = (timestamp) => {
+  if (!timestamp) return '近期未打开'
+  const date = new Date(timestamp)
+  const now = Date.now()
+  const diff = now - date.getTime()
+
+  if (diff < 60_000) return '刚刚访问'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+  return `${Math.floor(diff / 86_400_000)} 天前`
+}
+
+const formatAgentType = (type) => {
+  const typeMap = {
+    CHAT: '对话',
+    WORKFLOW: '工作流',
+    TEXT_TO_IMAGE: '文生图',
+    IMAGE_TO_IMAGE: '图生图',
+    TEXT_TO_SPEECH: '语音合成',
+    SPEECH_TO_TEXT: '转写文字',
+    TEXT_TO_VIDEO: '视频生成',
+    TTI: '文生图',
+    TTS: '语音合成',
+    STT: '转写文字',
+    TTV: '视频生成'
+  }
+  return typeMap[String(type || '').toUpperCase()] || (type || '未知类型')
+}
+
+const getAgentIcon = (type) => {
+  const normalized = String(type || '').toUpperCase()
+  if (normalized === 'WORKFLOW') return Connection
+  if (normalized === 'TEXT_TO_IMAGE' || normalized === 'IMAGE_TO_IMAGE' || normalized === 'TTI') return PictureFilled
+  if (normalized === 'TEXT_TO_SPEECH' || normalized === 'TTS') return Headset
+  if (normalized === 'SPEECH_TO_TEXT' || normalized === 'STT') return Microphone
+  if (normalized === 'TEXT_TO_VIDEO' || normalized === 'TTV') return VideoCamera
+  return ChatDotRound
+}
+
+const getAgentAccent = (agent) => {
+  const normalized = String(agent?.viewType || '').toUpperCase()
+  if (normalized === 'WORKFLOW') return { soft: 'rgba(14, 165, 233, 0.14)', strong: '#0369a1' }
+  if (normalized === 'TEXT_TO_IMAGE' || normalized === 'IMAGE_TO_IMAGE' || normalized === 'TTI') {
+    return { soft: 'rgba(249, 115, 22, 0.14)', strong: '#c2410c' }
+  }
+  if (normalized === 'TEXT_TO_SPEECH' || normalized === 'TTS') {
+    return { soft: 'rgba(217, 70, 239, 0.14)', strong: '#a21caf' }
+  }
+  if (normalized === 'SPEECH_TO_TEXT' || normalized === 'STT') {
+    return { soft: 'rgba(34, 197, 94, 0.14)', strong: '#15803d' }
+  }
+  if (normalized === 'TEXT_TO_VIDEO' || normalized === 'TTV') {
+    return { soft: 'rgba(239, 68, 68, 0.14)', strong: '#b91c1c' }
+  }
+  return { soft: 'rgba(20, 184, 166, 0.14)', strong: '#0f766e' }
+}
+
+const loadRecentAgents = () => {
+  const recentIds = JSON.parse(localStorage.getItem(RECENT_AGENTS_KEY) || '[]')
+  const recentMeta = JSON.parse(localStorage.getItem(RECENT_AGENTS_META_KEY) || '{}')
+
+  recentAgents.value = recentIds
+    .map((id) => {
+      const agent = rows.value.find((item) => item.id === id)
+      if (!agent) return null
+      return {
+        ...agent,
+        lastAccess: recentMeta[id] || null
+      }
+    })
+    .filter(Boolean)
+    .slice(0, 4)
+}
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.agent-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.overview-card {
+  border-radius: 18px;
+}
+
+.overview-card :deep(.el-card__body) {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.overview-card-accent {
+  background: linear-gradient(135deg, #0f766e, #155e75);
+  border-color: transparent;
+}
+
+.overview-card-accent .overview-label,
+.overview-card-accent .overview-value,
+.overview-card-accent .overview-meta {
+  color: #f8fafc;
+}
+
+.overview-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.overview-value {
+  font-size: 34px;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.overview-meta {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+.recent-panel {
+  margin-bottom: 20px;
+  border-radius: 22px;
+}
+
+.recent-panel-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.recent-kicker {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.recent-note {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.recent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.recent-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), #f8fafc);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.recent-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(13, 148, 136, 0.3);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+}
+
+.recent-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  flex: 0 0 auto;
+  font-size: 18px;
+}
+
+.recent-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.recent-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.recent-title {
+  min-width: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.recent-desc,
+.recent-meta {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.recent-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.recent-arrow {
+  color: #94a3b8;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 960px) {
+  .agent-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .recent-panel-header,
+  .recent-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .recent-card {
+    align-items: flex-start;
+  }
+}
+
+.agent-list-table :deep(.el-table__cell .cell) {
+  word-break: keep-all;
+}
+
+.agent-list-table :deep(.el-table__fixed-right td.el-table__cell),
+.agent-list-table :deep(.el-table__fixed-right th.el-table__cell),
+.agent-list-table :deep(.el-table__fixed-right-patch) {
+  background: #fff;
+}
+
+.agent-list-table :deep(.el-table__fixed-right .el-table__row--striped td.el-table__cell) {
+  background: #fafafa;
+}
+
+.agent-list-table :deep(.el-table__fixed-right tbody tr:hover > td.el-table__cell) {
+  background: var(--neutral-gray-50);
+}
+
+.agent-list-table :deep(.el-table__fixed-right) {
+  box-shadow: -8px 0 16px rgba(15, 23, 42, 0.06);
+}
+</style>

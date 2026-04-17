@@ -42,7 +42,7 @@ const shortcuts = ref([
   {
     title: '运行',
     description: '监控运行状态',
-    path: ROUTES.MONITOR.DASHBOARD,
+    path: ROUTES.MONITOR.SERVER,
     icon: Monitor,
     color: 'var(--success-500)',
     bgColor: 'var(--success-light)'

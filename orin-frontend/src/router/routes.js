@@ -3,7 +3,7 @@
  * 集中管理所有路由路径，避免硬编码
  *
  * 菜单结构：
- * 1. 智能体 - 智能体管理、协作任务、版本管理、工作流编排
+ * 1. 智能体 - 智能体管理、会话工作台、工作流编排与执行
  * 2. 知识中心 - 知识库、知识图谱、同步管理
  * 3. 监控运维 - 监控总览、链路与分析、告警与事件、运维操作
  * 4. 系统管理 - 组织与权限、平台配置、模型与资源、安全与运维、支持与维护
@@ -16,14 +16,11 @@ const agentRoutes = {
     CONSOLE: '/dashboard/applications/agents/console/:id',
     CHAT_LOGS: '/dashboard/applications/conversations',
     WORKSPACE: '/dashboard/applications/workspace',
-    COLLABORATION_DASHBOARD: '/dashboard/applications/collaboration/dashboard',
-    COLLABORATION: '/dashboard/applications/collaboration',
-    VERSION_MANAGE: '/dashboard/applications/version',
-    TEST_DEBUG: '/dashboard/applications/test',
     SKILLS: '/dashboard/applications/skills',
     MCP: '/dashboard/applications/mcp',
     EXTENSIONS: '/dashboard/applications/extensions',
     WORKFLOWS: '/dashboard/applications/workflows',
+    WORKFLOW_EXECUTION: '/dashboard/applications/workflows/execution',
     WORKFLOW_CREATE: '/dashboard/applications/workflows/create',
     WORKFLOW_EDIT: '/dashboard/applications/workflows/edit/:id',
     WORKFLOW_VISUAL: '/dashboard/applications/workflows/visual',
@@ -31,6 +28,10 @@ const agentRoutes = {
     MODELS: '/dashboard/applications/models',
     MODEL_ADD: '/dashboard/applications/models/add',
     MODEL_EDIT: '/dashboard/applications/models/edit/:id',
+    COLLABORATION_DASHBOARD: '/dashboard/applications/workflows/execution',
+    COLLABORATION: '/dashboard/applications/workflows/execution',
+    VERSION_MANAGE: '/dashboard/applications/workflows/execution',
+    TEST_DEBUG: '/dashboard/applications/workflows/execution',
 }
 
 const knowledgeRoutes = {
@@ -53,7 +54,8 @@ const knowledgeRoutes = {
 
 const monitorRoutes = {
     ROOT: '/dashboard/runtime',
-    DASHBOARD: '/dashboard/runtime/overview',
+    HOME: '/dashboard/runtime/home',
+    DASHBOARD: '/dashboard/runtime/server',
     TOKENS: '/dashboard/runtime/metrics',
     LATENCY: '/dashboard/runtime/latency',
     ERRORS: '/dashboard/runtime/errors',
@@ -118,7 +120,7 @@ const controlRoutes = {
 }
 
 export const ROUTES = {
-    HOME: '/dashboard/home',
+    HOME: '/dashboard/runtime/home',
     AGENTS: agentRoutes,
     KNOWLEDGE: knowledgeRoutes,
     RESOURCES: {
@@ -154,9 +156,12 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/agents/workflows/visual/:id': ROUTES.AGENTS.WORKFLOW_VISUAL_EDIT,
     '/dashboard/applications/agents': ROUTES.AGENTS.LIST,
     '/dashboard/applications/conversations': ROUTES.AGENTS.CHAT_LOGS,
-    '/dashboard/applications/collaboration': ROUTES.AGENTS.COLLABORATION,
-    '/dashboard/applications/collaboration/tasks': ROUTES.AGENTS.COLLABORATION,
-    '/dashboard/applications/collaboration/config': ROUTES.AGENTS.COLLABORATION,
+    '/dashboard/applications/collaboration': ROUTES.AGENTS.WORKFLOW_EXECUTION,
+    '/dashboard/applications/collaboration/tasks': ROUTES.AGENTS.WORKFLOW_EXECUTION,
+    '/dashboard/applications/collaboration/config': ROUTES.AGENTS.WORKFLOW_EXECUTION,
+    '/dashboard/applications/collaboration/dashboard': ROUTES.AGENTS.WORKFLOW_EXECUTION,
+    '/dashboard/applications/version': ROUTES.AGENTS.WORKFLOW_EXECUTION,
+    '/dashboard/applications/test': ROUTES.AGENTS.WORKFLOW_EXECUTION,
     '/dashboard/applications/tools': ROUTES.AGENTS.MCP,
     '/dashboard/control/revamp-rollout': ROUTES.SYSTEM.ROOT,
     '/dashboard/applications/models': ROUTES.AGENTS.MODELS,
@@ -202,7 +207,7 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
 
     // 监控运维模块（旧路径）
     '/dashboard/monitor': ROUTES.MONITOR.DASHBOARD,
-    '/dashboard/runtime/overview': ROUTES.MONITOR.DASHBOARD,
+    '/dashboard/runtime/overview': ROUTES.MONITOR.SERVER,
     '/dashboard/runtime/metrics': ROUTES.MONITOR.TOKENS,
     '/dashboard/runtime/rate-limit': ROUTES.MONITOR.RATE_LIMIT,
     '/dashboard/stats/tokens': ROUTES.MONITOR.TOKENS,
@@ -261,6 +266,9 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     // 缺少 dashboard 前缀的历史地址
     '/system/api-keys': ROUTES.SYSTEM.API_KEYS,
     '/workflow': ROUTES.AGENTS.WORKFLOWS,
+
+    // 首页重定向
+    '/dashboard/home': ROUTES.HOME,
 }
 
 function buildLegacyRedirects(rawMap) {
@@ -312,7 +320,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 children: [
                     { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS },
                     { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE },
-                    { title: '协作任务', path: ROUTES.AGENTS.COLLABORATION },
                 ]
             },
             // 能力扩展（三级）
@@ -332,6 +339,12 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '工作流编排',
                 icon: 'Connection',
                 path: ROUTES.AGENTS.WORKFLOWS,
+            },
+            {
+                id: 'workflow-execution',
+                title: '工作流执行',
+                icon: 'VideoPlay',
+                path: ROUTES.AGENTS.WORKFLOW_EXECUTION,
             },
         ],
     },
@@ -378,15 +391,15 @@ export const SIDEBAR_MENU_CONFIG = [
         icon: 'Monitor',
         color: '#f59e0b',
         path: ROUTES.MONITOR.ROOT,
-        redirect: ROUTES.MONITOR.DASHBOARD,
+        redirect: ROUTES.HOME,
         children: [
             {
                 id: 'overview',
                 title: '监控总览',
                 icon: 'DataAnalysis',
-                path: ROUTES.MONITOR.DASHBOARD,
+                path: ROUTES.HOME,
                 children: [
-                    { title: '监控大盘', path: ROUTES.MONITOR.DASHBOARD },
+                    { title: '首页', path: ROUTES.HOME },
                     { title: '服务器监控', path: ROUTES.MONITOR.SERVER },
                     { title: '任务队列', path: ROUTES.MONITOR.TASKS },
                 ]
@@ -465,7 +478,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'Cpu',
                 path: '/dashboard/system/resources',
                 children: [
-                    { title: '模型默认参数', path: ROUTES.SYSTEM.SETTINGS_MODEL_DEFAULTS },
                     { title: '模型配置', path: ROUTES.SYSTEM.MODELS },
                     { title: '定价配置', path: ROUTES.SYSTEM.PRICING },
                     { title: '文件管理', path: ROUTES.SYSTEM.FILES },

@@ -7,17 +7,6 @@ import { ROUTES } from './routes'
  */
 export const TOP_MENU_CONFIG = [
   {
-    id: 'home',
-    title: '首页',
-    icon: 'DataLine',
-    color: '#2563eb',
-    path: ROUTES.HOME,
-    requiresAdmin: false,
-    children: [
-      { title: '数据驾驶舱', path: ROUTES.HOME, icon: 'DataAnalysis', status: 'available' },
-    ],
-  },
-  {
     id: 'agents',
     title: '智能体',
     icon: 'Robot',
@@ -26,8 +15,6 @@ export const TOP_MENU_CONFIG = [
     requiresAdmin: false,
     children: [
       { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'List', status: 'available' },
-      { title: '接入向导', path: ROUTES.AGENTS.ONBOARD, icon: 'Plus', status: 'available' },
-      { title: '控制台', path: ROUTES.AGENTS.CONSOLE.replace('/:id', ''), icon: 'Monitor', status: 'available' },
       { title: '知识对话', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', status: 'available' },
       { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS, icon: 'ChatDotRound', status: 'available' },
       { title: '智能体扩展', path: ROUTES.AGENTS.EXTENSIONS, icon: 'Star', status: 'available' },
@@ -42,10 +29,7 @@ export const TOP_MENU_CONFIG = [
     requiresAdmin: false,
     children: [
       { title: '工作流编排', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Edit', status: 'available' },
-      { title: '协作任务', path: ROUTES.AGENTS.COLLABORATION, icon: 'Avatar', status: 'available' },
-      { title: '协作看板', path: ROUTES.AGENTS.COLLABORATION_DASHBOARD, icon: 'DataAnalysis', status: 'beta' },
-      { title: '版本管理', path: ROUTES.AGENTS.VERSION_MANAGE, icon: 'Collection', status: 'available' },
-      { title: '测试中心', path: ROUTES.AGENTS.TEST_DEBUG, icon: 'Bug', status: 'beta' },
+      { title: '工作流执行', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay', status: 'available' },
     ],
   },
   {
@@ -72,7 +56,8 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.MONITOR.ROOT,
     requiresAdmin: false,
     children: [
-      { title: '监控总览', path: ROUTES.MONITOR.DASHBOARD, icon: 'DataAnalysis', status: 'available' },
+      { title: '首页', path: ROUTES.HOME, icon: 'HomeFilled', status: 'available' },
+      { title: '服务器监控', path: ROUTES.MONITOR.SERVER, icon: 'DataAnalysis', status: 'available' },
       { title: '调用链路', path: ROUTES.MONITOR.TRACES, icon: 'Share', status: 'available' },
       { title: '成本统计', path: ROUTES.MONITOR.TOKENS, icon: 'Coin', status: 'available' },
       { title: '性能分析', path: ROUTES.MONITOR.LATENCY, icon: 'Timer', status: 'available' },
@@ -92,7 +77,6 @@ export const TOP_MENU_CONFIG = [
       { title: '角色管理', path: ROUTES.SYSTEM.ROLES, icon: 'UserFilled', status: 'available' },
       { title: '访问密钥', path: ROUTES.SYSTEM.API_KEYS, icon: 'Key', status: 'available' },
       { title: '模型配置', path: ROUTES.SYSTEM.MODELS, icon: 'SetUp', status: 'available' },
-      { title: '模型默认参数', path: ROUTES.SYSTEM.SETTINGS_MODEL_DEFAULTS, icon: 'Cpu', status: 'available' },
       { title: '定价配置', path: ROUTES.SYSTEM.PRICING, icon: 'PriceTag', status: 'available' },
     ],
   },

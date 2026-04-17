@@ -330,7 +330,10 @@ const handleEdit = (row) => {
 };
 
 const handleRun = (row) => {
-  ElMessage.success(`已触发测试运行: ${row.workflowName}`); // Updated property name
+  router.push({
+    path: ROUTES.AGENTS.WORKFLOW_EXECUTION,
+    query: row?.id ? { workflowId: row.id } : {}
+  });
 };
 
 const handleDelete = (row) => {
