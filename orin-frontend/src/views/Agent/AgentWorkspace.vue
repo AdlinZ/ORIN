@@ -8,6 +8,25 @@
         <div class="sidebar-tab" :class="{ active: sidebarTab === 'session' }" @click="sidebarTab = 'session'">会话记录</div>
         <div class="sidebar-tab" :class="{ active: sidebarTab === 'config' }" @click="sidebarTab = 'config'">工作台设置</div>
       </div>
+      <div v-if="!sessionPaneCollapsed" class="sidebar-agent-switch">
+        <span class="sidebar-agent-switch-label">当前智能体</span>
+        <el-select
+          v-model="currentAgentId"
+          class="sidebar-agent-select"
+          placeholder="请选择智能体"
+          filterable
+          :loading="agentsLoading"
+          :disabled="props.lockAgent || agentsLoading || !agents.length"
+          @change="onAgentSelectionChange"
+        >
+          <el-option
+            v-for="agent in agents"
+            :key="agent.id"
+            :label="agent.name"
+            :value="agent.id"
+          />
+        </el-select>
+      </div>
       <div v-show="sidebarTab === 'session'" class="workspace-session-pane">
         <div class="session-collapse-handle">
           <el-button
@@ -575,10 +594,13 @@
           <h2>{{ greetingText }}</h2>
 
           <div class="composer-placeholder is-disabled">
-            <div class="quick-config-row">
-              <button type="button" class="quick-config-chip" disabled>
-                模式：{{ currentInteractionLabel }}
-              </button>
+              <div class="quick-config-row">
+                <button type="button" class="quick-config-chip" disabled>
+                  智能体：{{ currentAgent?.name || '未选择' }}
+                </button>
+                <button type="button" class="quick-config-chip" disabled>
+                  模式：{{ currentInteractionLabel }}
+                </button>
               <button type="button" class="quick-config-chip" disabled>
                 知识库：{{ attachedKbIds.length }}
               </button>
@@ -773,9 +795,9 @@
                       {{ isRetrievedContextExpanded(msg, index) ? '收起' : '查看依据' }}
                     </span>
                   </div>
-                  <div v-if="isRetrievedContextExpanded(msg, index)">
+                  <div v-if="isRetrievedContextExpanded(msg, index)" class="context-body">
                     <div
-                      v-for="(chunk, chunkIndex) in msg.retrievedChunks.slice(0, 3)"
+                      v-for="(chunk, chunkIndex) in msg.retrievedChunks"
                       :key="`${index}-${chunkIndex}`"
                       class="context-item"
                     >
@@ -825,7 +847,7 @@
             />
             <div class="input-actions">
               <div class="input-hint">
-                模式：{{ currentInteractionLabel }} · 已附加知识库 {{ attachedKbIds.length }} 个
+                智能体：{{ currentAgent?.name || '未选择' }} · 模式：{{ currentInteractionLabel }} · 已附加知识库 {{ attachedKbIds.length }} 个
                 <span v-if="totalFilteredDocs > 0"> · 文档过滤 {{ totalFilteredDocs }} 个</span>
                 <span v-if="selectedUploadFileName"> · 文件：{{ selectedUploadFileName }}</span>
               </div>
@@ -993,6 +1015,7 @@ const defaultRuntimeForm = () => ({
 });
 
 const agents = ref([]);
+const agentsLoading = ref(false);
 const knowledgeBases = ref([]);
 const sessions = ref([]);
 const skills = ref([]);
@@ -1247,6 +1270,12 @@ const normalizeAgent = (agent) => ({
   status: agent.status || '',
   enabled: agent.enabled
 });
+
+const findAgentById = (agentId) => {
+  const targetId = normalizeId(agentId);
+  if (!targetId) return null;
+  return agents.value.find((agent) => normalizeId(agent.id) === targetId) || null;
+};
 
 const getAgentColor = (name) => {
   const colors = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -1621,32 +1650,37 @@ const normalizeKbDocFilters = (filters = {}) => {
 const isKbAttached = (kbId) => attachedKbIds.value.includes(normalizeId(kbId));
 
 const loadAgents = async () => {
-  const res = await listAgents({ page: 1, size: 100 });
-  const list = Array.isArray(res?.data?.records)
-    ? res.data.records
-    : Array.isArray(res?.data)
-      ? res.data
-      : Array.isArray(res)
-        ? res
-        : [];
+  agentsLoading.value = true;
+  try {
+    const res = await listAgents({ page: 1, size: 100 });
+    const list = Array.isArray(res?.data?.records)
+      ? res.data.records
+      : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+          ? res
+          : [];
 
-  agents.value = list.map(normalizeAgent).filter((agent) => agent.id);
+    agents.value = list.map(normalizeAgent).filter((agent) => agent.id);
 
-  const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
-  if (presetId && agents.value.some((agent) => String(agent.id) === presetId)) {
-    currentAgentId.value = presetId;
-    currentAgent.value = agents.value.find((agent) => String(agent.id) === presetId) || null;
+    const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
+    if (presetId && agents.value.some((agent) => normalizeId(agent.id) === presetId)) {
+      currentAgentId.value = presetId;
+      currentAgent.value = findAgentById(presetId);
+      selectedModelName.value = currentAgent.value?.model || '';
+      return;
+    }
+
+    if (!currentAgentId.value && agents.value.length) {
+      currentAgentId.value = normalizeId(agents.value[0].id);
+      currentAgent.value = agents.value[0];
+    } else {
+      currentAgent.value = findAgentById(currentAgentId.value);
+    }
     selectedModelName.value = currentAgent.value?.model || '';
-    return;
+  } finally {
+    agentsLoading.value = false;
   }
-
-  if (!currentAgentId.value && agents.value.length) {
-    currentAgentId.value = agents.value[0].id;
-    currentAgent.value = agents.value[0];
-  } else {
-    currentAgent.value = agents.value.find((agent) => agent.id === currentAgentId.value) || null;
-  }
-  selectedModelName.value = currentAgent.value?.model || '';
 };
 
 const loadKnowledgeBases = async () => {
@@ -1910,20 +1944,31 @@ const newSession = async () => {
 };
 
 const handleAgentChange = async (agentId) => {
-  currentAgent.value = agents.value.find((agent) => agent.id === agentId) || null;
+  const targetId = normalizeId(agentId);
+  if (!targetId) return;
+  currentAgentId.value = targetId;
+  currentAgent.value = findAgentById(targetId);
   selectedModelName.value = currentAgent.value?.model || '';
-  restoreConfigForAgent(agentId);
-  await loadAgentRuntimeConfig(agentId);
+  restoreConfigForAgent(targetId);
+  await loadAgentRuntimeConfig(targetId);
   activeConfigTab.value = 'tools';
 
   try {
-    await loadSessions(agentId);
+    await loadSessions(targetId);
     if (!sessions.value.length) {
-      await createSessionForAgent(agentId);
+      await createSessionForAgent(targetId);
     }
   } catch (error) {
     ElMessage.error('加载智能体工作台失败');
   }
+};
+
+const onAgentSelectionChange = async (agentId) => {
+  if (props.lockAgent) return;
+  const targetId = normalizeId(agentId);
+  if (!targetId) return;
+  if (normalizeId(currentAgent.value?.id) === targetId) return;
+  await handleAgentChange(targetId);
 };
 
 const removeSession = async (session) => {
@@ -2654,13 +2699,13 @@ onMounted(async () => {
   // Restore saved agent (or use first available); preset has highest priority.
   const agentToRestore = (presetId && agents.value.find((a) => String(a.id) === presetId))
     ? presetId
-    : (savedState?.currentAgentId && agents.value.find((a) => a.id === savedState.currentAgentId)
-      ? savedState.currentAgentId
+    : (savedState?.currentAgentId && agents.value.find((a) => normalizeId(a.id) === normalizeId(savedState.currentAgentId))
+      ? normalizeId(savedState.currentAgentId)
       : (agents.value[0]?.id || ''));
 
   if (agentToRestore) {
-    currentAgentId.value = agentToRestore;
-    currentAgent.value = agents.value.find(a => a.id === agentToRestore) || null;
+    currentAgentId.value = normalizeId(agentToRestore);
+    currentAgent.value = findAgentById(agentToRestore);
     selectedModelName.value = currentAgent.value?.model || '';
     restoreConfigForAgent(agentToRestore);
     await loadAgentRuntimeConfig(agentToRestore);
@@ -2810,6 +2855,27 @@ watch(
 }
 .sidebar-tab.active:hover {
   background: #ffffff;
+}
+
+.sidebar-agent-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px 8px;
+  padding: 8px 10px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid var(--sidebar-line);
+  border-radius: 10px;
+}
+
+.sidebar-agent-switch-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--sidebar-text-muted);
+}
+
+.sidebar-agent-select {
+  flex: 1;
 }
 
 .workspace-config-pane {
@@ -3348,6 +3414,94 @@ watch(
 .citation-item:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
+}
+
+/* Retrieved Context */
+.retrieved-context {
+  margin-top: 10px;
+  border: 1px solid #dbe7f2;
+  border-radius: 14px;
+  background: #f8fbff;
+  overflow: hidden;
+}
+
+.context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.context-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.18s ease;
+}
+
+.context-toggle:hover {
+  background: #f2f7ff;
+}
+
+.context-header-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.context-header-left :deep(.el-icon) {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.context-toggle-text {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.context-body {
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 12px 12px;
+}
+
+.context-item {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.context-item:last-child {
+  margin-bottom: 0;
+}
+
+.chunk-source {
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.chunk-source.is-clickable {
+  cursor: pointer;
+}
+
+.chunk-source.is-clickable:hover {
+  color: #0f9f95;
+}
+
+.chunk-text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #475569;
 }
 
 /* Message Box */
@@ -4157,6 +4311,48 @@ html.dark .citation-item {
 html.dark .citation-item:hover {
   background: rgba(30, 41, 59, 0.9);
   border-color: rgba(38, 255, 223, 0.3);
+}
+
+html.dark .retrieved-context {
+  background: rgba(15, 28, 28, 0.82);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.dark .context-toggle:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+html.dark .context-header-left {
+  color: #e2e8f0;
+}
+
+html.dark .context-header-left :deep(.el-icon) {
+  color: #94a3b8;
+}
+
+html.dark .context-toggle-text {
+  color: #5eead4;
+}
+
+html.dark .context-body {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .context-item {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .chunk-source {
+  color: #26FFDF;
+}
+
+html.dark .chunk-source.is-clickable:hover {
+  color: #5fffe5;
+}
+
+html.dark .chunk-text {
+  color: #cbd5e1;
 }
 
 html.dark .message-text {

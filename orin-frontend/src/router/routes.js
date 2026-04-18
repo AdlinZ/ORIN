@@ -40,10 +40,8 @@ const knowledgeRoutes = {
     CREATE: '/dashboard/resources/knowledge/create',
     DETAIL: '/dashboard/resources/knowledge/detail/:id',
     DOCUMENT_DETAIL: '/dashboard/resources/knowledge/:kbId/document/:docId',
-    MEDIA: '/dashboard/resources/media',
-    RETRIEVAL_LAB: '/dashboard/resources/embedding-lab',
-    EMBEDDING_LAB: '/dashboard/resources/embedding-lab',
-    VLM_LAB: '/dashboard/resources/vlm-lab',
+    RETRIEVAL_LAB: '/dashboard/resources/retrieval',
+    EMBEDDING_LAB: '/dashboard/resources/retrieval',
     RETRIEVAL_TEST: '/dashboard/resources/retrieval-test',
     INTELLIGENCE: '/dashboard/resources/architecture',
     GRAPH: '/dashboard/resources/graph',
@@ -54,7 +52,7 @@ const knowledgeRoutes = {
 
 const monitorRoutes = {
     ROOT: '/dashboard/runtime',
-    HOME: '/dashboard/runtime/home',
+    HOME: '/dashboard/runtime/overview',
     DASHBOARD: '/dashboard/runtime/server',
     TOKENS: '/dashboard/runtime/metrics',
     LATENCY: '/dashboard/runtime/latency',
@@ -63,6 +61,7 @@ const monitorRoutes = {
     TRACE_DETAIL: '/dashboard/runtime/traces/:traceId',
     DATAFLOW: '/dashboard/runtime/dataflow/:traceId',
     ALERTS: '/dashboard/runtime/alerts',
+    AUDIT_LOGS: '/dashboard/runtime/audit-logs',
     ALERT_RULES: '/dashboard/runtime/alerts',
     NOTIFICATIONS: '/dashboard/runtime/alerts',
     TASKS: '/dashboard/runtime/tasks',
@@ -91,6 +90,7 @@ const systemRoutes = {
     SETTINGS_MONITOR: '/dashboard/control/system-env',
     SETTINGS_GATEWAY: '/dashboard/control/gateway',
     SETTINGS_SYNC: '/dashboard/control/client-sync',
+    SYNC: '/dashboard/control/sync',
     SETTINGS_MCP_SERVICE: '/dashboard/control/mcp-service',
     AUDIT_LOGS: '/dashboard/control/audit-logs',
     MODELS: '/dashboard/applications/models',
@@ -120,15 +120,13 @@ const controlRoutes = {
 }
 
 export const ROUTES = {
-    HOME: '/dashboard/runtime/home',
+    HOME: '/dashboard/runtime/overview',
     AGENTS: agentRoutes,
     KNOWLEDGE: knowledgeRoutes,
     RESOURCES: {
         ROOT: knowledgeRoutes.ROOT,
         KNOWLEDGE: knowledgeRoutes.LIST,
-        MEDIA: knowledgeRoutes.MEDIA,
         EMBEDDING_LAB: knowledgeRoutes.EMBEDDING_LAB,
-        VLM_LAB: knowledgeRoutes.VLM_LAB,
         GRAPH: knowledgeRoutes.GRAPH,
         ARCHITECTURE: knowledgeRoutes.ARCHITECTURE,
     },
@@ -185,24 +183,20 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/knowledge/create': ROUTES.KNOWLEDGE.CREATE,
     '/dashboard/knowledge/detail/:id': ROUTES.KNOWLEDGE.DETAIL,
     '/dashboard/knowledge/:kbId/document/:docId': ROUTES.KNOWLEDGE.DOCUMENT_DETAIL,
-    '/dashboard/knowledge/media': ROUTES.KNOWLEDGE.MEDIA,
     '/dashboard/knowledge/embedding-lab': ROUTES.KNOWLEDGE.EMBEDDING_LAB,
     '/dashboard/knowledge/graph': ROUTES.KNOWLEDGE.GRAPH,
     '/dashboard/knowledge/graph/:id': ROUTES.KNOWLEDGE.GRAPH_DETAIL,
-    '/dashboard/knowledge/sync': ROUTES.KNOWLEDGE.SYNC,
+    '/dashboard/knowledge/sync': ROUTES.SYSTEM.SYNC,
     '/dashboard/knowledge/lab': ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
-    '/dashboard/knowledge/vlm-playground': ROUTES.KNOWLEDGE.VLM_LAB,
     '/dashboard/knowledge/intelligence': ROUTES.KNOWLEDGE.INTELLIGENCE,
     '/dashboard/resources/knowledge': ROUTES.KNOWLEDGE.LIST,
     '/dashboard/resources/knowledge/create': ROUTES.KNOWLEDGE.CREATE,
     '/dashboard/resources/knowledge/detail/:id': ROUTES.KNOWLEDGE.DETAIL,
-    '/dashboard/resources/media': ROUTES.KNOWLEDGE.MEDIA,
     '/dashboard/resources/embedding-lab': ROUTES.KNOWLEDGE.EMBEDDING_LAB,
     '/dashboard/resources/graph': ROUTES.KNOWLEDGE.GRAPH,
     '/dashboard/resources/graph/:id': ROUTES.KNOWLEDGE.GRAPH_DETAIL,
-    '/dashboard/resources/sync': ROUTES.KNOWLEDGE.SYNC,
+    '/dashboard/resources/sync': ROUTES.SYSTEM.SYNC,
     '/dashboard/resources/rag-lab': ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
-    '/dashboard/resources/vlm-lab': ROUTES.KNOWLEDGE.VLM_LAB,
     '/dashboard/resources/architecture': ROUTES.KNOWLEDGE.ARCHITECTURE,
 
     // 监控运维模块（旧路径）
@@ -269,6 +263,7 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
 
     // 首页重定向
     '/dashboard/home': ROUTES.HOME,
+    '/dashboard/runtime/home': ROUTES.HOME,
 }
 
 function buildLegacyRedirects(rawMap) {
@@ -365,7 +360,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: ROUTES.KNOWLEDGE.LIST,
                 children: [
                     { title: '知识库列表', path: ROUTES.KNOWLEDGE.LIST },
-                    { title: '素材管理', path: ROUTES.KNOWLEDGE.MEDIA },
                     { title: '检索测试', path: ROUTES.KNOWLEDGE.RETRIEVAL_TEST },
                 ]
             },
@@ -374,12 +368,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 title: '知识图谱',
                 icon: 'Connection',
                 path: ROUTES.KNOWLEDGE.GRAPH,
-            },
-            {
-                id: 'sync',
-                title: '同步管理',
-                icon: 'Upload',
-                path: ROUTES.KNOWLEDGE.SYNC,
             },
         ],
     },
@@ -399,7 +387,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'DataAnalysis',
                 path: ROUTES.HOME,
                 children: [
-                    { title: '首页', path: ROUTES.HOME },
+                    { title: '监控总览', path: ROUTES.HOME },
                     { title: '服务器监控', path: ROUTES.MONITOR.SERVER },
                     { title: '任务队列', path: ROUTES.MONITOR.TASKS },
                 ]
@@ -468,6 +456,7 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '基础设置', path: ROUTES.SYSTEM.SETTINGS_BASE },
                     { title: '通知中心', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
                     { title: '同步配置', path: ROUTES.SYSTEM.SETTINGS_SYNC },
+                    { title: '数据同步', path: ROUTES.SYSTEM.SYNC },
                     { title: 'MCP 服务', path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE },
                 ]
             },

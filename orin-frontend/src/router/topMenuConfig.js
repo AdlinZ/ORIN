@@ -14,8 +14,8 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.AGENTS.ROOT,
     requiresAdmin: false,
     children: [
+      { title: '智能体对话', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', status: 'available' },
       { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'List', status: 'available' },
-      { title: '知识对话', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', status: 'available' },
       { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS, icon: 'ChatDotRound', status: 'available' },
       { title: '智能体扩展', path: ROUTES.AGENTS.EXTENSIONS, icon: 'Star', status: 'available' },
     ],
@@ -40,12 +40,9 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.KNOWLEDGE.ROOT,
     requiresAdmin: false,
     children: [
+      { title: '知识库检索', path: ROUTES.KNOWLEDGE.EMBEDDING_LAB, icon: 'Search', status: 'available' },
       { title: '知识库列表', path: ROUTES.KNOWLEDGE.LIST, icon: 'List', status: 'available' },
-      { title: '素材管理', path: ROUTES.KNOWLEDGE.MEDIA, icon: 'Picture', status: 'available' },
-      { title: '知识图谱', path: ROUTES.KNOWLEDGE.GRAPH, icon: 'Connection', status: 'beta' },
-      { title: '同步管理', path: ROUTES.KNOWLEDGE.SYNC, icon: 'Clock', status: 'beta' },
-      { title: '检索实验室', path: ROUTES.KNOWLEDGE.EMBEDDING_LAB, icon: 'Search', status: 'available' },
-      { title: '多模态实验室', path: ROUTES.KNOWLEDGE.VLM_LAB, icon: 'View', status: 'available' },
+{ title: '知识图谱', path: ROUTES.KNOWLEDGE.GRAPH, icon: 'Connection', status: 'beta' },
     ],
   },
   {
@@ -56,7 +53,7 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.MONITOR.ROOT,
     requiresAdmin: false,
     children: [
-      { title: '首页', path: ROUTES.HOME, icon: 'HomeFilled', status: 'available' },
+      { title: '监控总览', path: ROUTES.HOME, icon: 'DataAnalysis', status: 'available' },
       { title: '服务器监控', path: ROUTES.MONITOR.SERVER, icon: 'DataAnalysis', status: 'available' },
       { title: '调用链路', path: ROUTES.MONITOR.TRACES, icon: 'Share', status: 'available' },
       { title: '成本统计', path: ROUTES.MONITOR.TOKENS, icon: 'Coin', status: 'available' },
@@ -93,7 +90,7 @@ export const TOP_MENU_CONFIG = [
       { title: '文件管理', path: ROUTES.SYSTEM.FILES, icon: 'Folder', status: 'available' },
       { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY, icon: 'Router', status: 'available' },
       { title: '分布式锁', path: ROUTES.SYSTEM.DISTRIBUTED_LOCK, icon: 'Lock', status: 'available' },
-      { title: '审计日志', path: ROUTES.SYSTEM.AUDIT_LOGS, icon: 'Document', status: 'available' },
+      { title: '数据同步', path: ROUTES.SYSTEM.SYNC, icon: 'Refresh', status: 'beta' },
     ],
   },
 ]

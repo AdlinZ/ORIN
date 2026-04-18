@@ -230,7 +230,14 @@ public class DeepSeekAgentManageService implements AgentManageService {
         String externalEndpoint = profile.getEndpointUrl() + "/chat/completions";
         String requestParamsJson;
         try {
-            requestParamsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(messages);
+            Map<String, Object> requestPayloadForAudit = new HashMap<>();
+            requestPayloadForAudit.put("model", metadata.getModelName());
+            requestPayloadForAudit.put("messages", messages);
+            requestPayloadForAudit.put("temperature", temperature);
+            requestPayloadForAudit.put("top_p", topP);
+            requestPayloadForAudit.put("max_tokens", maxTokens);
+            requestPayloadForAudit.put("stream", false);
+            requestParamsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(requestPayloadForAudit);
         } catch (Exception e) {
             requestParamsJson = message;
         }
@@ -250,13 +257,16 @@ public class DeepSeekAgentManageService implements AgentManageService {
         // Record audit log after API call
         try {
             String responseText = result.isPresent() ? result.get().toString() : null;
-            int statusCode = result.isPresent() ? 200 : 500;
-            Map<String, Integer> usage = extractUsageFromResponse(result.orElse(null));
+            Object responseObj = result.orElse(null);
+            int statusCode = extractStatusCode(responseObj, result.isPresent());
+            boolean success = statusCode >= 200 && statusCode < 300;
+            String errorMessage = success ? null : extractErrorMessage(responseObj);
+            Map<String, Integer> usage = extractUsageFromResponse(responseObj);
             auditLogService.logApiCall(
                     "SYSTEM", null, agentId, "DeepSeek", externalEndpoint, "POST",
                     metadata.getModelName(), null, "ORIN", requestParamsJson,
                     responseText, Integer.valueOf(statusCode), duration,
-                    usage.get("prompt"), usage.get("completion"), Double.valueOf(0.0), result.isPresent(), null);
+                    usage.get("prompt"), usage.get("completion"), Double.valueOf(0.0), success, errorMessage);
         } catch (Exception e) {
             log.warn("Failed to log audit for DeepSeek: {}", e.getMessage());
         }
@@ -344,6 +354,37 @@ public class DeepSeekAgentManageService implements AgentManageService {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    private int extractStatusCode(Object response, boolean hasResult) {
+        if (response instanceof Map<?, ?> respMap) {
+            Object explicitStatusCode = respMap.get("statusCode");
+            if (explicitStatusCode != null) {
+                int parsed = toInt(explicitStatusCode);
+                if (parsed > 0) {
+                    return parsed;
+                }
+            }
+            Object status = respMap.get("status");
+            if (status != null && "ERROR".equalsIgnoreCase(String.valueOf(status))) {
+                return 500;
+            }
+        }
+        return hasResult ? 200 : 500;
+    }
+
+    private String extractErrorMessage(Object response) {
+        if (response instanceof Map<?, ?> respMap) {
+            Object errorMessage = respMap.get("errorMessage");
+            if (errorMessage != null && !String.valueOf(errorMessage).isBlank()) {
+                return String.valueOf(errorMessage);
+            }
+            Object error = respMap.get("error");
+            if (error != null && !String.valueOf(error).isBlank()) {
+                return String.valueOf(error);
+            }
+        }
+        return "DeepSeek request failed";
     }
 
     @Override

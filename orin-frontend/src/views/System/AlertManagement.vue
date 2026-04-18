@@ -1,13 +1,14 @@
 <template>
-  <div class="alert-manager">
+  <div class="alert-manager" :class="{ embedded: !props.showHeader }">
     <PageHeader
+      v-if="props.showHeader"
       title="异常告警"
       description="集中管理告警规则、历史记录与处理状态"
       icon="Bell"
     />
     <el-tabs v-model="activeTab" class="config-tabs">
       <!-- 告警规则 Tab -->
-      <el-tab-pane label="告警规则" name="rules">
+      <el-tab-pane v-if="showRulesTab" label="告警规则" name="rules">
         <el-card class="premium-card">
           <template #header>
             <div class="card-header">
@@ -88,7 +89,7 @@
       </el-tab-pane>
 
       <!-- 告警历史 Tab -->
-      <el-tab-pane label="告警历史" name="history">
+      <el-tab-pane v-if="showHistoryTab" label="告警历史" name="history">
         <el-card class="premium-card">
           <template #header>
             <div class="card-header">
@@ -229,7 +230,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import dayjs from 'dayjs'
@@ -238,7 +239,24 @@ import {
   Bell, Plus, View, Notification, Delete, Clock
 } from '@element-plus/icons-vue'
 
-const activeTab = ref('rules')
+const props = defineProps({
+  mode: {
+    type: String,
+    default: 'all' // all | rules | history
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
+  },
+  initialTab: {
+    type: String,
+    default: 'rules'
+  }
+})
+
+const showRulesTab = computed(() => props.mode === 'all' || props.mode === 'rules')
+const showHistoryTab = computed(() => props.mode === 'all' || props.mode === 'history')
+const activeTab = ref(props.initialTab)
 const loading = ref(false)
 const loadingHistory = ref(false)
 const saving = ref(false)
@@ -450,9 +468,21 @@ watch(activeTab, (newTab) => {
   }
 })
 
+watch(
+  () => props.mode,
+  (mode) => {
+    if (mode === 'rules') activeTab.value = 'rules'
+    if (mode === 'history') activeTab.value = 'history'
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   loadRules()
   loadStats()
+  if (activeTab.value === 'history') {
+    loadHistory()
+  }
   window.addEventListener('page-refresh', handleRefresh)
 })
 
@@ -470,6 +500,10 @@ onUnmounted(() => {
 <style scoped>
 .alert-manager {
   padding: 20px;
+}
+
+.alert-manager.embedded {
+  padding: 0;
 }
 
 .premium-card {

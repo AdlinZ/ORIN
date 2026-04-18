@@ -105,6 +105,19 @@
         </div>
       </div>
 
+      <el-alert
+        v-if="serverOnline === false && !loading"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin: 0 24px 16px;"
+      >
+        <template #title>
+          <span>节点 <strong>{{ currentServerName }}</strong> 当前离线，自动刷新已暂停。</span>
+          <el-button link type="primary" style="margin-left: 8px;" :loading="loading" @click="fetchAllData">重新检测</el-button>
+        </template>
+      </el-alert>
+
       <div class="messages-container" v-loading="loading">
         <div class="dashboard-content">
           <div class="panel-section">
@@ -693,8 +706,14 @@ const fetchPrometheusStatus = async () => {
 
 const syncSelectedServerState = () => {
   const snapshot = selectedSnapshot.value;
+  const wasOnline = serverOnline.value;
   serverOnline.value = snapshot.online;
   serverError.value = snapshot.errorMessage || (snapshot.online === false ? '暂无数据' : '');
+  if (snapshot.online === false && wasOnline !== false) {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  } else if (snapshot.online === true && !refreshTimer) {
+    restartRefreshTimer();
+  }
 };
 
 const fetchTrendData = async () => {
@@ -725,6 +744,7 @@ const fetchAllData = async () => {
 };
 
 const refreshSnapshotsOnly = async () => {
+  if (serverOnline.value === false) return;
   await fetchNodeSnapshots();
   syncSelectedServerState();
 };

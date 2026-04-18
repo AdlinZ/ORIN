@@ -190,12 +190,16 @@ const routes = [
                 path: 'runtime',
                 meta: { title: '运行', category: 'runtime' },
                 children: [
-                    // 首页
+                    // 监控总览
                     {
-                        path: 'home',
+                        path: 'overview',
                         name: 'HomeDashboard',
                         component: () => import('@/views/Home/HomeDashboard.vue'),
-                        meta: { title: '首页', icon: 'HomeFilled' }
+                        meta: { title: '监控总览', icon: 'DataAnalysis' }
+                    },
+                    {
+                        path: 'home',
+                        redirect: '/dashboard/runtime/overview'
                     },
 
                     // 实时指标
@@ -246,8 +250,14 @@ const routes = [
                     {
                         path: 'alerts',
                         name: 'RuntimeAlerts',
-                        component: () => import('@/views/System/AlertManagement.vue'),
-                        meta: { title: '异常告警', icon: 'Bell', roles: ['ROLE_ADMIN'] }
+                        component: () => import('@/views/Monitor/AlertsLogsCenter.vue'),
+                        meta: { title: '告警与日志', icon: 'Bell', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'audit-logs',
+                        name: 'RuntimeAuditLogs',
+                        component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
+                        meta: { title: '审计日志', icon: 'List', roles: ['ROLE_ADMIN'] }
                     },
 
                     // 服务器监控
@@ -329,34 +339,22 @@ const routes = [
                         meta: { title: '文档详情', hidden: true }
                     },
 
-                    // 素材库
+                    // 知识库检索
                     {
-                        path: 'media',
-                        name: 'ResourcesMedia',
-                        component: () => import('@/views/Knowledge/MediaHub.vue'),
-                        meta: { title: '素材库', icon: 'Picture' }
+                        path: 'retrieval',
+                        name: 'ResourcesRetrieval',
+                        component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
+                        meta: { title: '知识库检索', icon: 'Search' }
                     },
 
-                    // RAG 实验室（合并了原「向量实验室」+「检索实验室」）
+                    // 旧路径兼容重定向
                     {
                         path: 'embedding-lab',
-                        name: 'ResourcesEmbeddingLab',
-                        component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
-                        meta: { title: 'RAG 实验室', icon: 'Aim' }
+                        redirect: '/dashboard/resources/retrieval'
                     },
-
-                    // 检索实验室 → 重定向到 RAG 实验室（已合并）
                     {
                         path: 'rag-lab',
-                        redirect: '/dashboard/resources/embedding-lab'
-                    },
-
-                    // 视觉实验室
-                    {
-                        path: 'vlm-lab',
-                        name: 'ResourcesVlmLab',
-                        component: () => import('@/views/Knowledge/VlmPlayground.vue'),
-                        meta: { title: '视觉实验室', icon: 'View' }
+                        redirect: '/dashboard/resources/retrieval'
                     },
 
                     // 检索测试
@@ -388,9 +386,7 @@ const routes = [
                     },
                     {
                         path: 'sync',
-                        name: 'ResourcesSync',
-                        component: () => import('@/views/Knowledge/UnifiedKnowledgeView.vue'),
-                        meta: { title: '同步管理', icon: 'Upload' }
+                        redirect: '/dashboard/control/sync'
                     },
 
                     // 智力资产中心（重定向到资产架构）
@@ -510,6 +506,14 @@ const routes = [
                         name: 'ClientSync',
                         component: () => import('@/views/System/ClientSync.vue'),
                         meta: { title: '端侧同步', icon: 'Upload', roles: ['ROLE_ADMIN'] }
+                    },
+
+                    // 数据同步（跨模块：知识库、工作流等）
+                    {
+                        path: 'sync',
+                        name: 'ControlSync',
+                        component: () => import('@/views/Knowledge/UnifiedKnowledgeView.vue'),
+                        meta: { title: '数据同步', icon: 'Refresh', roles: ['ROLE_ADMIN'] }
                     },
 
                     // 邮件中心（新版 - 任务导向）

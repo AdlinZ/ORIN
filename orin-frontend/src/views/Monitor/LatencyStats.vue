@@ -302,7 +302,14 @@ const renderTrendChart = (data) => {
       grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       xAxis: {
         type: 'category',
-        data: data.map(item => item.date),
+        data: data.map(item => {
+          if (!item.timestamp) return '';
+          const date = new Date(item.timestamp);
+          return date.toLocaleString('zh-CN', {
+            month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+          });
+        }),
         axisLabel: { rotate: 0 }
       },
       yAxis: { type: 'value', name: 'Latency (ms)' },

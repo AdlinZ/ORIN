@@ -1,13 +1,14 @@
 <template>
   <div class="page-container">
     <OrinPageShell
+      v-if="props.showHeader"
       title="审计中心"
       description="统一追踪访问行为、系统操作与关键配置变更"
       icon="List"
       domain="系统与网关"
       maturity="available"
     >
-      <template #actions>
+      <template v-if="props.showHeaderActions" #actions>
         <el-button :icon="Refresh" @click="loadAll">
           刷新
         </el-button>
@@ -31,7 +32,7 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="审计存储配置" name="config">
+      <el-tab-pane v-if="showConfigTab" label="审计存储配置" name="config">
         <el-row :gutter="16">
           <el-col :xs="24" :lg="12">
             <el-card shadow="never">
@@ -95,7 +96,7 @@
         </el-row>
       </el-tab-pane>
 
-      <el-tab-pane label="日志控制台" name="loggers">
+      <el-tab-pane v-if="showLoggersTab" label="日志控制台" name="loggers">
         <el-card shadow="never">
           <template #header>
             <div class="card-head with-actions">
@@ -168,7 +169,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Refresh, RefreshLeft } from '@element-plus/icons-vue'
@@ -178,7 +179,28 @@ import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinAuditTable from '@/components/orin/OrinAuditTable.vue'
 import { createAsyncState, markEmpty, markError, markLoading, markSuccess } from '@/viewmodels'
 
-const activeTab = ref('logs')
+const props = defineProps({
+  mode: {
+    type: String,
+    default: 'all' // all | logs
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
+  },
+  showHeaderActions: {
+    type: Boolean,
+    default: true
+  },
+  initialTab: {
+    type: String,
+    default: 'logs'
+  }
+})
+
+const showConfigTab = computed(() => props.mode === 'all')
+const showLoggersTab = computed(() => props.mode === 'all')
+const activeTab = ref(props.initialTab)
 const saving = ref(false)
 const cleaning = ref(false)
 const cleanupDays = ref(30)
@@ -209,19 +231,35 @@ const CONFIG_KEYS = {
 const toAuditRows = (payload) => {
   const source = Array.isArray(payload) ? payload : (payload?.records || payload?.content || [])
   return source.map((item) => ({
+    id: item.id ?? '-',
     time: item.createdAt ? dayjs(item.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-',
     actor: item.userName || item.userId || '-',
     action: item.providerId || item.operationType || '-',
     resource: item.endpoint || '-',
+    method: item.method || '-',
+    model: item.model || '-',
+    providerType: item.providerType || '-',
     result: item.success ? 'SUCCESS' : 'FAILED',
-    traceId: item.traceId || item.conversationId || '-'
+    statusCode: item.statusCode ?? '-',
+    errorMessage: item.errorMessage || '-',
+    traceId: item.traceId || item.conversationId || '-',
+    conversationId: item.conversationId || '-',
+    workflowId: item.workflowId || '-',
+    apiKeyId: item.apiKeyId || '-',
+    responseTime: item.responseTime ?? '-',
+    promptTokens: item.promptTokens ?? 0,
+    completionTokens: item.completionTokens ?? 0,
+    totalTokens: item.totalTokens ?? 0,
+    requestParams: item.requestParams || '',
+    responseContent: item.responseContent || '',
+    endpoint: item.endpoint || '-'
   }))
 }
 
 const loadLogs = async () => {
   markLoading(logsState)
   try {
-    const response = await request.get('/audit/logs', { params: { page: 1, size: 20 } })
+    const response = await request.get('/audit/logs', { params: { page: 0, size: 20 } })
     auditRows.value = toAuditRows(response)
     if (auditRows.value.length === 0) markEmpty(logsState)
     else markSuccess(logsState)
@@ -353,6 +391,16 @@ const loadAll = async () => {
 const formatDate = (value) => value ? dayjs(value).format('YYYY-MM-DD') : '-'
 
 onMounted(loadAll)
+
+watch(
+  () => props.mode,
+  (mode) => {
+    if (mode === 'logs' && activeTab.value !== 'logs') {
+      activeTab.value = 'logs'
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

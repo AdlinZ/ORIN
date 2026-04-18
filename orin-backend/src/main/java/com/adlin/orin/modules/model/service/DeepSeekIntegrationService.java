@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -83,7 +84,7 @@ public class DeepSeekIntegrationService {
             return Optional.ofNullable(response.getBody());
         } catch (Exception e) {
             log.error("Failed to send message to DeepSeek: {}", e.getMessage());
-            return Optional.empty();
+            return Optional.of(buildErrorPayload("sendMessage", e));
         }
     }
 
@@ -119,7 +120,7 @@ public class DeepSeekIntegrationService {
             return Optional.ofNullable(response.getBody());
         } catch (Exception e) {
             log.error("Failed to send message with params to DeepSeek: {}", e.getMessage());
-            return Optional.empty();
+            return Optional.of(buildErrorPayload("sendMessageWithFullParams", e));
         }
     }
 
@@ -155,7 +156,31 @@ public class DeepSeekIntegrationService {
             return Optional.ofNullable(response.getBody());
         } catch (Exception e) {
             log.error("Failed to send stream message to DeepSeek: {}", e.getMessage());
-            return Optional.empty();
+            return Optional.of(buildErrorPayload("sendStreamMessage", e));
         }
+    }
+
+    private Map<String, Object> buildErrorPayload(String stage, Exception e) {
+        String message;
+        Integer statusCode = null;
+        if (e instanceof HttpStatusCodeException httpEx) {
+            String body = httpEx.getResponseBodyAsString();
+            message = String.format("%s %s", httpEx.getStatusCode(), httpEx.getStatusText());
+            statusCode = httpEx.getStatusCode().value();
+            if (body != null && !body.isBlank())
+                message += " | " + body;
+        } else {
+            message = e.getMessage() != null ? e.getMessage() : "Unknown error";
+        }
+
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "ERROR");
+        error.put("error", message);
+        error.put("errorMessage", message);
+        error.put("stage", stage);
+        if (statusCode != null) {
+            error.put("statusCode", statusCode);
+        }
+        return error;
     }
 }
