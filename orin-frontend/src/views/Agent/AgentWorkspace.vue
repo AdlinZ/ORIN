@@ -211,19 +211,36 @@
                     controls-position="right"
                   />
                 </div>
-                <div class="param-group">
-                  <div class="param-header">
-                    <div class="param-label-wrap">
-                      <span class="param-label">System Prompt</span>
-                      <span class="param-desc">设置角色、语气和输出约束</span>
+                <div class="prompt-editor">
+                  <div class="prompt-editor-header">
+                    <el-icon class="prompt-editor-icon"><ChatRound /></el-icon>
+                    <div>
+                      <div class="prompt-editor-title">提示</div>
+                      <div class="prompt-editor-subtitle">这些消息将作为上下文在每次聊天交互前发送</div>
                     </div>
                   </div>
-                  <el-input
-                    v-model="agentRuntimeForm.systemPrompt"
-                    type="textarea"
-                    :rows="5"
-                    placeholder="定义智能体的身份、回复风格和约束条件..."
-                  />
+                  <div
+                    v-for="(msg, idx) in promptMessages"
+                    :key="idx"
+                    class="prompt-message-block"
+                  >
+                    <div class="prompt-message-role-row">
+                      <span class="role-dot" :class="`role-dot--${msg.role}`"></span>
+                      <span class="role-label">{{ { system: 'System', user: 'User', assistant: 'Assistant' }[msg.role] }}</span>
+                      <el-button v-if="idx > 0" link class="remove-msg-btn" @click="removePromptMessage(idx)">×</el-button>
+                    </div>
+                    <el-input
+                      v-model="msg.content"
+                      type="textarea"
+                      :rows="msg.role === 'system' ? 4 : 2"
+                      :placeholder="idx === 0 ? '定义智能体的身份、回复风格和约束条件...' : ''"
+                      @input="onPromptMessagesChange"
+                    />
+                  </div>
+                  <div class="prompt-add-row">
+                    <el-button class="prompt-add-btn" @click="addPromptMessage('user')">+ User</el-button>
+                    <el-button class="prompt-add-btn" @click="addPromptMessage('assistant')">+ Assistant</el-button>
+                  </div>
                 </div>
               </template>
 
@@ -394,141 +411,159 @@
           </template>
 
           <template v-else-if="activeConfigTab === 'tools'">
-            <section class="config-card">
-              <div class="config-card-head">
-                <div class="config-card-title">
-                  知识库
+            <!-- 工具 card -->
+            <section class="config-card collapsible-card">
+              <div class="config-card-head card-toggle-head" @click="toggleToolsCard('builtin')">
+                <div class="config-card-title">工具</div>
+                <div class="card-head-right">
+                  <div class="config-badge">{{ builtinTools.length }}</div>
+                  <el-icon class="card-chevron" :class="{ expanded: toolsCardExpanded.has('builtin') }"><ArrowDown /></el-icon>
                 </div>
-                <div class="config-badge">
-                  {{ attachedKbIds.length }}/{{ knowledgeBases.length }}
-                </div>
               </div>
-              <div class="config-card-desc">
-                附加到当前会话后，回复会参考检索结果。
-              </div>
-              <el-input
-                v-model="kbSearch"
-                placeholder="搜索知识库..."
-                :prefix-icon="Search"
-                clearable
-              />
-              <div v-if="attachedKbIds.length" class="selection-tags">
-                <span
-                  v-for="kbId in attachedKbIds"
-                  :key="kbId"
-                  class="selection-tag active"
-                  @click="toggleKb(kbId)"
-                >
-                  {{ getKnowledgeBaseName(kbId) }}
-                </span>
-              </div>
-              <div class="selection-list">
-                <div v-for="kb in filteredKnowledgeBases" :key="kb.id" class="kb-item-wrapper">
-                  <label class="selection-item">
+              <template v-if="toolsCardExpanded.has('builtin')">
+                <div class="config-card-desc">当前 agent 可调用的内置工具。</div>
+                <div class="selection-list">
+                  <div v-for="tool in builtinTools" :key="tool.name" class="selection-item" style="cursor: default">
                     <div class="selection-info">
-                      <div class="selection-name">{{ kb.name }}</div>
-                      <div class="selection-meta">{{ kb.documentCount || 0 }} 文档</div>
+                      <div class="selection-name">{{ tool.name }}</div>
+                      <div class="selection-meta">{{ tool.description }}</div>
                     </div>
-                    <el-checkbox :model-value="isKbAttached(kb.id)" @change="toggleKb(kb.id)" />
-                  </label>
-                  <!-- Document filter expand button (only for attached KBs) -->
-                  <div v-if="isKbAttached(kb.id)" class="doc-filter-section">
-                    <div class="doc-filter-header" @click="toggleKbExpand(kb.id)">
-                      <span class="doc-filter-label">
-                        <el-icon><component :is="isKbExpanded(kb.id) ? ArrowUp : ArrowDown" /></el-icon>
-                        {{ isKbExpanded(kb.id) ? '收起' : '按文档过滤' }}
-                        <span v-if="kbDocFilters[kb.id]?.length" class="doc-filter-count">
-                          ({{ kbDocFilters[kb.id].length }})
-                        </span>
-                      </span>
-                    </div>
-                    <div v-if="isKbExpanded(kb.id)" class="doc-filter-list">
-                      <div v-if="!kbDocuments[kb.id]?.length" class="doc-filter-loading">
-                        加载中...
+                    <span :class="['tool-status-badge', tool.active ? 'tool-active' : 'tool-inactive']">
+                      {{ tool.active ? '激活' : '未激活' }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </section>
+
+            <!-- 知识库 card -->
+            <section class="config-card collapsible-card">
+              <div class="config-card-head card-toggle-head" @click="toggleToolsCard('kb')">
+                <div class="config-card-title">知识库</div>
+                <div class="card-head-right">
+                  <div class="config-badge">{{ attachedKbIds.length }}/{{ knowledgeBases.length }}</div>
+                  <el-icon class="card-chevron" :class="{ expanded: toolsCardExpanded.has('kb') }"><ArrowDown /></el-icon>
+                </div>
+              </div>
+              <template v-if="toolsCardExpanded.has('kb')">
+                <div class="config-card-desc">附加到当前会话后，回复会参考检索结果。</div>
+                <el-input v-model="kbSearch" placeholder="搜索知识库..." :prefix-icon="Search" clearable />
+                <div v-if="attachedKbIds.length" class="selection-tags">
+                  <span
+                    v-for="kbId in attachedKbIds"
+                    :key="kbId"
+                    class="selection-tag active"
+                    @click="toggleKb(kbId)"
+                  >
+                    {{ getKnowledgeBaseName(kbId) }}
+                  </span>
+                </div>
+                <div class="selection-list">
+                  <div v-for="kb in filteredKnowledgeBases" :key="kb.id" class="kb-item-wrapper">
+                    <label class="selection-item">
+                      <div class="selection-info">
+                        <div class="selection-name">{{ kb.name }}</div>
+                        <div class="selection-meta">{{ kb.documentCount || 0 }} 文档</div>
                       </div>
-                      <label
-                        v-for="doc in kbDocuments[kb.id]"
-                        :key="doc.id"
-                        class="doc-filter-item"
-                      >
-                        <el-checkbox
-                          :model-value="isDocSelected(kb.id, doc.id)"
-                          @change="toggleDocFilter(kb.id, doc.id)"
-                        />
-                        <span class="doc-filter-name">{{ doc.name || doc.fileName || doc.id }}</span>
-                      </label>
+                      <el-checkbox :model-value="isKbAttached(kb.id)" @change="toggleKb(kb.id)" />
+                    </label>
+                    <div v-if="isKbAttached(kb.id)" class="doc-filter-section">
+                      <div class="doc-filter-header" @click="toggleKbExpand(kb.id)">
+                        <span class="doc-filter-label">
+                          <el-icon><component :is="isKbExpanded(kb.id) ? ArrowUp : ArrowDown" /></el-icon>
+                          {{ isKbExpanded(kb.id) ? '收起' : '按文档过滤' }}
+                          <span v-if="kbDocFilters[kb.id]?.length" class="doc-filter-count">
+                            ({{ kbDocFilters[kb.id].length }})
+                          </span>
+                        </span>
+                      </div>
+                      <div v-if="isKbExpanded(kb.id)" class="doc-filter-list">
+                        <div v-if="!kbDocuments[kb.id]?.length" class="doc-filter-loading">加载中...</div>
+                        <label v-for="doc in kbDocuments[kb.id]" :key="doc.id" class="doc-filter-item">
+                          <el-checkbox :model-value="isDocSelected(kb.id, doc.id)" @change="toggleDocFilter(kb.id, doc.id)" />
+                          <span class="doc-filter-name">{{ doc.name || doc.fileName || doc.id }}</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+                <div class="config-row" style="margin-top: 8px">
+                  <span>检索策略</span>
+                  <el-select v-model="agentRuntimeForm.toolCallingOverride" style="width: 180px" placeholder="自动选择（推荐）" @change="saveAgentRuntimeConfig">
+                    <el-option label="自动选择（推荐）" :value="null" />
+                    <el-option label="模型工具检索（Tool Calling）" :value="true" />
+                    <el-option label="上下文附加（Context Injection）" :value="false" />
+                  </el-select>
+                </div>
+              </template>
             </section>
 
-            <section class="config-card">
-              <div class="config-card-head">
-                <div class="config-card-title">
-                  MCP 服务
+            <!-- MCP 服务 card -->
+            <section class="config-card collapsible-card">
+              <div class="config-card-head card-toggle-head" @click="toggleToolsCard('mcp')">
+                <div class="config-card-title">MCP 服务</div>
+                <div class="card-head-right">
+                  <div class="config-badge">{{ currentConfig.mcpIds.length }}/{{ mcpServices.length }}</div>
+                  <el-icon class="card-chevron" :class="{ expanded: toolsCardExpanded.has('mcp') }"><ArrowDown /></el-icon>
                 </div>
-                <div class="config-badge">
-                  {{ currentConfig.mcpIds.length }}/{{ mcpServices.length }}
+              </div>
+              <template v-if="toolsCardExpanded.has('mcp')">
+                <div class="config-card-desc">选中的服务会作为当前工作台的扩展能力。</div>
+                <div v-if="currentConfig.mcpIds.length" class="selection-tags">
+                  <span
+                    v-for="serviceId in currentConfig.mcpIds"
+                    :key="serviceId"
+                    class="selection-tag"
+                    @click="toggleConfigItem('mcpIds', serviceId)"
+                  >
+                    {{ getMcpServiceName(serviceId) }}
+                  </span>
                 </div>
-              </div>
-              <div class="config-card-desc">
-                选中的服务会作为当前工作台的扩展能力。
-              </div>
-              <div v-if="currentConfig.mcpIds.length" class="selection-tags">
-                <span
-                  v-for="serviceId in currentConfig.mcpIds"
-                  :key="serviceId"
-                  class="selection-tag"
-                  @click="toggleConfigItem('mcpIds', serviceId)"
-                >
-                  {{ getMcpServiceName(serviceId) }}
-                </span>
-              </div>
-              <div class="selection-list">
-                <label v-for="service in mcpServices" :key="service.id" class="selection-item">
-                  <div class="selection-info">
-                    <div class="selection-name">{{ service.name }}</div>
-                    <div class="selection-meta">{{ service.type || 'MCP' }} · {{ formatMcpStatus(service.status) }}</div>
-                  </div>
-                  <el-checkbox :model-value="currentConfig.mcpIds.includes(service.id)" @change="toggleConfigItem('mcpIds', service.id)" />
-                </label>
-                <el-empty v-if="!mcpServices.length" :image-size="44" description="暂无可用 MCP 服务" />
-              </div>
+                <div class="selection-list">
+                  <label v-for="service in mcpServices" :key="service.id" class="selection-item">
+                    <div class="selection-info">
+                      <div class="selection-name">{{ service.name }}</div>
+                      <div class="selection-meta">{{ service.type || 'MCP' }} · {{ formatMcpStatus(service.status) }}</div>
+                    </div>
+                    <el-checkbox :model-value="currentConfig.mcpIds.includes(service.id)" @change="toggleConfigItem('mcpIds', service.id)" />
+                  </label>
+                  <el-empty v-if="!mcpServices.length" :image-size="44" description="暂无可用 MCP 服务" />
+                </div>
+              </template>
             </section>
 
-            <section class="config-card">
-              <div class="config-card-head">
-                <div class="config-card-title">
-                  Skills
+            <!-- Skills card -->
+            <section class="config-card collapsible-card">
+              <div class="config-card-head card-toggle-head" @click="toggleToolsCard('skills')">
+                <div class="config-card-title">Skills</div>
+                <div class="card-head-right">
+                  <div class="config-badge">{{ currentConfig.skillIds.length }}/{{ skills.length }}</div>
+                  <el-icon class="card-chevron" :class="{ expanded: toolsCardExpanded.has('skills') }"><ArrowDown /></el-icon>
                 </div>
-                <div class="config-badge">
-                  {{ currentConfig.skillIds.length }}/{{ skills.length }}
+              </div>
+              <template v-if="toolsCardExpanded.has('skills')">
+                <div class="config-card-desc">把常用技能固定在当前配置里，便于连续对话时使用。</div>
+                <div v-if="currentConfig.skillIds.length" class="selection-tags">
+                  <span
+                    v-for="skillId in currentConfig.skillIds"
+                    :key="skillId"
+                    class="selection-tag"
+                    @click="toggleConfigItem('skillIds', skillId)"
+                  >
+                    {{ getSkillName(skillId) }}
+                  </span>
                 </div>
-              </div>
-              <div class="config-card-desc">
-                把常用技能固定在当前配置里，便于连续对话时使用。
-              </div>
-              <div v-if="currentConfig.skillIds.length" class="selection-tags">
-                <span
-                  v-for="skillId in currentConfig.skillIds"
-                  :key="skillId"
-                  class="selection-tag"
-                  @click="toggleConfigItem('skillIds', skillId)"
-                >
-                  {{ getSkillName(skillId) }}
-                </span>
-              </div>
-              <div class="selection-list">
-                <label v-for="skill in skills" :key="skill.id" class="selection-item">
-                  <div class="selection-info">
-                    <div class="selection-name">{{ skill.skillName || skill.name }}</div>
-                    <div class="selection-meta">{{ skill.skillType || skill.type || 'SKILL' }}</div>
-                  </div>
-                  <el-checkbox :model-value="currentConfig.skillIds.includes(skill.id)" @change="toggleConfigItem('skillIds', skill.id)" />
-                </label>
-                <el-empty v-if="!skills.length" :image-size="44" description="暂无技能" />
-              </div>
+                <div class="selection-list">
+                  <label v-for="skill in skills" :key="skill.id" class="selection-item">
+                    <div class="selection-info">
+                      <div class="selection-name">{{ skill.skillName || skill.name }}</div>
+                      <div class="selection-meta">{{ skill.skillType || skill.type || 'SKILL' }}</div>
+                    </div>
+                    <el-checkbox :model-value="currentConfig.skillIds.includes(skill.id)" @change="toggleConfigItem('skillIds', skill.id)" />
+                  </label>
+                  <el-empty v-if="!skills.length" :image-size="44" description="暂无技能" />
+                </div>
+              </template>
             </section>
           </template>
 
@@ -889,6 +924,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  ChatRound,
   Close,
   Cpu,
   Delete,
@@ -1002,6 +1038,7 @@ const defaultRuntimeForm = () => ({
   topP: 0.7,
   maxTokens: 2000,
   systemPrompt: '',
+  toolCallingOverride: null,
   imageSize: '1328x1328',
   seed: '',
   guidanceScale: 7.5,
@@ -1389,6 +1426,7 @@ const syncRuntimeFormFromMetadata = (metadata = {}) => {
     topP: metadata.topP ?? 0.7,
     maxTokens: metadata.maxTokens ?? 2000,
     systemPrompt: metadata.systemPrompt || '',
+    toolCallingOverride: metadata.toolCallingOverride ?? null,
     imageSize: extra.imageSize || metadata.imageSize || '1328x1328',
     seed: extra.seed || metadata.seed || '',
     guidanceScale: extra.guidanceScale ?? metadata.guidanceScale ?? 7.5,
@@ -1400,6 +1438,7 @@ const syncRuntimeFormFromMetadata = (metadata = {}) => {
     videoSize: extra.videoSize || metadata.videoSize || '16:9',
     videoDuration: extra.videoDuration || metadata.videoDuration || '5'
   });
+  promptMessages.value = [{ role: 'system', content: agentRuntimeForm.systemPrompt }];
 };
 
 const loadAgentRuntimeConfig = async (agentId) => {
@@ -1480,7 +1519,8 @@ const buildRuntimePayloadByModelType = () => {
     temperature: agentRuntimeForm.temperature,
     topP: agentRuntimeForm.topP,
     maxTokens: agentRuntimeForm.maxTokens,
-    systemPrompt: agentRuntimeForm.systemPrompt
+    systemPrompt: agentRuntimeForm.systemPrompt,
+    toolCallingOverride: agentRuntimeForm.toolCallingOverride
   };
 };
 
@@ -1557,6 +1597,39 @@ const getSkillName = (skillId) => {
   const skill = skills.value.find((item) => item.id === skillId);
   return skill?.skillName || skill?.name || String(skillId);
 };
+
+const promptMessages = ref([{ role: 'system', content: '' }]);
+
+const syncPromptMessagesToForm = () => {
+  const sys = promptMessages.value.find(m => m.role === 'system');
+  agentRuntimeForm.systemPrompt = sys ? sys.content : '';
+};
+
+const onPromptMessagesChange = () => syncPromptMessagesToForm();
+
+const addPromptMessage = (role) => {
+  promptMessages.value.push({ role, content: '' });
+};
+
+const removePromptMessage = (idx) => {
+  promptMessages.value.splice(idx, 1);
+  syncPromptMessagesToForm();
+};
+
+const toolsCardExpanded = ref(new Set());
+const toggleToolsCard = (key) => {
+  const s = new Set(toolsCardExpanded.value);
+  s.has(key) ? s.delete(key) : s.add(key);
+  toolsCardExpanded.value = s;
+};
+
+const builtinTools = computed(() => {
+  const hasKb = attachedKbIds.value.length > 0;
+  return [
+    { name: 'query_kb', description: '在知识库中语义检索相关文档片段', active: hasKb },
+    { name: 'read_document', description: '读取指定文档的完整内容（由 query_kb 返回的 doc_id 触发）', active: hasKb },
+  ];
+});
 
 const getMcpServiceName = (serviceId) => {
   return mcpServices.value.find((item) => item.id === serviceId)?.name || String(serviceId);
@@ -1664,7 +1737,7 @@ const loadAgents = async () => {
     agents.value = list.map(normalizeAgent).filter((agent) => agent.id);
 
     const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
-    if (presetId && agents.value.some((agent) => normalizeId(agent.id) === presetId)) {
+    if (presetId) {
       currentAgentId.value = presetId;
       currentAgent.value = findAgentById(presetId);
       selectedModelName.value = currentAgent.value?.model || '';
@@ -2526,11 +2599,14 @@ const traceIcon = (type) => {
 
 const formatTraceType = (type) => {
   const labelMap = {
+    KB_STRATEGY: '检索策略判定',
     KB_STRUCTURE: '知识库结构检查',
     KB_SEARCH: '知识检索',
     KB_RETRIEVE: '上下文组装',
     KB_HINT: '检索提示',
     KB_PIPELINE: '检索链路',
+    KB_MODEL_TOOL_CALL: '模型工具调用',
+    KB_MODEL_TOOL_FINAL: '模型工具调用总结',
     STREAM_FALLBACK: '流式回退'
   };
   return labelMap[type] || type || '处理步骤';
@@ -2697,9 +2773,8 @@ onMounted(async () => {
 
   const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
   // Restore saved agent (or use first available); preset has highest priority.
-  const agentToRestore = (presetId && agents.value.find((a) => String(a.id) === presetId))
-    ? presetId
-    : (savedState?.currentAgentId && agents.value.find((a) => normalizeId(a.id) === normalizeId(savedState.currentAgentId))
+  const agentToRestore = presetId
+    || (savedState?.currentAgentId && agents.value.find((a) => normalizeId(a.id) === normalizeId(savedState.currentAgentId))
       ? normalizeId(savedState.currentAgentId)
       : (agents.value[0]?.id || ''));
 
@@ -3860,12 +3935,19 @@ watch(
 }
 
 .config-badge {
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 8px;
   background: #f1f5f9;
   color: #52657a;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
+  line-height: 22px;
 }
 .config-badge.soft {
   background: rgba(220, 252, 245, 0.9);
@@ -3886,6 +3968,150 @@ watch(
 .config-badge.soft.agent-status-error {
   background: rgba(254, 226, 226, 0.95);
   color: #991b1b;
+}
+
+.prompt-editor {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.prompt-editor-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.prompt-editor-icon {
+  font-size: 18px;
+  color: #64748b;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+.prompt-editor-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sidebar-text-strong);
+}
+.prompt-editor-subtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.prompt-message-block {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 10px 12px;
+}
+.prompt-message-block :deep(.el-textarea__inner) {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: 12px;
+  color: #475569;
+  background: transparent;
+  resize: none;
+}
+.prompt-message-role-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.role-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.role-dot--system { background: #6366f1; }
+.role-dot--user   { background: #10b981; }
+.role-dot--assistant { background: #f59e0b; }
+.role-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+.remove-msg-btn {
+  margin-left: auto;
+  color: #94a3b8 !important;
+  font-size: 14px;
+}
+.prompt-add-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.prompt-add-btn {
+  flex: 1;
+  border: 1px dashed #cbd5e1 !important;
+  color: #64748b !important;
+  background: transparent !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+}
+.prompt-add-btn:hover {
+  border-color: #94a3b8 !important;
+  color: #334155 !important;
+}
+
+html.dark .prompt-editor {
+  border-color: rgba(255,255,255,0.08);
+}
+html.dark .prompt-editor-header,
+html.dark .prompt-message-block {
+  border-bottom-color: rgba(255,255,255,0.06);
+}
+html.dark .prompt-editor-icon { color: #94a3b8; }
+html.dark .prompt-editor-subtitle { color: #64748b; }
+html.dark .role-label { color: #94a3b8; }
+html.dark .prompt-add-btn {
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #94a3b8 !important;
+}
+
+.card-toggle-head {
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0;
+}
+.card-toggle-head:hover .config-card-title {
+  opacity: 0.75;
+}
+.card-head-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-chevron {
+  font-size: 12px;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+.card-chevron.expanded {
+  transform: rotate(180deg);
+}
+.collapsible-card {
+  padding-bottom: 0;
+}
+.collapsible-card > template + * {
+  padding-top: 8px;
+}
+
+.tool-status-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.tool-status-badge.tool-active {
+  background: rgba(220, 252, 245, 0.9);
+  color: #0f766e;
+}
+.tool-status-badge.tool-inactive {
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 
 .config-row {
@@ -4548,6 +4774,15 @@ html.dark .config-badge.soft.agent-status-fallback {
 html.dark .config-badge.soft.agent-status-error {
   background: rgba(248, 113, 113, 0.2);
   color: #fca5a5;
+}
+
+html.dark .tool-status-badge.tool-active {
+  background: rgba(38, 255, 223, 0.1);
+  color: #26FFDF;
+}
+html.dark .tool-status-badge.tool-inactive {
+  background: rgba(30, 41, 59, 0.8);
+  color: #94a3b8;
 }
 
 html.dark .config-row {

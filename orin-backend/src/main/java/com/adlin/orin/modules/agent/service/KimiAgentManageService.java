@@ -238,6 +238,10 @@ public class KimiAgentManageService implements AgentManageService {
 
     @Override
     public Optional<Object> chat(String agentId, String message, String fileId) {
+        return chat(agentId, message, fileId, null);
+    }
+
+    public Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt) {
         AgentAccessProfile profile = accessProfileRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent access profile not found"));
         AgentMetadata metadata = metadataRepository.findById(agentId)
@@ -256,10 +260,13 @@ public class KimiAgentManageService implements AgentManageService {
         }
 
         List<Map<String, Object>> messages = new java.util.ArrayList<>();
-        if (metadata.getSystemPrompt() != null && !metadata.getSystemPrompt().isEmpty()) {
+        String systemPrompt = (overrideSystemPrompt != null && !overrideSystemPrompt.isBlank())
+                ? overrideSystemPrompt
+                : metadata.getSystemPrompt();
+        if (systemPrompt != null && !systemPrompt.isEmpty()) {
             Map<String, Object> systemMsg = new java.util.HashMap<>();
             systemMsg.put("role", "system");
-            systemMsg.put("content", metadata.getSystemPrompt());
+            systemMsg.put("content", systemPrompt);
             messages.add(systemMsg);
         }
         Map<String, Object> userMsg = new java.util.HashMap<>();

@@ -434,6 +434,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                 metadata.setMaxTokens(request.getMaxTokens());
             if (request.getSystemPrompt() != null)
                 metadata.setSystemPrompt(request.getSystemPrompt());
+            metadata.setToolCallingOverride(request.getToolCallingOverride());
 
             // Update TTS & Image Parameters in the parameters JSON field
             try {
@@ -537,6 +538,10 @@ public class AgentManageServiceImpl implements AgentManageService {
             }
             if (config.getSystemPrompt() != null) {
                 existing.setSystemPrompt(config.getSystemPrompt());
+                metadataChanged = true;
+            }
+            if (config.getToolCallingOverride() != null) {
+                existing.setToolCallingOverride(config.getToolCallingOverride());
                 metadataChanged = true;
             }
 
@@ -1562,8 +1567,10 @@ public class AgentManageServiceImpl implements AgentManageService {
                     response = generateVideoWithSiliconFlow(profile, metadata, message);
                 } else {
                     // Other types fall back to chat
-                    // Route to dedicated SiliconFlowAgentManageService
-                    response = siliconFlowAgentManageService.chat(agentId, message, fileId);
+                    // Use dynamic prompt aware path so retrieval context can be injected.
+                    response = chatWithSiliconFlow(
+                            profile, metadata, message, fileId, dynamicSystemPrompt, conversationId,
+                            enableThinking, thinkingBudget);
                 }
             } else if ("Ollama".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Ollama interaction for agent {}", agentId);
@@ -1573,15 +1580,15 @@ public class AgentManageServiceImpl implements AgentManageService {
             } else if ("KIMI".equalsIgnoreCase(providerType) || "Moonshot".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Kimi (Moonshot) service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/v1/chat/completions";
-                response = kimiAgentManageService.chat(agentId, message, fileId);
+                response = kimiAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt);
             } else if ("Zhipu".equalsIgnoreCase(providerType) || "GLM".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Zhipu (GLM) service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/api/paas/v4/chat/completions";
-                response = zhipuAgentManageService.chat(agentId, message, fileId);
+                response = zhipuAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt);
             } else if ("DeepSeek".equalsIgnoreCase(providerType)) {
                 log.info("Routing to DeepSeek service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/v1/chat/completions";
-                response = deepSeekAgentManageService.chat(agentId, message, fileId);
+                response = deepSeekAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt);
             } else if ("Minimax".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Minimax service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/v1/text/chatcompletion_v2";

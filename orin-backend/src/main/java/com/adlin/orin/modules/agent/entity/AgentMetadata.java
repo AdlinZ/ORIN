@@ -49,6 +49,11 @@ public class AgentMetadata {
     private Double topP;
     private Integer maxTokens;
 
+    /**
+     * tool calling 能力覆盖：null=自动探测, true=强制开启, false=强制关闭
+     */
+    private Boolean toolCallingOverride;
+
     public Double getTemperature() {
         return temperature;
     }
@@ -71,6 +76,14 @@ public class AgentMetadata {
 
     public void setMaxTokens(Integer maxTokens) {
         this.maxTokens = maxTokens;
+    }
+
+    public Boolean getToolCallingOverride() {
+        return toolCallingOverride;
+    }
+
+    public void setToolCallingOverride(Boolean toolCallingOverride) {
+        this.toolCallingOverride = toolCallingOverride;
     }
 
     @jakarta.persistence.Column(columnDefinition = "TEXT")
@@ -204,6 +217,7 @@ public class AgentMetadata {
         private String systemPrompt;
         private String parameters;
         private LocalDateTime syncTime;
+        private Boolean toolCallingOverride;
 
         public AgentMetadataBuilder agentId(String agentId) {
             this.agentId = agentId;
@@ -275,6 +289,11 @@ public class AgentMetadata {
             return this;
         }
 
+        public AgentMetadataBuilder toolCallingOverride(Boolean toolCallingOverride) {
+            this.toolCallingOverride = toolCallingOverride;
+            return this;
+        }
+
         public AgentMetadata build() {
             AgentMetadata metadata = new AgentMetadata(agentId, name, description, icon, mode, modelName, providerType,
                     viewType,
@@ -284,6 +303,7 @@ public class AgentMetadata {
             metadata.setMaxTokens(maxTokens);
             metadata.setSystemPrompt(systemPrompt);
             metadata.setParameters(parameters);
+            metadata.setToolCallingOverride(toolCallingOverride);
             return metadata;
         }
     }

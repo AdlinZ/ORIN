@@ -58,6 +58,7 @@ public class KbStructureTool implements AgentTool {
 
             ctx.putSharedState("kbStructureChecked", true);
             ctx.putSharedState("totalDocuments", totalDocs);
+            ctx.putSharedState("kbStructureDetail", detail);
 
             return ToolTrace.builder()
                     .type(TOOL_NAME)

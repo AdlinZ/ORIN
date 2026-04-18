@@ -1,13 +1,19 @@
 package com.adlin.orin.modules.conversation.service;
 
+import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.conversation.dto.*;
 import com.adlin.orin.modules.conversation.entity.AgentChatSession;
 import com.adlin.orin.modules.conversation.repository.AgentChatSessionRepository;
+import com.adlin.orin.modules.conversation.strategy.ToolCallingCapabilityDetector;
+import com.adlin.orin.modules.conversation.strategy.ToolCallingKbStrategy;
 import com.adlin.orin.modules.conversation.tool.*;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
+import com.adlin.orin.modules.model.service.OllamaIntegrationService;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,9 +22,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.function.BiConsumer;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.function.BiConsumer;
 
 @Service
 @Slf4j
@@ -26,10 +32,13 @@ public class AgentChatService {
 
     private final AgentChatSessionRepository sessionRepository;
     private final AgentManageService agentManageService;
+    private final MetaKnowledgeService metaKnowledgeService;
     private final RetrievalService retrievalService;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeDocumentRepository documentRepository;
     private final McpServiceRepository mcpServiceRepository;
+    private final OllamaIntegrationService ollamaIntegrationService;
+    private final ToolCallingCapabilityDetector toolCallingDetector;
     private final ObjectMapper objectMapper;
 
     private KbStructureTool kbStructureTool;
@@ -39,17 +48,23 @@ public class AgentChatService {
     public AgentChatService(
             AgentChatSessionRepository sessionRepository,
             AgentManageService agentManageService,
+            MetaKnowledgeService metaKnowledgeService,
             RetrievalService retrievalService,
             KnowledgeBaseRepository knowledgeBaseRepository,
             KnowledgeDocumentRepository documentRepository,
             McpServiceRepository mcpServiceRepository,
+            OllamaIntegrationService ollamaIntegrationService,
+            ToolCallingCapabilityDetector toolCallingDetector,
             ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
         this.agentManageService = agentManageService;
+        this.metaKnowledgeService = metaKnowledgeService;
         this.retrievalService = retrievalService;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
         this.mcpServiceRepository = mcpServiceRepository;
+        this.ollamaIntegrationService = ollamaIntegrationService;
+        this.toolCallingDetector = toolCallingDetector;
         this.objectMapper = objectMapper;
         // Initialize tools
         this.kbStructureTool = new KbStructureTool(knowledgeBaseRepository, documentRepository);
@@ -149,7 +164,14 @@ public class AgentChatService {
 
         AgentChatSession session = sessionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
-        
+
+        // 提前检测模型是否支持 tool calling，决定 KB 工具链走哪条路
+        AgentMetadata agentMetadata = agentManageService.getAgentMetadata(session.getAgentId());
+        AgentAccessProfile agentProfile = agentManageService.getAgentAccessProfile(session.getAgentId());
+        ToolCallingCapabilityDetector.ToolCallingDecision toolCallingDecision =
+                toolCallingDetector.detect(session.getAgentId(), agentMetadata, agentProfile);
+        boolean useToolCalling = toolCallingDecision.isSupported();
+
         // 解析历史
         List<Map<String, Object>> messages;
         try {
@@ -181,6 +203,24 @@ public class AgentChatService {
         // 执行工具链
         if (request.getKbIds() != null && !request.getKbIds().isEmpty()) {
             try {
+                Map<String, Object> strategyDetail = new LinkedHashMap<>();
+                strategyDetail.put("mode", useToolCalling ? "tool_calling" : "context_injection");
+                strategyDetail.put("decisionSource", toolCallingDecision.getSource() != null ? toolCallingDecision.getSource() : "");
+                strategyDetail.put("decisionReason", toolCallingDecision.getReason() != null ? toolCallingDecision.getReason() : "");
+                strategyDetail.put("toolCallingOverride", agentMetadata != null ? agentMetadata.getToolCallingOverride() : null);
+                ChatMessageResponse.ToolTrace strategyTrace = ChatMessageResponse.ToolTrace.builder()
+                        .type("KB_STRATEGY")
+                        .kbId("multiple")
+                        .message(useToolCalling
+                                ? "检索策略：模型工具调用（模型自主检索知识库）"
+                                : "检索策略：上下文附加（先检索再注入上下文）")
+                        .status("success")
+                        .durationMs(0L)
+                        .detail(strategyDetail)
+                        .build();
+                toolCtx.addTrace(strategyTrace);
+                emitEvent(eventPublisher, "trace", strategyTrace);
+
                 emitEvent(eventPublisher, "progress", Map.of(
                         "step", "KB_STRUCTURE",
                         "message", "正在检查知识库结构..."));
@@ -195,33 +235,49 @@ public class AgentChatService {
                 toolCtx.addTrace(structureTrace);
                 emitEvent(eventPublisher, "trace", structureTrace);
 
-                emitEvent(eventPublisher, "progress", Map.of(
-                        "step", "KB_SEARCH",
-                        "message", "正在检索相关知识..."));
-                emitEvent(eventPublisher, "trace", ChatMessageResponse.ToolTrace.builder()
-                        .type("KB_SEARCH")
-                        .kbId("multiple")
-                        .message("知识检索中...")
-                        .status("running")
-                        .durationMs(0L)
-                        .build());
-                ChatMessageResponse.ToolTrace searchTrace = kbSearchTool.execute(toolCtx);
-                toolCtx.addTrace(searchTrace);
-                emitEvent(eventPublisher, "trace", searchTrace);
+                // tool calling 模型自己负责检索，跳过预检索步骤
+                if (!useToolCalling) {
+                    emitEvent(eventPublisher, "progress", Map.of(
+                            "step", "KB_SEARCH",
+                            "message", "正在检索相关知识..."));
+                    emitEvent(eventPublisher, "trace", ChatMessageResponse.ToolTrace.builder()
+                            .type("KB_SEARCH")
+                            .kbId("multiple")
+                            .message("知识检索中...")
+                            .status("running")
+                            .durationMs(0L)
+                            .build());
+                    ChatMessageResponse.ToolTrace searchTrace = kbSearchTool.execute(toolCtx);
+                    toolCtx.addTrace(searchTrace);
+                    emitEvent(eventPublisher, "trace", searchTrace);
 
-                emitEvent(eventPublisher, "progress", Map.of(
-                        "step", "KB_RETRIEVE",
-                        "message", "正在组装上下文..."));
-                emitEvent(eventPublisher, "trace", ChatMessageResponse.ToolTrace.builder()
-                        .type("KB_RETRIEVE")
-                        .kbId("multiple")
-                        .message("上下文组装中...")
-                        .status("running")
-                        .durationMs(0L)
-                        .build());
-                ChatMessageResponse.ToolTrace retrieveTrace = kbRetrieveTool.execute(toolCtx);
-                toolCtx.addTrace(retrieveTrace);
-                emitEvent(eventPublisher, "trace", retrieveTrace);
+                    emitEvent(eventPublisher, "progress", Map.of(
+                            "step", "KB_RETRIEVE",
+                            "message", "正在组装上下文..."));
+                    emitEvent(eventPublisher, "trace", ChatMessageResponse.ToolTrace.builder()
+                            .type("KB_RETRIEVE")
+                            .kbId("multiple")
+                            .message("上下文组装中...")
+                            .status("running")
+                            .durationMs(0L)
+                            .build());
+                    ChatMessageResponse.ToolTrace retrieveTrace = kbRetrieveTool.execute(toolCtx);
+                    toolCtx.addTrace(retrieveTrace);
+                    emitEvent(eventPublisher, "trace", retrieveTrace);
+                } else {
+                    ChatMessageResponse.ToolTrace delegatedTrace = ChatMessageResponse.ToolTrace.builder()
+                            .type("KB_PIPELINE")
+                            .kbId("multiple")
+                            .message("已跳过预检索步骤：由模型在回答过程中按需调用知识库工具")
+                            .status("success")
+                            .durationMs(0L)
+                            .detail(Map.of(
+                                    "delegatedToModel", true,
+                                    "expectedTools", List.of("query_kb", "read_document")))
+                            .build();
+                    toolCtx.addTrace(delegatedTrace);
+                    emitEvent(eventPublisher, "trace", delegatedTrace);
+                }
             } catch (Exception e) {
                 log.warn("工具链执行失败: {}", e.getMessage());
                 ChatMessageResponse.ToolTrace errorTrace = ChatMessageResponse.ToolTrace.builder()
@@ -270,8 +326,9 @@ public class AgentChatService {
                 context != null ? context.length() : 0,
                 context != null && context.length() > 200 ? context.substring(0, 200) : context);
 
-        // 附加了知识库但未检索到任何内容时，给前端一个明确提醒（避免“静默失败”）。
-        if (request.getKbIds() != null && !request.getKbIds().isEmpty() && retrievedChunks.isEmpty()) {
+        // 附加了知识库但未检索到任何内容时，给前端一个明确提醒（避免”静默失败”）。
+        // tool calling 模式下检索由模型自主发起，retrievedChunks 为空属于正常情况。
+        if (!useToolCalling && request.getKbIds() != null && !request.getKbIds().isEmpty() && retrievedChunks.isEmpty()) {
             ChatMessageResponse.ToolTrace hintTrace = ChatMessageResponse.ToolTrace.builder()
                     .type("KB_HINT")
                     .kbId("multiple")
@@ -290,7 +347,13 @@ public class AgentChatService {
         emitEvent(eventPublisher, "progress", Map.of(
                 "step", "MODEL_CALL",
                 "message", "正在生成回复..."));
-        Map<String, Object> agentResult = callAgent(session.getAgentId(), request.getMessage(), context, toolCtx, messages);
+        Map<String, Object> agentResult = callAgent(
+                session.getAgentId(),
+                request.getMessage(),
+                context,
+                toolCtx,
+                eventPublisher,
+                useToolCalling);
         String aiResponse = (String) agentResult.get("content");
 
         // 添加 AI 响应
@@ -414,7 +477,9 @@ public class AgentChatService {
      * 调用智能体，返回内容和usage信息
      */
     private Map<String, Object> callAgent(String agentId, String userMessage, String context,
-                             ToolExecutionContext toolCtx, List<Map<String, Object>> history) {
+                             ToolExecutionContext toolCtx,
+                             BiConsumer<String, Object> eventPublisher,
+                             boolean useToolCalling) {
         Map<String, Object> result = new HashMap<>();
         result.put("content", "");
         result.put("promptTokens", 0);
@@ -423,20 +488,60 @@ public class AgentChatService {
         result.put("provider", "");
 
         try {
-            // 构建完整的消息，包含知识库和 MCP 上下文
-            String fullMessage = userMessage;
-            if (context != null && !context.isEmpty()) {
-                fullMessage = "参考知识库内容:\n" + context + "\n\n用户: " + userMessage;
+            AgentMetadata metadata = agentManageService.getAgentMetadata(agentId);
+            AgentAccessProfile profile = agentManageService.getAgentAccessProfile(agentId);
+
+            // ── 支持 tool calling 的模型：让模型自主决定检索还是读全文 ──────────
+            if (toolCtx != null && toolCtx.getKbIds() != null && !toolCtx.getKbIds().isEmpty()
+                    && useToolCalling) {
+                String baseSystemPrompt = metaKnowledgeService.assembleSystemPrompt(agentId);
+                double temperature = metadata != null && metadata.getTemperature() != null
+                        ? metadata.getTemperature() : 0.7;
+                int maxTokens = metadata != null && metadata.getMaxTokens() != null
+                        ? metadata.getMaxTokens() : 2048;
+
+                ToolCallingKbStrategy strategy = new ToolCallingKbStrategy(
+                        ollamaIntegrationService, retrievalService, documentRepository, objectMapper);
+
+                log.info("tool-calling RAG: agentId={}, kbIds={}", agentId, toolCtx.getKbIds());
+                return strategy.execute(
+                        profile.getEndpointUrl(), profile.getApiKey(),
+                        metadata != null ? metadata.getModelName() : null,
+                        baseSystemPrompt, userMessage, toolCtx.getKbIds(),
+                        temperature, maxTokens,
+                        trace -> {
+                            toolCtx.addTrace(trace);
+                            emitEvent(eventPublisher, "trace", trace);
+                        });
             }
+
+            // ── 云端 provider：context injection（将检索结果注入 system prompt）──
+            String baseSystemPrompt = metaKnowledgeService.assembleSystemPrompt(agentId);
+            String kbStructurePreamble = buildKbStructurePreamble(toolCtx);
             String mcpContext = toolCtx != null ? (String) toolCtx.getSharedState("mcpContext") : null;
+
+            StringBuilder systemSuffix = new StringBuilder();
+            if (kbStructurePreamble != null && !kbStructurePreamble.isBlank()) {
+                systemSuffix.append("\n\n").append(kbStructurePreamble);
+            }
+            if (context != null && !context.isEmpty()) {
+                systemSuffix.append("\n\n以下是与用户问题相关的知识库检索内容，请直接基于此回答，无需说明内容来源：\n").append(context);
+            }
             if (mcpContext != null && !mcpContext.isBlank()) {
-                fullMessage = fullMessage + "\n\n可用 MCP 服务:\n" + mcpContext;
+                systemSuffix.append("\n\n可用 MCP 服务:\n").append(mcpContext);
             }
 
-            log.info("调用智能体 {}，消息长度: {}", agentId, fullMessage.length());
+            String extendedSystemPrompt = systemSuffix.length() > 0
+                    ? baseSystemPrompt + systemSuffix
+                    : null;
 
-            // 调用 AgentManageService 的 chat 方法
-            Optional<Object> response = agentManageService.chat(agentId, fullMessage, (String) null);
+            log.info("云端 provider context-injection RAG: agentId={}, systemSuffix长度={}, userMessage长度={}",
+                    agentId, systemSuffix.length(), userMessage.length());
+
+            // 调用 AgentManageService 的 chat 方法；有知识库/MCP 上下文时通过 overrideSystemPrompt 注入
+            Optional<Object> response = extendedSystemPrompt != null
+                    ? agentManageService.chat(agentId, userMessage, null, extendedSystemPrompt)
+                    : agentManageService.chat(agentId, userMessage, (String) null);
 
             if (response.isPresent()) {
                 Object resp = response.get();
@@ -511,6 +616,26 @@ public class AgentChatService {
     }
 
     @SuppressWarnings("unchecked")
+    private String buildKbStructurePreamble(ToolExecutionContext toolCtx) {
+        if (toolCtx == null) return null;
+        Boolean checked = (Boolean) toolCtx.getSharedState("kbStructureChecked");
+        if (!Boolean.TRUE.equals(checked)) return null;
+
+        Map<String, Object> detail = (Map<String, Object>) toolCtx.getSharedState("kbStructureDetail");
+        if (detail == null || detail.isEmpty()) return null;
+
+        StringBuilder sb = new StringBuilder("知识库结构信息:\n");
+        for (Map.Entry<String, Object> entry : detail.entrySet()) {
+            if (!(entry.getValue() instanceof Map)) continue;
+            Map<String, Object> kbInfo = (Map<String, Object>) entry.getValue();
+            if (kbInfo.containsKey("error")) continue;
+            String name = (String) kbInfo.getOrDefault("name", entry.getKey());
+            Object docCount = kbInfo.get("documentCount");
+            sb.append("- ").append(name).append(": ").append(docCount).append(" 个文档\n");
+        }
+        return sb.toString().trim();
+    }
+
     private String extractContent(Map<String, Object> respMap) {
         if (respMap == null || respMap.isEmpty()) {
             return "";

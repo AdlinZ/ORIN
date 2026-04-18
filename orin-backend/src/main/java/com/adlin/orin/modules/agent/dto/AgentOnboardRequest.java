@@ -84,6 +84,16 @@ public class AgentOnboardRequest {
         this.systemPrompt = systemPrompt;
     }
 
+    private Boolean toolCallingOverride;
+
+    public Boolean getToolCallingOverride() {
+        return toolCallingOverride;
+    }
+
+    public void setToolCallingOverride(Boolean toolCallingOverride) {
+        this.toolCallingOverride = toolCallingOverride;
+    }
+
     // TTS & Image Parameters
     private String voice;
     private Double speed;

@@ -166,6 +166,118 @@ public class OllamaIntegrationService {
     }
 
     /**
+     * 发送消息到 Ollama，附带 tool 定义（function calling）
+     */
+    public Optional<Object> sendMessageWithTools(
+            String endpoint, String apiKey, String model,
+            List<Map<String, Object>> messages,
+            List<Map<String, Object>> tools,
+            double temperature, int maxTokens) {
+        try {
+            String baseUrl = endpoint;
+            if (baseUrl == null) return Optional.empty();
+
+            HttpHeaders headers = new HttpHeaders();
+            if (apiKey != null && !apiKey.isEmpty() && !"sk-placeholder".equals(apiKey)) {
+                headers.setBearerAuth(apiKey);
+            }
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", model);
+            requestBody.put("messages", messages);
+            requestBody.put("tools", tools);
+            requestBody.put("temperature", temperature);
+            requestBody.put("max_tokens", maxTokens);
+            requestBody.put("stream", false);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+            String[] urls = buildOllamaUrls(baseUrl);
+            for (String url : urls) {
+                try {
+                    ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                            url, HttpMethod.POST, request,
+                            new ParameterizedTypeReference<Map<String, Object>>() {});
+                    if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                        return Optional.of(response.getBody());
+                    }
+                } catch (Exception e) {
+                    log.debug("Ollama tool-calling attempt failed at {}: {}", url, e.getMessage());
+                }
+            }
+            Map<String, Object> err = new HashMap<>();
+            err.put("status", "FAILED");
+            err.put("errorMessage", "No successful response from Ollama");
+            return Optional.of(err);
+        } catch (Exception e) {
+            log.error("Failed to send tool-calling message to Ollama: {}", e.getMessage());
+            Map<String, Object> err = new HashMap<>();
+            err.put("status", "FAILED");
+            err.put("errorMessage", e.getMessage());
+            return Optional.of(err);
+        }
+    }
+
+    /**
+     * 探测模型是否支持 tool calling。
+     * 发送一个带 tool_choice=required 的最小请求；响应包含 tool_calls 则返回 true。
+     */
+    public boolean probeToolCalling(String endpoint, String apiKey, String model) {
+        try {
+            if (endpoint == null) return false;
+
+            HttpHeaders headers = new HttpHeaders();
+            if (apiKey != null && !apiKey.isEmpty() && !"sk-placeholder".equals(apiKey)) {
+                headers.setBearerAuth(apiKey);
+            }
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            List<Map<String, Object>> tools = List.of(Map.of(
+                    "type", "function",
+                    "function", Map.of(
+                            "name", "probe",
+                            "description", "probe",
+                            "parameters", Map.of("type", "object", "properties", Map.of())
+                    )
+            ));
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", model != null ? model : "");
+            requestBody.put("messages", List.of(Map.of("role", "user", "content", "hi")));
+            requestBody.put("tools", tools);
+            requestBody.put("tool_choice", "required");
+            requestBody.put("max_tokens", 10);
+            requestBody.put("stream", false);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+            for (String url : buildOllamaUrls(endpoint)) {
+                try {
+                    ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                            url, HttpMethod.POST, request,
+                            new ParameterizedTypeReference<Map<String, Object>>() {});
+                    if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> choices =
+                                (List<Map<String, Object>>) response.getBody().get("choices");
+                        if (choices != null && !choices.isEmpty()) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> msg = (Map<String, Object>) choices.get(0).get("message");
+                            return msg != null && msg.get("tool_calls") != null;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("Tool calling probe failed at {}: {}", url, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("probeToolCalling error: {}", e.getMessage());
+        }
+        return false;
+    }
+
+    /**
      * 获取 Ollama 向量
      */
     public Optional<Object> getEmbeddings(String endpoint, String apiKey, String model, String input) {
