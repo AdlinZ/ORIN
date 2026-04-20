@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.settings.controller;
 
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
+import com.adlin.orin.modules.knowledge.service.GraphExtractionService;
 import com.adlin.orin.modules.knowledge.service.RAGFlowIntegrationService;
 import com.adlin.orin.modules.system.entity.SystemConfigEntity;
 import com.adlin.orin.modules.system.repository.SystemConfigRepository;
@@ -38,11 +39,23 @@ public class IntegrationController {
     private final DifyIntegrationService difyIntegrationService;
     private final RAGFlowIntegrationService ragFlowIntegrationService;
     private final SystemConfigRepository systemConfigRepository;
+    private final GraphExtractionService graphExtractionService;
 
     // Dify 配置的 sys_system_config key 前缀
     private static final String DIFY_API_URL_KEY = "dify.apiUrl";
     private static final String DIFY_API_KEY_KEY = "dify.apiKey";
     private static final String DIFY_ENABLED_KEY = "dify.enabled";
+
+    // Neo4j 配置的 sys_system_config key 前缀
+    private static final String NEO4J_URI_KEY = "neo4j.uri";
+    private static final String NEO4J_HOST_KEY = "neo4j.host";
+    private static final String NEO4J_PORT_KEY = "neo4j.port";
+    private static final String NEO4J_USERNAME_KEY = "neo4j.username";
+    private static final String NEO4J_PASSWORD_KEY = "neo4j.password";
+    private static final String NEO4J_DATABASE_KEY = "neo4j.database";
+    private static final String NEO4J_MAX_POOL_KEY = "neo4j.maxConnectionPoolSize";
+    private static final String NEO4J_TIMEOUT_KEY = "neo4j.connectionAcquisitionTimeoutMs";
+    private static final String NEO4J_ENABLED_KEY = "neo4j.enabled";
 
     // 其他框架仍用内存存储（预留位，暂未持久化）
     private static final Map<String, Map<String, Object>> INTEGRATION_CONFIGS = new HashMap<>();
@@ -309,27 +322,54 @@ public class IntegrationController {
 
     // ========== Neo4j ==========
 
+    private String getNeo4jConfigValue(String key, String defaultValue) {
+        return systemConfigRepository.findByConfigKey(key)
+                .map(SystemConfigEntity::getConfigValue)
+                .orElse(defaultValue);
+    }
+
+    private void saveNeo4jConfigValue(String key, String value, String description) {
+        SystemConfigEntity entity = systemConfigRepository.findByConfigKey(key)
+                .orElseGet(() -> {
+                    SystemConfigEntity e = new SystemConfigEntity();
+                    e.setConfigKey(key);
+                    e.setDescription(description);
+                    return e;
+                });
+        entity.setConfigValue(value);
+        systemConfigRepository.save(entity);
+    }
+
     @GetMapping("/neo4j")
     @Operation(summary = "获取 Neo4j 配置")
     public ResponseEntity<Map<String, Object>> getNeo4jConfig() {
-        Map<String, Object> config = INTEGRATION_CONFIGS.get("neo4j");
-        return ResponseEntity.ok(config != null ? config : new HashMap<>());
+        Map<String, Object> result = new HashMap<>();
+        result.put("uri",      getNeo4jConfigValue(NEO4J_URI_KEY, ""));
+        result.put("host",     getNeo4jConfigValue(NEO4J_HOST_KEY, "localhost"));
+        result.put("port",     asInt(getNeo4jConfigValue(NEO4J_PORT_KEY, "7687"), 7687));
+        result.put("username", getNeo4jConfigValue(NEO4J_USERNAME_KEY, "neo4j"));
+        result.put("password", getNeo4jConfigValue(NEO4J_PASSWORD_KEY, ""));
+        result.put("database", getNeo4jConfigValue(NEO4J_DATABASE_KEY, "neo4j"));
+        result.put("maxConnectionPoolSize",          asInt(getNeo4jConfigValue(NEO4J_MAX_POOL_KEY, "50"), 50));
+        result.put("connectionAcquisitionTimeoutMs", asInt(getNeo4jConfigValue(NEO4J_TIMEOUT_KEY, "60000"), 60000));
+        result.put("enabled",  Boolean.parseBoolean(getNeo4jConfigValue(NEO4J_ENABLED_KEY, "false")));
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/neo4j")
     @Operation(summary = "保存 Neo4j 配置")
     public ResponseEntity<Map<String, Object>> saveNeo4jConfig(@RequestBody Map<String, Object> config) {
-        Map<String, Object> neo4jConfig = INTEGRATION_CONFIGS.computeIfAbsent("neo4j", k -> new HashMap<>());
-        neo4jConfig.put("uri", config.getOrDefault("uri", ""));
-        neo4jConfig.put("host", config.getOrDefault("host", "localhost"));
-        neo4jConfig.put("port", config.getOrDefault("port", 7687));
-        neo4jConfig.put("username", config.getOrDefault("username", "neo4j"));
-        neo4jConfig.put("password", config.getOrDefault("password", ""));
-        neo4jConfig.put("database", config.getOrDefault("database", "neo4j"));
-        neo4jConfig.put("maxConnectionPoolSize", config.getOrDefault("maxConnectionPoolSize", 50));
-        neo4jConfig.put("connectionAcquisitionTimeoutMs", config.getOrDefault("connectionAcquisitionTimeoutMs", 60000));
-        neo4jConfig.put("enabled", config.getOrDefault("enabled", false));
-        return ResponseEntity.ok(neo4jConfig);
+        saveNeo4jConfigValue(NEO4J_URI_KEY,      asString(config.getOrDefault("uri", "")),           "Neo4j 连接 URI");
+        saveNeo4jConfigValue(NEO4J_HOST_KEY,     asString(config.getOrDefault("host", "localhost")), "Neo4j Host");
+        saveNeo4jConfigValue(NEO4J_PORT_KEY,     asString(config.getOrDefault("port", 7687)),        "Neo4j Port");
+        saveNeo4jConfigValue(NEO4J_USERNAME_KEY, asString(config.getOrDefault("username", "neo4j")), "Neo4j 用户名");
+        saveNeo4jConfigValue(NEO4J_PASSWORD_KEY, asString(config.getOrDefault("password", "")),      "Neo4j 密码");
+        saveNeo4jConfigValue(NEO4J_DATABASE_KEY, asString(config.getOrDefault("database", "neo4j")), "Neo4j 数据库");
+        saveNeo4jConfigValue(NEO4J_MAX_POOL_KEY, asString(config.getOrDefault("maxConnectionPoolSize", 50)),          "Neo4j 连接池大小");
+        saveNeo4jConfigValue(NEO4J_TIMEOUT_KEY,  asString(config.getOrDefault("connectionAcquisitionTimeoutMs", 60000)), "Neo4j 获取连接超时");
+        saveNeo4jConfigValue(NEO4J_ENABLED_KEY,  String.valueOf(config.getOrDefault("enabled", false)), "Neo4j 启用状态");
+        graphExtractionService.resetNeo4jDriver();
+        return getNeo4jConfig();
     }
 
     @GetMapping("/neo4j/test")

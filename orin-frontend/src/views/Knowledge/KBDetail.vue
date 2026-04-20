@@ -1,7 +1,7 @@
 <template>
   <div class="kb-workbench-page">
-    <div class="workbench-header">
-      <div class="title-block">
+    <div class="workbench-hero">
+      <div class="hero-main">
         <div class="title-row">
           <el-button link :icon="ArrowLeft" @click="router.push(ROUTES.RESOURCES.KNOWLEDGE)">
             返回知识库列表
@@ -10,12 +10,27 @@
           <span class="current-name">{{ kbData.name || '知识库详情' }}</span>
         </div>
         <h1>{{ kbData.name || '知识库' }}</h1>
-        <p>{{ kbData.description || '用于管理文档、检索效果和知识图谱可视化。' }}</p>
+        <div class="title-meta-pills">
+          <span class="meta-pill">{{ getTypeName(kbData.type) }}</span>
+          <span class="meta-pill">{{ documents.length }} 文档</span>
+          <span class="meta-pill">{{ groupedDocs.length }} 分组</span>
+          <span class="meta-pill">最近更新 {{ formatUpdatedAt(kbData) }}</span>
+        </div>
+        <p class="title-desc">{{ kbData.description || '用于管理文档、检索效果和知识图谱可视化。' }}</p>
       </div>
-
-      <div class="status-block">
-        <el-tag type="info" effect="plain">{{ getTypeName(kbData.type) }}</el-tag>
-        <el-tag type="success" effect="plain">{{ documents.length }} 文档</el-tag>
+      <div class="hero-side">
+        <div class="hero-kpi">
+          <span>检索命中</span>
+          <strong>{{ filteredResults.length }}</strong>
+        </div>
+        <div class="hero-kpi">
+          <span>平均相似度</span>
+          <strong>{{ avgScore.toFixed(2) }}</strong>
+        </div>
+        <div class="hero-kpi">
+          <span>命中文档</span>
+          <strong>{{ uniqueDocCount }}</strong>
+        </div>
       </div>
     </div>
 
@@ -45,6 +60,11 @@
         </section>
 
         <section class="doc-panel">
+          <div class="panel-head">
+            <h3>文档导航</h3>
+            <span>{{ documents.length }} 项</span>
+          </div>
+
           <div class="doc-toolbar">
             <el-upload
               :show-file-list="false"
@@ -116,187 +136,215 @@
       </aside>
 
       <main class="right-panel">
-        <el-tabs v-model="activeTab" class="workspace-tabs">
-          <el-tab-pane label="检索测试" name="retrieve">
-            <section class="test-pane">
-              <div class="test-toolbar">
-                <el-input
-                  v-model="query"
-                  clearable
-                  placeholder="输入问题进行检索测试，例如：蛋白酶在食品加工中的作用"
-                  @keyup.enter="runRetrieval"
-                >
-                  <template #append>
-                    <el-button :loading="retrievalLoading" :icon="Search" @click="runRetrieval">搜索</el-button>
-                  </template>
-                </el-input>
+        <div class="workspace-summary">
+          <div class="summary-item">
+            <span class="summary-key">当前文档</span>
+            <span class="summary-val">{{ selectedDoc?.fileName || '未选择' }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-key">Top K</span>
+            <span class="summary-val">{{ topK }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-key">阈值</span>
+            <span class="summary-val">{{ Math.round(threshold * 100) }}%</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-key">Rerank</span>
+            <span class="summary-val">{{ settingsForm.enableRerank ? '已启用' : '关闭' }}</span>
+          </div>
+        </div>
 
-                <div class="test-config">
-                  <span>Top K</span>
-                  <el-input-number v-model="topK" :min="1" :max="20" />
-                  <span>阈值</span>
-                  <el-slider v-model="threshold" :min="0" :max="1" :step="0.05" style="width: 180px" />
-                  <span>{{ Math.round(threshold * 100) }}%</span>
-                </div>
+        <div class="workspace-nav">
+          <button
+            v-for="item in workspaceNavItems"
+            :key="item.key"
+            type="button"
+            class="nav-btn"
+            :class="{ active: activeTab === item.key }"
+            @click="activateWorkspace(item.key)"
+          >
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ item.label }}</span>
+          </button>
+        </div>
+
+        <div class="workspace-stage">
+          <div class="stage-header">
+            <h3>{{ activeWorkspaceMeta.title }}</h3>
+            <p>{{ activeWorkspaceMeta.desc }}</p>
+          </div>
+
+          <section v-show="activeTab === 'retrieve'" class="test-pane">
+            <div class="test-toolbar">
+              <el-input
+                v-model="query"
+                clearable
+                placeholder="输入问题进行检索测试，例如：蛋白酶在食品加工中的作用"
+                @keyup.enter="runRetrieval"
+              >
+                <template #append>
+                  <el-button :loading="retrievalLoading" :icon="Search" @click="runRetrieval">搜索</el-button>
+                </template>
+              </el-input>
+
+              <div class="test-config">
+                <span>Top K</span>
+                <el-input-number v-model="topK" :min="1" :max="20" />
+                <span>阈值</span>
+                <el-slider v-model="threshold" :min="0" :max="1" :step="0.05" style="width: 180px" />
+                <span>{{ Math.round(threshold * 100) }}%</span>
               </div>
+            </div>
 
-              <div v-loading="retrievalLoading" class="result-panel">
-                <div v-if="filteredResults.length > 0" class="result-list">
-                  <div v-for="(item, idx) in filteredResults" :key="idx" class="result-item">
-                    <div class="result-top">
-                      <span class="rank">#{{ idx + 1 }}</span>
-                      <span class="score" :class="scoreClass(item.score)">{{ toPercent(item.score) }}</span>
-                    </div>
-                    <p>{{ item.content }}</p>
-                    <div class="meta-line">
-                      <span v-if="item.docId">文档: {{ item.docId }}</span>
-                      <span v-if="item.chunkId">分片: {{ item.chunkId }}</span>
-                    </div>
+            <div v-loading="retrievalLoading" class="result-panel">
+              <div v-if="filteredResults.length > 0" class="result-list">
+                <div v-for="(item, idx) in filteredResults" :key="idx" class="result-item">
+                  <div class="result-top">
+                    <span class="rank">#{{ idx + 1 }}</span>
+                    <span class="score" :class="scoreClass(item.score)">{{ toPercent(item.score) }}</span>
+                  </div>
+                  <p>{{ item.content }}</p>
+                  <div class="meta-line">
+                    <span v-if="item.docId">文档: {{ item.docId }}</span>
+                    <span v-if="item.chunkId">分片: {{ item.chunkId }}</span>
                   </div>
                 </div>
-
-                <el-empty v-else-if="searched" description="未命中结果，请尝试改写问题" />
-                <el-empty v-else description="输入问题后开始检索测试" />
-              </div>
-            </section>
-          </el-tab-pane>
-
-          <el-tab-pane label="知识导图" name="graph">
-            <section class="graph-pane">
-              <div class="graph-toolbar">
-                <el-input
-                  v-model="graphKeyword"
-                  :prefix-icon="Search"
-                  clearable
-                  placeholder="输入实体/文档关键字过滤导图"
-                  @input="renderMindMap"
-                />
-                <el-button :icon="Refresh" @click="regenerateGraph">重新生成</el-button>
-                <el-button @click="fitGraph">适应视图</el-button>
-              </div>
-              <div ref="mindMapRef" class="mindmap-canvas" />
-            </section>
-          </el-tab-pane>
-
-          <el-tab-pane label="RAG评估" name="rag">
-            <section class="metric-pane">
-              <div class="metric-grid">
-                <div class="metric-card">
-                  <span>平均相似度</span>
-                  <strong>{{ avgScore.toFixed(2) }}</strong>
-                </div>
-                <div class="metric-card">
-                  <span>高相关结果</span>
-                  <strong>{{ highScoreCount }}</strong>
-                </div>
-                <div class="metric-card">
-                  <span>覆盖率</span>
-                  <strong>{{ coverage.toFixed(1) }}%</strong>
-                </div>
-                <div class="metric-card">
-                  <span>文档命中数</span>
-                  <strong>{{ uniqueDocCount }}</strong>
-                </div>
               </div>
 
-              <el-alert
-                type="info"
-                show-icon
-                :closable="false"
-                title="提示：先在“检索测试”里运行问题，再在这里查看评估指标。"
+              <el-empty v-else-if="searched" description="未命中结果，请尝试改写问题" />
+              <el-empty v-else description="输入问题后开始检索测试" />
+            </div>
+          </section>
+
+          <section v-show="activeTab === 'graph'" class="graph-pane">
+            <div class="graph-toolbar">
+              <el-input
+                v-model="graphKeyword"
+                :prefix-icon="Search"
+                clearable
+                placeholder="输入实体/文档关键字过滤导图"
+                @input="renderMindMap"
               />
-            </section>
-          </el-tab-pane>
+              <el-button :icon="Refresh" @click="regenerateGraph">重新生成</el-button>
+              <el-button @click="fitGraph">适应视图</el-button>
+            </div>
+            <div ref="mindMapRef" class="mindmap-canvas" />
+          </section>
 
-          <el-tab-pane label="评估基准" name="benchmark">
-            <section class="benchmark-pane">
-              <div class="bench-toolbar">
-                <el-button :icon="Refresh" @click="refreshBenchmarks">刷新</el-button>
+          <section v-show="activeTab === 'rag'" class="metric-pane">
+            <div class="metric-grid">
+              <div class="metric-card">
+                <span>平均相似度</span>
+                <strong>{{ avgScore.toFixed(2) }}</strong>
               </div>
+              <div class="metric-card">
+                <span>高相关结果</span>
+                <strong>{{ highScoreCount }}</strong>
+              </div>
+              <div class="metric-card">
+                <span>覆盖率</span>
+                <strong>{{ coverage.toFixed(1) }}%</strong>
+              </div>
+              <div class="metric-card">
+                <span>文档命中数</span>
+                <strong>{{ uniqueDocCount }}</strong>
+              </div>
+            </div>
 
-              <el-table :data="benchmarks" stripe>
-                <el-table-column prop="name" label="基准名称" min-width="180" />
-                <el-table-column prop="description" label="描述" min-width="260" show-overflow-tooltip />
-                <el-table-column prop="score" label="得分" width="120">
-                  <template #default="{ row }">{{ row.score }}%</template>
-                </el-table-column>
-                <el-table-column prop="updatedAt" label="最近执行" width="180" />
-                <el-table-column label="操作" width="120">
-                  <template #default="{ row }">
-                    <el-button link type="primary" @click="runBenchmark(row)">运行</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </section>
-          </el-tab-pane>
+            <el-alert
+              type="info"
+              show-icon
+              :closable="false"
+              title="提示：先在“检索测试”里运行问题，再在这里查看评估指标。"
+            />
+          </section>
 
-          <el-tab-pane label="知识库设置" name="settings">
-            <section class="settings-pane">
-              <el-form label-position="top" class="settings-form">
-                <el-form-item label="知识库名称">
-                  <el-input v-model="settingsForm.name" placeholder="请输入知识库名称" />
-                </el-form-item>
-                <el-form-item label="知识库描述">
-                  <el-input
-                    v-model="settingsForm.description"
-                    type="textarea"
-                    :rows="4"
-                    placeholder="请输入知识库描述"
-                    resize="none"
+          <section v-show="activeTab === 'benchmark'" class="benchmark-pane">
+            <div class="bench-toolbar">
+              <el-button :icon="Refresh" @click="refreshBenchmarks">刷新</el-button>
+            </div>
+
+            <el-table :data="benchmarks" stripe>
+              <el-table-column prop="name" label="基准名称" min-width="180" />
+              <el-table-column prop="description" label="描述" min-width="260" show-overflow-tooltip />
+              <el-table-column prop="score" label="得分" width="120">
+                <template #default="{ row }">{{ row.score }}%</template>
+              </el-table-column>
+              <el-table-column prop="updatedAt" label="最近执行" width="180" />
+              <el-table-column label="操作" width="120">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="runBenchmark(row)">运行</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </section>
+
+          <section v-show="activeTab === 'settings'" class="settings-pane">
+            <el-form label-position="top" class="settings-form">
+              <el-form-item label="知识库名称">
+                <el-input v-model="settingsForm.name" placeholder="请输入知识库名称" />
+              </el-form-item>
+              <el-form-item label="知识库描述">
+                <el-input
+                  v-model="settingsForm.description"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="请输入知识库描述"
+                  resize="none"
+                />
+              </el-form-item>
+              <el-form-item label="检索默认 Top K">
+                <el-input-number v-model="settingsForm.defaultTopK" :min="1" :max="20" />
+              </el-form-item>
+              <el-form-item label="检索默认阈值">
+                <el-slider v-model="settingsForm.defaultThreshold" :min="0" :max="1" :step="0.05" style="width: 260px" />
+              </el-form-item>
+              <el-form-item label="向量权重 Alpha">
+                <el-slider v-model="settingsForm.alpha" :min="0" :max="1" :step="0.05" style="width: 260px" />
+              </el-form-item>
+              <el-form-item label="Embedding 模型">
+                <el-select v-model="settingsForm.embeddingModel" filterable clearable placeholder="选择 Embedding 模型" style="width: 360px">
+                  <el-option
+                    v-for="item in embeddingModelOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
                   />
-                </el-form-item>
-                <el-form-item label="检索默认 Top K">
-                  <el-input-number v-model="settingsForm.defaultTopK" :min="1" :max="20" />
-                </el-form-item>
-                <el-form-item label="检索默认阈值">
-                  <el-slider v-model="settingsForm.defaultThreshold" :min="0" :max="1" :step="0.05" style="width: 260px" />
-                </el-form-item>
-                <el-form-item label="向量权重 Alpha">
-                  <el-slider v-model="settingsForm.alpha" :min="0" :max="1" :step="0.05" style="width: 260px" />
-                </el-form-item>
-                <el-form-item label="Embedding 模型">
-                  <el-select v-model="settingsForm.embeddingModel" filterable clearable placeholder="选择 Embedding 模型" style="width: 360px">
-                    <el-option
-                      v-for="item in embeddingModelOptions"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value"
-                    />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="启用 Rerank">
-                  <el-switch v-model="settingsForm.enableRerank" />
-                </el-form-item>
-                <el-form-item v-if="settingsForm.enableRerank" label="Rerank 模型">
-                  <el-select v-model="settingsForm.rerankModel" filterable clearable placeholder="选择 Rerank 模型" style="width: 360px">
-                    <el-option
-                      v-for="item in rerankModelOptions"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value"
-                    />
-                  </el-select>
-                </el-form-item>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="启用 Rerank">
+                <el-switch v-model="settingsForm.enableRerank" />
+              </el-form-item>
+              <el-form-item v-if="settingsForm.enableRerank" label="Rerank 模型">
+                <el-select v-model="settingsForm.rerankModel" filterable clearable placeholder="选择 Rerank 模型" style="width: 360px">
+                  <el-option
+                    v-for="item in rerankModelOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+              </el-form-item>
 
-                <div class="settings-actions">
-                  <el-button type="primary" :loading="savingSettings" @click="saveSettings">
-                    保存设置
-                  </el-button>
-                </div>
-              </el-form>
-
-              <div class="danger-zone">
-                <div class="danger-meta">
-                  <h4>危险操作</h4>
-                  <p>删除知识库后，文档与索引将不可恢复。</p>
-                </div>
-                <el-button type="danger" plain :loading="deletingKb" @click="removeKnowledgeBase">
-                  删除知识库
+              <div class="settings-actions">
+                <el-button type="primary" :loading="savingSettings" @click="saveSettings">
+                  保存设置
                 </el-button>
               </div>
-            </section>
-          </el-tab-pane>
-        </el-tabs>
+            </el-form>
+
+            <div class="danger-zone">
+              <div class="danger-meta">
+                <h4>危险操作</h4>
+                <p>删除知识库后，文档与索引将不可恢复。</p>
+              </div>
+              <el-button type="danger" plain :loading="deletingKb" @click="removeKnowledgeBase">
+                删除知识库
+              </el-button>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   </div>
@@ -317,6 +365,7 @@ import {
   Opportunity,
   Refresh,
   Search,
+  Setting,
   Upload
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -406,6 +455,27 @@ const avgScore = computed(() => {
 const highScoreCount = computed(() => filteredResults.value.filter(item => Number(item.score || 0) >= 0.8).length);
 const coverage = computed(() => (topK.value ? (filteredResults.value.length / topK.value) * 100 : 0));
 const uniqueDocCount = computed(() => new Set(filteredResults.value.map(item => item.docId).filter(Boolean)).size);
+const selectedDoc = computed(() => documents.value.find(doc => String(doc.id) === String(selectedDocId.value)) || null);
+const workspaceNavItems = [
+  { key: 'retrieve', label: '检索测试', icon: Search, title: '检索测试', desc: '快速验证召回质量与文档命中情况。' },
+  { key: 'graph', label: '知识导图', icon: Connection, title: '知识导图', desc: '查看知识结构与文档分组关系。' },
+  { key: 'rag', label: 'RAG评估', icon: Collection, title: 'RAG评估', desc: '基于检索结果观察当前配置效果。' },
+  { key: 'benchmark', label: '评估基准', icon: Cpu, title: '评估基准', desc: '运行基准集并记录得分变化。' },
+  { key: 'settings', label: '知识库设置', icon: Setting, title: '知识库设置', desc: '维护检索参数、模型与知识库元信息。' }
+];
+
+const activeWorkspaceMeta = computed(
+  () => workspaceNavItems.find(item => item.key === activeTab.value)
+    || workspaceNavItems[0]
+);
+
+const activateWorkspace = async (tab) => {
+  activeTab.value = tab;
+  if (tab === 'graph') {
+    await nextTick();
+    renderMindMap();
+  }
+};
 
 const groupedDocs = computed(() => {
   const groups = new Map();
@@ -489,6 +559,11 @@ const statusText = (status) => {
 };
 
 const toPercent = (score) => `${(Number(score || 0) * 100).toFixed(1)}%`;
+const formatUpdatedAt = (kb) => dayjs(
+  kb?.updatedAt || kb?.gmtModified || kb?.syncTime || kb?.createdAt
+).isValid()
+  ? dayjs(kb?.updatedAt || kb?.gmtModified || kb?.syncTime || kb?.createdAt).format('MM-DD HH:mm')
+  : '—';
 
 const scoreClass = (score) => {
   const val = Number(score || 0);
@@ -931,20 +1006,28 @@ onUnmounted(() => {
 <style scoped>
 .kb-workbench-page {
   min-height: 100vh;
-  padding: 20px;
-  background: #f4f6fa;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 0% -20%, rgba(15, 157, 138, 0.10) 0, rgba(15, 157, 138, 0) 55%),
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.07) 0, rgba(59, 130, 246, 0) 50%),
+    #f3f6f8;
 }
 
-.workbench-header {
+.workbench-hero {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 18px 20px;
-  margin-bottom: 14px;
+  gap: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdfd 100%);
+  border: 1px solid #dce7e4;
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.hero-main {
+  min-width: 0;
+  flex: 1;
 }
 
 .title-row {
@@ -961,26 +1044,74 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.title-block h1 {
+.hero-main h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 32px;
   color: #111827;
+  line-height: 1.25;
 }
 
-.title-block p {
-  margin: 6px 0 0;
-  color: #4b5563;
-}
-
-.status-block {
+.title-meta-pills {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.meta-pill {
+  font-size: 12px;
+  line-height: 20px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  color: #4b5563;
+  background: #f3f6f8;
+  border: 1px solid #e3eaee;
+}
+
+.title-desc {
+  margin: 10px 0 0;
+  color: #4b5563;
+  line-height: 1.65;
+  max-width: 1040px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hero-side {
+  width: 270px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.hero-kpi {
+  border: 1px solid #e4ece9;
+  background: #f7fbfa;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hero-kpi span {
+  color: #5f7180;
+  font-size: 12px;
+}
+
+.hero-kpi strong {
+  color: #0f172a;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .workbench-body {
   display: grid;
-  grid-template-columns: 440px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 14px;
   min-height: calc(100vh - 190px);
 }
 
@@ -992,17 +1123,18 @@ onUnmounted(() => {
 .left-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .kb-info-card {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: flex-start;
   background: var(--orin-bg-white);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--neutral-gray-200);
+  border-radius: 14px;
+  border: 1px solid #dfe8e5;
   padding: 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
 }
 
 .kb-icon {
@@ -1076,11 +1208,30 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   background: var(--orin-bg-white);
-  border: 1px solid var(--neutral-gray-200);
-  border-radius: var(--radius-lg);
+  border: 1px solid #dfe8e5;
+  border-radius: 14px;
   padding: 12px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.panel-head h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #111827;
+}
+
+.panel-head span {
+  font-size: 12px;
+  color: #64748b;
 }
 
 .doc-toolbar {
@@ -1213,13 +1364,102 @@ onUnmounted(() => {
 
 .right-panel {
   background: var(--orin-bg-white);
-  border: 1px solid var(--neutral-gray-200);
-  border-radius: var(--radius-lg);
-  padding: 8px 14px 14px;
+  border: 1px solid #dfe8e5;
+  border-radius: 14px;
+  padding: 10px 14px 14px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
 }
 
-.workspace-tabs {
-  height: 100%;
+.workspace-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.summary-item {
+  border: 1px solid #e6eeeb;
+  border-radius: 10px;
+  background: #f8fcfb;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary-key {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.summary-val {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nav-btn {
+  border: 1px solid #e3ece9;
+  background: #f8fcfb;
+  border-radius: 10px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-btn:hover {
+  border-color: #b8dcd4;
+  color: #0f9d8a;
+}
+
+.nav-btn.active {
+  border-color: #8dd5c8;
+  background: #ebfaf6;
+  color: #0b8d7c;
+}
+
+.workspace-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid #e5efeb;
+  border-radius: 12px;
+  background: #fbfdfd;
+  padding: 12px;
+}
+
+.stage-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.stage-header p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .test-pane,
@@ -1227,8 +1467,8 @@ onUnmounted(() => {
 .metric-pane,
 .benchmark-pane,
 .settings-pane {
-  height: calc(100vh - 265px);
-  min-height: 560px;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -1407,21 +1647,25 @@ onUnmounted(() => {
   font-size: 12px;
 }
 
-:deep(.el-tabs__content) {
-  height: calc(100% - 40px);
-}
-
-:deep(.el-tab-pane) {
-  height: 100%;
-}
-
 :deep(.danger-item) {
   color: var(--el-color-danger);
 }
 
 @media (max-width: 1380px) {
   .workbench-body {
-    grid-template-columns: 380px minmax(0, 1fr);
+    grid-template-columns: 330px minmax(0, 1fr);
+  }
+
+  .hero-side {
+    width: 240px;
+  }
+
+  .hero-main h1 {
+    font-size: 28px;
+  }
+
+  .workspace-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1430,8 +1674,30 @@ onUnmounted(() => {
     padding: 12px;
   }
 
+  .workbench-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-side {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .workbench-body {
     grid-template-columns: 1fr;
+  }
+
+  .hero-main h1 {
+    font-size: 24px;
+  }
+
+  .workspace-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .test-pane,
@@ -1439,7 +1705,6 @@ onUnmounted(() => {
   .metric-pane,
   .benchmark-pane,
   .settings-pane {
-    height: auto;
     min-height: 420px;
   }
 

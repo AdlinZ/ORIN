@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,5 +16,6 @@ public interface GraphEntityRepository extends JpaRepository<GraphEntity, String
     List<GraphEntity> findByGraphIdAndEntityType(String graphId, String entityType);
     List<GraphEntity> findByGraphIdAndNameContainingIgnoreCase(String graphId, String name);
     long countByGraphId(String graphId);
+    @Transactional
     void deleteByGraphId(String graphId);
 }

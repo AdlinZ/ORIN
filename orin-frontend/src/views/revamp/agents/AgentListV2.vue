@@ -11,7 +11,7 @@
         <el-button type="primary" :icon="Plus" @click="$router.push(ROUTES.AGENTS.ONBOARD)">
           接入新智能体
         </el-button>
-        <el-button :icon="Refresh" @click="loadData">
+        <el-button class="refresh-button" :icon="Refresh" @click="loadData">
           刷新
         </el-button>
       </template>
@@ -347,7 +347,7 @@ onMounted(loadData)
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .overview-card {
@@ -357,12 +357,14 @@ onMounted(loadData)
 .overview-card :deep(.el-card__body) {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  padding: 18px 20px;
 }
 
 .overview-card-accent {
-  background: linear-gradient(135deg, #0f766e, #155e75);
-  border-color: transparent;
+  background: linear-gradient(140deg, #0f766e, #155e75) !important;
+  border-color: #0f766e !important;
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.18);
 }
 
 .overview-card-accent .overview-label,
@@ -372,27 +374,27 @@ onMounted(loadData)
 }
 
 .overview-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #475569;
 }
 
 .overview-value {
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1;
   color: #0f172a;
 }
 
 .overview-meta {
-  font-size: 13px;
-  line-height: 1.6;
-  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #334155;
 }
 
 .recent-panel {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   border-radius: 22px;
 }
 
@@ -425,10 +427,10 @@ onMounted(loadData)
 
 .recent-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   width: 100%;
-  padding: 18px;
+  padding: 16px 18px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), #f8fafc);
@@ -457,11 +459,14 @@ onMounted(loadData)
 .recent-body {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 128px;
 }
 
 .recent-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 6px;
 }
@@ -470,6 +475,11 @@ onMounted(loadData)
   min-width: 0;
   font-weight: 600;
   color: #0f172a;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .recent-desc,
@@ -478,16 +488,64 @@ onMounted(loadData)
   color: #64748b;
 }
 
+.recent-desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .recent-meta {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.32);
 }
 
 .recent-arrow {
   color: #94a3b8;
   flex: 0 0 auto;
+  margin-top: 4px;
+}
+
+.refresh-button {
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.refresh-button:hover {
+  color: #334155;
+  border-color: rgba(148, 163, 184, 0.55);
+  background: #fff;
+}
+
+.page-container :deep(.page-header-wrapper) {
+  margin-bottom: 16px;
+}
+
+.page-container :deep(.page-header-container) {
+  padding: 18px 24px;
+}
+
+.page-container :deep(.header-main) {
+  gap: 16px;
+}
+
+.page-container :deep(.header-icon) {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
+.page-container :deep(.header-description) {
+  margin-top: 6px;
+}
+
+.page-container :deep(.header-filters) {
+  margin-top: 14px;
+  padding-top: 14px;
 }
 
 @media (max-width: 960px) {

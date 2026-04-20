@@ -313,12 +313,28 @@ const routes = [
                 path: 'resources',
                 meta: { title: '资源', category: 'resources' },
                 children: [
+                    {
+                        path: '',
+                        redirect: '/dashboard/resources/center'
+                    },
+                    {
+                        path: 'center',
+                        name: 'ResourcesKnowledgeCenter',
+                        redirect: '/dashboard/resources/retrieval',
+                        meta: { title: '知识中心', icon: 'Reading' }
+                    },
+                    {
+                        path: 'assets',
+                        name: 'ResourcesKnowledgeAssets',
+                        component: () => import('@/views/Knowledge/KnowledgeAssets.vue'),
+                        meta: { title: '知识资产', icon: 'Collection' }
+                    },
                     // 知识库
                     {
                         path: 'knowledge',
                         name: 'ResourcesKnowledge',
-                        component: () => import('@/views/revamp/knowledge/KnowledgeListV2.vue'),
-                        meta: { title: '知识库', icon: 'Reading' }
+                        redirect: '/dashboard/resources/assets',
+                        meta: { title: '知识库（旧）', hidden: true }
                     },
                     {
                         path: 'knowledge/create',
@@ -375,8 +391,8 @@ const routes = [
                     {
                         path: 'graph',
                         name: 'ResourcesGraph',
-                        component: () => import('@/views/Knowledge/KnowledgeGraphList.vue'),
-                        meta: { title: '知识图谱', icon: 'Connection' }
+                        redirect: '/dashboard/resources/assets',
+                        meta: { title: '知识图谱（旧）', hidden: true }
                     },
                     {
                         path: 'graph/:id',

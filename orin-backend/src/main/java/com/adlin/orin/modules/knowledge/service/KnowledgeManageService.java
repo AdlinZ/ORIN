@@ -5,6 +5,7 @@ import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeGraph;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.service.sync.DifyKnowledgeSyncService;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class KnowledgeManageService {
 
         private final AgentAccessProfileRepository profileRepository;
         private final KnowledgeBaseRepository knowledgeBaseRepository;
+        private final KnowledgeGraphService knowledgeGraphService;
         private final RestTemplate restTemplate;
         private final DifyKnowledgeSyncService difyKnowledgeSyncService;
         private final com.adlin.orin.modules.knowledge.component.VectorStoreProvider vectorStoreProvider;
@@ -320,7 +322,18 @@ public class KnowledgeManageService {
                 if (kb.getStatus() == null) {
                         kb.setStatus("ENABLED");
                 }
-                return knowledgeBaseRepository.save(kb);
+                KnowledgeBase saved = knowledgeBaseRepository.save(kb);
+                try {
+                        KnowledgeGraph graph = new KnowledgeGraph();
+                        graph.setKnowledgeBaseId(saved.getId());
+                        graph.setName(saved.getName());
+                        graph.setDescription(saved.getDescription());
+                        knowledgeGraphService.createGraph(graph);
+                        log.info("Auto-created knowledge graph for kb={}", saved.getId());
+                } catch (Exception e) {
+                        log.warn("Failed to auto-create knowledge graph for kb={}: {}", saved.getId(), e.getMessage());
+                }
+                return saved;
         }
 
         /**

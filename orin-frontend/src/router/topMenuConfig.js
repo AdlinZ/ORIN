@@ -37,12 +37,11 @@ export const TOP_MENU_CONFIG = [
     title: '知识库',
     icon: 'Reading',
     color: '#0f766e',
-    path: ROUTES.KNOWLEDGE.ROOT,
+    path: ROUTES.KNOWLEDGE.CENTER,
     requiresAdmin: false,
     children: [
-      { title: '知识库检索', path: ROUTES.KNOWLEDGE.EMBEDDING_LAB, icon: 'Search', status: 'available' },
-      { title: '知识库列表', path: ROUTES.KNOWLEDGE.LIST, icon: 'List', status: 'available' },
-{ title: '知识图谱', path: ROUTES.KNOWLEDGE.GRAPH, icon: 'Connection', status: 'beta' },
+      { title: '知识中心', path: ROUTES.KNOWLEDGE.CENTER, icon: 'Reading', status: 'available' },
+      { title: '知识资产', path: ROUTES.KNOWLEDGE.ASSETS, icon: 'Collection', status: 'available' },
     ],
   },
   {
@@ -115,6 +114,8 @@ export function getVisibleMenus(isAdmin = false) {
  * @returns {string|null} 激活的菜单 ID
  */
 export function getActiveMenuId(currentPath) {
+  if (currentPath.startsWith('/dashboard/control')) return 'system'
+
   for (const menu of TOP_MENU_CONFIG) {
     if (currentPath.startsWith(menu.path)) return menu.id
     if (menu.children) {

@@ -28,6 +28,12 @@ public class KnowledgeGraph {
     private String id;
 
     /**
+     * 关联知识库ID（可选）
+     */
+    @Column(name = "knowledge_base_id", length = 100)
+    private String knowledgeBaseId;
+
+    /**
      * 图谱名称
      */
     @Column(name = "name", nullable = false, length = 200)
@@ -72,6 +78,12 @@ public class KnowledgeGraph {
      */
     @Column(name = "last_success_build_at")
     private LocalDateTime lastSuccessBuildAt;
+
+    /**
+     * 构建失败原因（最近一次失败时记录）
+     */
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
 
     /**
      * 创建时间

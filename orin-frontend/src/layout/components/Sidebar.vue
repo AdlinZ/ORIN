@@ -39,15 +39,14 @@
                     <component :is="getIconComponent(item.icon)" />
                   </el-icon>
                   <span>{{ item.title }}</span>
-                  <el-tag
+                  <span
                     v-if="item.status"
-                    size="small"
-                    :type="getMaturityTagType(item.status)"
-                    effect="plain"
-                    class="menu-status-tag"
+                    class="menu-status-dot"
+                    :class="`is-${item.status}`"
                   >
+                    <i class="dot" />
                     {{ getMaturityText(item.status) }}
-                  </el-tag>
+                  </span>
                 </el-menu-item>
               </el-menu-item-group>
               <template v-else>
@@ -60,15 +59,14 @@
                     <component :is="getIconComponent(item.icon)" />
                   </el-icon>
                   <span>{{ item.title }}</span>
-                  <el-tag
+                  <span
                     v-if="item.status"
-                    size="small"
-                    :type="getMaturityTagType(item.status)"
-                    effect="plain"
-                    class="menu-status-tag"
+                    class="menu-status-dot"
+                    :class="`is-${item.status}`"
                   >
+                    <i class="dot" />
                     {{ getMaturityText(item.status) }}
-                  </el-tag>
+                  </span>
                 </el-menu-item>
               </template>
             </template>
@@ -159,7 +157,7 @@ import { DArrowLeft, DArrowRight, Refresh, Moon, Sunny, Bell, Expand, User, Swit
 import { useUser } from '@/composables/useUser'
 import { useTheme } from '@/composables/useTheme'
 import { getIconComponent } from '@/utils/iconMap'
-import { getMaturityTagType, getMaturityText } from '@/utils/maturity'
+import { getMaturityText } from '@/utils/maturity'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
@@ -187,7 +185,7 @@ const getSubMenuIndex = (level, item, parentId = '') => {
  */
 const groupMenuItems = (children) => {
   const groups = []
-  let current = { title: null, items: [] }
+  const current = { title: null, items: [] }
   for (const child of children) {
     if (child.type === 'section' || child.divider) continue
     current.items.push(child)
@@ -574,13 +572,34 @@ html.dark .user-name {
   color: #fff;
 }
 
-/* Menu status tag for placeholder items */
-.menu-status-tag {
+/* Menu status indicator */
+.menu-status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-left: 8px;
   font-size: 10px;
-  padding: 0 4px;
-  height: 18px;
-  line-height: 16px;
-  opacity: 0.7;
+  line-height: 1;
+  color: var(--neutral-gray-500);
+  opacity: 0.92;
+}
+
+.menu-status-dot .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.menu-status-dot.is-available {
+  color: #10b981;
+}
+
+.menu-status-dot.is-beta {
+  color: #f59e0b;
+}
+
+.menu-status-dot.is-planned {
+  color: #94a3b8;
 }
 </style>

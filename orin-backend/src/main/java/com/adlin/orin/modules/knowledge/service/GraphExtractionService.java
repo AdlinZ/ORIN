@@ -10,6 +10,7 @@ import com.adlin.orin.modules.knowledge.repository.GraphEntityRepository;
 import com.adlin.orin.modules.knowledge.repository.GraphRelationRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeGraphRepository;
+import com.adlin.orin.modules.system.repository.SystemConfigRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +59,7 @@ public class GraphExtractionService {
     private final DocumentManageService documentManageService;
     private final com.adlin.orin.modules.knowledge.component.SiliconFlowEmbeddingAdapter embeddingAdapter;
     private final ObjectMapper objectMapper;
+    private final SystemConfigRepository systemConfigRepository;
 
     private volatile Driver neo4jDriver;
 
@@ -131,13 +133,25 @@ public class GraphExtractionService {
         int processed = 0;
         int skipped = 0;
         int failed = 0;
+        int totalEntities = 0;
 
         try {
             clearGraphData(graphId);
 
-            List<KnowledgeDocument> docs = knowledgeDocumentRepository.findAll();
+            // Only load documents belonging to this graph's knowledge base (if linked),
+            // otherwise fall back to all documents.
+            List<KnowledgeDocument> docs;
+            if (StringUtils.hasText(graph.getKnowledgeBaseId())) {
+                docs = knowledgeDocumentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(graph.getKnowledgeBaseId());
+                log.info("Graph build async loading docs for kbId={}, count={}", graph.getKnowledgeBaseId(), docs.size());
+            } else {
+                docs = knowledgeDocumentRepository.findAll();
+                log.info("Graph build async loading all docs (no kbId), count={}", docs.size());
+            }
+
             if (docs.isEmpty()) {
                 graph.setBuildStatus(GraphBuildState.FAILED);
+                graph.setErrorMessage("知识库中没有文档，请先上传文档后再构建图谱");
                 knowledgeGraphRepository.save(graph);
                 log.warn("Graph build async finished with no documents. graphId={}", graphId);
                 return;
@@ -157,10 +171,16 @@ public class GraphExtractionService {
 
                 try {
                     List<ExtractedEntity> entities = extractEntities(text);
+                    if (entities.isEmpty()) {
+                        log.warn("Graph build async: no entities extracted from docId={}, skipping", doc.getId());
+                        skipped++;
+                        continue;
+                    }
                     List<ExtractedRelation> relations = extractRelations(text, entities);
                     saveToNeo4j(graphId, doc.getId(), entities, relations);
                     saveEntitiesToMySQL(graphId, doc.getId(), entities);
                     saveRelationsToMySQL(graphId, doc.getId(), relations);
+                    totalEntities += entities.size();
                     processed++;
                 } catch (Exception e) {
                     failed++;
@@ -170,13 +190,24 @@ public class GraphExtractionService {
             }
 
             updateGraphStats(graphId);
-            graph.setBuildStatus(processed > 0 ? GraphBuildState.SUCCESS : GraphBuildState.FAILED);
+            boolean success = processed > 0 && totalEntities > 0;
+            graph.setBuildStatus(success ? GraphBuildState.SUCCESS : GraphBuildState.FAILED);
+            if (success) {
+                graph.setErrorMessage(null);
+                graph.setLastSuccessBuildAt(LocalDateTime.now());
+            } else {
+                String reason = failed > 0
+                        ? String.format("所有文档处理失败（共%d个文档，%d个失败，%d个跳过），请检查 LLM API 配置或文档内容", docs.size(), failed, skipped)
+                        : String.format("未抽取到任何实体（共%d个文档，%d个跳过），请检查文档是否有效或 LLM 返回格式", docs.size(), skipped);
+                graph.setErrorMessage(reason);
+            }
             knowledgeGraphRepository.save(graph);
-            log.info("Graph build async completed. graphId={}, processed={}, skipped={}, failed={}",
-                    graphId, processed, skipped, failed);
+            log.info("Graph build async completed. graphId={}, processed={}, skipped={}, failed={}, totalEntities={}",
+                    graphId, processed, skipped, failed, totalEntities);
         } catch (Exception e) {
             log.error("Graph build async failed. graphId={}", graphId, e);
             graph.setBuildStatus(GraphBuildState.FAILED);
+            graph.setErrorMessage("构建时发生异常：" + e.getMessage());
             knowledgeGraphRepository.save(graph);
         }
     }
@@ -577,25 +608,51 @@ public class GraphExtractionService {
         return safeText(doc.getContentPreview(), "");
     }
 
+    private String getDbConfigValue(String key, String defaultValue) {
+        return systemConfigRepository.findByConfigKey(key)
+                .map(e -> e.getConfigValue())
+                .filter(StringUtils::hasText)
+                .orElse(defaultValue);
+    }
+
     private Driver getOrCreateNeo4jDriver() {
         if (neo4jDriver != null) {
             return neo4jDriver;
         }
         synchronized (this) {
             if (neo4jDriver == null) {
+                String uri = getDbConfigValue("neo4j.uri", neo4jConnectionManager.getUri());
+                String host = getDbConfigValue("neo4j.host", neo4jConnectionManager.getHost());
+                int port;
+                try { port = Integer.parseInt(getDbConfigValue("neo4j.port", String.valueOf(neo4jConnectionManager.getPort()))); }
+                catch (NumberFormatException e) { port = neo4jConnectionManager.getPort(); }
+                String username = getDbConfigValue("neo4j.username", neo4jConnectionManager.getUsername());
+                String password = getDbConfigValue("neo4j.password", safeText(neo4jConnectionManager.getPassword(), ""));
+                int maxPool;
+                try { maxPool = Integer.parseInt(getDbConfigValue("neo4j.maxConnectionPoolSize", String.valueOf(neo4jConnectionManager.getMaxConnectionPoolSize()))); }
+                catch (NumberFormatException e) { maxPool = neo4jConnectionManager.getMaxConnectionPoolSize(); }
+                long acquisitionMs;
+                try { acquisitionMs = Long.parseLong(getDbConfigValue("neo4j.connectionAcquisitionTimeoutMs", String.valueOf(neo4jConnectionManager.getConnectionAcquisitionTimeoutMs()))); }
+                catch (NumberFormatException e) { acquisitionMs = neo4jConnectionManager.getConnectionAcquisitionTimeoutMs(); }
+
+                String boltUri = StringUtils.hasText(uri) ? uri : String.format("bolt://%s:%d", host, port);
                 Config config = Config.builder()
-                        .withMaxConnectionPoolSize(neo4jConnectionManager.getMaxConnectionPoolSize())
-                        .withConnectionAcquisitionTimeout(neo4jConnectionManager.getConnectionAcquisitionTimeoutMs(), TimeUnit.MILLISECONDS)
+                        .withMaxConnectionPoolSize(maxPool)
+                        .withConnectionAcquisitionTimeout(acquisitionMs, TimeUnit.MILLISECONDS)
                         .build();
-                neo4jDriver = GraphDatabase.driver(
-                        neo4jConnectionManager.getBoltUri(),
-                        AuthTokens.basic(neo4jConnectionManager.getUsername(), safeText(neo4jConnectionManager.getPassword(), "")),
-                        config
-                );
-                log.info("Neo4j driver initialized for {}", neo4jConnectionManager.getBoltUri());
+                neo4jDriver = GraphDatabase.driver(boltUri, AuthTokens.basic(username, safeText(password, "")), config);
+                log.info("Neo4j driver initialized for {}", boltUri);
             }
         }
         return neo4jDriver;
+    }
+
+    public synchronized void resetNeo4jDriver() {
+        if (neo4jDriver != null) {
+            try { neo4jDriver.close(); } catch (Exception e) { log.warn("Error closing Neo4j driver: {}", e.getMessage()); }
+            neo4jDriver = null;
+            log.info("Neo4j driver reset, will reconnect on next use");
+        }
     }
 
     @PreDestroy
@@ -871,6 +928,7 @@ public class GraphExtractionService {
 
     // 内部类：抽取的实体
     @lombok.Data
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
     private static class ExtractedEntity {
         private String name;
         private String type;
@@ -880,9 +938,12 @@ public class GraphExtractionService {
 
     // 内部类：抽取的关系
     @lombok.Data
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
     private static class ExtractedRelation {
         private String sourceEntity;
         private String targetEntity;
+        // LLM may return "relation", "relationType", "relationtype", "reltype" — accept all
+        @com.fasterxml.jackson.annotation.JsonAlias({"relation", "relationtype", "reltype", "relationship"})
         private String relationType;
         private String description;
         private double confidence;

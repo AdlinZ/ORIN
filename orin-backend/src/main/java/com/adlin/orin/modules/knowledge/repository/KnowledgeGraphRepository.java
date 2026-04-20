@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface KnowledgeGraphRepository extends JpaRepository<KnowledgeGraph, String> {
     List<KnowledgeGraph> findByNameContainingIgnoreCase(String name);
+    List<KnowledgeGraph> findByKnowledgeBaseId(String knowledgeBaseId);
+    boolean existsByKnowledgeBaseId(String knowledgeBaseId);
 }
