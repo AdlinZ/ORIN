@@ -2,7 +2,6 @@ package com.adlin.orin.modules.system.controller;
 
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.knowledge.service.sync.DifyFullSyncService;
-import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -10,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -23,7 +21,6 @@ import java.util.concurrent.atomic.AtomicLong;
 @RequiredArgsConstructor
 public class SchedulerController {
 
-    private final AgentAccessProfileRepository profileRepository;
     private final DifyFullSyncService difyFullSyncService;
     private final AuditLogRepository auditLogRepository;
 
@@ -42,31 +39,10 @@ public class SchedulerController {
         syncTaskCount.incrementAndGet();
         
         try {
-            // 获取所有配置了 Dify 的 Agent
-            List<String> agentIds = profileRepository.findAll().stream()
-                    .filter(p -> p.getDatasetApiKey() != null && !p.getDatasetApiKey().isEmpty())
-                    .map(p -> p.getAgentId())
-                    .toList();
-            
-            int successCount = 0;
-            int failCount = 0;
-            
-            for (String agentId : agentIds) {
-                try {
-                    var result = difyFullSyncService.fullSync(agentId);
-                    if (result.isSuccess()) {
-                        successCount++;
-                    } else {
-                        failCount++;
-                    }
-                } catch (Exception e) {
-                    log.error("Sync failed for agent {}: {}", agentId, e.getMessage());
-                    failCount++;
-                }
-            }
-            
-            log.info("Scheduled knowledge sync completed: success={}, fail={}", successCount, failCount);
-            lastSyncResult.set(failCount == 0 ? 1 : 2);
+            var result = difyFullSyncService.fullSync();
+            boolean success = result.isSuccess();
+            log.info("Scheduled knowledge sync completed: success={}, message={}", success, result.getMessage());
+            lastSyncResult.set(success ? 1 : 2);
             
         } catch (Exception e) {
             log.error("Scheduled knowledge sync failed: {}", e.getMessage());
@@ -101,22 +77,14 @@ public class SchedulerController {
      * 手动触发知识库同步
      */
     @PostMapping("/sync")
-    public Map<String, Object> triggerSync(@RequestParam(required = false) String agentId) {
+    public Map<String, Object> triggerSync() {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            if (agentId != null && !agentId.isEmpty()) {
-                // 同步指定 Agent
-                var syncResult = difyFullSyncService.fullSync(agentId);
-                result.put("success", syncResult.isSuccess());
-                result.put("message", syncResult.getMessage());
-                result.put("added", syncResult.getAdded());
-            } else {
-                // 同步所有
-                scheduledKnowledgeSync();
-                result.put("success", true);
-                result.put("message", "All agents sync triggered");
-            }
+            var syncResult = difyFullSyncService.fullSync();
+            result.put("success", syncResult.isSuccess());
+            result.put("message", syncResult.getMessage());
+            result.put("added", syncResult.getAdded());
         } catch (Exception e) {
             result.put("success", false);
             result.put("message", e.getMessage());

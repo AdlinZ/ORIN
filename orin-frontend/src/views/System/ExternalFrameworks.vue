@@ -18,42 +18,28 @@
                 </el-icon>
                 <div>
                   <h3>Dify</h3>
-                  <p>集成 Dify 工作流和应用</p>
+                  <p>配置入口已迁移至“数据同步”模块</p>
                 </div>
               </div>
-              <el-tag :type="difyConfig.enabled ? 'success' : 'info'">
-                {{ difyConfig.enabled ? '已启用' : '未启用' }}
+              <el-tag type="warning">
+                已迁移
               </el-tag>
             </div>
           </template>
 
-          <el-form :model="difyConfig" label-width="120px">
-            <el-form-item label="API 地址">
-              <el-input v-model="difyConfig.apiUrl" placeholder="https://api.dify.ai/v1" />
-              <div class="form-tip">
-                Dify API 服务地址
-              </div>
-            </el-form-item>
-            <el-form-item label="API Key">
-              <el-input
-                v-model="difyConfig.apiKey"
-                type="password"
-                show-password
-                placeholder="Dify API Key"
-              />
-            </el-form-item>
-            <el-form-item label="启用状态">
-              <el-switch v-model="difyConfig.enabled" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" :loading="difyLoading" @click="handleSaveDifyConfig">
-                保存配置
-              </el-button>
-              <el-button :disabled="!difyConfig.enabled" @click="handleTestDifyConnection">
-                测试连接
-              </el-button>
-            </el-form-item>
-          </el-form>
+          <el-alert
+            title="Dify 配置入口已迁移"
+            type="info"
+            :closable="false"
+            show-icon
+            class="预留提示"
+          >
+            Dify 的 API 地址、API Key、连接测试与同步动作统一迁移到「控制台 > 数据同步 > Dify 同步」中管理。
+          </el-alert>
+
+          <el-button type="primary" @click="goToDifySync">
+            前往数据同步
+          </el-button>
         </el-card>
       </el-tab-pane>
 
@@ -316,13 +302,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
-  getDifyConfig,
-  saveDifyConfig,
-  testDifyConnection,
   getRagflowConfig,
   saveRagflowConfig,
   testRagflowConnection,
@@ -339,14 +322,7 @@ import {
 
 const activeTab = ref('dify')
 const route = useRoute()
-
-// Dify 配置
-const difyConfig = reactive({
-  apiUrl: '',
-  apiKey: '',
-  enabled: false
-})
-const difyLoading = ref(false)
+const router = useRouter()
 
 // RAGFlow 配置
 const ragflowConfig = reactive({
@@ -388,45 +364,8 @@ const neo4jConfig = reactive({
 })
 const neo4jLoading = ref(false)
 
-// 加载 Dify 配置
-const loadDifyConfig = async () => {
-  try {
-    const res = await getDifyConfig()
-    if (res) {
-      difyConfig.apiUrl = res.apiUrl || ''
-      difyConfig.apiKey = res.apiKey || ''
-      difyConfig.enabled = res.enabled || false
-    }
-  } catch (e) {
-    console.error('加载 Dify 配置失败:', e)
-  }
-}
-
-// 保存 Dify 配置
-const handleSaveDifyConfig = async () => {
-  difyLoading.value = true
-  try {
-    await saveDifyConfig(difyConfig)
-    ElMessage.success('Dify 配置已保存')
-  } catch (e) {
-    ElMessage.error('保存失败: ' + (e.message || e))
-  } finally {
-    difyLoading.value = false
-  }
-}
-
-// 测试 Dify 连接
-const handleTestDifyConnection = async () => {
-  try {
-    const res = await testDifyConnection()
-    if (res.success) {
-      ElMessage.success('Dify 连接成功')
-    } else {
-      ElMessage.error(res.message || '连接失败')
-    }
-  } catch (e) {
-    ElMessage.error('测试失败: ' + (e.message || e))
-  }
+const goToDifySync = () => {
+  router.push('/dashboard/control/client-sync?tab=dify')
 }
 
 // 加载 RAGFlow 配置
@@ -616,7 +555,6 @@ onMounted(() => {
   if (typeof tab === 'string' && ['dify', 'ragflow', 'autogen', 'crewai', 'neo4j'].includes(tab)) {
     activeTab.value = tab
   }
-  loadDifyConfig()
   loadRagflowConfig()
   loadAutogenConfig()
   loadCrewaiConfig()

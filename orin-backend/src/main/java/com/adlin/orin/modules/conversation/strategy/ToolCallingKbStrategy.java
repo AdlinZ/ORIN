@@ -45,6 +45,9 @@ public class ToolCallingKbStrategy {
 
         List<Map<String, Object>> tools = KbToolDefinitions.build(kbIds);
         int totalToolCalls = 0;
+        int promptTokens = 0;
+        int completionTokens = 0;
+        int totalTokens = 0;
 
         for (int round = 0; round < MAX_TOOL_ROUNDS; round++) {
             Optional<Object> resp = ollamaService.sendMessageWithTools(
@@ -59,11 +62,15 @@ public class ToolCallingKbStrategy {
                         .durationMs(0L)
                         .detail(Map.of("round", round + 1, "totalToolCalls", totalToolCalls))
                         .build());
-                return result("（模型未返回响应）", "");
+                return result("（模型未返回响应）", "", promptTokens, completionTokens, totalTokens);
             }
 
             @SuppressWarnings("unchecked")
             Map<String, Object> respMap = (Map<String, Object>) resp.get();
+            UsageMetrics usageMetrics = extractUsage(respMap);
+            promptTokens += usageMetrics.prompt();
+            completionTokens += usageMetrics.completion();
+            totalTokens += usageMetrics.total();
 
             Map<String, Object> message = extractMessage(respMap);
             if (message == null) {
@@ -75,7 +82,7 @@ public class ToolCallingKbStrategy {
                         .durationMs(0L)
                         .detail(Map.of("round", round + 1, "totalToolCalls", totalToolCalls))
                         .build());
-                return result("（无法解析模型响应）", "");
+                return result("（无法解析模型响应）", "", promptTokens, completionTokens, totalTokens);
             }
 
             messages.add(new HashMap<>(message));
@@ -95,7 +102,12 @@ public class ToolCallingKbStrategy {
                                 "totalToolCalls", totalToolCalls,
                                 "finalContentPreview", preview(content)))
                         .build());
-                return result(content != null ? content : "（模型未返回正文）", extractModel(respMap));
+                return result(
+                        content != null ? content : "（模型未返回正文）",
+                        extractModel(respMap),
+                        promptTokens,
+                        completionTokens,
+                        totalTokens);
             }
 
             for (Map<String, Object> toolCall : toolCalls) {
@@ -143,7 +155,7 @@ public class ToolCallingKbStrategy {
                 .durationMs(0L)
                 .detail(Map.of("maxRounds", MAX_TOOL_ROUNDS, "totalToolCalls", totalToolCalls))
                 .build());
-        return result("（达到最大工具调用轮数，未能生成最终回答）", "");
+        return result("（达到最大工具调用轮数，未能生成最终回答）", "", promptTokens, completionTokens, totalTokens);
     }
 
     private String executeTool(String name, String argsJson, List<String> availableKbIds) {
@@ -230,14 +242,75 @@ public class ToolCallingKbStrategy {
         return (String) respMap.getOrDefault("model", "");
     }
 
-    private Map<String, Object> result(String content, String model) {
+    private Map<String, Object> result(String content, String model, int promptTokens, int completionTokens, int totalTokens) {
         Map<String, Object> r = new HashMap<>();
         r.put("content", content);
         r.put("model", model);
-        r.put("promptTokens", 0);
-        r.put("completionTokens", 0);
+        r.put("promptTokens", promptTokens);
+        r.put("completionTokens", completionTokens);
+        r.put("totalTokens", totalTokens > 0 ? totalTokens : (promptTokens + completionTokens));
         r.put("provider", "tool-calling");
         return r;
+    }
+
+    @SuppressWarnings("unchecked")
+    private UsageMetrics extractUsage(Map<String, Object> respMap) {
+        if (respMap == null) {
+            return UsageMetrics.ZERO;
+        }
+
+        int prompt = 0;
+        int completion = 0;
+        int total = 0;
+
+        Object usageObj = respMap.get("usage");
+        if (usageObj instanceof Map) {
+            Map<String, Object> usage = (Map<String, Object>) usageObj;
+            prompt = firstNonZero(
+                    toInt(usage.get("prompt_tokens")),
+                    toInt(usage.get("promptTokens")),
+                    toInt(usage.get("prompt_eval_count")));
+            completion = firstNonZero(
+                    toInt(usage.get("completion_tokens")),
+                    toInt(usage.get("completionTokens")),
+                    toInt(usage.get("eval_count")));
+            total = firstNonZero(
+                    toInt(usage.get("total_tokens")),
+                    toInt(usage.get("totalTokens")),
+                    toInt(usage.get("tokens")));
+        }
+
+        prompt = firstNonZero(prompt, toInt(respMap.get("prompt_eval_count")));
+        completion = firstNonZero(completion, toInt(respMap.get("eval_count")));
+        total = firstNonZero(total, toInt(respMap.get("total_tokens")), toInt(respMap.get("tokens")));
+
+        if (total <= 0) {
+            total = prompt + completion;
+        }
+        return new UsageMetrics(prompt, completion, total);
+    }
+
+    private int firstNonZero(int... values) {
+        for (int value : values) {
+            if (value > 0) {
+                return value;
+            }
+        }
+        return 0;
+    }
+
+    private int toInt(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignore) {
+            return 0;
+        }
+    }
+
+    private record UsageMetrics(int prompt, int completion, int total) {
+        private static final UsageMetrics ZERO = new UsageMetrics(0, 0, 0);
     }
 
     private void emitTrace(Consumer<ToolTrace> traceConsumer, ToolTrace trace) {

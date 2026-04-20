@@ -1,6 +1,7 @@
 <template>
-  <div class="skill-management">
+  <div :class="['skill-management', { 'is-embedded': embedded }]">
     <PageHeader
+      v-if="!embedded"
       title="技能绑定"
       description="管理 Agent 的核心能力扩展，支持 API、知识库、Shell 和复合工作流"
       icon="MagicStick"
@@ -55,6 +56,61 @@
         </el-form>
       </template>
     </PageHeader>
+
+    <div v-else class="embedded-toolbar">
+      <div class="embedded-toolbar-main">
+        <div class="embedded-title-group">
+          <h2 class="embedded-title">技能绑定</h2>
+          <p class="embedded-description">管理 Agent 的核心能力扩展，支持 API、知识库、Shell 和复合工作流</p>
+        </div>
+        <div class="embedded-actions">
+        <el-button type="success" @click="showImportDialog">
+          <el-icon><Download /></el-icon>
+          导入技能
+        </el-button>
+        <el-button type="primary" @click="showCreateDialog">
+          <el-icon><Plus /></el-icon>
+          创建技能
+        </el-button>
+        </div>
+      </div>
+      <el-form :inline="true" class="skill-filter-form embedded-filters">
+        <el-form-item label="技能类型">
+          <el-select
+            v-model="filterType"
+            placeholder="全部类型"
+            clearable
+            class="filter-select"
+            @change="loadSkills"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="API 调用" value="API" />
+            <el-option label="知识库检索" value="KNOWLEDGE" />
+            <el-option label="Shell 命令" value="SHELL" />
+            <el-option label="复合工作流" value="COMPOSITE" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select
+            v-model="filterStatus"
+            placeholder="全部状态"
+            clearable
+            class="filter-select"
+            @change="loadSkills"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="活跃" value="ACTIVE" />
+            <el-option label="未激活" value="INACTIVE" />
+            <el-option label="已废弃" value="DEPRECATED" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadSkills">
+            查询
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </div>
 
     <!-- 技能列表 -->
     <el-card class="table-card">
@@ -357,6 +413,13 @@ import { marked } from 'marked'
 import dayjs from 'dayjs'
 import PageHeader from '@/components/PageHeader.vue'
 
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false
+  }
+})
+
 const skills = ref([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -620,6 +683,53 @@ const getStatusLabel = (status) => {
   padding: 24px;
 }
 
+.skill-management.is-embedded {
+  padding: 0;
+}
+
+.embedded-toolbar {
+  margin-bottom: 12px;
+  padding: 18px 20px 6px;
+  border: 1px solid var(--orin-border);
+  border-radius: 12px;
+  background: var(--neutral-white);
+}
+
+.embedded-toolbar-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.embedded-title-group {
+  min-width: 0;
+}
+
+.embedded-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.embedded-description {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.embedded-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.embedded-filters {
+  margin-bottom: -18px;
+}
+
 .skill-filter-form {
   margin-bottom: -18px;
 }
@@ -631,6 +741,11 @@ const getStatusLabel = (status) => {
 .table-card {
   border-radius: 12px;
   margin-top: 4px;
+  border: 1px solid var(--orin-border);
+}
+
+.table-card :deep(.el-card__body) {
+  padding-top: 14px;
 }
 
 .tip-info {
@@ -743,5 +858,10 @@ html.dark .markdown-preview :deep(code) {
   background: transparent;
   padding: 0;
 }
-</style>
 
+@media (max-width: 1024px) {
+  .embedded-toolbar-main {
+    flex-direction: column;
+  }
+}
+</style>

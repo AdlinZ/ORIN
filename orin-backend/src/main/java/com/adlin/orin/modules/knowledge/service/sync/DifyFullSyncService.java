@@ -1,8 +1,8 @@
 package com.adlin.orin.modules.knowledge.service.sync;
 
-import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.knowledge.entity.*;
 import com.adlin.orin.modules.knowledge.repository.*;
+import com.adlin.orin.modules.settings.service.SystemDifyConfigProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * Dify 完整同步服务
- * 支持知识库、文档、应用、工作流、对话历史、用户等同步
+ * Dify 完整同步服务（系统级）
+ * 使用系统统一的 Dify 连接配置，不依赖 AgentAccessProfile
  */
 @Slf4j
 @Service
@@ -24,35 +24,26 @@ public class DifyFullSyncService {
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeDocumentRepository documentRepository;
     private final SyncRecordRepository syncRecordRepository;
-    private final AgentAccessProfileRepository profileRepository;
-    
-    // 新增 Repository
     private final DifyAppRepository difyAppRepository;
     private final DifyWorkflowRepository difyWorkflowRepository;
     private final DifyConversationRepository difyConversationRepository;
+    private final SystemDifyConfigProvider difyConfigProvider;
 
     /**
      * 完整同步所有内容
      */
     @Transactional
-    public SyncResult fullSync(String agentId) {
-        log.info("Starting full sync for agent: {}", agentId);
+    public SyncResult fullSync() {
+        log.info("Starting system-level full sync");
 
-        var profileOpt = profileRepository.findById(agentId);
-        if (profileOpt.isEmpty()) {
-            return SyncResult.failure("Agent not found: " + agentId);
+        if (!difyConfigProvider.isConfigured()) {
+            return SyncResult.failure("Dify 未配置，请先在「数据同步 > Dify 同步」中保存 API 地址和 Key");
         }
 
-        var profile = profileOpt.get();
-        if (profile.getDatasetApiKey() == null || profile.getDatasetApiKey().isEmpty()) {
-            return SyncResult.failure("No dataset API key configured for agent: " + agentId);
-        }
-
-        String endpoint = profile.getEndpointUrl();
-        String apiKey = profile.getDatasetApiKey();
+        String endpoint = difyConfigProvider.getApiUrl();
+        String apiKey   = difyConfigProvider.getApiKey();
 
         SyncRecord syncRecord = new SyncRecord();
-        syncRecord.setAgentId(agentId);
         syncRecord.setSyncType("FULL");
         syncRecord.setDirection("PULL");
         syncRecord.setSyncDirection("INBOUND");
@@ -60,27 +51,24 @@ public class DifyFullSyncService {
         syncRecord.setStatus("RUNNING");
 
         try {
-            // 获取数据
             Map<String, Object> syncData = difyApiClient.fullSync(endpoint, apiKey);
 
-            int appsCount = 0, workflowsCount = 0, datasetsCount = 0, docsCount = 0, convCount = 0;
+            int appsCount = 0, workflowsCount = 0, datasetsCount = 0, docsCount = 0;
 
-            // 1. 同步应用
-            List<Map<String, Object>> apps = (List<Map<String, Object>>) syncData.get("apps");
+            List<Map<String, Object>> apps = castList(syncData.get("apps"));
             if (apps != null) {
-                appsCount = syncApps(agentId, apps);
+                appsCount = syncApps(apps);
                 log.info("Synced {} apps", appsCount);
             }
 
-            // 2. 同步工作流
-            List<Map<String, Object>> workflows = (List<Map<String, Object>>) syncData.get("workflows");
+            List<Map<String, Object>> workflows = castList(syncData.get("workflows"));
             if (workflows != null) {
-                workflowsCount = syncWorkflows(agentId, workflows, endpoint, apiKey);
+                workflowsCount = syncWorkflows(workflows, endpoint, apiKey);
                 log.info("Synced {} workflows", workflowsCount);
             }
 
-            // 3. 同步知识库和文档
-            List<DifyKnowledgeSyncService.DifyDataset> datasets = 
+            @SuppressWarnings("unchecked")
+            List<DifyKnowledgeSyncService.DifyDataset> datasets =
                     (List<DifyKnowledgeSyncService.DifyDataset>) syncData.get("datasets");
             if (datasets != null) {
                 datasetsCount = datasets.size();
@@ -90,7 +78,6 @@ public class DifyFullSyncService {
                 }
             }
 
-            // 4. 记录同步结果
             syncRecord.setStatus("COMPLETED");
             syncRecord.setAddedCount(appsCount + workflowsCount + datasetsCount);
             syncRecord.setUpdatedCount(docsCount);
@@ -98,13 +85,13 @@ public class DifyFullSyncService {
             syncRecord.setEndTime(LocalDateTime.now());
             syncRecordRepository.save(syncRecord);
 
-            log.info("Full sync completed: apps={}, workflows={}, datasets={}, docs={}", 
+            log.info("Full sync completed: apps={}, workflows={}, datasets={}, docs={}",
                     appsCount, workflowsCount, datasetsCount, docsCount);
 
             return SyncResult.success("Full sync completed", appsCount, workflowsCount, datasetsCount + docsCount);
 
         } catch (Exception e) {
-            log.error("Full sync failed for agent: {}", agentId, e);
+            log.error("Full sync failed", e);
             syncRecord.setStatus("FAILED");
             syncRecord.setErrorMessage(e.getMessage());
             syncRecord.setEndTime(LocalDateTime.now());
@@ -113,25 +100,12 @@ public class DifyFullSyncService {
         }
     }
 
-    /**
-     * 同步应用
-     */
-    private int syncApps(String agentId, List<Map<String, Object>> apps) {
+    private int syncApps(List<Map<String, Object>> apps) {
         int count = 0;
         for (Map<String, Object> app : apps) {
             String appId = String.valueOf(app.get("id"));
-            
-            Optional<DifyApp> existing = difyAppRepository.findById(appId);
-            DifyApp entity;
-            
-            if (existing.isPresent()) {
-                entity = existing.get();
-            } else {
-                entity = DifyApp.builder().id(appId).build();
-                entity.setLastSyncedAt(LocalDateTime.now());
-            }
-            
-            entity.setAgentId(agentId);
+            DifyApp entity = difyAppRepository.findById(appId).orElseGet(
+                    () -> DifyApp.builder().id(appId).lastSyncedAt(LocalDateTime.now()).build());
             entity.setName(String.valueOf(app.get("name")));
             entity.setType(String.valueOf(app.get("type")));
             entity.setDescription(String.valueOf(app.get("description")));
@@ -139,88 +113,63 @@ public class DifyFullSyncService {
             entity.setMode(String.valueOf(app.get("mode")));
             entity.setCreatedFrom(String.valueOf(app.get("created_from")));
             entity.setUpdatedAt(LocalDateTime.now());
-            
             difyAppRepository.save(entity);
             count++;
         }
         return count;
     }
 
-    /**
-     * 同步工作流
-     */
-    private int syncWorkflows(String agentId, List<Map<String, Object>> workflows, 
-            String endpoint, String apiKey) {
+    private int syncWorkflows(List<Map<String, Object>> workflows, String endpoint, String apiKey) {
         int count = 0;
-        
         for (Map<String, Object> wf : workflows) {
             String appId = String.valueOf(wf.get("id"));
-            
-            // 获取 DSL
             Map<String, Object> dsl = difyApiClient.getWorkflowDSL(endpoint, apiKey, appId);
-            String dslJson = dsl != null ? dsl.toString() : null;
-            
-            Optional<DifyWorkflow> existing = difyWorkflowRepository.findById(appId);
-            DifyWorkflow entity;
-            
-            if (existing.isPresent()) {
-                entity = existing.get();
-            } else {
-                entity = DifyWorkflow.builder().id(appId).build();
-            }
-            
-            entity.setAgentId(agentId);
+            DifyWorkflow entity = difyWorkflowRepository.findById(appId).orElseGet(
+                    () -> DifyWorkflow.builder().id(appId).build());
             entity.setAppId(appId);
             entity.setName(String.valueOf(wf.get("name")));
             entity.setDescription(String.valueOf(wf.get("description")));
-            entity.setDslDefinition(dslJson);
+            entity.setDslDefinition(dsl != null ? dsl.toString() : null);
             entity.setStatus(String.valueOf(wf.get("status")));
             entity.setUpdatedAt(LocalDateTime.now());
             entity.setLastSyncedAt(LocalDateTime.now());
-            
             difyWorkflowRepository.save(entity);
             count++;
         }
-        
         return count;
     }
 
-    /**
-     * 同步单个知识库
-     */
-    private DatasetSyncResult syncDataset(DifyKnowledgeSyncService.DifyDataset dataset, 
-            String endpoint, String apiKey) {
+    private DatasetSyncResult syncDataset(DifyKnowledgeSyncService.DifyDataset dataset,
+                                          String endpoint, String apiKey) {
         int added = 0, updated = 0;
 
-        Optional<KnowledgeBase> existingKb = knowledgeBaseRepository.findById(dataset.getId());
-
-        KnowledgeBase kb;
-        if (existingKb.isPresent()) {
-            kb = existingKb.get();
-            if (kb.getName() != null && !kb.getName().equals(dataset.getName())) {
-                kb.setName(dataset.getName());
-                knowledgeBaseRepository.save(kb);
-                updated++;
-            }
+        KnowledgeBase kb = knowledgeBaseRepository.findById(dataset.getId()).orElse(null);
+        if (kb != null) {
+            if (!Objects.equals(kb.getName(), dataset.getName())) { kb.setName(dataset.getName()); }
+            if (!Objects.equals(kb.getDescription(), dataset.getDescription())) { kb.setDescription(dataset.getDescription()); }
+            kb.setDocCount(dataset.getDocumentCount() == null ? 0 : dataset.getDocumentCount());
+            kb.setSyncTime(LocalDateTime.now());
+            kb.setStatus("ENABLED");
+            knowledgeBaseRepository.save(kb);
+            updated++;
         } else {
             kb = new KnowledgeBase();
             kb.setId(dataset.getId());
             kb.setName(dataset.getName());
             kb.setDescription(dataset.getDescription());
-            kb.setSourceAgentId("");
             kb.setDocCount(dataset.getDocumentCount());
+            kb.setStatus("ENABLED");
+            kb.setCreatedAt(LocalDateTime.now());
+            kb.setSyncTime(LocalDateTime.now());
             knowledgeBaseRepository.save(kb);
             added++;
             log.info("Created new knowledge base: {}", dataset.getName());
         }
 
-        List<DifyKnowledgeSyncService.DifyDocument> documents = 
+        List<DifyKnowledgeSyncService.DifyDocument> documents =
                 difyApiClient.listDocuments(endpoint, apiKey, dataset.getId());
-
         for (DifyKnowledgeSyncService.DifyDocument doc : documents) {
-            Optional<KnowledgeDocument> existingDoc = documentRepository.findById(doc.getId());
-
-            if (existingDoc.isEmpty()) {
+            if (documentRepository.findById(doc.getId()).isEmpty()) {
                 KnowledgeDocument newDoc = new KnowledgeDocument();
                 newDoc.setId(doc.getId());
                 newDoc.setFileName(doc.getName());
@@ -238,33 +187,20 @@ public class DifyFullSyncService {
     /**
      * 同步对话历史
      */
-    public SyncResult syncConversations(String agentId, String appId) {
-        var profileOpt = profileRepository.findById(agentId);
-        if (profileOpt.isEmpty()) {
-            return SyncResult.failure("Agent not found");
+    public SyncResult syncConversations(String appId) {
+        if (!difyConfigProvider.isConfigured()) {
+            return SyncResult.failure("Dify 未配置");
         }
-
-        var profile = profileOpt.get();
-        String endpoint = profile.getEndpointUrl();
-        String apiKey = profile.getDatasetApiKey();
+        String endpoint = difyConfigProvider.getApiUrl();
+        String apiKey   = difyConfigProvider.getApiKey();
 
         try {
             List<Map<String, Object>> conversations = difyApiClient.listConversations(endpoint, apiKey, appId);
-            
             int count = 0;
             for (Map<String, Object> conv : conversations) {
                 String convId = String.valueOf(conv.get("id"));
-                
-                Optional<DifyConversation> existing = difyConversationRepository.findById(convId);
-                DifyConversation entity;
-                
-                if (existing.isPresent()) {
-                    entity = existing.get();
-                } else {
-                    entity = DifyConversation.builder().id(convId).build();
-                }
-                
-                entity.setAgentId(agentId);
+                DifyConversation entity = difyConversationRepository.findById(convId).orElseGet(
+                        () -> DifyConversation.builder().id(convId).build());
                 entity.setAppId(appId);
                 entity.setName(String.valueOf(conv.get("name")));
                 entity.setMode(String.valueOf(conv.get("mode")));
@@ -272,14 +208,11 @@ public class DifyFullSyncService {
                 entity.setIsDeleted((Boolean) conv.get("is_deleted"));
                 entity.setUpdatedAt(LocalDateTime.now());
                 entity.setLastSyncedAt(LocalDateTime.now());
-                
                 difyConversationRepository.save(entity);
                 count++;
             }
-            
             log.info("Synced {} conversations for app {}", count, appId);
             return SyncResult.success("Conversations synced", count, 0, 0);
-            
         } catch (Exception e) {
             log.error("Failed to sync conversations: {}", e.getMessage());
             return SyncResult.failure("Sync failed: " + e.getMessage());
@@ -289,20 +222,16 @@ public class DifyFullSyncService {
     /**
      * 同步工作流 DSL
      */
-    public SyncResult syncWorkflows(String agentId) {
-        var profileOpt = profileRepository.findById(agentId);
-        if (profileOpt.isEmpty()) {
-            return SyncResult.failure("Agent not found");
+    public SyncResult syncWorkflows() {
+        if (!difyConfigProvider.isConfigured()) {
+            return SyncResult.failure("Dify 未配置");
         }
-
-        var profile = profileOpt.get();
-        String endpoint = profile.getEndpointUrl();
-        String apiKey = profile.getDatasetApiKey();
+        String endpoint = difyConfigProvider.getApiUrl();
+        String apiKey   = difyConfigProvider.getApiKey();
 
         try {
             List<Map<String, Object>> workflows = difyApiClient.listWorkflows(endpoint, apiKey);
-            int count = syncWorkflows(agentId, workflows, endpoint, apiKey);
-            
+            int count = syncWorkflows(workflows, endpoint, apiKey);
             return SyncResult.success("Workflows synced", count, 0, 0);
         } catch (Exception e) {
             log.error("Failed to sync workflows: {}", e.getMessage());
@@ -310,11 +239,13 @@ public class DifyFullSyncService {
         }
     }
 
-    /**
-     * 测试连接
-     */
     public boolean testConnection(String endpoint, String apiKey) {
         return difyApiClient.testConnection(endpoint, apiKey);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> List<T> castList(Object obj) {
+        return obj instanceof List ? (List<T>) obj : null;
     }
 
     // ==================== 内部类 ====================
@@ -333,30 +264,23 @@ public class DifyFullSyncService {
         }
 
         private SyncResult(boolean success, String message, int added, int updated, int deleted) {
-            this.success = success;
-            this.message = message;
-            this.added = added;
-            this.updated = updated;
-            this.deleted = deleted;
+            this.success = success; this.message = message;
+            this.added = added; this.updated = updated; this.deleted = deleted;
         }
 
         public boolean isSuccess() { return success; }
-        public String getMessage() { return message; }
-        public int getAdded() { return added; }
-        public int getUpdated() { return updated; }
-        public int getDeleted() { return deleted; }
+        public String getMessage()  { return message; }
+        public int getAdded()       { return added; }
+        public int getUpdated()     { return updated; }
+        public int getDeleted()     { return deleted; }
     }
 
     private static class DatasetSyncResult {
         private final int added, updated, deleted;
-
         DatasetSyncResult(int added, int updated, int deleted) {
-            this.added = added;
-            this.updated = updated;
-            this.deleted = deleted;
+            this.added = added; this.updated = updated; this.deleted = deleted;
         }
-
-        public int getAdded() { return added; }
+        public int getAdded()   { return added; }
         public int getUpdated() { return updated; }
         public int getDeleted() { return deleted; }
     }

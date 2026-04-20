@@ -5,10 +5,12 @@ import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.conversation.dto.*;
 import com.adlin.orin.modules.conversation.entity.AgentChatSession;
+import com.adlin.orin.modules.conversation.entity.ConversationLog;
 import com.adlin.orin.modules.conversation.repository.AgentChatSessionRepository;
 import com.adlin.orin.modules.conversation.strategy.ToolCallingCapabilityDetector;
 import com.adlin.orin.modules.conversation.strategy.ToolCallingKbStrategy;
 import com.adlin.orin.modules.conversation.tool.*;
+import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
@@ -32,6 +34,8 @@ public class AgentChatService {
 
     private final AgentChatSessionRepository sessionRepository;
     private final AgentManageService agentManageService;
+    private final ConversationLogService conversationLogService;
+    private final AuditLogService auditLogService;
     private final MetaKnowledgeService metaKnowledgeService;
     private final RetrievalService retrievalService;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
@@ -48,6 +52,8 @@ public class AgentChatService {
     public AgentChatService(
             AgentChatSessionRepository sessionRepository,
             AgentManageService agentManageService,
+            ConversationLogService conversationLogService,
+            AuditLogService auditLogService,
             MetaKnowledgeService metaKnowledgeService,
             RetrievalService retrievalService,
             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -58,6 +64,8 @@ public class AgentChatService {
             ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
         this.agentManageService = agentManageService;
+        this.conversationLogService = conversationLogService;
+        this.auditLogService = auditLogService;
         this.metaKnowledgeService = metaKnowledgeService;
         this.retrievalService = retrievalService;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
@@ -158,6 +166,7 @@ public class AgentChatService {
     @Transactional
     private ChatMessageResponse sendMessageInternal(String sessionId, ChatMessageRequest request,
             BiConsumer<String, Object> eventPublisher) {
+        long startedAtMs = System.currentTimeMillis();
         emitEvent(eventPublisher, "start", Map.of(
                 "status", "running",
                 "message", "开始处理请求"));
@@ -388,6 +397,73 @@ public class AgentChatService {
         response.setProvider((String) agentResult.getOrDefault("provider", ""));
         response.setCreatedAt(java.time.LocalDateTime.now().toString());
 
+        int promptTokens = (Integer) agentResult.getOrDefault("promptTokens", 0);
+        int completionTokens = (Integer) agentResult.getOrDefault("completionTokens", 0);
+        int totalTokens = (Integer) agentResult.getOrDefault("totalTokens", promptTokens + completionTokens);
+        long responseTime = System.currentTimeMillis() - startedAtMs;
+        boolean success = !(aiResponse != null && (
+                aiResponse.startsWith("智能体调用失败")
+                || aiResponse.startsWith("模型调用失败")
+                || aiResponse.startsWith("智能体返回为空")));
+        String modelName = (String) agentResult.getOrDefault("model",
+                agentMetadata != null ? agentMetadata.getModelName() : "");
+
+        ConversationLog conversationLog = ConversationLog.builder()
+                .conversationId(sessionId)
+                .agentId(session.getAgentId())
+                .userId(null)
+                .model(modelName)
+                .query(request.getMessage())
+                .response(aiResponse)
+                .promptTokens(promptTokens)
+                .completionTokens(completionTokens)
+                .totalTokens(totalTokens)
+                .responseTime(responseTime)
+                .success(success)
+                .errorMessage(success ? null : aiResponse)
+                .build();
+        conversationLogService.log(conversationLog);
+
+        try {
+            Map<String, Object> reqMeta = new HashMap<>();
+            reqMeta.put("sessionId", sessionId);
+            reqMeta.put("agentId", session.getAgentId());
+            reqMeta.put("message", request.getMessage());
+            reqMeta.put("kbIds", request.getKbIds() != null ? request.getKbIds() : Collections.emptyList());
+            reqMeta.put("kbDocFilters", request.getKbDocFilters() != null ? request.getKbDocFilters() : Collections.emptyMap());
+            reqMeta.put("mcpIds", request.getMcpIds() != null ? request.getMcpIds() : Collections.emptyList());
+            reqMeta.put("retrievedCount", retrievedChunks.size());
+            reqMeta.put("toolTraceCount", toolCtx.getTraces() != null ? toolCtx.getTraces().size() : 0);
+
+            String requestParams = objectMapper.writeValueAsString(reqMeta);
+            String responseContent = aiResponse;
+            String modelForAudit = modelName != null ? modelName : "";
+
+            auditLogService.logApiCall(
+                    "SYSTEM",
+                    null,
+                    session.getAgentId(),
+                    "AGENT_CHAT",
+                    "/api/v1/agents/chat/sessions/" + sessionId + "/messages",
+                    "POST",
+                    modelForAudit,
+                    null,
+                    "ORIN",
+                    requestParams,
+                    responseContent,
+                    success ? 200 : 500,
+                    responseTime,
+                    promptTokens,
+                    completionTokens,
+                    0.0,
+                    success,
+                    success ? null : aiResponse,
+                    null,
+                    sessionId);
+        } catch (Exception e) {
+            log.warn("写入审计日志失败: {}", e.getMessage());
+        }
+
         emitEvent(eventPublisher, "done", response);
         return response;
     }
@@ -540,8 +616,8 @@ public class AgentChatService {
 
             // 调用 AgentManageService 的 chat 方法；有知识库/MCP 上下文时通过 overrideSystemPrompt 注入
             Optional<Object> response = extendedSystemPrompt != null
-                    ? agentManageService.chat(agentId, userMessage, null, extendedSystemPrompt)
-                    : agentManageService.chat(agentId, userMessage, (String) null);
+                    ? agentManageService.chat(agentId, userMessage, null, extendedSystemPrompt, toolCtx.getSessionId())
+                    : agentManageService.chat(agentId, userMessage, null, null, toolCtx.getSessionId());
 
             if (response.isPresent()) {
                 Object resp = response.get();
@@ -559,6 +635,9 @@ public class AgentChatService {
                         log.warn("检索上下文调用未返回正文，触发无上下文回退重试: agentId={}", agentId);
                         try {
                             Optional<Object> fallbackResp = agentManageService.chat(agentId, userMessage, (String) null);
+                            if (fallbackResp.isEmpty()) {
+                                fallbackResp = agentManageService.chat(agentId, userMessage, null, null, toolCtx.getSessionId());
+                            }
                             if (fallbackResp.isPresent() && fallbackResp.get() instanceof Map) {
                                 @SuppressWarnings("unchecked")
                                 Map<String, Object> fallbackMap = (Map<String, Object>) fallbackResp.get();
@@ -593,9 +672,12 @@ public class AgentChatService {
                                 ? "检索流程已完成，但模型未返回正文。"
                                 : "模型未返回正文，请重试。";
                     }
+
+                    Map<String, Integer> usage = extractUsageFromAgentResponse(respMap);
                     result.put("content", content);
-                    result.put("promptTokens", respMap.getOrDefault("promptTokens", 0));
-                    result.put("completionTokens", respMap.getOrDefault("completionTokens", 0));
+                    result.put("promptTokens", usage.get("prompt"));
+                    result.put("completionTokens", usage.get("completion"));
+                    result.put("totalTokens", usage.get("total"));
                     result.put("model", respMap.getOrDefault("model", ""));
                     result.put("provider", respMap.getOrDefault("provider", ""));
                 } else if (resp instanceof String) {
@@ -613,6 +695,90 @@ public class AgentChatService {
         }
 
         return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Integer> extractUsageFromAgentResponse(Map<String, Object> respMap) {
+        Map<String, Integer> usage = new HashMap<>();
+        usage.put("prompt", 0);
+        usage.put("completion", 0);
+        usage.put("total", 0);
+
+        if (respMap == null) {
+            return usage;
+        }
+
+        mergeUsageFromMap(respMap, usage);
+
+        Object dataObj = respMap.get("data");
+        if (dataObj instanceof Map) {
+            mergeUsageFromMap((Map<String, Object>) dataObj, usage);
+        }
+
+        if (usage.get("total") <= 0) {
+            usage.put("total", usage.get("prompt") + usage.get("completion"));
+        }
+        return usage;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mergeUsageFromMap(Map<String, Object> source, Map<String, Integer> usage) {
+        if (source == null || usage == null) return;
+
+        Object usageObj = source.get("usage");
+        if (usageObj instanceof Map) {
+            Map<String, Object> usageMap = (Map<String, Object>) usageObj;
+            usage.put("prompt", firstNonZero(
+                    usage.get("prompt"),
+                    toInt(usageMap.get("prompt_tokens")),
+                    toInt(usageMap.get("promptTokens")),
+                    toInt(usageMap.get("prompt_eval_count"))));
+            usage.put("completion", firstNonZero(
+                    usage.get("completion"),
+                    toInt(usageMap.get("completion_tokens")),
+                    toInt(usageMap.get("completionTokens")),
+                    toInt(usageMap.get("eval_count"))));
+            usage.put("total", firstNonZero(
+                    usage.get("total"),
+                    toInt(usageMap.get("total_tokens")),
+                    toInt(usageMap.get("totalTokens")),
+                    toInt(usageMap.get("tokens"))));
+        }
+
+        usage.put("prompt", firstNonZero(
+                usage.get("prompt"),
+                toInt(source.get("promptTokens")),
+                toInt(source.get("prompt_tokens")),
+                toInt(source.get("prompt_eval_count"))));
+        usage.put("completion", firstNonZero(
+                usage.get("completion"),
+                toInt(source.get("completionTokens")),
+                toInt(source.get("completion_tokens")),
+                toInt(source.get("eval_count"))));
+        usage.put("total", firstNonZero(
+                usage.get("total"),
+                toInt(source.get("totalTokens")),
+                toInt(source.get("total_tokens")),
+                toInt(source.get("tokens"))));
+    }
+
+    private int firstNonZero(int... values) {
+        for (int value : values) {
+            if (value > 0) {
+                return value;
+            }
+        }
+        return 0;
+    }
+
+    private int toInt(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignore) {
+            return 0;
+        }
     }
 
     @SuppressWarnings("unchecked")

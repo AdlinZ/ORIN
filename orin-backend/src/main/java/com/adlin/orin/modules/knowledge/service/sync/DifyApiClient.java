@@ -56,20 +56,33 @@ public class DifyApiClient {
         List<DifyKnowledgeSyncService.DifyDataset> datasets = new ArrayList<>();
         
         try {
-            String url = buildUrl(endpointUrl, "/v1/datasets?page=1&limit=100");
+            int page = 1;
+            final int limit = 100;
             HttpHeaders headers = createHeaders(apiKey);
-            
-            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
-                if (data != null) {
-                    for (Map<String, Object> item : data) {
-                        datasets.add(parseDataset(item));
-                    }
+
+            while (true) {
+                String url = buildUrl(endpointUrl, String.format("/v1/datasets?page=%d&limit=%d", page, limit));
+                ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
                 }
+
+                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+                if (data == null || data.isEmpty()) {
+                    break;
+                }
+
+                for (Map<String, Object> item : data) {
+                    datasets.add(parseDataset(item));
+                }
+
+                if (data.size() < limit) {
+                    break;
+                }
+                page++;
             }
         } catch (Exception e) {
             log.error("Failed to list datasets from Dify: {}", e.getMessage());
@@ -85,20 +98,34 @@ public class DifyApiClient {
         List<DifyKnowledgeSyncService.DifyDocument> documents = new ArrayList<>();
         
         try {
-            String url = buildUrl(endpointUrl, String.format("/v1/datasets/%s/documents?page=1&limit=100", datasetId));
             HttpHeaders headers = createHeaders(apiKey);
-            
-            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
-                if (data != null) {
-                    for (Map<String, Object> item : data) {
-                        documents.add(parseDocument(item));
-                    }
+            int page = 1;
+            final int limit = 100;
+
+            while (true) {
+                String url = buildUrl(endpointUrl,
+                        String.format("/v1/datasets/%s/documents?page=%d&limit=%d", datasetId, page, limit));
+                ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
                 }
+
+                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+                if (data == null || data.isEmpty()) {
+                    break;
+                }
+
+                for (Map<String, Object> item : data) {
+                    documents.add(parseDocument(item));
+                }
+
+                if (data.size() < limit) {
+                    break;
+                }
+                page++;
             }
         } catch (Exception e) {
             log.error("Failed to list documents from Dify dataset {}: {}", datasetId, e.getMessage());
@@ -367,26 +394,33 @@ public class DifyApiClient {
 
     private String buildUrl(String endpointUrl, String path) {
         String base = endpointUrl != null ? endpointUrl : "http://localhost:3000/v1";
-        
+
         if (!base.startsWith("http")) {
             base = "http://" + base;
         }
-        
+
         // 移除末尾的 /v1 或 /v1/ 以避免重复
         if (base.endsWith("/v1") || base.endsWith("/v1/")) {
             base = base.replaceAll("/v1/?$", "");
         }
-        
+
         if (!base.endsWith("/")) {
             base += "/";
         }
-        
-        // 确保 path 以 v1 开头
-        if (!path.startsWith("v1/")) {
-            path = "v1/" + path;
+
+        String normalizedPath = path == null ? "" : path.trim();
+        if (normalizedPath.isEmpty()) {
+            normalizedPath = "/v1";
+        } else if (!normalizedPath.startsWith("/")) {
+            normalizedPath = "/" + normalizedPath;
         }
-        
-        return base + path;
+
+        // 若调用方已传 /v1/* 则不重复前缀
+        if (!normalizedPath.startsWith("/v1/") && !"/v1".equals(normalizedPath)) {
+            normalizedPath = "/v1" + normalizedPath;
+        }
+
+        return base.substring(0, base.length() - 1) + normalizedPath;
     }
 
     private DifyKnowledgeSyncService.DifyDataset parseDataset(Map<String, Object> item) {

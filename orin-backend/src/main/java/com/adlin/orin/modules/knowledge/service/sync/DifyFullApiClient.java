@@ -35,8 +35,27 @@ public class DifyFullApiClient {
     }
 
     private String buildUrl(String endpointUrl, String path) {
-        String base = endpointUrl.endsWith("/") ? endpointUrl.substring(0, endpointUrl.length() - 1) : endpointUrl;
-        return base + path;
+        String base = (endpointUrl == null || endpointUrl.isBlank()) ? "http://localhost:3000/v1" : endpointUrl.trim();
+        if (!base.startsWith("http")) {
+            base = "http://" + base;
+        }
+        if (base.endsWith("/v1") || base.endsWith("/v1/")) {
+            base = base.replaceAll("/v1/?$", "");
+        }
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+
+        String normalizedPath = path == null ? "" : path.trim();
+        if (normalizedPath.isEmpty()) {
+            normalizedPath = "/v1";
+        } else if (!normalizedPath.startsWith("/")) {
+            normalizedPath = "/" + normalizedPath;
+        }
+        if (!normalizedPath.startsWith("/v1/") && !"/v1".equals(normalizedPath)) {
+            normalizedPath = "/v1" + normalizedPath;
+        }
+        return base + normalizedPath;
     }
 
     // ==================== 连接测试 ====================
@@ -110,18 +129,28 @@ public class DifyFullApiClient {
         List<Map<String, Object>> apps = new ArrayList<>();
         
         try {
-            String url = buildUrl(endpointUrl, "/v1/apps?page=1&limit=100");
             HttpHeaders headers = createHeaders(apiKey);
-            
-            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
-                if (data != null) {
-                    apps.addAll(data);
+            int page = 1;
+            final int limit = 100;
+
+            while (true) {
+                String url = buildUrl(endpointUrl, String.format("/v1/apps?page=%d&limit=%d", page, limit));
+                ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
                 }
+                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+                if (data == null || data.isEmpty()) {
+                    break;
+                }
+                apps.addAll(data);
+                if (data.size() < limit) {
+                    break;
+                }
+                page++;
             }
         } catch (Exception e) {
             log.error("Failed to list apps from Dify: {}", e.getMessage());
@@ -181,18 +210,29 @@ public class DifyFullApiClient {
         List<Map<String, Object>> workflows = new ArrayList<>();
         
         try {
-            String url = buildUrl(endpointUrl, "/v1/apps?page=1&limit=100&type=workflow");
             HttpHeaders headers = createHeaders(apiKey);
-            
-            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
-                if (data != null) {
-                    workflows.addAll(data);
+            int page = 1;
+            final int limit = 100;
+
+            while (true) {
+                String url = buildUrl(endpointUrl,
+                        String.format("/v1/apps?page=%d&limit=%d&type=workflow", page, limit));
+                ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
                 }
+                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+                if (data == null || data.isEmpty()) {
+                    break;
+                }
+                workflows.addAll(data);
+                if (data.size() < limit) {
+                    break;
+                }
+                page++;
             }
         } catch (Exception e) {
             log.error("Failed to list workflows from Dify: {}", e.getMessage());
@@ -231,20 +271,30 @@ public class DifyFullApiClient {
         List<DifyKnowledgeSyncService.DifyDataset> datasets = new ArrayList<>();
         
         try {
-            String url = buildUrl(endpointUrl, "/v1/datasets?page=1&limit=100");
             HttpHeaders headers = createHeaders(apiKey);
-            
-            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
-                if (data != null) {
-                    for (Map<String, Object> item : data) {
-                        datasets.add(parseDataset(item));
-                    }
+            int page = 1;
+            final int limit = 100;
+
+            while (true) {
+                String url = buildUrl(endpointUrl, String.format("/v1/datasets?page=%d&limit=%d", page, limit));
+                ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
                 }
+                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+                if (data == null || data.isEmpty()) {
+                    break;
+                }
+                for (Map<String, Object> item : data) {
+                    datasets.add(parseDataset(item));
+                }
+                if (data.size() < limit) {
+                    break;
+                }
+                page++;
             }
         } catch (Exception e) {
             log.error("Failed to list datasets from Dify: {}", e.getMessage());
@@ -302,20 +352,31 @@ public class DifyFullApiClient {
         List<DifyKnowledgeSyncService.DifyDocument> documents = new ArrayList<>();
         
         try {
-            String url = buildUrl(endpointUrl, String.format("/v1/datasets/%s/documents?page=1&limit=100", datasetId));
             HttpHeaders headers = createHeaders(apiKey);
-            
-            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
-                if (data != null) {
-                    for (Map<String, Object> item : data) {
-                        documents.add(parseDocument(item));
-                    }
+            int page = 1;
+            final int limit = 100;
+
+            while (true) {
+                String url = buildUrl(endpointUrl,
+                        String.format("/v1/datasets/%s/documents?page=%d&limit=%d", datasetId, page, limit));
+                ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
                 }
+                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+                if (data == null || data.isEmpty()) {
+                    break;
+                }
+                for (Map<String, Object> item : data) {
+                    documents.add(parseDocument(item));
+                }
+                if (data.size() < limit) {
+                    break;
+                }
+                page++;
             }
         } catch (Exception e) {
             log.error("Failed to list documents from Dify: {}", e.getMessage());
@@ -395,18 +456,29 @@ public class DifyFullApiClient {
         List<Map<String, Object>> conversations = new ArrayList<>();
         
         try {
-            String url = buildUrl(endpointUrl, String.format("/v1/apps/%s/conversations?page=1&limit=50", appId));
             HttpHeaders headers = createHeaders(apiKey);
-            
-            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
-                if (data != null) {
-                    conversations.addAll(data);
+            int page = 1;
+            final int limit = 50;
+
+            while (true) {
+                String url = buildUrl(endpointUrl,
+                        String.format("/v1/apps/%s/conversations?page=%d&limit=%d", appId, page, limit));
+                ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
                 }
+                List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+                if (data == null || data.isEmpty()) {
+                    break;
+                }
+                conversations.addAll(data);
+                if (data.size() < limit) {
+                    break;
+                }
+                page++;
             }
         } catch (Exception e) {
             log.error("Failed to list conversations: {}", e.getMessage());

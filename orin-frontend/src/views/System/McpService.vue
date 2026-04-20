@@ -1,10 +1,16 @@
 <template>
-  <div class="mcp-service-container">
+  <div :class="['mcp-service-container', { 'is-embedded': embedded }]">
     <PageHeader
+      v-if="!embedded"
       title="MCP 服务管理"
       description="管理 MCP (Model Context Protocol) 服务的配置和连接"
       icon="Service"
     />
+
+    <div v-else class="embedded-toolbar">
+      <h2 class="embedded-title">MCP 服务管理</h2>
+      <p class="embedded-description">管理 MCP (Model Context Protocol) 服务的配置、连接健康和工具安装</p>
+    </div>
 
     <el-tabs v-model="activeTab" class="mcp-tabs">
       <!-- MCP 服务列表 -->
@@ -269,6 +275,13 @@ import {
   installMcpTool,
   setMcpServiceEnabled
 } from '@/api/mcp'
+
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const activeTab = ref('list')
 const loading = ref(false)
@@ -587,8 +600,37 @@ onMounted(() => {
   padding: 20px;
 }
 
+.mcp-service-container.is-embedded {
+  padding: 0;
+}
+
 .mcp-tabs {
-  margin-top: 20px;
+  margin-top: 16px;
+}
+
+.mcp-service-container.is-embedded .mcp-tabs {
+  margin-top: 8px;
+}
+
+.embedded-toolbar {
+  margin-bottom: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--orin-border);
+  border-radius: 12px;
+  background: var(--neutral-white);
+}
+
+.embedded-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.embedded-description {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
 }
 
 .card-header {
@@ -631,6 +673,11 @@ onMounted(() => {
 
 .tool-card {
   margin-bottom: 0;
+}
+
+.mcp-service-container :deep(.el-card) {
+  border: 1px solid var(--orin-border);
+  border-radius: 12px;
 }
 
 .tool-header {

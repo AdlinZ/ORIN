@@ -2,6 +2,8 @@ package com.adlin.orin.modules.settings.controller;
 
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.knowledge.service.RAGFlowIntegrationService;
+import com.adlin.orin.modules.system.entity.SystemConfigEntity;
+import com.adlin.orin.modules.system.repository.SystemConfigRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -35,15 +37,17 @@ public class IntegrationController {
 
     private final DifyIntegrationService difyIntegrationService;
     private final RAGFlowIntegrationService ragFlowIntegrationService;
+    private final SystemConfigRepository systemConfigRepository;
 
-    // 模拟的配置存储（实际应该存储到数据库或配置中心）
+    // Dify 配置的 sys_system_config key 前缀
+    private static final String DIFY_API_URL_KEY = "dify.apiUrl";
+    private static final String DIFY_API_KEY_KEY = "dify.apiKey";
+    private static final String DIFY_ENABLED_KEY = "dify.enabled";
+
+    // 其他框架仍用内存存储（预留位，暂未持久化）
     private static final Map<String, Map<String, Object>> INTEGRATION_CONFIGS = new HashMap<>();
 
     static {
-        INTEGRATION_CONFIGS.put("dify", new HashMap<>(Map.of(
-            "apiUrl", "http://localhost:3000/v1",
-            "enabled", false
-        )));
         INTEGRATION_CONFIGS.put("ragflow", new HashMap<>(Map.of(
             "apiUrl", "http://localhost:9380/v1",
             "enabled", false
@@ -71,40 +75,60 @@ public class IntegrationController {
         )));
     }
 
+    // ========== Dify 持久化读写辅助 ==========
+
+    private String getDifyConfigValue(String key, String defaultValue) {
+        return systemConfigRepository.findByConfigKey(key)
+                .map(SystemConfigEntity::getConfigValue)
+                .orElse(defaultValue);
+    }
+
+    private void saveDifyConfigValue(String key, String value, String description) {
+        SystemConfigEntity entity = systemConfigRepository.findByConfigKey(key)
+                .orElseGet(() -> {
+                    SystemConfigEntity e = new SystemConfigEntity();
+                    e.setConfigKey(key);
+                    e.setDescription(description);
+                    return e;
+                });
+        entity.setConfigValue(value);
+        systemConfigRepository.save(entity);
+    }
+
     // ========== Dify ==========
 
     @GetMapping("/dify")
     @Operation(summary = "获取 Dify 配置")
     public ResponseEntity<Map<String, Object>> getDifyConfig() {
-        Map<String, Object> config = INTEGRATION_CONFIGS.get("dify");
-        return ResponseEntity.ok(config != null ? config : new HashMap<>());
+        Map<String, Object> result = new HashMap<>();
+        result.put("apiUrl", getDifyConfigValue(DIFY_API_URL_KEY, ""));
+        result.put("apiKey", getDifyConfigValue(DIFY_API_KEY_KEY, ""));
+        result.put("enabled", Boolean.parseBoolean(getDifyConfigValue(DIFY_ENABLED_KEY, "false")));
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/dify")
     @Operation(summary = "保存 Dify 配置")
     public ResponseEntity<Map<String, Object>> saveDifyConfig(@RequestBody Map<String, Object> config) {
-        Map<String, Object> difyConfig = INTEGRATION_CONFIGS.computeIfAbsent("dify", k -> new HashMap<>());
-        difyConfig.put("apiUrl", config.getOrDefault("apiUrl", ""));
-        difyConfig.put("apiKey", config.getOrDefault("apiKey", ""));
-        difyConfig.put("enabled", config.getOrDefault("enabled", false));
-        return ResponseEntity.ok(difyConfig);
+        saveDifyConfigValue(DIFY_API_URL_KEY, asString(config.getOrDefault("apiUrl", "")), "Dify API 地址");
+        saveDifyConfigValue(DIFY_API_KEY_KEY, asString(config.getOrDefault("apiKey", "")), "Dify API Key");
+        saveDifyConfigValue(DIFY_ENABLED_KEY, String.valueOf(config.getOrDefault("enabled", false)), "Dify 启用状态");
+        return getDifyConfig();
     }
 
     @GetMapping("/dify/test")
     @Operation(summary = "测试 Dify 连接")
     public ResponseEntity<Map<String, Object>> testDifyConnection() {
-        Map<String, Object> difyConfig = INTEGRATION_CONFIGS.get("dify");
+        String apiUrl = getDifyConfigValue(DIFY_API_URL_KEY, "");
+        String apiKey = getDifyConfigValue(DIFY_API_KEY_KEY, "");
+        boolean enabled = Boolean.parseBoolean(getDifyConfigValue(DIFY_ENABLED_KEY, "false"));
         Map<String, Object> result = new HashMap<>();
 
-        if (difyConfig == null || !Boolean.TRUE.equals(difyConfig.get("enabled"))) {
+        if (!enabled) {
             result.put("success", false);
             result.put("message", "Dify 未启用");
             return ResponseEntity.ok(result);
         }
-
-        String apiUrl = asString(difyConfig.get("apiUrl"));
-        String apiKey = asString(difyConfig.get("apiKey"));
-
         if (!StringUtils.hasText(apiUrl) || !StringUtils.hasText(apiKey)) {
             result.put("success", false);
             result.put("message", "Dify 配置不完整");
@@ -120,14 +144,13 @@ public class IntegrationController {
     @GetMapping("/dify/apps")
     @Operation(summary = "获取 Dify 应用列表")
     public ResponseEntity<Map<String, Object>> getDifyApps() {
-        Map<String, Object> difyConfig = INTEGRATION_CONFIGS.get("dify");
-        if (difyConfig == null || !Boolean.TRUE.equals(difyConfig.get("enabled"))) {
+        String apiUrl = getDifyConfigValue(DIFY_API_URL_KEY, "");
+        String apiKey = getDifyConfigValue(DIFY_API_KEY_KEY, "");
+        boolean enabled = Boolean.parseBoolean(getDifyConfigValue(DIFY_ENABLED_KEY, "false"));
+
+        if (!enabled) {
             return ResponseEntity.ok(Map.of("success", false, "message", "Dify 未启用"));
         }
-
-        String apiUrl = asString(difyConfig.get("apiUrl"));
-        String apiKey = asString(difyConfig.get("apiKey"));
-
         var apps = difyIntegrationService.getApplications(apiUrl, apiKey);
         if (apps.isPresent()) {
             return ResponseEntity.ok(Map.of("success", true, "data", apps.get()));
@@ -365,12 +388,12 @@ public class IntegrationController {
     public ResponseEntity<Map<String, Object>> getIntegrationStatus() {
         Map<String, Object> status = new HashMap<>();
 
-        Map<String, Object> difyConfig = INTEGRATION_CONFIGS.get("dify");
-        if (difyConfig != null && Boolean.TRUE.equals(difyConfig.get("enabled"))) {
-            String apiUrl = asString(difyConfig.get("apiUrl"));
-            String apiKey = asString(difyConfig.get("apiKey"));
-            boolean connected = StringUtils.hasText(apiUrl) && StringUtils.hasText(apiKey)
-                    && difyIntegrationService.testConnection(apiUrl, apiKey);
+        String difyApiUrl = getDifyConfigValue(DIFY_API_URL_KEY, "");
+        String difyApiKey = getDifyConfigValue(DIFY_API_KEY_KEY, "");
+        boolean difyEnabled = Boolean.parseBoolean(getDifyConfigValue(DIFY_ENABLED_KEY, "false"));
+        if (difyEnabled) {
+            boolean connected = StringUtils.hasText(difyApiUrl) && StringUtils.hasText(difyApiKey)
+                    && difyIntegrationService.testConnection(difyApiUrl, difyApiKey);
             status.put("dify", Map.of(
                 "enabled", true,
                 "connected", connected,

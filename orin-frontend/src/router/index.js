@@ -500,20 +500,16 @@ const routes = [
                         meta: { title: '通知中心', icon: 'Bell', roles: ['ROLE_ADMIN'] }
                     },
 
-                    // 端侧知识库同步
-                    {
-                        path: 'client-sync',
-                        name: 'ClientSync',
-                        component: () => import('@/views/System/ClientSync.vue'),
-                        meta: { title: '端侧同步', icon: 'Upload', roles: ['ROLE_ADMIN'] }
-                    },
-
-                    // 数据同步（跨模块：知识库、工作流等）
+                    // 数据同步
                     {
                         path: 'sync',
                         name: 'ControlSync',
-                        component: () => import('@/views/Knowledge/UnifiedKnowledgeView.vue'),
+                        component: () => import('@/views/System/ClientSync.vue'),
                         meta: { title: '数据同步', icon: 'Refresh', roles: ['ROLE_ADMIN'] }
+                    },
+                    {
+                        path: 'client-sync',
+                        redirect: '/dashboard/control/sync'
                     },
 
                     // 邮件中心（新版 - 任务导向）

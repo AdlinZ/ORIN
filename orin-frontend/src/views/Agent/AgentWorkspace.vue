@@ -470,8 +470,8 @@
                     <div v-if="isKbAttached(kb.id)" class="doc-filter-section">
                       <div class="doc-filter-header" @click="toggleKbExpand(kb.id)">
                         <span class="doc-filter-label">
-                          <el-icon><component :is="isKbExpanded(kb.id) ? ArrowUp : ArrowDown" /></el-icon>
-                          {{ isKbExpanded(kb.id) ? '收起' : '按文档过滤' }}
+                          <el-icon class="doc-filter-chevron" :class="{ expanded: isKbExpanded(kb.id) }"><ArrowDown /></el-icon>
+                          按文档过滤
                           <span v-if="kbDocFilters[kb.id]?.length" class="doc-filter-count">
                             ({{ kbDocFilters[kb.id].length }})
                           </span>
@@ -923,7 +923,6 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  ArrowUp,
   ChatRound,
   Close,
   Cpu,
@@ -1026,6 +1025,7 @@ const voiceOptions = [
 const defaultConfig = () => ({
   id: 'default',
   name: '初始配置（默认）',
+  kbIds: [],
   skillIds: [],
   mcpIds: [],
   enableSuggestions: true,
@@ -1737,9 +1737,15 @@ const loadAgents = async () => {
     agents.value = list.map(normalizeAgent).filter((agent) => agent.id);
 
     const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
-    if (presetId) {
-      currentAgentId.value = presetId;
-      currentAgent.value = findAgentById(presetId);
+    const routeAgentId = typeof route.query?.agentId === 'string' ? route.query.agentId : '';
+    const preferredAgentId = routeAgentId || presetId;
+    if (preferredAgentId) {
+      currentAgentId.value = preferredAgentId;
+      currentAgent.value = findAgentById(preferredAgentId);
+      if (!currentAgent.value && agents.value.length) {
+        currentAgent.value = agents.value[0];
+        currentAgentId.value = normalizeId(currentAgent.value.id);
+      }
       selectedModelName.value = currentAgent.value?.model || '';
       return;
     }
@@ -1940,6 +1946,22 @@ const loadAttachedKbs = async (sessionId) => {
   }
 };
 
+const ensureConfiguredKbsAttached = async () => {
+  if (!currentSessionId.value) return;
+  const configured = Array.isArray(currentConfig.kbIds) ? currentConfig.kbIds.map(normalizeId) : [];
+  const missing = configured.filter((kbId) => kbId && !attachedKbIds.value.includes(kbId));
+  if (!missing.length) return;
+
+  for (const kbId of missing) {
+    try {
+      await attachKnowledgeBase(currentSessionId.value, kbId);
+      attachedKbIds.value = [...new Set([...attachedKbIds.value, kbId])];
+    } catch (error) {
+      console.warn('Failed to attach default kb:', kbId, error);
+    }
+  }
+};
+
 const loadKbDocFilters = async (sessionId) => {
   if (!sessionId) {
     Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
@@ -2031,6 +2053,7 @@ const handleAgentChange = async (agentId) => {
     if (!sessions.value.length) {
       await createSessionForAgent(targetId);
     }
+    await ensureConfiguredKbsAttached();
   } catch (error) {
     ElMessage.error('加载智能体工作台失败');
   }
@@ -2100,6 +2123,7 @@ const attachKb = async (kbId) => {
   try {
     await attachKnowledgeBase(currentSessionId.value, targetKbId);
     attachedKbIds.value = [...new Set([...attachedKbIds.value, targetKbId])];
+    currentConfig.kbIds = [...new Set([...attachedKbIds.value])];
     ElMessage.success('已附加知识库');
   } catch (error) {
     ElMessage.error('附加知识库失败');
@@ -2111,6 +2135,7 @@ const detachKb = async (kbId) => {
   try {
     await detachKnowledgeBase(currentSessionId.value, targetKbId);
     attachedKbIds.value = attachedKbIds.value.filter((id) => id !== targetKbId);
+    currentConfig.kbIds = [...new Set([...attachedKbIds.value])];
     if (kbDocFilters[targetKbId]) {
       delete kbDocFilters[targetKbId];
     }
@@ -2757,6 +2782,7 @@ const reloadWorkspace = async () => {
     restoreConfigForAgent(currentAgentId.value);
     await loadAgentRuntimeConfig(currentAgentId.value);
     await loadSessions(currentAgentId.value, { autoSelect: !currentSessionId.value });
+    await ensureConfiguredKbsAttached();
   }
 };
 
@@ -2772,8 +2798,10 @@ onMounted(async () => {
   await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadModelCatalog()]);
 
   const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
+  const routeAgentId = typeof route.query?.agentId === 'string' ? route.query.agentId : '';
   // Restore saved agent (or use first available); preset has highest priority.
-  const agentToRestore = presetId
+  const agentToRestore = routeAgentId
+    || presetId
     || (savedState?.currentAgentId && agents.value.find((a) => normalizeId(a.id) === normalizeId(savedState.currentAgentId))
       ? normalizeId(savedState.currentAgentId)
       : (agents.value[0]?.id || ''));
@@ -2795,6 +2823,7 @@ onMounted(async () => {
     } else {
       await createSessionForAgent(agentToRestore);
     }
+    await ensureConfiguredKbsAttached();
   }
   await applyRoutePromptIfExists();
 });
@@ -3890,11 +3919,15 @@ watch(
 .config-tabs :deep(.el-tabs__item) {
   width: 33.33%;
   height: 32px;
-  line-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 8px;
   font-size: 13px;
   color: #64748b;
   padding: 0;
+  line-height: 1;
+  transform: translateY(-1px);
   text-align: center;
   transition: all 0.2s ease;
 }
@@ -3947,7 +3980,8 @@ watch(
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  line-height: 22px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 .config-badge.soft {
   background: rgba(220, 252, 245, 0.9);
@@ -4074,9 +4108,19 @@ html.dark .prompt-add-btn {
   cursor: pointer;
   user-select: none;
   margin-bottom: 0;
+  min-height: 40px;
+  align-items: center;
 }
 .card-toggle-head:hover .config-card-title {
   opacity: 0.75;
+}
+.card-toggle-head .config-card-title {
+  line-height: 1;
+  transform: translateY(-1px);
+}
+.card-toggle-head .config-badge {
+  line-height: 1;
+  transform: translateY(-1px);
 }
 .card-head-right {
   display: flex;
@@ -4084,18 +4128,23 @@ html.dark .prompt-add-btn {
   gap: 6px;
 }
 .card-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
+  line-height: 1;
   color: #94a3b8;
+  transform: translateY(-1px);
   transition: transform 0.2s ease;
 }
 .card-chevron.expanded {
-  transform: rotate(180deg);
+  transform: translateY(-1px) rotate(180deg);
 }
 .collapsible-card {
-  padding-bottom: 0;
+  padding-bottom: 12px;
 }
-.collapsible-card > template + * {
-  padding-top: 8px;
+.collapsible-card .config-row:last-child {
+  padding-bottom: 8px;
 }
 
 .tool-status-badge {
@@ -4286,6 +4335,85 @@ html.dark .prompt-add-btn {
 .selection-meta {
   font-size: 11px;
   color: #94a3b8;
+}
+
+.doc-filter-section {
+  margin: 8px 2px 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #e4edf6;
+  background: #f8fbff;
+}
+.doc-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.doc-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.2;
+}
+.doc-filter-chevron {
+  font-size: 14px;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+.doc-filter-chevron.expanded {
+  transform: rotate(180deg);
+}
+.doc-filter-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f766e;
+}
+.doc-filter-list {
+  margin-top: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+}
+.doc-filter-list::-webkit-scrollbar {
+  width: 4px;
+}
+.doc-filter-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.doc-filter-loading {
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 8px 6px;
+}
+.doc-filter-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #dbe4ee;
+  background: #ffffff;
+  cursor: pointer;
+}
+.doc-filter-item:hover {
+  border-color: #cbd5e1;
+  background: #fdfefe;
+}
+.doc-filter-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #334155;
+  word-break: break-word;
 }
 
 .config-footer {

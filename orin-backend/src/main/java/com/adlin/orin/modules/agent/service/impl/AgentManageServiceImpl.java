@@ -1651,6 +1651,13 @@ public class AgentManageServiceImpl implements AgentManageService {
 
                 // Extract usage info from response
                 java.util.Map<String, Integer> usage = extractUsageFromResponse(respObj);
+                if (respObj instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> responseMap = (Map<String, Object>) respObj;
+                    responseMap.put("promptTokens", usage.get("prompt"));
+                    responseMap.put("completionTokens", usage.get("completion"));
+                    responseMap.put("totalTokens", usage.get("total"));
+                }
 
                 // Extract file info (fileId, downloadUrl) for audio/image/video
                 java.util.Map<String, String> fileInfo = extractFileInfo(respObj);
@@ -2132,42 +2139,73 @@ public class AgentManageServiceImpl implements AgentManageService {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> respMap = (Map<String, Object>) response;
 
-                // 1. 直接查找 usage 字段
-                if (respMap.containsKey("usage")) {
-                    Object usageObj = respMap.get("usage");
-                    if (usageObj instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> usageMap = (Map<String, Object>) usageObj;
-                        if (usageMap.containsKey("prompt_tokens")) {
-                            usage.put("prompt", toInt(usageMap.get("prompt_tokens")));
-                        }
-                        if (usageMap.containsKey("completion_tokens")) {
-                            usage.put("completion", toInt(usageMap.get("completion_tokens")));
-                        }
-                        if (usageMap.containsKey("total_tokens")) {
-                            usage.put("total", toInt(usageMap.get("total_tokens")));
-                        }
-                    }
-                }
-
-                // 2. SiliconFlow 可能使用不同的字段名
-                if (usage.get("total") == 0 && respMap.containsKey("usage")) {
-                    Object usageObj = respMap.get("usage");
-                    if (usageObj instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> usageMap = (Map<String, Object>) usageObj;
-                        // 尝试其他可能的字段名
-                        if (usageMap.containsKey("tokens")) {
-                            usage.put("total", toInt(usageMap.get("tokens")));
-                        }
-                    }
+                mergeUsageFromMap(respMap, usage);
+                Object dataObj = respMap.get("data");
+                if (dataObj instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> dataMap = (Map<String, Object>) dataObj;
+                    mergeUsageFromMap(dataMap, usage);
                 }
             }
         } catch (Exception e) {
             log.warn("Failed to extract usage from response: {}", e.getMessage());
         }
 
+        if (usage.get("total") <= 0) {
+            usage.put("total", usage.get("prompt") + usage.get("completion"));
+        }
+
         return usage;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mergeUsageFromMap(Map<String, Object> source, Map<String, Integer> usage) {
+        if (source == null || usage == null) return;
+
+        Object usageObj = source.get("usage");
+        if (usageObj instanceof Map) {
+            Map<String, Object> usageMap = (Map<String, Object>) usageObj;
+            usage.put("prompt", firstNonZero(
+                    usage.get("prompt"),
+                    toInt(usageMap.get("prompt_tokens")),
+                    toInt(usageMap.get("promptTokens")),
+                    toInt(usageMap.get("prompt_eval_count"))));
+            usage.put("completion", firstNonZero(
+                    usage.get("completion"),
+                    toInt(usageMap.get("completion_tokens")),
+                    toInt(usageMap.get("completionTokens")),
+                    toInt(usageMap.get("eval_count"))));
+            usage.put("total", firstNonZero(
+                    usage.get("total"),
+                    toInt(usageMap.get("total_tokens")),
+                    toInt(usageMap.get("totalTokens")),
+                    toInt(usageMap.get("tokens"))));
+        }
+
+        usage.put("prompt", firstNonZero(
+                usage.get("prompt"),
+                toInt(source.get("promptTokens")),
+                toInt(source.get("prompt_tokens")),
+                toInt(source.get("prompt_eval_count"))));
+        usage.put("completion", firstNonZero(
+                usage.get("completion"),
+                toInt(source.get("completionTokens")),
+                toInt(source.get("completion_tokens")),
+                toInt(source.get("eval_count"))));
+        usage.put("total", firstNonZero(
+                usage.get("total"),
+                toInt(source.get("totalTokens")),
+                toInt(source.get("total_tokens")),
+                toInt(source.get("tokens"))));
+    }
+
+    private int firstNonZero(int... values) {
+        for (int value : values) {
+            if (value > 0) {
+                return value;
+            }
+        }
+        return 0;
     }
 
     /**

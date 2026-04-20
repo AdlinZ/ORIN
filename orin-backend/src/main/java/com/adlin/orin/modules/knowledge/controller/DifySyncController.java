@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Dify 知识库同步 API
+ * Dify 知识库同步 API（系统级）
  */
 @RestController
 @RequestMapping("/api/v1/knowledge/sync")
@@ -24,44 +24,36 @@ public class DifySyncController {
     private final DifyKnowledgeSyncService difySyncService;
 
     @Operation(summary = "触发知识库同步（增量）")
-    @PostMapping("/dify/{agentId}")
+    @PostMapping("/dify")
     public Map<String, Object> syncDifyKnowledge(
-            @PathVariable String agentId,
             @RequestParam(value = "full", defaultValue = "false") boolean full) {
-        
-        SyncResult result = difySyncService.syncKnowledgeBases(agentId, full);
-        
+        SyncResult result = difySyncService.syncKnowledgeBases(full);
         Map<String, Object> response = new HashMap<>();
         response.put("success", result.isSuccess());
         response.put("message", result.getMessage());
         response.put("added", result.getAdded());
         response.put("updated", result.getUpdated());
         response.put("deleted", result.getDeleted());
-        
         return response;
     }
 
     @Operation(summary = "强制全量同步")
-    @PostMapping("/dify/{agentId}/full")
-    public Map<String, Object> fullSync(@PathVariable String agentId) {
-        SyncResult result = difySyncService.syncKnowledgeBases(agentId, true);
-        
+    @PostMapping("/dify/full")
+    public Map<String, Object> fullSync() {
+        SyncResult result = difySyncService.syncKnowledgeBases(true);
         Map<String, Object> response = new HashMap<>();
         response.put("success", result.isSuccess());
         response.put("message", result.getMessage());
         response.put("added", result.getAdded());
         response.put("updated", result.getUpdated());
         response.put("deleted", result.getDeleted());
-        
         return response;
     }
 
     @Operation(summary = "获取同步历史")
-    @GetMapping("/dify/{agentId}/history")
-    public List<SyncRecord> getSyncHistory(
-            @PathVariable String agentId,
-            @RequestParam(defaultValue = "10") int limit) {
-        return difySyncService.getSyncHistory(agentId, limit);
+    @GetMapping("/dify/history")
+    public List<SyncRecord> getSyncHistory(@RequestParam(defaultValue = "10") int limit) {
+        return difySyncService.getSyncHistory(limit);
     }
 
     @Operation(summary = "测试 Dify 连接")
@@ -69,13 +61,10 @@ public class DifySyncController {
     public Map<String, Object> testConnection(@RequestBody Map<String, String> config) {
         String endpoint = config.get("endpoint");
         String apiKey = config.get("apiKey");
-        
         boolean success = difySyncService.testConnection(endpoint, apiKey);
-        
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
         response.put("message", success ? "Connection successful" : "Connection failed");
-        
         return response;
     }
 }

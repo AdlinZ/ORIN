@@ -190,22 +190,22 @@ export const testDifyConnection = (endpoint, apiKey) => {
     return request.post('/knowledge/sync/dify/test', { endpoint, apiKey });
 };
 
-// ==================== Dify 完整同步 ====================
+// ==================== Dify 完整同步（系统级，无 agentId）====================
 
-export const getDifySyncOverview = (agentId) => {
-    return request.get(`/sync/dify/overview/${agentId}`);
+export const getDifySyncOverview = () => {
+    return request.get('/sync/dify/overview');
 };
 
-export const fullSyncDifyAll = (agentId) => {
-    return request.post(`/sync/dify/full/${agentId}`);
+export const fullSyncDifyAll = () => {
+    return request.post('/sync/dify/full');
 };
 
-export const syncDifyWorkflows = (agentId) => {
-    return request.post(`/sync/dify/workflows/${agentId}`);
+export const syncDifyWorkflows = () => {
+    return request.post('/sync/dify/workflows');
 };
 
-export const syncDifyConversations = (agentId, appId) => {
-    return request.post(`/sync/dify/conversations/${agentId}`, null, { params: { appId } });
+export const syncDifyConversations = (appId) => {
+    return request.post('/sync/dify/conversations', null, { params: { appId } });
 };
 
 // ==================== 端侧知识库同步 (Side Client Sync) ====================

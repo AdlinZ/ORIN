@@ -105,7 +105,7 @@
         >
           <template #default="{ row }">
             <el-button link type="primary" @click="viewDetail(row)">
-              查看全景
+              查看会话
             </el-button>
           </template>
         </el-table-column>
