@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <PageHeader 
-      title="模型列表" 
-      description="连接并调度第三方 API (OpenAI, Claude, Dify等) 及本地部署的模型资源"
+      title="模型配置" 
+      description="管理平台接入模型、供应商资源与启用状态"
       icon="Box"
     >
       <template #actions>

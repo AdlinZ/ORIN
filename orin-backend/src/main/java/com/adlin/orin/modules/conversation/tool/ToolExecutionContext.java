@@ -13,8 +13,11 @@ import java.util.Map;
 @Builder
 public class ToolExecutionContext {
     private String sessionId;
+    private String agentId;
     private String query;
+    private List<String> toolIds;
     private List<String> kbIds;
+    private List<Long> skillIds;
     private List<Long> mcpIds;
     private Map<String, List<String>> kbDocFilters;
     private List<ToolTrace> traces;

@@ -4,6 +4,9 @@ import Cookies from 'js-cookie'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import { ROUTES, LEGACY_ROUTE_REDIRECTS } from './routes'
+import { ADMIN_MENU_ROLES, getDefaultHomeByRoles } from './topMenuConfig'
+
+const ADMIN_ROUTE_ROLES = [...ADMIN_MENU_ROLES]
 
 // ==================== 路由配置 ====================
 const routes = [
@@ -251,13 +254,13 @@ const routes = [
                         path: 'alerts',
                         name: 'RuntimeAlerts',
                         component: () => import('@/views/Monitor/AlertsLogsCenter.vue'),
-                        meta: { title: '告警与日志', icon: 'Bell', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '告警与日志', icon: 'Bell', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'audit-logs',
                         name: 'RuntimeAuditLogs',
                         component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
-                        meta: { title: '审计日志', icon: 'List', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 服务器监控
@@ -287,7 +290,7 @@ const routes = [
                         path: 'rate-limit',
                         name: 'RuntimeRateLimit',
                         component: () => import('@/views/Monitor/RateLimit.vue'),
-                        meta: { title: '限流配置', icon: 'Lightning', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '限流配置', icon: 'Lightning', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 日志归档
@@ -423,19 +426,19 @@ const routes = [
                         path: 'users',
                         name: 'ControlUsers',
                         component: () => import('@/views/System/UserManagement.vue'),
-                        meta: { title: '用户权限', icon: 'User', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '用户管理', icon: 'User', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'departments',
                         name: 'ControlDepartments',
                         component: () => import('@/views/System/DepartmentManagement.vue'),
-                        meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'roles',
                         name: 'ControlRoles',
                         component: () => import('@/views/System/RoleManagement.vue'),
-                        meta: { title: '角色管理', icon: 'UserFilled', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '角色管理', icon: 'UserFilled', roles: ADMIN_ROUTE_ROLES }
                     },
 
 
@@ -445,7 +448,7 @@ const routes = [
                         path: 'audit-logs',
                         name: 'ControlAuditLogs',
                         component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
-                        meta: { title: '审计日志', icon: 'List', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // API 密钥管理
@@ -453,7 +456,7 @@ const routes = [
                         path: 'api-keys',
                         name: 'ApiKeyManagement',
                         component: () => import('@/views/System/ApiKeyManagement.vue'),
-                        meta: { title: 'API 密钥管理', icon: 'Key', roles: ['ROLE_ADMIN'] }
+                        meta: { title: 'API 密钥管理', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 文件管理
@@ -461,7 +464,7 @@ const routes = [
                         path: 'file-management',
                         name: 'FileManagement',
                         component: () => import('@/views/System/FileManagement.vue'),
-                        meta: { title: '文件管理', icon: 'Folder', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '文件管理', icon: 'Folder', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 系统环境配置
@@ -469,43 +472,43 @@ const routes = [
                         path: 'system-env',
                         name: 'ControlSystemEnv',
                         component: () => import('@/views/System/MonitorSettings.vue'),
-                        meta: { title: '系统环境配置', icon: 'Tools', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '系统环境', icon: 'Tools', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'gateway',
                         name: 'ControlGateway',
                         component: () => import('@/views/System/ApiGateway.vue'),
-                        meta: { title: '统一网关', icon: 'Connection', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '统一网关', icon: 'Connection', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'unified-api-docs',
                         name: 'ControlUnifiedApiDocs',
                         component: () => import('@/views/System/UnifiedApiDocs.vue'),
-                        meta: { title: '统一 API 文档', icon: 'Document', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '统一 API 文档', icon: 'Document', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'distributed-lock',
                         name: 'ControlDistributedLock',
                         component: () => import('@/views/System/DistributedLock.vue'),
-                        meta: { title: '分布式锁', icon: 'Lock', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '分布式锁', icon: 'Lock', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'mcp-service',
                         name: 'ControlMcpService',
                         component: () => import('@/views/System/McpService.vue'),
-                        meta: { title: 'MCP 服务', icon: 'Service', roles: ['ROLE_ADMIN'] }
+                        meta: { title: 'MCP 服务', icon: 'Service', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'pricing',
                         name: 'ControlPricing',
                         component: () => import('@/views/System/PricingConfig.vue'),
-                        meta: { title: '定价配置', icon: 'PriceTag', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '定价配置', icon: 'PriceTag', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'statistics',
                         name: 'ControlStatistics',
                         component: () => import('@/views/System/Statistics.vue'),
-                        meta: { title: '统计分析', icon: 'DataAnalysis', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '统计分析', icon: 'DataAnalysis', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 通知中心（统一入口）
@@ -513,7 +516,7 @@ const routes = [
                         path: 'notification-channels',
                         name: 'NotificationChannels',
                         component: () => import('@/views/Mail/MailSetup.vue'),
-                        meta: { title: '通知中心', icon: 'Bell', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '邮件服务中心', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 数据同步
@@ -521,7 +524,7 @@ const routes = [
                         path: 'sync',
                         name: 'ControlSync',
                         component: () => import('@/views/System/ClientSync.vue'),
-                        meta: { title: '数据同步', icon: 'Refresh', roles: ['ROLE_ADMIN'] }
+                        meta: { title: '数据同步', icon: 'Refresh', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'client-sync',
@@ -531,35 +534,30 @@ const routes = [
                     // 邮件中心（新版 - 任务导向）
                     {
                         path: 'mail',
-                        redirect: '/dashboard/control/mail/setup',
+                        redirect: '/dashboard/control/notification-channels?tab=overview',
                         meta: { title: '邮件中心', icon: 'Message' }
                     },
                     {
                         path: 'mail/setup',
-                        name: 'MailSetup',
-                        component: () => import('@/views/Mail/MailSetup.vue'),
-                        meta: { title: '配置与联通', icon: 'Setting', roles: ['ROLE_ADMIN'] },
-                        alias: 'control/mail/setup'
+                        redirect: '/dashboard/control/notification-channels?tab=service',
+                        meta: { title: '配置与联通', icon: 'Setting', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'mail/compose',
-                        name: 'MailCompose',
-                        component: () => import('@/views/Mail/MailCompose.vue'),
-                        meta: { title: '发送与模板', icon: 'EditPen', roles: ['ROLE_ADMIN'] }
+                        redirect: '/dashboard/control/notification-channels?tab=compose',
+                        meta: { title: '发送与模板', icon: 'EditPen', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'mail/tracking',
-                        name: 'MailTracking',
-                        component: () => import('@/views/Mail/MailTracking.vue'),
-                        meta: { title: '追踪与回执', icon: 'List', roles: ['ROLE_ADMIN'] }
+                        redirect: '/dashboard/control/notification-channels?tab=tracking',
+                        meta: { title: '追踪与回执', icon: 'List', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 邮件中心（旧版，保留兼容）
                     {
                         path: 'mail-center',
-                        name: 'MailCenter',
-                        component: () => import('@/views/System/MailCenter.vue'),
-                        meta: { title: '邮件中心', icon: 'Message', roles: ['ROLE_ADMIN'] }
+                        redirect: '/dashboard/control/notification-channels?tab=overview',
+                        meta: { title: '邮件中心', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
                     }
                 ]
             },
@@ -663,14 +661,27 @@ router.beforeEach((to, from, next) => {
         return next('/login')
     }
 
+    const userStore = useUserStore()
+
+    if (token && (!userStore.roles || userStore.roles.length === 0)) {
+        userStore.restoreFromCookies()
+    }
+
+    // 统一使用角色默认首页，避免所有角色都落到同一入口
+    if (to.path === '/dashboard' || to.path === ROUTES.HOME) {
+        const defaultHome = getDefaultHomeByRoles(userStore.roles || [])
+        if (to.path !== defaultHome) {
+            return next(defaultHome)
+        }
+    }
+
     // 检查权限
     if (to.meta.roles) {
-        const userStore = useUserStore()
         const hasRole = to.meta.roles.some(role => userStore.roles?.includes(role))
 
         if (!hasRole) {
             ElMessage.error('您没有权限访问此页面')
-            return next(from.path || ROUTES.HOME)
+            return next(from.path || getDefaultHomeByRoles(userStore.roles || []))
         }
     }
 

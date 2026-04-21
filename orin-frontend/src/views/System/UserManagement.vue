@@ -1,8 +1,8 @@
 <template>
   <div class="user-management fade-in">
     <PageHeader
-      title="用户权限"
-      description="管理系统用户、角色分配及账号状态"
+      title="用户管理"
+      description="管理系统用户、账号状态与访问范围"
       icon="User"
     />
     
@@ -61,7 +61,7 @@
         
         <el-table-column label="角色" width="140">
           <template #default="{ row }">
-            <span :class="['role-badge', row.role === 'ROLE_ADMIN' ? 'role-admin' : 'role-user']">
+            <span :class="['role-badge', getRoleBadgeClass(row.role)]">
               {{ getRoleName(row.role) }}
             </span>
           </template>
@@ -184,6 +184,9 @@
         <div class="form-row">
           <el-form-item label="角色" prop="role" class="half-width">
             <el-select v-model="formData.role" placeholder="选择角色">
+              <el-option label="超级管理员" value="ROLE_SUPER_ADMIN" />
+              <el-option label="平台管理员" value="ROLE_PLATFORM_ADMIN" />
+              <el-option label="业务运营" value="ROLE_OPERATOR" />
               <el-option label="管理员" value="ROLE_ADMIN" />
               <el-option label="普通用户" value="ROLE_USER" />
             </el-select>
@@ -293,10 +296,20 @@ const filteredUsers = computed(() => {
 // 获取角色名称
 const getRoleName = (role) => {
   const roleMap = {
+    'ROLE_SUPER_ADMIN': '超级管理员',
+    'ROLE_PLATFORM_ADMIN': '平台管理员',
+    'ROLE_OPERATOR': '业务运营',
     'ROLE_ADMIN': '管理员',
-    'ROLE_USER': '用户'
+    'ROLE_USER': '普通用户'
   }
   return roleMap[role] || role
+}
+
+const getRoleBadgeClass = (role) => {
+  if (['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_ADMIN'].includes(role)) {
+    return 'role-admin'
+  }
+  return 'role-user'
 }
 
 // 获取部门名称

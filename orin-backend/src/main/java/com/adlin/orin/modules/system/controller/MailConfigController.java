@@ -52,24 +52,64 @@ public class MailConfigController {
      * 测试邮件配置
      */
     @PostMapping("/test")
-    public ResponseEntity<?> testConfig(@RequestParam String testEmail) {
+    public ResponseEntity<Map<String, Object>> testConfig(
+            @RequestBody(required = false) Map<String, Object> payload,
+            @RequestParam(value = "testEmail", required = false) String legacyTestEmail,
+            @RequestParam(value = "to", required = false) String legacyToEmail) {
+        String testEmail = resolveTestEmail(payload, legacyTestEmail, legacyToEmail);
+        if (testEmail == null || testEmail.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "testEmail 不能为空"
+            ));
+        }
+
         MailConfigEntity config = mailConfigService.getConfig().orElse(null);
         if (config == null) {
             auditHelper.log("SYSTEM", "MAIL_CONFIG_TEST", "/api/v1/system/mail-config/test",
                     "测试邮件配置失败: 未配置邮件服务", false, "请先配置邮件服务");
-            return ResponseEntity.badRequest().body("请先配置邮件服务");
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "请先配置邮件服务"
+            ));
         }
 
         boolean success = mailConfigService.testConfig(config, testEmail);
         if (success) {
             auditHelper.log("SYSTEM", "MAIL_CONFIG_TEST", "/api/v1/system/mail-config/test",
                     "测试邮件发送成功: 收件人=" + testEmail, true, null);
-            return ResponseEntity.ok().body("测试邮件发送成功");
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "测试邮件发送成功"
+            ));
         } else {
             auditHelper.log("SYSTEM", "MAIL_CONFIG_TEST", "/api/v1/system/mail-config/test",
                     "测试邮件发送失败: 收件人=" + testEmail, false, "邮件发送失败");
-            return ResponseEntity.badRequest().body("测试邮件发送失败，请检查配置");
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "测试邮件发送失败，请检查配置"
+            ));
         }
+    }
+
+    private String resolveTestEmail(Map<String, Object> payload, String legacyTestEmail, String legacyToEmail) {
+        if (payload != null) {
+            Object testEmail = payload.get("testEmail");
+            if (testEmail instanceof String str && !str.isBlank()) {
+                return str;
+            }
+            Object to = payload.get("to");
+            if (to instanceof String str && !str.isBlank()) {
+                return str;
+            }
+        }
+        if (legacyTestEmail != null && !legacyTestEmail.isBlank()) {
+            return legacyTestEmail;
+        }
+        if (legacyToEmail != null && !legacyToEmail.isBlank()) {
+            return legacyToEmail;
+        }
+        return null;
     }
 
     /**
@@ -93,10 +133,13 @@ public class MailConfigController {
      * 发送邮件
      */
     @PostMapping("/send")
-    public ResponseEntity<?> sendMail(@RequestBody Map<String, String> request) {
-        String to = request.get("to");
-        String subject = request.get("subject");
-        String content = request.get("content");
+    public ResponseEntity<?> sendMail(@RequestBody Map<String, Object> request) {
+        String to = asString(request.get("to"));
+        String cc = asString(request.get("cc"));
+        String bcc = asString(request.get("bcc"));
+        String subject = asString(request.get("subject"));
+        String content = asString(request.get("content"));
+        boolean separateSend = Boolean.parseBoolean(asString(request.get("separateSend")));
 
         if (to == null || to.isEmpty() || subject == null || subject.isEmpty() || content == null || content.isEmpty()) {
             auditHelper.log("SYSTEM", "MAIL_SEND", "/api/v1/system/mail-config/send",
@@ -111,15 +154,19 @@ public class MailConfigController {
             return ResponseEntity.badRequest().body("请先配置邮件服务");
         }
 
-        boolean success = mailConfigService.sendMail(config, to, subject, content);
+        boolean success = mailConfigService.sendMail(config, to, cc, bcc, subject, content, separateSend);
         if (success) {
             auditHelper.log("SYSTEM", "MAIL_SEND", "/api/v1/system/mail-config/send",
-                    "发送邮件成功: 收件人=" + to + ", 主题=" + subject, true, null);
+                    "发送邮件成功: 收件人=" + to + ", 抄送=" + cc + ", 密送=" + bcc + ", 主题=" + subject, true, null);
             return ResponseEntity.ok().body(Map.of("success", true, "message", "邮件发送成功"));
         } else {
             auditHelper.log("SYSTEM", "MAIL_SEND", "/api/v1/system/mail-config/send",
-                    "发送邮件失败: 收件人=" + to + ", 主题=" + subject, false, "邮件发送失败");
+                    "发送邮件失败: 收件人=" + to + ", 抄送=" + cc + ", 密送=" + bcc + ", 主题=" + subject, false, "邮件发送失败");
             return ResponseEntity.badRequest().body("邮件发送失败，请检查配置");
         }
+    }
+
+    private String asString(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 }

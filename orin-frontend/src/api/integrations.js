@@ -4,17 +4,34 @@ import request from '@/utils/request';
 
 // 获取 Dify 配置
 export const getDifyConfig = () => {
-    return request.get('/system/integrations/dify');
+    return request.get('/system/integrations/dify', {
+        timeout: 15000,
+        noRetry: true
+    });
 };
 
 // 保存 Dify 配置
 export const saveDifyConfig = (data) => {
-    return request.post('/system/integrations/dify', data);
+    return request.post('/system/integrations/dify', data, {
+        timeout: 15000,
+        noRetry: true
+    });
 };
 
 // 测试 Dify 连接
-export const testDifyConnection = () => {
-    return request.get('/system/integrations/dify/test');
+export const testDifyConnection = (config) => {
+    if (config && typeof config === 'object') {
+        const endpoint = String(config.apiUrl || config.endpoint || '').trim();
+        const apiKey = String(config.apiKey || '').trim();
+        return request.post('/sync/dify/test', { endpoint, apiKey }, {
+            timeout: 15000,
+            noRetry: true
+        });
+    }
+    return request.get('/system/integrations/dify/test', {
+        timeout: 15000,
+        noRetry: true
+    });
 };
 
 // 获取 Dify 应用列表

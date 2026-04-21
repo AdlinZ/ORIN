@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 角色管理服务
@@ -21,6 +22,13 @@ import java.util.Optional;
 public class RoleService {
 
     private final SysRoleRepository roleRepository;
+    private static final Set<String> SYSTEM_ROLE_CODES = Set.of(
+            "ROLE_ADMIN",
+            "ROLE_USER",
+            "ROLE_OPERATOR",
+            "ROLE_PLATFORM_ADMIN",
+            "ROLE_SUPER_ADMIN"
+    );
 
     /**
      * 获取所有角色
@@ -84,7 +92,7 @@ public class RoleService {
                 .orElseThrow(() -> new RuntimeException("角色不存在"));
 
         // 保护系统预定义角色
-        if ("ROLE_ADMIN".equals(role.getRoleCode()) || "ROLE_USER".equals(role.getRoleCode())) {
+        if (SYSTEM_ROLE_CODES.contains(role.getRoleCode())) {
             throw new RuntimeException("系统预定义角色不可删除");
         }
 
@@ -96,24 +104,24 @@ public class RoleService {
      */
     @Transactional
     public void initializeDefaultRoles() {
-        if (!roleRepository.existsByRoleCode("ROLE_ADMIN")) {
-            SysRole adminRole = SysRole.builder()
-                    .roleCode("ROLE_ADMIN")
-                    .roleName("系统管理员")
-                    .description("拥有系统所有权限")
-                    .build();
-            roleRepository.save(adminRole);
-            log.info("Created default admin role");
+        ensureRoleExists("ROLE_ADMIN", "系统管理员", "拥有系统所有权限");
+        ensureRoleExists("ROLE_USER", "普通用户", "基础访问权限");
+        ensureRoleExists("ROLE_OPERATOR", "业务运营", "负责智能体业务配置、知识资产管理与工作流编排运营");
+        ensureRoleExists("ROLE_PLATFORM_ADMIN", "平台管理员", "负责平台运行配置、监控治理与系统问题排查");
+        ensureRoleExists("ROLE_SUPER_ADMIN", "超级管理员", "拥有全局控制权限，可管理组织与平台全部能力");
+    }
+
+    private void ensureRoleExists(String roleCode, String roleName, String description) {
+        if (roleRepository.existsByRoleCode(roleCode)) {
+            return;
         }
 
-        if (!roleRepository.existsByRoleCode("ROLE_USER")) {
-            SysRole userRole = SysRole.builder()
-                    .roleCode("ROLE_USER")
-                    .roleName("普通用户")
-                    .description("基础访问权限")
-                    .build();
-            roleRepository.save(userRole);
-            log.info("Created default user role");
-        }
+        SysRole role = SysRole.builder()
+                .roleCode(roleCode)
+                .roleName(roleName)
+                .description(description)
+                .build();
+        roleRepository.save(role);
+        log.info("Created default role: {}", roleCode);
     }
 }

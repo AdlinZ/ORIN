@@ -18,10 +18,18 @@ export function saveMailConfig(data) {
 }
 
 export function testMailConnection(data) {
+    const testEmail = data?.testEmail || data?.to || ''
     return request({
         url: '/system/mail-config/test',
         method: 'post',
-        data
+        params: {
+            testEmail
+        },
+        data: {
+            testEmail,
+            type: data?.type,
+            code: data?.code
+        }
     })
 }
 
@@ -174,5 +182,20 @@ export function getMailSendLogs(params) {
         url: '/system/mail-logs',
         method: 'get',
         params
+    })
+}
+
+export function retryMailSendLog(id) {
+    return request({
+        url: `/system/mail-logs/${id}/retry`,
+        method: 'post'
+    })
+}
+
+export function batchRetryMailSendLogs(ids) {
+    return request({
+        url: '/system/mail-logs/batch-retry',
+        method: 'post',
+        data: { ids }
     })
 }

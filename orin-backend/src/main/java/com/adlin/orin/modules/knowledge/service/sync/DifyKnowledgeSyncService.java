@@ -75,8 +75,8 @@ public class DifyKnowledgeSyncService {
     public SyncResult syncKnowledgeBases(boolean fullSync) {
         log.info("Starting knowledge base sync, fullSync={}", fullSync);
 
-        if (!difyConfigProvider.isConfigured()) {
-            return SyncResult.failure("Dify 未配置，请先在「数据同步 > Dify 同步」中保存 API 地址和 Key");
+        if (!difyConfigProvider.isActive()) {
+            return SyncResult.failure("Dify 未启用或配置不完整，请先在「数据同步 > Dify 同步」中启用并保存 API 地址和 Key");
         }
 
         String endpoint = difyConfigProvider.getApiUrl();

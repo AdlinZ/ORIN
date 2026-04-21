@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <OrinPageShell
-      title="智能体中枢"
-      description="统一管理智能体、快速继续最近工作，并进入单智能体控制台"
+      title="智能体列表"
+      description="统一管理已接入智能体，查看状态并进入控制台"
       icon="UserFilled"
       domain="智能体中枢"
       maturity="available"

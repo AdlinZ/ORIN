@@ -2,7 +2,7 @@
   <div class="knowledge-assets-page">
     <OrinPageShell
       title="知识资产"
-      description="按 1:1 关系管理知识库与知识图谱，每个知识库对应一个图谱。"
+      description="管理知识库、文档与图谱资产的绑定关系"
       icon="Collection"
       domain="Knowledge Assets"
       maturity="beta"

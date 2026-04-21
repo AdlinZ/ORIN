@@ -317,7 +317,21 @@
         </div>
 
         <el-form-item label="部门负责人" prop="leader">
-          <el-input v-model="formData.leader" placeholder="请输入负责人姓名" />
+          <el-select
+            v-model="formData.leader"
+            placeholder="请选择负责人"
+            clearable
+            filterable
+            :loading="userLoading"
+            class="full-width"
+          >
+            <el-option
+              v-for="user in userList"
+              :key="user.userId"
+              :label="user.nickname || user.username"
+              :value="user.nickname || user.username"
+            />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="联系电话" prop="phone">
@@ -353,6 +367,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown, ArrowUp, OfficeBuilding, Clock } from '@element-plus/icons-vue'
 import { getDepartmentList, getAllDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/department'
+import { getUserList } from '@/api/userManage'
 import PageHeader from '@/components/PageHeader.vue'
 
 // 数据状态
@@ -364,6 +379,8 @@ const selectedDepartment = ref(null)
 const searchKeyword = ref('')
 const treeRef = ref(null)
 const expandedKeys = ref([])
+const userList = ref([])
+const userLoading = ref(false)
 
 // 树形配置
 const treeProps = {
@@ -418,6 +435,19 @@ const formRules = {
   status: [
     { required: true, message: '请选择状态', trigger: 'change' }
   ]
+}
+
+// 加载用户列表
+const loadUsers = async () => {
+  userLoading.value = true
+  try {
+    const res = await getUserList({ page: 0, size: 100 })
+    userList.value = res.data?.records || res.data || []
+  } catch (error) {
+    console.error(error)
+  } finally {
+    userLoading.value = false
+  }
 }
 
 // 格式化日期
@@ -505,7 +535,7 @@ const handleNodeClick = (data) => {
 }
 
 // 创建根部门
-const handleCreateRoot = () => {
+const handleCreateRoot = async () => {
   isEdit.value = false
   isRoot.value = true
   parentDepartmentName.value = ''
@@ -520,11 +550,12 @@ const handleCreateRoot = () => {
     phone: '',
     description: ''
   })
+  await loadUsers()
   dialogVisible.value = true
 }
 
 // 创建子部门
-const handleAddChild = (data) => {
+const handleAddChild = async (data) => {
   isEdit.value = false
   isRoot.value = false
   parentDepartmentName.value = data.departmentName
@@ -539,11 +570,12 @@ const handleAddChild = (data) => {
     phone: '',
     description: ''
   })
+  await loadUsers()
   dialogVisible.value = true
 }
 
 // 编辑部门
-const handleEdit = (data) => {
+const handleEdit = async (data) => {
   isEdit.value = true
   isRoot.value = false
   parentDepartmentName.value = getParentName(data.parentId)
@@ -558,6 +590,7 @@ const handleEdit = (data) => {
     phone: data.phone || '',
     description: data.description || ''
   })
+  await loadUsers()
   dialogVisible.value = true
 }
 
@@ -1004,6 +1037,10 @@ onUnmounted(() => {
 
 .half-width {
   flex: 1;
+}
+
+.full-width {
+  width: 100%;
 }
 
 .dialog-footer {

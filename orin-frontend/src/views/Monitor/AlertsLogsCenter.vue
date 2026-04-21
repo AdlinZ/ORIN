@@ -2,7 +2,7 @@
   <div class="alerts-logs-center">
     <PageHeader
       title="告警与日志"
-      description="统一查看告警规则、告警历史和审计日志"
+      description="统一管理告警规则、告警历史与审计日志"
       icon="Bell"
     />
 

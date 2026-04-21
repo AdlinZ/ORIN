@@ -2,7 +2,7 @@
   <div class="page-container">
     <OrinPageShell
       title="系统环境配置"
-      description="外部服务连接、AI 能力及知识库参数配置"
+      description="配置平台基础服务连接与运行参数"
       icon="Tools"
       domain="系统管理"
       maturity="available"
@@ -1001,8 +1001,20 @@ const loadDifyConfig = async () => {
 };
 
 const handleSaveDifyConfig = async () => {
+  const apiUrl = String(difyConfig.apiUrl || '').trim();
+  const apiKey = String(difyConfig.apiKey || '').trim();
+  if (!apiUrl || !apiKey) {
+    ElMessage.warning('请先填写 Dify API 地址和 API Key');
+    return false;
+  }
   difyLoading.value = true;
-  try { await saveDifyConfig(difyConfig); ElMessage.success('Dify 配置已保存'); return true; }
+  try {
+    await saveDifyConfig({ ...difyConfig, apiUrl, apiKey });
+    difyConfig.apiUrl = apiUrl;
+    difyConfig.apiKey = apiKey;
+    ElMessage.success('Dify 配置已保存');
+    return true;
+  }
   catch (e) { ElMessage.error('保存失败: ' + (e.message || e)); }
   finally { difyLoading.value = false; }
   return false;
@@ -1010,7 +1022,13 @@ const handleSaveDifyConfig = async () => {
 
 const handleTestDifyConnection = async () => {
   try {
-    const res = await testDifyConnection();
+    const apiUrl = String(difyConfig.apiUrl || '').trim();
+    const apiKey = String(difyConfig.apiKey || '').trim();
+    if (!apiUrl || !apiKey) {
+      ElMessage.warning('请先填写 Dify API 地址和 API Key');
+      return;
+    }
+    const res = await testDifyConnection({ apiUrl, apiKey });
     res.success ? ElMessage.success('Dify 连接成功') : ElMessage.error(res.message || '连接失败');
   } catch (e) { ElMessage.error('测试失败: ' + (e.message || e)); }
 };

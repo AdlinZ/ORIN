@@ -321,7 +321,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { ROUTES } from '@/router/routes'
-import { getVisibleMenus, getActiveMenuId } from '@/router/topMenuConfig'
+import { getVisibleMenus, getActiveMenuId, getDefaultHomeByRoles } from '@/router/topMenuConfig'
 import NotificationCenter from './NotificationCenter.vue'
 import DeveloperHub from './DeveloperHub.vue'
 import {
@@ -367,12 +367,11 @@ const userInfo = computed(() => {
   }
 })
 
-const isAdmin = computed(() => userStore.isAdmin)
-const visibleMenus = computed(() => getVisibleMenus(isAdmin.value))
+const visibleMenus = computed(() => getVisibleMenus(userStore.roles || []))
 const activeMenuId = computed(() => getActiveMenuId(route.path))
 
 // Methods
-const goHome = () => router.push(ROUTES.HOME)
+const goHome = () => router.push(getDefaultHomeByRoles(userStore.roles || []))
 
 const handleRefresh = () => {
   // 触发页面刷新事件

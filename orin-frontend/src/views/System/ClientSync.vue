@@ -10,49 +10,52 @@
         </div>
       </div>
 
-      <!-- Agent 选择器（仅端侧 tab 需要） -->
+      <!-- Agent 过滤器（默认全部 Agent） -->
       <div v-if="activeTab !== 'dify'" class="agent-id-bar">
-        <span class="agent-id-label">Agent</span>
+        <span class="agent-id-label">范围</span>
         <el-select
           v-model="agentId"
-          placeholder="选择 Agent"
+          placeholder="全部 Agent"
           filterable
           class="agent-id-input"
           :loading="agentsLoading"
           @change="onAgentChange"
         >
+          <el-option label="全部 Agent" value="" />
           <el-option
             v-for="a in agentList"
-            :key="a.agentId"
-            :label="a.name || a.agentId"
-            :value="a.agentId"
+            :key="getAgentIdentifier(a)"
+            :label="a.name || getAgentIdentifier(a)"
+            :value="getAgentIdentifier(a)"
           >
-            <span>{{ a.name || a.agentId }}</span>
-            <span class="agent-option-id">{{ a.agentId }}</span>
+            <span>{{ a.name || getAgentIdentifier(a) }}</span>
+            <span class="agent-option-id">{{ getAgentIdentifier(a) }}</span>
           </el-option>
         </el-select>
       </div>
     </div>
 
-    <!-- 无 Agent：引导态 -->
-    <div v-if="!agentId" class="empty-guide">
-      <el-empty
-        description="请先选择一个 Agent 开始管理数据同步"
-        :image-size="120"
+    <!-- Tab 导航 -->
+    <div class="sync-nav">
+      <button
+        v-for="tab in tabs"
+        :key="tab.name"
+        class="sync-nav-item"
+        :class="{ active: activeTab === tab.name }"
+        @click="switchTab(tab.name)"
       >
-        <template #image>
-          <el-icon class="empty-guide-icon"><Connection /></el-icon>
-        </template>
-      </el-empty>
+        <el-icon><component :is="tab.icon" /></el-icon>
+        <span>{{ tab.label }}</span>
+      </button>
     </div>
 
-    <!-- 有 Agent ID：主内容 -->
-    <template v-else>
+    <!-- 主内容 -->
+    <template>
       <!-- 状态栏 -->
-      <div class="status-bar">
+      <div v-if="activeTab !== 'dify'" class="status-bar">
         <div class="status-item">
-          <span class="status-label">当前 Agent</span>
-          <el-tag type="info" size="small">{{ agentId }}</el-tag>
+          <span class="status-label">同步范围</span>
+          <el-tag type="info" size="small">{{ agentId || '全部 Agent' }}</el-tag>
         </div>
         <div class="status-item">
           <span class="status-label">最新检查点</span>
@@ -66,22 +69,24 @@
             {{ pendingCount }}
           </el-tag>
         </div>
-        <el-button size="small" :icon="Refresh" circle :loading="statusLoading" @click="loadStatus" />
+        <el-button
+          size="small"
+          :icon="Refresh"
+          circle
+          :loading="statusLoading"
+          :disabled="syncPolling"
+          @click="loadStatus"
+        />
       </div>
 
-      <!-- Tab 导航 -->
-      <div class="sync-nav">
-        <button
-          v-for="tab in tabs"
-          :key="tab.name"
-          class="sync-nav-item"
-          :class="{ active: activeTab === tab.name }"
-          @click="switchTab(tab.name)"
-        >
-          <el-icon><component :is="tab.icon" /></el-icon>
-          <span>{{ tab.label }}</span>
-        </button>
-      </div>
+      <el-alert
+        v-if="syncPolling && activeTab !== 'dify'"
+        class="sync-polling-alert"
+        type="info"
+        :closable="false"
+        show-icon
+        title="同步进行中，正在自动刷新状态..."
+      />
 
       <!-- 变更记录 -->
       <div v-show="activeTab === 'changes'" class="tab-content">
@@ -92,10 +97,10 @@
             </el-button>
           </div>
           <div class="toolbar-right">
-            <el-button type="primary" size="small" :loading="syncing" @click="handleFullSync">
+            <el-button type="primary" size="small" :loading="syncing" :disabled="syncPolling || !agentList.length" @click="handleFullSync">
               全量同步
             </el-button>
-            <el-button type="success" size="small" :loading="syncing" @click="handleIncrementalSync">
+            <el-button type="success" size="small" :loading="syncing" :disabled="syncPolling || !agentList.length" @click="handleIncrementalSync">
               增量同步
             </el-button>
           </div>
@@ -105,6 +110,7 @@
           <template #empty>
             <el-empty description="暂无变更记录" :image-size="80" />
           </template>
+          <el-table-column prop="agentId" label="Agent" width="170" show-overflow-tooltip />
           <el-table-column prop="documentId" label="文档ID" width="200" show-overflow-tooltip />
           <el-table-column prop="knowledgeBaseId" label="知识库ID" width="150" show-overflow-tooltip />
           <el-table-column prop="changeType" label="变更类型" width="100">
@@ -154,6 +160,7 @@
           <template #empty>
             <el-empty description="暂无 Webhook 配置" :image-size="80" />
           </template>
+          <el-table-column prop="agentId" label="Agent" width="170" show-overflow-tooltip />
           <el-table-column prop="webhookUrl" label="URL" show-overflow-tooltip />
           <el-table-column prop="eventTypes" label="事件类型" width="220">
             <template #default="{ row }">
@@ -205,10 +212,15 @@
             <div class="section-title">Dify 连接配置</div>
             <el-form :model="difyConfig" label-width="90px" size="default">
               <el-form-item label="API 地址">
-                <el-input v-model="difyConfig.apiUrl" placeholder="http://localhost:3000" />
+                <el-input v-model="difyConfig.apiUrl" placeholder="http://localhost:3000/v1" />
               </el-form-item>
               <el-form-item label="API Key">
-                <el-input v-model="difyConfig.apiKey" type="password" show-password placeholder="Dify App API Key" />
+                <el-input v-model="difyConfig.apiKey" type="password" show-password placeholder="dataset-*** 或 app-***" />
+              </el-form-item>
+              <el-form-item label="Key 类型">
+                <el-tag v-if="difyKeyType === 'dataset'" type="success">Dataset API Key</el-tag>
+                <el-tag v-else-if="difyKeyType === 'app'" type="warning">App API Key</el-tag>
+                <el-tag v-else type="info">未识别</el-tag>
               </el-form-item>
               <el-form-item label="启用">
                 <el-switch v-model="difyConfig.enabled" />
@@ -218,6 +230,13 @@
                 <el-button :loading="difyTesting" @click="handleTestDifyConnection">测试连接</el-button>
               </el-form-item>
             </el-form>
+            <el-alert
+              v-if="difyKeyType === 'dataset'"
+              title="当前是 Dataset API Key：支持知识库同步，不支持应用/工作流同步与平台概览。"
+              type="info"
+              :closable="false"
+              show-icon
+            />
           </div>
 
           <!-- 右：同步动作 + 概览 -->
@@ -225,9 +244,15 @@
             <div class="section-title">同步动作</div>
             <div class="dify-actions">
               <el-button type="primary" :loading="difySyncing" style="width: 100%" @click="handleDifyFullSync">
-                完整同步（知识库 + 工作流 + 应用）
+                {{ difyKeyType === 'dataset' ? '仅同步知识库（Dataset API）' : '完整同步（知识库 + 工作流 + 应用）' }}
               </el-button>
-              <el-button type="default" :loading="difyWorkflowSyncing" style="width: 100%" @click="handleDifyWorkflowSync">
+              <el-button
+                type="default"
+                :loading="difyWorkflowSyncing"
+                :disabled="difyKeyType === 'dataset'"
+                style="width: 100%"
+                @click="handleDifyWorkflowSync"
+              >
                 仅同步工作流
               </el-button>
             </div>
@@ -242,7 +267,7 @@
               @close="difySyncResult = null"
             />
 
-            <template v-if="difyOverview">
+            <template v-if="difyOverview && difyKeyType !== 'dataset'">
               <div class="section-title" style="margin-top: 24px">同步概览</div>
               <div class="overview-stats">
                 <div class="overview-stat">
@@ -264,7 +289,7 @@
               </div>
             </template>
             <div v-else class="overview-empty">
-              <el-empty description="完整同步后可查看概览" :image-size="60" />
+              <el-empty :description="difyKeyType === 'dataset' ? 'Dataset Key 不支持平台概览' : '完整同步后可查看概览'" :image-size="60" />
             </div>
           </div>
         </div>
@@ -297,10 +322,10 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Connection, List, Promotion, Link } from '@element-plus/icons-vue'
+import { Refresh, List, Promotion, Link } from '@element-plus/icons-vue'
 import {
   getClientChanges,
   getClientCheckpoint,
@@ -313,6 +338,7 @@ import {
   triggerIncrementalSync,
   getDifySyncOverview,
   fullSyncDifyAll,
+  fullSyncDifyKnowledgeOnly,
   syncDifyWorkflows
 } from '@/api/knowledge'
 import {
@@ -323,11 +349,15 @@ import {
 import { getAgentList } from '@/api/agent'
 
 const route = useRoute()
+const router = useRouter()
+
+const POLL_INTERVAL_MS = 2000
+const POLL_MAX_ROUNDS = 8
 
 const tabs = [
-  { name: 'changes',  label: '变更记录', icon: List },
-  { name: 'webhooks', label: 'Webhook',  icon: Link },
-  { name: 'dify',     label: 'Dify 同步', icon: Promotion },
+  { name: 'changes', label: '变更记录', icon: List },
+  { name: 'webhooks', label: 'Webhook', icon: Link },
+  { name: 'dify', label: 'Dify 同步', icon: Promotion }
 ]
 
 const activeTab = ref('changes')
@@ -335,28 +365,28 @@ const agentId = ref('')
 const agentList = ref([])
 const agentsLoading = ref(false)
 
-// 状态栏
 const checkpointData = ref(null)
 const pendingCount = ref(0)
 const statusLoading = ref(false)
 
-// 变更记录
 const changes = ref([])
 const changesLoading = ref(false)
 const changesPage = ref(1)
 const changesSize = ref(10)
 const changesTotal = ref(0)
 
-// 同步
 const syncing = ref(false)
+const syncPolling = ref(false)
+let pollingTimer = null
+let pollingRounds = 0
+let statusLoadRequestId = 0
+let changesLoadRequestId = 0
 
-// Webhook
 const webhooks = ref([])
 const webhooksLoading = ref(false)
 const showWebhookDialog = ref(false)
 const webhookForm = ref({ webhookUrl: '', webhookSecret: '', eventTypes: [] })
 
-// Dify
 const difyConfig = reactive({ apiUrl: '', apiKey: '', enabled: false })
 const difySaving = ref(false)
 const difyTesting = ref(false)
@@ -365,12 +395,92 @@ const difyOverviewLoading = ref(false)
 const difySyncing = ref(false)
 const difyWorkflowSyncing = ref(false)
 const difySyncResult = ref(null)
+const normalizedDifyApiKey = computed(() => String(difyConfig.apiKey || '').trim())
+const difyKeyType = computed(() => {
+  if (normalizedDifyApiKey.value.startsWith('dataset-')) return 'dataset'
+  if (normalizedDifyApiKey.value.startsWith('app-')) return 'app'
+  return 'unknown'
+})
+
+const unwrapResponse = (res) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
+const getErrorMessage = (error) => {
+  if (!error) return '未知错误'
+  if (typeof error === 'string') return error
+  return error?.response?.data?.message || error?.message || '未知错误'
+}
+const getAgentIdentifier = (agent) => agent?.agentId || agent?.id || ''
+const getCurrentAgents = () => {
+  if (!agentList.value.length) return []
+  if (!agentId.value) return agentList.value
+  return agentList.value.filter((item) => getAgentIdentifier(item) === agentId.value)
+}
+
+const stopSyncPolling = () => {
+  if (pollingTimer) {
+    clearTimeout(pollingTimer)
+    pollingTimer = null
+  }
+  pollingRounds = 0
+  syncPolling.value = false
+}
+
+const pollSyncState = async () => {
+  if (!agentList.value.length) {
+    stopSyncPolling()
+    return
+  }
+  try {
+    await Promise.all([
+      loadStatus(),
+      activeTab.value === 'changes' ? loadChanges() : Promise.resolve()
+    ])
+    pollingRounds += 1
+    if (pendingCount.value === 0 || pollingRounds >= POLL_MAX_ROUNDS) {
+      stopSyncPolling()
+      return
+    }
+  } catch (e) {
+    console.error('轮询同步状态失败:', e)
+  }
+  pollingTimer = setTimeout(pollSyncState, POLL_INTERVAL_MS)
+}
+
+const startSyncPolling = () => {
+  stopSyncPolling()
+  syncPolling.value = true
+  pollingRounds = 0
+  pollSyncState()
+}
+
+const updateQuery = (patch = {}) => {
+  const nextQuery = { ...route.query, ...patch }
+  Object.keys(nextQuery).forEach((k) => {
+    if (nextQuery[k] === '' || nextQuery[k] == null) delete nextQuery[k]
+  })
+  router.replace({ query: nextQuery }).catch(() => {})
+}
+
+const persistAgentSelection = (id) => {
+  if (id) localStorage.setItem('control-sync:selected-agent-id', id)
+  else localStorage.removeItem('control-sync:selected-agent-id')
+  updateQuery({ agentId: id })
+}
 
 const loadAgentList = async () => {
   agentsLoading.value = true
   try {
     const res = await getAgentList()
-    agentList.value = res.data || res || []
+    const raw = unwrapResponse(res)
+    const list = Array.isArray(raw) ? raw : []
+    agentList.value = list
+    const routeAgentId = typeof route.query.agentId === 'string' ? route.query.agentId : ''
+    const storedAgentId = localStorage.getItem('control-sync:selected-agent-id') || ''
+    const currentId = agentId.value || routeAgentId || storedAgentId
+    const matched = list.find((item) => getAgentIdentifier(item) === currentId)
+    agentId.value = matched ? getAgentIdentifier(matched) : ''
+    persistAgentSelection(agentId.value)
+    await loadStatus()
+    await loadTabData(activeTab.value)
   } catch (e) {
     console.error('加载 Agent 列表失败:', e)
   } finally {
@@ -379,101 +489,187 @@ const loadAgentList = async () => {
 }
 
 const onAgentChange = () => {
+  stopSyncPolling()
+  changesPage.value = 1
+  persistAgentSelection(agentId.value)
   loadStatus()
   loadTabData(activeTab.value)
 }
 
 const switchTab = (name) => {
   activeTab.value = name
+  updateQuery({ tab: name })
   loadTabData(name)
 }
 
-const loadTabData = (tab) => {
+const loadTabData = async (tab) => {
   if (tab === 'dify') {
-    loadDifyConfig()
-    loadDifyOverview()
+    await Promise.all([loadDifyConfig(), loadDifyOverview()])
     return
   }
-  if (!agentId.value) return
-  if (tab === 'changes') loadChanges()
-  else if (tab === 'webhooks') loadWebhooks()
+  if (tab === 'changes') await loadChanges()
+  else if (tab === 'webhooks') await loadWebhooks()
 }
 
 const loadStatus = async () => {
-  if (!agentId.value) return
+  const requestId = ++statusLoadRequestId
   statusLoading.value = true
   try {
-    const [cpRes, countRes] = await Promise.all([
-      getClientCheckpoint(agentId.value),
-      getPendingChangeCount(agentId.value)
-    ])
-    checkpointData.value = cpRes.data || cpRes
-    pendingCount.value = ((countRes.data || countRes).pendingCount) || 0
+    const targets = getCurrentAgents()
+    if (!targets.length) {
+      checkpointData.value = null
+      pendingCount.value = 0
+      return
+    }
+    const results = await Promise.all(targets.map(async (agent) => {
+      const id = getAgentIdentifier(agent)
+      const [cpRes, countRes] = await Promise.all([getClientCheckpoint(id), getPendingChangeCount(id)])
+      return {
+        agentId: id,
+        checkpoint: unwrapResponse(cpRes)?.checkpoint || null,
+        pending: Number(unwrapResponse(countRes)?.pendingCount || 0)
+      }
+    }))
+    if (requestId !== statusLoadRequestId) return
+    pendingCount.value = results.reduce((sum, item) => sum + item.pending, 0)
+    const latestCheckpoint = results
+      .map((item) => item.checkpoint)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null
+    checkpointData.value = latestCheckpoint ? { checkpoint: latestCheckpoint } : null
   } catch (e) {
     console.error('加载状态失败:', e)
   } finally {
-    statusLoading.value = false
+    if (requestId === statusLoadRequestId) statusLoading.value = false
   }
 }
 
 const loadChanges = async () => {
-  if (!agentId.value) return
+  const requestId = ++changesLoadRequestId
   changesLoading.value = true
   try {
-    const res = await getClientChanges(agentId.value, { page: changesPage.value - 1, size: changesSize.value })
-    const data = res.data || res
-    changes.value = data.content || []
-    changesTotal.value = data.totalElements || data.total || 0
+    const targets = getCurrentAgents()
+    if (!targets.length) {
+      changes.value = []
+      changesTotal.value = 0
+      return
+    }
+    if (agentId.value) {
+      const res = await getClientChanges(agentId.value, { page: changesPage.value - 1, size: changesSize.value })
+      if (requestId !== changesLoadRequestId) return
+      const data = unwrapResponse(res) || {}
+      changes.value = (data.content || []).map((item) => ({ ...item, agentId: agentId.value }))
+      changesTotal.value = data.totalElements || data.total || 0
+      return
+    }
+    const allRows = []
+    await Promise.all(targets.map(async (agent) => {
+      const id = getAgentIdentifier(agent)
+      const res = await getClientChanges(id, { page: 0, size: 200 })
+      const data = unwrapResponse(res) || {}
+      const rows = Array.isArray(data.content) ? data.content : []
+      allRows.push(...rows.map((row) => ({ ...row, agentId: id })))
+    }))
+    if (requestId !== changesLoadRequestId) return
+    allRows.sort((a, b) => new Date(b.changedAt || 0).getTime() - new Date(a.changedAt || 0).getTime())
+    changesTotal.value = allRows.length
+    const start = (changesPage.value - 1) * changesSize.value
+    const end = start + changesSize.value
+    changes.value = allRows.slice(start, end)
   } catch (e) {
-    ElMessage.error('加载变更记录失败: ' + e.message)
+    ElMessage.error('加载变更记录失败: ' + getErrorMessage(e))
   } finally {
-    changesLoading.value = false
+    if (requestId === changesLoadRequestId) changesLoading.value = false
   }
 }
 
 const handleFullSync = async () => {
+  const targets = getCurrentAgents()
+  if (!targets.length) {
+    ElMessage.warning('暂无可同步的 Agent')
+    return
+  }
   syncing.value = true
   try {
-    const res = await triggerFullSync(agentId.value)
-    const data = res.data || res
-    if (data.success) { ElMessage.success('全量同步已触发'); loadStatus() }
-    else ElMessage.error(data.message || '全量同步失败')
+    const results = await Promise.all(targets.map(async (agent) => {
+      const id = getAgentIdentifier(agent)
+      const res = await triggerFullSync(id)
+      return unwrapResponse(res) || {}
+    }))
+    const hasFailure = results.some((item) => !item.success)
+    const totalExported = results.reduce((sum, item) => sum + Number(item.exportedCount || 0), 0)
+    if (!hasFailure) {
+      ElMessage.success(`全量同步已触发，导出文档 ${totalExported} 条`)
+      startSyncPolling()
+    } else {
+      ElMessage.error('部分 Agent 全量同步失败，请查看后端日志')
+    }
   } catch (e) {
-    ElMessage.error('全量同步失败: ' + e.message)
+    ElMessage.error('全量同步失败: ' + getErrorMessage(e))
   } finally {
     syncing.value = false
   }
 }
 
 const handleIncrementalSync = async () => {
+  const targets = getCurrentAgents()
+  if (!targets.length) {
+    ElMessage.warning('暂无可同步的 Agent')
+    return
+  }
   syncing.value = true
   try {
-    const res = await triggerIncrementalSync(agentId.value)
-    const data = res.data || res
-    if (data.success) { ElMessage.success('增量同步已触发'); loadStatus() }
-    else ElMessage.error(data.message || '增量同步失败')
+    const results = await Promise.all(targets.map(async (agent) => {
+      const id = getAgentIdentifier(agent)
+      const res = await triggerIncrementalSync(id)
+      return unwrapResponse(res) || {}
+    }))
+    const hasFailure = results.some((item) => !item.success)
+    const totalPending = results.reduce((sum, item) => sum + Number(item.pendingCount || 0), 0)
+    if (!hasFailure) {
+      ElMessage.success(`增量同步已触发，待同步变更 ${totalPending} 条`)
+      startSyncPolling()
+    } else {
+      ElMessage.error('部分 Agent 增量同步失败，请查看后端日志')
+    }
   } catch (e) {
-    ElMessage.error('增量同步失败: ' + e.message)
+    ElMessage.error('增量同步失败: ' + getErrorMessage(e))
   } finally {
     syncing.value = false
   }
 }
 
 const loadWebhooks = async () => {
-  if (!agentId.value) return
   webhooksLoading.value = true
   try {
-    const res = await getClientWebhooks(agentId.value)
-    webhooks.value = res.data || res || []
+    const targets = getCurrentAgents()
+    if (!targets.length) {
+      webhooks.value = []
+      return
+    }
+    const result = await Promise.all(targets.map(async (agent) => {
+      const id = getAgentIdentifier(agent)
+      const res = await getClientWebhooks(id)
+      const rows = unwrapResponse(res) || []
+      return rows.map((item) => ({ ...item, agentId: item.agentId || id }))
+    }))
+    webhooks.value = result.flat()
   } catch (e) {
-    ElMessage.error('加载 Webhooks 失败: ' + e.message)
+    ElMessage.error('加载 Webhooks 失败: ' + getErrorMessage(e))
   } finally {
     webhooksLoading.value = false
   }
 }
 
 const handleSaveWebhook = async () => {
-  if (!webhookForm.value.webhookUrl) { ElMessage.warning('请输入 Webhook URL'); return }
+  if (!agentId.value) {
+    ElMessage.warning('新增 Webhook 需先选择一个具体 Agent')
+    return
+  }
+  if (!webhookForm.value.webhookUrl) {
+    ElMessage.warning('请输入 Webhook URL')
+    return
+  }
   try {
     await saveClientWebhook(agentId.value, {
       ...webhookForm.value,
@@ -485,20 +681,22 @@ const handleSaveWebhook = async () => {
     webhookForm.value = { webhookUrl: '', webhookSecret: '', eventTypes: [] }
     loadWebhooks()
   } catch (e) {
-    ElMessage.error('保存失败: ' + e.message)
+    ElMessage.error('保存失败: ' + getErrorMessage(e))
   }
 }
 
 const handleDeleteWebhook = async (webhookId) => {
   try {
     await ElMessageBox.confirm('确定要删除此 Webhook 吗?', '确认删除', {
-      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
     })
     await deleteClientWebhook(webhookId)
     ElMessage.success('删除成功')
     loadWebhooks()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error('删除失败: ' + e.message)
+    if (e !== 'cancel') ElMessage.error('删除失败: ' + getErrorMessage(e))
   }
 }
 
@@ -508,14 +706,14 @@ const handleReenableWebhook = async (webhookId) => {
     ElMessage.success('Webhook 已重新启用')
     loadWebhooks()
   } catch (e) {
-    ElMessage.error('启用失败: ' + e.message)
+    ElMessage.error('启用失败: ' + getErrorMessage(e))
   }
 }
 
 const loadDifyConfig = async () => {
   try {
     const res = await getSystemDifyConfig()
-    const config = res.data || res || {}
+    const config = unwrapResponse(res) || {}
     difyConfig.apiUrl = config.apiUrl || ''
     difyConfig.apiKey = config.apiKey || ''
     difyConfig.enabled = !!config.enabled
@@ -525,12 +723,20 @@ const loadDifyConfig = async () => {
 }
 
 const handleSaveDifyConfig = async () => {
+  const apiUrl = String(difyConfig.apiUrl || '').trim()
+  const apiKey = String(difyConfig.apiKey || '').trim()
+  if (!apiUrl || !apiKey) {
+    ElMessage.warning('请先填写 Dify API 地址和 API Key')
+    return
+  }
   difySaving.value = true
   try {
-    await saveSystemDifyConfig({ apiUrl: difyConfig.apiUrl, apiKey: difyConfig.apiKey, enabled: difyConfig.enabled })
+    await saveSystemDifyConfig({ apiUrl, apiKey, enabled: difyConfig.enabled })
+    difyConfig.apiUrl = apiUrl
+    difyConfig.apiKey = apiKey
     ElMessage.success('Dify 配置已保存')
   } catch (e) {
-    ElMessage.error('保存 Dify 配置失败: ' + e.message)
+    ElMessage.error('保存 Dify 配置失败: ' + getErrorMessage(e))
   } finally {
     difySaving.value = false
   }
@@ -540,10 +746,10 @@ const handleTestDifyConnection = async () => {
   difyTesting.value = true
   try {
     const res = await testSystemDifyConnection()
-    const data = res.data || res || {}
+    const data = unwrapResponse(res) || {}
     data.success ? ElMessage.success(data.message || '连接成功') : ElMessage.error(data.message || '连接失败')
   } catch (e) {
-    ElMessage.error('测试连接失败: ' + e.message)
+    ElMessage.error('测试连接失败: ' + getErrorMessage(e))
   } finally {
     difyTesting.value = false
   }
@@ -553,29 +759,38 @@ const handleDifyFullSync = async () => {
   difySyncing.value = true
   difySyncResult.value = null
   try {
-    const res = await fullSyncDifyAll()
-    const data = res.data || res || {}
+    const syncApi = difyKeyType.value === 'dataset' ? fullSyncDifyKnowledgeOnly : fullSyncDifyAll
+    const res = await syncApi()
+    const data = unwrapResponse(res) || {}
     difySyncResult.value = data
     if (data.success) {
-      ElMessage.success('Dify 完整同步已完成')
-      await loadDifyOverview()
+      if (difyKeyType.value === 'dataset') {
+        ElMessage.success('Dify 知识库同步已完成')
+      } else {
+        ElMessage.success('Dify 完整同步已完成')
+        await loadDifyOverview()
+      }
     } else {
-      ElMessage.error(data.message || 'Dify 完整同步失败')
+      ElMessage.error(data.message || (difyKeyType.value === 'dataset' ? 'Dify 知识库同步失败' : 'Dify 完整同步失败'))
     }
   } catch (e) {
-    difySyncResult.value = { success: false, message: e.message }
-    ElMessage.error('Dify 完整同步失败: ' + e.message)
+    difySyncResult.value = { success: false, message: getErrorMessage(e) }
+    ElMessage.error((difyKeyType.value === 'dataset' ? 'Dify 知识库同步失败: ' : 'Dify 完整同步失败: ') + getErrorMessage(e))
   } finally {
     difySyncing.value = false
   }
 }
 
 const handleDifyWorkflowSync = async () => {
+  if (difyKeyType.value === 'dataset') {
+    ElMessage.warning('Dataset API Key 不支持工作流同步')
+    return
+  }
   difyWorkflowSyncing.value = true
   difySyncResult.value = null
   try {
     const res = await syncDifyWorkflows()
-    const data = res.data || res || {}
+    const data = unwrapResponse(res) || {}
     difySyncResult.value = data
     if (data.success) {
       ElMessage.success('工作流同步已完成')
@@ -584,18 +799,22 @@ const handleDifyWorkflowSync = async () => {
       ElMessage.error(data.message || '工作流同步失败')
     }
   } catch (e) {
-    difySyncResult.value = { success: false, message: e.message }
-    ElMessage.error('工作流同步失败: ' + e.message)
+    difySyncResult.value = { success: false, message: getErrorMessage(e) }
+    ElMessage.error('工作流同步失败: ' + getErrorMessage(e))
   } finally {
     difyWorkflowSyncing.value = false
   }
 }
 
 const loadDifyOverview = async () => {
+  if (difyKeyType.value === 'dataset') {
+    difyOverview.value = null
+    return
+  }
   difyOverviewLoading.value = true
   try {
     const res = await getDifySyncOverview()
-    difyOverview.value = res.data || res
+    difyOverview.value = unwrapResponse(res)
   } catch (e) {
     console.error('加载 Dify 概览失败:', e)
   } finally {
@@ -612,10 +831,18 @@ const formatDateTime = (dateStr) => {
 
 onMounted(() => {
   const tab = route.query.tab
-  if (typeof tab === 'string' && tabs.some(t => t.name === tab)) activeTab.value = tab
+  if (typeof tab === 'string' && tabs.some((t) => t.name === tab)) activeTab.value = tab
+  const routeAgentId = typeof route.query.agentId === 'string' ? route.query.agentId : ''
+  if (routeAgentId) agentId.value = routeAgentId
   loadAgentList()
-  loadDifyConfig()
-  loadDifyOverview()
+  if (activeTab.value === 'dify') {
+    loadDifyConfig()
+    loadDifyOverview()
+  }
+})
+
+onUnmounted(() => {
+  stopSyncPolling()
 })
 </script>
 
@@ -730,6 +957,10 @@ onMounted(() => {
 .status-label {
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.sync-polling-alert {
+  margin-bottom: 12px;
 }
 
 /* Tab 导航 */

@@ -36,8 +36,8 @@ public class DifyFullSyncService {
     public SyncResult fullSync() {
         log.info("Starting system-level full sync");
 
-        if (!difyConfigProvider.isConfigured()) {
-            return SyncResult.failure("Dify 未配置，请先在「数据同步 > Dify 同步」中保存 API 地址和 Key");
+        if (!difyConfigProvider.isActive()) {
+            return SyncResult.failure("Dify 未启用或配置不完整，请先在「数据同步 > Dify 同步」中启用并保存 API 地址和 Key");
         }
 
         String endpoint = difyConfigProvider.getApiUrl();
@@ -188,8 +188,8 @@ public class DifyFullSyncService {
      * 同步对话历史
      */
     public SyncResult syncConversations(String appId) {
-        if (!difyConfigProvider.isConfigured()) {
-            return SyncResult.failure("Dify 未配置");
+        if (!difyConfigProvider.isActive()) {
+            return SyncResult.failure("Dify 未启用或配置不完整");
         }
         String endpoint = difyConfigProvider.getApiUrl();
         String apiKey   = difyConfigProvider.getApiKey();
@@ -223,8 +223,8 @@ public class DifyFullSyncService {
      * 同步工作流 DSL
      */
     public SyncResult syncWorkflows() {
-        if (!difyConfigProvider.isConfigured()) {
-            return SyncResult.failure("Dify 未配置");
+        if (!difyConfigProvider.isActive()) {
+            return SyncResult.failure("Dify 未启用或配置不完整");
         }
         String endpoint = difyConfigProvider.getApiUrl();
         String apiKey   = difyConfigProvider.getApiKey();

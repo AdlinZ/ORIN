@@ -169,10 +169,9 @@ const { userInfo, checkLoginStatus, handleLogout } = useUser()
 const { isDarkMode, toggleTheme } = useTheme()
 
 const activeMenu = computed(() => route.path)
-const isAdmin = computed(() => userStore.isAdmin)
 
 // 可见菜单（根据权限过滤）
-const visibleMenus = computed(() => getVisibleMenus(isAdmin.value))
+const visibleMenus = computed(() => getVisibleMenus(userStore.roles || []))
 
 const getSubMenuIndex = (level, item, parentId = '') => {
   const identity = item.id || item.path || item.title || 'menu'

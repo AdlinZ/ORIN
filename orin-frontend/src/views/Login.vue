@@ -133,7 +133,7 @@ import { ElMessage } from 'element-plus';
 import Cookies from 'js-cookie';
 import BrandingLogo from '@/components/BrandingLogo.vue';
 import { useUserStore } from '@/stores/user';
-import { ROUTES } from '@/router/routes';
+import { getDefaultHomeByRoles } from '@/router/topMenuConfig';
 import { login } from '../api/auth';
 
 const router = useRouter();
@@ -254,7 +254,8 @@ const handleLogin = async () => {
         Cookies.set('orin_userInfo', JSON.stringify(user), { expires: cookieExpires });
         Cookies.set('orin_roles', JSON.stringify(roles || ['ROLE_USER']), { expires: cookieExpires });
 
-        setTimeout(() => router.push(ROUTES.HOME), 500);
+        const targetRoute = getDefaultHomeByRoles(roles || ['ROLE_USER']);
+        setTimeout(() => router.push(targetRoute), 500);
       } catch (error) {
         ElMessage.error('登录失败: ' + (error.response?.data?.message || '请检查账号密码'));
       } finally {

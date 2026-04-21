@@ -1,1168 +1,1761 @@
 <template>
-  <div class="notification-center-container">
-    <PageHeader
-      title="通知中心"
-      description="统一配置邮件渠道、告警通知渠道与通知偏好设置"
-      icon="Bell"
-    />
+  <div class="mail-workbench gmail-layout">
+    <div class="gmail-topbar">
+      <div class="brand-block">
+        <el-icon :size="18"><Message /></el-icon>
+        <span>ORIN Mail</span>
+      </div>
+      <div class="search-block">
+        <el-input v-model="inboxKeyword" placeholder="搜索邮件（发件人、主题、内容）" clearable>
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+      </div>
+      <div class="top-actions">
+        <el-tag :type="mailConnected ? 'success' : 'warning'">{{ mailConnected ? '已连接' : '未配置' }}</el-tag>
+        <el-button text @click="switchModule('service')">设置</el-button>
+      </div>
+    </div>
 
-    <div class="setup-content">
-      <!-- 标签页导航 -->
-      <el-tabs v-model="activeTab" class="notification-tabs">
-        <!-- 标签1: 邮件渠道配置 -->
-        <el-tab-pane label="邮件渠道" name="mail-service">
-          <!-- 顶部快捷操作栏 -->
-          <div class="quick-action-bar">
-            <el-button
-              type="primary"
-              :icon="Promotion"
-              :loading="sendingTest"
-              :disabled="!mailConnected"
-              @click="openTestMailDialog"
-            >
-              发送测试邮件
-            </el-button>
-            <el-button
-              :icon="Connection"
-              :loading="testingConnection"
-              :disabled="!mailConnected"
-              @click="testConnection"
-            >
-              验证连接
-            </el-button>
+    <div class="gmail-main">
+      <aside class="gmail-sidebar">
+        <el-button class="compose-btn" type="primary" @click="switchModule('compose')">撰写</el-button>
+
+        <button class="nav-item" :class="{ active: activeTab === 'inbox' && inboxFolder === 'all' }" @click="switchModule('inbox'); inboxFolder = 'all'">
+          收件箱
+          <span>{{ inboxList.length }}</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'inbox' && inboxFolder === 'unread' }" @click="switchModule('inbox'); inboxFolder = 'unread'">
+          未读
+          <span>{{ unreadInboxCount }}</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'inbox' && inboxFolder === 'read' }" @click="switchModule('inbox'); inboxFolder = 'read'">
+          已读
+          <span>{{ Math.max(inboxList.length - unreadInboxCount, 0) }}</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'tracking' }" @click="switchModule('tracking')">
+          已发送追踪
+          <span>{{ trackingStats.failed }}</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'templates' }" @click="switchModule('templates')">模板</button>
+        <button class="nav-item" :class="{ active: activeTab === 'service' }" @click="switchModule('service')">邮箱设置</button>
+
+        <div class="sidebar-group-title">快捷操作</div>
+        <el-button size="small" :loading="fetchingInbox" :disabled="!imapConfigured" @click="fetchInboxAction">拉取新邮件</el-button>
+        <el-button size="small" :loading="loadingInbox" @click="loadInbox">刷新列表</el-button>
+      </aside>
+
+      <section class="gmail-content">
+        <template v-if="activeTab === 'inbox'">
+          <div class="list-toolbar">
+            <div class="toolbar-left">
+              <el-checkbox
+                :model-value="filteredInboxList.length > 0 && selectedMailIds.length === filteredInboxList.length"
+                @change="toggleSelectAllMails"
+              >
+                全选
+              </el-checkbox>
+              <el-button text @click="batchMarkRead" :disabled="selectedMailIds.length === 0">标记已读</el-button>
+              <el-button text type="danger" @click="batchDeleteMail" :disabled="selectedMailIds.length === 0">删除</el-button>
+            </div>
+            <div class="toolbar-right">
+              <el-tag type="info">未读 {{ unreadInboxCount }}</el-tag>
+              <el-tag :type="imapConfigured ? 'success' : 'warning'">IMAP {{ imapConfigured ? '已配置' : '未配置' }}</el-tag>
+            </div>
           </div>
 
-          <!-- 配置向导 -->
-          <el-card class="setup-card">
-            <template #header>
-              <div class="card-header">
-                <span><el-icon><Setting /></el-icon> 邮件渠道配置</span>
-                <el-tag :type="mailConnected ? 'success' : 'warning'" size="small">
-                  {{ mailConnected ? '已连接' : '未配置' }}
-                </el-tag>
+          <div class="mail-split">
+            <div class="mail-list">
+              <div
+                v-for="mail in filteredInboxList"
+                :key="mail.id"
+                class="mail-row"
+                :class="{ active: selectedInboxMail?.id === mail.id, unread: isInboxUnread(mail) }"
+                @click="openInboxMail(mail)"
+              >
+                <div class="mail-row-left">
+                  <el-checkbox :model-value="selectedMailIds.includes(mail.id)" @change="(v) => toggleMailSelection(mail.id, v)" @click.stop />
+                  <button class="star-btn" @click.stop="toggleStar(mail)">{{ mail.starred ? '★' : '☆' }}</button>
+                </div>
+                <div class="mail-row-content">
+                  <div class="from">{{ mail.fromEmail || '-' }}</div>
+                  <div class="subject">{{ mail.subject || '(无主题)' }}</div>
+                </div>
+                <div class="time">{{ formatDateTime(mail.receivedAt) }}</div>
               </div>
-            </template>
-
-            <!-- 步骤指示器 -->
-            <div class="config-steps">
-              <div class="step-item" :class="{ active: configStep === 1, completed: configStep > 1 }">
-                <div class="step-number">
-                  1
-                </div>
-                <div class="step-text">
-                  选择通道
-                </div>
-              </div>
-              <div class="step-line" :class="{ active: configStep > 1 }" />
-              <div class="step-item" :class="{ active: configStep === 2, completed: configStep > 2 }">
-                <div class="step-number">
-                  2
-                </div>
-                <div class="step-text">
-                  填写凭据
-                </div>
-              </div>
-              <div class="step-line" :class="{ active: configStep > 2 }" />
-              <div class="step-item" :class="{ active: configStep === 3 }">
-                <div class="step-number">
-                  3
-                </div>
-                <div class="step-text">
-                  验证配置
-                </div>
-              </div>
+              <div v-if="!loadingInbox && filteredInboxList.length === 0" class="mail-empty">暂无邮件</div>
             </div>
 
-            <!-- 步骤1: 选择通道 -->
-            <div v-show="configStep === 1" class="config-step-content">
-              <div class="mailer-selection">
-                <div
-                  class="mailer-option"
-                  :class="{ selected: mailConfigForm.mailerType === 'mailersend' }"
-                  @click="selectMailer('mailersend')"
-                >
-                  <div class="mailer-icon mailersend-icon">
-                    <svg viewBox="0 0 24 24" width="40" height="40">
-                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                    </svg>
+            <div class="mail-reader">
+              <template v-if="selectedInboxMail">
+                <div class="reader-header">
+                  <h3>{{ selectedInboxMail.subject || '(无主题)' }}</h3>
+                  <div class="reader-meta">
+                    <span>发件人：{{ selectedInboxMail.fromEmail || '-' }}</span>
+                    <span>收件人：{{ selectedInboxMail.toEmail || '-' }}</span>
+                    <span>时间：{{ formatDateTime(selectedInboxMail.receivedAt) }}</span>
                   </div>
-                  <div class="mailer-info">
-                    <h4>MailerSend API</h4>
-                    <p>推荐 · 更快速、更可靠</p>
+                  <div class="reader-actions">
+                    <el-button size="small" @click="markInboxRead(selectedInboxMail)" :disabled="!isInboxUnread(selectedInboxMail)">已读</el-button>
+                    <el-button size="small" type="danger" @click="deleteInboxMailAction(selectedInboxMail)">删除</el-button>
                   </div>
-                  <el-icon v-if="mailConfigForm.mailerType === 'mailersend'" class="check-icon">
-                    <CircleCheck />
-                  </el-icon>
                 </div>
+                <div class="reader-body" v-html="selectedInboxMail.contentHtml || selectedInboxMail.content || '-'" />
+              </template>
+              <div v-else class="reader-empty">选择一封邮件开始阅读</div>
+            </div>
+          </div>
 
-                <div
-                  class="mailer-option"
-                  :class="{ selected: mailConfigForm.mailerType === 'smtp' }"
-                  @click="selectMailer('smtp')"
-                >
-                  <div class="mailer-icon smtp-icon">
-                    <el-icon :size="40">
-                      <MessageBox />
-                    </el-icon>
-                  </div>
-                  <div class="mailer-info">
-                    <h4>SMTP</h4>
-                    <p>通用 · 兼容各种邮件服务</p>
-                  </div>
-                  <el-icon v-if="mailConfigForm.mailerType === 'smtp'" class="check-icon">
-                    <CircleCheck />
-                  </el-icon>
-                </div>
+          <div class="pagination-wrap">
+            <el-pagination
+              v-model:current-page="inboxPagination.page"
+              v-model:page-size="inboxPagination.size"
+              :total="inboxPagination.total"
+              :page-sizes="[10, 20, 50]"
+              layout="total, sizes, prev, pager, next"
+              @current-change="loadInbox"
+              @size-change="loadInbox"
+            />
+          </div>
+        </template>
 
-                <div
-                  class="mailer-option"
-                  :class="{ selected: mailConfigForm.mailerType === 'resend' }"
-                  @click="selectMailer('resend')"
-                >
-                  <div class="mailer-icon resend-icon">
-                    <svg viewBox="0 0 24 24" width="40" height="40">
-                      <path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
-                  </div>
-                  <div class="mailer-info">
-                    <h4>Resend</h4>
-                    <p>现代 · 开发者友好</p>
-                  </div>
-                  <el-icon v-if="mailConfigForm.mailerType === 'resend'" class="check-icon">
-                    <CircleCheck />
-                  </el-icon>
-                </div>
-              </div>
-
-              <div class="step-actions">
-                <el-button type="primary" :disabled="!mailConfigForm.mailerType" @click="configStep = 2">
-                  下一步 <el-icon><ArrowRight /></el-icon>
+        <template v-else-if="activeTab === 'compose'">
+          <div class="module-sheet compose-sheet">
+            <div class="sheet-title">撰写邮件</div>
+            <div class="compose-actions">
+              <el-button type="primary" :loading="sendingMail" :disabled="!mailConnected" @click="sendMailAction">发送</el-button>
+              <el-button @click="openPreviewDialog">预览</el-button>
+              <el-button @click="triggerAttachmentPicker">附件</el-button>
+              <el-dropdown trigger="click">
+                <el-button>
+                  发信设置
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
                 </el-button>
-              </div>
-            </div>
-
-            <!-- 步骤2: 填写凭据 -->
-            <div v-show="configStep === 2" class="config-step-content">
-              <el-form :model="mailConfigForm" label-width="140px" class="config-form">
-                <!-- MailerSend / Resend 配置 -->
-                <template v-if="mailConfigForm.mailerType === 'mailersend' || mailConfigForm.mailerType === 'resend'">
-                  <el-form-item label="API Token" required>
-                    <el-input
-                      v-model="mailConfigForm.apiKey"
-                      type="password"
-                      show-password
-                      :placeholder="mailConfigForm.mailerType === 'mailersend' ? 'mls_xxxxxxxxxxxx' : 're_xxxxxxxxxxxx'"
-                    >
-                      <template #prefix>
-                        <el-icon><Key /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
-
-                  <el-form-item label="发件人邮箱" required>
-                    <el-input v-model="mailConfigForm.fromEmail" placeholder="your-email@domain.com">
-                      <template #prefix>
-                        <el-icon><Message /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
-
-                  <el-form-item label="发件人名称">
-                    <el-input v-model="mailConfigForm.fromName" placeholder="ORIN 系统">
-                      <template #prefix>
-                        <el-icon><User /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item>
+                      <el-checkbox v-model="sendForm.separateSend">分别发送（逐个收件人）</el-checkbox>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
                 </template>
-
-                <!-- SMTP 配置 -->
-                <template v-if="mailConfigForm.mailerType === 'smtp'">
-                  <el-form-item label="SMTP 服务器" required>
-                    <el-input v-model="mailConfigForm.smtpHost" placeholder="smtp.mailersend.net">
-                      <template #prefix>
-                        <el-icon><Monitor /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
-
-                  <el-form-item label="端口" required>
-                    <el-select v-model="mailConfigForm.smtpPort" placeholder="选择端口" style="width: 100%;">
-                      <el-option label="587 (TLS)" :value="587" />
-                      <el-option label="465 (SSL)" :value="465" />
-                      <el-option label="25 (无加密)" :value="25" />
-                    </el-select>
-                  </el-form-item>
-
-                  <el-form-item label="用户名">
-                    <el-input v-model="mailConfigForm.smtpUsername" placeholder="username">
-                      <template #prefix>
-                        <el-icon><User /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
-
-                  <el-form-item label="密码">
-                    <el-input
-                      v-model="mailConfigForm.smtpPassword"
-                      type="password"
-                      show-password
-                      placeholder="密码"
-                    >
-                      <template #prefix>
-                        <el-icon><Lock /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
-
-                  <el-form-item label="发件人邮箱" required>
-                    <el-input v-model="mailConfigForm.fromEmail" placeholder="your-email@domain.com">
-                      <template #prefix>
-                        <el-icon><Message /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
-
-                  <el-form-item label="发件人名称">
-                    <el-input v-model="mailConfigForm.fromName" placeholder="ORIN 系统">
-                      <template #prefix>
-                        <el-icon><User /></el-icon>
-                      </template>
-                    </el-input>
-                  </el-form-item>
-
-                  <el-form-item label="启用 SSL">
-                    <el-switch v-model="mailConfigForm.sslEnabled" />
-                  </el-form-item>
-                </template>
-              </el-form>
-
-              <div class="step-actions">
-                <el-button @click="configStep = 1">
-                  <el-icon><ArrowLeft /></el-icon> 上一步
-                </el-button>
-                <el-button type="primary" :disabled="!canProceedStep2" @click="configStep = 3">
-                  下一步 <el-icon><ArrowRight /></el-icon>
-                </el-button>
-              </div>
+              </el-dropdown>
+              <el-button @click="saveDraft">保存草稿</el-button>
+              <el-button @click="applyDefaultTemplate">套用默认模板</el-button>
             </div>
-
-            <!-- 步骤3: 验证配置 -->
-            <div v-show="configStep === 3" class="config-step-content">
-              <div class="verify-content">
-                <div class="verify-summary">
-                  <el-descriptions :column="2" border>
-                    <el-descriptions-item label="发送方式">
-                      <el-tag :type="getMailerTypeTag(mailConfigForm.mailerType)">
-                        {{ getMailerTypeName(mailConfigForm.mailerType) }}
-                      </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="发件人邮箱">
-                      {{ mailConfigForm.fromEmail || '-' }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="发件人名称">
-                      {{ mailConfigForm.fromName || '-' }}
-                    </el-descriptions-item>
-                    <el-descriptions-item v-if="mailConfigForm.mailerType === 'smtp'" label="SMTP 服务器">
-                      {{ mailConfigForm.smtpHost }}:{{ mailConfigForm.smtpPort }}
-                    </el-descriptions-item>
-                  </el-descriptions>
+            <el-form :model="sendForm" label-width="90px" class="compose-form compose-qq-form">
+              <el-form-item label="收件人" required>
+                <div class="recipient-row">
+                  <el-input v-model="sendForm.to" placeholder="多个邮箱用逗号分隔" clearable />
+                  <el-button text @click="showCc = !showCc">抄送</el-button>
+                  <el-button text @click="showBcc = !showBcc">密送</el-button>
                 </div>
-
-                <div class="verify-test">
-                  <el-input
-                    v-model="testRecipient"
-                    placeholder="输入测试收件人邮箱"
-                    style="width: 300px; margin-right: 12px;"
-                  >
-                    <template #prefix>
-                      <el-icon><Message /></el-icon>
-                    </template>
-                  </el-input>
-                  <el-button
-                    type="primary"
-                    :loading="sendingTest"
-                    :disabled="!testRecipient"
-                    @click="sendTestMail"
-                  >
-                    发送测试邮件
-                  </el-button>
+              </el-form-item>
+              <el-form-item v-if="showCc" label="抄送">
+                <el-input v-model="sendForm.cc" placeholder="多个邮箱用逗号分隔" clearable />
+              </el-form-item>
+              <el-form-item v-if="showBcc" label="密送">
+                <el-input v-model="sendForm.bcc" placeholder="多个邮箱用逗号分隔" clearable />
+              </el-form-item>
+              <el-form-item label="主题" required>
+                <el-input v-model="sendForm.subject" placeholder="邮件主题" clearable />
+              </el-form-item>
+              <el-form-item label="模板">
+                <el-select v-model="sendForm.templateId" clearable placeholder="可选模板" style="width: 100%;" @change="handleTemplateChange">
+                  <el-option v-for="template in templates" :key="template.id" :label="template.name" :value="template.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item v-if="templateVariables.length > 0" label="变量">
+                <div class="variables-grid">
+                  <el-input v-for="field in templateVariables" :key="field" v-model="sendForm.variables[field]" :placeholder="field" />
                 </div>
+              </el-form-item>
+              <el-form-item label="内容" required class="editor-form-item">
+                <div class="qq-editor-wrap">
+                  <div class="editor-toolbar">
+                    <el-button text @click="execEditorCommand('bold')">B</el-button>
+                    <el-button text @click="execEditorCommand('italic')"><i>I</i></el-button>
+                    <el-button text @click="execEditorCommand('underline')"><u>U</u></el-button>
+                    <el-divider direction="vertical" />
+                    <el-button text @click="execEditorCommand('insertUnorderedList')">• 列表</el-button>
+                    <el-button text @click="execEditorCommand('insertOrderedList')">1. 列表</el-button>
+                    <el-button text @click="insertQuote">引用</el-button>
+                    <el-button text @click="insertCodeBlock">&lt;/&gt;</el-button>
+                    <el-button text @click="insertEmoji">😀</el-button>
+                  </div>
+                  <div
+                    ref="composeEditorRef"
+                    class="qq-editor"
+                    contenteditable="true"
+                    @input="onComposeEditorInput"
+                    @paste="onComposeEditorPaste"
+                  />
+                </div>
+              </el-form-item>
+              <el-form-item label="附件">
+                <div class="attachment-block">
+                  <input ref="attachmentInputRef" type="file" multiple style="display: none;" @change="onAttachmentChange" />
+                  <el-button @click="triggerAttachmentPicker">添加附件</el-button>
+                  <span class="attachment-hint">当前版本先记录附件清单，后端暂不作为 MIME 附件发送。</span>
+                  <div v-if="attachments.length > 0" class="attachment-list">
+                    <div v-for="(item, idx) in attachments" :key="`${item.name}-${idx}`" class="attachment-item">
+                      <span>{{ item.name }} ({{ formatFileSize(item.size) }})</span>
+                      <el-button text type="danger" @click="removeAttachment(idx)">移除</el-button>
+                    </div>
+                  </div>
+                </div>
+              </el-form-item>
+            </el-form>
+          </div>
+        </template>
 
-                <!-- 测试结果反馈 -->
-                <el-alert
-                  v-if="testResult"
-                  :title="testResult.success ? '测试成功' : '测试失败'"
-                  :type="testResult.success ? 'success' : 'error'"
-                  :description="testResult.message"
-                  show-icon
-                  closable
-                  style="margin-top: 16px;"
-                />
-              </div>
-
-              <div class="step-actions">
-                <el-button @click="configStep = 2">
-                  <el-icon><ArrowLeft /></el-icon> 上一步
-                </el-button>
-                <el-button type="primary" :loading="testingConnection" @click="saveAndTest">
-                  <el-icon><Check /></el-icon> 保存配置
-                </el-button>
-              </div>
+        <template v-else-if="activeTab === 'tracking'">
+          <div class="module-sheet">
+            <div class="sheet-title">发送追踪</div>
+            <div class="tab-actions">
+              <el-select v-model="trackingFilter.status" placeholder="状态" clearable style="width: 140px;" @change="loadLogs">
+                <el-option label="待发送" value="PENDING" />
+                <el-option label="成功" value="SUCCESS" />
+                <el-option label="失败" value="FAILED" />
+              </el-select>
+              <el-button :loading="loadingLogs" @click="loadLogs">刷新</el-button>
+              <el-button type="warning" :disabled="selectedFailedLogs.length === 0" :loading="retryingBatch" @click="batchRetryLogs">
+                批量重试失败 ({{ selectedFailedLogs.length }})
+              </el-button>
             </div>
-          </el-card>
-
-          <!-- 配置成功后的下一步行动 -->
-          <el-card v-if="mailConnected" class="next-actions-card">
-            <template #header>
-              <div class="card-header">
-                <span><el-icon><Lightning /></el-icon> 下一步行动</span>
-              </div>
-            </template>
-            <div class="next-actions">
-              <div class="next-action" @click="goToCompose">
-                <el-icon :size="32">
-                  <EditPen />
-                </el-icon>
-                <div class="next-action-content">
-                  <h4>发送邮件</h4>
-                  <p>撰写并发送邮件</p>
-                </div>
-                <el-icon class="arrow">
-                  <ArrowRight />
-                </el-icon>
-              </div>
-              <div class="next-action" @click="goToTemplates">
-                <el-icon :size="32">
-                  <Document />
-                </el-icon>
-                <div class="next-action-content">
-                  <h4>管理模板</h4>
-                  <p>创建和编辑邮件模板</p>
-                </div>
-                <el-icon class="arrow">
-                  <ArrowRight />
-                </el-icon>
-              </div>
-              <div class="next-action" @click="goToTracking">
-                <el-icon :size="32">
-                  <List />
-                </el-icon>
-                <div class="next-action-content">
-                  <h4>查看发送日志</h4>
-                  <p>追踪邮件发送状态</p>
-                </div>
-                <el-icon class="arrow">
-                  <ArrowRight />
-                </el-icon>
-              </div>
-            </div>
-          </el-card>
-        </el-tab-pane>
-
-        <!-- 标签2: 通知渠道 -->
-        <el-tab-pane label="通知渠道" name="notification-channels">
-          <NotificationChannelsPanel
-            :mail-connected="mailConnected"
-            :require-mail-connected-for-email-test="true"
-            mail-dependency-text="邮件通知依赖于&quot;邮件渠道&quot;标签页中的邮件配置"
-          />
-        </el-tab-pane>
-
-        <!-- 标签3: 站内消息 -->
-        <el-tab-pane label="站内消息" name="messages">
-          <el-card class="messages-card">
-            <template #header>
-              <div class="card-header">
-                <span><el-icon><Bell /></el-icon> 消息列表</span>
-                <el-button
-                  type="primary"
-                  plain
-                  size="small"
-                  :loading="markingAllAsRead"
-                  @click="handleMarkAllAsRead"
-                >
-                  全部已读
-                </el-button>
-              </div>
-            </template>
-
-            <el-table
-              v-loading="loadingNotifications"
-              :data="notificationList"
-              style="width: 100%"
-              empty-text="暂无消息"
-            >
-              <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
-              <el-table-column prop="content" label="内容" min-width="280" show-overflow-tooltip />
-              <el-table-column prop="type" label="类型" width="100">
-                <template #default="{ row }">
-                  <el-tag
-                    size="small"
-                    :type="row.type === 'ERROR' ? 'danger' : row.type === 'WARNING' ? 'warning' : row.type === 'SYSTEM' ? 'info' : 'success'"
-                  >
-                    {{ row.type || 'INFO' }}
-                  </el-tag>
-                </template>
+            <el-table v-loading="loadingLogs" :data="logs" border @selection-change="onLogSelectionChange">
+              <el-table-column type="selection" width="48" />
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }"><el-tag :type="getStatusTagType(row.status)">{{ row.status }}</el-tag></template>
               </el-table-column>
-              <el-table-column prop="scope" label="范围" width="80">
-                <template #default="{ row }">
-                  {{ row.scope === 'BROADCAST' ? '广播' : '用户' }}
-                </template>
+              <el-table-column prop="recipients" label="收件人" min-width="220" show-overflow-tooltip />
+              <el-table-column prop="subject" label="主题" min-width="220" show-overflow-tooltip />
+              <el-table-column prop="createdAt" label="时间" width="180">
+                <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
               </el-table-column>
-              <el-table-column prop="createdAt" label="时间" width="160">
-                <template #default="{ row }">
-                  {{ formatDateTime(row.createdAt) }}
-                </template>
-              </el-table-column>
+              <el-table-column prop="errorMessage" label="错误" min-width="220" show-overflow-tooltip />
               <el-table-column label="操作" width="100" fixed="right">
                 <template #default="{ row }">
-                  <el-button
-                    v-if="!row.read"
-                    type="primary"
-                    link
-                    size="small"
-                    @click="handleMarkAsRead(row.id)"
-                  >
-                    标记已读
-                  </el-button>
-                  <span v-else class="text-muted">已读</span>
+                  <el-button v-if="row.status === 'FAILED'" text type="warning" :loading="retryingSingleId === row.id" @click="retrySingleLog(row)">重试</el-button>
                 </template>
               </el-table-column>
             </el-table>
+          </div>
+        </template>
 
-            <div class="pagination-wrapper">
-              <el-pagination
-                v-model:current-page="notificationPage"
-                v-model:page-size="notificationPageSize"
-                :total="notificationTotal"
-                :page-sizes="[10, 20, 50]"
-                layout="total, sizes, prev, pager, next, jumper"
-                @size-change="loadNotifications"
-                @current-change="loadNotifications"
-              />
+        <template v-else-if="activeTab === 'templates'">
+          <div class="module-sheet">
+            <div class="sheet-title">模板管理</div>
+            <div class="tab-actions">
+              <el-button type="primary" @click="openTemplateEditor()">新建模板</el-button>
+              <el-input v-model="templateSearch" placeholder="按名称或编码过滤" style="width: 260px;" clearable />
             </div>
-          </el-card>
-        </el-tab-pane>
+            <el-table :data="filteredTemplates" border>
+              <el-table-column prop="name" label="名称" min-width="150" />
+              <el-table-column prop="code" label="编码" min-width="120" />
+              <el-table-column prop="subject" label="主题" min-width="220" show-overflow-tooltip />
+              <el-table-column label="默认" width="80">
+                <template #default="{ row }"><el-tag v-if="row.isDefault" type="success" size="small">默认</el-tag><span v-else>-</span></template>
+              </el-table-column>
+              <el-table-column label="启用" width="90">
+                <template #default="{ row }"><el-switch :model-value="row.enabled" @change="(v) => toggleTemplateEnabled(row, v)" /></template>
+              </el-table-column>
+              <el-table-column label="操作" width="170" fixed="right">
+                <template #default="{ row }">
+                  <el-button text type="primary" @click="openTemplateEditor(row)">编辑</el-button>
+                  <el-button text type="danger" @click="deleteTemplateAction(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </template>
 
-        <!-- 标签4: 消息发信 -->
-        <el-tab-pane label="消息发信" name="send-notification">
-          <el-card class="send-notification-card">
-            <template #header>
-              <div class="card-header">
-                <span><el-icon><Promotion /></el-icon> 发送站内消息</span>
-              </div>
-            </template>
+        <template v-else>
+          <div class="module-sheet">
+            <div class="sheet-title">邮箱设置</div>
+            <div class="tab-actions">
+              <el-button type="primary" :loading="savingConfig" @click="saveMailConfigAction">保存配置</el-button>
+              <el-input v-model="testEmail" placeholder="输入测试邮箱" style="width: 320px;" clearable />
+              <el-button :loading="testingConfig" :disabled="!mailConnected && !hasConfigDraft" @click="testMailConfigAction">发送测试邮件</el-button>
+            </div>
 
-            <el-form :model="sendNotificationForm" label-width="100px" class="send-form">
-              <el-form-item label="消息标题" required>
-                <el-input
-                  v-model="sendNotificationForm.title"
-                  placeholder="请输入消息标题"
-                  maxlength="100"
-                  show-word-limit
-                />
-              </el-form-item>
-
-              <el-form-item label="消息内容" required>
-                <el-input
-                  v-model="sendNotificationForm.content"
-                  type="textarea"
-                  :rows="6"
-                  placeholder="请输入消息内容"
-                  maxlength="1000"
-                  show-word-limit
-                />
-              </el-form-item>
-
-              <el-form-item label="发送范围" required>
-                <el-radio-group v-model="sendNotificationForm.scope">
-                  <el-radio value="BROADCAST">广播全员</el-radio>
-                  <el-radio value="USER">指定用户</el-radio>
+            <el-form :model="mailConfigForm" label-width="140px" class="config-form">
+              <el-form-item label="发送方式" required>
+                <el-radio-group v-model="mailConfigForm.mailerType">
+                  <el-radio-button value="mailersend">MailerSend API</el-radio-button>
+                  <el-radio-button value="resend">Resend</el-radio-button>
+                  <el-radio-button value="smtp">SMTP</el-radio-button>
                 </el-radio-group>
               </el-form-item>
 
-              <el-form-item v-if="sendNotificationForm.scope === 'USER'" label="用户ID">
-                <el-input
-                  v-model="sendNotificationForm.receiverId"
-                  placeholder="请输入用户ID"
-                />
-              </el-form-item>
+              <template v-if="mailConfigForm.mailerType === 'mailersend' || mailConfigForm.mailerType === 'resend'">
+                <el-form-item label="API Key" required>
+                  <el-input v-model="mailConfigForm.apiKey" type="password" show-password placeholder="输入 API Key" />
+                </el-form-item>
+              </template>
+              <template v-else>
+                <el-form-item label="SMTP Host" required><el-input v-model="mailConfigForm.smtpHost" placeholder="smtp.example.com" /></el-form-item>
+                <el-form-item label="SMTP Port" required><el-input-number v-model="mailConfigForm.smtpPort" :min="1" :max="65535" /></el-form-item>
+                <el-form-item label="用户名"><el-input v-model="mailConfigForm.smtpUsername" placeholder="SMTP 用户名" /></el-form-item>
+                <el-form-item label="密码"><el-input v-model="mailConfigForm.smtpPassword" type="password" show-password placeholder="SMTP 密码" /></el-form-item>
+                <el-form-item label="SSL"><el-switch v-model="mailConfigForm.sslEnabled" /></el-form-item>
+              </template>
 
-              <el-form-item>
-                <el-button
-                  type="primary"
-                  :loading="sendingNotification"
-                  @click="handleSendNotification"
-                >
-                  发送消息
-                </el-button>
-              </el-form-item>
+              <el-form-item label="发件邮箱" required><el-input v-model="mailConfigForm.fromEmail" placeholder="noreply@example.com" /></el-form-item>
+              <el-form-item label="发件人名称"><el-input v-model="mailConfigForm.fromName" placeholder="ORIN 系统" /></el-form-item>
+              <el-form-item label="启用服务"><el-switch v-model="mailConfigForm.enabled" /></el-form-item>
+              <el-divider>IMAP 收件箱配置</el-divider>
+              <el-form-item label="启用 IMAP"><el-switch v-model="mailConfigForm.imapEnabled" /></el-form-item>
+              <template v-if="mailConfigForm.imapEnabled">
+                <el-form-item label="IMAP Host" required><el-input v-model="mailConfigForm.imapHost" placeholder="imap.example.com" /></el-form-item>
+                <el-form-item label="IMAP Port" required><el-input-number v-model="mailConfigForm.imapPort" :min="1" :max="65535" /></el-form-item>
+                <el-form-item label="IMAP 用户名"><el-input v-model="mailConfigForm.imapUsername" placeholder="邮箱账号" /></el-form-item>
+                <el-form-item label="IMAP 密码"><el-input v-model="mailConfigForm.imapPassword" type="password" show-password placeholder="邮箱密码或授权码" /></el-form-item>
+              </template>
             </el-form>
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
+          </div>
+        </template>
+      </section>
     </div>
 
-    <!-- 测试邮件对话框 -->
-    <el-dialog v-model="testMailDialogVisible" title="发送测试邮件" width="500px">
-      <el-form :model="testMailForm" label-width="100px">
-        <el-form-item label="收件人">
-          <el-input v-model="testMailForm.to" placeholder="test@example.com">
-            <template #prefix>
-              <el-icon><Message /></el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
-        <el-form-item label="邮件类型">
-          <el-select v-model="testMailForm.type" style="width: 100%;">
-            <el-option label="验证码" value="verification" />
-            <el-option label="通知" value="notification" />
-            <el-option label="告警" value="alert" />
-          </el-select>
-        </el-form-item>
+    <el-dialog v-model="templateDialogVisible" :title="templateEditing.id ? '编辑模板' : '新建模板'" width="680px">
+      <el-form :model="templateEditing" label-width="100px">
+        <el-form-item label="模板名称" required><el-input v-model="templateEditing.name" /></el-form-item>
+        <el-form-item label="模板编码" required><el-input v-model="templateEditing.code" :disabled="Boolean(templateEditing.id)" /></el-form-item>
+        <el-form-item label="邮件主题" required><el-input v-model="templateEditing.subject" /></el-form-item>
+        <el-form-item label="模板内容" required><el-input v-model="templateEditing.content" type="textarea" :rows="10" /></el-form-item>
+        <el-form-item label="默认模板"><el-switch v-model="templateEditing.isDefault" /></el-form-item>
+        <el-form-item label="启用"><el-switch v-model="templateEditing.enabled" /></el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="testMailDialogVisible = false">
-          取消
-        </el-button>
-        <el-button type="primary" :loading="sendingTest" @click="sendTestMailFromDialog">
-          发送
-        </el-button>
+        <el-button @click="templateDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingTemplate" @click="saveTemplateAction">保存</el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog v-model="composePreviewVisible" title="邮件预览" width="900px">
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="收件人">{{ sendForm.to || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="抄送">{{ sendForm.cc || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="密送">{{ sendForm.bcc || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="主题">{{ sendForm.subject || '-' }}</el-descriptions-item>
+      </el-descriptions>
+      <div class="preview-body" v-html="sendForm.content || '<p>-</p>'" />
     </el-dialog>
   </div>
 </template>
-
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import {
-  Setting, Connection, Warning, Promotion, ArrowRight, ArrowLeft,
-  CircleCheck, MessageBox, Key, Message, User, Monitor, Lock, Check,
-  EditPen, Document, List, Lightning, Bell
-} from '@element-plus/icons-vue'
-import request from '@/utils/request'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
-import NotificationChannelsPanel from '@/components/notification/NotificationChannelsPanel.vue'
-import { ROUTES } from '@/router/routes'
+import { Message, Search, ArrowDown } from '@element-plus/icons-vue'
+import { getNotificationConfig, saveNotificationConfig, testNotificationChannel } from '@/api/alert'
 import {
-  getNotifications,
-  markAsRead,
-  markAllAsRead,
-  sendNotification as sendNotificationApi
-} from '@/api/notification'
+  getMailConfig,
+  saveMailConfig,
+  testMailConnection,
+  sendMail,
+  getMailTemplates,
+  saveMailTemplate,
+  deleteMailTemplate,
+  getMailSendLogs,
+  retryMailSendLog,
+  batchRetryMailSendLogs,
+  getMailInbox,
+  getUnreadMailCount,
+  markMailAsRead,
+  deleteMail,
+  fetchMail,
+  getImapStatus
+} from '@/api/mail'
 
-const router = useRouter()
 const route = useRoute()
+const router = useRouter()
 
-// 根据路由路径决定默认标签页
-const getDefaultTab = () => {
-  const path = route.path
-  if (path.includes('notification-channels')) {
-    return 'notification-channels'
-  }
-  return 'mail-service'
+const TAB_MAP = {
+  overview: 'inbox',
+  service: 'service',
+  setup: 'service',
+  compose: 'compose',
+  templates: 'templates',
+  tracking: 'tracking',
+  inbox: 'inbox',
+  'notification-channels': 'notification-channels'
 }
 
-// 标签页
-const activeTab = ref(getDefaultTab())
+const getTabFromRoute = () => {
+  const raw = String(route.query.tab || 'overview').toLowerCase()
+  return TAB_MAP[raw] || 'overview'
+}
 
-// 页面状态
-const pageState = ref('loading')
-const configStep = ref(1)
+const activeTab = ref(getTabFromRoute())
+const moduleNavItems = [
+  { key: 'inbox', label: '收件箱' },
+  { key: 'compose', label: '发送邮件' },
+  { key: 'tracking', label: '发送追踪' },
+  { key: 'templates', label: '模板管理' },
+  { key: 'service', label: '服务配置' }
+]
 
-// 加载状态
-const testingConnection = ref(false)
-const sendingTest = ref(false)
-
-// 配置状态
-const mailConnected = ref(false)
 const mailConfig = ref(null)
+const mailConnected = ref(false)
+const savingConfig = ref(false)
+const testingConfig = ref(false)
+const testEmail = ref('')
 
-// 测试
-const testRecipient = ref('')
-const testResult = ref(null)
-const testMailDialogVisible = ref(false)
-const testMailForm = reactive({
-  to: '',
-  type: 'verification',
-  code: '123456'
-})
-
-// 配置表单
 const mailConfigForm = reactive({
+  id: null,
   mailerType: 'mailersend',
   apiKey: '',
   smtpHost: 'smtp.mailersend.net',
   smtpPort: 587,
   smtpUsername: '',
   smtpPassword: '',
+  sslEnabled: true,
   fromEmail: '',
   fromName: 'ORIN 系统',
-  sslEnabled: true
+  imapEnabled: false,
+  imapHost: '',
+  imapPort: 993,
+  imapUsername: '',
+  imapPassword: '',
+  enabled: true
 })
 
-// 计算属性
-const canProceedStep2 = computed(() => {
-  if (mailConfigForm.mailerType === 'mailersend' || mailConfigForm.mailerType === 'resend') {
-    return mailConfigForm.apiKey && mailConfigForm.fromEmail
-  } else {
-    return mailConfigForm.smtpHost && mailConfigForm.fromEmail
-  }
+const sendForm = reactive({
+  to: '',
+  cc: '',
+  bcc: '',
+  subject: '',
+  content: '',
+  templateId: null,
+  variables: {},
+  separateSend: false
+})
+const showCc = ref(false)
+const showBcc = ref(false)
+const composePreviewVisible = ref(false)
+const composeEditorRef = ref(null)
+const attachmentInputRef = ref(null)
+const attachments = ref([])
+
+const sendingMail = ref(false)
+const templates = ref([])
+const templateSearch = ref('')
+const templateDialogVisible = ref(false)
+const savingTemplate = ref(false)
+const templateEditing = reactive({
+  id: null,
+  name: '',
+  code: '',
+  subject: '',
+  content: '',
+  enabled: true,
+  isDefault: false
 })
 
-// 方法
-const selectMailer = (type) => {
-  mailConfigForm.mailerType = type
+const logs = ref([])
+const loadingLogs = ref(false)
+const retryingSingleId = ref(null)
+const retryingBatch = ref(false)
+const selectedFailedLogs = ref([])
+const trackingFilter = reactive({
+  status: ''
+})
+const logPagination = reactive({
+  page: 1,
+  size: 20,
+  total: 0
+})
+
+const inboxList = ref([])
+const loadingInbox = ref(false)
+const fetchingInbox = ref(false)
+const inboxUnreadCount = ref(0)
+const inboxPagination = reactive({
+  page: 1,
+  size: 20,
+  total: 0
+})
+const imapConfigured = ref(false)
+const inboxDetailVisible = ref(false)
+const selectedInboxMail = ref(null)
+const inboxFolder = ref('all')
+const inboxKeyword = ref('')
+const selectedMailIds = ref([])
+
+// ==================== 通知渠道 ====================
+const notifConfigLoaded = ref(false)
+const notifSaving = ref(false)
+const notifTesting = reactive({ email: false, dingtalk: false, wecom: false })
+const notifConfig = reactive({
+  emailEnabled: true,
+  emailRecipients: '',
+  dingtalkEnabled: false,
+  dingtalkWebhook: '',
+  wecomEnabled: false,
+  wecomWebhook: '',
+  criticalOnly: false,
+  instantPush: true,
+  mergeIntervalMinutes: 0,
+  desktopNotification: true,
+  notifyEmail: true,
+  notifyInapp: true
+})
+
+const notifEnabledChannelCount = () => {
+  return ['emailEnabled', 'dingtalkEnabled', 'wecomEnabled'].filter((k) => notifConfig[k]).length
 }
 
-const getMailerTypeName = (type) => {
-  const map = {
-    mailersend: 'MailerSend API',
-    smtp: 'SMTP',
-    resend: 'Resend'
-  }
-  return map[type] || type
-}
-
-const getMailerTypeTag = (type) => {
-  const map = {
-    mailersend: 'primary',
-    smtp: 'info',
-    resend: 'success'
-  }
-  return map[type] || 'info'
-}
-
-// ==================== 邮件服务相关方法 ====================
-
-// 加载配置
-const loadMailConfig = async () => {
+const loadNotifConfig = async () => {
+  notifConfigLoaded.value = false
   try {
-    pageState.value = 'loading'
-    const res = await request.get('/system/mail-config')
-    if (res) {
-      mailConfig.value = res
-      mailConnected.value = res.enabled
+    const data = await getNotificationConfig()
+    notifConfig.emailEnabled = data.emailEnabled ?? true
+    notifConfig.emailRecipients = data.emailRecipients || ''
+    notifConfig.dingtalkEnabled = data.dingtalkEnabled ?? false
+    notifConfig.dingtalkWebhook = data.dingtalkWebhook || ''
+    notifConfig.wecomEnabled = data.wecomEnabled ?? false
+    notifConfig.wecomWebhook = data.wecomWebhook || ''
+    notifConfig.criticalOnly = data.criticalOnly ?? false
+    notifConfig.instantPush = data.instantPush ?? true
+    notifConfig.mergeIntervalMinutes = data.mergeIntervalMinutes ?? 0
+    notifConfig.desktopNotification = data.desktopNotification ?? true
+    notifConfig.notifyEmail = data.notifyEmail ?? true
+    notifConfig.notifyInapp = data.notifyInapp ?? true
+  } catch (error) {
+    console.error('load notif config failed', error)
+  } finally {
+    notifConfigLoaded.value = true
+  }
+}
 
-      mailConfigForm.mailerType = res.mailerType || 'mailersend'
-      if (res.mailerType === 'mailersend' || res.mailerType === 'resend') {
-        mailConfigForm.apiKey = res.apiKey || ''
-      } else {
-        mailConfigForm.smtpHost = res.smtpHost || 'smtp.mailersend.net'
-        mailConfigForm.smtpPort = res.smtpPort || 587
-        mailConfigForm.smtpUsername = res.username || ''
-        mailConfigForm.smtpPassword = res.password || ''
-        mailConfigForm.sslEnabled = res.sslEnabled !== false
-      }
-      mailConfigForm.fromEmail = res.fromEmail || ''
-      mailConfigForm.fromName = res.fromName || 'ORIN 系统'
+const notifPersistConfig = async () => {
+  if (notifSaving.value) return false
+  notifSaving.value = true
+  try {
+    await saveNotificationConfig({ ...notifConfig })
+    return true
+  } catch (error) {
+    console.error('save notif config failed', error)
+    return false
+  } finally {
+    notifSaving.value = false
+  }
+}
+
+const notifSaveConfig = async () => {
+  if (notifConfig.emailEnabled && !notifConfig.emailRecipients.trim()) {
+    ElMessage.warning('请填写邮件收件人')
+    return
+  }
+  if (notifConfig.dingtalkEnabled && !notifConfig.dingtalkWebhook.trim()) {
+    ElMessage.warning('请填写钉钉 Webhook 地址')
+    return
+  }
+  if (notifConfig.wecomEnabled && !notifConfig.wecomWebhook.trim()) {
+    ElMessage.warning('请填写企业微信 Webhook 地址')
+    return
+  }
+  if (notifEnabledChannelCount() === 0) {
+    ElMessage.warning('请至少开启一个通知渠道')
+    return
+  }
+  const ok = await notifPersistConfig()
+  if (ok) ElMessage.success('配置保存成功')
+  else ElMessage.error('配置保存失败')
+}
+
+const notifToggleChannel = async (channel, enabled) => {
+  const key = `${channel}Enabled`
+  if (!enabled && notifEnabledChannelCount() === 0) {
+    notifConfig[key] = true
+    ElMessage.warning('请至少开启一个通知渠道')
+    return
+  }
+  if (enabled) {
+    if (channel === 'email' && !notifConfig.emailRecipients.trim()) {
+      notifConfig[key] = false
+      ElMessage.warning('请先填写邮件收件人再开启邮件通知')
+      return
     }
-    pageState.value = 'success'
-  } catch (e) {
-    console.error('加载配置失败:', e)
-    pageState.value = 'error'
+    if (channel === 'dingtalk' && !notifConfig.dingtalkWebhook.trim()) {
+      notifConfig[key] = false
+      ElMessage.warning('请先填写钉钉 Webhook 地址再开启钉钉通知')
+      return
+    }
+    if (channel === 'wecom' && !notifConfig.wecomWebhook.trim()) {
+      notifConfig[key] = false
+      ElMessage.warning('请先填写企业微信 Webhook 地址再开启企业微信通知')
+      return
+    }
+  }
+  const ok = await notifPersistConfig()
+  if (ok) {
+    const name = channel === 'email' ? '邮件' : channel === 'dingtalk' ? '钉钉' : '企业微信'
+    ElMessage.success(`${name}通知已${enabled ? '开启' : '关闭'}`)
   }
 }
 
-// 保存并测试
-const saveAndTest = async () => {
-  testingConnection.value = true
+const notifTestChannel = async (channel) => {
+  if (channel === 'email') {
+    if (!notifConfig.emailRecipients.trim()) {
+      ElMessage.warning('请先填写邮件收件人')
+      return
+    }
+  }
+  if (channel === 'dingtalk' && !notifConfig.dingtalkWebhook.trim()) {
+    ElMessage.warning('请先填写钉钉 Webhook 地址')
+    return
+  }
+  if (channel === 'wecom' && !notifConfig.wecomWebhook.trim()) {
+    ElMessage.warning('请先填写企业微信 Webhook 地址')
+    return
+  }
+  notifTesting[channel] = true
   try {
-    const config = {
-      id: mailConfig.value?.id,
+    const res = await testNotificationChannel(channel)
+    if (res?.success) ElMessage.success(res.message || '测试通知发送成功')
+    else ElMessage.warning(res?.message || '测试通知发送失败')
+  } catch (error) {
+    ElMessage.error('测试通知发送失败')
+  } finally {
+    notifTesting[channel] = false
+  }
+}
+
+const openDingtalkHelp = () => {
+  ElMessage.info('请在钉钉群设置中添加自定义机器人，复制其 Webhook 地址填入上方')
+}
+
+const openWecomHelp = () => {
+  ElMessage.info('请在企业微信群中添加自定义机器人，复制其 Webhook 地址填入上方')
+}
+
+const trackingStats = computed(() => {
+  const stats = { pending: 0, success: 0, failed: 0 }
+  logs.value.forEach((item) => {
+    if (item.status === 'PENDING') stats.pending += 1
+    if (item.status === 'SUCCESS') stats.success += 1
+    if (item.status === 'FAILED') stats.failed += 1
+  })
+  return stats
+})
+
+const visibleModuleNavItems = computed(() => moduleNavItems)
+
+const hasConfigDraft = computed(() => {
+  if (mailConfigForm.mailerType === 'smtp') {
+    return Boolean(mailConfigForm.smtpHost && mailConfigForm.fromEmail)
+  }
+  return Boolean(mailConfigForm.apiKey && mailConfigForm.fromEmail)
+})
+
+const filteredTemplates = computed(() => {
+  const keyword = templateSearch.value.trim().toLowerCase()
+  if (!keyword) return templates.value
+  return templates.value.filter((item) => {
+    return String(item.name || '').toLowerCase().includes(keyword)
+      || String(item.code || '').toLowerCase().includes(keyword)
+  })
+})
+
+const templateVariables = computed(() => {
+  const values = new Set()
+  const match = /{{\s*([a-zA-Z0-9_\-.]+)\s*}}/g
+  ;[sendForm.subject, sendForm.content].forEach((text) => {
+    if (!text) return
+    let result = match.exec(text)
+    while (result) {
+      values.add(result[1])
+      result = match.exec(text)
+    }
+    match.lastIndex = 0
+  })
+  return Array.from(values)
+})
+
+const unreadInboxCount = computed(() => inboxList.value.filter((item) => !item.read && !item.isRead).length)
+
+const filteredInboxList = computed(() => {
+  const keyword = inboxKeyword.value.trim().toLowerCase()
+  return inboxList.value.filter((item) => {
+    const unread = !item.read && !item.isRead
+    if (inboxFolder.value === 'unread' && !unread) return false
+    if (inboxFolder.value === 'read' && unread) return false
+    if (!keyword) return true
+    const full = `${item.fromEmail || ''} ${item.subject || ''} ${item.content || ''}`.toLowerCase()
+    return full.includes(keyword)
+  })
+})
+
+const switchModule = (tab) => {
+  activeTab.value = tab
+}
+
+const onTabChange = (tab) => {
+  router.replace({
+    path: route.path,
+    query: { ...route.query, tab }
+  })
+}
+
+const isInboxUnread = (row) => {
+  return !row.read && !row.isRead
+}
+
+const formatMailerType = (value) => {
+  if (value === 'mailersend') return 'MailerSend'
+  if (value === 'resend') return 'Resend'
+  if (value === 'smtp') return 'SMTP'
+  return '-'
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${d} ${h}:${min}`
+}
+
+const getStatusTagType = (status) => {
+  if (status === 'SUCCESS') return 'success'
+  if (status === 'FAILED') return 'danger'
+  if (status === 'PENDING') return 'warning'
+  return 'info'
+}
+
+const syncConfigForm = (cfg) => {
+  mailConfigForm.id = cfg?.id || null
+  mailConfigForm.mailerType = cfg?.mailerType || 'mailersend'
+  mailConfigForm.apiKey = cfg?.apiKey || ''
+  mailConfigForm.smtpHost = cfg?.smtpHost || 'smtp.mailersend.net'
+  mailConfigForm.smtpPort = cfg?.smtpPort || 587
+  mailConfigForm.smtpUsername = cfg?.username || ''
+  mailConfigForm.smtpPassword = cfg?.password || ''
+  mailConfigForm.sslEnabled = cfg?.sslEnabled !== false
+  mailConfigForm.fromEmail = cfg?.fromEmail || ''
+  mailConfigForm.fromName = cfg?.fromName || 'ORIN 系统'
+  mailConfigForm.imapEnabled = Boolean(cfg?.imapEnabled)
+  mailConfigForm.imapHost = cfg?.imapHost || ''
+  mailConfigForm.imapPort = cfg?.imapPort || 993
+  mailConfigForm.imapUsername = cfg?.imapUsername || ''
+  mailConfigForm.imapPassword = cfg?.imapPassword || ''
+  mailConfigForm.enabled = cfg?.enabled !== false
+}
+
+const loadMailConfigAction = async () => {
+  try {
+    const data = await getMailConfig()
+    mailConfig.value = data || null
+    mailConnected.value = Boolean(data?.enabled)
+    syncConfigForm(data || {})
+  } catch (error) {
+    console.error('load mail config failed', error)
+  }
+}
+
+const loadTemplates = async () => {
+  try {
+    const data = await getMailTemplates()
+    templates.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('load templates failed', error)
+  }
+}
+
+const loadLogs = async () => {
+  loadingLogs.value = true
+  try {
+    const data = await getMailSendLogs({
+      page: logPagination.page - 1,
+      size: logPagination.size,
+      status: trackingFilter.status || undefined
+    })
+    logs.value = data?.content || []
+    logPagination.total = data?.totalElements || 0
+  } catch (error) {
+    console.error('load logs failed', error)
+  } finally {
+    loadingLogs.value = false
+  }
+}
+
+const loadInboxMeta = async () => {
+  try {
+    const [unread, imap] = await Promise.all([
+      getUnreadMailCount(),
+      getImapStatus()
+    ])
+    inboxUnreadCount.value = unread?.count || 0
+    imapConfigured.value = Boolean(imap?.configured)
+  } catch (error) {
+    console.error('load inbox meta failed', error)
+  }
+}
+
+const loadInbox = async () => {
+  loadingInbox.value = true
+  try {
+    const data = await getMailInbox({
+      page: inboxPagination.page - 1,
+      size: inboxPagination.size
+    })
+    inboxList.value = data?.content || []
+    inboxPagination.total = data?.totalElements || 0
+  } catch (error) {
+    console.error('load inbox failed', error)
+  } finally {
+    loadingInbox.value = false
+  }
+}
+
+const toggleMailSelection = (id, checked) => {
+  const next = new Set(selectedMailIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  selectedMailIds.value = Array.from(next)
+}
+
+const toggleSelectAllMails = (checked) => {
+  if (checked) {
+    selectedMailIds.value = filteredInboxList.value.map((mail) => mail.id)
+    return
+  }
+  selectedMailIds.value = []
+}
+
+const batchMarkRead = async () => {
+  const selected = inboxList.value.filter((mail) => selectedMailIds.value.includes(mail.id))
+  for (const mail of selected) {
+    if (!isInboxUnread(mail)) continue
+    // eslint-disable-next-line no-await-in-loop
+    await markMailAsRead(mail.id)
+    mail.isRead = true
+  }
+  ElMessage.success('已批量标记已读')
+  await loadInboxMeta()
+}
+
+const batchDeleteMail = async () => {
+  if (selectedMailIds.value.length === 0) return
+  await ElMessageBox.confirm(`确认删除选中的 ${selectedMailIds.value.length} 封邮件？`, '批量删除', { type: 'warning' })
+  for (const id of selectedMailIds.value) {
+    // eslint-disable-next-line no-await-in-loop
+    await deleteMail(id)
+  }
+  selectedMailIds.value = []
+  ElMessage.success('已批量删除')
+  await loadInbox()
+  await loadInboxMeta()
+}
+
+const toggleStar = (mail) => {
+  mail.starred = !mail.starred
+}
+
+const saveMailConfigAction = async () => {
+  if (!mailConfigForm.fromEmail) {
+    ElMessage.warning('请填写发件邮箱')
+    return
+  }
+  if ((mailConfigForm.mailerType === 'mailersend' || mailConfigForm.mailerType === 'resend') && !mailConfigForm.apiKey) {
+    ElMessage.warning('请填写 API Key')
+    return
+  }
+  if (mailConfigForm.mailerType === 'smtp' && !mailConfigForm.smtpHost) {
+    ElMessage.warning('请填写 SMTP Host')
+    return
+  }
+  if (mailConfigForm.imapEnabled && !mailConfigForm.imapHost) {
+    ElMessage.warning('请填写 IMAP Host')
+    return
+  }
+
+  savingConfig.value = true
+  try {
+    const payload = {
+      id: mailConfigForm.id,
       mailerType: mailConfigForm.mailerType,
-      apiKey: (mailConfigForm.mailerType === 'mailersend' || mailConfigForm.mailerType === 'resend') ? mailConfigForm.apiKey : null,
+      apiKey: mailConfigForm.apiKey,
       smtpHost: mailConfigForm.smtpHost,
       smtpPort: mailConfigForm.smtpPort,
       username: mailConfigForm.smtpUsername,
       password: mailConfigForm.smtpPassword,
+      sslEnabled: mailConfigForm.sslEnabled,
       fromEmail: mailConfigForm.fromEmail,
       fromName: mailConfigForm.fromName,
-      sslEnabled: mailConfigForm.sslEnabled,
-      enabled: true
+      imapEnabled: mailConfigForm.imapEnabled,
+      imapHost: mailConfigForm.imapHost,
+      imapPort: mailConfigForm.imapPort,
+      imapUsername: mailConfigForm.imapUsername,
+      imapPassword: mailConfigForm.imapPassword,
+      enabled: mailConfigForm.enabled
     }
-
-    await request.post('/system/mail-config', config)
-    mailConfig.value = config
-    mailConnected.value = true
-
-    ElMessage.success('配置保存成功')
-  } catch (e) {
-    console.error('保存配置失败:', e)
-    ElMessage.error('保存失败: ' + (e.message || '未知错误'))
+    const saved = await saveMailConfig(payload)
+    mailConfig.value = saved
+    mailConnected.value = Boolean(saved?.enabled)
+    syncConfigForm(saved || payload)
+    ElMessage.success('邮件配置保存成功')
+    await loadInboxMeta()
   } finally {
-    testingConnection.value = false
+    savingConfig.value = false
   }
 }
 
-// 测试连接
-const testConnection = async () => {
-  testingConnection.value = true
-  testResult.value = null
-  try {
-    const res = await request.post('/system/mail-config/test')
-    testResult.value = {
-      success: res.success || res.code === 0,
-      message: res.message || '连接测试成功'
-    }
-    if (testResult.value.success) {
-      ElMessage.success('连接验证成功')
-    }
-  } catch (e) {
-    testResult.value = {
-      success: false,
-      message: e.message || '连接验证失败'
-    }
-  } finally {
-    testingConnection.value = false
-  }
-}
-
-// 打开测试邮件对话框
-const openTestMailDialog = () => {
-  testMailForm.to = ''
-  testMailDialogVisible.value = true
-}
-
-// 发送测试邮件
-const sendTestMailFromDialog = async () => {
-  if (!testMailForm.to) {
-    ElMessage.warning('请输入收件人邮箱')
+const testMailConfigAction = async () => {
+  const target = testEmail.value.trim() || mailConfigForm.fromEmail
+  if (!target) {
+    ElMessage.warning('请先填写测试邮箱')
     return
   }
 
-  sendingTest.value = true
+  testingConfig.value = true
   try {
-    await request.post('/system/mail-config/test', {
-      to: testMailForm.to,
-      type: testMailForm.type,
-      code: testMailForm.code
-    })
-    ElMessage.success('测试邮件发送成功')
-    testMailDialogVisible.value = false
-  } catch (e) {
-    ElMessage.error('发送失败: ' + (e.message || '未知错误'))
+    const result = await testMailConnection({ testEmail: target })
+    if (result?.success) {
+      ElMessage.success(result.message || '测试邮件发送成功')
+    } else {
+      ElMessage.warning(result?.message || '测试邮件发送失败')
+    }
   } finally {
-    sendingTest.value = false
+    testingConfig.value = false
   }
 }
 
-// 发送测试邮件（步骤3）
-const sendTestMail = async () => {
-  if (!testRecipient.value) {
-    ElMessage.warning('请输入测试收件人邮箱')
+const replaceTemplateVariables = (text) => {
+  if (!text) return ''
+  return text.replace(/{{\s*([a-zA-Z0-9_\-.]+)\s*}}/g, (_, key) => sendForm.variables[key] || '')
+}
+
+const validateEmails = (value) => {
+  const emails = value.split(/[,\n;]/).map((item) => item.trim()).filter(Boolean)
+  if (emails.length === 0) return false
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emails.every((email) => regex.test(email))
+}
+
+const syncComposeEditor = (html) => {
+  if (!composeEditorRef.value) return
+  composeEditorRef.value.innerHTML = html || ''
+}
+
+const onComposeEditorInput = (event) => {
+  sendForm.content = event.target.innerHTML
+}
+
+const onComposeEditorPaste = (event) => {
+  event.preventDefault()
+  const text = event.clipboardData?.getData('text/plain') || ''
+  document.execCommand('insertText', false, text)
+}
+
+const execEditorCommand = (command) => {
+  composeEditorRef.value?.focus()
+  document.execCommand(command, false)
+  sendForm.content = composeEditorRef.value?.innerHTML || ''
+}
+
+const insertQuote = () => {
+  composeEditorRef.value?.focus()
+  document.execCommand('insertHTML', false, '<blockquote style="border-left:3px solid #d0d7e5;padding-left:8px;color:#5c6a80;">引用内容</blockquote>')
+  sendForm.content = composeEditorRef.value?.innerHTML || ''
+}
+
+const insertCodeBlock = () => {
+  composeEditorRef.value?.focus()
+  document.execCommand('insertHTML', false, '<pre style="background:#f5f7fb;border:1px solid #dce3ef;border-radius:6px;padding:10px;"><code>code here</code></pre>')
+  sendForm.content = composeEditorRef.value?.innerHTML || ''
+}
+
+const insertEmoji = () => {
+  composeEditorRef.value?.focus()
+  document.execCommand('insertText', false, '😀')
+  sendForm.content = composeEditorRef.value?.innerHTML || ''
+}
+
+const openPreviewDialog = () => {
+  composePreviewVisible.value = true
+}
+
+const triggerAttachmentPicker = () => {
+  attachmentInputRef.value?.click()
+}
+
+const onAttachmentChange = (event) => {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+  attachments.value = [...attachments.value, ...files.map((file) => ({ name: file.name, size: file.size }))]
+  event.target.value = ''
+}
+
+const removeAttachment = (index) => {
+  attachments.value.splice(index, 1)
+}
+
+const formatFileSize = (size) => {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const sendMailAction = async () => {
+  if (!mailConnected.value) {
+    ElMessage.warning('请先完成邮件服务配置')
+    return
+  }
+  if (!validateEmails(sendForm.to || '')) {
+    ElMessage.warning('收件人邮箱格式不正确')
+    return
+  }
+  if (sendForm.cc && !validateEmails(sendForm.cc)) {
+    ElMessage.warning('抄送邮箱格式不正确')
+    return
+  }
+  if (sendForm.bcc && !validateEmails(sendForm.bcc)) {
+    ElMessage.warning('密送邮箱格式不正确')
+    return
+  }
+  if (!sendForm.subject.trim() || !sendForm.content.trim()) {
+    ElMessage.warning('请填写主题和内容')
+    return
+  }
+  if (attachments.value.length > 0) {
+    ElMessage.info('当前版本附件仅作为写信清单展示，后端尚未做 MIME 附件透传。')
+  }
+
+  sendingMail.value = true
+  try {
+    const payload = {
+      to: sendForm.to,
+      cc: sendForm.cc,
+      bcc: sendForm.bcc,
+      separateSend: sendForm.separateSend,
+      subject: replaceTemplateVariables(sendForm.subject),
+      content: replaceTemplateVariables(sendForm.content)
+    }
+    const result = await sendMail(payload)
+    if (result?.success) {
+      ElMessage.success(result.message || '邮件发送成功')
+      localStorage.removeItem('mail_workbench_draft')
+      await loadLogs()
+    } else {
+      ElMessage.warning(result?.message || '邮件发送失败')
+    }
+  } finally {
+    sendingMail.value = false
+  }
+}
+
+const saveDraft = () => {
+  localStorage.setItem('mail_workbench_draft', JSON.stringify(sendForm))
+  ElMessage.success('草稿已保存')
+}
+
+const loadDraft = () => {
+  try {
+    const raw = localStorage.getItem('mail_workbench_draft')
+    if (!raw) return
+    const draft = JSON.parse(raw)
+    sendForm.to = draft.to || ''
+    sendForm.cc = draft.cc || ''
+    sendForm.bcc = draft.bcc || ''
+    sendForm.subject = draft.subject || ''
+    sendForm.content = draft.content || ''
+    sendForm.templateId = draft.templateId || null
+    sendForm.variables = draft.variables || {}
+    sendForm.separateSend = Boolean(draft.separateSend)
+    showCc.value = Boolean(sendForm.cc)
+    showBcc.value = Boolean(sendForm.bcc)
+    syncComposeEditor(sendForm.content)
+  } catch (error) {
+    console.error('load draft failed', error)
+  }
+}
+
+const handleTemplateChange = (templateId) => {
+  const target = templates.value.find((item) => item.id === templateId)
+  if (!target) return
+  sendForm.subject = target.subject || ''
+  sendForm.content = target.content || ''
+  sendForm.variables = {}
+  syncComposeEditor(sendForm.content)
+}
+
+const applyDefaultTemplate = () => {
+  const target = templates.value.find((item) => item.isDefault)
+  if (!target) {
+    ElMessage.warning('当前没有默认模板')
+    return
+  }
+  sendForm.templateId = target.id
+  handleTemplateChange(target.id)
+}
+
+const resetTemplateEditor = () => {
+  templateEditing.id = null
+  templateEditing.name = ''
+  templateEditing.code = ''
+  templateEditing.subject = ''
+  templateEditing.content = ''
+  templateEditing.enabled = true
+  templateEditing.isDefault = false
+}
+
+const openTemplateEditor = (row) => {
+  if (!row) {
+    resetTemplateEditor()
+  } else {
+    templateEditing.id = row.id
+    templateEditing.name = row.name || ''
+    templateEditing.code = row.code || ''
+    templateEditing.subject = row.subject || ''
+    templateEditing.content = row.content || ''
+    templateEditing.enabled = row.enabled !== false
+    templateEditing.isDefault = Boolean(row.isDefault)
+  }
+  templateDialogVisible.value = true
+}
+
+const saveTemplateAction = async () => {
+  if (!templateEditing.name || !templateEditing.code || !templateEditing.subject || !templateEditing.content) {
+    ElMessage.warning('请完整填写模板字段')
     return
   }
 
-  sendingTest.value = true
-  testResult.value = null
+  savingTemplate.value = true
   try {
-    await request.post('/system/mail-config/test', {
-      to: testRecipient.value,
-      type: 'verification',
-      code: '123456'
-    })
-    testResult.value = {
-      success: true,
-      message: '测试邮件发送成功，请查收'
-    }
-    ElMessage.success('测试邮件发送成功')
-  } catch (e) {
-    testResult.value = {
-      success: false,
-      message: e.message || '发送失败'
-    }
+    await saveMailTemplate({ ...templateEditing })
+    templateDialogVisible.value = false
+    ElMessage.success('模板保存成功')
+    await loadTemplates()
   } finally {
-    sendingTest.value = false
+    savingTemplate.value = false
   }
 }
 
-// ==================== 导航方法 ====================
+const toggleTemplateEnabled = async (row, enabled) => {
+  try {
+    await saveMailTemplate({ ...row, enabled })
+    ElMessage.success('模板状态已更新')
+    await loadTemplates()
+  } catch (error) {
+    console.error('toggle template failed', error)
+  }
+}
 
-const goToCompose = () => router.push(ROUTES.CONTROL.MAIL_COMPOSE)
-const goToTemplates = () => router.push(ROUTES.CONTROL.MAIL_COMPOSE + '?tab=templates')
-const goToTracking = () => router.push(ROUTES.CONTROL.MAIL_TRACKING)
+const deleteTemplateAction = async (row) => {
+  await ElMessageBox.confirm(`确认删除模板「${row.name}」？`, '删除确认', {
+    type: 'warning'
+  })
+  await deleteMailTemplate(row.id)
+  ElMessage.success('模板已删除')
+  await loadTemplates()
+}
+
+const onLogSelectionChange = (rows) => {
+  selectedFailedLogs.value = rows.filter((item) => item.status === 'FAILED')
+}
+
+const retrySingleLog = async (row) => {
+  retryingSingleId.value = row.id
+  try {
+    const result = await retryMailSendLog(row.id)
+    if (result?.success) {
+      ElMessage.success(result.message || '重试任务已提交')
+      await loadLogs()
+    } else {
+      ElMessage.warning(result?.message || '重试失败')
+    }
+  } finally {
+    retryingSingleId.value = null
+  }
+}
+
+const batchRetryLogs = async () => {
+  if (selectedFailedLogs.value.length === 0) return
+  retryingBatch.value = true
+  try {
+    const ids = selectedFailedLogs.value.map((item) => item.id)
+    const result = await batchRetryMailSendLogs(ids)
+    if (result?.success) {
+      ElMessage.success(result.message || '批量重试任务已提交')
+      selectedFailedLogs.value = []
+      await loadLogs()
+    } else {
+      ElMessage.warning(result?.message || '批量重试失败')
+    }
+  } finally {
+    retryingBatch.value = false
+  }
+}
+
+const switchToTracking = async (status) => {
+  trackingFilter.status = status
+  activeTab.value = 'tracking'
+  await loadLogs()
+}
+
+const fetchInboxAction = async () => {
+  fetchingInbox.value = true
+  try {
+    const result = await fetchMail()
+    if (result?.success) {
+      ElMessage.success(result.message || '拉取成功')
+      await loadInbox()
+      await loadInboxMeta()
+    } else {
+      ElMessage.warning(result?.message || '拉取失败')
+    }
+  } finally {
+    fetchingInbox.value = false
+  }
+}
+
+const markInboxRead = async (row) => {
+  const result = await markMailAsRead(row.id)
+  if (result?.success) {
+    ElMessage.success('已标记为已读')
+    row.isRead = true
+    await loadInboxMeta()
+  }
+}
+
+const openInboxMail = async (row) => {
+  selectedInboxMail.value = row
+  if (!row.isRead && !row.read) {
+    await markInboxRead(row)
+  }
+}
+
+const viewInboxMail = async (row) => {
+  selectedInboxMail.value = row
+  inboxDetailVisible.value = true
+  if (!row.isRead && !row.read) {
+    await markInboxRead(row)
+  }
+}
+
+const deleteInboxMailAction = async (row) => {
+  await ElMessageBox.confirm('确认删除该邮件？', '删除确认', { type: 'warning' })
+  const result = await deleteMail(row.id)
+  if (result?.success) {
+    ElMessage.success('邮件已删除')
+    await loadInbox()
+    await loadInboxMeta()
+  }
+}
 
 watch(
-  () => route.path,
+  () => route.query.tab,
   () => {
-    activeTab.value = getDefaultTab()
+    activeTab.value = getTabFromRoute()
   }
 )
 
-onMounted(() => {
-  loadMailConfig()
-  loadNotifications()
+watch(activeTab, (value) => {
+  onTabChange(value)
 })
 
-// ==================== 站内消息相关 ====================
-
-const notificationList = ref([])
-const notificationPage = ref(1)
-const notificationPageSize = ref(20)
-const notificationTotal = ref(0)
-const loadingNotifications = ref(false)
-const markingAllAsRead = ref(false)
-const sendingNotification = ref(false)
-const sendNotificationForm = reactive({
-  title: '',
-  content: '',
-  scope: 'BROADCAST',
-  receiverId: ''
+onMounted(async () => {
+  await Promise.all([
+    loadMailConfigAction(),
+    loadTemplates(),
+    loadLogs(),
+    loadInboxMeta(),
+    loadInbox(),
+    loadNotifConfig()
+  ])
+  loadDraft()
+  syncComposeEditor(sendForm.content)
 })
-
-const loadNotifications = async () => {
-  loadingNotifications.value = true
-  try {
-    const res = await getNotifications({
-      page: notificationPage.value - 1,
-      size: notificationPageSize.value
-    })
-    notificationList.value = res?.content || []
-    notificationTotal.value = res?.totalElements || 0
-  } catch (e) {
-    console.error('加载消息失败:', e)
-    ElMessage.error('加载消息失败')
-  } finally {
-    loadingNotifications.value = false
-  }
-}
-
-const handleMarkAsRead = async (id) => {
-  try {
-    await markAsRead(id)
-    ElMessage.success('已标记为已读')
-    loadNotifications()
-  } catch (e) {
-    ElMessage.error('操作失败')
-  }
-}
-
-const handleMarkAllAsRead = async () => {
-  markingAllAsRead.value = true
-  try {
-    await markAllAsRead()
-    ElMessage.success('已全部标记为已读')
-    loadNotifications()
-  } catch (e) {
-    ElMessage.error('操作失败')
-  } finally {
-    markingAllAsRead.value = false
-  }
-}
-
-const handleSendNotification = async () => {
-  if (!sendNotificationForm.title.trim()) {
-    ElMessage.warning('请输入消息标题')
-    return
-  }
-  if (!sendNotificationForm.content.trim()) {
-    ElMessage.warning('请输入消息内容')
-    return
-  }
-  if (sendNotificationForm.scope === 'USER' && !sendNotificationForm.receiverId.trim()) {
-    ElMessage.warning('请输入用户ID')
-    return
-  }
-
-  sendingNotification.value = true
-  try {
-    await sendNotificationApi({
-      title: sendNotificationForm.title,
-      content: sendNotificationForm.content,
-      type: 'INFO',
-      scope: sendNotificationForm.scope,
-      receiverId: sendNotificationForm.scope === 'USER' ? sendNotificationForm.receiverId : null
-    })
-    ElMessage.success('消息发送成功')
-    sendNotificationForm.title = ''
-    sendNotificationForm.content = ''
-    sendNotificationForm.scope = 'BROADCAST'
-    sendNotificationForm.receiverId = ''
-    loadNotifications()
-  } catch (e) {
-    ElMessage.error('发送失败: ' + (e.message || '未知错误'))
-  } finally {
-    sendingNotification.value = false
-  }
-}
-
-const formatDateTime = (dateStr) => {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}`
-}
 </script>
 
 <style scoped>
-.notification-center-container {
-  padding: 0;
-}
-
-.setup-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* 标签页样式 */
-.notification-tabs {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-}
-
-.notification-tabs :deep(.el-tabs__content) {
-  padding-top: 20px;
-}
-
-/* 快捷操作栏 */
-.quick-action-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-/* 配置卡片 */
-.setup-card {
-  margin-bottom: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* 步骤指示器 */
-.config-steps {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32px;
-  padding: 20px 0;
-}
-
-.step-item {
+.gmail-layout {
   display: flex;
   flex-direction: column;
+  min-height: calc(100vh - 120px);
+  background: #f7f9fd;
+  border: 1px solid #e7ecf5;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.gmail-topbar {
+  height: 64px;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: 200px 1fr 220px;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #e6eaf2;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #223047;
+}
+
+.search-block :deep(.el-input__wrapper) {
+  border-radius: 24px;
+  background: #eef3fd;
+  box-shadow: none;
+}
+
+.top-actions {
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
 }
 
-.step-number {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  transition: all 0.3s;
-}
-
-.step-item.active .step-number {
-  background: var(--el-color-primary);
-  color: white;
-}
-
-.step-item.completed .step-number {
-  background: var(--el-color-success);
-  color: white;
-}
-
-.step-text {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.step-item.active .step-text {
-  color: var(--el-color-primary);
-  font-weight: 500;
-}
-
-.step-line {
-  width: 80px;
-  height: 2px;
-  background: var(--el-fill-color-light);
-  margin: 0 12px;
-  margin-bottom: 24px;
-  transition: all 0.3s;
-}
-
-.step-line.active {
-  background: var(--el-color-primary);
-}
-
-/* 步骤内容 */
-.config-step-content {
-  padding: 20px 0;
-}
-
-/* 邮件服务商选择 */
-.mailer-selection {
+.gmail-main {
+  flex: 1;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: 220px 1fr;
+  min-height: 0;
 }
 
-.mailer-option {
-  position: relative;
-  padding: 20px;
-  border: 2px solid var(--el-border-color-lighter);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
+.gmail-sidebar {
+  background: #fff;
+  border-right: 1px solid #e6eaf2;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-.mailer-option:hover {
-  border-color: var(--el-color-primary-light-5);
-  background: var(--el-color-primary-light-9);
+.compose-btn {
+  width: 100%;
+  border-radius: 18px;
+  margin-bottom: 8px;
 }
 
-.mailer-option.selected {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
-}
-
-.mailer-icon {
-  color: var(--el-text-color-primary);
-}
-
-.check-icon {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  color: var(--el-color-primary);
-  font-size: 20px;
-}
-
-.mailer-info h4 {
-  margin: 0;
-  font-size: 15px;
-}
-
-.mailer-info p {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-/* 表单 */
-.config-form {
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-/* 步骤操作 */
-.step-actions {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
-/* 验证内容 */
-.verify-content {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.verify-summary {
-  margin-bottom: 24px;
-}
-
-.verify-test {
+.nav-item {
+  border: 0;
+  background: transparent;
+  border-radius: 18px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 20px;
-  background: var(--el-fill-color-light);
-  border-radius: 8px;
-}
-
-/* 下一步行动 */
-.next-actions-card {
-  margin-top: 20px;
-}
-
-.next-actions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.next-action {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
+  justify-content: space-between;
+  color: #37455c;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.3s;
 }
 
-.next-action:hover {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
+.nav-item:hover {
+  background: #f3f6fc;
 }
 
-.next-action .arrow {
-  margin-left: auto;
-  color: var(--el-text-color-secondary);
+.nav-item.active {
+  background: #d3e3fd;
+  color: #173b72;
+  font-weight: 600;
 }
 
-.next-action-content h4 {
-  margin: 0;
-  font-size: 14px;
+.sidebar-group-title {
+  margin-top: 14px;
+  padding-left: 8px;
+  font-size: 11px;
+  color: #7b8798;
 }
 
-.next-action-content p {
-  margin: 4px 0 0;
+.gmail-content {
+  min-width: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-toolbar {
+  height: 44px;
+  background: #fff;
+  border: 1px solid #e6eaf2;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mail-split {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #e6eaf2;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  background: #fff;
+  display: grid;
+  grid-template-columns: 54% 46%;
+}
+
+.mail-list {
+  min-width: 0;
+  overflow: auto;
+  border-right: 1px solid #e6eaf2;
+}
+
+.mail-row {
+  height: 46px;
+  border-bottom: 1px solid #edf1f7;
+  padding: 0 10px;
+  display: grid;
+  grid-template-columns: 96px 1fr 150px;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.mail-row:hover {
+  background: #f9fbff;
+}
+
+.mail-row.active {
+  background: #eef4ff;
+}
+
+.mail-row.unread .from,
+.mail-row.unread .subject {
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.mail-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.star-btn {
+  border: 0;
+  background: transparent;
+  color: #f6b100;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.mail-row-content {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.from,
+.subject,
+.time {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.from,
+.time {
+  color: #5f6f85;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
 }
 
-/* 消息卡片 */
-.messages-card,
-.send-notification-card {
-  margin-bottom: 20px;
+.subject {
+  color: #27364a;
+  font-size: 13px;
 }
 
-.text-muted {
-  color: var(--el-text-color-secondary);
+.mail-reader {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-header {
+  padding: 12px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.reader-header h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #1e2b3b;
+}
+
+.reader-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 12px;
+  color: #5f6f85;
 }
 
-/* 发送表单 */
-.send-form {
-  max-width: 600px;
-  padding: 20px 0;
+.reader-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
 }
 
-/* 分页 */
-.pagination-wrapper {
-  margin-top: 16px;
+.reader-body {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+  font-size: 13px;
+  color: #28384d;
+}
+
+.reader-empty,
+.mail-empty {
+  margin: auto;
+  color: #8391a6;
+  font-size: 13px;
+  padding: 24px;
+  text-align: center;
+}
+
+.module-sheet {
+  background: #fff;
+  border: 1px solid #e8edf5;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.sheet-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2d3f;
+  margin-bottom: 10px;
+}
+
+.compose-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.tab-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.compose-form {
+  max-width: 980px;
+}
+
+.recipient-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.compose-sheet {
+  background: #fff;
+}
+
+.compose-qq-form :deep(.el-form-item) {
+  margin-bottom: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.compose-qq-form :deep(.el-form-item:last-child) {
+  border-bottom: 0;
+}
+
+.compose-qq-form :deep(.el-form-item__label) {
+  color: #2c3a4d;
+  font-weight: 600;
+}
+
+.compose-qq-form :deep(.el-input__wrapper),
+.compose-qq-form :deep(.el-textarea__inner) {
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding-left: 0;
+}
+
+.compose-qq-form :deep(.el-input__inner) {
+  font-size: 15px;
+  color: #223047;
+}
+
+.qq-editor-wrap {
+  width: 100%;
+  border: 1px solid #d7e0ee;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.editor-toolbar {
+  height: 44px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid #e8edf5;
+  background: #f7faff;
+}
+
+.qq-editor {
+  min-height: 320px;
+  padding: 14px;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #243447;
+}
+
+.qq-editor:empty::before {
+  content: '输入正文';
+  color: #9aa8bd;
+}
+
+.attachment-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.attachment-hint {
+  font-size: 12px;
+  color: #8a99b1;
+}
+
+.attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e6ebf3;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fafcff;
+}
+
+.preview-body {
+  margin-top: 12px;
+  border: 1px solid #e5eaf3;
+  border-radius: 8px;
+  min-height: 220px;
+  padding: 12px;
+}
+
+.config-form {
+  max-width: 820px;
+}
+
+.variables-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pagination-wrap {
   display: flex;
   justify-content: flex-end;
+  margin-top: 10px;
 }
 
+@media (max-width: 1280px) {
+  .mail-split {
+    grid-template-columns: 1fr;
+  }
+
+  .mail-list {
+    border-right: 0;
+    border-bottom: 1px solid #e6eaf2;
+    max-height: 320px;
+  }
+}
+
+@media (max-width: 980px) {
+  .gmail-topbar {
+    grid-template-columns: 140px 1fr;
+  }
+
+  .top-actions {
+    display: none;
+  }
+
+  .gmail-main {
+    grid-template-columns: 1fr;
+  }
+
+  .gmail-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #e6eaf2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .compose-btn {
+    grid-column: span 3;
+  }
+
+  .sidebar-group-title,
+  .gmail-sidebar :deep(.el-button--small) {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .mail-row {
+    grid-template-columns: 70px 1fr 100px;
+  }
+
+  .mail-row-content {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .from {
+    display: none;
+  }
+
+  .variables-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recipient-row {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

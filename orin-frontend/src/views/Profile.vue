@@ -388,9 +388,20 @@ const onAvatarFileChange = async (event) => {
 // Save profile
 const handleSave = async () => {
   try {
+    const resolvedUserId = userInfo.userId || userStore.userId || userStore.userInfo?.id || null;
+    if (!resolvedUserId) {
+      ElMessage.error('未识别到用户ID，请重新登录后重试');
+      return;
+    }
+
     const updateData = {
-      ...userForm,
-      userId: userInfo.userId
+      userId: resolvedUserId,
+      nickname: userForm.nickname,
+      email: userForm.email,
+      bio: userForm.bio,
+      address: userForm.address,
+      phone: userForm.phone,
+      avatar: userForm.avatar
     };
     const updated = await updateUserProfile(updateData);
     Object.assign(userInfo, updated);
@@ -399,8 +410,7 @@ const handleSave = async () => {
     ElMessage.success('资料更新成功');
   } catch (e) {
     console.error('更新资料失败:', e);
-    ElMessage.error('更新失败');
-    ElMessage.error('更新失败，请重试');
+    ElMessage.error(e?.response?.data?.message || '更新失败，请重试');
   }
 };
 </script>

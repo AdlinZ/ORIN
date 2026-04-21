@@ -37,6 +37,13 @@ public class SystemDifyConfigProvider {
         return StringUtils.hasText(getApiUrl()) && StringUtils.hasText(getApiKey());
     }
 
+    /**
+     * 返回 true 表示 Dify 已启用且配置完整
+     */
+    public boolean isActive() {
+        return isEnabled() && isConfigured();
+    }
+
     private String getValue(String key, String defaultValue) {
         return systemConfigRepository.findByConfigKey(key)
                 .map(SystemConfigEntity::getConfigValue)

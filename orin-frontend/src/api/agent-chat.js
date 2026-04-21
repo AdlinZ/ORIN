@@ -192,3 +192,49 @@ export function updateKbDocFilters(sessionId, kbDocFilters) {
     data: kbDocFilters,
   });
 }
+
+export function getToolCatalog(params) {
+  return request({
+    url: '/agent-tools/catalog',
+    method: 'get',
+    params
+  });
+}
+
+export function updateToolCatalogItem(toolId, data) {
+  return request({
+    url: `/agent-tools/catalog/${toolId}`,
+    method: 'put',
+    data
+  });
+}
+
+export function getAgentToolBinding(agentId) {
+  return request({
+    url: `/agent-tools/bindings/agents/${agentId}`,
+    method: 'get'
+  });
+}
+
+export function saveAgentToolBinding(agentId, data) {
+  return request({
+    url: `/agent-tools/bindings/agents/${agentId}`,
+    method: 'put',
+    data
+  });
+}
+
+export function getSessionToolBinding(sessionId) {
+  return request({
+    url: `/agent-tools/bindings/sessions/${sessionId}`,
+    method: 'get'
+  });
+}
+
+export function saveSessionToolBinding(sessionId, data) {
+  return request({
+    url: `/agent-tools/bindings/sessions/${sessionId}`,
+    method: 'put',
+    data
+  });
+}

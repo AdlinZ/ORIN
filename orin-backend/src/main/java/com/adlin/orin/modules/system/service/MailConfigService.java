@@ -9,6 +9,7 @@ import org.springframework.http.*;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -287,16 +288,23 @@ public class MailConfigService {
     /**
      * 发送邮件
      */
-    public boolean sendMail(MailConfigEntity config, String to, String subject, String content) {
+    public boolean sendMail(MailConfigEntity config, String to, String cc, String bcc, String subject, String content, boolean separateSend) {
         if (config == null || !config.getEnabled()) {
             log.error("邮件服务未配置");
+            return false;
+        }
+
+        List<String> toRecipients = parseRecipients(to);
+        List<String> ccRecipients = parseRecipients(cc);
+        List<String> bccRecipients = parseRecipients(bcc);
+        if (toRecipients.isEmpty()) {
             return false;
         }
 
         // 创建日志记录
         MailSendLog logEntry = new MailSendLog();
         logEntry.setSubject(subject);
-        logEntry.setRecipients(to);
+        logEntry.setRecipients(buildRecipientsLogText(toRecipients, ccRecipients, bccRecipients));
         logEntry.setContent(content);
         logEntry.setMailerType(config.getMailerType() != null ? config.getMailerType() : "smtp");
 
@@ -304,15 +312,15 @@ public class MailConfigService {
 
         // 如果是 MailerSend 模式
         if ("mailersend".equals(config.getMailerType())) {
-            errorMessage = sendViaMailerSend(config, to, subject, content);
+            errorMessage = sendViaMailerSend(config, toRecipients, ccRecipients, bccRecipients, subject, content, separateSend);
         }
         // 如果是 Resend 模式
         else if ("resend".equals(config.getMailerType())) {
-            errorMessage = sendViaResend(config, to, subject, content);
+            errorMessage = sendViaResend(config, toRecipients, ccRecipients, bccRecipients, subject, content, separateSend);
         }
         // SMTP 模式
         else {
-            errorMessage = sendViaSmtp(config, to, subject, content);
+            errorMessage = sendViaSmtp(config, toRecipients, ccRecipients, bccRecipients, subject, content, separateSend);
         }
 
         boolean success = errorMessage == null;
@@ -333,7 +341,13 @@ public class MailConfigService {
      * 通过 MailerSend 发送邮件
      * @return 成功返回 null，失败返回错误信息
      */
-    private String sendViaMailerSend(MailConfigEntity config, String to, String subject, String content) {
+    private String sendViaMailerSend(MailConfigEntity config,
+                                     List<String> toRecipients,
+                                     List<String> ccRecipients,
+                                     List<String> bccRecipients,
+                                     String subject,
+                                     String content,
+                                     boolean separateSend) {
         try {
             String apiKey = config.getApiKey();
             String fromEmail = config.getFromEmail();
@@ -344,47 +358,35 @@ public class MailConfigService {
                 return "MailerSend配置不完整";
             }
 
-            Map<String, Object> requestBody = new HashMap<>();
+            List<List<String>> toGroups = splitRecipientsForSend(toRecipients, separateSend);
+            for (List<String> toGroup : toGroups) {
+                Map<String, Object> requestBody = new HashMap<>();
+                Map<String, String> from = new HashMap<>();
+                from.put("email", fromEmail);
+                if (fromName != null && !fromName.isEmpty()) {
+                    from.put("name", fromName);
+                }
+                requestBody.put("from", from);
+                requestBody.put("to", mapRecipientsForMailerSend(toGroup));
+                if (!ccRecipients.isEmpty()) requestBody.put("cc", mapRecipientsForMailerSend(ccRecipients));
+                if (!bccRecipients.isEmpty()) requestBody.put("bcc", mapRecipientsForMailerSend(bccRecipients));
+                requestBody.put("subject", subject);
+                requestBody.put("text", stripHtml(content));
+                requestBody.put("html", content);
 
-            // 发件人
-            Map<String, String> from = new HashMap<>();
-            from.put("email", fromEmail);
-            if (fromName != null && !fromName.isEmpty()) {
-                from.put("name", fromName);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("Authorization", "Bearer " + apiKey);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+                ResponseEntity<String> response = restTemplate.exchange(MAILERSEND_API_URL, HttpMethod.POST, entity, String.class);
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    String error = "MailerSend邮件发送失败: " + response.getBody();
+                    log.error(error);
+                    return error;
+                }
             }
-            requestBody.put("from", from);
-
-            // 收件人
-            List<Map<String, String>> toList = new ArrayList<>();
-            Map<String, String> recipient = new HashMap<>();
-            recipient.put("email", to);
-            toList.add(recipient);
-            requestBody.put("to", toList);
-
-            requestBody.put("subject", subject);
-            requestBody.put("text", content);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", "Bearer " + apiKey);
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<String> response = restTemplate.exchange(
-                MAILERSEND_API_URL,
-                HttpMethod.POST,
-                entity,
-                String.class
-            );
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("MailerSend邮件发送成功: {}", to);
-                return null;
-            } else {
-                String error = "MailerSend邮件发送失败: " + response.getBody();
-                log.error(error);
-                return error;
-            }
+            log.info("MailerSend邮件发送成功: {}", String.join(",", toRecipients));
+            return null;
         } catch (Exception e) {
             String error = "MailerSend邮件发送异常: " + e.getMessage();
             log.error(error, e);
@@ -396,7 +398,13 @@ public class MailConfigService {
      * 通过 Resend 发送邮件
      * @return 成功返回 null，失败返回错误信息
      */
-    private String sendViaResend(MailConfigEntity config, String to, String subject, String content) {
+    private String sendViaResend(MailConfigEntity config,
+                                 List<String> toRecipients,
+                                 List<String> ccRecipients,
+                                 List<String> bccRecipients,
+                                 String subject,
+                                 String content,
+                                 boolean separateSend) {
         try {
             String apiKey = config.getApiKey();
             String fromEmail = config.getFromEmail();
@@ -409,40 +417,33 @@ public class MailConfigService {
                 return "Resend配置不完整";
             }
 
-            Map<String, Object> requestBody = new HashMap<>();
+            List<List<String>> toGroups = splitRecipientsForSend(toRecipients, separateSend);
+            for (List<String> toGroup : toGroups) {
+                Map<String, Object> requestBody = new HashMap<>();
+                requestBody.put("from", fromName != null && !fromName.isEmpty()
+                    ? fromName + " <" + fromEmail + ">"
+                    : fromEmail);
+                requestBody.put("to", toGroup);
+                if (!ccRecipients.isEmpty()) requestBody.put("cc", ccRecipients);
+                if (!bccRecipients.isEmpty()) requestBody.put("bcc", bccRecipients);
+                requestBody.put("subject", subject);
+                requestBody.put("text", stripHtml(content));
+                requestBody.put("html", content);
 
-            // 发件人
-            requestBody.put("from", fromName != null && !fromName.isEmpty()
-                ? fromName + " <" + fromEmail + ">"
-                : fromEmail);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("Authorization", "Bearer " + apiKey);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+                ResponseEntity<String> response = restTemplate.exchange(RESEND_API_URL, HttpMethod.POST, entity, String.class);
 
-            // 收件人
-            requestBody.put("to", to);
-
-            requestBody.put("subject", subject);
-            requestBody.put("text", content);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", "Bearer " + apiKey);
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<String> response = restTemplate.exchange(
-                RESEND_API_URL,
-                HttpMethod.POST,
-                entity,
-                String.class
-            );
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("Resend邮件发送成功: {}", to);
-                return null;
-            } else {
-                String error = "Resend邮件发送失败: " + response.getBody();
-                log.error(error);
-                return error;
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    String error = "Resend邮件发送失败: " + response.getBody();
+                    log.error(error);
+                    return error;
+                }
             }
+            log.info("Resend邮件发送成功: {}", String.join(",", toRecipients));
+            return null;
         } catch (Exception e) {
             String error = "Resend邮件发送异常: " + e.getMessage();
             log.error(error, e);
@@ -454,23 +455,73 @@ public class MailConfigService {
      * 通过 SMTP 发送邮件
      * @return 成功返回 null，失败返回错误信息
      */
-    private String sendViaSmtp(MailConfigEntity config, String to, String subject, String content) {
+    private String sendViaSmtp(MailConfigEntity config,
+                               List<String> toRecipients,
+                               List<String> ccRecipients,
+                               List<String> bccRecipients,
+                               String subject,
+                               String content,
+                               boolean separateSend) {
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(config.getFromName() + " <" + config.getFromEmail() + ">");
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(content);
-            message.setSentDate(new Date());
-
-            mailSender.send(message);
-            log.info("SMTP邮件发送成功: {}", to);
+            List<List<String>> toGroups = splitRecipientsForSend(toRecipients, separateSend);
+            for (List<String> toGroup : toGroups) {
+                var mimeMessage = mailSender.createMimeMessage();
+                var helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+                helper.setFrom(config.getFromName() + " <" + config.getFromEmail() + ">");
+                helper.setTo(toGroup.toArray(new String[0]));
+                if (!ccRecipients.isEmpty()) helper.setCc(ccRecipients.toArray(new String[0]));
+                if (!bccRecipients.isEmpty()) helper.setBcc(bccRecipients.toArray(new String[0]));
+                helper.setSubject(subject);
+                helper.setText(content, true);
+                mimeMessage.setSentDate(new Date());
+                mailSender.send(mimeMessage);
+            }
+            log.info("SMTP邮件发送成功: {}", String.join(",", toRecipients));
             return null;
         } catch (Exception e) {
             String error = "SMTP邮件发送失败: " + e.getMessage();
             log.error(error, e);
             return error;
         }
+    }
+
+    private List<String> parseRecipients(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split("[,;\\n]"))
+            .map(String::trim)
+            .filter(item -> !item.isEmpty())
+            .distinct()
+            .toList();
+    }
+
+    private List<Map<String, String>> mapRecipientsForMailerSend(List<String> recipients) {
+        List<Map<String, String>> result = new ArrayList<>();
+        for (String recipient : recipients) {
+            Map<String, String> item = new HashMap<>();
+            item.put("email", recipient);
+            result.add(item);
+        }
+        return result;
+    }
+
+    private List<List<String>> splitRecipientsForSend(List<String> recipients, boolean separateSend) {
+        if (!separateSend) return List.of(recipients);
+        List<List<String>> groups = new ArrayList<>();
+        for (String recipient : recipients) {
+            groups.add(List.of(recipient));
+        }
+        return groups;
+    }
+
+    private String buildRecipientsLogText(List<String> to, List<String> cc, List<String> bcc) {
+        return "TO:" + String.join(",", to)
+            + (cc.isEmpty() ? "" : " | CC:" + String.join(",", cc))
+            + (bcc.isEmpty() ? "" : " | BCC:" + String.join(",", bcc));
+    }
+
+    private String stripHtml(String html) {
+        if (html == null || html.isBlank()) return "";
+        return html.replaceAll("(?s)<[^>]*>", " ").replaceAll("\\s+", " ").trim();
     }
 
     /**

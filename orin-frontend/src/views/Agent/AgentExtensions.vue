@@ -5,13 +5,8 @@
         <span class="hero-badge">应用管理</span>
         <h1 class="hero-title">智能体扩展中心</h1>
         <p class="hero-desc">
-          在一个页面内统一管理技能绑定与 MCP 服务，减少配置切换并提升运维可见性。
+          管理 Skills、MCP 服务与模型工具（Tools）能力，统一在本页面完成配置。
         </p>
-        <div class="hero-actions">
-          <el-button type="primary" size="large" @click="goWorkspaceTools">
-            前往工作台配置 Tools
-          </el-button>
-        </div>
       </div>
       <div class="hero-grid">
         <div class="hero-metric">
@@ -57,7 +52,7 @@
           <template #label>
             <span class="tab-label">
               <el-icon><Setting /></el-icon>
-              工具卡片配置
+              模型工具（Tools）
             </span>
           </template>
           <div class="tab-content">
@@ -71,22 +66,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { MagicStick, Service, Setting } from '@element-plus/icons-vue'
 import SkillManagementPanel from '@/views/Skill/SkillManagement.vue'
 import McpServicePanel from '@/views/System/McpService.vue'
 import AgentToolsBindingPanel from '@/views/Agent/AgentToolsBindingPanel.vue'
-import { ROUTES } from '@/router/routes'
 
 const activeTab = ref('skills')
-const router = useRouter()
-
-const goWorkspaceTools = () => {
-  router.push({
-    path: ROUTES.AGENTS.WORKSPACE,
-    query: { tab: 'tools' }
-  })
-}
 </script>
 
 <style scoped>
@@ -134,10 +119,6 @@ const goWorkspaceTools = () => {
   margin: 10px 0 0;
   color: #475569;
   font-size: 15px;
-}
-
-.hero-actions {
-  margin-top: 16px;
 }
 
 .hero-grid {

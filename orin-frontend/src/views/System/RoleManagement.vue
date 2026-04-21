@@ -2,7 +2,7 @@
   <div class="role-management fade-in">
     <PageHeader
       title="角色管理"
-      description="管理系统角色及权限分配"
+      description="配置系统角色及其菜单与操作权限"
       icon="UserFilled"
     />
 
@@ -220,7 +220,7 @@ const filteredRoles = computed(() => {
 
 // 判断是否为系统预定义角色
 const isSystemRole = (roleCode) => {
-  return ['ROLE_ADMIN', 'ROLE_USER'].includes(roleCode)
+  return ['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_OPERATOR', 'ROLE_ADMIN', 'ROLE_USER'].includes(roleCode)
 }
 
 // 格式化日期

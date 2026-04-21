@@ -1,8 +1,8 @@
 <template>
   <div class="workflow-container">
     <PageHeader
-      title="工作流管理"
-      description="管理 Dify 工作流的导入导出与同步"
+      title="工作流编排"
+      description="创建、编辑并维护可复用的业务工作流"
       icon="Connection"
     >
       <template #actions>

@@ -947,11 +947,15 @@ import {
   createChatSession,
   deleteChatSession,
   detachKnowledgeBase,
+  getAgentToolBinding,
   getAttachedKnowledgeBases,
   getChatSession,
+  getSessionToolBinding,
+  getToolCatalog,
   listAgents,
   listChatSessions,
   listKnowledgeBases,
+  saveSessionToolBinding,
   sendChatMessage,
   sendChatMessageStream,
   updateKbDocFilters
@@ -1025,6 +1029,7 @@ const voiceOptions = [
 const defaultConfig = () => ({
   id: 'default',
   name: '初始配置（默认）',
+  toolIds: [],
   kbIds: [],
   skillIds: [],
   mcpIds: [],
@@ -1057,6 +1062,7 @@ const knowledgeBases = ref([]);
 const sessions = ref([]);
 const skills = ref([]);
 const mcpServices = ref([]);
+const toolCatalog = ref([]);
 const messages = ref([]);
 const attachedKbIds = ref([]);
 const kbDocFilters = reactive({});  // {[kbId]: string[]}
@@ -1393,19 +1399,26 @@ const restoreWorkspaceState = () => {
   }
 };
 
-const restoreConfigForAgent = (agentId) => {
+const restoreConfigForAgent = async (agentId) => {
   Object.assign(currentConfig, defaultConfig());
 
   if (!agentId) return;
 
-  const raw = localStorage.getItem(getConfigStorageKey(agentId));
-  if (!raw) return;
-
   try {
-    const parsed = JSON.parse(raw);
+    const remote = await getAgentToolBinding(agentId);
+    const parsed = remote || {};
     Object.assign(currentConfig, defaultConfig(), parsed);
   } catch (error) {
-    console.warn('Failed to parse workspace config:', error);
+    console.warn('Failed to load agent tool binding:', error);
+  }
+
+  try {
+    const raw = localStorage.getItem(getConfigStorageKey(agentId));
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    Object.assign(currentConfig, defaultConfig(), parsed);
+  } catch {
+    // ignore local cache parse errors
   }
 };
 
@@ -1551,6 +1564,14 @@ const saveCurrentConfig = async () => {
     return;
   }
 
+  if (currentSessionId.value) {
+    await saveSessionToolBinding(currentSessionId.value, {
+      toolIds: currentConfig.toolIds || [],
+      kbIds: currentConfig.kbIds || [],
+      skillIds: currentConfig.skillIds || [],
+      mcpIds: currentConfig.mcpIds || []
+    });
+  }
   localStorage.setItem(getConfigStorageKey(currentAgentId.value), JSON.stringify({ ...currentConfig }));
   ElMessage.success('当前配置已保存');
 };
@@ -1624,11 +1645,15 @@ const toggleToolsCard = (key) => {
 };
 
 const builtinTools = computed(() => {
-  const hasKb = attachedKbIds.value.length > 0;
-  return [
-    { name: 'query_kb', description: '在知识库中语义检索相关文档片段', active: hasKb },
-    { name: 'read_document', description: '读取指定文档的完整内容（由 query_kb 返回的 doc_id 触发）', active: hasKb },
-  ];
+  return toolCatalog.value
+    .filter((item) => item.category === 'BUILTIN_KB' || item.category === 'WORKFLOW_TOOL')
+    .map((item) => ({
+      name: item.toolId,
+      description: item.displayName || item.toolId,
+      active: (currentConfig.toolIds || []).length === 0
+        ? item.enabled !== false
+        : (currentConfig.toolIds || []).includes(item.toolId) && item.enabled !== false
+    }));
 });
 
 const getMcpServiceName = (serviceId) => {
@@ -1803,6 +1828,16 @@ const loadMcpServicesSafe = async () => {
   } catch (error) {
     console.warn('Failed to load MCP services:', error);
     mcpServices.value = [];
+  }
+};
+
+const loadToolCatalogSafe = async () => {
+  try {
+    const res = await getToolCatalog({ includeDisabled: true });
+    toolCatalog.value = Array.isArray(res) ? res : res?.data || [];
+  } catch (error) {
+    console.warn('Failed to load tool catalog:', error);
+    toolCatalog.value = [];
   }
 };
 
@@ -1999,6 +2034,17 @@ const selectSession = async (session) => {
     setCachedSessionMessages(session.id, messages.value);
     await loadAttachedKbs(session.id);
     await loadKbDocFilters(session.id);
+    try {
+      const sessionBinding = await getSessionToolBinding(session.id);
+      if (sessionBinding && typeof sessionBinding === 'object') {
+        if (Array.isArray(sessionBinding.toolIds)) currentConfig.toolIds = sessionBinding.toolIds;
+        if (Array.isArray(sessionBinding.kbIds)) currentConfig.kbIds = sessionBinding.kbIds;
+        if (Array.isArray(sessionBinding.skillIds)) currentConfig.skillIds = sessionBinding.skillIds;
+        if (Array.isArray(sessionBinding.mcpIds)) currentConfig.mcpIds = sessionBinding.mcpIds;
+      }
+    } catch (error) {
+      console.warn('Failed to load session tool binding:', error);
+    }
     scrollToBottom();
   } catch (error) {
     if (!cachedMessages?.length) {
@@ -2044,7 +2090,7 @@ const handleAgentChange = async (agentId) => {
   currentAgentId.value = targetId;
   currentAgent.value = findAgentById(targetId);
   selectedModelName.value = currentAgent.value?.model || '';
-  restoreConfigForAgent(targetId);
+  await restoreConfigForAgent(targetId);
   await loadAgentRuntimeConfig(targetId);
   activeConfigTab.value = 'tools';
 
@@ -2479,7 +2525,9 @@ const sendMessage = async () => {
       try {
         await sendChatMessageStream(currentSessionId.value, {
           message: outboundMessage,
+          toolIds: currentConfig.toolIds || [],
           kbIds: attachedKbIds.value.map(normalizeId),
+          skillIds: currentConfig.skillIds || [],
           mcpIds: currentConfig.mcpIds || [],
           kbDocFilters: normalizeKbDocFilters(kbDocFilters)
         }, {
@@ -2547,12 +2595,14 @@ const sendMessage = async () => {
           }
         ];
         // fallback to non-streaming if SSE is unavailable
-        const res = await sendChatMessage(currentSessionId.value, {
-          message: outboundMessage,
-          kbIds: attachedKbIds.value.map(normalizeId),
-          mcpIds: currentConfig.mcpIds || [],
-          kbDocFilters: normalizeKbDocFilters(kbDocFilters)
-        });
+      const res = await sendChatMessage(currentSessionId.value, {
+        message: outboundMessage,
+        toolIds: currentConfig.toolIds || [],
+        kbIds: attachedKbIds.value.map(normalizeId),
+        skillIds: currentConfig.skillIds || [],
+        mcpIds: currentConfig.mcpIds || [],
+        kbDocFilters: normalizeKbDocFilters(kbDocFilters)
+      });
         streamDonePayload = res?.data || res || {};
       }
 
@@ -2777,9 +2827,9 @@ const openCitation = (chunk) => {
 };
 
 const reloadWorkspace = async () => {
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadModelCatalog()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog()]);
   if (currentAgentId.value) {
-    restoreConfigForAgent(currentAgentId.value);
+    await restoreConfigForAgent(currentAgentId.value);
     await loadAgentRuntimeConfig(currentAgentId.value);
     await loadSessions(currentAgentId.value, { autoSelect: !currentSessionId.value });
     await ensureConfiguredKbsAttached();
@@ -2795,7 +2845,7 @@ onMounted(async () => {
     activeConfigTab.value = savedState.activeConfigTab ?? 'tools';
   }
 
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadModelCatalog()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog()]);
 
   const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
   const routeAgentId = typeof route.query?.agentId === 'string' ? route.query.agentId : '';
@@ -2810,7 +2860,7 @@ onMounted(async () => {
     currentAgentId.value = normalizeId(agentToRestore);
     currentAgent.value = findAgentById(agentToRestore);
     selectedModelName.value = currentAgent.value?.model || '';
-    restoreConfigForAgent(agentToRestore);
+    await restoreConfigForAgent(agentToRestore);
     await loadAgentRuntimeConfig(agentToRestore);
 
     // Load sessions and try to restore the saved session

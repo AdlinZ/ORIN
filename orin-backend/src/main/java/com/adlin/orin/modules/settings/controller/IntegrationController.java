@@ -134,14 +134,8 @@ public class IntegrationController {
     public ResponseEntity<Map<String, Object>> testDifyConnection() {
         String apiUrl = getDifyConfigValue(DIFY_API_URL_KEY, "");
         String apiKey = getDifyConfigValue(DIFY_API_KEY_KEY, "");
-        boolean enabled = Boolean.parseBoolean(getDifyConfigValue(DIFY_ENABLED_KEY, "false"));
         Map<String, Object> result = new HashMap<>();
 
-        if (!enabled) {
-            result.put("success", false);
-            result.put("message", "Dify 未启用");
-            return ResponseEntity.ok(result);
-        }
         if (!StringUtils.hasText(apiUrl) || !StringUtils.hasText(apiKey)) {
             result.put("success", false);
             result.put("message", "Dify 配置不完整");
@@ -480,7 +474,7 @@ public class IntegrationController {
     }
 
     private static String asString(Object value) {
-        return value == null ? "" : String.valueOf(value);
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private static int asInt(Object value, int defaultValue) {

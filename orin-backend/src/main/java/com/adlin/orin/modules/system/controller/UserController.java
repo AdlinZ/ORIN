@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.system.controller;
 
-import com.adlin.orin.modules.system.entity.SysUser;
 import com.adlin.orin.modules.system.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,11 +38,32 @@ public class UserController {
 
     @Operation(summary = "更新用户信息")
     @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody SysUser user) {
-        // Simple update for now, in production you'd want to validate and only update
-        // allowed fields
-        SysUser updated = userService.updateUser(user);
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, Object> payload) {
+        Object userIdValue = payload.get("userId");
+        if (userIdValue == null) {
+            return ResponseEntity.badRequest().body("userId 不能为空");
+        }
+
+        final Long userId;
+        try {
+            userId = Long.valueOf(String.valueOf(userIdValue).trim());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("userId 格式不正确");
+        }
+        return userService.getUserById(userId)
+                .map(existing -> {
+                    // 只允许更新个人资料字段，避免覆盖密码/角色/状态等系统字段
+                    if (payload.get("nickname") != null) existing.setNickname(String.valueOf(payload.get("nickname")));
+                    if (payload.get("email") != null) existing.setEmail(String.valueOf(payload.get("email")));
+                    if (payload.get("bio") != null) existing.setBio(String.valueOf(payload.get("bio")));
+                    if (payload.get("address") != null) existing.setAddress(String.valueOf(payload.get("address")));
+                    if (payload.get("phone") != null) existing.setPhone(String.valueOf(payload.get("phone")));
+                    if (payload.get("avatar") != null) existing.setAvatar(String.valueOf(payload.get("avatar")));
+
+                    var updated = userService.updateUser(existing);
+                    return ResponseEntity.ok(updated);
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(summary = "更新用户头像")

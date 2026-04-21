@@ -9,15 +9,25 @@ import com.adlin.orin.modules.conversation.entity.ConversationLog;
 import com.adlin.orin.modules.conversation.repository.AgentChatSessionRepository;
 import com.adlin.orin.modules.conversation.strategy.ToolCallingCapabilityDetector;
 import com.adlin.orin.modules.conversation.strategy.ToolCallingKbStrategy;
+import com.adlin.orin.modules.conversation.dto.tooling.EffectiveToolBinding;
+import com.adlin.orin.modules.conversation.dto.tooling.ToolCatalogItemDto;
 import com.adlin.orin.modules.conversation.tool.*;
+import com.adlin.orin.modules.conversation.tooling.ToolBindingService;
+import com.adlin.orin.modules.conversation.tooling.ToolExecutor;
 import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeGraphRepository;
+import com.adlin.orin.modules.knowledge.repository.GraphEntityRepository;
+import com.adlin.orin.modules.knowledge.repository.GraphRelationRepository;
+import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
+import com.adlin.orin.modules.knowledge.service.KnowledgeGraphService;
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 import com.adlin.orin.modules.model.service.OllamaIntegrationService;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
+import com.adlin.orin.modules.skill.service.SkillService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -40,9 +50,17 @@ public class AgentChatService {
     private final RetrievalService retrievalService;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeDocumentRepository documentRepository;
+    private final KnowledgeGraphRepository knowledgeGraphRepository;
+    private final GraphEntityRepository graphEntityRepository;
+    private final GraphRelationRepository graphRelationRepository;
+    private final KnowledgeManageService knowledgeManageService;
+    private final KnowledgeGraphService knowledgeGraphService;
     private final McpServiceRepository mcpServiceRepository;
     private final OllamaIntegrationService ollamaIntegrationService;
     private final ToolCallingCapabilityDetector toolCallingDetector;
+    private final ToolBindingService toolBindingService;
+    private final ToolExecutor toolExecutor;
+    private final SkillService skillService;
     private final ObjectMapper objectMapper;
 
     private KbStructureTool kbStructureTool;
@@ -58,9 +76,17 @@ public class AgentChatService {
             RetrievalService retrievalService,
             KnowledgeBaseRepository knowledgeBaseRepository,
             KnowledgeDocumentRepository documentRepository,
+            KnowledgeGraphRepository knowledgeGraphRepository,
+            GraphEntityRepository graphEntityRepository,
+            GraphRelationRepository graphRelationRepository,
+            KnowledgeManageService knowledgeManageService,
+            KnowledgeGraphService knowledgeGraphService,
             McpServiceRepository mcpServiceRepository,
             OllamaIntegrationService ollamaIntegrationService,
             ToolCallingCapabilityDetector toolCallingDetector,
+            ToolBindingService toolBindingService,
+            ToolExecutor toolExecutor,
+            SkillService skillService,
             ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
         this.agentManageService = agentManageService;
@@ -70,9 +96,17 @@ public class AgentChatService {
         this.retrievalService = retrievalService;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
+        this.knowledgeGraphRepository = knowledgeGraphRepository;
+        this.graphEntityRepository = graphEntityRepository;
+        this.graphRelationRepository = graphRelationRepository;
+        this.knowledgeManageService = knowledgeManageService;
+        this.knowledgeGraphService = knowledgeGraphService;
         this.mcpServiceRepository = mcpServiceRepository;
         this.ollamaIntegrationService = ollamaIntegrationService;
         this.toolCallingDetector = toolCallingDetector;
+        this.toolBindingService = toolBindingService;
+        this.toolExecutor = toolExecutor;
+        this.skillService = skillService;
         this.objectMapper = objectMapper;
         // Initialize tools
         this.kbStructureTool = new KbStructureTool(knowledgeBaseRepository, documentRepository);
@@ -197,20 +231,27 @@ public class AgentChatService {
         userMsg.put("createdAt", java.time.LocalDateTime.now().toString());
         messages.add(userMsg);
 
+        EffectiveToolBinding effectiveBinding = toolBindingService.resolveEffectiveBinding(session, request);
+
         // 构建工具执行上下文
         ToolExecutionContext toolCtx = ToolExecutionContext.builder()
                 .sessionId(sessionId)
+                .agentId(session.getAgentId())
                 .query(request.getMessage())
-                .kbIds(request.getKbIds())
-                .mcpIds(request.getMcpIds())
+                .toolIds(effectiveBinding.getToolIds())
+                .kbIds(effectiveBinding.getKbIds())
+                .skillIds(effectiveBinding.getSkillIds())
+                .mcpIds(effectiveBinding.getMcpIds())
                 .kbDocFilters(request.getKbDocFilters())
                 .traces(new ArrayList<>())
                 .sharedState(new HashMap<>())
                 .retrievedChunks(new ArrayList<>())
                 .build();
 
+        toolExecutor.applyBinding(toolCtx, useToolCalling, eventPublisher);
+
         // 执行工具链
-        if (request.getKbIds() != null && !request.getKbIds().isEmpty()) {
+        if (toolCtx.getKbIds() != null && !toolCtx.getKbIds().isEmpty()) {
             try {
                 Map<String, Object> strategyDetail = new LinkedHashMap<>();
                 strategyDetail.put("mode", useToolCalling ? "tool_calling" : "context_injection");
@@ -303,7 +344,7 @@ public class AgentChatService {
         }
 
         // 绑定 MCP 服务到本轮对话上下文
-        if (request.getMcpIds() != null && !request.getMcpIds().isEmpty()) {
+        if (toolCtx.getMcpIds() != null && !toolCtx.getMcpIds().isEmpty()) {
             runMcpBinding(toolCtx, eventPublisher);
         }
 
@@ -337,7 +378,7 @@ public class AgentChatService {
 
         // 附加了知识库但未检索到任何内容时，给前端一个明确提醒（避免”静默失败”）。
         // tool calling 模式下检索由模型自主发起，retrievedChunks 为空属于正常情况。
-        if (!useToolCalling && request.getKbIds() != null && !request.getKbIds().isEmpty() && retrievedChunks.isEmpty()) {
+        if (!useToolCalling && toolCtx.getKbIds() != null && !toolCtx.getKbIds().isEmpty() && retrievedChunks.isEmpty()) {
             ChatMessageResponse.ToolTrace hintTrace = ChatMessageResponse.ToolTrace.builder()
                     .type("KB_HINT")
                     .kbId("multiple")
@@ -345,7 +386,7 @@ public class AgentChatService {
                     .status("warning")
                     .durationMs(0L)
                     .detail(Map.of(
-                            "kbIds", request.getKbIds(),
+                            "kbIds", toolCtx.getKbIds(),
                             "kbDocFilters", request.getKbDocFilters() != null ? request.getKbDocFilters() : Collections.emptyMap(),
                             "retrievedCount", 0))
                     .build();
@@ -429,9 +470,11 @@ public class AgentChatService {
             reqMeta.put("sessionId", sessionId);
             reqMeta.put("agentId", session.getAgentId());
             reqMeta.put("message", request.getMessage());
-            reqMeta.put("kbIds", request.getKbIds() != null ? request.getKbIds() : Collections.emptyList());
+            reqMeta.put("toolIds", toolCtx.getToolIds() != null ? toolCtx.getToolIds() : Collections.emptyList());
+            reqMeta.put("kbIds", toolCtx.getKbIds() != null ? toolCtx.getKbIds() : Collections.emptyList());
             reqMeta.put("kbDocFilters", request.getKbDocFilters() != null ? request.getKbDocFilters() : Collections.emptyMap());
-            reqMeta.put("mcpIds", request.getMcpIds() != null ? request.getMcpIds() : Collections.emptyList());
+            reqMeta.put("skillIds", toolCtx.getSkillIds() != null ? toolCtx.getSkillIds() : Collections.emptyList());
+            reqMeta.put("mcpIds", toolCtx.getMcpIds() != null ? toolCtx.getMcpIds() : Collections.emptyList());
             reqMeta.put("retrievedCount", retrievedChunks.size());
             reqMeta.put("toolTraceCount", toolCtx.getTraces() != null ? toolCtx.getTraces().size() : 0);
 
@@ -567,9 +610,18 @@ public class AgentChatService {
             AgentMetadata metadata = agentManageService.getAgentMetadata(agentId);
             AgentAccessProfile profile = agentManageService.getAgentAccessProfile(agentId);
 
-            // ── 支持 tool calling 的模型：让模型自主决定检索还是读全文 ──────────
-            if (toolCtx != null && toolCtx.getKbIds() != null && !toolCtx.getKbIds().isEmpty()
-                    && useToolCalling) {
+            // ── 支持 tool calling 的模型：让模型自主决定检索/读全文/调用绑定工具 ──
+            @SuppressWarnings("unchecked")
+            List<ToolCatalogItemDto> fnCallTools = toolCtx != null
+                    ? (List<ToolCatalogItemDto>) toolCtx.getSharedState(
+                            ToolExecutor.SHARED_STATE_FUNCTION_CALL_TOOLS)
+                    : null;
+            boolean hasFnCallTools = fnCallTools != null && !fnCallTools.isEmpty();
+            boolean hasKbs = toolCtx != null
+                    && toolCtx.getKbIds() != null && !toolCtx.getKbIds().isEmpty();
+
+            if (toolCtx != null && useToolCalling && (hasKbs || hasFnCallTools)) {
+                final ToolExecutionContext ctx = toolCtx;
                 String baseSystemPrompt = metaKnowledgeService.assembleSystemPrompt(agentId);
                 double temperature = metadata != null && metadata.getTemperature() != null
                         ? metadata.getTemperature() : 0.7;
@@ -577,16 +629,26 @@ public class AgentChatService {
                         ? metadata.getMaxTokens() : 2048;
 
                 ToolCallingKbStrategy strategy = new ToolCallingKbStrategy(
-                        ollamaIntegrationService, retrievalService, documentRepository, objectMapper);
+                        ollamaIntegrationService, retrievalService, documentRepository,
+                        knowledgeBaseRepository, knowledgeGraphRepository, graphEntityRepository,
+                        graphRelationRepository,
+                        knowledgeManageService, knowledgeGraphService, skillService, objectMapper);
 
-                log.info("tool-calling RAG: agentId={}, kbIds={}", agentId, toolCtx.getKbIds());
+                List<String> kbIdsForStrategy = hasKbs ? ctx.getKbIds() : Collections.emptyList();
+                List<ToolCatalogItemDto> boundForStrategy = hasFnCallTools
+                        ? fnCallTools : Collections.emptyList();
+
+                log.info("tool-calling RAG: agentId={}, kbIds={}, boundFnTools={}",
+                        agentId, kbIdsForStrategy,
+                        boundForStrategy.stream().map(ToolCatalogItemDto::getToolId).toList());
                 return strategy.execute(
                         profile.getEndpointUrl(), profile.getApiKey(),
                         metadata != null ? metadata.getModelName() : null,
-                        baseSystemPrompt, userMessage, toolCtx.getKbIds(),
+                        baseSystemPrompt, userMessage, kbIdsForStrategy,
+                        boundForStrategy,
                         temperature, maxTokens,
                         trace -> {
-                            toolCtx.addTrace(trace);
+                            ctx.addTrace(trace);
                             emitEvent(eventPublisher, "trace", trace);
                         });
             }
@@ -595,6 +657,7 @@ public class AgentChatService {
             String baseSystemPrompt = metaKnowledgeService.assembleSystemPrompt(agentId);
             String kbStructurePreamble = buildKbStructurePreamble(toolCtx);
             String mcpContext = toolCtx != null ? (String) toolCtx.getSharedState("mcpContext") : null;
+            String toolContext = toolCtx != null ? (String) toolCtx.getSharedState("toolContext") : null;
 
             StringBuilder systemSuffix = new StringBuilder();
             if (kbStructurePreamble != null && !kbStructurePreamble.isBlank()) {
@@ -605,6 +668,9 @@ public class AgentChatService {
             }
             if (mcpContext != null && !mcpContext.isBlank()) {
                 systemSuffix.append("\n\n可用 MCP 服务:\n").append(mcpContext);
+            }
+            if (toolContext != null && !toolContext.isBlank()) {
+                systemSuffix.append("\n\n可用工具目录:\n").append(toolContext);
             }
 
             String extendedSystemPrompt = systemSuffix.length() > 0

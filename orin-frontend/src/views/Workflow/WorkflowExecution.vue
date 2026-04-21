@@ -2,7 +2,7 @@
   <div class="page-container">
     <OrinPageShell
       title="工作流执行"
-      description="集中运行工作流、查看最近实例，并从编排页快速切换到执行态"
+      description="查看工作流运行状态、实例结果与执行历史"
       icon="VideoPlay"
       domain="工作流运行"
       maturity="available"

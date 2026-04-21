@@ -147,7 +147,8 @@
       <!-- Header Bar -->
       <div class="main-header">
         <div class="header-left">
-          <h2 class="main-title">知识库检索</h2>
+          <h2 class="main-title">知识中心</h2>
+          <p class="main-subtitle">检索知识库内容并验证召回效果</p>
           <span v-if="hasSearched && results.length > 0" class="result-count-badge">
             {{ results.length }} 条结果 · {{ executionTime }}ms
           </span>
@@ -886,7 +887,8 @@ const matchLabel = (type) => {
 
 .header-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -895,6 +897,12 @@ const matchLabel = (type) => {
   font-size: 16px;
   font-weight: 700;
   color: var(--sidebar-text-strong);
+}
+
+.main-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--sidebar-text-muted);
 }
 
 .result-count-badge {
@@ -1168,4 +1176,5 @@ html.dark .session-item:hover { background: rgba(51, 65, 85, 0.6); }
 html.dark .session-item.active { background: rgba(15, 159, 149, 0.15); }
 html.dark .session-title { color: #e2e8f0; }
 html.dark .main-title { color: #e2e8f0; }
+html.dark .main-subtitle { color: #94a3b8; }
 </style>

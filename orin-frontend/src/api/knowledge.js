@@ -200,6 +200,10 @@ export const fullSyncDifyAll = () => {
     return request.post('/sync/dify/full');
 };
 
+export const fullSyncDifyKnowledgeOnly = () => {
+    return request.post('/knowledge/sync/dify/full');
+};
+
 export const syncDifyWorkflows = () => {
     return request.post('/sync/dify/workflows');
 };

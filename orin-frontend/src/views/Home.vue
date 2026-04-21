@@ -500,7 +500,13 @@ const checkLoginStatus = () => {
       userInfo.avatar = userStore.userInfo.avatar || '';
 
       if (userStore.roles && userStore.roles.length > 0) {
-         const roleMap = { 'ROLE_ADMIN': '管理员', 'ROLE_USER': '普通用户' };
+         const roleMap = {
+            'ROLE_SUPER_ADMIN': '超级管理员',
+            'ROLE_PLATFORM_ADMIN': '平台管理员',
+            'ROLE_OPERATOR': '业务运营',
+            'ROLE_ADMIN': '管理员',
+            'ROLE_USER': '普通用户'
+         };
          userInfo.role = roleMap[userStore.roles[0]] || userStore.roles[0];
       } else {
          userInfo.role = '普通用户';
@@ -511,7 +517,13 @@ const checkLoginStatus = () => {
           userInfo.name = userStore.userInfo.username || userStore.userInfo.nickname || '用户';
           userInfo.avatar = userStore.userInfo.avatar || '';
           if (userStore.roles && userStore.roles.length > 0) {
-             const roleMap = { 'ROLE_ADMIN': '管理员', 'ROLE_USER': '普通用户' };
+             const roleMap = {
+                'ROLE_SUPER_ADMIN': '超级管理员',
+                'ROLE_PLATFORM_ADMIN': '平台管理员',
+                'ROLE_OPERATOR': '业务运营',
+                'ROLE_ADMIN': '管理员',
+                'ROLE_USER': '普通用户'
+             };
              userInfo.role = roleMap[userStore.roles[0]] || userStore.roles[0];
           } else {
              userInfo.role = '普通用户';

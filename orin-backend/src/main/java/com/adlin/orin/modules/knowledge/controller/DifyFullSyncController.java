@@ -64,8 +64,8 @@ public class DifyFullSyncController {
     @Operation(summary = "获取同步概览")
     @GetMapping("/overview")
     public Map<String, Object> getSyncOverview() {
-        if (!difyConfigProvider.isConfigured()) {
-            return Map.of("success", false, "message", "Dify 未配置");
+        if (!difyConfigProvider.isActive()) {
+            return Map.of("success", false, "message", "Dify 未启用或配置不完整");
         }
 
         String endpoint = difyConfigProvider.getApiUrl();

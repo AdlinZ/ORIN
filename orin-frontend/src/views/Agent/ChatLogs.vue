@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <PageHeader 
-      title="全域会话记录" 
-      description="审计并追溯所有接入智能体的历史交互明细"
+      title="会话记录" 
+      description="审计并追溯所有智能体的历史交互记录"
       icon="ChatLineRound"
     >
       <template #actions>

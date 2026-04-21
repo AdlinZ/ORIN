@@ -1,5 +1,45 @@
 import { ROUTES } from './routes'
 
+export const ADMIN_MENU_ROLES = ['ROLE_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_SUPER_ADMIN', 'ADMIN']
+export const OPERATOR_MENU_ROLES = ['ROLE_OPERATOR']
+export const USER_MENU_ROLES = ['ROLE_USER', 'USER']
+export const PLATFORM_ADMIN_MENU_ROLES = ['ROLE_PLATFORM_ADMIN']
+export const SUPER_ADMIN_MENU_ROLES = ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ADMIN']
+export const OPERATOR_MONITOR_MENU_ENABLED = false
+export const PLATFORM_ADMIN_ORGANIZATION_MENU_ENABLED = false
+
+function hasAnyRole(userRoles = [], targetRoles = []) {
+  return targetRoles.some((role) => userRoles.includes(role))
+}
+
+function isAdminLike(userRoles = []) {
+  return hasAnyRole(userRoles, ADMIN_MENU_ROLES)
+}
+
+function isSuperAdminLike(userRoles = []) {
+  return hasAnyRole(userRoles, SUPER_ADMIN_MENU_ROLES)
+}
+
+function isPlatformAdmin(userRoles = []) {
+  return hasAnyRole(userRoles, PLATFORM_ADMIN_MENU_ROLES)
+}
+
+function isOperatorLike(userRoles = []) {
+  return hasAnyRole(userRoles, OPERATOR_MENU_ROLES)
+}
+
+export function getDefaultHomeByRoles(userRoles = []) {
+  if (isAdminLike(userRoles)) {
+    return ROUTES.HOME
+  }
+
+  if (isOperatorLike(userRoles)) {
+    return ROUTES.AGENTS.LIST
+  }
+
+  return ROUTES.AGENTS.WORKSPACE
+}
+
 /**
  * 顶部导航菜单配置（真正二级结构）
  * 一级菜单：顶栏 tab
@@ -71,8 +111,7 @@ export const TOP_MENU_CONFIG = [
       { title: '用户管理', path: ROUTES.SYSTEM.USERS, icon: 'User', status: 'available' },
       { title: '部门管理', path: ROUTES.SYSTEM.DEPARTMENTS, icon: 'OfficeBuilding', status: 'available' },
       { title: '角色管理', path: ROUTES.SYSTEM.ROLES, icon: 'UserFilled', status: 'available' },
-      { title: '访问密钥', path: ROUTES.SYSTEM.API_KEYS, icon: 'Key', status: 'available' },
-      { title: '模型配置', path: ROUTES.SYSTEM.MODELS, icon: 'SetUp', status: 'available' },
+      { title: 'API 密钥', path: ROUTES.SYSTEM.API_KEYS, icon: 'Key', status: 'available' },
       { title: '定价配置', path: ROUTES.SYSTEM.PRICING, icon: 'PriceTag', status: 'available' },
     ],
   },
@@ -84,7 +123,8 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.SYSTEM.ROOT,
     requiresAdmin: true,
     children: [
-      { title: '基础设置', path: ROUTES.SYSTEM.SETTINGS_BASE, icon: 'Setting', status: 'available' },
+      { title: '模型配置', path: ROUTES.SYSTEM.MODELS, icon: 'SetUp', status: 'available' },
+      { title: '系统环境', path: ROUTES.SYSTEM.SETTINGS_BASE, icon: 'Setting', status: 'available' },
       { title: '通知渠道', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS, icon: 'Bell', status: 'available' },
       { title: '文件管理', path: ROUTES.SYSTEM.FILES, icon: 'Folder', status: 'available' },
       { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY, icon: 'Router', status: 'available' },
@@ -96,15 +136,26 @@ export const TOP_MENU_CONFIG = [
 
 /**
  * 获取可见的菜单项（根据权限过滤）
- * @param {boolean} isAdmin - 是否为管理员
+ * @param {string[]} userRoles - 当前用户角色列表
  * @returns {Array} 过滤后的菜单配置
  */
-export function getVisibleMenus(isAdmin = false) {
+export function getVisibleMenus(userRoles = []) {
+  const adminLike = isAdminLike(userRoles)
+  const superAdminLike = isSuperAdminLike(userRoles)
+  const platformAdmin = isPlatformAdmin(userRoles)
+  const operatorLike = isOperatorLike(userRoles)
+
   return TOP_MENU_CONFIG.filter((menu) => {
-    if (menu.requiresAdmin) {
-      return isAdmin
+    switch (menu.id) {
+      case 'monitor':
+        return superAdminLike || platformAdmin || (operatorLike && OPERATOR_MONITOR_MENU_ENABLED)
+      case 'organization':
+        return superAdminLike || (platformAdmin && PLATFORM_ADMIN_ORGANIZATION_MENU_ENABLED)
+      case 'system':
+        return adminLike
+      default:
+        return true
     }
-    return true
   })
 }
 
@@ -114,15 +165,28 @@ export function getVisibleMenus(isAdmin = false) {
  * @returns {string|null} 激活的菜单 ID
  */
 export function getActiveMenuId(currentPath) {
-  if (currentPath.startsWith('/dashboard/control')) return 'system'
+  if (!currentPath) return null
+
+  let matchedByChild = null
+  let longestChildPath = -1
+  let matchedByMenu = null
+  let longestMenuPath = -1
 
   for (const menu of TOP_MENU_CONFIG) {
-    if (currentPath.startsWith(menu.path)) return menu.id
+    if (menu.path && currentPath.startsWith(menu.path) && menu.path.length > longestMenuPath) {
+      matchedByMenu = menu.id
+      longestMenuPath = menu.path.length
+    }
+
     if (menu.children) {
       for (const child of menu.children) {
-        if (child.path && currentPath.startsWith(child.path)) return menu.id
+        if (child.path && currentPath.startsWith(child.path) && child.path.length > longestChildPath) {
+          matchedByChild = menu.id
+          longestChildPath = child.path.length
+        }
       }
     }
   }
-  return null
+
+  return matchedByChild || matchedByMenu
 }

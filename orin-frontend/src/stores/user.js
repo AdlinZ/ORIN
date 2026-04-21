@@ -9,6 +9,8 @@ import { refreshToken as refreshTokenApi } from '@/api/auth'
  * 管理用户信息、Token和角色权限
  */
 export const useUserStore = defineStore('user', () => {
+    const adminRoles = ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ADMIN']
+
     // 状态
     const token = ref(Cookies.get('orin_token') || '')
     const userInfo = ref(null)
@@ -16,7 +18,7 @@ export const useUserStore = defineStore('user', () => {
 
     // Getters
     const isLoggedIn = computed(() => !!token.value)
-    const isAdmin = computed(() => roles.value.includes('ROLE_ADMIN'))
+    const isAdmin = computed(() => roles.value.some(role => adminRoles.includes(role)))
     const isUser = computed(() => roles.value.includes('ROLE_USER'))
     const username = computed(() => userInfo.value?.username || '')
     const userId = computed(() => userInfo.value?.userId || null)

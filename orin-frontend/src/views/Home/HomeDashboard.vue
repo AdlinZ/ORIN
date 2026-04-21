@@ -5,7 +5,7 @@
       <div class="header-brand">
         <h1 class="logo-text">ORIN<span class="logo-dot">.</span>ASIA</h1>
         <span class="header-divider"></span>
-        <p class="header-subtitle">统一运营与运维决策中心</p>
+        <p class="header-subtitle">查看平台整体健康状态、调用趋势与关键异常</p>
       </div>
 
       <!-- 2. 状态区 -->

@@ -3,6 +3,7 @@ package com.adlin.orin.modules.system.controller;
 import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.system.entity.SysUser;
 import com.adlin.orin.modules.system.repository.SysUserRepository;
+import com.adlin.orin.modules.system.service.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +32,7 @@ import java.util.stream.Collectors;
 public class UserManageController {
 
     private final SysUserRepository userRepository;
+    private final RoleService roleService;
     private final AuditHelper auditHelper;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
@@ -264,10 +267,12 @@ public class UserManageController {
     @Operation(summary = "获取角色列表")
     @GetMapping("/roles")
     public List<Map<String, String>> getRoles() {
-        return List.of(
-            Map.of("id", "ROLE_ADMIN", "name", "管理员"),
-            Map.of("id", "ROLE_USER", "name", "普通用户"),
-            Map.of("id", "ROLE_GUEST", "name", "访客")
-        );
+        return roleService.getAllRoles().stream()
+                .sorted(Comparator.comparingLong(role -> role.getRoleId() == null ? Long.MAX_VALUE : role.getRoleId()))
+                .map(role -> Map.of(
+                        "id", role.getRoleCode(),
+                        "name", role.getRoleName()
+                ))
+                .collect(Collectors.toList());
     }
 }

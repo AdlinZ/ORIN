@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <PageHeader 
-      title="API密钥管理" 
-      description="管理API访问密钥,控制访问权限和配额"
+      title="API 密钥" 
+      description="管理访问密钥、调用额度与限流策略"
       icon="Key"
     >
       <template #actions>
