@@ -80,7 +80,19 @@
     <el-card shadow="never" class="filter-card">
       <el-row :gutter="20" align="middle">
         <el-col :span="12">
-          <el-segmented v-model="fileTypeFilter" :options="fileTypeOptions" @change="fetchFiles" />
+          <div class="media-filter-tabs" role="tablist" aria-label="文件类型筛选">
+            <button
+              v-for="option in fileTypeOptions"
+              :key="option.value || 'all'"
+              type="button"
+              class="media-filter-tab"
+              :class="{ active: fileTypeFilter === option.value }"
+              @click="handleTypeChange(option.value)"
+            >
+              <span class="tab-label">{{ option.label }}</span>
+              <span class="tab-count">{{ getTypeCount(option.value) }}</span>
+            </button>
+          </div>
         </el-col>
         <el-col :span="12" style="text-align: right;">
           <el-input
@@ -321,6 +333,12 @@ const handlePageChange = (page) => {
   currentPage.value = page
 }
 
+const handleTypeChange = (type) => {
+  fileTypeFilter.value = type
+  currentPage.value = 1
+  fetchFiles()
+}
+
 // 下载文件
 const downloadFile = (row) => {
   window.open(`/api/v1/multimodal/files/${row.id}/download`, '_blank')
@@ -395,6 +413,17 @@ const formatDateTime = (dateStr) => {
   })
 }
 
+const getTypeCount = (type) => {
+  if (!type) return stats.value.totalFiles || 0
+  const map = {
+    IMAGE: stats.value.imageCount || 0,
+    VIDEO: stats.value.videoCount || 0,
+    AUDIO: stats.value.audioCount || 0,
+    DOCUMENT: stats.value.documentCount || 0
+  }
+  return map[type] ?? 0
+}
+
 // 初始化
 onMounted(() => {
   fetchFiles()
@@ -457,6 +486,63 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.media-filter-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.media-filter-tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  border-radius: 10px;
+  height: 36px;
+  padding: 0 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.media-filter-tab:hover {
+  background: rgba(15, 159, 149, 0.08);
+  color: var(--orin-primary, #0f9f95);
+}
+
+.media-filter-tab.active {
+  background: linear-gradient(135deg, #0fa89d 0%, #0f8f86 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 159, 149, 0.22);
+}
+
+.tab-count {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  padding: 0 6px;
+  background: rgba(100, 116, 139, 0.14);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.media-filter-tab.active .tab-count {
+  background: rgba(255, 255, 255, 0.24);
+}
+
 .table-card {
   margin-bottom: 20px;
 }
@@ -504,5 +590,23 @@ html.dark .stat-value {
 
 html.dark .stat-label {
   color: var(--text-secondary);
+}
+
+html.dark .media-filter-tabs {
+  background: rgba(30, 41, 59, 0.72);
+  border-color: rgba(71, 85, 105, 0.5);
+}
+
+html.dark .media-filter-tab {
+  color: #94a3b8;
+}
+
+html.dark .media-filter-tab .tab-count {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+html.dark .media-filter-tab.active {
+  background: rgba(45, 212, 191, 0.18);
+  color: #5eead4;
 }
 </style>

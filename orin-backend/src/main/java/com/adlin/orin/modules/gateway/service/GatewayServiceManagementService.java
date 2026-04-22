@@ -147,7 +147,7 @@ public class GatewayServiceManagementService {
             return result;
         }
 
-        String url = instance.getHost() + ":" + instance.getPort() + instance.getHealthCheckPath();
+        String url = buildHealthCheckUrl(instance);
         long start = System.currentTimeMillis();
         try {
             restTemplate.getForEntity(url, String.class);
@@ -171,6 +171,18 @@ public class GatewayServiceManagementService {
             result.put("status", "DOWN");
         }
         return result;
+    }
+
+    private String buildHealthCheckUrl(GatewayServiceInstance instance) {
+        String host = instance.getHost() == null ? "" : instance.getHost().trim();
+        if (!host.startsWith("http://") && !host.startsWith("https://")) {
+            host = "http://" + host;
+        }
+        String path = instance.getHealthCheckPath() == null ? "" : instance.getHealthCheckPath().trim();
+        if (!path.isEmpty() && !path.startsWith("/")) {
+            path = "/" + path;
+        }
+        return host + ":" + instance.getPort() + path;
     }
 
     private GatewayServiceResponse toServiceResponse(GatewayService service) {

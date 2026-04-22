@@ -32,7 +32,19 @@
   .model-list-page,
   .model-system-config,
   .api-key-page,
-  .file-management-page
+  .file-management-page,
+  .cost-dashboard,
+  .agent-extensions-page,
+  .mail-workbench,
+  .knowledge-center,
+  .alert-management-page,
+  .mcp-service-page,
+  .external-frameworks-page,
+  .statistics-page,
+  .rate-limit-config,
+  .system-maintenance-page,
+  .api-gateway-page,
+  .role-management-page
 ):not(.command-center-root) {
   padding: 0 !important;
   margin: 0 !important;
@@ -85,7 +97,18 @@
   .document-detail-page,
   .alert-manager,
   .visual-workflow-editor,
-  .workflow-editor
+  .workflow-editor,
+  .cost-dashboard,
+  .agent-extensions-page,
+  .knowledge-center,
+  .alert-management-page,
+  .mcp-service-page,
+  .external-frameworks-page,
+  .statistics-page,
+  .rate-limit-config,
+  .system-maintenance-page,
+  .api-gateway-page,
+  .role-management-page
 ):not(.command-center-root) > * {
   margin-bottom: var(--orin-page-gap);
 }
@@ -105,9 +128,49 @@
   .document-detail-page,
   .alert-manager,
   .visual-workflow-editor,
-  .workflow-editor
+  .workflow-editor,
+  .cost-dashboard,
+  .agent-extensions-page,
+  .knowledge-center,
+  .alert-management-page,
+  .mcp-service-page,
+  .external-frameworks-page,
+  .statistics-page,
+  .rate-limit-config,
+  .system-maintenance-page,
+  .api-gateway-page,
+  .role-management-page
 ):not(.command-center-root) > *:last-child {
   margin-bottom: 0;
+}
+
+/* ========== Tab 卡片容器（PageHeader flat + tab 头 + 内容合为一个卡片）========== */
+/* 用法：<el-card class="tab-wrapper-card"><PageHeader flat /><el-tabs class="xxx-tabs">...</el-tabs></el-card> */
+.tab-wrapper-card.el-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.tab-wrapper-card.el-card :deep(.el-tabs > .el-tabs__header) {
+  background: var(--neutral-gray-50, #f8fafc) !important;
+  border-radius: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid var(--border-color, #e2e8f0) !important;
+}
+
+.tab-wrapper-card.el-card :deep(.el-tabs > .el-tabs__content) {
+  padding: 20px;
+}
+
+html.dark .tab-wrapper-card.el-card :deep(.el-tabs > .el-tabs__header) {
+  background: var(--neutral-gray-100, #132424) !important;
+  border-bottom-color: var(--neutral-gray-200, #1a2e2e) !important;
+}
+
+/* ========== 页面导航卡片（PageHeader flat + tab 导航栏合一）========== */
+/* 用法：<el-card class="page-nav-card"> <PageHeader flat/> <div class="tab-nav-bar">... */
+.page-nav-card.el-card :deep(.el-card__body) {
+  padding: 0;
 }
 
 /* ========== 通用 premium-card（轻量毛玻璃，轻于 .glass-card）========== */
@@ -252,6 +315,80 @@ html.dark .premium-card {
 /* ========== Loading 遮罩 ========== */
 .v-loading {
   min-height: 200px;
+}
+
+/* ========== 夜间模式统一对比度修复（跨页面） ========== */
+html.dark .content-area :where(
+  .page-header-container,
+  .header-filters,
+  .filter-card,
+  .table-card,
+  .panel-card,
+  .workspace-sidebar,
+  .workspace-main,
+  .chat-header,
+  .search-hero,
+  .gateway-content,
+  .premium-card
+) {
+  border-color: rgba(71, 85, 105, 0.45) !important;
+}
+
+html.dark .content-area :where(.page-header-container, .premium-card, .table-card, .panel-card) {
+  background: rgba(15, 23, 42, 0.82) !important;
+}
+
+html.dark .content-area :where(.header-filters, .filter-card, .search-hero, .chat-header) {
+  background: rgba(30, 41, 59, 0.72) !important;
+}
+
+html.dark .content-area :where(.orin-filter-bar, .header-filters) :where(
+  .el-input__wrapper,
+  .el-select__wrapper,
+  .el-textarea__inner,
+  .el-input-number,
+  .el-input-number__decrease,
+  .el-input-number__increase
+) {
+  background: rgba(15, 23, 42, 0.75) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.55) !important;
+}
+
+html.dark .content-area :where(.orin-filter-bar, .header-filters) :where(.el-input__inner, .el-select__placeholder) {
+  color: #cbd5e1 !important;
+}
+
+html.dark .content-area .el-table {
+  --el-table-bg-color: rgba(15, 23, 42, 0.82);
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: rgba(30, 41, 59, 0.88);
+  --el-table-border-color: rgba(71, 85, 105, 0.48);
+  --el-table-row-hover-bg-color: rgba(30, 41, 59, 0.62);
+  --el-table-text-color: #e2e8f0;
+  --el-table-header-text-color: #cbd5e1;
+}
+
+html.dark .content-area .el-table th.el-table__cell {
+  color: #cbd5e1 !important;
+  background: rgba(30, 41, 59, 0.88) !important;
+}
+
+html.dark .content-area .el-table td.el-table__cell {
+  color: #e2e8f0 !important;
+  border-bottom-color: rgba(71, 85, 105, 0.42) !important;
+}
+
+html.dark .content-area .el-table tr:hover > td.el-table__cell {
+  background: rgba(30, 41, 59, 0.62) !important;
+}
+
+html.dark .content-area :where(.result-panel, .result-item, .workflow-item, .session-item, .node-summary-card) {
+  border-color: rgba(71, 85, 105, 0.48) !important;
+}
+
+html.dark .content-area :where(.result-item, .workflow-item) {
+  background: rgba(15, 23, 42, 0.76) !important;
 }
 
 /* ========== 响应式 ========== */

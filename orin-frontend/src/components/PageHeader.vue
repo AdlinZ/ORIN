@@ -1,5 +1,5 @@
 <template>
-  <div class="page-header-wrapper">
+  <div class="page-header-wrapper" :class="{ 'is-flat': flat }">
     <div class="page-header-container">
       <div class="header-main">
         <div class="header-content">
@@ -58,6 +58,10 @@ defineProps({
   tagType: {
     type: String,
     default: 'success'
+  },
+  flat: {
+    type: Boolean,
+    default: false
   }
 });
 </script>
@@ -170,6 +174,22 @@ html.dark .page-title {
 
 html.dark .header-filters {
   border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+/* flat 模式：去掉独立卡片外壳，用于嵌入其他卡片内 */
+.is-flat {
+  margin-bottom: 0;
+}
+
+.is-flat .page-header-container {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  animation: none !important;
+  padding: var(--spacing-lg) var(--spacing-xl);
 }
 
 /* Animations */

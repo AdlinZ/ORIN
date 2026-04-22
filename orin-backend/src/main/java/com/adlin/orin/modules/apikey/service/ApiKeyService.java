@@ -1,19 +1,16 @@
 package com.adlin.orin.modules.apikey.service;
 
 import com.adlin.orin.modules.apikey.entity.ApiKey;
-import com.adlin.orin.modules.apikey.repository.ApiKeyRepository;
-import com.adlin.orin.security.EncryptionUtil;
+import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * API密钥管理服务
@@ -23,13 +20,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ApiKeyService {
 
-    private final ApiKeyRepository apiKeyRepository;
-    private final EncryptionUtil encryptionUtil;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-    private final SecureRandom secureRandom = new SecureRandom();
-
-    private static final String KEY_PREFIX = "sk-orin-";
-    private static final int KEY_LENGTH = 32;
+    private final GatewaySecretService gatewaySecretService;
 
     /**
      * 生成新的API密钥
@@ -38,145 +29,69 @@ public class ApiKeyService {
     public ApiKeyWithSecret createApiKey(String userId, String name, String description,
             Integer rateLimitPerMinute, Integer rateLimitPerDay,
             Long monthlyTokenQuota, LocalDateTime expiresAt) {
-        // 生成密钥
-        String secretKey = generateSecretKey();
-        String keyHash = passwordEncoder.encode(secretKey);
-        String keyPrefix = KEY_PREFIX + secretKey.substring(0, 8);
-        String fullSecretKey = KEY_PREFIX + secretKey;
-        String encryptedSecret = encryptionUtil.isEncryptionEnabled() ? encryptionUtil.encrypt(fullSecretKey) : null;
-
-        // 创建密钥实体
-        ApiKey apiKey = ApiKey.builder()
-                .keyHash(keyHash)
-                .keyPrefix(keyPrefix)
-                .encryptedSecret(encryptedSecret)
-                .userId(userId)
-                .name(name)
-                .description(description)
-                .enabled(true)
-                .rateLimitPerMinute(rateLimitPerMinute != null ? rateLimitPerMinute : 100)
-                .rateLimitPerDay(rateLimitPerDay != null ? rateLimitPerDay : 10000)
-                .monthlyTokenQuota(monthlyTokenQuota != null ? monthlyTokenQuota : 1000000L)
-                .usedTokens(0L)
-                .expiresAt(expiresAt)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        apiKey = apiKeyRepository.save(apiKey);
-        log.info("Created API key for user: {}, keyId: {}", userId, apiKey.getId());
-
-        // 返回包含明文密钥的对象（仅此一次）
-        return new ApiKeyWithSecret(apiKey, fullSecretKey);
+        GatewaySecretService.ClientAccessSecretWithValue result = gatewaySecretService.createClientAccessSecret(
+                userId,
+                name,
+                description,
+                rateLimitPerMinute,
+                rateLimitPerDay,
+                monthlyTokenQuota,
+                expiresAt,
+                userId);
+        ApiKey mapped = toLegacyApiKey(result.getSecret());
+        log.info("Created API key for user: {}, keyId: {}", userId, mapped.getId());
+        return new ApiKeyWithSecret(mapped, result.getSecretValue());
     }
 
     /**
      * 验证API密钥
      */
     public Optional<ApiKey> validateApiKey(String apiKeyString) {
-        if (apiKeyString == null || !apiKeyString.startsWith(KEY_PREFIX)) {
-            return Optional.empty();
-        }
-
-        try {
-            // 查找所有密钥并验证
-            List<ApiKey> allKeys = apiKeyRepository.findAll();
-            for (ApiKey key : allKeys) {
-                String rawSecret = apiKeyString.substring(KEY_PREFIX.length());
-                if (matchesKeyHash(rawSecret, key.getKeyHash())) {
-                    // 检查密钥是否有效
-                    if (!key.isValid()) {
-                        log.warn("API key is invalid: {}", key.getId());
-                        return Optional.empty();
-                    }
-
-                    // 检查配额
-                    if (key.isQuotaExceeded()) {
-                        log.warn("API key quota exceeded: {}", key.getId());
-                        return Optional.empty();
-                    }
-
-                    // 更新最后使用时间
-                    key.setLastUsedAt(LocalDateTime.now());
-                    apiKeyRepository.save(key);
-
-                    return Optional.of(key);
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error validating API key: {}", e.getMessage());
-        }
-
-        return Optional.empty();
-    }
-
-    /**
-     * 校验密钥哈希（兼容历史错误格式）
-     */
-    private boolean matchesKeyHash(String rawSecret, String storedHash) {
-        if (storedHash == null || storedHash.isEmpty()) {
-            return false;
-        }
-
-        // 正常格式：直接与完整 bcrypt 哈希比对
-        if (passwordEncoder.matches(rawSecret, storedHash)) {
-            return true;
-        }
-
-        // 兼容历史错误逻辑：曾错误地对 hash 做了前缀截断
-        if (storedHash.length() > KEY_PREFIX.length()) {
-            String legacyTrimmedHash = storedHash.substring(KEY_PREFIX.length());
-            return passwordEncoder.matches(rawSecret, legacyTrimmedHash);
-        }
-
-        return false;
+        return gatewaySecretService.validateClientAccessSecret(apiKeyString).map(this::toLegacyApiKey);
     }
 
     /**
      * 获取用户的所有密钥
      */
     public List<ApiKey> getUserApiKeys(String userId) {
-        return apiKeyRepository.findByUserId(userId);
+        return gatewaySecretService.listByType(GatewaySecret.SecretType.CLIENT_ACCESS).stream()
+                .filter(secret -> userId.equals(secret.getUserId()))
+                .map(this::toLegacyApiKey)
+                .collect(Collectors.toList());
     }
 
     /**
      * 获取所有密钥（管理员用）
      */
     public List<ApiKey> getAllApiKeys() {
-        return apiKeyRepository.findAll();
+        return gatewaySecretService.listByType(GatewaySecret.SecretType.CLIENT_ACCESS).stream()
+                .map(this::toLegacyApiKey)
+                .collect(Collectors.toList());
     }
 
     /**
      * 根据ID获取密钥
      */
     public Optional<ApiKey> getApiKeyById(String keyId) {
-        return apiKeyRepository.findById(keyId);
+        return gatewaySecretService.findBySecretId(keyId).map(this::toLegacyApiKey);
     }
 
     /**
      * 获取密钥明文（管理员受控回显）
      */
     public Optional<String> getSecretKeyForAdmin(String keyId) {
-        Optional<ApiKey> keyOpt = apiKeyRepository.findById(keyId);
-        if (keyOpt.isEmpty()) {
-            return Optional.empty();
-        }
-        ApiKey apiKey = keyOpt.get();
-        if (!encryptionUtil.isEncryptionEnabled()) {
-            log.warn("Admin key reveal requested but ENCRYPTION_KEY is not configured, keyId={}", keyId);
-            return Optional.empty();
-        }
-        if (apiKey.getEncryptedSecret() == null || apiKey.getEncryptedSecret().isBlank()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(encryptionUtil.decrypt(apiKey.getEncryptedSecret()));
+        return gatewaySecretService.revealSecret(keyId);
     }
 
     /**
      * 获取用户的所有启用密钥
      */
     public List<ApiKey> getUserActiveApiKeys(String userId) {
-        return apiKeyRepository.findByUserIdAndEnabledTrue(userId);
+        return gatewaySecretService.listByType(GatewaySecret.SecretType.CLIENT_ACCESS).stream()
+                .filter(secret -> userId.equals(secret.getUserId()))
+                .filter(secret -> secret.getStatus() == GatewaySecret.SecretStatus.ACTIVE)
+                .map(this::toLegacyApiKey)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -184,13 +99,9 @@ public class ApiKeyService {
      */
     @Transactional
     public boolean disableApiKey(String keyId, String userId) {
-        Optional<ApiKey> keyOpt = apiKeyRepository.findById(keyId);
-        if (keyOpt.isPresent() && keyOpt.get().getUserId().equals(userId)) {
-            ApiKey key = keyOpt.get();
-            key.setEnabled(false);
-            apiKeyRepository.save(key);
-            log.info("Disabled API key: {}", keyId);
-            return true;
+        Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
+        if (keyOpt.isPresent() && userId.equals(keyOpt.get().getUserId())) {
+            return gatewaySecretService.updateStatus(keyId, GatewaySecret.SecretStatus.DISABLED, userId);
         }
         return false;
     }
@@ -200,13 +111,9 @@ public class ApiKeyService {
      */
     @Transactional
     public boolean enableApiKey(String keyId, String userId) {
-        Optional<ApiKey> keyOpt = apiKeyRepository.findById(keyId);
-        if (keyOpt.isPresent() && keyOpt.get().getUserId().equals(userId)) {
-            ApiKey key = keyOpt.get();
-            key.setEnabled(true);
-            apiKeyRepository.save(key);
-            log.info("Enabled API key: {}", keyId);
-            return true;
+        Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
+        if (keyOpt.isPresent() && userId.equals(keyOpt.get().getUserId())) {
+            return gatewaySecretService.updateStatus(keyId, GatewaySecret.SecretStatus.ACTIVE, userId);
         }
         return false;
     }
@@ -216,11 +123,9 @@ public class ApiKeyService {
      */
     @Transactional
     public boolean deleteApiKey(String keyId, String userId) {
-        Optional<ApiKey> keyOpt = apiKeyRepository.findById(keyId);
-        if (keyOpt.isPresent() && keyOpt.get().getUserId().equals(userId)) {
-            apiKeyRepository.deleteById(keyId);
-            log.info("Deleted API key: {}", keyId);
-            return true;
+        Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
+        if (keyOpt.isPresent() && userId.equals(keyOpt.get().getUserId())) {
+            return gatewaySecretService.deleteBySecretId(keyId, userId);
         }
         return false;
     }
@@ -230,12 +135,7 @@ public class ApiKeyService {
      */
     @Transactional
     public void updateTokenUsage(String keyId, long tokensUsed) {
-        Optional<ApiKey> keyOpt = apiKeyRepository.findById(keyId);
-        if (keyOpt.isPresent()) {
-            ApiKey key = keyOpt.get();
-            key.setUsedTokens(key.getUsedTokens() + tokensUsed);
-            apiKeyRepository.save(key);
-        }
+        gatewaySecretService.updateTokenUsage(keyId, tokensUsed);
     }
 
     /**
@@ -243,22 +143,39 @@ public class ApiKeyService {
      */
     @Transactional
     public void resetMonthlyQuota(String keyId) {
-        Optional<ApiKey> keyOpt = apiKeyRepository.findById(keyId);
-        if (keyOpt.isPresent()) {
-            ApiKey key = keyOpt.get();
-            key.setUsedTokens(0L);
-            apiKeyRepository.save(key);
-            log.info("Reset monthly quota for API key: {}", keyId);
-        }
+        gatewaySecretService.resetMonthlyQuota(keyId);
+        log.info("Reset monthly quota for API key: {}", keyId);
     }
 
-    /**
-     * 生成随机密钥
-     */
-    private String generateSecretKey() {
-        byte[] randomBytes = new byte[KEY_LENGTH];
-        secureRandom.nextBytes(randomBytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    public Optional<ApiKeyWithSecret> rotateApiKey(String keyId, String userId) {
+        Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
+        if (keyOpt.isEmpty() || !userId.equals(keyOpt.get().getUserId())) {
+            return Optional.empty();
+        }
+
+        return gatewaySecretService.rotateClientAccessSecret(keyId, userId)
+                .map(rotated -> new ApiKeyWithSecret(toLegacyApiKey(rotated.getSecret()), rotated.getSecretValue()));
+    }
+
+    private ApiKey toLegacyApiKey(GatewaySecret secret) {
+        return ApiKey.builder()
+                .id(secret.getSecretId())
+                .keyHash(secret.getKeyHash())
+                .keyPrefix(secret.getKeyPrefix())
+                .encryptedSecret(secret.getEncryptedSecret())
+                .userId(secret.getUserId())
+                .name(secret.getName())
+                .description(secret.getDescription())
+                .enabled(secret.getStatus() == GatewaySecret.SecretStatus.ACTIVE)
+                .rateLimitPerMinute(secret.getRateLimitPerMinute())
+                .rateLimitPerDay(secret.getRateLimitPerDay())
+                .monthlyTokenQuota(secret.getMonthlyTokenQuota())
+                .usedTokens(secret.getUsedTokens())
+                .expiresAt(secret.getExpiresAt())
+                .lastUsedAt(secret.getLastUsedAt())
+                .createdAt(secret.getCreatedAt())
+                .updatedAt(secret.getUpdatedAt())
+                .build();
     }
 
     /**

@@ -9,12 +9,13 @@ import com.adlin.orin.modules.system.repository.MailTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -178,16 +179,18 @@ public class MailTemplateService {
         // 如果MailerSend失败，尝试SMTP
         if (!success) {
             try {
-                SimpleMailMessage message = new SimpleMailMessage();
+                jakarta.mail.internet.MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
                 String from = config != null && config.getFromEmail() != null
                     ? config.getFromEmail() : "noreply@example.com";
                 String fromName = config != null && config.getFromName() != null
                     ? config.getFromName() : "ORIN系统";
+                boolean isHtml = isHtmlContent(content);
 
-                message.setFrom(fromName + " <" + from + ">");
-                message.setTo(recipients.toArray(new String[0]));
-                message.setSubject(subject);
-                message.setText(content);
+                helper.setFrom(fromName + " <" + from + ">");
+                helper.setTo(recipients.toArray(new String[0]));
+                helper.setSubject(subject);
+                helper.setText(content, isHtml);
                 message.setSentDate(new java.util.Date());
 
                 mailSender.send(message);
@@ -279,7 +282,12 @@ public class MailTemplateService {
             requestBody.put("to", toList);
 
             requestBody.put("subject", subject);
-            requestBody.put("text", content);
+            if (isHtmlContent(content)) {
+                requestBody.put("html", content);
+                requestBody.put("text", stripHtml(content));
+            } else {
+                requestBody.put("text", content);
+            }
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -309,5 +317,31 @@ public class MailTemplateService {
 
     private MailConfigEntity getMailConfig() {
         return mailConfigRepository.findAll().stream().findFirst().orElse(null);
+    }
+
+    private boolean isHtmlContent(String content) {
+        if (content == null || content.isBlank()) {
+            return false;
+        }
+        String trimmed = content.trim();
+        return trimmed.startsWith("<!DOCTYPE")
+                || trimmed.startsWith("<html")
+                || Pattern.compile("<[a-zA-Z][^>]*>").matcher(trimmed).find();
+    }
+
+    private String stripHtml(String content) {
+        if (content == null || content.isBlank()) {
+            return "";
+        }
+        return content
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</p>", "\n")
+                .replaceAll("<[^>]+>", "")
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("&amp;", "&")
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("\\n{3,}", "\n\n")
+                .trim();
     }
 }

@@ -1,18 +1,20 @@
 <template>
   <div :class="['mcp-service-container', { 'is-embedded': embedded }]">
-    <PageHeader
-      v-if="!embedded"
-      title="MCP 服务管理"
-      description="管理 MCP (Model Context Protocol) 服务的配置和连接"
-      icon="Service"
-    />
+    <el-card shadow="never" class="tab-wrapper-card">
+      <PageHeader
+        v-if="!embedded"
+        flat
+        title="MCP 服务管理"
+        description="管理 MCP (Model Context Protocol) 服务的配置和连接"
+        icon="Service"
+      />
 
-    <div v-else class="embedded-toolbar">
-      <h2 class="embedded-title">MCP 服务管理</h2>
-      <p class="embedded-description">管理 MCP (Model Context Protocol) 服务的配置、连接健康和工具安装</p>
-    </div>
+      <div v-else class="embedded-toolbar">
+        <h2 class="embedded-title">MCP 服务管理</h2>
+        <p class="embedded-description">管理 MCP (Model Context Protocol) 服务的配置、连接健康和工具安装</p>
+      </div>
 
-    <el-tabs v-model="activeTab" class="mcp-tabs">
+      <el-tabs v-model="activeTab" class="mcp-tabs">
       <!-- MCP 服务列表 -->
       <el-tab-pane label="服务列表" name="list">
         <el-card>
@@ -197,6 +199,7 @@
         </el-card>
       </el-tab-pane>
     </el-tabs>
+    </el-card>
 
     <!-- 添加/编辑服务对话框 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑 MCP 服务' : '添加 MCP 服务'" width="600px">
@@ -597,19 +600,13 @@ onMounted(() => {
 
 <style scoped>
 .mcp-service-container {
-  padding: 20px;
-}
-
-.mcp-service-container.is-embedded {
   padding: 0;
 }
 
-.mcp-tabs {
-  margin-top: 16px;
-}
-
-.mcp-service-container.is-embedded .mcp-tabs {
-  margin-top: 8px;
+.mcp-service-container.is-embedded :deep(.tab-wrapper-card) {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 .embedded-toolbar {

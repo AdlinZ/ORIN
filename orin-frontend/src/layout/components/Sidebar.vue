@@ -94,10 +94,6 @@
             <el-dropdown-item v-if="userInfo.name" command="profile">
               <el-icon><User /></el-icon>个人中心
             </el-dropdown-item>
-            <el-dropdown-item divided command="toggle_menu_mode">
-              <el-icon><Expand /></el-icon>
-              <span>切换到顶栏模式</span>
-            </el-dropdown-item>
             <el-dropdown-item v-if="!userInfo.name" command="login">
               <el-icon><User /></el-icon>登录
             </el-dropdown-item>
@@ -137,6 +133,14 @@
             :icon="Bell"
             class="action-btn"
             @click="showNotifications"
+          />
+        </el-tooltip>
+        <el-tooltip content="切换到顶栏模式" placement="right">
+          <el-button
+            text
+            :icon="Expand"
+            class="action-btn"
+            @click="appStore.toggleMenuMode()"
           />
         </el-tooltip>
       </div>
@@ -212,6 +216,12 @@ const handleCommand = (command) => {
       break
     case 'toggle_menu_mode':
       appStore.toggleMenuMode()
+      break
+    case 'refresh_page':
+      handleRefresh()
+      break
+    case 'notification_center':
+      showNotifications()
       break
     case 'login':
       router.push('/login')
@@ -556,6 +566,26 @@ html.dark .logo-container {
 
 html.dark .menu-wrapper {
   border-color: var(--orin-border);
+}
+
+html.dark .sidebar-container :deep(.el-menu),
+html.dark .sidebar-container :deep(.el-sub-menu .el-menu) {
+  background: transparent !important;
+}
+
+html.dark .sidebar-container :deep(.el-sub-menu__title),
+html.dark .sidebar-container :deep(.el-menu-item) {
+  color: #cbd5e1 !important;
+}
+
+html.dark .sidebar-container :deep(.el-menu-item:hover),
+html.dark .sidebar-container :deep(.el-sub-menu__title:hover) {
+  background: rgba(51, 65, 85, 0.45) !important;
+}
+
+html.dark .sidebar-container :deep(.el-menu-item.is-active) {
+  background: rgba(45, 212, 191, 0.16) !important;
+  color: #5eead4 !important;
 }
 
 html.dark .user-section {

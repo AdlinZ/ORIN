@@ -5,7 +5,7 @@
         <el-icon class="gateway-header-icon"><Connection /></el-icon>
         <div>
           <h2 class="gateway-title">统一网关</h2>
-          <p class="gateway-desc">管理 API 网关配置、路由规则和访问控制</p>
+          <p class="gateway-desc">{{ pageDesc }}</p>
         </div>
       </div>
       <div class="gateway-nav">
@@ -29,21 +29,35 @@
       <GatewayAclTab v-show="activeTab === 'acl'" />
       <GatewayPoliciesTab v-show="activeTab === 'policies'" />
       <GatewayRateLimitTab v-show="activeTab === 'rate-limit'" />
+      <ApiKeyManagement v-show="activeTab === 'secrets'" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Connection, DataAnalysis, Share, SetUp, Lock, Operation, Lightning } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { Connection, DataAnalysis, Share, SetUp, Lock, Operation, Lightning, Key } from '@element-plus/icons-vue'
 import GatewayOverviewTab from './components/gateway/GatewayOverviewTab.vue'
 import GatewayRoutesTab from './components/gateway/GatewayRoutesTab.vue'
 import GatewayServicesTab from './components/gateway/GatewayServicesTab.vue'
 import GatewayAclTab from './components/gateway/GatewayAclTab.vue'
 import GatewayPoliciesTab from './components/gateway/GatewayPoliciesTab.vue'
 import GatewayRateLimitTab from './components/gateway/GatewayRateLimitTab.vue'
+import ApiKeyManagement from './ApiKeyManagement.vue'
 
+const route = useRoute()
 const activeTab = ref('overview')
+const pageDesc = computed(() => activeTab.value === 'secrets'
+  ? '统一管理访问密钥、供应商凭据、轮换与受控回显'
+  : '管理 API 网关配置、路由规则和访问控制')
+
+if (route.query.tab === 'secrets') {
+  activeTab.value = 'secrets'
+}
+if (route.path.endsWith('/api-keys')) {
+  activeTab.value = 'secrets'
+}
 
 const tabs = [
   { name: 'overview',    label: '网关概览', icon: DataAnalysis },
@@ -52,6 +66,7 @@ const tabs = [
   { name: 'acl',         label: '访问控制', icon: Lock },
   { name: 'policies',    label: '策略管理', icon: Operation },
   { name: 'rate-limit',  label: '全局限流', icon: Lightning },
+  { name: 'secrets',     label: '密钥中心', icon: Key },
 ]
 </script>
 
@@ -141,5 +156,30 @@ const tabs = [
 .gateway-content {
   padding-top: 20px;
   min-height: 400px;
+}
+
+html.dark .gateway-title {
+  color: #e2e8f0;
+}
+
+html.dark .gateway-desc {
+  color: #94a3b8;
+}
+
+html.dark .gateway-nav {
+  border-bottom-color: rgba(71, 85, 105, 0.5);
+}
+
+html.dark .gateway-nav-item {
+  color: #94a3b8;
+}
+
+html.dark .gateway-nav-item:hover:not(.active) {
+  color: #e2e8f0;
+}
+
+html.dark .gateway-nav-item.active {
+  color: #5eead4;
+  border-bottom-color: #2dd4bf;
 }
 </style>

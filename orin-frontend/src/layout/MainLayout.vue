@@ -13,14 +13,17 @@
         'with-sidebar': appStore.menuMode === 'sidebar',
         'collapsed': appStore.menuMode === 'sidebar' && appStore.isCollapse,
         'is-workspace-page': isWorkspaceRoute,
-        'has-topbar': appStore.menuMode === 'topbar'
+        'has-topbar': appStore.menuMode === 'topbar',
+        'is-notification-channels-page': isNotificationChannelsRoute
       }"
     >
-      <router-view v-slot="{ Component }">
-        <transition name="fade-transform">
-          <component :is="Component" :key="$route.fullPath" />
-        </transition>
-      </router-view>
+      <div class="content-inner">
+        <router-view v-slot="{ Component }">
+          <transition name="fade-transform">
+            <component :is="Component" :key="$route.fullPath" />
+          </transition>
+        </router-view>
+      </div>
     </div>
 
     <!-- 侧边栏外部切换按钮 -->
@@ -54,6 +57,7 @@ const WORKSPACE_ROUTE_NAMES = new Set([
   'AgentConsoleEntry'
 ])
 const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.name || '')))
+const isNotificationChannelsRoute = computed(() => String($route.path || '') === '/dashboard/control/notification-channels')
 </script>
 
 <style scoped>
@@ -66,6 +70,19 @@ const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.
   padding: var(--orin-page-gap, 20px);
   min-height: calc(100vh - var(--header-height, 64px));
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.content-inner {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* 全宽页面（首页大屏、邮件客户端、工作流编辑器）不受比例限制 */
+.content-inner:has(.command-center-root),
+.content-inner:has(.gmail-layout),
+.content-inner:has(.visual-workflow-editor),
+.content-inner:has(.workflow-editor) {
+  width: 100%;
 }
 
 .content-area.with-sidebar {
@@ -84,8 +101,28 @@ const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.
   overflow: hidden;
 }
 
+.content-area.is-workspace-page .content-inner,
+.content-area.is-notification-channels-page .content-inner {
+  max-width: none;
+  height: 100%;
+}
+
 .content-area.is-workspace-page.has-topbar {
   height: calc(100vh - var(--header-height, 64px));
+}
+
+.content-area.is-notification-channels-page {
+  height: calc(100vh - var(--header-height, 64px));
+  min-height: calc(100vh - var(--header-height, 64px));
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 0;
+}
+
+.content-area.is-notification-channels-page > :deep(*) {
+  height: 100%;
+  min-height: 0;
 }
 
 /* 页面切换动画 */

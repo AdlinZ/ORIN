@@ -552,4 +552,36 @@ onMounted(async () => {
     width: 100%;
   }
 }
+
+html.dark .overview-label {
+  color: #94a3b8;
+}
+
+html.dark .overview-value,
+html.dark .workflow-item-title,
+html.dark .panel-header strong {
+  color: #e2e8f0;
+}
+
+html.dark .overview-meta,
+html.dark .workflow-item-desc,
+html.dark .workflow-item-meta,
+html.dark .summary-line {
+  color: #94a3b8;
+}
+
+html.dark .workflow-item {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.78));
+  border-color: rgba(71, 85, 105, 0.52);
+}
+
+html.dark .workflow-item:hover,
+html.dark .workflow-item.active {
+  border-color: rgba(45, 212, 191, 0.38);
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.45);
+}
+
+html.dark .result-section {
+  border-top-color: rgba(71, 85, 105, 0.55);
+}
 </style>

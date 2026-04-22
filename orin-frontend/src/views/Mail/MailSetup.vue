@@ -13,8 +13,13 @@
         </el-input>
       </div>
       <div class="top-actions">
-        <el-tag :type="mailConnected ? 'success' : 'warning'">{{ mailConnected ? '已连接' : '未配置' }}</el-tag>
-        <el-button text @click="switchModule('service')">设置</el-button>
+        <div class="status-cluster">
+          <span class="status-chip">{{ unreadInboxCount }} 封未读</span>
+          <span class="status-chip" :class="{ warning: !imapConfigured }">
+            IMAP {{ imapConfigured ? '已配置' : '未配置' }}
+          </span>
+        </div>
+        <el-button class="top-setting-btn" text @click="switchModule('service')">设置</el-button>
       </div>
     </div>
 
@@ -36,14 +41,16 @@
         </button>
         <button class="nav-item" :class="{ active: activeTab === 'tracking' }" @click="switchModule('tracking')">
           已发送追踪
-          <span>{{ trackingStats.failed }}</span>
+          <span>{{ trackingTotal }}</span>
         </button>
         <button class="nav-item" :class="{ active: activeTab === 'templates' }" @click="switchModule('templates')">模板</button>
         <button class="nav-item" :class="{ active: activeTab === 'service' }" @click="switchModule('service')">邮箱设置</button>
 
+        <div class="sidebar-divider" />
         <div class="sidebar-group-title">快捷操作</div>
-        <el-button size="small" :loading="fetchingInbox" :disabled="!imapConfigured" @click="fetchInboxAction">拉取新邮件</el-button>
-        <el-button size="small" :loading="loadingInbox" @click="loadInbox">刷新列表</el-button>
+        <el-button class="quick-action-btn" size="small" :loading="fetchingInbox" :disabled="!imapConfigured" @click="fetchInboxAction">拉取新邮件</el-button>
+        <el-button class="quick-action-btn" size="small" :loading="loadingInbox" :disabled="!imapConfigured" @click="loadInbox">刷新列表</el-button>
+        <div v-if="!imapConfigured" class="sidebar-tip">请先在“邮箱设置”完成 IMAP 配置</div>
       </aside>
 
       <section class="gmail-content">
@@ -52,21 +59,22 @@
             <div class="toolbar-left">
               <el-checkbox
                 :model-value="filteredInboxList.length > 0 && selectedMailIds.length === filteredInboxList.length"
+                :disabled="!imapConfigured"
                 @change="toggleSelectAllMails"
               >
                 全选
               </el-checkbox>
-              <el-button text @click="batchMarkRead" :disabled="selectedMailIds.length === 0">标记已读</el-button>
-              <el-button text type="danger" @click="batchDeleteMail" :disabled="selectedMailIds.length === 0">删除</el-button>
+              <el-button text @click="batchMarkRead" :disabled="!imapConfigured || selectedMailIds.length === 0">标记已读</el-button>
+              <el-button text type="danger" @click="batchDeleteMail" :disabled="!imapConfigured || selectedMailIds.length === 0">删除</el-button>
             </div>
             <div class="toolbar-right">
-              <el-tag type="info">未读 {{ unreadInboxCount }}</el-tag>
-              <el-tag :type="imapConfigured ? 'success' : 'warning'">IMAP {{ imapConfigured ? '已配置' : '未配置' }}</el-tag>
+              <el-tag type="info">已选 {{ selectedMailIds.length }}</el-tag>
+              <el-tag :type="mailConnected ? 'success' : 'warning'">{{ mailConnected ? '邮件服务已连接' : '邮件服务未连接' }}</el-tag>
             </div>
           </div>
 
           <div class="mail-split">
-            <div class="mail-list">
+            <div class="mail-list" :class="{ 'is-empty': !loadingInbox && filteredInboxList.length === 0 }">
               <div
                 v-for="mail in filteredInboxList"
                 :key="mail.id"
@@ -84,7 +92,24 @@
                 </div>
                 <div class="time">{{ formatDateTime(mail.receivedAt) }}</div>
               </div>
-              <div v-if="!loadingInbox && filteredInboxList.length === 0" class="mail-empty">暂无邮件</div>
+              <div v-if="!loadingInbox && !imapConfigured" class="mail-empty">
+                <div class="mail-empty-card">
+                  <div class="mail-empty-title">IMAP 尚未配置</div>
+                  <div class="mail-empty-desc">配置后即可自动拉取并显示收件箱邮件。</div>
+                  <div class="mail-empty-actions">
+                    <el-button type="primary" @click="switchModule('service')">去配置 IMAP</el-button>
+                  </div>
+                </div>
+              </div>
+              <div v-else-if="!loadingInbox && filteredInboxList.length === 0" class="mail-empty">
+                <div class="mail-empty-card">
+                  <div class="mail-empty-title">当前没有邮件</div>
+                  <div class="mail-empty-desc">可以先拉取最新邮件，或更换筛选条件查看历史记录。</div>
+                  <div class="mail-empty-actions">
+                    <el-button type="primary" :loading="fetchingInbox" @click="fetchInboxAction">拉取新邮件</el-button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="mail-reader">
@@ -103,7 +128,17 @@
                 </div>
                 <div class="reader-body" v-html="selectedInboxMail.contentHtml || selectedInboxMail.content || '-'" />
               </template>
-              <div v-else class="reader-empty">选择一封邮件开始阅读</div>
+              <div v-else class="reader-empty">
+                <div class="reader-empty-card">
+                  <div class="reader-empty-title">{{ imapConfigured ? '选择一封邮件开始阅读' : '先完成 IMAP 配置后再查看邮件详情' }}</div>
+                  <div class="mail-empty-desc">
+                    {{ imapConfigured ? '左侧列表支持按未读/已读筛选，并可直接批量处理。' : '配置路径：邮箱设置 -> 启用 IMAP -> 填写服务器与账号信息。' }}
+                  </div>
+                  <div v-if="!imapConfigured" class="mail-empty-actions">
+                    <el-button type="primary" @click="switchModule('service')">前往邮箱设置</el-button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -338,9 +373,9 @@
         <el-descriptions-item label="收件人">{{ sendForm.to || '-' }}</el-descriptions-item>
         <el-descriptions-item label="抄送">{{ sendForm.cc || '-' }}</el-descriptions-item>
         <el-descriptions-item label="密送">{{ sendForm.bcc || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="主题">{{ sendForm.subject || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="主题">{{ renderedSubject || '-' }}</el-descriptions-item>
       </el-descriptions>
-      <div class="preview-body" v-html="sendForm.content || '<p>-</p>'" />
+      <div class="preview-body" v-html="renderedContent || '<p>-</p>'" />
     </el-dialog>
   </div>
 </template>
@@ -643,6 +678,8 @@ const trackingStats = computed(() => {
   return stats
 })
 
+const trackingTotal = computed(() => logPagination.total || logs.value.length)
+
 const visibleModuleNavItems = computed(() => moduleNavItems)
 
 const hasConfigDraft = computed(() => {
@@ -929,9 +966,51 @@ const testMailConfigAction = async () => {
   }
 }
 
-const replaceTemplateVariables = (text) => {
+const renderTemplateVariables = (text, keepMissing = false) => {
   if (!text) return ''
-  return text.replace(/{{\s*([a-zA-Z0-9_\-.]+)\s*}}/g, (_, key) => sendForm.variables[key] || '')
+  return text.replace(/{{\s*([a-zA-Z0-9_\-.]+)\s*}}/g, (match, key) => {
+    const value = sendForm.variables[key]
+    if (value === null || value === undefined || String(value).trim() === '') {
+      return keepMissing ? match : ''
+    }
+    return value
+  })
+}
+
+const renderedSubject = computed(() => renderTemplateVariables(sendForm.subject, true))
+const renderedContent = computed(() => renderTemplateVariables(sendForm.content, true))
+
+const escapeHtml = (value) => {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const decorateTemplateVariables = (html) => {
+  if (!html) return ''
+  return html.replace(/{{\s*([a-zA-Z0-9_\-.]+)\s*}}/g, (_, key) => {
+    const value = sendForm.variables[key]
+    const text = value === null || value === undefined || String(value).trim() === ''
+      ? `{{${key}}}`
+      : String(value)
+    return `<span class="template-var-chip" contenteditable="false" data-var-key="${escapeHtml(key)}">${escapeHtml(text)}</span>`
+  })
+}
+
+const recoverTemplateVariables = (html) => {
+  if (!html) return ''
+  const container = document.createElement('div')
+  container.innerHTML = html
+  container.querySelectorAll('span.template-var-chip[data-var-key]').forEach((node) => {
+    const key = node.getAttribute('data-var-key')
+    if (key) {
+      node.replaceWith(`{{${key}}}`)
+    }
+  })
+  return container.innerHTML
 }
 
 const validateEmails = (value) => {
@@ -943,41 +1022,42 @@ const validateEmails = (value) => {
 
 const syncComposeEditor = (html) => {
   if (!composeEditorRef.value) return
-  composeEditorRef.value.innerHTML = html || ''
+  composeEditorRef.value.innerHTML = decorateTemplateVariables(html || '')
 }
 
 const onComposeEditorInput = (event) => {
-  sendForm.content = event.target.innerHTML
+  sendForm.content = recoverTemplateVariables(event.target.innerHTML)
 }
 
 const onComposeEditorPaste = (event) => {
   event.preventDefault()
   const text = event.clipboardData?.getData('text/plain') || ''
   document.execCommand('insertText', false, text)
+  sendForm.content = recoverTemplateVariables(composeEditorRef.value?.innerHTML || '')
 }
 
 const execEditorCommand = (command) => {
   composeEditorRef.value?.focus()
   document.execCommand(command, false)
-  sendForm.content = composeEditorRef.value?.innerHTML || ''
+  sendForm.content = recoverTemplateVariables(composeEditorRef.value?.innerHTML || '')
 }
 
 const insertQuote = () => {
   composeEditorRef.value?.focus()
   document.execCommand('insertHTML', false, '<blockquote style="border-left:3px solid #d0d7e5;padding-left:8px;color:#5c6a80;">引用内容</blockquote>')
-  sendForm.content = composeEditorRef.value?.innerHTML || ''
+  sendForm.content = recoverTemplateVariables(composeEditorRef.value?.innerHTML || '')
 }
 
 const insertCodeBlock = () => {
   composeEditorRef.value?.focus()
   document.execCommand('insertHTML', false, '<pre style="background:#f5f7fb;border:1px solid #dce3ef;border-radius:6px;padding:10px;"><code>code here</code></pre>')
-  sendForm.content = composeEditorRef.value?.innerHTML || ''
+  sendForm.content = recoverTemplateVariables(composeEditorRef.value?.innerHTML || '')
 }
 
 const insertEmoji = () => {
   composeEditorRef.value?.focus()
   document.execCommand('insertText', false, '😀')
-  sendForm.content = composeEditorRef.value?.innerHTML || ''
+  sendForm.content = recoverTemplateVariables(composeEditorRef.value?.innerHTML || '')
 }
 
 const openPreviewDialog = () => {
@@ -1037,8 +1117,8 @@ const sendMailAction = async () => {
       cc: sendForm.cc,
       bcc: sendForm.bcc,
       separateSend: sendForm.separateSend,
-      subject: replaceTemplateVariables(sendForm.subject),
-      content: replaceTemplateVariables(sendForm.content)
+      subject: renderTemplateVariables(sendForm.subject),
+      content: renderTemplateVariables(sendForm.content)
     }
     const result = await sendMail(payload)
     if (result?.success) {
@@ -1261,7 +1341,22 @@ watch(
 
 watch(activeTab, (value) => {
   onTabChange(value)
+  if (value === 'tracking') {
+    loadLogs()
+  }
 })
+
+watch(
+  () => sendForm.variables,
+  () => {
+    if (!composeEditorRef.value) return
+    const isEditorFocused = document.activeElement === composeEditorRef.value
+    if (!isEditorFocused) {
+      syncComposeEditor(sendForm.content)
+    }
+  },
+  { deep: true }
+)
 
 onMounted(async () => {
   await Promise.all([
@@ -1281,7 +1376,9 @@ onMounted(async () => {
 .gmail-layout {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 120px);
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 100%;
   background: #f7f9fd;
   border: 1px solid #e7ecf5;
   border-radius: 16px;
@@ -1318,7 +1415,36 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 10px;
+}
+
+.status-cluster {
+  display: flex;
   gap: 8px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #d9e2ef;
+  background: #f4f8ff;
+  color: #2c3e56;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-chip.warning {
+  border-color: #f5d2a3;
+  background: #fff8ee;
+  color: #b76a00;
+}
+
+.top-setting-btn {
+  color: #304767;
+  font-weight: 600;
 }
 
 .gmail-main {
@@ -1367,17 +1493,40 @@ onMounted(async () => {
 }
 
 .sidebar-group-title {
-  margin-top: 14px;
+  margin-top: 6px;
   padding-left: 8px;
   font-size: 11px;
   color: #7b8798;
+  letter-spacing: 0.2px;
+}
+
+.sidebar-divider {
+  margin: 4px 6px 0;
+  border-top: 1px solid #edf2f8;
+}
+
+.quick-action-btn {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.sidebar-tip {
+  font-size: 12px;
+  color: #8e5a00;
+  padding: 6px 8px;
+  border: 1px dashed #f5d2a3;
+  background: #fff8ee;
+  border-radius: 10px;
 }
 
 .gmail-content {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   padding: 12px;
   display: flex;
   flex-direction: column;
+  overflow: auto;
 }
 
 .list-toolbar {
@@ -1414,6 +1563,13 @@ onMounted(async () => {
   min-width: 0;
   overflow: auto;
   border-right: 1px solid #e6eaf2;
+}
+
+.mail-list.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .mail-row {
@@ -1524,11 +1680,39 @@ onMounted(async () => {
 
 .reader-empty,
 .mail-empty {
-  margin: auto;
-  color: #8391a6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+  color: #5b6d86;
   font-size: 13px;
   padding: 24px;
   text-align: center;
+}
+
+.mail-empty-card,
+.reader-empty-card {
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.mail-empty-title,
+.reader-empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #223047;
+  margin-bottom: 8px;
+}
+
+.mail-empty-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #677a94;
+}
+
+.mail-empty-actions {
+  margin-top: 14px;
 }
 
 .module-sheet {
@@ -1639,6 +1823,20 @@ onMounted(async () => {
   color: #9aa8bd;
 }
 
+.qq-editor :deep(.template-var-chip),
+.qq-editor .template-var-chip {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #b8d4ff;
+  background: #edf4ff;
+  color: #2457a6;
+  font-size: 12px;
+  line-height: 18px;
+  vertical-align: baseline;
+}
+
 .attachment-block {
   width: 100%;
   display: flex;
@@ -1674,6 +1872,8 @@ onMounted(async () => {
   border-radius: 8px;
   min-height: 220px;
   padding: 12px;
+  max-height: 380px;
+  overflow: auto;
 }
 
 .config-form {
@@ -1703,6 +1903,7 @@ onMounted(async () => {
     border-bottom: 1px solid #e6eaf2;
     max-height: 320px;
   }
+
 }
 
 @media (max-width: 980px) {

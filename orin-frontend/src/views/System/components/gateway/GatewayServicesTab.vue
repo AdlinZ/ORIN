@@ -21,9 +21,9 @@
                 <el-table-column prop="port" label="端口" width="80" />
                 <el-table-column prop="weight" label="权重" width="80" />
                 <el-table-column prop="status" label="状态" width="100">
-                  <template #default="{ col }">
-                    <el-tag :type="col.row.status === 'UP' ? 'success' : 'danger'" size="small">
-                      {{ col.row.status }}
+                  <template #default="{ row: instance }">
+                    <el-tag :type="instance.status === 'UP' ? 'success' : 'danger'" size="small">
+                      {{ instance.status }}
                     </el-tag>
                   </template>
                 </el-table-column>

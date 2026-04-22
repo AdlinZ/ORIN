@@ -1,31 +1,33 @@
 <template>
   <div class="page-container">
-    <PageHeader 
-      title="API 密钥" 
-      description="管理访问密钥、调用额度与限流策略"
-      icon="Key"
-    >
-      <template #actions>
-        <el-button
-          v-if="activeTab === 'platform'"
-          type="success"
-          :icon="Plus"
-          @click="showCreateDialog"
-        >
-          创建平台密钥
-        </el-button>
-        <el-button
-          v-else
-          type="primary"
-          :icon="Plus"
-          @click="showExternalCreate"
-        >
-          添加供应商密钥
-        </el-button>
-      </template>
-    </PageHeader>
+    <el-card shadow="never" class="tab-wrapper-card">
+      <PageHeader
+        flat
+        title="API 密钥"
+        description="管理访问密钥、调用额度与限流策略"
+        icon="Key"
+      >
+        <template #actions>
+          <el-button
+            v-if="activeTab === 'platform'"
+            type="success"
+            :icon="Plus"
+            @click="showCreateDialog"
+          >
+            创建平台密钥
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            :icon="Plus"
+            @click="showExternalCreate"
+          >
+            添加供应商密钥
+          </el-button>
+        </template>
+      </PageHeader>
 
-    <el-tabs v-model="activeTab" class="api-key-tabs">
+      <el-tabs v-model="activeTab" class="api-key-tabs">
       <el-tab-pane label="平台访问密钥" name="platform">
         <el-card shadow="never" class="table-card premium-card">
           <el-table
@@ -234,6 +236,7 @@
         </el-card>
       </el-tab-pane>
     </el-tabs>
+    </el-card>
 
     <!-- 已存在的创建密钥对话框 (平台) - Truncated for diff but preserved in file -->
 

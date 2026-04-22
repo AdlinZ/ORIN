@@ -2917,6 +2917,7 @@ watch(
   --left-pane-width: 320px;
   --right-pane-width: 0px;
   --drawer-left-width: 320px;
+  --collapsed-pane-width: 64px;
   --drawer-right-width: 320px;
   --chat-content-max-width: 900px;
   --sidebar-accent: var(--orin-primary, #0f9f95);
@@ -2940,6 +2941,20 @@ watch(
   --left-pane-width: 320px;
   --right-pane-width: 0px;
   --chat-content-max-width: 920px;
+}
+
+.agent-workspace.is-medium {
+  --left-pane-width: 280px;
+  --drawer-left-width: 280px;
+  --collapsed-pane-width: 56px;
+  --chat-content-max-width: 820px;
+}
+
+.agent-workspace.is-narrow {
+  --left-pane-width: 260px;
+  --drawer-left-width: 260px;
+  --collapsed-pane-width: 50px;
+  --chat-content-max-width: 740px;
 }
 
 /* Ambient Glass Background */
@@ -3082,7 +3097,7 @@ watch(
 /* Collapsed Modes (Desktop only) */
 .workspace-sidebar.is-collapsed:not(.is-drawer),
 .workspace-config-pane.is-collapsed:not(.is-drawer) {
-  width: 64px;
+  width: var(--collapsed-pane-width);
 }
 
 /* Custom Scrollbars for Sidebars */

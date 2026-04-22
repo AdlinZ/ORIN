@@ -2,8 +2,8 @@ package com.adlin.orin.security;
 
 import com.adlin.orin.common.dto.Result;
 import com.adlin.orin.common.exception.ErrorCode;
-import com.adlin.orin.modules.apikey.entity.ApiKey;
-import com.adlin.orin.modules.apikey.service.ApiKeyService;
+import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,7 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ApiKeyAuthInterceptor implements HandlerInterceptor {
 
-    private final ApiKeyService apiKeyService;
+    private final GatewaySecretService gatewaySecretService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -66,7 +66,7 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
         }
 
         // 验证API密钥
-        Optional<ApiKey> validatedKey = apiKeyService.validateApiKey(apiKey);
+        Optional<GatewaySecret> validatedKey = gatewaySecretService.validateClientAccessSecret(apiKey);
 
         if (validatedKey.isEmpty()) {
             log.warn("Invalid API key for request: {} {}", request.getMethod(), path);
@@ -76,6 +76,7 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
 
         // 将API密钥信息存储到请求属性中,供后续使用
         request.setAttribute("apiKey", validatedKey.get());
+        request.setAttribute("gatewaySecret", validatedKey.get());
         request.setAttribute("userId", validatedKey.get().getUserId());
 
         log.debug("API key validated for user: {}", validatedKey.get().getUserId());

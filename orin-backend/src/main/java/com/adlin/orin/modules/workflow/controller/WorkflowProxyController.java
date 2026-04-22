@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.workflow.controller;
 
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
 import com.adlin.orin.modules.model.service.ModelConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,13 +31,16 @@ public class WorkflowProxyController {
     private final WebClient aiEngineWebClient;
     private final ModelConfigService modelConfigService;
     private final AuditLogService auditLogService;
+    private final GatewaySecretService gatewaySecretService;
 
     public WorkflowProxyController(@Qualifier("aiEngineWebClient") WebClient aiEngineWebClient,
             ModelConfigService modelConfigService,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            GatewaySecretService gatewaySecretService) {
         this.aiEngineWebClient = aiEngineWebClient;
         this.modelConfigService = modelConfigService;
         this.auditLogService = auditLogService;
+        this.gatewaySecretService = gatewaySecretService;
     }
 
     /**
@@ -212,21 +216,29 @@ public class WorkflowProxyController {
 
                 // Strict provider matching - no fallback to different providers
                 if ("SiliconFlow".equalsIgnoreCase(provider)) {
-                    if (config.getSiliconFlowApiKey() == null || config.getSiliconFlowApiKey().isEmpty()) {
+                    var credentialOpt = gatewaySecretService.resolveProviderCredential("siliconflow");
+                    if (credentialOpt.isEmpty() || credentialOpt.get().getApiKey() == null
+                            || credentialOpt.get().getApiKey().isEmpty()) {
                         log.error("SiliconFlow provider configured but no API key available in ModelConfig");
                         continue;
                     }
-                    data.put("api_key", config.getSiliconFlowApiKey());
-                    data.put("base_url", config.getSiliconFlowEndpoint());
+                    data.put("api_key", credentialOpt.get().getApiKey());
+                    data.put("base_url", credentialOpt.get().getBaseUrl() != null
+                            ? credentialOpt.get().getBaseUrl()
+                            : config.getSiliconFlowEndpoint());
                     log.info("Injected SiliconFlow credentials for node {}", node.get("id").asText());
 
                 } else if ("Dify".equalsIgnoreCase(provider)) {
-                    if (config.getDifyApiKey() == null || config.getDifyApiKey().isEmpty()) {
+                    var credentialOpt = gatewaySecretService.resolveProviderCredential("dify");
+                    if (credentialOpt.isEmpty() || credentialOpt.get().getApiKey() == null
+                            || credentialOpt.get().getApiKey().isEmpty()) {
                         log.error("Dify provider configured but no API key available in ModelConfig");
                         continue;
                     }
-                    data.put("api_key", config.getDifyApiKey());
-                    data.put("base_url", config.getDifyEndpoint());
+                    data.put("api_key", credentialOpt.get().getApiKey());
+                    data.put("base_url", credentialOpt.get().getBaseUrl() != null
+                            ? credentialOpt.get().getBaseUrl()
+                            : config.getDifyEndpoint());
                     log.info("Injected Dify credentials for node {}", node.get("id").asText());
 
                 } else if ("Ollama".equalsIgnoreCase(provider)) {
@@ -235,8 +247,11 @@ public class WorkflowProxyController {
                         continue;
                     }
                     data.put("base_url", config.getOllamaEndpoint());
-                    if (config.getOllamaApiKey() != null && !config.getOllamaApiKey().isEmpty()) {
-                        data.put("api_key", config.getOllamaApiKey());
+                    var credentialOpt = gatewaySecretService.resolveProviderCredential("local-ollama")
+                            .or(() -> gatewaySecretService.resolveProviderCredential("ollama"));
+                    if (credentialOpt.isPresent() && credentialOpt.get().getApiKey() != null
+                            && !credentialOpt.get().getApiKey().isEmpty()) {
+                        data.put("api_key", credentialOpt.get().getApiKey());
                     }
                     log.info("Injected Ollama credentials for node {}", node.get("id").asText());
 

@@ -460,4 +460,62 @@ onMounted(loadData)
     font-size: 16px;
   }
 }
+
+html.dark .knowledge-workspace {
+  background: transparent;
+}
+
+html.dark .workspace-sidebar,
+html.dark .workspace-main {
+  background: rgba(15, 23, 42, 0.84);
+  border-color: rgba(71, 85, 105, 0.5);
+}
+
+html.dark .sidebar-block,
+html.dark .composer,
+html.dark .result-panel,
+html.dark .result-item,
+html.dark .mini-item {
+  background: rgba(30, 41, 59, 0.76);
+  border-color: rgba(71, 85, 105, 0.5);
+}
+
+html.dark .mini-item.active,
+html.dark .mini-item:hover {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(45, 212, 191, 0.36);
+}
+
+html.dark .main-hero,
+html.dark .result-header > span:first-child,
+html.dark .item-score,
+html.dark .mini-main,
+html.dark .block-title {
+  color: #e2e8f0;
+}
+
+html.dark .field-label,
+html.dark .meta-text,
+html.dark .mini-sub,
+html.dark .result-meta,
+html.dark .item-index,
+html.dark .item-source,
+html.dark .item-content {
+  color: #94a3b8;
+}
+
+html.dark .composer-input :deep(.el-textarea__inner) {
+  background: transparent;
+  color: #e2e8f0;
+}
+
+html.dark .workspace-sidebar :deep(.el-input__wrapper),
+html.dark .workspace-sidebar :deep(.el-select__wrapper),
+html.dark .workspace-sidebar :deep(.el-input-number),
+html.dark .workspace-sidebar :deep(.el-input-number__decrease),
+html.dark .workspace-sidebar :deep(.el-input-number__increase) {
+  background: rgba(15, 23, 42, 0.78) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.58) !important;
+}
 </style>

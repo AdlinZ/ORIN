@@ -12,22 +12,14 @@
       <div class="header-status">
         <div class="status-core" :class="healthStatusClass">
           <span class="status-dot"></span>
-          <span class="status-text">平台状态：{{ healthStatusText }} · 最近检测：{{ lastHealthCheck }}</span>
-        </div>
-        <div class="status-secondary">
-          <div class="status-chip">
-            <span class="chip-label">运行时长:</span>
-            <span class="chip-val">{{ uptimeText }}</span>
-          </div>
+          <span class="status-text">
+            平台状态：{{ healthStatusText }} · 最近检测：{{ lastHealthCheck }} · 运行时长：{{ uptimeText }}
+          </span>
         </div>
       </div>
 
       <!-- 3. 操作区 -->
       <div class="header-actions">
-        <span v-if="lastRefreshTime" class="last-refresh-time">
-          <el-icon :size="13"><Clock /></el-icon>
-          上次: {{ lastRefreshTime }}
-        </span>
         <el-button type="primary" :loading="isRefreshing" @click="loadDashboardData" round>
           {{ isRefreshing ? '刷新中...' : '刷新数据' }}
         </el-button>
@@ -139,7 +131,7 @@
               </div>
             </div>
           </div>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <el-empty v-else :description="todayCostEmptyDescription" :image-size="72" />
         </el-card>
       </div>
 
@@ -252,7 +244,7 @@
               <span class="panel-sub">按小时（¥）</span>
             </div>
           </template>
-          <div v-if="todayCostTrend.length" class="cost-trend">
+          <div v-if="hasTodayCostBreakdownData" class="cost-trend">
             <div class="cost-bars">
               <div v-for="item in todayCostTrend" :key="item.hour" class="cost-bar-item">
                 <div class="cost-bar-rail">
@@ -263,7 +255,7 @@
             </div>
             <div class="cost-total">今日累计成本：¥{{ todayCostTotal.toFixed(2) }}</div>
           </div>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <el-empty v-else :description="todayCostEmptyDescription" :image-size="72" />
         </el-card>
 
         <el-card class="panel-card premium-card" shadow="never">
@@ -476,7 +468,6 @@ import { UI_TEXT } from '@/constants/uiText'
 
 const loading = ref(false)
 const isRefreshing = ref(false)
-const lastRefreshTime = ref(null)
 const summaryData = ref({})
 const uptimeMs = ref(0)
 const healthStatusText = ref('待检测')
@@ -684,10 +675,18 @@ const todayCostTrend = computed(() => {
   return todayCostTrendRaw.value.map((item) => ({
     hour: item.hour,
     value: safeNumber(item.value),
-    height: Math.max((safeNumber(item.value) / max) * 100, 8),
+    height: safeNumber(item.value) > 0 ? Math.max((safeNumber(item.value) / max) * 100, 8) : 0,
   }))
 })
 const todayCostTotal = computed(() => todayCostTrend.value.reduce((sum, item) => sum + safeNumber(item.value), 0))
+const hasTodayCostBreakdownData = computed(() => todayCostTrend.value.some((item) => safeNumber(item.value) > 0))
+const todayCostEmptyDescription = computed(() => {
+  const totalFromSummary = safeNumber(summaryData.value?.todayCost, safeNumber(summaryData.value?.today_cost))
+  if (totalFromSummary > 0) {
+    return `今日累计成本 ¥${totalFromSummary.toFixed(2)}，暂无小时级明细`
+  }
+  return '今日暂无成本上报数据'
+})
 const requestSuccessRate = computed(() => {
   const total = safeNumber(requestSummary.value.success) + safeNumber(requestSummary.value.failure)
   if (!total) return 0
@@ -736,6 +735,22 @@ const uptimeText = computed(() => {
 const safeNumber = (value, fallback = 0) => {
   const n = Number(value)
   return Number.isFinite(n) ? n : fallback
+}
+
+const readCostValue = (item) => {
+  return safeNumber(
+    item?.cost,
+    safeNumber(
+      item?.estimatedCost,
+      safeNumber(
+        item?.estimated_cost,
+        safeNumber(
+          item?.externalPrice,
+          safeNumber(item?.external_price, safeNumber(item?.totalCost, safeNumber(item?.total_cost)))
+        )
+      )
+    )
+  )
 }
 
 const formatCheckTime = (value) => {
@@ -857,7 +872,7 @@ const buildTopLists = (historyList) => {
     const ts = item.createdAt || item.timestamp || item.time
     if (ts && dayjs(ts).format('YYYY-MM-DD') === todayKey) {
       const hour = dayjs(ts).format('HH:00')
-      const cost = safeNumber(item.cost, safeNumber(item.estimatedCost))
+      const cost = readCostValue(item)
       hourCostMap.set(hour, (hourCostMap.get(hour) || 0) + cost)
     }
   })
@@ -872,7 +887,7 @@ const buildTopLists = (historyList) => {
   todayCostTrendRaw.value = Array.from({ length: 24 }, (_, idx) => {
     const hour = `${String(idx).padStart(2, '0')}:00`
     return { hour, value: safeNumber(hourCostMap.get(hour), 0) }
-  }).filter((item) => item.value > 0)
+  })
 
   requestSummary.value = { success: successCount, failure: failureCount }
 }
@@ -1025,7 +1040,6 @@ const loadDashboardData = async () => {
   } finally {
     loading.value = false
     isRefreshing.value = false
-    lastRefreshTime.value = dayjs().format('HH:mm:ss')
     window.dispatchEvent(new Event('page-refresh-done'))
   }
 }
@@ -1089,9 +1103,9 @@ onBeforeUnmount(() => {
 
 .cc-header-glass {
   display: grid;
-  grid-template-columns: minmax(240px, auto) minmax(320px, 1fr) auto;
+  grid-template-columns: minmax(220px, auto) minmax(460px, 1fr) auto;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
   padding: 16px 24px;
   border-radius: 16px;
   background: color-mix(in srgb, var(--bg-card) 88%, transparent);
@@ -1137,9 +1151,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 16px;
+  gap: 10px;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .header-actions {
@@ -1149,15 +1163,6 @@ onBeforeUnmount(() => {
   gap: 12px;
   min-width: 0;
   justify-self: end;
-}
-
-.last-refresh-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-subtle);
-  font-size: 12px;
-  font-weight: 500;
 }
 
 /* KPI 总览 */
@@ -1228,7 +1233,7 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .middle-col-main,
@@ -1237,6 +1242,21 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+.middle-col-side {
+  height: 100%;
+}
+
+.middle-col-side > .panel-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.middle-col-side > .panel-card :deep(.el-card__body) {
+  flex: 1;
 }
 
 /* 底部三列 */
@@ -1521,17 +1541,22 @@ onBeforeUnmount(() => {
 .load-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
   gap: 10px;
 }
 
 .load-tile {
+  box-sizing: border-box;
   border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 10px;
   background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248, 250, 252, 0.6) 100%);
   padding: 12px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 8px;
+  min-height: 84px;
   transition: all 0.2s ease;
 }
 
@@ -1555,6 +1580,8 @@ onBeforeUnmount(() => {
 .tile-header strong {
   color: var(--text-strong);
   font-size: 16px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -1633,6 +1660,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .asset-card {
@@ -1688,6 +1716,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
 }
 
 .asset-label {
@@ -1899,6 +1928,8 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 600;
   border: 1px solid transparent;
+  min-width: 0;
+  width: 100%;
 }
 
 .status-core.status-ok {
@@ -1927,31 +1958,30 @@ onBeforeUnmount(() => {
 }
 
 .status-text {
-  max-width: min(46vw, 520px);
+  display: block;
+  flex: 1;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
-.status-secondary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+@media (max-width: 1320px) {
+  .status-core {
+    padding: 8px 12px;
+  }
 
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: rgba(241, 245, 249, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  font-size: 12px;
+  .status-text {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
 }
-
-.chip-label { color: var(--text-subtle); }
-.chip-val   { color: var(--text-main); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
 /* Responsive */
 @media (max-width: 1200px) {
@@ -1960,13 +1990,45 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1560px) {
+  .bottom-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .asset-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .asset-divider {
+    display: none;
+  }
+
+  .asset-info {
+    flex: 1 1 calc(50% - 6px);
+  }
+}
+
+@media (max-width: 1240px) {
   .middle-section {
     grid-template-columns: 1fr;
   }
 
   .bottom-section {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+  }
+
+  .donut-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .event-list li {
+    grid-template-columns: 84px 1fr auto;
   }
 }
 
@@ -2002,8 +2064,13 @@ onBeforeUnmount(() => {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
-  .donut-grid {
+  .queue-grid {
     grid-template-columns: 1fr;
+  }
+
+  .event-list li {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
   }
 }
 
@@ -2028,12 +2095,12 @@ html.dark .node-load-head {
 
 html.dark .kpi-card,
 html.dark :deep(.panel-card.el-card) {
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(30, 41, 59, 0.82);
+  border-color: rgba(71, 85, 105, 0.52);
 }
 
 html.dark .kpi-card:hover {
-  background: rgba(30, 41, 59, 0.9);
+  background: rgba(51, 65, 85, 0.88);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
 }
 
@@ -2052,7 +2119,7 @@ html.dark .node-list li,
 html.dark .node-stat,
 html.dark .asset-card.primary,
 html.dark .asset-card.secondary {
-  background: rgba(15, 23, 42, 0.6);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(71, 85, 105, 0.5);
 }
 </style>

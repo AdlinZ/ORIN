@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/api-keys")
 @Tag(name = "API Key Management", description = "API密钥管理")
 @RequiredArgsConstructor
+@Deprecated(forRemoval = false)
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
@@ -232,6 +233,26 @@ public class ApiKeyController {
         response.put("message", "配额已重置");
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 轮换API密钥
+     */
+    @Operation(summary = "轮换API密钥（Deprecated）")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{keyId}/rotate")
+    public ResponseEntity<Map<String, Object>> rotateApiKey(
+            @PathVariable String keyId,
+            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+        return apiKeyService.rotateApiKey(keyId, userId)
+                .map(rotated -> {
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("apiKey", toApiKeyResponse(rotated.getApiKey()));
+                    response.put("secretKey", rotated.getSecretKey());
+                    response.put("warning", "请妥善保存此密钥，它只会显示一次！");
+                    return ResponseEntity.ok(response);
+                })
+                .orElseGet(() -> ResponseEntity.badRequest().body(Map.of("success", false, "message", "rotate failed")));
     }
 
     /**

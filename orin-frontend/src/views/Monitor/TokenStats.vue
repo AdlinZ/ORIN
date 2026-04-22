@@ -1046,8 +1046,9 @@ onUnmounted(() => {
 /* Bottom Grid */
 .bottom-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
   gap: 24px;
+  align-items: start;
 }
 
 /* Tokens By Type Bar */
@@ -1106,7 +1107,7 @@ onUnmounted(() => {
 
 .sessions-card :deep(.el-card__body) {
   padding: 20px;
-  border-right: 1px solid var(--border-color, #e2e8f0);
+  border-right: none;
 }
 
 .sessions-count {
@@ -1117,7 +1118,9 @@ onUnmounted(() => {
 .sessions-toolbar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-light, #f1f5f9);
@@ -1132,6 +1135,10 @@ onUnmounted(() => {
 .toolbar-filters {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
 }
 
 .sort-dropdown {
@@ -1174,6 +1181,7 @@ onUnmounted(() => {
   margin-bottom: 6px;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .session-meta span::after {
   content: '·';
@@ -1188,6 +1196,7 @@ onUnmounted(() => {
   color: var(--text-tertiary, #94a3b8);
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .session-stats span::after {
   content: '·';
@@ -1291,6 +1300,12 @@ html.dark .el-button:not(.el-button--primary):hover {
   .metrics-date-range {
     width: 100%;
     min-width: 220px;
+  }
+}
+
+@media (max-width: 1320px) {
+  .bottom-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

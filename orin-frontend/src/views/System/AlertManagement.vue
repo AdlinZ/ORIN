@@ -6,7 +6,7 @@
       description="集中管理告警规则、历史记录与处理状态"
       icon="Bell"
     />
-    <el-tabs v-model="activeTab" class="config-tabs">
+    <el-tabs v-model="activeTab" class="config-tabs" :class="{ 'single-tab': singleTabMode }">
       <!-- 告警规则 Tab -->
       <el-tab-pane v-if="showRulesTab" label="告警规则" name="rules">
         <el-card class="premium-card">
@@ -103,6 +103,9 @@
               </div>
             </div>
           </template>
+          <div class="history-tip">
+            说明：历史会包含“规则触发告警”和“系统健康告警”；规则名称为空时按系统健康告警展示。
+          </div>
 
           <el-table
             v-loading="loadingHistory"
@@ -110,6 +113,11 @@
             :data="history"
             stripe
           >
+            <el-table-column label="规则名称" min-width="180" show-overflow-tooltip>
+              <template #default="{ row }">
+                {{ historyRuleName(row) }}
+              </template>
+            </el-table-column>
             <el-table-column prop="alertMessage" label="告警消息" min-width="200" />
             <el-table-column prop="severity" label="严重程度" width="100">
               <template #default="{ row }">
@@ -256,6 +264,7 @@ const props = defineProps({
 
 const showRulesTab = computed(() => props.mode === 'all' || props.mode === 'rules')
 const showHistoryTab = computed(() => props.mode === 'all' || props.mode === 'history')
+const singleTabMode = computed(() => Number(showRulesTab.value) + Number(showHistoryTab.value) <= 1)
 const activeTab = ref(props.initialTab)
 const loading = ref(false)
 const loadingHistory = ref(false)
@@ -445,6 +454,10 @@ const getSeverityType = (severity) => {
   return map[severity] || 'info'
 }
 
+const historyRuleName = (row) => {
+  return row?.ruleName || row?.ruleId || '系统健康告警'
+}
+
 const formatTime = (time) => {
   if (!time) return ''
   // Handle Spring Boot LocalDateTime array format: [year, month, day, hour, minute, second, ns]
@@ -543,5 +556,19 @@ onUnmounted(() => {
 
 .mt-4 {
   margin-top: 16px;
+}
+
+.config-tabs.single-tab :deep(.el-tabs__header) {
+  display: none;
+}
+
+.history-tip {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #64748b;
+  background: rgba(241, 245, 249, 0.75);
+  border: 1px dashed #cbd5e1;
 }
 </style>

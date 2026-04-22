@@ -1,6 +1,6 @@
 <template>
   <div class="agent-workspace server-workspace" :class="{ 'is-collapsed': sessionPaneCollapsed }">
-    <div v-if="!sessionPaneCollapsed && isMobile" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
+    <div v-if="!sessionPaneCollapsed" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
 
     <aside class="workspace-sidebar" :class="{ 'is-collapsed': sessionPaneCollapsed }">
       <div class="workspace-session-pane">
@@ -36,6 +36,25 @@
           </div>
 
           <div class="session-list">
+            <button
+              type="button"
+              :class="['session-item', 'session-overview-entry', { active: !currentServerId }]"
+              @click="openOverviewFromList"
+            >
+              <div class="node-icon">
+                <el-icon><Menu /></el-icon>
+              </div>
+
+              <div class="session-main">
+                <div class="session-title">全节点面板</div>
+                <div class="session-meta">
+                  <span>返回总览</span>
+                  <span class="meta-separator">·</span>
+                  <span>查看全部节点汇总</span>
+                </div>
+              </div>
+            </button>
+
             <div
               v-for="node in filteredNodes"
               :key="node.id"
@@ -54,7 +73,7 @@
                     size="small"
                     effect="plain"
                     type="success"
-                    style="padding: 0 4px; height: 18px; line-height: 16px; margin-left: 4px;"
+                    class="configured-tag"
                   >
                     已配置
                   </el-tag>
@@ -89,11 +108,20 @@
     <main class="workspace-main custom-scrollbar">
       <div class="chat-header">
         <div style="display: flex; align-items: center; gap: 12px">
-          <el-button v-if="sessionPaneCollapsed" link :icon="Menu" @click="sessionPaneCollapsed = false" />
+          <el-button
+            class="node-list-trigger"
+            :class="{ 'is-active': !sessionPaneCollapsed }"
+            type="primary"
+            @click="sessionPaneCollapsed = !sessionPaneCollapsed"
+          >
+            <el-icon><Menu /></el-icon>
+            <span>节点列表</span>
+            <span class="node-list-count">{{ filteredNodes.length }}</span>
+          </el-button>
           <div>
             <h2 class="header-title">全节点面板</h2>
             <div class="header-subtitle">
-              先看全节点概览，点击左侧节点后进入单节点详情
+              先看全节点概览，点击“节点列表”中的节点进入单节点详情
             </div>
           </div>
         </div>
@@ -139,7 +167,7 @@
               <el-card shadow="never" class="overview-card warning">
                 <div class="overview-label">当前选中</div>
                 <div class="overview-value current-value">{{ hasSelectedNode ? currentServerName : '未选择' }}</div>
-                <div class="overview-meta">{{ hasSelectedNode ? getNodeStatusText(selectedSnapshot) : '点击左侧节点进入详情' }}</div>
+                <div class="overview-meta">{{ hasSelectedNode ? getNodeStatusText(selectedSnapshot) : '点击节点列表进入详情' }}</div>
               </el-card>
             </el-col>
           </el-row>
@@ -495,7 +523,7 @@
 
           <el-empty
             v-else
-            description="点击左侧节点后显示单节点面板"
+            description="点击节点列表中的节点后显示单节点面板"
             :image-size="96"
             class="single-node-placeholder"
           />
@@ -698,7 +726,7 @@ const loading = ref(false);
 const collecting = ref(false);
 const period = ref('1h');
 const isMobile = ref(false);
-const sessionPaneCollapsed = ref(false);
+const sessionPaneCollapsed = ref(true);
 const serverNodes = ref([]);
 const searchQuery = ref('');
 const nodesLoading = ref(false);
@@ -1245,7 +1273,14 @@ const handleNodeAction = (command, node) => {
 
 const changeServer = (node) => {
   if (!node) return;
+  sessionPaneCollapsed.value = true;
   router.push(ROUTES.MONITOR.SERVER_NODE.replace(':serverId', encodeURIComponent(node.id)));
+};
+
+const openOverviewFromList = () => {
+  currentServerId.value = '';
+  currentServerName.value = '';
+  sessionPaneCollapsed.value = true;
 };
 
 const collectNow = async () => {
@@ -1332,9 +1367,6 @@ const getNodeStatusClass = (snapshot) => {
 const updateIsMobile = () => {
   if (typeof window === 'undefined') return;
   isMobile.value = window.innerWidth <= 768;
-  if (!isMobile.value) {
-    sessionPaneCollapsed.value = false;
-  }
 };
 
 const restartRefreshTimer = () => {

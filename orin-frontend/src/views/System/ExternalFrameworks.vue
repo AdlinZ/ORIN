@@ -1,12 +1,14 @@
 <template>
   <div class="external-frameworks-container">
-    <PageHeader
-      title="外部框架集成"
-      description="管理 Dify、RAGFlow、AutoGen、CrewAI 等外部 AI 框架的集成配置"
-      icon="Connection"
-    />
+    <el-card shadow="never" class="tab-wrapper-card">
+      <PageHeader
+        flat
+        title="外部框架集成"
+        description="管理 Dify、RAGFlow、AutoGen、CrewAI 等外部 AI 框架的集成配置"
+        icon="Connection"
+      />
 
-    <el-tabs v-model="activeTab" class="frameworks-tabs">
+      <el-tabs v-model="activeTab" class="frameworks-tabs">
       <!-- Dify 集成 -->
       <el-tab-pane label="Dify" name="dify" :lazy="true">
         <el-card class="framework-card">
@@ -297,6 +299,7 @@
         </el-card>
       </el-tab-pane>
     </el-tabs>
+    </el-card>
   </div>
 </template>
 
@@ -564,11 +567,7 @@ onMounted(() => {
 
 <style scoped>
 .external-frameworks-container {
-  padding: 20px;
-}
-
-.frameworks-tabs {
-  margin-top: 20px;
+  padding: 0;
 }
 
 .framework-card {

@@ -85,12 +85,15 @@ public class ServiceHealthChecker {
     }
 
     private String buildHealthCheckUrl(GatewayServiceInstance instance) {
-        String protocol = "http";
-        return String.format("%s://%s:%d%s",
-                protocol,
-                instance.getHost(),
-                instance.getPort(),
-                instance.getHealthCheckPath());
+        String host = instance.getHost() == null ? "" : instance.getHost().trim();
+        if (!host.startsWith("http://") && !host.startsWith("https://")) {
+            host = "http://" + host;
+        }
+        String path = instance.getHealthCheckPath() == null ? "" : instance.getHealthCheckPath().trim();
+        if (!path.isEmpty() && !path.startsWith("/")) {
+            path = "/" + path;
+        }
+        return String.format("%s:%d%s", host, instance.getPort(), path);
     }
 
     private void updateRedisHealth(Long instanceId, String status, Long latency) {

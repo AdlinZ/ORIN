@@ -100,7 +100,6 @@ const systemRoutes = {
     MONITOR_SETTINGS: '/dashboard/control/system-env',
     GATEWAY: '/dashboard/control/gateway',
     UNIFIED_API_DOCS: '/dashboard/control/unified-api-docs',
-    DISTRIBUTED_LOCK: '/dashboard/control/distributed-lock',
     MCP_SERVICE: '/dashboard/control/mcp-service',
     HELP_CENTER: '/unified-docs',
 }
@@ -232,7 +231,6 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/control/departments': ROUTES.SYSTEM.DEPARTMENTS,
     '/dashboard/control/roles': ROUTES.SYSTEM.ROLES,
     '/dashboard/control/gateway': ROUTES.SYSTEM.GATEWAY,
-    '/dashboard/control/distributed-lock': ROUTES.SYSTEM.DISTRIBUTED_LOCK,
     '/dashboard/control/external-frameworks': ROUTES.SYSTEM.SETTINGS_BASE,
     '/dashboard/control/mcp-service': ROUTES.SYSTEM.MCP_SERVICE,
     '/dashboard/control/help-center': ROUTES.SYSTEM.HELP_CENTER,
@@ -443,7 +441,6 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '用户管理', path: ROUTES.SYSTEM.USERS },
                     { title: '部门管理', path: ROUTES.SYSTEM.DEPARTMENTS },
                     { title: '角色管理', path: ROUTES.SYSTEM.ROLES },
-                    { title: 'API Key', path: ROUTES.SYSTEM.API_KEYS },
                 ]
             },
             // 平台配置（三级）
@@ -480,7 +477,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: '/dashboard/system/security-ops',
                 children: [
                     { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY },
-                    { title: '分布式锁', path: ROUTES.SYSTEM.DISTRIBUTED_LOCK },
                     { title: '监控配置', path: ROUTES.SYSTEM.SETTINGS_MONITOR },
                     { title: '审计日志', path: ROUTES.SYSTEM.AUDIT_LOGS },
                 ]

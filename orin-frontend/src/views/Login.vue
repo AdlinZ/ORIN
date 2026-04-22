@@ -299,7 +299,12 @@ const handleLogin = async () => {
 }
 
 .login-logo { height: 80px; width: auto; margin-bottom: 32px; }
-.login-left h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+.login-left h1 {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.92);
+}
 .login-left p { color: rgba(255,255,255,0.6); margin-bottom: 40px; }
 
 .feature-list { display: flex; flex-direction: column; gap: 20px; }

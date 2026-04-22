@@ -1,6 +1,6 @@
 package com.adlin.orin.modules.gateway.filter;
 
-import com.adlin.orin.modules.apikey.service.ApiKeyService;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.gateway.config.GatewayStatsService;
 import com.adlin.orin.modules.gateway.entity.GatewayRoute;
 import com.adlin.orin.modules.gateway.repository.GatewayAuditLogRepository;
@@ -42,7 +42,7 @@ class GatewayProxyFilterTest {
     @Mock
     private GatewayAuditLogRepository auditLogRepository;
     @Mock
-    private ApiKeyService apiKeyService;
+    private GatewaySecretService gatewaySecretService;
     @Mock
     private GatewayRateLimiterService rateLimiterService;
     @Mock
@@ -61,7 +61,7 @@ class GatewayProxyFilterTest {
                 routingService,
                 statsService,
                 auditLogRepository,
-                apiKeyService,
+                gatewaySecretService,
                 new ObjectMapper(),
                 rateLimiterService,
                 circuitBreakerService,

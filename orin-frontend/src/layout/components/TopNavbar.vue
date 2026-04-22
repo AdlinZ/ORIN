@@ -85,16 +85,26 @@
 
       <!-- 通知图标 -->
       <div class="action-item">
-        <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notification-badge">
-          <el-tooltip content="通知中心" placement="bottom">
-            <el-button
-              text
-              :icon="Bell"
-              class="action-btn"
-              @click="showNotifications"
-            />
-          </el-tooltip>
-        </el-badge>
+        <el-tooltip content="通知中心" placement="bottom">
+          <el-button
+            text
+            :icon="Bell"
+            class="action-btn"
+            @click="showNotifications"
+          />
+        </el-tooltip>
+      </div>
+
+      <!-- 切换到侧边栏模式 -->
+      <div class="action-item">
+        <el-tooltip content="切换到侧边栏模式" placement="bottom">
+          <el-button
+            text
+            :icon="Fold"
+            class="action-btn"
+            @click="appStore.toggleMenuMode()"
+          />
+        </el-tooltip>
       </div>
 
       <!-- 用户下拉菜单 -->
@@ -118,17 +128,6 @@
               <el-icon><Setting /></el-icon>
               <span>账号设置</span>
             </el-dropdown-item>
-            <el-dropdown-item divided command="toggle_menu_mode">
-              <el-icon>
-                <Fold v-if="appStore.menuMode === 'sidebar'" />
-                <Expand v-else />
-              </el-icon>
-              <span>{{ appStore.menuMode === 'sidebar' ? '切换到顶栏模式' : '切换到侧边栏模式' }}</span>
-            </el-dropdown-item>
-            <el-dropdown-item divided command="dev_hub">
-              <el-icon><Link /></el-icon>
-              <span>开发者服务百宝箱</span>
-            </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <el-icon><SwitchButton /></el-icon>
               <span>退出登录</span>
@@ -146,12 +145,8 @@
 
   <!-- 通知中心抽屉 -->
   <NotificationCenter 
-    v-model="showNotificationCenter" 
-    @update:unread-count="handleUnreadCountUpdate"
+    v-model="showNotificationCenter"
   />
-
-  <!-- 开发者传送门百宝箱 -->
-  <DeveloperHub v-model="showDevHub" />
 
   <!-- 移动端侧边抽屉 -->
   <el-drawer
@@ -323,11 +318,10 @@ import { useAppStore } from '@/stores/app'
 import { ROUTES } from '@/router/routes'
 import { getVisibleMenus, getActiveMenuId, getDefaultHomeByRoles } from '@/router/topMenuConfig'
 import NotificationCenter from './NotificationCenter.vue'
-import DeveloperHub from './DeveloperHub.vue'
 import {
   Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
   Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock,
-  Fold, Expand, Cpu, MagicStick
+  Fold, Cpu, MagicStick
 } from '@element-plus/icons-vue'
 import BrandingLogo from '@/components/BrandingLogo.vue'
 import { v4 as uuidv4 } from 'uuid'
@@ -355,8 +349,6 @@ const { handleLogout: _doLogout } = useUser()
 const activeDropdown = ref(null)
 const showMobileMenu = ref(false)
 const showNotificationCenter = ref(false)
-const showDevHub = ref(false)
-const unreadCount = ref(0)
 
 // Computed
 const userInfo = computed(() => {
@@ -628,10 +620,6 @@ const showSystemAI = () => {
   showSystemEval.value = true
 }
 
-const handleUnreadCountUpdate = (count) => {
-  unreadCount.value = count
-}
-
 const handleUserCommand = (command) => {
   switch (command) {
     case 'profile':
@@ -639,12 +627,6 @@ const handleUserCommand = (command) => {
       break
     case 'settings':
       router.push(ROUTES.PROFILE)
-      break
-    case 'dev_hub':
-      showDevHub.value = true
-      break
-    case 'toggle_menu_mode':
-      appStore.toggleMenuMode()
       break
     case 'logout':
       handleLogout()
@@ -831,17 +813,6 @@ onMounted(() => {
 .action-btn:hover {
   color: var(--orin-primary);
   background: var(--neutral-gray-50);
-}
-
-.notification-badge {
-  display: inline-flex;
-  align-items: center;
-}
-
-.notification-badge :deep(.el-badge__content) {
-  transform: translateY(-50%) translateX(50%);
-  right: 8px;
-  top: 8px;
 }
 
 .action-divider {

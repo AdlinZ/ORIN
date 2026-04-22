@@ -23,13 +23,13 @@
       </div>
 
       <!-- History Tab -->
-      <div v-show="sidebarTab === 'history'" class="workspace-history-pane">
+      <div v-if="sidebarTab === 'history' || sidebarCollapsed" class="workspace-history-pane">
         <div class="session-collapse-handle">
           <el-button
             class="collapse-btn"
             circle
             :icon="sidebarCollapsed ? ArrowRight : ArrowLeft"
-            @click="sidebarCollapsed = !sidebarCollapsed"
+            @click="toggleSidebar"
           />
         </div>
 
@@ -79,7 +79,7 @@
       </div>
 
       <!-- Params Tab -->
-      <div v-show="sidebarTab === 'params' && !sidebarCollapsed" class="workspace-params-pane">
+      <div v-if="sidebarTab === 'params' && !sidebarCollapsed" class="workspace-params-pane">
         <div class="params-scroll">
           <el-form label-position="top" size="small">
             <el-form-item label="Embedding 模型">
@@ -153,26 +153,6 @@
             {{ results.length }} 条结果 · {{ executionTime }}ms
           </span>
         </div>
-        <div class="header-right">
-          <el-button-group>
-            <el-button
-              :type="viewMode === 'simple' ? 'primary' : ''"
-              size="small"
-              @click="viewMode = 'simple'"
-            >
-              <el-icon><List /></el-icon>
-              检索
-            </el-button>
-            <el-button
-              :type="viewMode === 'debug' ? 'primary' : ''"
-              size="small"
-              @click="viewMode = 'debug'"
-            >
-              <el-icon><DataAnalysis /></el-icon>
-              调试
-            </el-button>
-          </el-button-group>
-        </div>
       </div>
 
       <!-- Search Bar -->
@@ -190,7 +170,7 @@
           </template>
           <template #append>
             <el-button :loading="loading" type="primary" @click="handleSearch">
-              {{ viewMode === 'debug' ? '混合检索' : '搜索' }}
+              搜索
             </el-button>
           </template>
         </el-input>
@@ -198,25 +178,7 @@
 
       <!-- Results Area -->
       <div v-loading="loading" class="results-container">
-
-        <!-- Stats (debug mode) -->
-        <div v-if="viewMode === 'debug' && hasSearched && results.length > 0" class="stats-bar">
-          <div class="stat-item">
-            <el-icon><Share /></el-icon>
-            <span>向量 <strong>{{ vectorResults.length }}</strong></span>
-          </div>
-          <div class="stat-item">
-            <el-icon><Search /></el-icon>
-            <span>关键词 <strong>{{ keywordResults.length }}</strong></span>
-          </div>
-          <div v-if="hybridResults.length" class="stat-item hybrid">
-            <el-icon><Aim /></el-icon>
-            <span>双路命中 <strong>{{ hybridResults.length }}</strong></span>
-          </div>
-        </div>
-
-        <!-- ══ Simple View ══ -->
-        <div v-if="viewMode === 'simple' && hasSearched && results.length > 0" class="simple-results">
+        <div v-if="hasSearched && results.length > 0" class="simple-results">
           <div
             v-for="(item, idx) in sortedResults"
             :key="'s-'+idx"
@@ -244,80 +206,9 @@
           </div>
         </div>
 
-        <!-- ══ Debug View ══ -->
-        <div v-else-if="viewMode === 'debug' && hasSearched && results.length > 0" class="split-view">
-          <div class="strategy-col">
-            <div class="col-header vector-header">
-              <el-icon><Share /></el-icon> 语义匹配
-              <el-tag size="small" type="success" effect="plain" style="margin-left:auto">{{ vectorResults.length }}</el-tag>
-            </div>
-            <div v-if="vectorResults.length === 0" class="col-empty">无向量召回结果</div>
-            <div v-for="(item, idx) in vectorResults" :key="'v-'+idx" class="result-card" @click="openTrace(item)">
-              <div class="score-bar-wrap">
-                <div class="bar-track"><div class="bar-fill vector-fill" :style="{ height: (item.score * 100) + '%' }" /></div>
-                <div class="score-num">{{ item.score.toFixed(3) }}</div>
-              </div>
-              <div class="card-body">
-                <div class="content-text">{{ item.content }}</div>
-                <div class="card-footer">
-                  <el-tag size="small" type="success" effect="plain">Vector</el-tag>
-                  <span class="chunk-ref">{{ item.sourceDoc }} · {{ item.chunkIndex }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="strategy-col">
-            <div class="col-header keyword-header">
-              <el-icon><Search /></el-icon> 关键词匹配
-              <el-tag size="small" type="warning" effect="plain" style="margin-left:auto">{{ keywordResults.length }}</el-tag>
-            </div>
-            <div v-if="keywordResults.length === 0" class="col-empty">无关键词召回结果</div>
-            <div v-for="(item, idx) in keywordResults" :key="'k-'+idx" class="result-card" @click="openTrace(item)">
-              <div class="score-bar-wrap">
-                <div class="bar-track"><div class="bar-fill keyword-fill" :style="{ height: (item.score * 100) + '%' }" /></div>
-                <div class="score-num">{{ item.score.toFixed(3) }}</div>
-              </div>
-              <div class="card-body">
-                <div class="content-text">{{ item.content }}</div>
-                <div class="card-footer">
-                  <el-tag size="small" type="warning" effect="plain">Keyword</el-tag>
-                  <span class="chunk-ref">{{ item.sourceDoc }} · {{ item.chunkIndex }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="hybridResults.length > 0" class="strategy-col">
-            <div class="col-header hybrid-header">
-              <el-icon><Aim /></el-icon> 双路命中
-              <el-tag size="small" effect="plain" style="margin-left:auto">{{ hybridResults.length }}</el-tag>
-            </div>
-            <div v-for="(item, idx) in hybridResults" :key="'h-'+idx" class="result-card" @click="openTrace(item)">
-              <div class="score-bar-wrap">
-                <div class="bar-track"><div class="bar-fill hybrid-fill" :style="{ height: (item.score * 100) + '%' }" /></div>
-                <div class="score-num">{{ item.score.toFixed(3) }}</div>
-              </div>
-              <div class="card-body">
-                <div class="content-text">{{ item.content }}</div>
-                <div class="card-footer">
-                  <el-tag size="small" effect="plain">Hybrid</el-tag>
-                  <span class="chunk-ref">{{ item.sourceDoc }} · {{ item.chunkIndex }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Empty -->
         <el-empty v-else-if="hasSearched" description="未找到相关内容，尝试换个关键词或调低 Threshold">
           <template #image><el-icon :size="64" color="#C8C9CC"><Search /></el-icon></template>
-          <div v-if="debugInfo && viewMode === 'debug'" class="debug-info">
-            <p>后端返回 {{ debugInfo.totalResults }} 条，向量 {{ debugInfo.vectorCount }} / 关键词 {{ debugInfo.keywordCount }}</p>
-            <p v-if="debugInfo.vectorCount === 0" class="debug-warning">⚠️ 语义检索失败：Embedding 服务未配置或 API Key 无效</p>
-            <p>得分区间：{{ debugInfo.minScore }} ~ {{ debugInfo.maxScore }}</p>
-            <p class="debug-hint">降低 Threshold 可查看更多结果</p>
-          </div>
         </el-empty>
 
         <!-- Welcome -->
@@ -361,7 +252,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import {
-  Search, Setting, Aim, DataAnalysis, Share, Document, List,
+  Search, Setting, Document,
   ArrowLeft, ArrowRight, Plus, Delete,
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
@@ -373,7 +264,6 @@ const MAX_HISTORY = 50;
 // ── State ──────────────────────────────────────────
 const sidebarCollapsed = ref(false);
 const sidebarTab = ref('history');
-const viewMode = ref('simple');
 
 const selectedKbId = ref('');
 const query = ref('');
@@ -386,7 +276,6 @@ const embeddingModels = ref([]);
 const rerankModels = ref([]);
 const drawerVisible = ref(false);
 const selectedResult = ref(null);
-const debugInfo = ref(null);
 const searchInputRef = ref(null);
 
 const activeHistoryId = ref(null);
@@ -401,9 +290,6 @@ const config = reactive({
 });
 
 // ── Computed ───────────────────────────────────────
-const vectorResults = computed(() => results.value.filter(r => r.matchType === 'VECTOR'));
-const keywordResults = computed(() => results.value.filter(r => r.matchType === 'KEYWORD'));
-const hybridResults = computed(() => results.value.filter(r => r.matchType === 'HYBRID'));
 const sortedResults = computed(() => [...results.value].sort((a, b) => b.score - a.score));
 
 // ── History helpers ────────────────────────────────
@@ -446,13 +332,19 @@ const newRetrieval = () => {
   query.value = '';
   results.value = [];
   hasSearched.value = false;
-  debugInfo.value = null;
   focusSearch();
 };
 
 const focusSearch = async () => {
   await nextTick();
   searchInputRef.value?.focus();
+};
+
+const toggleSidebar = () => {
+  const willCollapse = !sidebarCollapsed.value;
+  sidebarCollapsed.value = willCollapse;
+  // 折叠态只保留 history 视图，避免 params 隐藏内容残留在 DOM 中
+  if (willCollapse) sidebarTab.value = 'history';
 };
 
 const formatTime = (ts) => {
@@ -497,7 +389,6 @@ const handleSearch = async () => {
 
   loading.value = true;
   hasSearched.value = true;
-  debugInfo.value = null;
   activeHistoryId.value = null;
   const t0 = Date.now();
 
@@ -521,21 +412,6 @@ const handleSearch = async () => {
     }));
 
     results.value = allResults.filter(r => r.score >= config.threshold);
-
-    const vectorCount = allResults.filter(r => r.matchType === 'VECTOR').length;
-    const keywordCount = allResults.filter(r => r.matchType === 'KEYWORD').length;
-
-    if (allResults.length > 0 && results.value.length === 0) {
-      debugInfo.value = {
-        totalResults: allResults.length,
-        maxScore: Math.max(...allResults.map(r => r.score)).toFixed(3),
-        minScore: Math.min(...allResults.map(r => r.score)).toFixed(3),
-        vectorCount,
-        keywordCount,
-      };
-    } else if (vectorCount === 0 && keywordCount > 0) {
-      ElMessage.warning('语义检索返回0条，仅有关键词匹配结果。请检查Embedding服务配置。');
-    }
 
     // Save to history
     const kbName = knowledgeBases.value.find(k => k.id === selectedKbId.value)?.name || selectedKbId.value;
@@ -608,6 +484,7 @@ const matchLabel = (type) => {
 
   width: 100%;
   height: 100%;
+  min-height: calc(100vh - 84px);
   display: flex;
   overflow: hidden;
   background: var(--app-bg, #f6f9fb);
@@ -695,6 +572,7 @@ const matchLabel = (type) => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .session-collapse-handle {
@@ -753,8 +631,15 @@ const matchLabel = (type) => {
 
 .session-list {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
-  padding: 0 8px 16px;
+  padding: 0 8px 0;
+}
+
+.session-list :deep(.el-empty) {
+  margin: auto 0;
+  min-height: 240px;
 }
 
 .session-item {
@@ -877,7 +762,7 @@ const matchLabel = (type) => {
 .main-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 16px 28px 12px;
   border-bottom: 1px solid var(--sidebar-line);
   background: rgba(255,255,255,0.8);
@@ -1037,67 +922,6 @@ const matchLabel = (type) => {
 .simple-card-footer { display: flex; justify-content: flex-end; }
 
 /* Debug View */
-.split-view { display: flex; gap: 14px; align-items: flex-start; }
-.strategy-col { flex: 1; min-width: 0; }
-
-.col-header {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--sidebar-text-strong);
-}
-
-.vector-header  { background: rgba(82, 196, 26, 0.08); border: 1px solid rgba(82, 196, 26, 0.2); }
-.keyword-header { background: rgba(250, 173, 20, 0.08); border: 1px solid rgba(250, 173, 20, 0.2); }
-.hybrid-header  { background: var(--orin-primary-soft); border: 1px solid var(--orin-primary-light, #a0cfff); }
-
-.col-empty { text-align: center; color: var(--sidebar-text-muted); font-size: 13px; padding: 24px 0; }
-
-.result-card {
-  background: #ffffff;
-  border: 1px solid var(--sidebar-line);
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  gap: 10px;
-  cursor: pointer;
-  margin-bottom: 8px;
-  transition: all 0.2s;
-}
-
-.result-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-  border-color: var(--orin-primary);
-}
-
-.score-bar-wrap { width: 26px; display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
-.bar-track { width: 6px; height: 60px; background: var(--orin-primary-soft); border-radius: 3px; position: relative; overflow: hidden; }
-.bar-fill { width: 100%; position: absolute; bottom: 0; border-radius: 3px; transition: height 0.4s ease; }
-.vector-fill  { background: #52c41a; }
-.keyword-fill { background: #faad14; }
-.hybrid-fill  { background: var(--orin-primary); }
-.score-num { font-size: 10px; font-weight: 700; color: var(--sidebar-text-muted); }
-
-.card-body { flex: 1; min-width: 0; }
-.content-text {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--sidebar-text);
-  margin-bottom: 8px;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.card-footer { display: flex; justify-content: space-between; align-items: center; }
-.chunk-ref { font-size: 11px; color: var(--sidebar-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
-
 /* Welcome */
 .welcome-state {
   height: 320px;
@@ -1110,12 +934,6 @@ const matchLabel = (type) => {
 }
 .welcome-state h3 { color: var(--sidebar-text-strong); margin: 0; font-size: 17px; }
 .welcome-state p { max-width: 340px; text-align: center; font-size: 14px; line-height: 1.6; margin: 0; }
-
-/* Debug info */
-.debug-info { text-align: center; color: var(--sidebar-text-muted); font-size: 13px; margin-top: 10px; }
-.debug-info p { margin: 4px 0; }
-.debug-hint { color: var(--orin-primary); font-weight: 500; }
-.debug-warning { color: #e6a23c; font-weight: 600; padding: 6px 12px; background: rgba(230,162,60,0.08); border-radius: 6px; }
 
 /* Trace Drawer */
 .trace-panel { padding: 4px 0; }
@@ -1165,11 +983,22 @@ const matchLabel = (type) => {
 
 /* Dark mode */
 html.dark .retrieval-workspace { background: var(--app-bg); }
-html.dark .workspace-sidebar { background: rgba(30, 41, 59, 0.92); }
-html.dark .main-header { background: rgba(30, 41, 59, 0.8); }
-html.dark .search-hero { background: rgba(30, 41, 59, 0.6); }
-html.dark .simple-card,
-html.dark .result-card { background: rgba(30, 41, 59, 0.8); }
+html.dark .workspace-sidebar {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(71, 85, 105, 0.48);
+}
+html.dark .main-header {
+  background: rgba(30, 41, 59, 0.82);
+  border-color: rgba(71, 85, 105, 0.48);
+}
+html.dark .search-hero {
+  background: rgba(30, 41, 59, 0.72);
+  border-color: rgba(71, 85, 105, 0.48);
+}
+html.dark .simple-card {
+  background: rgba(30, 41, 59, 0.82);
+  border-color: rgba(71, 85, 105, 0.46);
+}
 html.dark .sidebar-tabs { background: rgba(15, 23, 42, 0.6); }
 html.dark .sidebar-tab.active { background: rgba(30, 41, 59, 0.9); color: #e2e8f0; }
 html.dark .session-item:hover { background: rgba(51, 65, 85, 0.6); }
@@ -1177,4 +1006,11 @@ html.dark .session-item.active { background: rgba(15, 159, 149, 0.15); }
 html.dark .session-title { color: #e2e8f0; }
 html.dark .main-title { color: #e2e8f0; }
 html.dark .main-subtitle { color: #94a3b8; }
+html.dark .retrieval-workspace :deep(.el-input__wrapper),
+html.dark .retrieval-workspace :deep(.el-select__wrapper),
+html.dark .retrieval-workspace :deep(.el-textarea__inner) {
+  background: rgba(15, 23, 42, 0.78) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.55) !important;
+}
 </style>

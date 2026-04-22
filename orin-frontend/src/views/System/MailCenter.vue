@@ -2416,4 +2416,61 @@ onMounted(() => {
   display: flex;
   gap: 10px;
 }
+
+html.dark .mail-system-container {
+  background: transparent;
+}
+
+html.dark .main-tabs,
+html.dark .panel-card,
+html.dark .quick-action,
+html.dark .verify-details,
+html.dark .preview-content {
+  background: rgba(15, 23, 42, 0.82);
+  border-color: rgba(71, 85, 105, 0.48);
+}
+
+html.dark .status-item,
+html.dark .status-actions,
+html.dark .stat-actions,
+html.dark .verify-item {
+  border-color: rgba(71, 85, 105, 0.42);
+}
+
+html.dark .status-label,
+html.dark .stat-label,
+html.dark .mailer-info p,
+html.dark .config-form .form-tip,
+html.dark .verify-label,
+html.dark .mail-detail .mail-from,
+html.dark .mail-detail .mail-time,
+html.dark .mail-detail .mail-status {
+  color: #94a3b8;
+}
+
+html.dark .status-value,
+html.dark .stat-value,
+html.dark .mailer-info h4,
+html.dark .verify-value,
+html.dark .preview-subject,
+html.dark .preview-body,
+html.dark .mail-detail .mail-content {
+  color: #e2e8f0;
+}
+
+html.dark .quick-action:hover {
+  background: rgba(30, 41, 59, 0.94);
+}
+
+html.dark .mail-system-container :deep(.el-input__wrapper),
+html.dark .mail-system-container :deep(.el-select__wrapper),
+html.dark .mail-system-container :deep(.el-textarea__inner) {
+  background: rgba(15, 23, 42, 0.76) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.52) !important;
+}
+
+html.dark .inbox-table .el-table__row:hover {
+  background-color: rgba(30, 41, 59, 0.62);
+}
 </style>

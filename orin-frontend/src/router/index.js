@@ -162,6 +162,12 @@ const routes = [
                         meta: { title: '流程编排', icon: 'Connection' }
                     },
                     {
+                        path: 'workflows/:id',
+                        name: 'WorkflowEditCompat',
+                        redirect: (to) => `/dashboard/applications/workflows/visual/${to.params.id}`,
+                        meta: { hidden: true }
+                    },
+                    {
                         path: 'workflows/create',
                         name: 'WorkflowCreate',
                         component: () => import('@/views/Workflow/WorkflowEditor.vue'),
@@ -455,8 +461,8 @@ const routes = [
                     {
                         path: 'api-keys',
                         name: 'ApiKeyManagement',
-                        component: () => import('@/views/System/ApiKeyManagement.vue'),
-                        meta: { title: 'API 密钥管理', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
+                        component: () => import('@/views/System/ApiGateway.vue'),
+                        meta: { title: 'API 密钥管理（已合并至统一网关）', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 文件管理
@@ -485,12 +491,6 @@ const routes = [
                         name: 'ControlUnifiedApiDocs',
                         component: () => import('@/views/System/UnifiedApiDocs.vue'),
                         meta: { title: '统一 API 文档', icon: 'Document', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'distributed-lock',
-                        name: 'ControlDistributedLock',
-                        component: () => import('@/views/System/DistributedLock.vue'),
-                        meta: { title: '分布式锁', icon: 'Lock', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'mcp-service',

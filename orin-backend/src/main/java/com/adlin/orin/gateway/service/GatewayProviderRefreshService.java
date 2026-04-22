@@ -3,6 +3,7 @@ package com.adlin.orin.gateway.service;
 import com.adlin.orin.gateway.adapter.impl.DifyProviderAdapter;
 import com.adlin.orin.gateway.adapter.impl.OllamaProviderAdapter;
 import com.adlin.orin.gateway.adapter.impl.OpenAIProviderAdapter;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class GatewayProviderRefreshService {
 
     private final ProviderRegistry providerRegistry;
     private final DifyIntegrationService difyIntegrationService;
+    private final GatewaySecretService gatewaySecretService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void refreshFromConfig(ModelConfig config) {
@@ -51,38 +53,61 @@ public class GatewayProviderRefreshService {
         }
 
         String baseUrl = config.getOllamaEndpoint().trim();
-        String apiKey = config.getOllamaApiKey() != null ? config.getOllamaApiKey().trim() : "";
+        var ollamaCredential = gatewaySecretService.resolveProviderCredential(PROVIDER_OLLAMA)
+                .or(() -> gatewaySecretService.resolveProviderCredential("ollama"))
+                .orElse(null);
+        if (ollamaCredential != null && isConfigured(ollamaCredential.getBaseUrl())) {
+            baseUrl = ollamaCredential.getBaseUrl().trim();
+        }
+        String apiKey = ollamaCredential != null ? ollamaCredential.getApiKey() : "";
         OllamaProviderAdapter ollamaAdapter = new OllamaProviderAdapter(PROVIDER_OLLAMA, apiKey, baseUrl, restTemplate);
         providerRegistry.registerProvider(PROVIDER_OLLAMA, ollamaAdapter);
         log.info("Registered Ollama provider at {}", baseUrl);
     }
 
     private void registerSiliconFlow(ModelConfig config) {
-        if (!isConfigured(config.getSiliconFlowEndpoint()) || !isConfigured(config.getSiliconFlowApiKey())) {
+        if (!isConfigured(config.getSiliconFlowEndpoint())) {
             return;
         }
+        var credentialOpt = gatewaySecretService.resolveProviderCredential(PROVIDER_SILICONFLOW);
+        if (credentialOpt.isEmpty() || !isConfigured(credentialOpt.get().getApiKey())) {
+            log.warn("Skip siliconflow provider registration: missing credential in gateway secret center");
+            return;
+        }
+        String apiKey = credentialOpt.get().getApiKey().trim();
+        String endpoint = isConfigured(credentialOpt.get().getBaseUrl())
+                ? credentialOpt.get().getBaseUrl().trim()
+                : config.getSiliconFlowEndpoint().trim();
 
         OpenAIProviderAdapter siliconFlowAdapter = new OpenAIProviderAdapter(
                 PROVIDER_SILICONFLOW,
-                config.getSiliconFlowApiKey().trim(),
-                config.getSiliconFlowEndpoint().trim(),
+                apiKey,
+                endpoint,
                 restTemplate);
         providerRegistry.registerProvider(PROVIDER_SILICONFLOW, siliconFlowAdapter);
-        log.info("Registered OpenAI-compatible provider: {} at {}", PROVIDER_SILICONFLOW, config.getSiliconFlowEndpoint());
+        log.info("Registered OpenAI-compatible provider: {} at {}", PROVIDER_SILICONFLOW, endpoint);
     }
 
     private void registerDify(ModelConfig config) {
-        if (!isConfigured(config.getDifyEndpoint()) || !isConfigured(config.getDifyApiKey())) {
+        if (!isConfigured(config.getDifyEndpoint())) {
+            return;
+        }
+        var credentialOpt = gatewaySecretService.resolveProviderCredential(PROVIDER_DIFY);
+        if (credentialOpt.isEmpty() || !isConfigured(credentialOpt.get().getApiKey())) {
+            log.warn("Skip dify provider registration: missing credential in gateway secret center");
             return;
         }
 
+        String endpoint = isConfigured(credentialOpt.get().getBaseUrl())
+                ? credentialOpt.get().getBaseUrl().trim()
+                : config.getDifyEndpoint().trim();
         DifyProviderAdapter difyAdapter = new DifyProviderAdapter(
                 PROVIDER_DIFY,
-                config.getDifyEndpoint().trim(),
-                config.getDifyApiKey().trim(),
+                endpoint,
+                credentialOpt.get().getApiKey().trim(),
                 difyIntegrationService);
         providerRegistry.registerProvider(PROVIDER_DIFY, difyAdapter);
-        log.info("Registered Dify provider at {}", config.getDifyEndpoint());
+        log.info("Registered Dify provider at {}", endpoint);
     }
 
     private boolean isConfigured(String value) {

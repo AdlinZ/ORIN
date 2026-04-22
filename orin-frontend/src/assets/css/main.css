@@ -266,7 +266,7 @@
   --text-tertiary: #94a3b8;
 
   /* ==================== Layout Constants ==================== */
-  --sidebar-width: 260px;
+  --sidebar-width: 300px;
   --sidebar-width-collapsed: 80px;
   --header-height: 72px;
   --footer-height: 60px;
@@ -836,29 +836,62 @@ html.dark .el-card__header {
 
 .config-tabs > .el-tabs__header,
 .settings-tabs > .el-tabs__header,
-.api-key-tabs > .el-tabs__header {
+.api-key-tabs > .el-tabs__header,
+.content-tabs > .el-tabs__header,
+.center-tabs > .el-tabs__header,
+.profile-tabs > .el-tabs__header,
+.frameworks-tabs > .el-tabs__header,
+.doc-tabs > .el-tabs__header,
+.extensions-tabs > .el-tabs__header,
+.mcp-tabs > .el-tabs__header,
+.lock-tabs > .el-tabs__header {
   background: #f0f2f5;
   border-radius: 10px;
   padding: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   border-bottom: none !important;
+  width: fit-content;
 }
 
 .config-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
 .settings-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
-.api-key-tabs > .el-tabs__header .el-tabs__nav-wrap::after {
+.api-key-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.content-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.center-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.profile-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.frameworks-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.doc-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.extensions-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.mcp-tabs > .el-tabs__header .el-tabs__nav-wrap::after,
+.lock-tabs > .el-tabs__header .el-tabs__nav-wrap::after {
   display: none !important;
 }
 
 .config-tabs > .el-tabs__header .el-tabs__active-bar,
 .settings-tabs > .el-tabs__header .el-tabs__active-bar,
-.api-key-tabs > .el-tabs__header .el-tabs__active-bar {
+.api-key-tabs > .el-tabs__header .el-tabs__active-bar,
+.content-tabs > .el-tabs__header .el-tabs__active-bar,
+.center-tabs > .el-tabs__header .el-tabs__active-bar,
+.profile-tabs > .el-tabs__header .el-tabs__active-bar,
+.frameworks-tabs > .el-tabs__header .el-tabs__active-bar,
+.doc-tabs > .el-tabs__header .el-tabs__active-bar,
+.extensions-tabs > .el-tabs__header .el-tabs__active-bar,
+.mcp-tabs > .el-tabs__header .el-tabs__active-bar,
+.lock-tabs > .el-tabs__header .el-tabs__active-bar {
   display: none !important;
 }
 
 .config-tabs > .el-tabs__header .el-tabs__item,
 .settings-tabs > .el-tabs__header .el-tabs__item,
-.api-key-tabs > .el-tabs__header .el-tabs__item {
+.api-key-tabs > .el-tabs__header .el-tabs__item,
+.content-tabs > .el-tabs__header .el-tabs__item,
+.center-tabs > .el-tabs__header .el-tabs__item,
+.profile-tabs > .el-tabs__header .el-tabs__item,
+.frameworks-tabs > .el-tabs__header .el-tabs__item,
+.doc-tabs > .el-tabs__header .el-tabs__item,
+.extensions-tabs > .el-tabs__header .el-tabs__item,
+.mcp-tabs > .el-tabs__header .el-tabs__item,
+.lock-tabs > .el-tabs__header .el-tabs__item {
   height: 32px;
   line-height: 32px;
   padding: 0 20px !important;
@@ -872,14 +905,30 @@ html.dark .el-card__header {
 
 .config-tabs > .el-tabs__header .el-tabs__item:hover,
 .settings-tabs > .el-tabs__header .el-tabs__item:hover,
-.api-key-tabs > .el-tabs__header .el-tabs__item:hover {
+.api-key-tabs > .el-tabs__header .el-tabs__item:hover,
+.content-tabs > .el-tabs__header .el-tabs__item:hover,
+.center-tabs > .el-tabs__header .el-tabs__item:hover,
+.profile-tabs > .el-tabs__header .el-tabs__item:hover,
+.frameworks-tabs > .el-tabs__header .el-tabs__item:hover,
+.doc-tabs > .el-tabs__header .el-tabs__item:hover,
+.extensions-tabs > .el-tabs__header .el-tabs__item:hover,
+.mcp-tabs > .el-tabs__header .el-tabs__item:hover,
+.lock-tabs > .el-tabs__header .el-tabs__item:hover {
   color: var(--orin-primary);
   background: rgba(255, 255, 255, 0.65);
 }
 
 .config-tabs > .el-tabs__header .el-tabs__item.is-active,
 .settings-tabs > .el-tabs__header .el-tabs__item.is-active,
-.api-key-tabs > .el-tabs__header .el-tabs__item.is-active {
+.api-key-tabs > .el-tabs__header .el-tabs__item.is-active,
+.content-tabs > .el-tabs__header .el-tabs__item.is-active,
+.center-tabs > .el-tabs__header .el-tabs__item.is-active,
+.profile-tabs > .el-tabs__header .el-tabs__item.is-active,
+.frameworks-tabs > .el-tabs__header .el-tabs__item.is-active,
+.doc-tabs > .el-tabs__header .el-tabs__item.is-active,
+.extensions-tabs > .el-tabs__header .el-tabs__item.is-active,
+.mcp-tabs > .el-tabs__header .el-tabs__item.is-active,
+.lock-tabs > .el-tabs__header .el-tabs__item.is-active {
   background: #fff;
   color: var(--orin-primary) !important;
   font-weight: 600;
@@ -889,13 +938,29 @@ html.dark .el-card__header {
 /* Dark mode */
 html.dark .config-tabs > .el-tabs__header,
 html.dark .settings-tabs > .el-tabs__header,
-html.dark .api-key-tabs > .el-tabs__header {
+html.dark .api-key-tabs > .el-tabs__header,
+html.dark .content-tabs > .el-tabs__header,
+html.dark .center-tabs > .el-tabs__header,
+html.dark .profile-tabs > .el-tabs__header,
+html.dark .frameworks-tabs > .el-tabs__header,
+html.dark .doc-tabs > .el-tabs__header,
+html.dark .extensions-tabs > .el-tabs__header,
+html.dark .mcp-tabs > .el-tabs__header,
+html.dark .lock-tabs > .el-tabs__header {
   background: rgba(255, 255, 255, 0.06);
 }
 
 html.dark .config-tabs > .el-tabs__header .el-tabs__item.is-active,
 html.dark .settings-tabs > .el-tabs__header .el-tabs__item.is-active,
-html.dark .api-key-tabs > .el-tabs__header .el-tabs__item.is-active {
+html.dark .api-key-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .content-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .center-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .profile-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .frameworks-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .doc-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .extensions-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .mcp-tabs > .el-tabs__header .el-tabs__item.is-active,
+html.dark .lock-tabs > .el-tabs__header .el-tabs__item.is-active {
   background: rgba(255, 255, 255, 0.12);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }

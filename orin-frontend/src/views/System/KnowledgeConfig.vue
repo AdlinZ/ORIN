@@ -1,23 +1,25 @@
 <template>
   <div class="page-container">
-    <PageHeader
-      title="默认知识库配置"
-      description="配置默认向量数据库、嵌入模型及知识库核心参数"
-      icon="Collection"
-    >
-      <template #actions>
-        <el-button
-          type="primary"
-          :loading="saving"
-          :icon="Check"
-          @click="saveConfig"
-        >
-          保存配置
-        </el-button>
-      </template>
-    </PageHeader>
+    <el-card shadow="never" class="tab-wrapper-card">
+      <PageHeader
+        flat
+        title="默认知识库配置"
+        description="配置默认向量数据库、嵌入模型及知识库核心参数"
+        icon="Collection"
+      >
+        <template #actions>
+          <el-button
+            type="primary"
+            :loading="saving"
+            :icon="Check"
+            @click="saveConfig"
+          >
+            保存配置
+          </el-button>
+        </template>
+      </PageHeader>
 
-    <el-tabs v-model="activeTab" class="config-tabs" @tab-click="handleTabClick">
+      <el-tabs v-model="activeTab" class="config-tabs" @tab-click="handleTabClick">
       <!-- Milvus 向量引擎 Tab -->
       <el-tab-pane label="Milvus 向量引擎" name="milvus">
         <el-row :gutter="24">
@@ -730,6 +732,7 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
         </el-row>
       </el-tab-pane>
     </el-tabs>
+    </el-card>
 
     <!-- 向量详情弹窗 -->
     <el-dialog
@@ -1441,9 +1444,6 @@ onMounted(() => {
   line-height: 1.5;
 }
 
-.config-tabs {
-  margin-top: 24px;
-}
 
 .margin-bottom-lg {
   margin-bottom: 24px;

@@ -101,16 +101,9 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             existing.setModelSavePath(config.getModelSavePath());
             existing.setRemark(config.getRemark());
             existing.setDifyEndpoint(config.getDifyEndpoint());
-            // Only update Dify API key if provided
-            if (config.getDifyApiKey() != null) {
-                existing.setDifyApiKey(config.getDifyApiKey());
-            }
 
             // Update SiliconFlow configuration
             existing.setSiliconFlowEndpoint(config.getSiliconFlowEndpoint());
-            if (config.getSiliconFlowApiKey() != null) {
-                existing.setSiliconFlowApiKey(config.getSiliconFlowApiKey());
-            }
             existing.setSiliconFlowModel(config.getSiliconFlowModel());
 
             // Update Multimodal configuration
@@ -122,9 +115,6 @@ public class ModelConfigServiceImpl implements ModelConfigService {
 
             // Update Ollama configuration
             existing.setOllamaEndpoint(config.getOllamaEndpoint());
-            if (config.getOllamaApiKey() != null) {
-                existing.setOllamaApiKey(config.getOllamaApiKey());
-            }
             existing.setOllamaModel(config.getOllamaModel());
 
             saved = modelConfigRepository.save(existing);

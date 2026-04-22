@@ -2,6 +2,7 @@ package com.adlin.orin.modules.knowledge.component;
 
 import com.adlin.orin.modules.apikey.entity.ExternalProviderKey;
 import com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
 import com.adlin.orin.modules.model.service.ModelConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,6 +31,7 @@ import java.util.Map;
 public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
 
     private final ExternalProviderKeyRepository providerKeyRepository;
+    private final GatewaySecretService gatewaySecretService;
     private final ModelConfigService modelConfigService;
 
     @Value("${siliconflow.api.key:sk-placeholder}")
@@ -76,6 +78,18 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
 
                 // 如果没有通过 ID 找到，回退到从 provider 名称查找
                 if ((effectiveApiKey == null || effectiveApiKey.isEmpty()) && modelConfig.getEmbeddingProvider() != null) {
+                    var unifiedCredential = gatewaySecretService.resolveProviderCredential(modelConfig.getEmbeddingProvider());
+                    if (unifiedCredential.isPresent()) {
+                        effectiveApiKey = unifiedCredential.get().getApiKey();
+                        if (unifiedCredential.get().getBaseUrl() != null && !unifiedCredential.get().getBaseUrl().isEmpty()) {
+                            baseUrl = unifiedCredential.get().getBaseUrl();
+                        }
+                        log.info("SiliconFlowEmbeddingAdapter: loaded API key from gateway secret center (provider={})", modelConfig.getEmbeddingProvider());
+                    }
+                }
+
+                // 回退到历史 external_provider_keys
+                if ((effectiveApiKey == null || effectiveApiKey.isEmpty()) && modelConfig.getEmbeddingProvider() != null) {
                     try {
                         List<ExternalProviderKey> keys = providerKeyRepository.findByProvider(modelConfig.getEmbeddingProvider());
                         if (!keys.isEmpty()) {
@@ -115,6 +129,18 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
 
         // 2. 如果 ModelConfig 没有 API Key，从数据库 external_provider_keys 读取
         if (effectiveApiKey == null || effectiveApiKey.isEmpty()) {
+            var unifiedCredential = gatewaySecretService.resolveProviderCredential("siliconflow");
+            if (unifiedCredential.isPresent()) {
+                effectiveApiKey = unifiedCredential.get().getApiKey();
+                if (unifiedCredential.get().getBaseUrl() != null && !unifiedCredential.get().getBaseUrl().isEmpty()) {
+                    baseUrl = unifiedCredential.get().getBaseUrl();
+                }
+                log.info("SiliconFlowEmbeddingAdapter: loaded API key from gateway secret center (provider=siliconflow)");
+            }
+        }
+
+        // 3. 回退到 external_provider_keys（兼容）
+        if (effectiveApiKey == null || effectiveApiKey.isEmpty()) {
             try {
                 List<ExternalProviderKey> keys = providerKeyRepository.findByProvider("SiliconFlow");
                 if (!keys.isEmpty()) {
@@ -134,7 +160,7 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
             }
         }
 
-        // 3. Fallback 到配置文件
+        // 4. Fallback 到配置文件
         if (effectiveApiKey == null || effectiveApiKey.isEmpty() || "sk-placeholder".equals(effectiveApiKey)) {
             effectiveApiKey = configApiKey;
             log.warn(

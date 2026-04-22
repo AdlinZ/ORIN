@@ -35,6 +35,32 @@
             <el-option label="高负载" value="HIGH_LOAD" />
             <el-option label="异常" value="ERROR" />
           </el-select>
+          <el-select
+            v-model="providerFilter"
+            clearable
+            placeholder="服务商筛选"
+            style="width: 180px"
+          >
+            <el-option
+              v-for="provider in providerOptions"
+              :key="provider"
+              :label="provider"
+              :value="provider"
+            />
+          </el-select>
+          <el-select
+            v-model="typeFilter"
+            clearable
+            placeholder="类型筛选"
+            style="width: 160px"
+          >
+            <el-option
+              v-for="item in typeOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
         </OrinFilterBar>
       </template>
     </OrinPageShell>
@@ -189,6 +215,8 @@ const state = reactive(createAsyncState())
 const rows = ref([])
 const search = ref('')
 const statusFilter = ref('')
+const providerFilter = ref('')
+const typeFilter = ref('')
 const recentAgents = ref([])
 
 const RECENT_AGENTS_KEY = 'recent-agents'
@@ -202,8 +230,19 @@ const viewRows = computed(() => {
       row.modelName.toLowerCase().includes(q) ||
       row.providerType.toLowerCase().includes(q)
     const matchStatus = !statusFilter.value || row.status === statusFilter.value
-    return matchQuery && matchStatus
+    const matchProvider = !providerFilter.value || row.providerType === providerFilter.value
+    const matchType = !typeFilter.value || row.viewType === typeFilter.value
+    return matchQuery && matchStatus && matchProvider && matchType
   })
+})
+
+const providerOptions = computed(() => {
+  return [...new Set(rows.value.map((row) => row.providerType).filter(Boolean))]
+})
+
+const typeOptions = computed(() => {
+  return [...new Set(rows.value.map((row) => row.viewType).filter(Boolean))]
+    .map((value) => ({ value, label: formatAgentType(value) }))
 })
 
 const runningCount = computed(() => rows.value.filter((row) => row.status === 'RUNNING').length)
@@ -586,5 +625,19 @@ onMounted(loadData)
 
 .agent-list-table :deep(.el-table__fixed-right) {
   box-shadow: -8px 0 16px rgba(15, 23, 42, 0.06);
+}
+
+html.dark .agent-list-table :deep(.el-table__fixed-right td.el-table__cell),
+html.dark .agent-list-table :deep(.el-table__fixed-right th.el-table__cell),
+html.dark .agent-list-table :deep(.el-table__fixed-right-patch) {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+html.dark .agent-list-table :deep(.el-table__fixed-right .el-table__row--striped td.el-table__cell) {
+  background: rgba(30, 41, 59, 0.84);
+}
+
+html.dark .agent-list-table :deep(.el-table__fixed-right tbody tr:hover > td.el-table__cell) {
+  background: rgba(30, 41, 59, 0.94);
 }
 </style>

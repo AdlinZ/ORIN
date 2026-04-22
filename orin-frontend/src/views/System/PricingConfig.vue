@@ -133,7 +133,7 @@
         </template>
         <div v-loading="loading" class="ranking-list">
           <div
-            v-for="(item, index) in distributionData"
+            v-for="(item, index) in rankingTopFive"
             :key="`${item.name}-${index}`"
             class="ranking-item"
           >
@@ -154,152 +154,139 @@
               {{ formatCurrency(item.value) }}
             </div>
           </div>
-          <el-empty v-if="distributionData.length === 0" description="暂无排行数据" :image-size="72" />
+          <el-empty v-if="rankingTopFive.length === 0" description="暂无排行数据" :image-size="72" />
         </div>
       </el-card>
     </div>
 
-    <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <div>
-            <h3 class="card-title">
-              成本明细
-            </h3>
-            <p class="card-subtitle">
-              当前仅按供应商聚合，后续如需要我也可以再帮你补模型级明细
-            </p>
+    <el-card shadow="never" class="tab-wrapper-card">
+      <el-tabs v-model="activeTab" class="content-tabs">
+        <el-tab-pane label="成本明细" name="cost-detail">
+          <div class="pane-subtitle">当前仅按供应商聚合</div>
+          <el-table
+            v-loading="loading"
+            :data="distributionData"
+            border
+            stripe
+            style="width: 100%"
+          >
+            <el-table-column
+              type="index"
+              label="#"
+              width="60"
+              align="center"
+            />
+            <el-table-column
+              prop="name"
+              label="供应商"
+              min-width="220"
+              show-overflow-tooltip
+            />
+            <el-table-column label="成本" min-width="160" align="right">
+              <template #default="{ row }">
+                {{ formatCurrency(row.value) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="占比" min-width="120" align="right">
+              <template #default="{ row }">
+                {{ formatPercent(row.share) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+        <el-tab-pane label="定价策略配置" name="pricing-config">
+          <div class="filter-bar">
+            <el-input
+              v-model="filterKeyword"
+              placeholder="搜索模型 ID..."
+              clearable
+              style="width: 220px"
+              :prefix-icon="Search"
+            />
+            <el-select
+              v-model="filterGroup"
+              placeholder="租户分组"
+              clearable
+              style="width: 150px"
+            >
+              <el-option label="全部" value="" />
+              <el-option label="Default" value="default" />
+              <el-option label="VIP" value="VIP" />
+              <el-option label="Internal" value="internal" />
+            </el-select>
+            <el-button type="primary" :icon="Plus" @click="handleAdd">
+              新增规则
+            </el-button>
           </div>
-        </div>
-      </template>
-      <el-table
-        v-loading="loading"
-        :data="distributionData"
-        border
-        stripe
-        style="width: 100%"
-      >
-        <el-table-column
-          type="index"
-          label="#"
-          width="60"
-          align="center"
-        />
-        <el-table-column
-          prop="name"
-          label="供应商"
-          min-width="220"
-          show-overflow-tooltip
-        />
-        <el-table-column label="成本" min-width="160" align="right">
-          <template #default="{ row }">
-            {{ formatCurrency(row.value) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="占比" min-width="120" align="right">
-          <template #default="{ row }">
-            {{ formatPercent(row.share) }}
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
 
-    <!-- 定价配置区域 -->
-    <el-divider content-position="left">
-      <span class="divider-title">定价策略配置</span>
-    </el-divider>
+          <el-table
+            v-loading="pricingLoading"
+            border
+            :data="filteredData"
+            style="width: 100%"
+          >
+            <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
 
-    <!-- 搜索过滤栏 -->
-    <div class="filter-bar">
-      <el-input
-        v-model="filterKeyword"
-        placeholder="搜索模型 ID..."
-        clearable
-        style="width: 220px"
-        :prefix-icon="Search"
-      />
-      <el-select
-        v-model="filterGroup"
-        placeholder="租户分组"
-        clearable
-        style="width: 150px"
-      >
-        <el-option label="全部" value="" />
-        <el-option label="Default" value="default" />
-        <el-option label="VIP" value="VIP" />
-        <el-option label="Internal" value="internal" />
-      </el-select>
-      <el-button type="primary" :icon="Plus" @click="handleAdd">
-        新增规则
-      </el-button>
-    </div>
+            <el-table-column prop="tenantGroup" label="租户分组" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.tenantGroup === 'default' ? 'info' : 'success'">
+                  {{ row.tenantGroup }}
+                </el-tag>
+              </template>
+            </el-table-column>
 
-    <el-card class="table-card" shadow="never">
-      <el-table
-        v-loading="pricingLoading"
-        border
-        :data="filteredData"
-        style="width: 100%"
-      >
-        <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
+            <el-table-column prop="billingMode" label="计费模式" width="120">
+              <template #default="{ row }">
+                <el-tag effect="plain">{{ billingModeLabel(row.billingMode) }}</el-tag>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="tenantGroup" label="租户分组" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.tenantGroup === 'default' ? 'info' : 'success'">
-              {{ row.tenantGroup }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            <el-table-column label="内部成本 (Cost)" align="center">
+              <el-table-column prop="inputCostUnit" label="Input / 1k" width="130">
+                <template #default="{ row }">
+                  {{ formatPrice(row.inputCostUnit, row.currency) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="outputCostUnit" label="Output / 1k" width="130">
+                <template #default="{ row }">
+                  {{ formatPrice(row.outputCostUnit, row.currency) }}
+                </template>
+              </el-table-column>
+            </el-table-column>
 
-        <el-table-column prop="billingMode" label="计费模式" width="120">
-          <template #default="{ row }">
-            <el-tag effect="plain">{{ billingModeLabel(row.billingMode) }}</el-tag>
-          </template>
-        </el-table-column>
+            <el-table-column label="外部报价 (Price)" align="center">
+              <el-table-column prop="inputPriceUnit" label="Input / 1k" width="130">
+                <template #default="{ row }">
+                  <span class="price-highlight">{{ formatPrice(row.inputPriceUnit, row.currency) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="outputPriceUnit" label="Output / 1k" width="130">
+                <template #default="{ row }">
+                  <span class="price-highlight">{{ formatPrice(row.outputPriceUnit, row.currency) }}</span>
+                </template>
+              </el-table-column>
+            </el-table-column>
 
-        <el-table-column label="内部成本 (Cost)" align="center">
-          <el-table-column prop="inputCostUnit" label="Input / 1k" width="130">
-            <template #default="{ row }">
-              {{ formatPrice(row.inputCostUnit, row.currency) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="outputCostUnit" label="Output / 1k" width="130">
-            <template #default="{ row }">
-              {{ formatPrice(row.outputCostUnit, row.currency) }}
-            </template>
-          </el-table-column>
-        </el-table-column>
+            <el-table-column prop="currency" label="货币" width="80" align="center" />
 
-        <el-table-column label="外部报价 (Price)" align="center">
-          <el-table-column prop="inputPriceUnit" label="Input / 1k" width="130">
-            <template #default="{ row }">
-              <span class="price-highlight">{{ formatPrice(row.inputPriceUnit, row.currency) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="outputPriceUnit" label="Output / 1k" width="130">
-            <template #default="{ row }">
-              <span class="price-highlight">{{ formatPrice(row.outputPriceUnit, row.currency) }}</span>
-            </template>
-          </el-table-column>
-        </el-table-column>
+            <el-table-column label="利润率 (Est)" width="110" align="center">
+              <template #default="{ row }">
+                <span :class="calculateMargin(row) > 0 ? 'text-success' : 'text-danger'">
+                  {{ calculateMargin(row) }}%
+                </span>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="currency" label="货币" width="80" align="center" />
-
-        <el-table-column label="利润率 (Est)" width="110" align="center">
-          <template #default="{ row }">
-            <span :class="calculateMargin(row) > 0 ? 'text-success' : 'text-danger'">
-              {{ calculateMargin(row) }}%
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="130" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            <el-table-column label="操作" width="130" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+                <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
     </el-card>
 
     <!-- 编辑/新增 Dialog -->
@@ -338,6 +325,7 @@ const costSummary = ref({
 });
 
 const distributionData = ref([]);
+const activeTab = ref('cost-detail');
 
 const distributionParams = computed(() => {
   if (!dateRange.value || dateRange.value.length !== 2) return {};
@@ -348,6 +336,7 @@ const distributionParams = computed(() => {
 });
 
 const distributionTotal = computed(() => distributionData.value.reduce((sum, item) => sum + Number(item.value || 0), 0));
+const rankingTopFive = computed(() => distributionData.value.slice(0, 5));
 
 // 定价配置相关
 const tableData = ref([]);
@@ -571,9 +560,8 @@ onUnmounted(() => {
 
 <style scoped>
 .cost-dashboard {
-  padding: 24px;
-  background: var(--bg-color, #f8fafc);
-  min-height: 100vh;
+  background: transparent;
+  min-height: 0;
 }
 
 .filters-row {
@@ -602,7 +590,6 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .stat-card,
@@ -672,7 +659,6 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
   gap: 24px;
-  margin-bottom: 24px;
 }
 
 .card-header {
@@ -780,11 +766,13 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 768px) {
-  .cost-dashboard {
-    padding: 16px;
-  }
+.pane-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 12px;
+}
 
+@media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr;
   }

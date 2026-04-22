@@ -9,30 +9,6 @@
           <p class="sync-desc">管理知识库端侧同步与 Dify 上游同步</p>
         </div>
       </div>
-
-      <!-- Agent 过滤器（默认全部 Agent） -->
-      <div v-if="activeTab !== 'dify'" class="agent-id-bar">
-        <span class="agent-id-label">范围</span>
-        <el-select
-          v-model="agentId"
-          placeholder="全部 Agent"
-          filterable
-          class="agent-id-input"
-          :loading="agentsLoading"
-          @change="onAgentChange"
-        >
-          <el-option label="全部 Agent" value="" />
-          <el-option
-            v-for="a in agentList"
-            :key="getAgentIdentifier(a)"
-            :label="a.name || getAgentIdentifier(a)"
-            :value="getAgentIdentifier(a)"
-          >
-            <span>{{ a.name || getAgentIdentifier(a) }}</span>
-            <span class="agent-option-id">{{ getAgentIdentifier(a) }}</span>
-          </el-option>
-        </el-select>
-      </div>
     </div>
 
     <!-- Tab 导航 -->
@@ -53,10 +29,6 @@
     <template>
       <!-- 状态栏 -->
       <div v-if="activeTab !== 'dify'" class="status-bar">
-        <div class="status-item">
-          <span class="status-label">同步范围</span>
-          <el-tag type="info" size="small">{{ agentId || '全部 Agent' }}</el-tag>
-        </div>
         <div class="status-item">
           <span class="status-label">最新检查点</span>
           <el-tag :type="checkpointData?.checkpoint ? 'success' : 'info'" size="small">
@@ -150,7 +122,7 @@
         <div class="content-toolbar">
           <div class="toolbar-left" />
           <div class="toolbar-right">
-            <el-button type="primary" size="small" @click="showWebhookDialog = true">
+            <el-button type="primary" size="small" @click="openWebhookDialog">
               添加 Webhook
             </el-button>
           </div>
@@ -300,6 +272,25 @@
   <!-- Webhook 对话框 -->
   <el-dialog v-model="showWebhookDialog" title="添加 Webhook" width="480px">
     <el-form :model="webhookForm" label-position="top">
+      <el-form-item label="关联 Agent">
+        <el-select
+          v-model="webhookForm.agentId"
+          placeholder="请选择 Agent"
+          filterable
+          style="width: 100%"
+          :loading="agentsLoading"
+        >
+          <el-option
+            v-for="a in agentList"
+            :key="getAgentIdentifier(a)"
+            :label="a.name || getAgentIdentifier(a)"
+            :value="getAgentIdentifier(a)"
+          >
+            <span>{{ a.name || getAgentIdentifier(a) }}</span>
+            <span class="agent-option-id">{{ getAgentIdentifier(a) }}</span>
+          </el-option>
+        </el-select>
+      </el-form-item>
       <el-form-item label="Webhook URL">
         <el-input v-model="webhookForm.webhookUrl" placeholder="https://example.com/webhook" />
       </el-form-item>
@@ -385,7 +376,7 @@ let changesLoadRequestId = 0
 const webhooks = ref([])
 const webhooksLoading = ref(false)
 const showWebhookDialog = ref(false)
-const webhookForm = ref({ webhookUrl: '', webhookSecret: '', eventTypes: [] })
+const webhookForm = ref({ agentId: '', webhookUrl: '', webhookSecret: '', eventTypes: [] })
 
 const difyConfig = reactive({ apiUrl: '', apiKey: '', enabled: false })
 const difySaving = ref(false)
@@ -460,12 +451,6 @@ const updateQuery = (patch = {}) => {
   router.replace({ query: nextQuery }).catch(() => {})
 }
 
-const persistAgentSelection = (id) => {
-  if (id) localStorage.setItem('control-sync:selected-agent-id', id)
-  else localStorage.removeItem('control-sync:selected-agent-id')
-  updateQuery({ agentId: id })
-}
-
 const loadAgentList = async () => {
   agentsLoading.value = true
   try {
@@ -474,11 +459,10 @@ const loadAgentList = async () => {
     const list = Array.isArray(raw) ? raw : []
     agentList.value = list
     const routeAgentId = typeof route.query.agentId === 'string' ? route.query.agentId : ''
-    const storedAgentId = localStorage.getItem('control-sync:selected-agent-id') || ''
-    const currentId = agentId.value || routeAgentId || storedAgentId
+    const currentId = agentId.value || routeAgentId
     const matched = list.find((item) => getAgentIdentifier(item) === currentId)
     agentId.value = matched ? getAgentIdentifier(matched) : ''
-    persistAgentSelection(agentId.value)
+    updateQuery({ agentId: agentId.value })
     await loadStatus()
     await loadTabData(activeTab.value)
   } catch (e) {
@@ -486,14 +470,6 @@ const loadAgentList = async () => {
   } finally {
     agentsLoading.value = false
   }
-}
-
-const onAgentChange = () => {
-  stopSyncPolling()
-  changesPage.value = 1
-  persistAgentSelection(agentId.value)
-  loadStatus()
-  loadTabData(activeTab.value)
 }
 
 const switchTab = (name) => {
@@ -662,8 +638,11 @@ const loadWebhooks = async () => {
 }
 
 const handleSaveWebhook = async () => {
-  if (!agentId.value) {
-    ElMessage.warning('新增 Webhook 需先选择一个具体 Agent')
+  const selectedAgentId = webhookForm.value.agentId
+    || agentId.value
+    || (agentList.value.length === 1 ? getAgentIdentifier(agentList.value[0]) : '')
+  if (!selectedAgentId) {
+    ElMessage.warning('请选择要绑定的 Agent')
     return
   }
   if (!webhookForm.value.webhookUrl) {
@@ -671,17 +650,24 @@ const handleSaveWebhook = async () => {
     return
   }
   try {
-    await saveClientWebhook(agentId.value, {
+    await saveClientWebhook(selectedAgentId, {
       ...webhookForm.value,
       eventTypes: webhookForm.value.eventTypes.join(','),
       enabled: true
     })
     ElMessage.success('Webhook 保存成功')
     showWebhookDialog.value = false
-    webhookForm.value = { webhookUrl: '', webhookSecret: '', eventTypes: [] }
+    webhookForm.value = { agentId: '', webhookUrl: '', webhookSecret: '', eventTypes: [] }
     loadWebhooks()
   } catch (e) {
     ElMessage.error('保存失败: ' + getErrorMessage(e))
+  }
+}
+
+const openWebhookDialog = () => {
+  showWebhookDialog.value = true
+  if (!webhookForm.value.agentId && agentList.value.length === 1) {
+    webhookForm.value.agentId = getAgentIdentifier(agentList.value[0])
   }
 }
 
@@ -832,8 +818,6 @@ const formatDateTime = (dateStr) => {
 onMounted(() => {
   const tab = route.query.tab
   if (typeof tab === 'string' && tabs.some((t) => t.name === tab)) activeTab.value = tab
-  const routeAgentId = typeof route.query.agentId === 'string' ? route.query.agentId : ''
-  if (routeAgentId) agentId.value = routeAgentId
   loadAgentList()
   if (activeTab.value === 'dify') {
     loadDifyConfig()
@@ -897,24 +881,6 @@ onUnmounted(() => {
   margin: 0;
   font-size: 13px;
   color: var(--el-text-color-secondary);
-}
-
-/* Agent ID 输入栏 */
-.agent-id-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.agent-id-label {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  white-space: nowrap;
-}
-
-.agent-id-input {
-  width: 240px;
 }
 
 .agent-option-id {

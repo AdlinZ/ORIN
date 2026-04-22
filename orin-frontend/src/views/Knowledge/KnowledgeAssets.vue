@@ -4,12 +4,10 @@
       title="知识资产"
       description="管理知识库、文档与图谱资产的绑定关系"
       icon="Collection"
-      domain="Knowledge Assets"
-      maturity="beta"
     >
       <template #actions>
         <el-button type="primary" :icon="Refresh" @click="loadData">刷新</el-button>
-        <el-button plain :icon="Search" @click="goCenter">返回知识中心</el-button>
+        <el-button plain :icon="ArrowLeft" @click="goCenter">返回知识中心</el-button>
       </template>
       <template #filters>
         <OrinFilterBar>
@@ -314,6 +312,7 @@ import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
+  ArrowLeft,
   Collection,
   Plus,
   Reading,
@@ -649,82 +648,6 @@ onMounted(loadData)
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-.knowledge-assets-page :deep(.page-header-wrapper) {
-  margin-bottom: 8px;
-}
-
-.knowledge-assets-page :deep(.page-header-container) {
-  border-radius: 16px;
-  padding: 10px 14px;
-  border-color: var(--ka-border-soft);
-  background: linear-gradient(180deg, #fafdfe 0%, #ffffff 100%);
-  box-shadow:
-    0 2px 6px rgba(15, 23, 42, 0.04),
-    0 10px 24px rgba(15, 23, 42, 0.04);
-}
-
-.knowledge-assets-page :deep(.header-main) {
-  align-items: center;
-  gap: 10px;
-}
-
-.knowledge-assets-page :deep(.header-icon) {
-  width: 30px;
-  height: 30px;
-  font-size: 15px;
-}
-
-.knowledge-assets-page :deep(.page-title) {
-  font-size: 28px;
-  line-height: 1.05;
-}
-
-.knowledge-assets-page :deep(.header-description) {
-  margin-top: 2px;
-  font-size: 12px;
-  line-height: 1.35;
-  max-width: 520px;
-}
-
-.knowledge-assets-page :deep(.header-filters) {
-  margin-top: 8px;
-  padding-top: 8px;
-}
-
-.knowledge-assets-page :deep(.orin-filter-bar) {
-  row-gap: 10px;
-}
-
-.knowledge-assets-page :deep(.el-button--primary) {
-  --el-button-bg-color: var(--ka-accent);
-  --el-button-border-color: var(--ka-accent);
-  --el-button-hover-bg-color: var(--ka-accent-strong);
-  --el-button-hover-border-color: var(--ka-accent-strong);
-  --el-button-active-bg-color: #0a7b6c;
-  --el-button-active-border-color: #0a7b6c;
-}
-
-.knowledge-assets-page :deep(.el-button.is-plain) {
-  border-color: var(--ka-border);
-  color: var(--ka-text-sub);
-}
-
-.knowledge-assets-page :deep(.el-input__wrapper),
-.knowledge-assets-page :deep(.el-select__wrapper) {
-  box-shadow: 0 0 0 1px var(--ka-border) inset;
-  background: #fff;
-}
-
-.knowledge-assets-page :deep(.el-input__wrapper:hover),
-.knowledge-assets-page :deep(.el-select__wrapper:hover) {
-  box-shadow: 0 0 0 1px #b9ccc6 inset;
-}
-
-.knowledge-assets-page :deep(.el-input.is-focus .el-input__wrapper),
-.knowledge-assets-page :deep(.el-select.is-focused .el-select__wrapper) {
-  box-shadow: 0 0 0 1px var(--ka-accent) inset;
 }
 
 .workbench-overview {

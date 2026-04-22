@@ -2,6 +2,7 @@ package com.adlin.orin.security;
 
 import com.adlin.orin.common.dto.Result;
 import com.adlin.orin.common.exception.ErrorCode;
+import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.monitor.entity.RateLimitConfig;
 import com.adlin.orin.modules.monitor.service.MonitorService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -141,12 +142,11 @@ public class ApiRateLimitInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        com.adlin.orin.modules.apikey.entity.ApiKey apiKey =
-                (com.adlin.orin.modules.apikey.entity.ApiKey) apiKeyObj;
+        GatewaySecret apiKey = (GatewaySecret) apiKeyObj;
 
         // 构建限流key - 支持多维度
         String userId = apiKey.getUserId();
-        String apiKeyId = apiKey.getId();
+        String apiKeyId = apiKey.getSecretId();
         String agentId = request.getParameter("agent_id");
         if (agentId == null) {
             agentId = request.getParameter("agentId");

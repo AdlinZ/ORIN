@@ -326,7 +326,7 @@ const handleCreateVisual = () => {
 };
 
 const handleEdit = (row) => {
-    router.push(`${ROUTES.AGENTS.WORKFLOWS}/${row.id}`);
+    router.push(ROUTES.AGENTS.WORKFLOW_VISUAL_EDIT.replace(':id', row.id));
 };
 
 const handleRun = (row) => {

@@ -20,13 +20,26 @@ public class ModelConfigController {
     @Operation(summary = "获取模型系统配置")
     @GetMapping
     public ModelConfig getConfig() {
-        return modelConfigService.getConfig();
+        ModelConfig config = modelConfigService.getConfig();
+        // 密钥统一由网关密钥中心管理，不再回传明文
+        config.setDifyApiKey(null);
+        config.setSiliconFlowApiKey(null);
+        config.setOllamaApiKey(null);
+        return config;
     }
 
     @Operation(summary = "更新模型系统配置")
     @PutMapping
     public ModelConfig updateConfig(@RequestBody ModelConfig config) {
-        return modelConfigService.updateConfig(config);
+        // 密钥统一由网关密钥中心管理，忽略旧字段写入
+        config.setDifyApiKey(null);
+        config.setSiliconFlowApiKey(null);
+        config.setOllamaApiKey(null);
+        ModelConfig saved = modelConfigService.updateConfig(config);
+        saved.setDifyApiKey(null);
+        saved.setSiliconFlowApiKey(null);
+        saved.setOllamaApiKey(null);
+        return saved;
     }
 
     @Operation(summary = "测试Dify连接")

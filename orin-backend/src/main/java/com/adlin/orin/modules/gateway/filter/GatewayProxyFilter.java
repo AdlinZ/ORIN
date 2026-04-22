@@ -1,7 +1,7 @@
 package com.adlin.orin.modules.gateway.filter;
 
-import com.adlin.orin.modules.apikey.entity.ApiKey;
-import com.adlin.orin.modules.apikey.service.ApiKeyService;
+import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.gateway.config.GatewayStatsService;
 import com.adlin.orin.modules.gateway.entity.GatewayAuditLog;
 import com.adlin.orin.modules.gateway.entity.GatewayRetryPolicy;
@@ -59,7 +59,7 @@ public class GatewayProxyFilter implements Filter {
     private final GatewayRuntimeRoutingService routingService;
     private final GatewayStatsService statsService;
     private final GatewayAuditLogRepository auditLogRepository;
-    private final ApiKeyService apiKeyService;
+    private final GatewaySecretService gatewaySecretService;
     private final ObjectMapper objectMapper;
     private final GatewayRateLimiterService rateLimiterService;
     private final GatewayCircuitBreakerService circuitBreakerService;
@@ -119,9 +119,9 @@ public class GatewayProxyFilter implements Filter {
         log.info("Route matched: {} [{}]", matchedRoute.getName(), isLocal ? "LOCAL" : "PROXY");
 
         // ③ API Key 解析（后续认证和限流需要）
-        Optional<ApiKey> apiKeyOpt = resolveApiKey(httpRequest);
+        Optional<GatewaySecret> apiKeyOpt = resolveApiKey(httpRequest);
         boolean hasJwt = hasJwtAuthentication(httpRequest);
-        String apiKeyId = apiKeyOpt.map(k -> String.valueOf(k.getId())).orElse(null);
+        String apiKeyId = apiKeyOpt.map(GatewaySecret::getSecretId).orElse(null);
 
         // ④ 认证检查（本地路由和代理路由均适用）
         if (Boolean.TRUE.equals(matchedRoute.getAuthRequired()) && apiKeyOpt.isEmpty() && !hasJwt) {
@@ -368,14 +368,14 @@ public class GatewayProxyFilter implements Filter {
         return new RestTemplate(factory);
     }
 
-    private Optional<ApiKey> resolveApiKey(HttpServletRequest request) {
+    private Optional<GatewaySecret> resolveApiKey(HttpServletRequest request) {
         Object apiKeyObj = request.getAttribute("apiKey");
-        if (apiKeyObj instanceof ApiKey apiKey) {
+        if (apiKeyObj instanceof GatewaySecret apiKey) {
             return Optional.of(apiKey);
         }
         String apiKey = extractApiKey(request);
         if (apiKey == null || apiKey.isBlank()) return Optional.empty();
-        Optional<ApiKey> validated = apiKeyService.validateApiKey(apiKey);
+        Optional<GatewaySecret> validated = gatewaySecretService.validateClientAccessSecret(apiKey);
         validated.ifPresent(value -> request.setAttribute("apiKey", value));
         return validated;
     }
@@ -459,9 +459,9 @@ public class GatewayProxyFilter implements Filter {
                                Integer statusCode, String result,
                                String errorMessage, long latencyMs) {
         try {
-            ApiKey apiKey = null;
+            GatewaySecret apiKey = null;
             Object apiKeyObj = request.getAttribute("apiKey");
-            if (apiKeyObj instanceof ApiKey value) apiKey = value;
+            if (apiKeyObj instanceof GatewaySecret value) apiKey = value;
 
             GatewayAuditLog logEntity = GatewayAuditLog.builder()
                     .routeId(route.getId())
@@ -474,7 +474,7 @@ public class GatewayProxyFilter implements Filter {
                     .latencyMs(latencyMs)
                     .clientIp(extractClientIp(request))
                     .userAgent(request.getHeader("User-Agent"))
-                    .apiKeyId(apiKey != null ? apiKey.getId() : null)
+                    .apiKeyId(apiKey != null ? apiKey.getSecretId() : null)
                     .result(result)
                     .errorMessage(errorMessage)
                     .createdAt(LocalDateTime.now())
