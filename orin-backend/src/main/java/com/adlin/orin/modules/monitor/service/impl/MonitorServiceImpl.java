@@ -1106,6 +1106,10 @@ public class MonitorServiceImpl implements MonitorService {
         @Override
         public void updateSystemProperties(Map<String, String> properties) {
                 try {
+                        if (properties == null || properties.isEmpty()) {
+                                log.warn("updateSystemProperties called with empty payload");
+                                return;
+                        }
                         java.nio.file.Path path = java.nio.file.Paths
                                         .get("src/main/resources/application-dev.properties");
                         if (!java.nio.file.Files.exists(path)) {
@@ -1138,6 +1142,8 @@ public class MonitorServiceImpl implements MonitorService {
                                         }
                                 }
                                 java.nio.file.Files.write(path, newLines);
+                        } else {
+                                log.error("application-dev.properties not found, cannot persist system properties");
                         }
                 } catch (Exception e) {
                         log.error("Failed to write system properties", e);

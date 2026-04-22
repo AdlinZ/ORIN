@@ -7,10 +7,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import io.milvus.client.MilvusServiceClient;
-import io.milvus.param.ConnectParam;
-import io.milvus.param.R;
-import io.milvus.param.collection.HasCollectionParam;
+
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
 @Slf4j
 @Component
@@ -26,8 +25,12 @@ public class SystemHealthCheckTask {
     @Value("${milvus.port}")
     private int milvusPort;
 
-    @Value("${milvus.token:}")
-    private String milvusToken;
+    @Value("${orin.healthcheck.log-state-change-only:true}")
+    private boolean logStateChangeOnly;
+
+    private volatile boolean mysqlHealthy = true;
+    private volatile boolean redisHealthy = true;
+    private volatile boolean milvusHealthy = true;
 
     public SystemHealthCheckTask(JdbcTemplate jdbcTemplate, StringRedisTemplate redisTemplate,
             AlertService alertService) {
@@ -41,15 +44,27 @@ public class SystemHealthCheckTask {
      */
     @Scheduled(fixedRate = 60000)
     public void checkSystemHealth() {
-        log.info("Starting system health check (MySQL, Redis, Milvus)...");
+        if (!logStateChangeOnly) {
+            log.info("Starting system health check (MySQL, Redis, Milvus)...");
+        }
 
         // 1. Check MySQL
         try {
             jdbcTemplate.execute("SELECT 1");
-            log.debug("MySQL health check passed.");
+            if (!mysqlHealthy) {
+                log.info("MySQL health recovered.");
+            } else if (!logStateChangeOnly) {
+                log.debug("MySQL health check passed.");
+            }
+            mysqlHealthy = true;
         } catch (Exception e) {
-            log.error("MySQL health check failed!", e);
-            alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_DB", "MySQL 关系型数据库连接失败: " + e.getMessage());
+            if (mysqlHealthy || !logStateChangeOnly) {
+                log.warn("MySQL health check failed: {}", e.getMessage());
+            }
+            if (mysqlHealthy) {
+                alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_DB", "MySQL 关系型数据库连接失败: " + e.getMessage());
+            }
+            mysqlHealthy = false;
         }
 
         // 2. Check Redis
@@ -58,45 +73,46 @@ public class SystemHealthCheckTask {
             if (!"PONG".equalsIgnoreCase(pingResult) && pingResult == null) {
                 throw new RuntimeException("Redis ping returned unexpected result: " + pingResult);
             }
-            log.debug("Redis health check passed.");
+            if (!redisHealthy) {
+                log.info("Redis health recovered.");
+            } else if (!logStateChangeOnly) {
+                log.debug("Redis health check passed.");
+            }
+            redisHealthy = true;
         } catch (Exception e) {
-            log.error("Redis health check failed!", e);
-            alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_REDIS", "Redis 分布式缓存连接失败: " + e.getMessage());
+            if (redisHealthy || !logStateChangeOnly) {
+                log.warn("Redis health check failed: {}", e.getMessage());
+            }
+            if (redisHealthy) {
+                alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_REDIS", "Redis 分布式缓存连接失败: " + e.getMessage());
+            }
+            redisHealthy = false;
         }
 
         // 3. Check Milvus
-        MilvusServiceClient milvusClient = null;
         try {
-            ConnectParam connectParam = ConnectParam.newBuilder()
-                    .withHost(milvusHost)
-                    .withPort(milvusPort)
-                    .withAuthorization("root", milvusToken)
-                    .withConnectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-                    .withKeepAliveTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-                    .build();
-            milvusClient = new MilvusServiceClient(connectParam);
-
-            R<Boolean> response = milvusClient.hasCollection(HasCollectionParam.newBuilder()
-                    .withCollectionName("system_health_check_dummy")
-                    .build());
-
-            if (response.getStatus() != R.Status.Success.getCode()) {
-                throw new RuntimeException("Milvus health check failed with status: " + response.getStatus());
+            // Use lightweight TCP probe to avoid Milvus SDK retry spam when the service is down.
+            try (Socket socket = new Socket()) {
+                socket.connect(new InetSocketAddress(milvusHost, milvusPort), 1500);
             }
-            log.debug("Milvus health check passed.");
+            if (!milvusHealthy) {
+                log.info("Milvus health recovered ({}:{})", milvusHost, milvusPort);
+            } else if (!logStateChangeOnly) {
+                log.debug("Milvus health check passed.");
+            }
+            milvusHealthy = true;
         } catch (Exception e) {
-            log.error("Milvus health check failed!", e);
-            alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_MILVUS", "Milvus 向量数据库连接失败: " + e.getMessage());
-        } finally {
-            if (milvusClient != null) {
-                try {
-                    milvusClient.close(2);
-                } catch (Exception e) {
-                    // Ignore close exceptions
-                }
+            if (milvusHealthy || !logStateChangeOnly) {
+                log.warn("Milvus health check failed ({}:{}): {}", milvusHost, milvusPort, e.getMessage());
             }
+            if (milvusHealthy) {
+                alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_MILVUS", "Milvus 向量数据库连接失败: " + e.getMessage());
+            }
+            milvusHealthy = false;
         }
 
-        log.info("System health check completed.");
+        if (!logStateChangeOnly) {
+            log.info("System health check completed.");
+        }
     }
 }

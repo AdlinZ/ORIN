@@ -560,6 +560,47 @@ onMounted(loadData)
   background: #fff;
 }
 
+html.dark .recent-card {
+  border-color: rgba(71, 85, 105, 0.55);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.9));
+  box-shadow: 0 10px 24px rgba(2, 8, 23, 0.38);
+}
+
+html.dark .recent-card:hover {
+  border-color: rgba(45, 212, 191, 0.45);
+  box-shadow: 0 16px 32px rgba(2, 8, 23, 0.5);
+}
+
+html.dark .recent-title {
+  color: #e2e8f0;
+}
+
+html.dark .recent-desc,
+html.dark .recent-meta,
+html.dark .recent-note {
+  color: #94a3b8;
+}
+
+html.dark .recent-meta {
+  border-top-color: rgba(71, 85, 105, 0.62);
+}
+
+html.dark .recent-arrow {
+  color: #64748b;
+}
+
+html.dark .refresh-button {
+  color: #94a3b8;
+  border-color: rgba(71, 85, 105, 0.6);
+  background: rgba(15, 23, 42, 0.88);
+}
+
+html.dark .refresh-button:hover {
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.7);
+  background: rgba(15, 23, 42, 0.96);
+}
+
 .page-container :deep(.page-header-wrapper) {
   margin-bottom: 16px;
 }

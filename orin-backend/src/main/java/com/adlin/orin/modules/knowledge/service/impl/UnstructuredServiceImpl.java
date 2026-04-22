@@ -29,11 +29,11 @@ public class UnstructuredServiceImpl implements UnstructuredService {
     public KnowledgeDocument uploadDocument(MultipartFile file, String kbId, String agentId) {
         log.info("Uploading document: {} for agent: {}", file.getOriginalFilename(), agentId);
 
-        String storagePath = null;
+        FileStorageService.StoredFile stored = null;
         try {
             // Save physical copy to "knowledge" subdirectory (more specific than
             // "documents")
-            storagePath = fileStorageService.storeFile(file, "knowledge");
+            stored = fileStorageService.storeFileDetailed(file, "knowledge");
         } catch (Exception e) {
             log.error("Failed to store physical file", e);
             throw new RuntimeException("Failed to store file", e);
@@ -45,7 +45,14 @@ public class UnstructuredServiceImpl implements UnstructuredService {
                 .knowledgeBaseId(kbId)
                 .fileName(file.getOriginalFilename())
                 .fileSize(file.getSize())
-                .storagePath(storagePath) // Persist path
+                .storagePath(stored.locator()) // Persist locator/path
+                .objectKey(stored.objectKey())
+                .primaryBackend(stored.primaryBackend())
+                .replicaBackends(stored.replicaBackends())
+                .replicationStatus(stored.replicationStatus())
+                .lastReplicationError(stored.replicationError())
+                .checksum(stored.checksum())
+                .contentType(stored.contentType())
                 .vectorStatus("PENDING")
                 .uploadTime(LocalDateTime.now())
                 .lastModified(LocalDateTime.now())

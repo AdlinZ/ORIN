@@ -59,6 +59,54 @@ public class KnowledgeDocument {
     private String storagePath;
 
     /**
+     * 对象存储逻辑键（与物理路径解耦）
+     */
+    @Column(name = "object_key", length = 500)
+    private String objectKey;
+
+    /**
+     * 主存储后端（local/minio）
+     */
+    @Column(name = "primary_backend", length = 20)
+    private String primaryBackend;
+
+    /**
+     * 副本存储后端列表（逗号分隔）
+     */
+    @Column(name = "replica_backends", length = 100)
+    private String replicaBackends;
+
+    /**
+     * 复制状态：SYNCED / PENDING_REPAIR / REPAIRING / REPAIR_FAILED
+     */
+    @Column(name = "replication_status", length = 30)
+    private String replicationStatus;
+
+    /**
+     * 最近复制时间
+     */
+    @Column(name = "last_replicated_at")
+    private LocalDateTime lastReplicatedAt;
+
+    /**
+     * 最近复制错误
+     */
+    @Column(name = "last_replication_error", columnDefinition = "TEXT")
+    private String lastReplicationError;
+
+    /**
+     * 内容校验和（SHA-256）
+     */
+    @Column(name = "checksum", length = 64)
+    private String checksum;
+
+    /**
+     * 文件内容类型
+     */
+    @Column(name = "content_type", length = 120)
+    private String contentType;
+
+    /**
      * 内容预览 (前 500 字符)
      */
     @Column(name = "content_preview", columnDefinition = "TEXT")

@@ -1,26 +1,23 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
+import java.time.Duration;
 
 /**
  * 文档管理服务
@@ -37,10 +34,7 @@ public class DocumentManageService {
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
     private final MultimodalContentParserService multimodalParserService;
     private final com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository knowledgeBaseRepository;
-
-    // 文件存储根目录 (从配置读取)
-    @Value("${knowledge.upload.path:storage/uploads/documents}")
-    private String uploadDir;
+    private final FileStorageService fileStorageService;
 
     /**
      * 上传文档
@@ -61,18 +55,9 @@ public class DocumentManageService {
             throw new IllegalArgumentException("Invalid filename");
         }
 
-        // 生成唯一文件名
         String fileExtension = getFileExtension(originalFilename);
-        String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
         String mimeType = file.getContentType();
-
-        // 创建存储目录
-        Path uploadPath = Paths.get(uploadDir, knowledgeBaseId);
-        Files.createDirectories(uploadPath);
-
-        // 保存文件
-        Path filePath = uploadPath.resolve(uniqueFilename);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        FileStorageService.StoredFile stored = fileStorageService.storeFileDetailed(file, "knowledge/" + knowledgeBaseId + "/raw");
 
         // 读取内容预览
         String contentPreview = extractContentPreview(file, fileExtension);
@@ -81,7 +66,7 @@ public class DocumentManageService {
         String metadata = "{}";
         if (mimeType != null && mimeType.startsWith("image/")) {
             try {
-                java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(filePath.toFile());
+                java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(file.getInputStream());
                 if (image != null) {
                     metadata = String.format("{\"width\": %d, \"height\": %d, \"format\": \"%s\"}",
                             image.getWidth(), image.getHeight(), fileExtension);
@@ -105,7 +90,15 @@ public class DocumentManageService {
                 .fileType(fileExtension)
                 .fileCategory(fileCategory)
                 .fileSize(file.getSize())
-                .storagePath(filePath.toString())
+                .storagePath(stored.locator())
+                .objectKey(stored.objectKey())
+                .primaryBackend(stored.primaryBackend())
+                .replicaBackends(stored.replicaBackends())
+                .replicationStatus(stored.replicationStatus())
+                .lastReplicatedAt(java.time.LocalDateTime.now())
+                .lastReplicationError(stored.replicationError())
+                .checksum(stored.checksum())
+                .contentType(stored.contentType())
                 .contentPreview(contentPreview)
                 .parseStatus("PENDING")
                 .vectorStatus("PENDING")
@@ -200,10 +193,8 @@ public class DocumentManageService {
         for (String filePath : filesToDelete) {
             if (filePath != null && !filePath.isEmpty()) {
                 try {
-                    Path path = Paths.get(filePath);
-                    if (Files.deleteIfExists(path)) {
-                        log.debug("Deleted physical file: {}", filePath);
-                    }
+                    fileStorageService.deleteFile(filePath);
+                    log.debug("Deleted physical file: {}", filePath);
                 } catch (Exception e) {
                     log.warn("Failed to delete physical file: {}, error: {}", filePath, e.getMessage());
                     // 不抛出异常，物理文件可由定时清理任务处理
@@ -225,8 +216,8 @@ public class DocumentManageService {
         for (KnowledgeDocument doc : documents) {
             if (doc.getStoragePath() != null) {
                 try {
-                    Files.deleteIfExists(Paths.get(doc.getStoragePath()));
-                } catch (IOException e) {
+                    fileStorageService.deleteFile(doc.getStoragePath());
+                } catch (Exception e) {
                     log.warn("Failed to delete file during bulk cleanup: {}", doc.getStoragePath());
                 }
             }
@@ -253,7 +244,8 @@ public class DocumentManageService {
         final String documentIdFinal = documentId;
         final String kbId = document.getKnowledgeBaseId();
         final String fileType = document.getFileType();
-        final String filePath = document.getStoragePath();
+        final String storageLocator = document.getStoragePath();
+        final String originalDocName = document.getFileName();
         final boolean shouldVectorize = autoVectorize;
 
         log.info("Starting multimodal parsing for document: {}, autoVectorize: {}", documentId, autoVectorize);
@@ -301,7 +293,14 @@ public class DocumentManageService {
 
                 // 使用 multimodal parser 解析内容，传入配置
                 log.info("Parsing: Using MultimodalContentParserService for document: {}", documentIdFinal);
-                String content = multimodalParserService.parseToText(filePath, fileType, parseConfig);
+                Path localInput = null;
+                String content;
+                try {
+                    localInput = fileStorageService.materializeToLocalTemp(storageLocator, originalDocName);
+                    content = multimodalParserService.parseToText(localInput.toString(), fileType, parseConfig);
+                } finally {
+                    cleanupTempFile(storageLocator, localInput);
+                }
 
                 // 检查是否是解析失败的错误信息
                 boolean isParseFailed = content == null || content.isEmpty()
@@ -325,7 +324,11 @@ public class DocumentManageService {
                 }
 
                 // 保存解析后的文本
-                String parsedPath = multimodalParserService.saveParsedText(kbId, documentIdFinal, content);
+                FileStorageService.StoredFile parsedStored = fileStorageService.storeBytesDetailed(
+                        content.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        documentIdFinal + ".txt",
+                        "knowledge/" + kbId + "/parsed",
+                        "text/plain");
 
                 // 生成预览
                 String preview = (content != null && content.length() > 500) ? content.substring(0, 500) : content;
@@ -336,7 +339,7 @@ public class DocumentManageService {
                     KnowledgeDocument doc = documentRepository.findById(documentIdFinal).orElse(null);
                     if (doc != null) {
                         doc.setParseStatus("PARSED");
-                        doc.setParsedTextPath(parsedPath);
+                        doc.setParsedTextPath(parsedStored.locator());
                         doc.setContentPreview(preview);
                         doc.setCharCount(finalContent != null ? finalContent.length() : 0);
                         documentRepository.save(doc);
@@ -506,8 +509,7 @@ public class DocumentManageService {
         // 如果已经有解析后的文本，直接向量化
         if ("PARSED".equals(document.getParseStatus()) && document.getParsedTextPath() != null) {
             try {
-                String content = multimodalParserService.readParsedText(
-                    document.getKnowledgeBaseId(), documentId);
+                String content = readTextFromStorage(document.getParsedTextPath());
                 if (content != null && !content.isEmpty()) {
                     triggerVectorizationInternal(documentId, content);
                     return document;
@@ -913,45 +915,50 @@ public class DocumentManageService {
 
     public String readFileContent(KnowledgeDocument doc) throws IOException {
         String fileType = doc.getFileType();
-        Path path = Paths.get(doc.getStoragePath());
-        if (!Files.exists(path))
+        Path path = fileStorageService.materializeToLocalTemp(doc.getStoragePath(), doc.getFileName());
+        if (!Files.exists(path)) {
             return null;
-
-        if (fileType.equalsIgnoreCase("txt") || fileType.equalsIgnoreCase("md")) {
-            return Files.readString(path);
-        } else if (fileType.equalsIgnoreCase("pdf")) {
-            try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(path.toFile())) {
-                org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
-                return stripper.getText(document).trim();
-            }
-        } else if (fileType.equalsIgnoreCase("docx")) {
-            try (java.io.InputStream is = Files.newInputStream(path);
-                    org.apache.poi.xwpf.usermodel.XWPFDocument document = new org.apache.poi.xwpf.usermodel.XWPFDocument(
-                            is)) {
-                StringBuilder text = new StringBuilder();
-                for (org.apache.poi.xwpf.usermodel.XWPFParagraph p : document.getParagraphs()) {
-                    text.append(p.getText()).append("\n");
-                }
-                return text.toString();
-            }
-        } else if (fileType.equalsIgnoreCase("doc")) {
-            try (java.io.InputStream is = Files.newInputStream(path);
-                    org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(is)) {
-                org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(
-                        document);
-                String[] paragraphs = extractor.getParagraphText();
-                StringBuilder text = new StringBuilder();
-                for (String para : paragraphs) {
-                    text.append(para).append("\n");
-                }
-                extractor.close();
-                return text.toString();
-            } catch (Exception e) {
-                log.warn("Failed to read DOC content: {}", e.getMessage());
-                return doc.getContentPreview();
-            }
         }
-        return doc.getContentPreview(); // Fallback
+
+        try {
+            if (fileType.equalsIgnoreCase("txt") || fileType.equalsIgnoreCase("md")) {
+                return Files.readString(path);
+            } else if (fileType.equalsIgnoreCase("pdf")) {
+                try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(path.toFile())) {
+                    org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+                    return stripper.getText(document).trim();
+                }
+            } else if (fileType.equalsIgnoreCase("docx")) {
+                try (java.io.InputStream is = Files.newInputStream(path);
+                        org.apache.poi.xwpf.usermodel.XWPFDocument document = new org.apache.poi.xwpf.usermodel.XWPFDocument(
+                                is)) {
+                    StringBuilder text = new StringBuilder();
+                    for (org.apache.poi.xwpf.usermodel.XWPFParagraph p : document.getParagraphs()) {
+                        text.append(p.getText()).append("\n");
+                    }
+                    return text.toString();
+                }
+            } else if (fileType.equalsIgnoreCase("doc")) {
+                try (java.io.InputStream is = Files.newInputStream(path);
+                        org.apache.poi.hwpf.HWPFDocument document = new org.apache.poi.hwpf.HWPFDocument(is)) {
+                    org.apache.poi.hwpf.extractor.WordExtractor extractor = new org.apache.poi.hwpf.extractor.WordExtractor(
+                            document);
+                    String[] paragraphs = extractor.getParagraphText();
+                    StringBuilder text = new StringBuilder();
+                    for (String para : paragraphs) {
+                        text.append(para).append("\n");
+                    }
+                    extractor.close();
+                    return text.toString();
+                } catch (Exception e) {
+                    log.warn("Failed to read DOC content: {}", e.getMessage());
+                    return doc.getContentPreview();
+                }
+            }
+            return doc.getContentPreview(); // Fallback
+        } finally {
+            cleanupTempFile(doc.getStoragePath(), path);
+        }
     }
 
     /**
@@ -977,9 +984,9 @@ public class DocumentManageService {
         result.put("id", doc.getId());
 
         // 优先读取解析后的文件 (parsedTextPath)
-        if (doc.getParsedTextPath() != null && Files.exists(Paths.get(doc.getParsedTextPath()))) {
+        if (doc.getParsedTextPath() != null && fileStorageService.exists(doc.getParsedTextPath())) {
             try {
-                String content = Files.readString(Paths.get(doc.getParsedTextPath()));
+                String content = readTextFromStorage(doc.getParsedTextPath());
                 result.put("text", content);
                 result.put("charCount", content.length());
             } catch (IOException e) {
@@ -1062,10 +1069,35 @@ public class DocumentManageService {
      */
     public org.springframework.core.io.Resource getDocumentResource(String documentId) {
         KnowledgeDocument doc = getDocument(documentId);
-        Path path = Paths.get(doc.getStoragePath());
-        if (!Files.exists(path)) {
-            throw new RuntimeException("Original file not found at " + doc.getStoragePath());
+        try {
+            InputStream in = fileStorageService.openStream(doc.getStoragePath());
+            return new org.springframework.core.io.InputStreamResource(in);
+        } catch (IOException e) {
+            throw new RuntimeException("Original file not found at " + doc.getStoragePath(), e);
         }
-        return new org.springframework.core.io.FileSystemResource(path);
+    }
+
+    public String getDocumentDownloadUrl(String documentId, Duration ttl) {
+        KnowledgeDocument doc = getDocument(documentId);
+        return fileStorageService.generateDownloadUrl(doc.getStoragePath(), ttl);
+    }
+
+    private void cleanupTempFile(String locator, Path tmp) {
+        if (tmp == null) {
+            return;
+        }
+        try {
+            if (locator != null && !locator.equals(tmp.toString()) && Files.exists(tmp)) {
+                Files.deleteIfExists(tmp);
+            }
+        } catch (Exception e) {
+            log.debug("Failed to cleanup temp file {}: {}", tmp, e.getMessage());
+        }
+    }
+
+    private String readTextFromStorage(String locator) throws IOException {
+        try (InputStream in = fileStorageService.openStream(locator)) {
+            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 }

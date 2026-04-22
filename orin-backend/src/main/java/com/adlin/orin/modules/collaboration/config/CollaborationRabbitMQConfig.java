@@ -44,6 +44,9 @@ public class CollaborationRabbitMQConfig {
     @Value("${orin.collaboration.queue.ttl:300000}")
     private int queueTtl;
 
+    @Value("${orin.rabbitmq.listeners.auto-startup:true}")
+    private boolean listenerAutoStartup;
+
     /**
      * 任务交换机
      */
@@ -159,6 +162,8 @@ public class CollaborationRabbitMQConfig {
         factory.setMaxConcurrentConsumers(10);
         factory.setPrefetchCount(10);
         factory.setDefaultRequeueRejected(false);
+        factory.setMissingQueuesFatal(false);
+        factory.setAutoStartup(listenerAutoStartup);
         return factory;
     }
 }

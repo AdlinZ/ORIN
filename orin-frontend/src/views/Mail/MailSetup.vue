@@ -1893,6 +1893,128 @@ onMounted(async () => {
   margin-top: 10px;
 }
 
+html.dark .gmail-layout {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+html.dark .gmail-topbar,
+html.dark .gmail-sidebar,
+html.dark .module-sheet,
+html.dark .list-toolbar,
+html.dark .mail-split {
+  background: #111c2f;
+  border-color: #243247;
+}
+
+html.dark .gmail-content {
+  background: #0f172a;
+}
+
+html.dark .brand-block,
+html.dark .sheet-title,
+html.dark .mail-empty-title,
+html.dark .reader-empty-title,
+html.dark .reader-header h3 {
+  color: #e2e8f0;
+}
+
+html.dark .top-setting-btn,
+html.dark .nav-item,
+html.dark .subject,
+html.dark .qq-editor {
+  color: #cbd5e1;
+}
+
+html.dark .search-block :deep(.el-input__wrapper),
+html.dark .status-chip,
+html.dark .nav-item:hover,
+html.dark .mail-row:hover,
+html.dark .mail-row.active,
+html.dark .editor-toolbar {
+  background: #1a2740;
+  border-color: #2b3d59;
+}
+
+html.dark .nav-item.active {
+  background: #1e3a62;
+  color: #dbeafe;
+}
+
+html.dark .status-chip {
+  color: #c7d2fe;
+}
+
+html.dark .status-chip.warning,
+html.dark .sidebar-tip {
+  border-color: #7c5a1a;
+  background: #2b2215;
+  color: #f3c87a;
+}
+
+html.dark .sidebar-group-title,
+html.dark .from,
+html.dark .time,
+html.dark .reader-meta,
+html.dark .mail-empty-desc,
+html.dark .attachment-hint {
+  color: #94a3b8;
+}
+
+html.dark .sidebar-divider,
+html.dark .mail-list,
+html.dark .mail-row,
+html.dark .reader-header,
+html.dark .compose-actions,
+html.dark .compose-qq-form :deep(.el-form-item),
+html.dark .qq-editor-wrap,
+html.dark .editor-toolbar,
+html.dark .preview-body,
+html.dark .attachment-item {
+  border-color: #2b3d59;
+}
+
+html.dark .mail-row.unread .from,
+html.dark .mail-row.unread .subject {
+  color: #e2e8f0;
+}
+
+html.dark .reader-body {
+  color: #cbd5e1;
+}
+
+html.dark .mail-empty,
+html.dark .reader-empty {
+  color: #94a3b8;
+}
+
+html.dark .compose-sheet,
+html.dark .qq-editor-wrap,
+html.dark .preview-body,
+html.dark .attachment-item {
+  background: #111c2f;
+}
+
+html.dark .compose-qq-form :deep(.el-form-item__label),
+html.dark .compose-qq-form :deep(.el-input__inner) {
+  color: #cbd5e1;
+}
+
+html.dark .qq-editor:empty::before {
+  color: #64748b;
+}
+
+html.dark .qq-editor :deep(.template-var-chip),
+html.dark .qq-editor .template-var-chip {
+  border-color: #335b95;
+  background: #1a2f4f;
+  color: #93c5fd;
+}
+
+html.dark .pagination-wrap :deep(.el-pagination) {
+  color: #cbd5e1;
+}
+
 @media (max-width: 1280px) {
   .mail-split {
     grid-template-columns: 1fr;

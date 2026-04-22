@@ -118,6 +118,33 @@
             </div>
           </div>
           <el-empty v-else description="Collection 尚未创建，保存配置并测试连接后自动初始化" :image-size="48" />
+          <el-divider style="margin: 16px 0 12px" />
+          <div class="card-head">
+            <span>向量数据详情</span>
+            <el-button size="small" :loading="loadingDetail" @click="loadCollectionDetail">刷新</el-button>
+          </div>
+          <div v-if="collectionDetail.exists">
+            <el-descriptions :column="3" border size="small">
+              <el-descriptions-item label="Collection">{{ collectionDetail.collectionName }}</el-descriptions-item>
+              <el-descriptions-item label="向量维度">{{ collectionDetail.dimension }}</el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="collectionDetail.status === 'connected' ? 'success' : 'warning'" size="small">{{ collectionDetail.status }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="向量总数">{{ collectionDetail.totalVectors || 0 }}</el-descriptions-item>
+              <el-descriptions-item label="文档总数">{{ collectionDetail.totalDocs || 0 }}</el-descriptions-item>
+              <el-descriptions-item label="分区数">{{ collectionDetail.partitionCount || 0 }}</el-descriptions-item>
+            </el-descriptions>
+            <el-table v-if="collectionDetail.knowledgeBases?.length" :data="collectionDetail.knowledgeBases" size="small" border stripe style="margin-top:16px">
+              <el-table-column prop="name" label="知识库名称">
+                <template #default="{ row }">
+                  <el-button type="primary" link @click="viewKnowledgeBaseVectors(row)">{{ row.name }}</el-button>
+                </template>
+              </el-table-column>
+              <el-table-column prop="docCount" label="文档数" width="100" />
+              <el-table-column prop="vectorCount" label="向量数" width="100" />
+            </el-table>
+          </div>
+          <el-empty v-else description="Collection 不存在或未连接" :image-size="60" />
         </el-card>
 
         <el-card id="blk-storage-neo4j" shadow="never" style="margin-top: 16px">
@@ -171,6 +198,109 @@
             </el-form-item>
             <el-form-item v-if="cardEditState['storage-neo4j']">
               <el-button :disabled="!neo4jConfig.enabled" @click="handleTestNeo4jConnection">测试连接</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
+        <el-card id="blk-storage-minio" shadow="never" style="margin-top: 16px">
+          <template #header>
+            <div class="card-head">
+              <div class="name-with-badge">
+                <span>MinIO 对象存储</span>
+                <el-tag :type="minioStatus.up ? 'success' : 'danger'" size="small">
+                  {{ minioStatus.up ? '已连接' : '未连接' }}
+                </el-tag>
+              </div>
+              <div class="card-actions">
+                <el-button v-if="!cardEditState['storage-minio']" size="small" @click="startMinioEdit">编辑</el-button>
+                <template v-else>
+                  <el-button size="small" @click="cancelMinioEdit">取消</el-button>
+                  <el-button type="primary" size="small" :loading="minioSaving" :icon="Check" @click="saveMinioCard">保存</el-button>
+                </template>
+              </div>
+            </div>
+          </template>
+          <el-form label-position="top">
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-form-item label="存储模式">
+                  <el-select v-model="minioConfig.mode" :disabled="!cardEditState['storage-minio']" style="width:100%">
+                    <el-option value="single" label="single（单存储）" />
+                    <el-option value="dual" label="dual（双线）" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="主存储">
+                  <el-select v-model="minioConfig.primary" :disabled="!cardEditState['storage-minio']" style="width:100%">
+                    <el-option value="local" label="local" />
+                    <el-option value="minio" label="minio" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="次存储">
+                  <el-select v-model="minioConfig.secondary" :disabled="!cardEditState['storage-minio']" style="width:100%">
+                    <el-option value="local" label="local" />
+                    <el-option value="minio" label="minio" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-form-item label="读回退">
+                  <el-switch v-model="minioConfig.readFallback" :disabled="!cardEditState['storage-minio']" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="异步补偿">
+                  <el-switch v-model="minioConfig.writeAsyncRepair" :disabled="!cardEditState['storage-minio']" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="预签名 TTL（秒）">
+                  <el-input-number v-model="minioConfig.presignTtlSeconds" :disabled="!cardEditState['storage-minio']" :min="60" :max="604800" style="width:100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="Endpoint">
+                  <el-input v-model="minioConfig.endpoint" :disabled="!cardEditState['storage-minio']" placeholder="http://192.168.1.164:9000" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="Bucket">
+                  <el-input v-model="minioConfig.bucket" :disabled="!cardEditState['storage-minio']" placeholder="orin-files" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="HTTPS">
+                  <el-switch v-model="minioConfig.secure" :disabled="!cardEditState['storage-minio']" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="Access Key">
+                  <el-input v-model="minioConfig.accessKey" :disabled="!cardEditState['storage-minio']" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="Secret Key">
+                  <el-input v-model="minioConfig.secretKey" :disabled="!cardEditState['storage-minio']" type="password" show-password />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-form-item>
+              <el-button type="success" plain :disabled="!cardEditState['storage-minio']" :loading="testingMinio" @click="testMinioConnection">
+                测试连接
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -479,37 +609,6 @@
           </el-form>
         </el-card>
 
-        <el-card id="blk-kb-vectors" shadow="never" style="margin-top: 16px">
-          <template #header>
-            <div class="card-head">
-              <span>向量数据详情</span>
-              <el-button size="small" :loading="loadingDetail" @click="loadCollectionDetail">刷新</el-button>
-            </div>
-          </template>
-          <div v-if="collectionDetail.exists">
-            <el-descriptions :column="3" border size="small">
-              <el-descriptions-item label="Collection">{{ collectionDetail.collectionName }}</el-descriptions-item>
-              <el-descriptions-item label="向量维度">{{ collectionDetail.dimension }}</el-descriptions-item>
-              <el-descriptions-item label="状态">
-                <el-tag :type="collectionDetail.status === 'connected' ? 'success' : 'warning'" size="small">{{ collectionDetail.status }}</el-tag>
-              </el-descriptions-item>
-              <el-descriptions-item label="向量总数">{{ collectionDetail.totalVectors || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="文档总数">{{ collectionDetail.totalDocs || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="分区数">{{ collectionDetail.partitionCount || 0 }}</el-descriptions-item>
-            </el-descriptions>
-            <el-table v-if="collectionDetail.knowledgeBases?.length" :data="collectionDetail.knowledgeBases" size="small" border stripe style="margin-top:16px">
-              <el-table-column prop="name" label="知识库名称">
-                <template #default="{ row }">
-                  <el-button type="primary" link @click="viewKnowledgeBaseVectors(row)">{{ row.name }}</el-button>
-                </template>
-              </el-table-column>
-              <el-table-column prop="docCount" label="文档数" width="100" />
-              <el-table-column prop="vectorCount" label="向量数" width="100" />
-            </el-table>
-          </div>
-          <el-empty v-else description="Collection 不存在或未连接" :image-size="60" />
-        </el-card>
-
         </section>
 
       </div>
@@ -584,6 +683,7 @@ const tocSections = [
       { id: 'storage-redis',  label: '缓存 Redis',    anchor: 'blk-storage-redis' },
       { id: 'storage-milvus', label: 'Milvus 向量引擎', anchor: 'blk-storage-milvus' },
       { id: 'storage-neo4j',  label: 'Neo4j 图数据库', anchor: 'blk-storage-neo4j' },
+      { id: 'storage-minio',  label: 'MinIO 对象存储', anchor: 'blk-storage-minio' },
     ],
   },
   {
@@ -605,7 +705,6 @@ const tocSections = [
     id: 'kb-params', label: '知识库参数', anchor: 'sec-kb-params',
     children: [
       { id: 'kb-retrieval', label: '检索参数',     anchor: 'blk-kb-retrieval' },
-      { id: 'kb-vectors',   label: '向量数据详情', anchor: 'blk-kb-vectors' },
     ],
   },
 ];
@@ -627,6 +726,7 @@ const cardEditState = reactive({
   'storage-redis': false,
   'storage-milvus': false,
   'storage-neo4j': false,
+  'storage-minio': false,
   'ai-capabilities': false,
   dify: false,
   ragflow: false,
@@ -680,6 +780,19 @@ const SYSTEM_PROPERTY_FALLBACKS = {
     asrProvider: 'local',
     asrModel: 'base',
   },
+  minio: {
+    mode: 'dual',
+    primary: 'local',
+    secondary: 'minio',
+    readFallback: true,
+    writeAsyncRepair: true,
+    presignTtlSeconds: 600,
+    endpoint: 'http://localhost:9000',
+    accessKey: '',
+    secretKey: '',
+    bucket: 'orin-files',
+    secure: false,
+  },
 };
 
 const loadSystemProperties = async () => {
@@ -694,6 +807,18 @@ const applySystemProperties = (props = {}) => {
   milvusConfig.host = props['milvus.host'] || SYSTEM_PROPERTY_FALLBACKS.milvus.host;
   milvusConfig.port = parseInt(props['milvus.port']) || SYSTEM_PROPERTY_FALLBACKS.milvus.port;
   milvusConfig.token = props['milvus.token'] || SYSTEM_PROPERTY_FALLBACKS.milvus.token;
+
+  minioConfig.mode = props['storage.mode'] || SYSTEM_PROPERTY_FALLBACKS.minio.mode;
+  minioConfig.primary = props['storage.primary'] || SYSTEM_PROPERTY_FALLBACKS.minio.primary;
+  minioConfig.secondary = props['storage.secondary'] || SYSTEM_PROPERTY_FALLBACKS.minio.secondary;
+  minioConfig.readFallback = props['storage.read-fallback'] === true || props['storage.read-fallback'] === 'true';
+  minioConfig.writeAsyncRepair = props['storage.write-async-repair'] === true || props['storage.write-async-repair'] === 'true';
+  minioConfig.presignTtlSeconds = parseInt(props['storage.presign.ttl-seconds']) || SYSTEM_PROPERTY_FALLBACKS.minio.presignTtlSeconds;
+  minioConfig.endpoint = props['storage.minio.endpoint'] || SYSTEM_PROPERTY_FALLBACKS.minio.endpoint;
+  minioConfig.accessKey = props['storage.minio.access-key'] || SYSTEM_PROPERTY_FALLBACKS.minio.accessKey;
+  minioConfig.secretKey = props['storage.minio.secret-key'] || SYSTEM_PROPERTY_FALLBACKS.minio.secretKey;
+  minioConfig.bucket = props['storage.minio.bucket'] || SYSTEM_PROPERTY_FALLBACKS.minio.bucket;
+  minioConfig.secure = props['storage.minio.secure'] === true || props['storage.minio.secure'] === 'true';
 
   aiConfig.jinaEnabled = props['jina.reader.enabled'] === true || props['jina.reader.enabled'] === 'true';
   aiConfig.jinaApiKey = props['jina.reader.api-key'] || SYSTEM_PROPERTY_FALLBACKS.ai.jinaApiKey;
@@ -845,6 +970,80 @@ const handleTestNeo4jConnection = async () => {
 const startNeo4jEdit = () => startCardEdit('storage-neo4j', neo4jConfig);
 const cancelNeo4jEdit = () => cancelCardEdit('storage-neo4j', snapshot => Object.assign(neo4jConfig, snapshot));
 const saveNeo4jCard = async () => { if (await handleSaveNeo4jConfig()) finishCardEdit('storage-neo4j'); };
+
+// MinIO / 双线对象存储
+const minioConfig = reactive({
+  mode: SYSTEM_PROPERTY_FALLBACKS.minio.mode,
+  primary: SYSTEM_PROPERTY_FALLBACKS.minio.primary,
+  secondary: SYSTEM_PROPERTY_FALLBACKS.minio.secondary,
+  readFallback: SYSTEM_PROPERTY_FALLBACKS.minio.readFallback,
+  writeAsyncRepair: SYSTEM_PROPERTY_FALLBACKS.minio.writeAsyncRepair,
+  presignTtlSeconds: SYSTEM_PROPERTY_FALLBACKS.minio.presignTtlSeconds,
+  endpoint: SYSTEM_PROPERTY_FALLBACKS.minio.endpoint,
+  accessKey: SYSTEM_PROPERTY_FALLBACKS.minio.accessKey,
+  secretKey: SYSTEM_PROPERTY_FALLBACKS.minio.secretKey,
+  bucket: SYSTEM_PROPERTY_FALLBACKS.minio.bucket,
+  secure: SYSTEM_PROPERTY_FALLBACKS.minio.secure,
+});
+const minioSaving = ref(false);
+const testingMinio = ref(false);
+const minioStatus = ref({ up: false, backend: 'minio', error: '' });
+
+const saveMinioConfig = async () => {
+  minioSaving.value = true;
+  try {
+    await saveSystemProperties({
+      'storage.mode': minioConfig.mode,
+      'storage.primary': minioConfig.primary,
+      'storage.secondary': minioConfig.secondary,
+      'storage.read-fallback': String(minioConfig.readFallback),
+      'storage.write-async-repair': String(minioConfig.writeAsyncRepair),
+      'storage.presign.ttl-seconds': String(minioConfig.presignTtlSeconds),
+      'storage.minio.endpoint': minioConfig.endpoint,
+      'storage.minio.access-key': minioConfig.accessKey,
+      'storage.minio.secret-key': minioConfig.secretKey,
+      'storage.minio.bucket': minioConfig.bucket,
+      'storage.minio.secure': String(minioConfig.secure),
+    });
+    ElMessage.success('MinIO 存储配置已保存');
+    return true;
+  } catch (e) {
+    ElMessage.error('保存失败: ' + e.message);
+  } finally {
+    minioSaving.value = false;
+  }
+  return false;
+};
+
+const testMinioConnection = async () => {
+  if (testingMinio.value) return;
+  testingMinio.value = true;
+  try {
+    const candidate = await request.post('/storage/health/minio/test', {
+      endpoint: minioConfig.endpoint,
+      accessKey: minioConfig.accessKey,
+      secretKey: minioConfig.secretKey,
+      bucket: minioConfig.bucket,
+      secure: minioConfig.secure,
+    });
+    minioStatus.value = {
+      up: candidate.up === true,
+      backend: candidate.backend || 'minio',
+      error: candidate.error || '',
+    };
+    if (minioStatus.value.up) ElMessage.success('MinIO 连接成功');
+    else ElMessage.error('MinIO 连接失败' + (minioStatus.value.error ? `: ${minioStatus.value.error}` : ''));
+  } catch (e) {
+    minioStatus.value = { up: false, backend: 'minio', error: e.message || '未知错误' };
+    ElMessage.error('测试失败: ' + (e.message || '未知错误'));
+  } finally {
+    testingMinio.value = false;
+  }
+};
+
+const startMinioEdit = () => startCardEdit('storage-minio', minioConfig);
+const cancelMinioEdit = () => cancelCardEdit('storage-minio', snapshot => Object.assign(minioConfig, snapshot));
+const saveMinioCard = async () => { if (await saveMinioConfig()) finishCardEdit('storage-minio'); };
 
 // ==================== AI 服务 ====================
 const aiConfig = reactive({
@@ -1214,6 +1413,7 @@ onMounted(async () => {
   if (systemProperties) applySystemProperties(systemProperties);
   setTimeout(() => {
     testMilvusConnection();
+    testMinioConnection();
     loadKnowledgeStats();
     setupObserver();
   }, 400);

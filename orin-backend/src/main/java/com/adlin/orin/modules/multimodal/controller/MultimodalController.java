@@ -6,8 +6,8 @@ import com.adlin.orin.modules.multimodal.service.VisualAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -67,20 +67,19 @@ public class MultimodalController {
 
     @Operation(summary = "下载文件")
     @GetMapping("/files/{fileId}/download")
-    public ResponseEntity<Resource> downloadFile(@PathVariable String fileId) {
+    public ResponseEntity<?> downloadFile(@PathVariable String fileId) {
         try {
             MultimodalFile file = fileService.getFile(fileId);
-            Path filePath = Paths.get(file.getStoragePath());
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
+            String signedUrl = fileService.getDownloadUrl(fileId, Duration.ofMinutes(10));
+            if (signedUrl != null) {
+                return ResponseEntity.status(302).location(URI.create(signedUrl)).build();
+            } else {
+                Resource resource = new InputStreamResource(fileService.openFileStream(fileId));
                 return ResponseEntity.ok()
                         .header(HttpHeaders.CONTENT_DISPOSITION,
                                 "attachment; filename=\"" + file.getFileName() + "\"")
                         .contentType(MediaType.parseMediaType(file.getMimeType()))
                         .body(resource);
-            } else {
-                throw new RuntimeException("File not found or not readable");
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to download file: " + e.getMessage(), e);
@@ -89,22 +88,18 @@ public class MultimodalController {
 
     @Operation(summary = "获取缩略图")
     @GetMapping("/files/{fileId}/thumbnail")
-    public ResponseEntity<Resource> getThumbnail(@PathVariable String fileId) {
+    public ResponseEntity<?> getThumbnail(@PathVariable String fileId) {
         try {
             MultimodalFile file = fileService.getFile(fileId);
             if (file.getThumbnailPath() == null) {
                 throw new RuntimeException("Thumbnail not available");
             }
-
-            Path thumbnailPath = Paths.get(file.getThumbnailPath());
-            Resource resource = new UrlResource(thumbnailPath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.IMAGE_JPEG)
-                        .body(resource);
+            String signedUrl = fileService.getThumbnailUrl(fileId, Duration.ofMinutes(10));
+            if (signedUrl != null) {
+                return ResponseEntity.status(302).location(URI.create(signedUrl)).build();
             } else {
-                throw new RuntimeException("Thumbnail not found");
+                Resource resource = new InputStreamResource(fileService.openThumbnailStream(fileId));
+                return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(resource);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to get thumbnail: " + e.getMessage(), e);

@@ -58,6 +58,48 @@ public class MultimodalFile {
     private String storagePath;
 
     /**
+     * 对象存储逻辑键
+     */
+    @Column(name = "object_key", length = 500)
+    private String objectKey;
+
+    /**
+     * 主存储后端（local/minio）
+     */
+    @Column(name = "primary_backend", length = 20)
+    private String primaryBackend;
+
+    /**
+     * 副本后端（逗号分隔）
+     */
+    @Column(name = "replica_backends", length = 100)
+    private String replicaBackends;
+
+    /**
+     * 复制状态
+     */
+    @Column(name = "replication_status", length = 30)
+    private String replicationStatus;
+
+    /**
+     * 最近复制时间
+     */
+    @Column(name = "last_replicated_at")
+    private LocalDateTime lastReplicatedAt;
+
+    /**
+     * 最近复制错误
+     */
+    @Column(name = "last_replication_error", columnDefinition = "TEXT")
+    private String lastReplicationError;
+
+    /**
+     * 校验和
+     */
+    @Column(name = "checksum", length = 64)
+    private String checksum;
+
+    /**
      * 缩略图路径
      */
     @Column(name = "thumbnail_path", length = 500)

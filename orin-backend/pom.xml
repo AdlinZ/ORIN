@@ -212,6 +212,13 @@
             <version>5.19.0</version>
         </dependency>
 
+        <!-- MinIO Object Storage -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.11</version>
+        </dependency>
+
         <!-- Flyway for Database Migration (version controlled by properties) -->
         <dependency>
             <groupId>org.flywaydb</groupId>

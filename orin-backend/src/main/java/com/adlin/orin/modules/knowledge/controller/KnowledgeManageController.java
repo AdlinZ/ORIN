@@ -819,9 +819,15 @@ public class KnowledgeManageController {
 
     @Operation(summary = "下载/查看原始文档文件")
     @GetMapping("/documents/{docId}/download")
-    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> downloadDocument(
+    public org.springframework.http.ResponseEntity<?> downloadDocument(
             @PathVariable String docId) {
         KnowledgeDocument doc = documentManageService.getDocument(docId);
+        String downloadUrl = documentManageService.getDocumentDownloadUrl(docId, java.time.Duration.ofMinutes(10));
+        if (downloadUrl != null) {
+            return org.springframework.http.ResponseEntity.status(302)
+                    .location(java.net.URI.create(downloadUrl))
+                    .build();
+        }
         org.springframework.core.io.Resource resource = documentManageService.getDocumentResource(docId);
 
         String contentType = "application/octet-stream";

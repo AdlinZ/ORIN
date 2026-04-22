@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,7 +29,9 @@ public class SystemAssetController {
     public ResponseEntity<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file,
             @RequestParam(value = "userId", required = false) Long userId) {
         try {
-            String path = fileStorageService.storeFile(file, "avatars");
+            var stored = fileStorageService.storeFileDetailed(file, "avatars");
+            String path = stored.locator();
+            String downloadUrl = fileStorageService.generateDownloadUrl(path, Duration.ofMinutes(10));
 
             // If userId provided, update user record
             if (userId != null) {
@@ -40,7 +43,9 @@ public class SystemAssetController {
 
             Map<String, String> response = new HashMap<>();
             response.put("path", path);
-            response.put("url", "/uploads/" + path); // Assuming static resource mapping
+            response.put("url", downloadUrl != null ? downloadUrl : path);
+            response.put("objectKey", stored.objectKey());
+            response.put("replicationStatus", stored.replicationStatus());
 
             return ResponseEntity.ok(response);
 

@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.multimodal.service;
 
+import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository;
 import org.slf4j.MDC;
@@ -17,11 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,8 +38,8 @@ public class MultimodalFileService {
     private final MultimodalFileRepository fileRepository;
     private final KnowledgeTaskRepository taskRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final FileStorageService fileStorageService;
 
-    private static final String UPLOAD_DIR = "storage/uploads/multimodal";
     private static final int THUMBNAIL_SIZE = 200;
 
     /**
@@ -58,17 +60,8 @@ public class MultimodalFileService {
         String mimeType = file.getContentType();
         String fileType = determineFileType(mimeType);
 
-        // 生成唯一文件名
         String fileExtension = getFileExtension(originalFilename);
-        String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
-
-        // 创建存储目录
-        Path uploadPath = Paths.get(UPLOAD_DIR, fileType.toLowerCase());
-        Files.createDirectories(uploadPath);
-
-        // 保存文件
-        Path filePath = uploadPath.resolve(uniqueFilename);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        var stored = fileStorageService.storeFileDetailed(file, "multimodal/" + fileType.toLowerCase());
 
         // 创建文件记录
         MultimodalFile.MultimodalFileBuilder builder = MultimodalFile.builder()
@@ -76,12 +69,19 @@ public class MultimodalFileService {
                 .fileType(fileType)
                 .mimeType(mimeType)
                 .fileSize(file.getSize())
-                .storagePath(filePath.toString())
+                .storagePath(stored.locator())
+                .objectKey(stored.objectKey())
+                .primaryBackend(stored.primaryBackend())
+                .replicaBackends(stored.replicaBackends())
+                .replicationStatus(stored.replicationStatus())
+                .lastReplicatedAt(LocalDateTime.now())
+                .lastReplicationError(stored.replicationError())
+                .checksum(stored.checksum())
                 .uploadedBy(uploadedBy != null ? uploadedBy : "system");
 
         // 处理图片
         if ("IMAGE".equals(fileType)) {
-            processImage(file, filePath, builder);
+            processImage(file, fileExtension, builder);
         }
 
         MultimodalFile multimodalFile = builder.build();
@@ -106,17 +106,8 @@ public class MultimodalFileService {
 
         String fileType = determineFileType(mimeType);
 
-        // 生成唯一文件名
         String fileExtension = getFileExtension(originalFilename);
-        String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
-
-        // 创建存储目录
-        Path uploadPath = Paths.get(UPLOAD_DIR, fileType.toLowerCase());
-        Files.createDirectories(uploadPath);
-
-        // 保存文件
-        Path filePath = uploadPath.resolve(uniqueFilename);
-        Files.write(filePath, data);
+        var stored = fileStorageService.storeBytesDetailed(data, originalFilename, "multimodal/" + fileType.toLowerCase(), mimeType);
 
         // 创建文件记录
         MultimodalFile.MultimodalFileBuilder builder = MultimodalFile.builder()
@@ -124,7 +115,14 @@ public class MultimodalFileService {
                 .fileType(fileType)
                 .mimeType(mimeType)
                 .fileSize((long) data.length)
-                .storagePath(filePath.toString())
+                .storagePath(stored.locator())
+                .objectKey(stored.objectKey())
+                .primaryBackend(stored.primaryBackend())
+                .replicaBackends(stored.replicaBackends())
+                .replicationStatus(stored.replicationStatus())
+                .lastReplicatedAt(LocalDateTime.now())
+                .lastReplicationError(stored.replicationError())
+                .checksum(stored.checksum())
                 .uploadedBy(uploadedBy != null ? uploadedBy : "system");
 
         // 暂时不处理二进制图片的缩略图生成
@@ -187,11 +185,11 @@ public class MultimodalFileService {
 
         // 删除物理文件
         try {
-            Files.deleteIfExists(Paths.get(file.getStoragePath()));
+            fileStorageService.deleteFile(file.getStoragePath());
             if (file.getThumbnailPath() != null) {
-                Files.deleteIfExists(Paths.get(file.getThumbnailPath()));
+                fileStorageService.deleteFile(file.getThumbnailPath());
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.warn("Failed to delete physical file: {}", file.getStoragePath(), e);
         }
 
@@ -232,7 +230,7 @@ public class MultimodalFileService {
         return lastDot > 0 ? filename.substring(lastDot + 1).toLowerCase() : "";
     }
 
-    private void processImage(MultipartFile file, Path filePath, MultimodalFile.MultimodalFileBuilder builder) {
+    private void processImage(MultipartFile file, String extension, MultimodalFile.MultimodalFileBuilder builder) {
         try {
             // 读取图片尺寸
             BufferedImage image = ImageIO.read(file.getInputStream());
@@ -240,20 +238,49 @@ public class MultimodalFileService {
                 builder.width(image.getWidth());
                 builder.height(image.getHeight());
 
-                // 生成缩略图
-                String thumbnailFilename = "thumb_" + filePath.getFileName().toString();
-                Path thumbnailPath = filePath.getParent().resolve(thumbnailFilename);
-
-                Thumbnails.of(filePath.toFile())
-                        .size(THUMBNAIL_SIZE, THUMBNAIL_SIZE)
-                        .toFile(thumbnailPath.toFile());
-
-                builder.thumbnailPath(thumbnailPath.toString());
-                log.debug("Generated thumbnail for image: {}", filePath.getFileName());
+                // 生成缩略图并回写到对象存储
+                try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    Thumbnails.of(new ByteArrayInputStream(file.getBytes()))
+                            .size(THUMBNAIL_SIZE, THUMBNAIL_SIZE)
+                            .outputFormat("jpg")
+                            .toOutputStream(out);
+                    var thumbStored = fileStorageService.storeBytesDetailed(
+                            out.toByteArray(),
+                            "thumb-" + UUID.randomUUID() + "." + extension,
+                            "multimodal/thumbs",
+                            "image/jpeg");
+                    builder.thumbnailPath(thumbStored.locator());
+                }
             }
         } catch (IOException e) {
-            log.warn("Failed to process image: {}", filePath, e);
+            log.warn("Failed to process image thumbnail", e);
         }
+    }
+
+    public InputStream openFileStream(String fileId) throws IOException {
+        MultimodalFile file = getFile(fileId);
+        return fileStorageService.openStream(file.getStoragePath());
+    }
+
+    public InputStream openThumbnailStream(String fileId) throws IOException {
+        MultimodalFile file = getFile(fileId);
+        if (file.getThumbnailPath() == null) {
+            throw new RuntimeException("Thumbnail not available");
+        }
+        return fileStorageService.openStream(file.getThumbnailPath());
+    }
+
+    public String getDownloadUrl(String fileId, Duration ttl) {
+        MultimodalFile file = getFile(fileId);
+        return fileStorageService.generateDownloadUrl(file.getStoragePath(), ttl);
+    }
+
+    public String getThumbnailUrl(String fileId, Duration ttl) {
+        MultimodalFile file = getFile(fileId);
+        if (file.getThumbnailPath() == null) {
+            return null;
+        }
+        return fileStorageService.generateDownloadUrl(file.getThumbnailPath(), ttl);
     }
 
     /**

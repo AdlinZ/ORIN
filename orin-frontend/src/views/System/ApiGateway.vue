@@ -182,4 +182,66 @@ html.dark .gateway-nav-item.active {
   color: #5eead4;
   border-bottom-color: #2dd4bf;
 }
+
+/* Unify dark mode surface for all gateway sub tabs */
+html.dark .api-gateway-container :deep(.section-card),
+html.dark .api-gateway-container :deep(.stat-card),
+html.dark .api-gateway-container :deep(.stats-grid-item) {
+  background: #111c2f;
+  border-color: #2b3d59;
+}
+
+html.dark .api-gateway-container :deep(.section-header) {
+  border-bottom-color: #2b3d59;
+}
+
+html.dark .api-gateway-container :deep(.section-title),
+html.dark .api-gateway-container :deep(.rule-text),
+html.dark .api-gateway-container :deep(.stats-grid-value),
+html.dark .api-gateway-container :deep(.stat-value) {
+  color: #e2e8f0;
+}
+
+html.dark .api-gateway-container :deep(.rule-burst),
+html.dark .api-gateway-container :deep(.stats-grid-label),
+html.dark .api-gateway-container :deep(.stat-label),
+html.dark .api-gateway-container :deep(.empty-text),
+html.dark .api-gateway-container :deep(.target-text),
+html.dark .api-gateway-container :deep(.text-muted) {
+  color: #94a3b8;
+}
+
+html.dark .api-gateway-container :deep(.stat-card:hover) {
+  box-shadow: 0 8px 20px rgba(2, 8, 23, 0.45);
+}
+
+html.dark .api-gateway-container :deep(.stat-icon-wrap) {
+  background: rgba(148, 163, 184, 0.18) !important;
+}
+
+html.dark .api-gateway-container :deep(.stats-grid) {
+  background: #2b3d59;
+}
+
+html.dark .api-gateway-container :deep(.policy-nav-item) {
+  background: #111c2f;
+  border-color: #2b3d59;
+  color: #94a3b8;
+}
+
+html.dark .api-gateway-container :deep(.policy-nav-item:hover:not(.active)) {
+  border-color: #22d3ee;
+  color: #e2e8f0;
+}
+
+html.dark .api-gateway-container :deep(.policy-nav-item.active) {
+  background: #16314f;
+  border-color: #22d3ee;
+  color: #67e8f9;
+}
+
+html.dark .api-gateway-container :deep(.policy-nav-item:not(.active) .policy-badge) {
+  background: #334155;
+  color: #cbd5e1;
+}
 </style>

@@ -34,6 +34,9 @@ public class RabbitMQConfig {
     @Value("${orin.task.priority.max:10}")
     private int maxPriority;
 
+    @Value("${orin.rabbitmq.listeners.auto-startup:true}")
+    private boolean listenerAutoStartup;
+
     /**
      * 死信交换机
      */
@@ -123,6 +126,8 @@ public class RabbitMQConfig {
         factory.setMaxConcurrentConsumers(10);
         factory.setPrefetchCount(10);
         factory.setDefaultRequeueRejected(false); // 失败后不重新入队，由代码控制重试
+        factory.setMissingQueuesFatal(false);
+        factory.setAutoStartup(listenerAutoStartup);
         return factory;
     }
 }

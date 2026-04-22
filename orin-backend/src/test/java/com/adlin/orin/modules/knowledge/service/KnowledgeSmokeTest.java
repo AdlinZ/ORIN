@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
@@ -60,6 +61,9 @@ class KnowledgeSmokeTest {
     @Mock
     private KnowledgeBaseRepository knowledgeBaseRepository;
 
+    @Mock
+    private FileStorageService fileStorageService;
+
     // RetrievalService dependencies
     @Mock
     private MilvusVectorService milvusVectorService;
@@ -93,7 +97,8 @@ class KnowledgeSmokeTest {
                 vectorStoreProvider,
                 transactionManager,
                 multimodalParserService,
-                knowledgeBaseRepository
+                knowledgeBaseRepository,
+                fileStorageService
         );
 
         // Build RetrievalService with mocked dependencies

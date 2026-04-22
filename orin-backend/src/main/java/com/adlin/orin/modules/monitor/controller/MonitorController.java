@@ -193,8 +193,15 @@ public class MonitorController {
 
     @Operation(summary = "更新系统环境变量配置")
     @PostMapping("/system/properties")
-    public void updateSystemProperties(@RequestBody Map<String, String> properties) {
-        monitorService.updateSystemProperties(properties);
+    public void updateSystemProperties(@RequestBody(required = false) Map<String, Object> properties) {
+        Map<String, String> normalized = new java.util.HashMap<>();
+        if (properties != null) {
+            properties.forEach((key, value) -> {
+                if (key == null || key.isBlank()) return;
+                normalized.put(key, value == null ? "" : String.valueOf(value));
+            });
+        }
+        monitorService.updateSystemProperties(normalized);
     }
 
     @Operation(summary = "手动触发硬件监控数据采集")

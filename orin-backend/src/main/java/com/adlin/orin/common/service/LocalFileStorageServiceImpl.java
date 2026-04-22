@@ -1,98 +1,117 @@
 package com.adlin.orin.common.service;
 
+import com.adlin.orin.common.storage.ObjectStorageProvider;
+import com.adlin.orin.common.storage.StorageBackend;
+import com.adlin.orin.common.storage.StorageProperties;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.util.StringUtils;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.nio.file.*;
-import java.util.Set;
-import java.util.UUID;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.Duration;
+import java.util.Map;
 
 @Slf4j
-@Service
-public class LocalFileStorageServiceImpl implements FileStorageService {
+@Component("localObjectStorageProvider")
+@RequiredArgsConstructor
+public class LocalFileStorageServiceImpl implements ObjectStorageProvider {
 
-    private final Path fileStorageLocation;
+    private static final String PREFIX = "local:";
+    private final StorageProperties storageProperties;
 
-    // Allowed file extensions for upload (configure via application.properties)
-    @Value("${file.upload.allowed-extensions:.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.md,.json,.xml,.csv,.xls,.xlsx,.ppt,.pptx}")
-    private Set<String> allowedExtensions;
-
-    // Blocked file extensions (dangerous file types)
-    private static final Set<String> BLOCKED_EXTENSIONS = Set.of(
-            ".exe", ".bat", ".cmd", ".sh", ".bash", ".ps1", ".vbs", ".js", ".jar",
-            ".class", ".jsp", ".asp", ".php", ".phtml", ".htaccess", ".htpasswd",
-            ".sql", ".db", ".sqlite", ".mdb", ".env", ".config", ".ini"
-    );
-
-    public LocalFileStorageServiceImpl() {
-        this.fileStorageLocation = Paths.get("storage/uploads").toAbsolutePath().normalize();
+    private Path root() {
+        Path p = Paths.get(storageProperties.getLocal().getRoot()).toAbsolutePath().normalize();
         try {
-            Files.createDirectories(this.fileStorageLocation);
+            Files.createDirectories(p);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not initialize local storage root: " + p, e);
+        }
+        return p;
+    }
+
+    private String keyFromLocator(String locatorOrKey) {
+        if (locatorOrKey == null) {
+            return null;
+        }
+        if (locatorOrKey.startsWith(PREFIX)) {
+            return locatorOrKey.substring(PREFIX.length());
+        }
+        Path p = Paths.get(locatorOrKey);
+        if (p.isAbsolute()) {
+            try {
+                return root().relativize(p.normalize()).toString();
+            } catch (Exception ignore) {
+                return p.getFileName().toString();
+            }
+        }
+        return locatorOrKey;
+    }
+
+    private Path resolve(String locatorOrKey) {
+        String key = keyFromLocator(locatorOrKey);
+        Path p = root().resolve(key).normalize();
+        if (!p.startsWith(root())) {
+            throw new IllegalArgumentException("Invalid local storage key");
+        }
+        return p;
+    }
+
+    @Override
+    public StorageBackend backend() {
+        return StorageBackend.LOCAL;
+    }
+
+    @Override
+    public String put(String objectKey, InputStream stream, long size, String contentType, Map<String, String> metadata)
+            throws IOException {
+        Path target = resolve(objectKey);
+        Files.createDirectories(target.getParent());
+        Files.copy(stream, target, StandardCopyOption.REPLACE_EXISTING);
+        return target.toString();
+    }
+
+    @Override
+    public InputStream get(String locatorOrKey) throws IOException {
+        return Files.newInputStream(resolve(locatorOrKey));
+    }
+
+    @Override
+    public boolean exists(String locatorOrKey) {
+        try {
+            return Files.exists(resolve(locatorOrKey));
         } catch (Exception ex) {
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
+            return false;
         }
     }
 
     @Override
-    public String storeFile(MultipartFile file, String subDir) throws IOException {
-        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-
-        // Validate filename
-        if (originalFileName == null || originalFileName.isBlank()) {
-            throw new IllegalArgumentException("Filename cannot be empty");
-        }
-
-        // Check for path traversal
-        if (originalFileName.contains("..") || originalFileName.contains("/") || originalFileName.contains("\\")) {
-            throw new IllegalArgumentException("Filename contains invalid path sequence");
-        }
-
-        String extension = "";
-        int i = originalFileName.lastIndexOf('.');
-        if (i > 0) {
-            extension = originalFileName.substring(i).toLowerCase(); // includes dot, normalize to lowercase
-        }
-
-        // Check if extension is blocked
-        if (BLOCKED_EXTENSIONS.contains(extension)) {
-            throw new IllegalArgumentException("File type " + extension + " is not allowed for security reasons");
-        }
-
-        // Check if extension is in allowed list (if configured)
-        if (allowedExtensions != null && !allowedExtensions.isEmpty() && !allowedExtensions.contains(extension)) {
-            throw new IllegalArgumentException("File type " + extension + " is not in the allowed list");
-        }
-
-        // Generate safe filename with UUID
-        String fileName = UUID.randomUUID().toString() + extension;
-
+    public void delete(String locatorOrKey) {
         try {
-            Path targetDir = this.fileStorageLocation.resolve(subDir);
-            Files.createDirectories(targetDir);
-
-            Path targetLocation = targetDir.resolve(fileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
-            // Return relative path including subDir
-            return Paths.get(subDir, fileName).toString();
+            Files.deleteIfExists(resolve(locatorOrKey));
         } catch (IOException ex) {
-            throw new IOException("Could not store file " + fileName + ". Please try again!", ex);
+            log.warn("Failed to delete local object {}: {}", locatorOrKey, ex.getMessage());
         }
     }
 
     @Override
-    public void deleteFile(String path) {
-        if (path == null)
-            return;
-        try {
-            Path filePath = this.fileStorageLocation.resolve(path).normalize();
-            Files.deleteIfExists(filePath);
-        } catch (IOException ex) {
-            log.error("Could not delete file: {}", path, ex);
-        }
+    public String presignGetUrl(String locatorOrKey, Duration ttl) {
+        return null;
+    }
+
+    @Override
+    public Map<String, Object> health() {
+        Path root = root();
+        boolean writable = Files.isWritable(root);
+        return Map.of(
+                "backend", backend().name().toLowerCase(),
+                "root", root.toString(),
+                "writable", writable,
+                "up", writable
+        );
     }
 }
