@@ -39,10 +39,18 @@ public class BiddingSelectorImpl implements BiddingSelector {
 
     private static final Map<String, List<String>> ROLE_KEYWORDS = Map.of(
             "PLANNER", List.of("plan", "planner", "strategy", "orchestrator", "规划"),
-            "RESEARCH", List.of("research", "analy", "multi", "vision", "调研", "多模态"),
-            "SPECIALIST", List.of("expert", "specialist", "coding", "generation", "专项"),
+            "RESEARCH", List.of("research", "analy", "multi", "vision", "调研", "多模态", "image", "图片"),
+            "SPECIALIST", List.of("expert", "specialist", "coding", "generation", "专项", "image", "vision", "图片", "绘图"),
             "REVIEWER", List.of("review", "quality", "critic", "审查", "评审"),
             "CRITIC", List.of("critic", "debate", "critique", "批判", "辩论")
+    );
+    private static final List<String> IMAGE_INTENT_KEYWORDS = List.of(
+            "image", "photo", "picture", "poster", "thumbnail", "illustration", "draw", "design",
+            "图片", "照片", "海报", "封面", "插画", "绘图", "画图", "出图", "生成图"
+    );
+    private static final List<String> IMAGE_AGENT_KEYWORDS = List.of(
+            "image", "photo", "vision", "diffusion", "dalle", "sdxl", "stable-diffusion", "flux", "gpt-image",
+            "图片", "照片", "绘图", "图像", "视觉", "文生图", "画图", "tti"
     );
 
     @Override
@@ -88,6 +96,8 @@ public class BiddingSelectorImpl implements BiddingSelector {
 
             Map<String, Object> item = new HashMap<>();
             item.put("agentId", candidate.getAgentId());
+            item.put("modelName", candidate.getModelName() != null ? candidate.getModelName() : "");
+            item.put("agentName", candidate.getName() != null ? candidate.getName() : "");
             item.put("reasoning", reasoning);
             item.put("speed", speed);
             item.put("cost", cost);
@@ -161,16 +171,27 @@ public class BiddingSelectorImpl implements BiddingSelector {
         }
 
         String role = context.getExpectedRole() != null ? context.getExpectedRole().toUpperCase(Locale.ROOT) : "SPECIALIST";
-        List<String> keywords = ROLE_KEYWORDS.getOrDefault(role, ROLE_KEYWORDS.get("SPECIALIST"));
+        List<String> keywords = new ArrayList<>(ROLE_KEYWORDS.getOrDefault(role, ROLE_KEYWORDS.get("SPECIALIST")));
         String description = context.getDescription() != null ? context.getDescription().toLowerCase(Locale.ROOT) : "";
+        boolean imageIntent = IMAGE_INTENT_KEYWORDS.stream().anyMatch(description::contains);
+        if (imageIntent) {
+            keywords.addAll(IMAGE_AGENT_KEYWORDS);
+        }
 
         return candidates.stream()
                 .filter(a -> {
                     String haystack = ((a.getName() != null ? a.getName() : "") + " "
                             + (a.getDescription() != null ? a.getDescription() : "") + " "
-                            + (a.getModelName() != null ? a.getModelName() : "")).toLowerCase(Locale.ROOT);
-                    return keywords.stream().anyMatch(kw -> haystack.contains(kw))
-                            || keywords.stream().anyMatch(description::contains);
+                            + (a.getModelName() != null ? a.getModelName() : "") + " "
+                            + (a.getMode() != null ? a.getMode() : "") + " "
+                            + (a.getViewType() != null ? a.getViewType() : "")).toLowerCase(Locale.ROOT);
+                    boolean keywordMatch = keywords.stream().anyMatch(kw -> haystack.contains(kw.toLowerCase(Locale.ROOT)));
+                    if (imageIntent) {
+                        return keywordMatch;
+                    }
+                    // 非图像任务时，若上下文中包含角色关键词则允许放宽，避免误过滤
+                    boolean contextRoleMatch = keywords.stream().anyMatch(description::contains);
+                    return keywordMatch || contextRoleMatch;
                 })
                 .collect(Collectors.toList());
     }

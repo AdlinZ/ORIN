@@ -1,0 +1,5378 @@
+/* Auto-scoped CSS for Agent Playground — all rules under .playground-scope */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap");
+.playground-scope {
+  color: #0f172a;
+  background:
+    radial-gradient(circle at top left, rgba(191, 219, 254, 0.35), transparent 28%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  --text: #0f172a;
+  --muted: #64748b;
+  --muted-soft: #94a3b8;
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-strong: rgba(255, 255, 255, 0.94);
+  --border: rgba(148, 163, 184, 0.22);
+  --shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  --dark: #0f172a;
+  --blue: #2563eb;
+  --violet: #7c3aed;
+  --green: #16a34a;
+}
+
+.playground-scope code, .playground-scope pre, .playground-scope .workflow-id, .playground-scope .graph-id {
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.playground-scope .app-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.playground-scope .app-frame.playground-mode {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.playground-scope .app-frame.standalone-run {
+  min-height: 100%;
+}
+
+.playground-scope .app-frame.playground-mode .shell {
+  width: min(1920px, calc(100% - 48px));
+  max-width: none;
+}
+
+.playground-scope .shell {
+  width: min(1360px, calc(100vw - 32px));
+  margin: 0 auto;
+}
+
+.playground-scope .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 16px 0;
+  backdrop-filter: blur(16px);
+  background: rgba(248, 250, 252, 0.78);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.playground-scope .topbar-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: center;
+}
+
+.playground-scope .brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.playground-scope .brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--dark);
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.15);
+}
+
+.playground-scope .brand h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.playground-scope .brand p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.playground-scope .topnav {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(226, 232, 240, 1);
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.95);
+}
+
+.playground-scope .topnav-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 96px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.playground-scope .topnav-item:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.playground-scope .topnav-item.active {
+  background: var(--dark);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+.playground-scope .topbar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.playground-scope .topbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: end;
+}
+
+.playground-scope .lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 1);
+  background: rgba(241, 245, 249, 0.95);
+}
+
+.playground-scope .lang-button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.playground-scope .lang-button.active {
+  background: var(--dark);
+  color: #fff;
+}
+
+.playground-scope .status-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.14);
+}
+
+.playground-scope .status-icon {
+  color: #22c55e;
+  animation: pulse-soft 1.6s infinite;
+}
+
+.playground-scope .page-shell {
+  padding: 28px 0 36px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.playground-scope .page-stage {
+  min-height: 0;
+}
+
+.playground-scope .app-frame.playground-mode .page-shell {
+  padding: 26px 0;
+  overflow: hidden;
+}
+
+.playground-scope .page-stage.playground-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.playground-scope .page-stack {
+  display: grid;
+  gap: 24px;
+}
+
+.playground-scope .compact-gap {
+  gap: 14px;
+}
+
+.playground-scope .page-titlebar h2 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.playground-scope .page-titlebar p {
+  margin: 8px 0 0;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.playground-scope .glass-panel, .playground-scope .toolbar-card {
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+}
+
+.playground-scope .toolbar-card {
+  padding: 26px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.playground-scope .manager-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.playground-scope .manager-topbar h2 {
+  margin: 0;
+  font-size: 34px;
+  letter-spacing: -0.03em;
+}
+
+.playground-scope .manager-topbar p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  max-width: 820px;
+}
+
+.playground-scope .manager-topbar .primary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-scope .toolbar-card h3, .playground-scope .section-header h3, .playground-scope .chat-header h3, .playground-scope .trace-header h3 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-scope .toolbar-card p, .playground-scope .section-header p, .playground-scope .chat-header p, .playground-scope .trace-header p, .playground-scope .template-tile p, .playground-scope .workflow-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.playground-scope .primary-button, .playground-scope .text-button, .playground-scope .ghost-button, .playground-scope .accent-button, .playground-scope .send-button, .playground-scope .send-icon-button {
+  transition: 0.2s ease;
+  font-weight: 700;
+}
+
+.playground-scope .primary-button, .playground-scope .send-button, .playground-scope .send-icon-button {
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: var(--dark);
+  color: #fff;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.16);
+}
+
+.playground-scope .primary-button:hover, .playground-scope .send-button:hover, .playground-scope .send-icon-button:hover {
+  background: #1e293b;
+}
+
+.playground-scope .text-button, .playground-scope .ghost-button, .playground-scope .icon-button {
+  background: transparent;
+  color: var(--muted);
+}
+
+.playground-scope .text-button:hover, .playground-scope .ghost-button:hover, .playground-scope .icon-button:hover {
+  color: var(--text);
+}
+
+.playground-scope .small-ghost {
+  font-size: 12px;
+}
+
+.playground-scope .accent-button {
+  padding: 10px 16px;
+  border-radius: 12px;
+  color: #fff;
+}
+
+.playground-scope .accent-button-blue {
+  background: #2563eb;
+}
+
+.playground-scope .accent-button-violet {
+  background: #7c3aed;
+}
+
+.playground-scope .accent-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.playground-scope .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.78);
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.playground-scope .chip-dark {
+  background: var(--dark);
+  color: #fff;
+}
+
+.playground-scope .chip-blue {
+  background: rgba(219, 234, 254, 0.95);
+  color: #1d4ed8;
+}
+
+.playground-scope .chip-green {
+  background: rgba(220, 252, 231, 0.95);
+  color: #15803d;
+}
+
+.playground-scope .run-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.playground-scope .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.55;
+  display: inline-block;
+}
+
+.playground-scope .status-dot.is-running {
+  opacity: 1;
+  animation: pulse-soft 1.6s infinite;
+}
+
+.playground-scope .role-chip {
+  margin-top: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.playground-scope .agent-role-pill {
+  width: auto;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 16px;
+  border-radius: 14px;
+  background: #f8fbff;
+  border: 1px solid #edf2f8;
+  color: #3f4f66;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 700;
+  justify-content: flex-start;
+}
+
+.playground-scope .overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+}
+
+.playground-scope .hero-card {
+  position: relative;
+  overflow: hidden;
+  padding: 32px;
+  min-height: 310px;
+}
+
+.playground-scope .hero-card h2 {
+  position: relative;
+  z-index: 1;
+  margin: 18px 0 16px;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+}
+
+.playground-scope .hero-card p {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 17px;
+}
+
+.playground-scope .hero-orb {
+  position: absolute;
+  right: -80px;
+  bottom: -120px;
+  width: 320px;
+  height: 320px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(191, 219, 254, 0.72), rgba(191, 219, 254, 0));
+  filter: blur(20px);
+}
+
+.playground-scope .stat-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.playground-scope .stat-tile {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.playground-scope .stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+}
+
+.playground-scope .stat-icon-blue {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+}
+
+.playground-scope .stat-icon-violet {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+}
+
+.playground-scope .stat-icon-green {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+}
+
+.playground-scope .stat-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.playground-scope .stat-value {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.playground-scope .section-card {
+  padding: 28px;
+}
+
+.playground-scope .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.playground-scope .step-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.playground-scope .step-card {
+  padding: 0;
+  text-align: left;
+  background: transparent;
+}
+
+.playground-scope .step-line {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.playground-scope .step-index {
+  font-size: 42px;
+  font-weight: 900;
+  color: #e2e8f0;
+}
+
+.playground-scope .step-divider {
+  height: 1px;
+  flex: 1;
+  background: #e2e8f0;
+}
+
+.playground-scope .step-card h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.playground-scope .step-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.playground-scope .step-arrow {
+  opacity: 0;
+  transform: translateX(-5px);
+  transition: 0.2s ease;
+}
+
+.playground-scope .step-card:hover .step-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.playground-scope .workflow-highlight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+}
+
+.playground-scope .workflow-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.playground-scope .workflow-id {
+  margin-top: 6px;
+  color: var(--muted-soft);
+  font-size: 12px;
+}
+
+.playground-scope .workflow-badges, .playground-scope .agent-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.playground-scope .workflow-mark {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.05);
+  color: #cbd5e1;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.playground-scope .agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.playground-scope .add-card {
+  padding: 24px;
+  border-width: 2px;
+  border-style: dashed;
+}
+
+.playground-scope .add-card-blue {
+  border-color: rgba(147, 197, 253, 0.9);
+  background: rgba(239, 246, 255, 0.8);
+}
+
+.playground-scope .add-card-violet {
+  border-color: rgba(196, 181, 253, 0.9);
+  background: rgba(245, 243, 255, 0.82);
+}
+
+.playground-scope .agent-card {
+  padding: 24px;
+}
+
+.playground-scope .agent-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.playground-scope .agent-avatar {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.playground-scope .agent-theme-blue {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.playground-scope .agent-theme-violet {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.playground-scope .agent-theme-green {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.playground-scope .agent-theme-orange {
+  background: linear-gradient(135deg, #fb923c, #ea580c);
+}
+
+.playground-scope .agent-theme-rose {
+  background: linear-gradient(135deg, #fb7185, #e11d48);
+}
+
+.playground-scope .agent-theme-indigo {
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+}
+
+.playground-scope .icon-button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(241, 245, 249, 0.9);
+}
+
+.playground-scope .agent-card h4, .playground-scope .workflow-card h4 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.playground-scope .agent-details {
+  margin-top: 18px;
+}
+
+.playground-scope .agent-details summary {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.playground-scope .agent-details pre {
+  margin: 12px 0 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.95);
+  color: #334155;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.playground-scope .template-strip, .playground-scope .workflow-list {
+  display: grid;
+  gap: 18px;
+}
+
+.playground-scope .template-strip {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.playground-scope .template-tile {
+  padding: 22px;
+}
+
+.playground-scope .template-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.playground-scope .workflow-form {
+  padding: 26px;
+  position: relative;
+  z-index: 12;
+  overflow: visible;
+}
+
+.playground-scope .manager-add-card {
+  padding: 22px;
+}
+
+.playground-scope .manager-agent-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 32px;
+  min-height: 420px;
+  border-radius: 28px;
+  border: 1px solid #dbe6f3;
+  background: #fff;
+  backdrop-filter: none;
+  box-shadow: 0 16px 38px rgba(111, 145, 194, 0.12);
+  transition: border-color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.playground-scope .manager-agent-card:hover {
+  border-color: #c9d8eb;
+  transform: translateY(-2px);
+  box-shadow: 0 28px 56px rgba(153, 182, 227, 0.24);
+}
+
+.playground-scope .manager-agent-card h4 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.12;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+.playground-scope .manager-agent-card .workflow-id {
+  margin: 6px 0 0;
+  color: #9aa9bf;
+  font-size: 10px;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.playground-scope .agent-summary {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.65;
+  letter-spacing: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.playground-scope .agent-prompt-preview {
+  min-height: 74px;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.playground-scope .agent-action-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-scope .agent-action-row .icon-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #f8fbff;
+  color: #98a9c3;
+  border: 1px solid #edf3fb;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.playground-scope .agent-action-row .icon-button:hover {
+  background: #0f172a;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.playground-scope .agent-action-row .icon-button-store:hover {
+  color: #4b7bec;
+  background: #eef5ff;
+}
+
+.playground-scope .agent-action-row .icon-button-chat:hover {
+  color: #4f82a8;
+  background: #f1f7fb;
+}
+
+.playground-scope .agent-installed-skills {
+  margin-top: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.playground-scope .agent-installed-skills-title {
+  margin: 0 0 12px;
+  color: #9eacc2;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-scope .agent-installed-skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 88px;
+  overflow: hidden;
+  align-content: flex-start;
+}
+
+.playground-scope .agent-installed-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.playground-scope .agent-installed-skill:hover {
+  border-color: #dbeafe;
+  background: rgba(239, 246, 255, 0.65);
+}
+
+.playground-scope .agent-installed-skill-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #94a3b8;
+}
+
+.playground-scope .agent-installed-skill-more {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+
+.playground-scope .agent-meta-group {
+  position: relative;
+}
+
+.playground-scope .agent-meta-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  width: 260px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+}
+
+.playground-scope .agent-meta-group:hover .agent-meta-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.playground-scope .agent-meta-popover-title {
+  margin: 0 0 10px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.playground-scope .agent-meta-popover-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.playground-scope .agent-meta-popover-pill {
+  max-width: 100%;
+}
+
+.playground-scope .agent-card-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
+}
+
+.playground-scope .agent-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.playground-scope .agent-avatar-hero {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  box-shadow: 0 18px 30px rgba(148, 163, 184, 0.28);
+  transition: transform 0.45s ease;
+}
+
+.playground-scope .manager-agent-card:hover .agent-avatar-hero {
+  transform: scale(1.08);
+}
+
+.playground-scope .agent-card-title-block {
+  margin-bottom: 12px;
+}
+
+.playground-scope .agent-card-role-wrap {
+  margin-bottom: 16px;
+}
+
+.playground-scope .agent-role-prompt-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  min-height: 96px;
+}
+
+.playground-scope .agent-card-sections {
+  display: grid;
+  gap: 24px;
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.playground-scope .agent-empty-meta {
+  padding: 4px 2px 0;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.playground-scope .capability-pill:hover {
+  border-color: #dceee7;
+  background: #f2fbf7;
+}
+
+.playground-scope .agent-section-title-skills svg {
+  color: #4b7bec;
+}
+
+.playground-scope .agent-section-title-capabilities svg {
+  color: #1dbf73;
+}
+
+.playground-scope .agent-modal-overlay, .playground-scope .skill-store-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(3px);
+}
+
+.playground-scope .skill-store-overlay {
+  z-index: 130;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.playground-scope .agent-modal-panel {
+  width: min(448px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  overflow: hidden;
+}
+
+.playground-scope .agent-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px;
+  border-bottom: 1px solid #f1f5f9;
+  background: rgba(248, 250, 252, 0.5);
+}
+
+.playground-scope .agent-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #0f172a;
+}
+
+.playground-scope .agent-modal-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.playground-scope .agent-modal-close:hover {
+  color: #475569;
+  background: rgba(226, 232, 240, 0.8);
+}
+
+.playground-scope .agent-modal-body {
+  padding: 24px;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.playground-scope .agent-modal-field {
+  display: grid;
+  gap: 4px;
+}
+
+.playground-scope .agent-modal-field label {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playground-scope .agent-modal-field input, .playground-scope .agent-modal-field textarea {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  border-color: #e2e8f0;
+}
+
+.playground-scope .agent-modal-field textarea {
+  resize: none;
+}
+
+.playground-scope .agent-modal-empty-skill {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 10px 2px 2px;
+}
+
+.playground-scope .agent-modal-installed-list {
+  display: grid;
+  gap: 8px;
+}
+
+.playground-scope .agent-modal-capability-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.playground-scope .agent-modal-capability-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.playground-scope .agent-modal-capability-item:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.playground-scope .agent-modal-capability-item.active {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.playground-scope .agent-modal-capability-main {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: #475569;
+}
+
+.playground-scope .agent-modal-capability-main strong {
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.playground-scope .agent-modal-capability-main p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope .agent-modal-installed-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.playground-scope .agent-modal-installed-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.playground-scope .agent-modal-remove-skill {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: transparent;
+  color: #cbd5e1;
+}
+
+.playground-scope .agent-modal-remove-skill:hover {
+  color: #e11d48;
+  background: #fff1f2;
+}
+
+.playground-scope .agent-modal-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: stretch;
+  padding: 24px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.playground-scope .agent-modal-cancel, .playground-scope .agent-modal-save {
+  flex: 1 1 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.playground-scope .agent-modal-cancel {
+  background: transparent;
+  color: #64748b;
+}
+
+.playground-scope .agent-modal-cancel:hover {
+  background: #e5e7eb;
+  color: #334155;
+}
+
+.playground-scope .agent-modal-save {
+  background: #0f172a;
+  color: #fff;
+}
+
+.playground-scope .agent-modal-save:hover {
+  background: #1e293b;
+}
+
+.playground-scope .agent-modal-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.playground-scope .skill-store-panel {
+  width: min(760px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+
+.playground-scope .skill-store-header {
+  padding: 32px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(248, 250, 252, 0.5);
+}
+
+.playground-scope .skill-store-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.playground-scope .skill-store-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-scope .skill-store-sync-input {
+  width: 190px;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.playground-scope .skill-store-sync-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.24);
+}
+
+.playground-scope .skill-store-sync-button {
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.playground-scope .skill-store-sync-button:hover {
+  background: #1e293b;
+}
+
+.playground-scope .skill-store-sync-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.playground-scope .skill-store-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.playground-scope .skill-store-brand-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.26);
+}
+
+.playground-scope .skill-store-brand h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: #0f172a;
+}
+
+.playground-scope .skill-store-brand p {
+  margin: 2px 0 0;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playground-scope .skill-store-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: transparent;
+  color: #64748b;
+}
+
+.playground-scope .skill-store-close:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.playground-scope .skill-store-sync-note {
+  margin: 0;
+  padding: 10px 32px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.playground-scope .skill-store-grid {
+  padding: 32px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.playground-scope .skill-store-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  background: #fff;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.playground-scope .skill-store-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+}
+
+.playground-scope .skill-store-card.installed {
+  background: rgba(239, 246, 255, 0.5);
+  border-color: #bfdbfe;
+  box-shadow: inset 0 0 0 1px rgba(191, 219, 254, 0.9);
+}
+
+.playground-scope .skill-store-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.playground-scope .skill-store-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+.playground-scope .skill-store-icon.installed {
+  color: #fff;
+  background: #2563eb;
+}
+
+.playground-scope .skill-store-installed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.playground-scope .skill-store-card h4 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.playground-scope .skill-store-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope .skill-runtime-chip {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.playground-scope .skill-runtime-chip strong {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.playground-scope .skill-runtime-chip span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.playground-scope .skill-runtime-chip.ready {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.playground-scope .skill-runtime-chip.blocked {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.playground-scope .skill-runtime-chip.blocked strong {
+  color: #b91c1c;
+}
+
+.playground-scope .skill-store-action {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: #0f172a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.playground-scope .skill-store-action:hover {
+  background: #2563eb;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+}
+
+.playground-scope .skill-store-action.uninstall {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.playground-scope .skill-store-action.uninstall:hover {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.playground-scope .skill-store-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.playground-scope .skill-store-footer {
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+  padding: 32px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.playground-scope .skill-store-done {
+  min-width: 120px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+}
+
+.playground-scope .skill-store-done:hover {
+  background: #1e293b;
+}
+
+.playground-scope .workflow-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.playground-scope .app-select {
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid rgba(203, 213, 225, 1);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  color: var(--text);
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.playground-scope input:focus, .playground-scope textarea:focus, .playground-scope .app-select:focus {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.playground-scope .custom-select-shell {
+  position: relative;
+}
+
+.playground-scope .custom-select-shell.open {
+  z-index: 40;
+}
+
+.playground-scope .custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  font-weight: 700;
+}
+
+.playground-scope .custom-select-trigger svg {
+  color: var(--muted);
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.playground-scope .custom-select-trigger svg.rotated {
+  transform: rotate(180deg);
+}
+
+.playground-scope .custom-select-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 80;
+  display: grid;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 14px;
+  border: 1px solid rgba(203, 213, 225, 1);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+}
+
+.playground-scope .custom-select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.playground-scope .custom-select-option:hover {
+  background: rgba(241, 245, 249, 0.95);
+}
+
+.playground-scope .custom-select-option.active {
+  background: rgba(239, 246, 255, 0.95);
+  color: #1d4ed8;
+}
+
+.playground-scope .check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.playground-scope .check-row input, .playground-scope .selection-item input {
+  width: auto;
+}
+
+.playground-scope .selection-list {
+  display: grid;
+  gap: 10px;
+}
+
+.playground-scope .selection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 1);
+  background: rgba(255, 255, 255, 0.9);
+  transition: 0.2s ease;
+}
+
+.playground-scope .selection-item.selected {
+  border-color: rgba(125, 211, 252, 1);
+  background: rgba(239, 246, 255, 0.95);
+}
+
+.playground-scope .selection-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.playground-scope .mini-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.playground-scope .inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.playground-scope .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.playground-scope .helper-text, .playground-scope .selection-footnote {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.playground-scope .workflow-card {
+  padding: 24px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.playground-scope .workflow-card:hover {
+  transform: translateY(-2px);
+}
+
+.playground-scope .workflow-card.selected {
+  border-color: rgba(15, 23, 42, 0.4);
+  box-shadow:
+    var(--shadow),
+    0 0 0 2px rgba(15, 23, 42, 0.9) inset;
+}
+
+.playground-scope .workflow-card p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.playground-scope .workflow-card-head, .playground-scope .workflow-sideheader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.playground-scope .workflow-agent-stack {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.playground-scope .avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.playground-scope .stack-avatar {
+  width: 34px;
+  height: 34px;
+  margin-left: -8px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.playground-scope .stack-avatar:first-child {
+  margin-left: 0;
+}
+
+.playground-scope .workflow-agent-count {
+  color: var(--muted-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.playground-scope .workflow-selected-note {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(226, 232, 240, 1);
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.playground-scope .workflow-agent-selection .selection-item {
+  position: relative;
+}
+
+.playground-scope .workflow-agent-selection .selection-item input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.playground-scope .workflow-agent-check {
+  color: #7c3aed;
+}
+
+.playground-scope .workflow-card-rich {
+  padding: 24px;
+}
+
+.playground-scope .workflow-rich-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.playground-scope .workflow-rich-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.playground-scope .workflow-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.playground-scope .workflow-title-row h4 {
+  font-size: 24px;
+}
+
+.playground-scope .workflow-rich-desc {
+  margin: 8px 0 0;
+  max-width: 860px;
+}
+
+.playground-scope .workflow-rich-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(248, 250, 252, 0.95);
+  color: #cbd5e1;
+  transition: 0.2s ease;
+}
+
+.playground-scope .workflow-rich-mark.selected {
+  background: #0f172a;
+  color: #fff;
+}
+
+.playground-scope .workflow-selected-foot {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.playground-scope .workflow-selected-foot .workflow-selected-note {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.playground-scope .workflow-edit-link {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+  background: transparent;
+}
+
+.playground-scope .workflow-edit-link:hover {
+  text-decoration: underline;
+}
+
+.playground-scope .compact-workflow-actions {
+  gap: 10px;
+}
+
+.playground-scope .workflow-icon-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  background: transparent;
+}
+
+.playground-scope .workflow-icon-action:hover {
+  background: #f3f4f6;
+  color: #0f172a;
+}
+
+.playground-scope .workflow-icon-delete {
+  color: #dc2626;
+}
+
+.playground-scope .workflow-icon-delete:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.playground-scope .field-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--muted-soft);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.playground-scope .dark-select {
+  background: rgba(248, 250, 252, 0.95);
+  font-weight: 700;
+}
+
+.playground-scope .playground-grid {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(320px, 1.34fr) minmax(420px, 1.68fr) minmax(300px, 1fr);
+  gap: 36px;
+}
+
+.playground-scope .playground-grid.left-collapsed {
+  grid-template-columns: minmax(0, 8fr) minmax(260px, 3fr);
+}
+
+.playground-scope .playground-grid.right-collapsed {
+  grid-template-columns: minmax(280px, 4fr) minmax(0, 8fr);
+}
+
+.playground-scope .playground-grid.left-collapsed.right-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.playground-scope .playground-col-left, .playground-scope .playground-col-center, .playground-scope .playground-col-right {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.playground-scope .workflow-select-card {
+  padding: 26px;
+  border-radius: 32px;
+  flex: 0 0 auto;
+}
+
+.playground-scope .workflow-native-select {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #dbe5f1;
+  border-radius: 16px;
+  padding: 18px 22px;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 800;
+  outline: none;
+}
+
+.playground-scope .workflow-native-select:focus {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.playground-scope .native-select-wrap {
+  position: relative;
+}
+
+.playground-scope .native-select-wrap .workflow-native-select {
+  padding-right: 34px;
+  appearance: none;
+}
+
+.playground-scope .native-select-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+}
+
+.playground-scope .run-panel-header {
+  min-height: 96px;
+  padding: 22px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.playground-scope .trace-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.playground-scope .trace-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.playground-scope .trace-mode-button {
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.playground-scope .trace-mode-button.active {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.playground-scope .run-panel-title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.playground-scope .panel-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.playground-scope .graph-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 32px;
+}
+
+.playground-scope .graph-shell-running {
+  background: transparent;
+  border-color: transparent;
+}
+
+.playground-scope .playground-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.playground-scope .graph-canvas-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  margin: 18px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid #e2e8f0;
+  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.playground-scope .graph-runtime-placeholder {
+  margin: 0 18px 18px;
+  flex: 0 0 auto;
+  min-height: 46px;
+  height: 46px;
+  padding: 0 16px;
+  display: grid;
+  align-items: center;
+  border-radius: 14px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  background-image: none;
+  box-shadow: none;
+}
+
+.playground-scope .graph-runtime-text {
+  color: var(--muted, #64748b);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.playground-scope .graph-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.playground-scope .graph-svg-base {
+  z-index: 0;
+}
+
+.playground-scope .graph-svg-overlay {
+  z-index: 2;
+}
+
+.playground-scope .graph-node {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  margin-left: -21px;
+  margin-top: -21px;
+  border-radius: 999px;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  display: grid;
+  place-items: center;
+  z-index: 3;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+}
+
+.playground-scope .graph-node.kind-group {
+  z-index: 1;
+  border-radius: 28px;
+  border-style: solid;
+  border-width: 1.5px;
+  border-color: rgba(59, 130, 246, 0.2);
+  background:
+    linear-gradient(180deg, rgba(239, 246, 255, 0.92), rgba(248, 250, 252, 0.95)),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(59, 130, 246, 0.05),
+      rgba(59, 130, 246, 0.05) 10px,
+      transparent 10px,
+      transparent 20px
+    );
+  color: #0f172a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 18px 20px;
+  cursor: default;
+}
+
+.playground-scope .graph-node-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.playground-scope .graph-node-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 7px;
+  height: 7px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #0f172a;
+}
+
+.playground-scope .graph-node.kind-start, .playground-scope .graph-node.kind-end {
+  background: #f8fafc;
+}
+
+.playground-scope .graph-node.kind-agent {
+  color: #2563eb;
+  z-index: 3;
+}
+
+.playground-scope .graph-node.kind-logic, .playground-scope .graph-node.kind-final {
+  color: #475569;
+}
+
+.playground-scope .graph-node.kind-merge {
+  color: #0f766e;
+  background: #ecfeff;
+}
+
+.playground-scope .graph-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.playground-scope .graph-group-copy {
+  position: absolute;
+  left: 20px;
+  top: 44px;
+  max-width: 260px;
+  color: #475569;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.playground-scope .graph-node.visited {
+  border-color: #93c5fd;
+}
+
+.playground-scope .graph-node.active {
+  border-color: #2563eb;
+  background: #3b82f6;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.playground-scope .graph-node.kind-group.active {
+  background:
+    linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(248, 250, 252, 0.98)),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(59, 130, 246, 0.06),
+      rgba(59, 130, 246, 0.06) 10px,
+      transparent 10px,
+      transparent 20px
+    );
+  color: #0f172a;
+  transform: none;
+}
+
+.playground-scope .graph-node-ring {
+  position: absolute;
+  inset: -5px;
+  border: 2px solid rgba(59, 130, 246, 0.55);
+  border-radius: 999px;
+  animation: node-pulse 1.8s ease-in-out infinite;
+}
+
+.playground-scope .terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #64748b;
+}
+
+.playground-scope .graph-node.active .terminal-dot {
+  background: #fff;
+}
+
+.playground-scope .graph-terminal {
+  margin: 0 12px 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #94a3b8;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.playground-scope .chat-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 32px;
+}
+
+.playground-scope .chat-head-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.playground-scope .chat-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.playground-scope .chat-active-text {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.playground-scope .chat-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px;
+  background: rgba(248, 250, 252, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.playground-scope .chat-empty-state {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  opacity: 0.45;
+}
+
+.playground-scope .chat-empty-icon {
+  width: 86px;
+  height: 86px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #64748b;
+  display: grid;
+  place-items: center;
+}
+
+.playground-scope .chat-empty-state h4 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.playground-scope .chat-empty-state p {
+  margin: 0;
+  color: #475569;
+  font-size: 16px;
+}
+
+.playground-scope .chat-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.playground-scope .chat-row.user {
+  justify-content: flex-end;
+}
+
+.playground-scope .chat-row-inner {
+  max-width: 86%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.playground-scope .chat-agent-name {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.playground-scope .chat-bubble {
+  padding: 14px 16px;
+  border-radius: 18px 18px 18px 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.playground-scope .assistant-section-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.playground-scope .chat-bubble.user {
+  border-color: #0f172a;
+  border-radius: 18px 18px 6px 18px;
+  background: #0f172a;
+  color: #fff;
+}
+
+.playground-scope .task-report-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.playground-scope .planner-brief {
+  margin: 0 0 10px;
+  border-color: #d9e4f5;
+  background: #f9fbff;
+}
+
+.playground-scope .planner-brief-inner {
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.playground-scope .task-report-panel {
+  margin: 0 0 10px;
+}
+
+.playground-scope .merge-summary-panel {
+  border-color: #cde7d6;
+  background: #f3fbf6;
+}
+
+.playground-scope .merge-summary {
+  border: 1px solid #bfe2cb;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.playground-scope .planner-brief-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.playground-scope .planner-brief-chip {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e3a8a;
+  background: #dbeafe;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.playground-scope .planner-brief-meta {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+}
+
+.playground-scope .planner-subtask-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.playground-scope .planner-subtask-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px 10px;
+}
+
+.playground-scope .planner-subtask-title {
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.playground-scope .planner-subtask-title span {
+  color: #475569;
+  font-weight: 600;
+}
+
+.playground-scope .planner-subtask-desc {
+  margin: 0 0 4px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.playground-scope .planner-subtask-meta {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.playground-scope .task-report-summary {
+  margin: 0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.playground-scope .task-report-card {
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.playground-scope .task-report-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.playground-scope .task-report-status {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f766e;
+  background: #ccfbf1;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.playground-scope .task-report-desc {
+  margin: 0 0 8px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.playground-scope .task-report-result {
+  margin: 0;
+  max-height: none;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1e293b;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.playground-scope .task-report-result.collapsed {
+  max-height: 140px;
+}
+
+.playground-scope .task-report-result p,
+.playground-scope .task-report-result ul,
+.playground-scope .task-report-result ol,
+.playground-scope .task-report-result pre,
+.playground-scope .task-report-result table,
+.playground-scope .task-report-result blockquote {
+  margin: 0 0 10px;
+}
+
+.playground-scope .task-report-result code {
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: #eff3f8;
+  color: #1e293b;
+  font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.playground-scope .task-report-result pre {
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.playground-scope .task-report-result pre code {
+  padding: 0;
+  background: transparent;
+  color: #0f172a;
+}
+
+.playground-scope .task-report-result h1,
+.playground-scope .task-report-result h2,
+.playground-scope .task-report-result h3,
+.playground-scope .task-report-result h4 {
+  margin: 0 0 10px;
+  color: #0f172a;
+}
+
+.playground-scope .task-report-result ul,
+.playground-scope .task-report-result ol {
+  padding-left: 18px;
+}
+
+.playground-scope .task-report-result blockquote {
+  padding-left: 10px;
+  border-left: 3px solid #cbd5e1;
+  color: #475569;
+}
+
+.playground-scope .task-report-toggle {
+  margin-top: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.playground-scope .chat-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-scope .chat-header-divider {
+  width: 1px;
+  height: 16px;
+  background: #e2e8f0;
+}
+
+.playground-scope .chat-panel-button {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.playground-scope .chat-panel-button:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.playground-scope .markdown-body > div:first-child, .playground-scope .markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.playground-scope .markdown-body p, .playground-scope .markdown-body ul, .playground-scope .markdown-body ol, .playground-scope .markdown-body pre, .playground-scope .markdown-body table, .playground-scope .markdown-body blockquote, .playground-scope .markdown-body hr {
+  margin: 0 0 12px;
+}
+
+.playground-scope .markdown-body h1, .playground-scope .markdown-body h2, .playground-scope .markdown-body h3, .playground-scope .markdown-body h4 {
+  margin: 0 0 12px;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.playground-scope .markdown-body h1 {
+  font-size: 22px;
+}
+
+.playground-scope .markdown-body h2 {
+  font-size: 19px;
+}
+
+.playground-scope .markdown-body h3 {
+  font-size: 17px;
+}
+
+.playground-scope .markdown-body ul, .playground-scope .markdown-body ol {
+  padding-left: 20px;
+}
+
+.playground-scope .markdown-body li + li {
+  margin-top: 4px;
+}
+
+.playground-scope .markdown-body code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #eff3f8;
+  color: #1e293b;
+  font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.playground-scope .markdown-body pre {
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #0f172a;
+}
+
+.playground-scope .markdown-body pre code {
+  padding: 0;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 12px;
+}
+
+.playground-scope .markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.playground-scope .markdown-body th, .playground-scope .markdown-body td {
+  padding: 8px 10px;
+  border: 1px solid #dbe3ef;
+  text-align: left;
+  vertical-align: top;
+}
+
+.playground-scope .markdown-body th {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.playground-scope .markdown-body blockquote {
+  padding-left: 12px;
+  border-left: 3px solid #cbd5e1;
+  color: #64748b;
+}
+
+.playground-scope .markdown-body hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+}
+
+.playground-scope .typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 18px 18px 18px 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #94a3b8;
+}
+
+.playground-scope .typing-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  animation: typing-bounce 1s infinite ease-in-out;
+}
+
+.playground-scope .typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.playground-scope .typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.playground-scope .typing-indicator strong {
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+.playground-scope .chat-input-wrap {
+  padding: 18px 22px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.playground-scope .chat-input-shell {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.playground-scope .chat-input-shell textarea {
+  flex: 1 1 auto;
+  border: none;
+  border-radius: 16px;
+  background: #f1f5f9;
+  padding: 16px 18px;
+  min-height: 62px;
+  max-height: 180px;
+  resize: none;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.playground-scope .chat-input-shell textarea:focus {
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12);
+}
+
+.playground-scope .send-mini-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #0f172a;
+  color: #fff;
+}
+
+.playground-scope .stop-mini-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #0f172a;
+  color: #fff;
+  border: 1px solid #1e293b;
+}
+
+.playground-scope .stop-mini-button:hover {
+  background: #111827;
+}
+
+.playground-scope .send-mini-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.playground-scope .trace-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 32px;
+}
+
+.playground-scope .trace-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 14px;
+  background: rgba(248, 250, 252, 0.62);
+  display: flex;
+  flex-direction: column;
+  align-content: flex-start;
+  gap: 14px;
+}
+
+.playground-scope .trace-item {
+  position: relative;
+  padding-left: 14px;
+  border-left: 2px solid #e2e8f0;
+}
+
+.playground-scope .trace-dot {
+  position: absolute;
+  left: -6px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.13);
+}
+
+.playground-scope .trace-time {
+  margin-bottom: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.playground-scope .trace-group {
+  position: relative;
+}
+
+.playground-scope .trace-group-card {
+  overflow: hidden;
+  border: 1px solid #dbe4f0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.playground-scope .trace-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2f7;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.playground-scope .trace-group-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.playground-scope .trace-group-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  flex-shrink: 0;
+}
+
+.playground-scope .trace-group-tool .trace-group-icon {
+  background: #0f172a;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
+}
+
+.playground-scope .trace-group-finalize .trace-group-icon {
+  background: #7c3aed;
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.2);
+}
+
+.playground-scope .trace-group-system .trace-group-icon {
+  background: #334155;
+  box-shadow: 0 8px 18px rgba(51, 65, 85, 0.18);
+}
+
+.playground-scope .trace-group-title {
+  display: block;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.playground-scope .trace-group-subtitle {
+  margin: 3px 0 0;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.playground-scope .trace-group-count {
+  white-space: nowrap;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.playground-scope .trace-group-flow {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  padding: 18px 16px;
+}
+
+.playground-scope .trace-group-flow::before {
+  content: "";
+  position: absolute;
+  left: 27px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.playground-scope .trace-flow-step {
+  position: relative;
+  padding-left: 34px;
+}
+
+.playground-scope .trace-flow-node {
+  position: absolute;
+  left: 10px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid #3b82f6;
+  z-index: 1;
+}
+
+.playground-scope .trace-flow-body {
+  display: grid;
+  gap: 8px;
+}
+
+.playground-scope .trace-flow-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.playground-scope .trace-flow-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.playground-scope .trace-flow-action {
+  color: #1e293b;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.playground-scope .trace-flow-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.playground-scope .trace-flow-status-ok, .playground-scope .trace-flow-status-done {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.playground-scope .trace-flow-status-running {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.playground-scope .trace-flow-status-issue {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.playground-scope .trace-flow-time {
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.playground-scope .trace-flow-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.playground-scope .trace-flow-target {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.playground-scope .trace-flow-stage {
+  margin-left: auto;
+  color: #cbd5e1;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.playground-scope .trace-flow-detail {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.playground-scope .trace-group-connector {
+  width: 2px;
+  height: 16px;
+  margin: 8px auto 0;
+  background: #cbd5e1;
+}
+
+.playground-scope .trace-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.playground-scope .trace-card-detail {
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+.playground-scope .trace-agent-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.playground-scope .trace-agent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.playground-scope .trace-agent-summary {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope .trace-agent-children {
+  margin-top: 12px;
+  padding-left: 14px;
+  border-left: 2px solid #dbeafe;
+  display: grid;
+  gap: 10px;
+}
+
+.playground-scope .trace-child-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+}
+
+.playground-scope .trace-child-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.playground-scope .trace-child-card p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope .trace-child-card pre {
+  margin: 8px 0 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.playground-scope .trace-json-block {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: #111827;
+  border: 1px solid rgba(30, 41, 59, 0.35);
+  color: #dbeafe;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.playground-scope .trace-json-block::-webkit-scrollbar {
+  display: none;
+}
+
+.playground-scope .trace-json-block.trace-json-block-detail {
+  max-height: 320px;
+}
+
+.playground-scope .trace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.playground-scope .trace-head-button {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: default;
+  color: inherit;
+  font: inherit;
+}
+
+.playground-scope .trace-head-button.collapsible {
+  cursor: pointer;
+}
+
+.playground-scope .trace-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.playground-scope .trace-expand-indicator {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1;
+  min-width: 10px;
+}
+
+.playground-scope .trace-card.collapsed {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.playground-scope .trace-card p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope .trace-card pre {
+  margin: 8px 0 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.playground-scope .trace-detail-title {
+  display: grid;
+  gap: 2px;
+}
+
+.playground-scope .trace-detail-subtitle {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.playground-scope .trace-verification {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope .trace-verification strong {
+  font-size: 12px;
+}
+
+.playground-scope .trace-verification.verified {
+  background: #effdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.playground-scope .trace-verification.evidence {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+.playground-scope .trace-verification.warning {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+}
+
+.playground-scope .trace-empty {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 20px;
+}
+
+.playground-scope .error-banner {
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba(254, 242, 242, 0.92);
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.playground-scope .stat-chevron {
+  margin-left: auto;
+  color: #94a3b8;
+}
+
+@keyframes typing-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes node-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+.playground-scope .page-fade-enter-active, .playground-scope .page-fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.playground-scope .page-fade-enter-from, .playground-scope .page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+@media (max-width: 1180px) {
+.playground-scope .app-frame.playground-mode {
+    height: auto;
+    overflow: visible;
+  }
+
+.playground-scope .app-frame.playground-mode .page-shell {
+    padding: 28px 0 36px;
+    overflow: visible;
+  }
+
+.playground-scope .page-stage.playground-stage, .playground-scope .playground-grid {
+    height: auto;
+  }
+
+.playground-scope .topbar-inner, .playground-scope .overview-grid, .playground-scope .workflow-form-grid, .playground-scope .playground-grid {
+    grid-template-columns: 1fr;
+  }
+
+.playground-scope .manager-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+.playground-scope .topnav {
+    justify-self: start;
+    width: 100%;
+    overflow: auto;
+  }
+
+.playground-scope .topbar-status {
+    justify-self: start;
+  }
+
+.playground-scope .topbar-right {
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+
+.playground-scope .playground-grid {
+    min-height: 0;
+  }
+
+.playground-scope .playground-col-left, .playground-scope .playground-col-center, .playground-scope .playground-col-right {
+    min-height: 460px;
+  }
+
+}
+
+@media (max-width: 860px) {
+.playground-scope .shell {
+    width: min(100vw - 24px, 100%);
+  }
+
+.playground-scope .topbar {
+    padding: 12px 0;
+  }
+
+.playground-scope .hero-card, .playground-scope .section-card, .playground-scope .toolbar-card, .playground-scope .add-card, .playground-scope .workflow-form, .playground-scope .workflow-select-card, .playground-scope .chat-shell, .playground-scope .trace-shell, .playground-scope .graph-shell {
+    padding: 20px;
+  }
+
+.playground-scope .step-grid {
+    grid-template-columns: 1fr;
+  }
+
+.playground-scope .chat-input-shell, .playground-scope .inline-actions, .playground-scope .section-header, .playground-scope .toolbar-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+.playground-scope .chat-row-inner {
+    max-width: 100%;
+  }
+
+.playground-scope .trace-toolbar {
+    gap: 8px;
+  }
+
+.playground-scope .trace-mode-button {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+.playground-scope .agent-modal-panel, .playground-scope .skill-store-panel {
+    width: min(100%, calc(100vw - 24px));
+  }
+
+.playground-scope .skill-store-grid {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+.playground-scope .skill-store-header, .playground-scope .skill-store-footer {
+    padding: 20px;
+  }
+
+.playground-scope .skill-store-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+.playground-scope .skill-store-header-actions {
+    justify-content: space-between;
+  }
+
+.playground-scope .skill-store-sync {
+    flex: 1 1 auto;
+  }
+
+.playground-scope .skill-store-sync-input {
+    width: 100%;
+  }
+
+.playground-scope .skill-store-sync-note {
+  padding: 10px 20px;
+}
+
+}
+
+.playground-scope .settings-page {
+  gap: 24px;
+}
+
+.playground-scope .settings-card {
+  display: grid;
+  gap: 24px;
+}
+
+.playground-scope .settings-profile-list {
+  display: grid;
+  gap: 16px;
+}
+
+.playground-scope .settings-profile-row {
+  display: grid;
+  gap: 0;
+  border-radius: 26px;
+  border: 1.5px solid #dbeafe;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(191, 219, 254, 0.12);
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.playground-scope .settings-profile-row.active {
+  border-color: #2f81ff;
+  box-shadow: 0 14px 34px rgba(59, 130, 246, 0.16);
+}
+
+.playground-scope .settings-profile-row.editing {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), #ffffff);
+}
+
+.playground-scope .settings-profile-row-main {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 22px;
+}
+
+.playground-scope .settings-profile-reorder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+}
+
+.playground-scope .settings-profile-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+  border: 1px solid #e2e8f0;
+  color: #6366f1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.playground-scope .settings-profile-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.playground-scope .settings-profile-name-text {
+  color: #111827;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.playground-scope .settings-profile-url-text {
+  color: #2484ff;
+  font-size: 16px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playground-scope .settings-profile-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.playground-scope .settings-profile-row:hover .settings-profile-row-actions, .playground-scope .settings-profile-row.editing .settings-profile-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.playground-scope .settings-profile-activate.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 16px;
+  border: 1px solid #cfe2ff;
+  background: #2484ff;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(36, 132, 255, 0.18);
+}
+
+.playground-scope .settings-profile-activate.inline.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+  box-shadow: none;
+}
+
+.playground-scope .settings-profile-icon-action {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  background: transparent;
+}
+
+.playground-scope .settings-profile-icon-action:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.playground-scope .settings-profile-icon-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.playground-scope .settings-profile-editor {
+  display: grid;
+  gap: 18px;
+  padding: 0 22px 22px;
+}
+
+.playground-scope .settings-profile-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.playground-scope .settings-profile-editor-head strong {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playground-scope .settings-profile-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.playground-scope .settings-form-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.playground-scope .settings-provider-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.playground-scope .settings-provider-label {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playground-scope .settings-provider-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.playground-scope .settings-provider-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.playground-scope .settings-provider-pill.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.playground-scope .settings-field {
+  display: grid;
+  gap: 8px;
+}
+
+.playground-scope .settings-field span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playground-scope .settings-field input {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  padding: 13px 15px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.playground-scope .settings-field input:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.18);
+}
+
+.playground-scope .settings-profile-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.playground-scope .settings-footnote {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.playground-scope .settings-footnote strong {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playground-scope .settings-footnote span {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.playground-scope .settings-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.playground-scope .settings-inline-hint {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.playground-scope .settings-env-list {
+  display: grid;
+  gap: 12px;
+}
+
+.playground-scope .settings-env-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px;
+}
+
+.playground-scope .settings-env-item.editing {
+  background: #f8fafc;
+}
+
+.playground-scope .settings-env-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.playground-scope .settings-env-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.playground-scope .settings-env-key {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.playground-scope .settings-env-value {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.playground-scope .settings-env-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-scope .settings-env-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.playground-scope .settings-env-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.2fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.playground-scope .settings-env-row input {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.playground-scope .settings-env-row input:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.18);
+}
+
+.playground-scope .settings-env-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.playground-scope .settings-env-save:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.playground-scope .settings-env-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .page-shell {
+  width: min(1280px, calc(100vw - 40px));
+  padding: 22px 0 30px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .page-stack {
+  gap: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .glass-panel, .playground-scope .app-frame:not(.playground-mode) .toolbar-card {
+  border-radius: 22px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .section-card, .playground-scope .app-frame:not(.playground-mode) .toolbar-card, .playground-scope .app-frame:not(.playground-mode) .manager-add-card, .playground-scope .app-frame:not(.playground-mode) .workflow-form {
+  padding: 22px 24px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .manager-topbar h2 {
+  font-size: 30px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .manager-topbar p {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .section-header {
+  margin-bottom: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .section-header h3 {
+  font-size: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .section-header p, .playground-scope .app-frame:not(.playground-mode) .toolbar-card p {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .primary-button, .playground-scope .app-frame:not(.playground-mode) .send-button, .playground-scope .app-frame:not(.playground-mode) .send-icon-button {
+  padding: 11px 16px;
+  border-radius: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .accent-button {
+  padding: 9px 14px;
+  border-radius: 10px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .page-overview {
+  gap: 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .overview-grid {
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.85fr) minmax(250px, 0.9fr);
+}
+
+.playground-scope .app-frame:not(.playground-mode) .hero-card {
+  padding: 28px;
+  min-height: 284px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .hero-card h2 {
+  margin: 14px 0 12px;
+  font-size: clamp(30px, 4.2vw, 46px);
+}
+
+.playground-scope .app-frame:not(.playground-mode) .hero-card p {
+  font-size: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .stat-stack {
+  gap: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .stat-tile {
+  padding: 20px;
+  gap: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .stat-label {
+  font-size: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .stat-value {
+  font-size: 26px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .step-grid {
+  gap: 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .step-line {
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .step-index {
+  font-size: 36px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .step-card h4 {
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .step-card p {
+  font-size: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-highlight {
+  padding: 20px;
+  border-radius: 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-title {
+  font-size: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-badges, .playground-scope .app-frame:not(.playground-mode) .agent-pill-row {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agents-page .agent-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.playground-scope .app-frame:not(.playground-mode) .add-card, .playground-scope .app-frame:not(.playground-mode) .agent-card {
+  padding: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-card h4, .playground-scope .app-frame:not(.playground-mode) .workflow-card h4 {
+  font-size: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-details {
+  margin-top: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-details summary {
+  font-size: 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-details pre {
+  margin-top: 10px;
+  padding: 12px;
+  font-size: 13px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .template-strip, .playground-scope .app-frame:not(.playground-mode) .workflow-list {
+  gap: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .template-tile {
+  padding: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .manager-agent-card {
+  padding: 26px;
+  min-height: 372px;
+  border-radius: 24px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .manager-agent-card h4 {
+  font-size: 22px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-summary {
+  font-size: 13px;
+  line-height: 1.58;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-prompt-preview {
+  min-height: 64px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-action-row .icon-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-avatar-hero {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-card-title-block {
+  margin-bottom: 10px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-card-role-wrap {
+  margin-bottom: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-role-prompt-block {
+  gap: 8px;
+  margin-top: 10px;
+  min-height: 82px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .agent-card-sections {
+  gap: 20px;
+  padding-top: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) input, .playground-scope .app-frame:not(.playground-mode) textarea, .playground-scope .app-frame:not(.playground-mode) .app-select {
+  padding: 11px 13px;
+  border-radius: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .selection-list {
+  gap: 8px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .selection-item {
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .helper-text, .playground-scope .app-frame:not(.playground-mode) .selection-footnote {
+  font-size: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-card {
+  padding: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-card p {
+  font-size: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-agent-stack {
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .stack-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-agent-count {
+  font-size: 11px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-selected-note {
+  margin-top: 14px;
+  padding-top: 14px;
+  font-size: 10px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-card-rich {
+  padding: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-title-row {
+  gap: 8px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-title-row h4 {
+  font-size: 22px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-rich-desc {
+  margin-top: 6px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-rich-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .workflow-selected-foot {
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-page, .playground-scope .app-frame:not(.playground-mode) .settings-card {
+  gap: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-list {
+  gap: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-row {
+  border-radius: 22px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-row-main {
+  gap: 16px;
+  padding: 16px 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  font-size: 24px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-copy {
+  gap: 4px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-name-text {
+  font-size: 20px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-url-text {
+  font-size: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-activate.inline {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-icon-action {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-editor {
+  gap: 16px;
+  padding: 0 18px 18px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-form-grid {
+  gap: 16px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-profile-editor-actions {
+  gap: 10px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-provider-pill {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-field {
+  gap: 6px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-field input, .playground-scope .app-frame:not(.playground-mode) .settings-env-row input {
+  border-radius: 12px;
+  padding: 11px 13px;
+  font-size: 13px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-footnote {
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-env-list {
+  gap: 10px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-inline-hint {
+  font-size: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-env-item {
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-env-key {
+  font-size: 14px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-env-value {
+  font-size: 12px;
+}
+
+.playground-scope .app-frame:not(.playground-mode) .settings-env-save {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 860px) {
+.playground-scope .settings-env-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+.playground-scope .settings-env-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+.playground-scope .settings-env-row {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+@media (min-width: 1200px) {
+.playground-scope .app-frame:not(.playground-mode) .page-overview {
+    --page-scale: 0.9;
+    zoom: var(--page-scale);
+  }
+
+.playground-scope .app-frame:not(.playground-mode) .agents-page {
+    --page-scale: 0.82;
+    zoom: var(--page-scale);
+  }
+
+}
+
+@media (max-width: 1320px) {
+.playground-scope .app-frame:not(.playground-mode) .agents-page .agent-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+}
+
+@media (max-width: 900px) {
+.playground-scope .app-frame:not(.playground-mode) .agents-page .agent-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+@media (max-width: 640px) {
+.playground-scope .app-frame:not(.playground-mode) .agents-page .agent-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* ORIN workspace adaptation for the standalone Playground Run route */
+.playground-scope.app-frame.standalone-run {
+  --run-sidebar-width: 360px;
+  --run-line: rgba(226, 232, 240, 0.9);
+  --run-accent: var(--orin-primary, #0f9f95);
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: #f6f9fb;
+  font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.playground-scope.standalone-run .shell {
+  width: 100%;
+  max-width: none;
+}
+
+.playground-scope.standalone-run .page-shell {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+.playground-scope.standalone-run .page-stage,
+.playground-scope.standalone-run .playground-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+.playground-scope.standalone-run .error-banner {
+  position: absolute;
+  top: 14px;
+  left: calc(var(--run-sidebar-width) + 24px);
+  right: 24px;
+  z-index: 30;
+  margin: 0;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(185, 28, 28, 0.08);
+}
+
+.playground-scope.standalone-run .playground-grid,
+.playground-scope.standalone-run .playground-grid.right-collapsed {
+  height: 100%;
+  grid-template-columns: var(--run-sidebar-width) minmax(420px, 1fr);
+  gap: 0;
+  background: #f6f9fb;
+}
+
+.playground-scope.standalone-run .playground-grid.left-collapsed,
+.playground-scope.standalone-run .playground-grid.left-collapsed.right-collapsed {
+  height: 100%;
+  grid-template-columns: minmax(420px, 1fr);
+  gap: 0;
+  background: #f6f9fb;
+}
+
+.playground-scope.standalone-run .playground-col-left,
+.playground-scope.standalone-run .playground-col-center,
+.playground-scope.standalone-run .playground-col-right {
+  min-height: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.playground-scope.standalone-run .playground-col-left {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.playground-scope.standalone-run .playground-col-left {
+  border-right: 1px solid var(--run-line);
+}
+
+.playground-scope.standalone-run .playground-sidebar-tabs {
+  display: flex;
+  margin: 14px 14px 6px;
+  padding: 4px;
+  background: rgba(241, 245, 249, 0.9);
+  border: 1px solid var(--run-line);
+  border-radius: 12px;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.playground-scope.standalone-run .playground-sidebar-tab {
+  flex: 1;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 10px 8px;
+  text-align: center;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.playground-scope.standalone-run .playground-sidebar-tab:hover {
+  background: rgba(226, 232, 240, 0.7);
+  color: #334155;
+}
+
+.playground-scope.standalone-run .playground-sidebar-tab:focus {
+  outline: none;
+}
+
+.playground-scope.standalone-run .playground-sidebar-tab:focus-visible {
+  box-shadow: 0 0 0 2px rgba(15, 159, 149, 0.16);
+}
+
+.playground-scope.standalone-run .playground-sidebar-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.playground-scope.standalone-run .workflow-select-card,
+.playground-scope.standalone-run .graph-shell,
+.playground-scope.standalone-run .chat-shell,
+.playground-scope.standalone-run .trace-shell {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.playground-scope.standalone-run .workflow-select-card {
+  padding: 14px;
+  border-bottom: 1px solid var(--run-line);
+  flex: 0 0 auto;
+}
+
+.playground-scope.standalone-run .field-label {
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.playground-scope.standalone-run .workflow-native-select {
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.92);
+  box-shadow: 0 0 0 1px var(--run-line) inset;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.playground-scope.standalone-run .run-panel-header {
+  min-height: 64px;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.playground-scope.standalone-run .run-panel-title {
+  font-size: 18px;
+}
+
+.playground-scope.standalone-run .graph-canvas-wrap {
+  margin: 14px;
+  border-radius: 14px;
+  background-color: #fbfdff;
+}
+
+.playground-scope.standalone-run .graph-terminal {
+  margin: 0 14px 14px;
+  border-radius: 10px;
+}
+
+.playground-scope.standalone-run .graph-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.playground-scope.standalone-run .chat-shell {
+  background: #f6f9fb;
+}
+
+.playground-scope.standalone-run .chat-scroll {
+  padding: 24px;
+  background: #f6f9fb;
+}
+
+.playground-scope.standalone-run .chat-icon {
+  background: rgba(15, 159, 149, 0.12);
+  color: var(--run-accent);
+}
+
+.playground-scope.standalone-run .chat-panel-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.playground-scope.standalone-run .chat-panel-button:hover {
+  color: var(--run-accent);
+  border-color: #99f6e4;
+  box-shadow: 0 4px 12px rgba(15, 159, 149, 0.12);
+}
+
+.playground-scope.standalone-run .chat-input-wrap {
+  padding: 16px 24px 20px;
+  background: #f6f9fb;
+}
+
+.playground-scope.standalone-run .chat-input-shell {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 8px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.playground-scope.standalone-run .chat-input-shell textarea {
+  min-height: 48px;
+  padding: 13px 14px;
+  border-radius: 13px;
+  background: #f1f5f9;
+  font-size: 15px;
+}
+
+.playground-scope.standalone-run .send-mini-button,
+.playground-scope.standalone-run .stop-mini-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--run-accent);
+  box-shadow: 0 3px 10px rgba(15, 159, 149, 0.26);
+}
+
+.playground-scope.standalone-run .trace-list {
+  padding: 14px 10px;
+  background: transparent;
+}
+
+.playground-scope.standalone-run .trace-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.playground-scope.standalone-run .trace-empty {
+  color: #8b9bb0;
+  font-size: 16px;
+}
+
+/* ===== ORIN 系统风格对齐：仅用于 data-theme=system 的页面 ===== */
+.playground-scope[data-theme="system"] {
+  color: var(--text-primary, var(--orin-text, #0f172a));
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.45;
+  --text: var(--text-primary, var(--orin-text, #0f172a));
+  --muted: var(--text-secondary, var(--neutral-gray-600, #64748b));
+  --muted-soft: var(--neutral-gray-500, #94a3b8);
+  --panel: var(--el-bg-color, #ffffff);
+  --panel-strong: var(--el-bg-color, #ffffff);
+  --border: var(--el-border-color, #dbe3ea);
+  --shadow: 0 1px 8px rgba(15, 23, 42, 0.06);
+  --blue: var(--info-500, #3b82f6);
+  --green: var(--success-500, #16a34a);
+  --violet: var(--accent-500, #8b5cf6);
+}
+
+.playground-scope[data-theme="system"] .app-frame {
+  background: transparent;
+  width: 100%;
+}
+
+.playground-scope[data-theme="system"] .shell {
+  width: min(1280px, calc(100% - 24px));
+  padding: 0;
+  margin-top: 8px;
+}
+
+.playground-scope[data-theme="system"] .page-shell {
+  padding: 0;
+  gap: var(--orin-page-gap, 20px);
+}
+
+.playground-scope[data-theme="system"] .page-stage {
+  width: 100%;
+  margin-top: 0;
+}
+
+.playground-scope[data-theme="system"] .error-banner {
+  border-radius: var(--orin-card-radius, 12px);
+  background: var(--status-danger-bg, #fef2f2);
+  border-color: var(--status-danger-border, #fecaca);
+  color: var(--status-danger-fg, #991b1b);
+}
+
+.playground-scope[data-theme="system"] .glass-panel,
+.playground-scope[data-theme="system"] .toolbar-card,
+.playground-scope[data-theme="system"] .workflow-select-card,
+.playground-scope[data-theme="system"] .chat-shell,
+.playground-scope[data-theme="system"] .graph-shell,
+.playground-scope[data-theme="system"] .trace-shell {
+  border-radius: var(--orin-card-radius, 12px) !important;
+  border: 1px solid var(--border, #e2e8f0) !important;
+  background: var(--panel, #ffffff) !important;
+  backdrop-filter: none;
+  box-shadow: var(--shadow, 0 1px 8px rgba(15, 23, 42, 0.06)) !important;
+}
+
+.playground-scope[data-theme="system"] .toolbar-card,
+.playground-scope[data-theme="system"] .section-card,
+.playground-scope[data-theme="system"] .manager-topbar,
+.playground-scope[data-theme="system"] .section-header,
+.playground-scope[data-theme="system"] .chat-header,
+.playground-scope[data-theme="system"] .trace-header {
+  padding: 16px;
+}
+
+.playground-scope[data-theme="system"] .manager-topbar h2,
+.playground-scope[data-theme="system"] .toolbar-card h3,
+.playground-scope[data-theme="system"] .section-header h3,
+.playground-scope[data-theme="system"] .chat-header h3,
+.playground-scope[data-theme="system"] .trace-header h3 {
+  font-size: 20px;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.playground-scope[data-theme="system"] .hero-card,
+.playground-scope[data-theme="system"] .stat-tile,
+.playground-scope[data-theme="system"] .agent-card,
+.playground-scope[data-theme="system"] .workflow-card,
+.playground-scope[data-theme="system"] .workflow-form,
+.playground-scope[data-theme="system"] .settings-card {
+  border-radius: var(--orin-card-radius, 12px);
+  padding: 16px !important;
+}
+
+.playground-scope[data-theme="system"] .workflow-badges,
+.playground-scope[data-theme="system"] .agent-pill-row,
+.playground-scope[data-theme="system"] .agent-grid,
+.playground-scope[data-theme="system"] .step-grid,
+.playground-scope[data-theme="system"] .page-stack {
+  gap: var(--orin-grid-gap, 16px);
+}
+
+.playground-scope[data-theme="system"] .primary-button,
+.playground-scope[data-theme="system"] .text-button,
+.playground-scope[data-theme="system"] .ghost-button,
+.playground-scope[data-theme="system"] .accent-button,
+.playground-scope[data-theme="system"] .send-button,
+.playground-scope[data-theme="system"] .send-icon-button {
+  border-radius: 8px !important;
+  padding: 9px 14px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.playground-scope[data-theme="system"] .primary-button,
+.playground-scope[data-theme="system"] .send-button,
+.playground-scope[data-theme="system"] .send-icon-button {
+  background: var(--el-color-primary, #0d9488) !important;
+}
+
+.playground-scope[data-theme="system"] .primary-button:hover,
+.playground-scope[data-theme="system"] .send-button:hover,
+.playground-scope[data-theme="system"] .send-icon-button:hover {
+  background: var(--el-color-primary-dark-2, #0f766e) !important;
+}
+
+.playground-scope[data-theme="system"] .text-button,
+.playground-scope[data-theme="system"] .ghost-button,
+.playground-scope[data-theme="system"] .icon-button {
+  color: var(--text-secondary, #475569) !important;
+}
+
+.playground-scope[data-theme="system"] .text-button:hover,
+.playground-scope[data-theme="system"] .ghost-button:hover,
+.playground-scope[data-theme="system"] .icon-button:hover {
+  color: var(--text-primary, #0f172a) !important;
+}
+
+.playground-scope[data-theme="system"] .chip,
+.playground-scope[data-theme="system"] .role-chip,
+.playground-scope[data-theme="system"] .agent-role-pill {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--el-fill-color-light, #f1f5f9);
+  color: var(--text-secondary, #64748b);
+}
+
+.playground-scope[data-theme="system"] input,
+.playground-scope[data-theme="system"] textarea,
+.playground-scope[data-theme="system"] .workflow-native-select,
+.playground-scope[data-theme="system"] .app-select {
+  border: 1px solid var(--el-border-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--el-fill-color-blank, #ffffff);
+}
+
+.playground-scope[data-theme="system"] .workflow-native-select:focus,
+.playground-scope[data-theme="system"] input:focus,
+.playground-scope[data-theme="system"] textarea:focus {
+  border-color: var(--el-color-primary, #0d9488);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.18);
+}
+
+.playground-scope[data-theme="system"] .playground-sidebar-tab {
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.playground-scope[data-theme="system"] .playground-grid {
+  gap: 14px;
+}
+
+.playground-scope[data-theme="system"] .playground-col-left,
+.playground-scope[data-theme="system"] .playground-col-center,
+.playground-scope[data-theme="system"] .playground-col-right {
+  min-height: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-page {
+  gap: 16px;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--el-border-color, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-icon,
+.playground-scope[data-theme="system"] .workflow-row-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--orin-primary, #0d9488);
+  background: var(--orin-primary-soft, #f0fdfa);
+  border: 1px solid rgba(13, 148, 136, 0.16);
+}
+
+.playground-scope[data-theme="system"] .workflow-row-icon.selected {
+  color: #fff;
+  background: var(--orin-primary, #0d9488);
+  border-color: var(--orin-primary, #0d9488);
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-title h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-title p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.playground-scope[data-theme="system"] .workflow-create-button,
+.playground-scope[data-theme="system"] .workflow-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.playground-scope[data-theme="system"] .workflow-save-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--el-border-color, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--orin-primary, #0d9488);
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-success .workflow-stat-icon {
+  background: var(--success-500, #10b981);
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-warning .workflow-stat-icon {
+  background: var(--warning-500, #f59e0b);
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-info .workflow-stat-icon {
+  background: #64748b;
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-main strong {
+  color: #1e293b;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.playground-scope[data-theme="system"] .workflow-stat-main small {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-list {
+  display: grid;
+  gap: 12px;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-card {
+  border: 1px solid var(--el-border-color, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.playground-scope[data-theme="system"] .workflow-card {
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.playground-scope[data-theme="system"] .workflow-card:hover {
+  transform: none;
+  border-color: rgba(13, 148, 136, 0.36);
+}
+
+.playground-scope[data-theme="system"] .workflow-card.selected {
+  border-color: var(--orin-primary, #0d9488);
+  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.18) inset;
+}
+
+.playground-scope[data-theme="system"] .workflow-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+}
+
+.playground-scope[data-theme="system"] .workflow-row-leading {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.playground-scope[data-theme="system"] .workflow-rich-main {
+  min-width: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-title-row h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-id {
+  margin: 5px 0 0;
+  color: #94a3b8;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-rich-desc {
+  max-width: 620px;
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.playground-scope[data-theme="system"] .workflow-row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.playground-scope[data-theme="system"] .workflow-meta-pill,
+.playground-scope[data-theme="system"] .workflow-selected-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.playground-scope[data-theme="system"] .workflow-selected-inline {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.playground-scope[data-theme="system"] .workflow-agent-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.playground-scope[data-theme="system"] .avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.playground-scope[data-theme="system"] .stack-avatar {
+  width: 26px;
+  height: 26px;
+  margin-left: -7px;
+  border-width: 2px;
+  font-size: 10px;
+}
+
+.playground-scope[data-theme="system"] .stack-avatar:first-child {
+  margin-left: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-agent-count {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.playground-scope[data-theme="system"] .compact-workflow-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.playground-scope[data-theme="system"] .workflow-icon-action {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  background: #fff;
+  border: 1px solid #d1d5db;
+}
+
+.playground-scope[data-theme="system"] .workflow-icon-action:hover {
+  color: var(--orin-primary, #0d9488);
+  background: var(--orin-primary-soft, #f0fdfa);
+  border-color: rgba(13, 148, 136, 0.35);
+}
+
+.playground-scope[data-theme="system"] .workflow-icon-delete {
+  color: #ef4444;
+}
+
+.playground-scope[data-theme="system"] .workflow-icon-delete:hover {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.playground-scope[data-theme="system"] .workflow-form {
+  padding: 0;
+  overflow: hidden;
+}
+
+.playground-scope[data-theme="system"] .workflow-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.playground-scope[data-theme="system"] .workflow-card-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.playground-scope[data-theme="system"] .workflow-card-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.playground-scope[data-theme="system"] .workflow-close-form {
+  white-space: nowrap;
+}
+
+.playground-scope[data-theme="system"] .workflow-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 0;
+}
+
+.playground-scope[data-theme="system"] .workflow-form-section {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 20px;
+}
+
+.playground-scope[data-theme="system"] .workflow-form-section + .workflow-form-section {
+  border-left: 1px solid #e2e8f0;
+}
+
+.playground-scope[data-theme="system"] .workflow-form-section h4 {
+  margin: 0 0 2px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.playground-scope[data-theme="system"] .workflow-field {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.playground-scope[data-theme="system"] .workflow-field > span {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.playground-scope[data-theme="system"] input,
+.playground-scope[data-theme="system"] textarea,
+.playground-scope[data-theme="system"] .workflow-native-select {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.playground-scope[data-theme="system"] textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card {
+  min-width: 0;
+  min-height: 126px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card:hover {
+  border-color: rgba(13, 148, 136, 0.35);
+  background: #f8fffd;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card.selected {
+  border-color: var(--orin-primary, #0d9488);
+  background: var(--orin-primary-soft, #f0fdfa);
+  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.12) inset;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #0f172a;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card-head strong {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card-head svg {
+  flex: 0 0 auto;
+  color: var(--orin-primary, #0d9488);
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope[data-theme="system"] .workflow-mode-card em {
+  align-self: end;
+  color: #0f766e;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.playground-scope[data-theme="system"] .workflow-finalizer-row {
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.playground-scope[data-theme="system"] .workflow-finalizer-row span {
+  display: grid;
+  gap: 2px;
+}
+
+.playground-scope[data-theme="system"] .workflow-finalizer-row strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.playground-scope[data-theme="system"] .workflow-finalizer-row small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.playground-scope[data-theme="system"] .workflow-token-field {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.playground-scope[data-theme="system"] .workflow-token-field input {
+  max-width: 220px;
+}
+
+.playground-scope[data-theme="system"] .workflow-token-field small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.playground-scope[data-theme="system"] .selection-item {
+  border-radius: 8px;
+  background: #fff;
+}
+
+.playground-scope[data-theme="system"] .selection-item.selected {
+  border-color: rgba(13, 148, 136, 0.42);
+  background: var(--orin-primary-soft, #f0fdfa);
+}
+
+.playground-scope[data-theme="system"] .workflow-agent-check {
+  color: var(--orin-primary, #0d9488);
+}
+
+.playground-scope[data-theme="system"] .workflow-empty-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 20px;
+}
+
+.playground-scope[data-theme="system"] .workflow-empty-card h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.playground-scope[data-theme="system"] .workflow-empty-card p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+@media (max-width: 1180px) {
+  .playground-scope[data-theme="system"] .workflow-row-main,
+  .playground-scope[data-theme="system"] .workflow-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .playground-scope[data-theme="system"] .workflow-row-meta {
+    justify-content: flex-start;
+  }
+
+  .playground-scope[data-theme="system"] .compact-workflow-actions {
+    justify-content: flex-start;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .playground-scope[data-theme="system"] .workflow-form-section + .workflow-form-section {
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+  }
+}
+
+@media (max-width: 860px) {
+  .playground-scope[data-theme="system"] .workflow-admin-header,
+  .playground-scope[data-theme="system"] .workflow-empty-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .playground-scope[data-theme="system"] .workflow-admin-header {
+    display: grid;
+  }
+
+  .playground-scope[data-theme="system"] .workflow-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .playground-scope[data-theme="system"] .workflow-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .playground-scope[data-theme="system"] .workflow-row-leading {
+    align-items: flex-start;
+  }
+
+  .playground-scope[data-theme="system"] .workflow-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .playground-scope[data-theme="system"] .compact-workflow-actions {
+    flex-direction: row;
+    align-items: center;
+  }
+}

@@ -70,6 +70,8 @@ export const TOP_MENU_CONFIG = [
     children: [
       { title: '工作流编排', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Edit', status: 'available' },
       { title: '工作流执行', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay', status: 'available' },
+      { title: '多智能体编排', path: ROUTES.AGENTS.PLAYGROUND_WORKFLOWS, icon: 'Connection', status: 'available' },
+      { title: '多智能体运行', path: ROUTES.AGENTS.PLAYGROUND_RUN, icon: 'VideoPlay', status: 'available' },
     ],
   },
   {

@@ -54,7 +54,8 @@ const appStore = useAppStore()
 const WORKSPACE_ROUTE_NAMES = new Set([
   'ApplicationWorkspace',
   'AgentConsole',
-  'AgentConsoleEntry'
+  'AgentConsoleEntry',
+  'PlaygroundRun'
 ])
 const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.name || '')))
 const isNotificationChannelsRoute = computed(() => String($route.path || '') === '/dashboard/control/notification-channels')

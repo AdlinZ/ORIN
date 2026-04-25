@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
+import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
@@ -7,6 +9,7 @@ import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.collaboration.repository.CollabSubtaskRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.audit.service.AuditHelper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 协作编排服务 - 负责任务分解、调度、共识与回退
@@ -31,6 +36,7 @@ public class CollaborationOrchestrator {
     private final CollaborationMemoryService memoryService;
     private final CollaborationEventBus eventBus;
     private final AuditHelper auditHelper;
+    private final AgentManageService agentManageService;
     private final ObjectMapper objectMapper;
 
     // 角色类型常量
@@ -209,8 +215,53 @@ public class CollaborationOrchestrator {
      * 生成子任务
      */
     private List<CollabSubtaskEntity> generateSubtasks(String packageId, String category, List<String> capabilities) {
-        List<CollabSubtaskEntity> subtasks = new ArrayList<>();
+        String intent = packageRepository.findByPackageId(packageId)
+                .map(CollaborationPackageEntity::getIntent)
+                .orElse("");
+        if (isSimpleImageIntent(intent)) {
+            List<CollabSubtaskEntity> compactImagePlan = List.of(
+                    createSubtask(packageId, "1", "明确出图需求（主体/风格/比例/负面词）并整理为结构化提示词", ROLE_PLANNER, null, 0.9),
+                    createSubtask(packageId, "2", "执行图像生成，产出图片并返回 image_url、file_id、prompt", ROLE_SPECIALIST, List.of("1"), 0.92),
+                    createSubtask(packageId, "3", "校验生成结果与需求一致性，给出可选二次优化建议", ROLE_REVIEWER, List.of("2"), 0.88)
+            );
+            memoryService.writeToBlackboard(packageId, "planner_subtasks_dynamic", List.of(
+                    Map.of("description", "明确出图需求（主体/风格/比例/负面词）并整理为结构化提示词", "role", ROLE_PLANNER),
+                    Map.of("description", "执行图像生成，产出图片并返回 image_url、file_id、prompt", "role", ROLE_SPECIALIST),
+                    Map.of("description", "校验生成结果与需求一致性，给出可选二次优化建议", "role", ROLE_REVIEWER)
+            ));
+            return subtaskRepository.saveAll(compactImagePlan);
+        }
+        List<DynamicSubtaskPlan> dynamicPlan = buildDynamicSubtaskPlan(packageId, intent, category, capabilities);
+        if (!dynamicPlan.isEmpty()) {
+            List<CollabSubtaskEntity> subtasks = materializeDynamicPlan(packageId, dynamicPlan);
+            if (!subtasks.isEmpty()) {
+                memoryService.writeToBlackboard(packageId, "planner_subtasks_dynamic", dynamicPlan);
+                return subtaskRepository.saveAll(subtasks);
+            }
+        }
+        return generateTemplateSubtasks(packageId, category);
+    }
 
+    private boolean isSimpleImageIntent(String intent) {
+        if (intent == null || intent.isBlank()) {
+            return false;
+        }
+        String text = intent.toLowerCase(Locale.ROOT).trim();
+        boolean imageIntent = text.contains("画") || text.contains("图") || text.contains("图片")
+                || text.contains("海报") || text.contains("插画")
+                || text.contains("image") || text.contains("picture") || text.contains("draw");
+        if (!imageIntent) {
+            return false;
+        }
+        // 简短、无复杂约束的出图请求走紧凑三步，避免过度拆解。
+        boolean hasComplexConstraint = text.contains("并且") || text.contains("同时")
+                || text.contains("步骤") || text.contains("多张") || text.contains("对比")
+                || text.contains("workflow") || text.contains("pipeline");
+        return text.length() <= 48 && !hasComplexConstraint;
+    }
+
+    private List<CollabSubtaskEntity> generateTemplateSubtasks(String packageId, String category) {
+        List<CollabSubtaskEntity> subtasks = new ArrayList<>();
         switch (category != null ? category : "GENERAL") {
             case "ANALYSIS":
             case "RESEARCH":
@@ -251,7 +302,210 @@ public class CollaborationOrchestrator {
                 break;
         }
 
-        return subtaskRepository.saveAll(subtasks);
+        return subtasks;
+    }
+
+    private List<DynamicSubtaskPlan> buildDynamicSubtaskPlan(String packageId, String intent, String category, List<String> capabilities) {
+        try {
+            List<AgentMetadata> agents = agentManageService.getAllAgents();
+            if (agents == null || agents.isEmpty()) {
+                return List.of();
+            }
+            AgentMetadata planner = pickPlannerAgent(agents);
+            if (planner == null || planner.getAgentId() == null || planner.getAgentId().isBlank()) {
+                return List.of();
+            }
+            String plannerPrompt = buildPlannerPrompt(intent, category, capabilities);
+            Optional<Object> response = agentManageService.chat(planner.getAgentId(), plannerPrompt, (String) null);
+            if (response == null || response.isEmpty()) {
+                return List.of();
+            }
+            String text = normalizeChatResponse(response.get());
+            List<DynamicSubtaskPlan> parsed = parseDynamicPlan(text);
+            if (parsed.isEmpty()) {
+                return List.of();
+            }
+            int maxCount = 8;
+            if (parsed.size() > maxCount) {
+                parsed = parsed.subList(0, maxCount);
+            }
+            return normalizePlan(parsed);
+        } catch (Exception e) {
+            log.warn("Dynamic subtask planning failed for package {}: {}", packageId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<CollabSubtaskEntity> materializeDynamicPlan(String packageId, List<DynamicSubtaskPlan> plan) {
+        List<CollabSubtaskEntity> subtasks = new ArrayList<>();
+        for (int i = 0; i < plan.size(); i++) {
+            DynamicSubtaskPlan item = plan.get(i);
+            final int currentIndex = i + 1;
+            String subTaskId = String.valueOf(i + 1);
+            List<String> deps = item.dependsOn() == null ? List.of() : item.dependsOn();
+            List<String> safeDeps = deps.stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .filter(dep -> {
+                        try {
+                            int val = Integer.parseInt(dep);
+                            return val > 0 && val < currentIndex;
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .toList();
+            subtasks.add(createSubtask(
+                    packageId,
+                    subTaskId,
+                    item.description(),
+                    normalizeRole(item.role()),
+                    safeDeps.isEmpty() ? null : safeDeps,
+                    item.confidence() != null ? item.confidence() : 0.82
+            ));
+        }
+        return subtasks;
+    }
+
+    private AgentMetadata pickPlannerAgent(List<AgentMetadata> agents) {
+        for (AgentMetadata agent : agents) {
+            String text = ((agent.getName() != null ? agent.getName() : "") + " "
+                    + (agent.getDescription() != null ? agent.getDescription() : "")).toLowerCase(Locale.ROOT);
+            if (text.contains("planner") || text.contains("plan") || text.contains("orchestrator")
+                    || text.contains("规划") || text.contains("编排") || text.contains("协调")) {
+                return agent;
+            }
+        }
+        return agents.get(0);
+    }
+
+    private String buildPlannerPrompt(String intent, String category, List<String> capabilities) {
+        String capText = capabilities == null || capabilities.isEmpty()
+                ? "-"
+                : String.join(", ", capabilities);
+        return "你是协作编排主Agent。请根据用户意图动态规划子任务数量和依赖，返回严格JSON，不要markdown。\n"
+                + "要求:\n"
+                + "1) 子任务数量 2-8 个，不要固定三步。\n"
+                + "2) role 只能是 PLANNER/SPECIALIST/REVIEWER/CRITIC/COORDINATOR。\n"
+                + "3) dependsOn 里仅允许引用前置任务编号（字符串编号，从1开始）。\n"
+                + "4) confidence 取值 0.5~0.99。\n"
+                + "JSON格式:\n"
+                + "{\"subtasks\":[{\"description\":\"...\",\"role\":\"SPECIALIST\",\"dependsOn\":[\"1\"],\"confidence\":0.82}]}\n"
+                + "用户意图: " + (intent != null ? intent : "") + "\n"
+                + "任务分类: " + (category != null ? category : "GENERAL") + "\n"
+                + "能力标签: " + capText;
+    }
+
+    private String normalizeChatResponse(Object response) {
+        if (response == null) {
+            return "";
+        }
+        if (response instanceof String s) {
+            return s;
+        }
+        try {
+            return objectMapper.writeValueAsString(response);
+        } catch (Exception e) {
+            return String.valueOf(response);
+        }
+    }
+
+    private List<DynamicSubtaskPlan> parseDynamicPlan(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        JsonNode root = tryParseJson(text);
+        if (root == null || root.isMissingNode()) {
+            return List.of();
+        }
+        JsonNode subtasksNode = root.path("subtasks");
+        if (!subtasksNode.isArray()) {
+            subtasksNode = root.path("tasks");
+        }
+        if (!subtasksNode.isArray()) {
+            return List.of();
+        }
+        List<DynamicSubtaskPlan> plans = new ArrayList<>();
+        for (JsonNode node : subtasksNode) {
+            String description = node.path("description").asText("").trim();
+            String role = node.path("role").asText("SPECIALIST").trim();
+            double confidence = node.path("confidence").isNumber() ? node.path("confidence").asDouble() : 0.82;
+            List<String> deps = new ArrayList<>();
+            JsonNode depsNode = node.path("dependsOn");
+            if (depsNode.isArray()) {
+                for (JsonNode dep : depsNode) {
+                    String value = dep.asText("").trim();
+                    if (!value.isBlank()) {
+                        deps.add(value);
+                    }
+                }
+            }
+            if (description.isBlank()) {
+                continue;
+            }
+            plans.add(new DynamicSubtaskPlan(description, role, deps, clampConfidence(confidence)));
+        }
+        return plans;
+    }
+
+    private JsonNode tryParseJson(String text) {
+        try {
+            return objectMapper.readTree(text);
+        } catch (Exception ignored) {
+        }
+        Matcher matcher = Pattern.compile("\\{[\\s\\S]*\\}").matcher(text);
+        if (matcher.find()) {
+            String candidate = matcher.group();
+            try {
+                return objectMapper.readTree(candidate);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private List<DynamicSubtaskPlan> normalizePlan(List<DynamicSubtaskPlan> plans) {
+        if (plans == null || plans.isEmpty()) {
+            return List.of();
+        }
+        List<DynamicSubtaskPlan> normalized = new ArrayList<>();
+        for (int i = 0; i < plans.size(); i++) {
+            DynamicSubtaskPlan item = plans.get(i);
+            String description = item.description() != null ? item.description().trim() : "";
+            if (description.isBlank()) {
+                continue;
+            }
+            List<String> deps = item.dependsOn() == null ? List.of() : item.dependsOn().stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .toList();
+            normalized.add(new DynamicSubtaskPlan(
+                    description,
+                    normalizeRole(item.role()),
+                    deps,
+                    clampConfidence(item.confidence() != null ? item.confidence() : 0.82)
+            ));
+        }
+        return normalized;
+    }
+
+    private double clampConfidence(double value) {
+        if (value < 0.5) {
+            return 0.5;
+        }
+        if (value > 0.99) {
+            return 0.99;
+        }
+        return value;
+    }
+
+    private String normalizeRole(String role) {
+        String upper = role != null ? role.trim().toUpperCase(Locale.ROOT) : ROLE_SPECIALIST;
+        return switch (upper) {
+            case ROLE_PLANNER, ROLE_SPECIALIST, ROLE_REVIEWER, ROLE_CRITIC, ROLE_COORDINATOR -> upper;
+            default -> ROLE_SPECIALIST;
+        };
     }
 
     private CollabSubtaskEntity createSubtask(String packageId, String subTaskId, String description,
@@ -890,4 +1144,6 @@ public class CollaborationOrchestrator {
                 .filter(s -> !s.isBlank())
                 .collect(Collectors.toList());
     }
+
+    private record DynamicSubtaskPlan(String description, String role, List<String> dependsOn, Double confidence) {}
 }

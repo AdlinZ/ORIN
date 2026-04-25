@@ -67,6 +67,85 @@
           </el-form>
         </el-card>
 
+        <el-card id="blk-storage-rabbitmq" shadow="never" style="margin-top: 16px">
+          <template #header>
+            <div class="card-head">
+              <span>RabbitMQ 队列</span>
+              <div class="card-actions">
+                <el-button v-if="!cardEditState['storage-rabbitmq']" size="small" @click="startRabbitmqEdit">编辑</el-button>
+                <template v-else>
+                  <el-button size="small" @click="cancelRabbitmqEdit">取消</el-button>
+                  <el-button type="primary" size="small" :loading="dbSaving" :icon="Check" @click="saveRabbitmqConfig">保存</el-button>
+                </template>
+              </div>
+            </div>
+          </template>
+          <el-form label-position="left" label-width="180px">
+            <el-form-item label="Host">
+              <el-input v-model="dbConfig['spring.rabbitmq.host']" :disabled="!cardEditState['storage-rabbitmq']" />
+            </el-form-item>
+            <el-form-item label="Port">
+              <el-input v-model="dbConfig['spring.rabbitmq.port']" :disabled="!cardEditState['storage-rabbitmq']" />
+            </el-form-item>
+            <el-form-item label="Username">
+              <el-input v-model="dbConfig['spring.rabbitmq.username']" :disabled="!cardEditState['storage-rabbitmq']" />
+            </el-form-item>
+            <el-form-item label="Password">
+              <el-input v-model="dbConfig['spring.rabbitmq.password']" :disabled="!cardEditState['storage-rabbitmq']" type="password" show-password />
+            </el-form-item>
+            <el-form-item label="Virtual Host">
+              <el-input v-model="dbConfig['spring.rabbitmq.virtual-host']" :disabled="!cardEditState['storage-rabbitmq']" />
+            </el-form-item>
+          </el-form>
+        </el-card>
+
+        <el-card id="blk-collaboration-orchestration" shadow="never" style="margin-top: 16px">
+          <template #header>
+            <div class="card-head">
+              <span>协作编舞（LangGraph + MQ）</span>
+              <div class="card-actions">
+                <el-button v-if="!cardEditState['collaboration-orchestration']" size="small" @click="startCollabOrchestrationEdit">编辑</el-button>
+                <template v-else>
+                  <el-button size="small" @click="cancelCollabOrchestrationEdit">取消</el-button>
+                  <el-button type="primary" size="small" :loading="dbSaving" :icon="Check" @click="saveCollabOrchestrationConfig">保存</el-button>
+                </template>
+              </div>
+            </div>
+          </template>
+          <el-form label-position="left" label-width="220px">
+            <el-form-item label="编舞模式">
+              <el-select v-model="dbConfig['orin.collaboration.mode']" :disabled="!cardEditState['collaboration-orchestration']" style="width: 100%">
+                <el-option label="LANGGRAPH_MQ（分布式）" value="LANGGRAPH_MQ" />
+                <el-option label="JAVA_NATIVE（本地编排）" value="JAVA_NATIVE" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="PARALLEL 使用 MQ">
+              <el-switch
+                v-model="dbConfig['orin.collaboration.mq-for-parallel']"
+                :disabled="!cardEditState['collaboration-orchestration']"
+                active-value="true"
+                inactive-value="false"
+              />
+            </el-form-item>
+            <el-form-item label="SEQUENTIAL 使用 MQ">
+              <el-switch
+                v-model="dbConfig['orin.collaboration.mq-for-sequential']"
+                :disabled="!cardEditState['collaboration-orchestration']"
+                active-value="true"
+                inactive-value="false"
+              />
+            </el-form-item>
+            <el-form-item label="CONSENSUS 使用 MQ">
+              <el-switch
+                v-model="dbConfig['orin.collaboration.mq-for-consensus']"
+                :disabled="!cardEditState['collaboration-orchestration']"
+                active-value="true"
+                inactive-value="false"
+              />
+            </el-form-item>
+          </el-form>
+        </el-card>
+
         <el-card id="blk-storage-milvus" shadow="never" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
@@ -342,18 +421,6 @@
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-row :gutter="16">
-              <el-col :span="6">
-                <el-form-item label="Jina Reader">
-                  <el-switch v-model="aiConfig.jinaEnabled" :disabled="!cardEditState['ai-capabilities']" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="18">
-                <el-form-item label="Jina API Key">
-                  <el-input v-model="aiConfig.jinaApiKey" :disabled="!cardEditState['ai-capabilities']" type="password" show-password placeholder="可选，无 Key 时 20 次/分钟" />
-                </el-form-item>
-              </el-col>
-            </el-row>
           </el-form>
 
           <el-divider content-position="left">向量化与排序</el-divider>
@@ -408,112 +475,110 @@
               </el-col>
             </el-row>
           </el-form>
+          <div id="blk-ai-multimodal"></div>
+          <el-divider content-position="left">多模态解析</el-divider>
+          <p class="section-tip">直接选择 OCR / ASR 使用的模型，统一由当前推理链路执行。</p>
+          <el-form label-position="top">
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="OCR 模型">
+                  <el-select
+                    v-model="kbParams.ocrModel"
+                    :disabled="!cardEditState['ai-capabilities']"
+                    style="width:100%"
+                    filterable
+                    allow-create
+                    default-first-option
+                    placeholder="选择 OCR 模型"
+                  >
+                    <el-option v-for="model in ocrModelOptions" :key="model.id" :label="model.name" :value="model.id" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="ASR 模型">
+                  <el-select v-model="kbParams.asrModel" :disabled="!cardEditState['ai-capabilities']" style="width:100%" placeholder="选择 ASR 模型">
+                    <el-option value="tiny" label="tiny — 最快" />
+                    <el-option value="base" label="base — 平衡" />
+                    <el-option value="small" label="small — 较好精度" />
+                    <el-option value="medium" label="medium — 高精度" />
+                    <el-option value="large" label="large — 最高精度" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-form>
+
+          <div id="blk-ai-kb-description"></div>
+          <el-divider content-position="left">AI 生成知识库描述</el-divider>
+          <p class="section-tip">根据知识库文档内容自动生成名称和描述。</p>
+          <el-form label-position="top" size="small">
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="选择知识库">
+                  <el-select v-model="selectedKB" :disabled="!cardEditState['ai-capabilities']" placeholder="选择知识库" style="width:100%" filterable>
+                    <el-option v-for="kb in knowledgeBases" :key="kb.kbId" :label="kb.name" :value="kb.kbId">
+                      <span>{{ kb.name }}</span>
+                      <span style="float:right; color:#8492a6; font-size:12px">{{ kb.docCount || 0 }} 文档</span>
+                    </el-option>
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="选择描述生成模型">
+                  <el-select v-model="selectedKBModel" :disabled="!cardEditState['ai-capabilities']" placeholder="选择描述生成模型" style="width:100%" filterable>
+                    <el-option v-for="m in kbModels" :key="m.id" :label="m.name" :value="m.id" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-button type="primary" :loading="generatingDesc" :disabled="!cardEditState['ai-capabilities'] || !selectedKB || !selectedKBModel" @click="generateKBDescription">
+              生成名称和描述
+            </el-button>
+            <p class="form-tip" style="margin-top: 8px">AI 将根据知识库文档内容自动生成名称和描述</p>
+          </el-form>
         </el-card>
-
-        <el-row :gutter="16" style="margin-top: 16px">
-          <el-col :span="12">
-            <el-card id="blk-ai-multimodal" shadow="never" style="height: 100%">
-              <template #header>
-                <div class="card-head">
-                  <div>
-                    <div class="card-title">多模态解析</div>
-                    <div class="card-subtitle">OCR 和 ASR 依赖模型推理能力，属于内容理解链路。</div>
-                  </div>
-                </div>
-              </template>
-              <el-form label-position="top">
-                <el-row :gutter="20">
-                  <el-col :span="12">
-                    <el-form-item label="OCR 图片文字识别">
-                      <el-select v-model="kbParams.ocrProvider" :disabled="!cardEditState['ai-capabilities']" style="width:100%">
-                        <el-option value="local" label="本地（Tesseract）" />
-                        <el-option value="cloud" label="云服务 API" />
-                      </el-select>
-                    </el-form-item>
-                    <el-form-item v-if="kbParams.ocrProvider === 'cloud'" label="OCR 模型">
-                      <el-input v-model="kbParams.ocrModel" :disabled="!cardEditState['ai-capabilities']" placeholder="ocr-general-v1" />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="ASR 语音识别">
-                      <el-select v-model="kbParams.asrProvider" :disabled="!cardEditState['ai-capabilities']" style="width:100%">
-                        <el-option value="local" label="本地（Whisper）" />
-                        <el-option value="cloud" label="云服务 API" />
-                      </el-select>
-                    </el-form-item>
-                    <el-form-item label="Whisper 模型">
-                      <el-select v-model="kbParams.asrModel" :disabled="!cardEditState['ai-capabilities']" style="width:100%">
-                        <el-option value="tiny" label="tiny — 最快" />
-                        <el-option value="base" label="base — 平衡" />
-                        <el-option value="small" label="small — 较好精度" />
-                        <el-option value="medium" label="medium — 高精度" />
-                        <el-option value="large" label="large — 最高精度" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-              </el-form>
-            </el-card>
-          </el-col>
-
-          <el-col :span="12">
-            <el-card id="blk-ai-kb-description" shadow="never" style="height: 100%">
-              <template #header>
-                <div class="card-head">
-                  <div>
-                    <div class="card-title">AI 生成知识库描述</div>
-                    <div class="card-subtitle">根据知识库文档内容自动生成名称和描述。</div>
-                  </div>
-                </div>
-              </template>
-              <el-row :gutter="24">
-                <el-col :span="14">
-                  <el-form label-position="top" size="small">
-                    <el-row :gutter="12">
-                      <el-col :span="12">
-                        <el-form-item label="选择知识库">
-                          <el-select v-model="selectedKB" :disabled="!cardEditState['ai-capabilities']" placeholder="选择知识库" style="width:100%" filterable>
-                            <el-option v-for="kb in knowledgeBases" :key="kb.kbId" :label="kb.name" :value="kb.kbId">
-                              <span>{{ kb.name }}</span>
-                              <span style="float:right; color:#8492a6; font-size:12px">{{ kb.docCount || 0 }} 文档</span>
-                            </el-option>
-                          </el-select>
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="12">
-                        <el-form-item label="选择 AI 模型">
-                          <el-select v-model="selectedKBModel" :disabled="!cardEditState['ai-capabilities']" placeholder="选择模型" style="width:100%" filterable>
-                            <el-option v-for="m in kbModels" :key="m.id" :label="m.name" :value="m.id" />
-                          </el-select>
-                        </el-form-item>
-                      </el-col>
-                    </el-row>
-                    <el-button type="primary" :loading="generatingDesc" :disabled="!cardEditState['ai-capabilities'] || !selectedKB || !selectedKBModel" @click="generateKBDescription">
-                      生成名称和描述
-                    </el-button>
-                    <p class="form-tip" style="margin-top: 8px">AI 将根据知识库文档内容自动生成名称和描述</p>
-                  </el-form>
-                </el-col>
-                <el-col :span="10">
-                  <div class="stats-list">
-                    <div v-for="s in kbStats" :key="s.label" class="stat-item">
-                      <span class="stat-label">{{ s.label }}</span>
-                      <span class="stat-value">{{ knowledgeStats[s.key] }}</span>
-                    </div>
-                  </div>
-                  <el-button size="small" :loading="loadingStats" style="width:100%; margin-top:10px" @click="loadKnowledgeStats">
-                    刷新统计
-                  </el-button>
-                </el-col>
-              </el-row>
-            </el-card>
-          </el-col>
-        </el-row>
 
         </section>
 
         <!-- ③ 外部集成 -->
         <section id="sec-integrations" class="config-section">
+
+        <el-card id="blk-integration-jina" shadow="never">
+          <template #header>
+            <div class="card-head">
+              <div class="name-with-badge">
+                <el-icon size="15"><Connection /></el-icon>
+                <span>Jina Reader</span>
+                <span class="card-desc">网页 URL 转 Markdown 解析</span>
+                <el-tag :type="aiConfig.jinaEnabled ? 'success' : 'info'" size="small">
+                  {{ aiConfig.jinaEnabled ? '已启用' : '未启用' }}
+                </el-tag>
+              </div>
+              <div class="card-actions">
+                <el-button v-if="!cardEditState['jina-reader']" size="small" @click="startJinaReaderEdit">编辑</el-button>
+                <template v-else>
+                  <el-button size="small" @click="cancelJinaReaderEdit">取消</el-button>
+                  <el-button type="primary" size="small" :loading="jinaSaving" @click="saveJinaReaderCard">保存</el-button>
+                </template>
+              </div>
+            </div>
+          </template>
+          <el-form label-width="100px">
+            <el-form-item label="启用状态">
+              <el-switch v-model="aiConfig.jinaEnabled" :disabled="!cardEditState['jina-reader']" />
+            </el-form-item>
+            <el-form-item label="API Key">
+              <el-input
+                v-model="aiConfig.jinaApiKey"
+                :disabled="!cardEditState['jina-reader']"
+                type="password"
+                show-password
+                placeholder="可选，无 Key 时 20 次/分钟"
+              />
+            </el-form-item>
+          </el-form>
+        </el-card>
 
         <el-card
           v-for="(card, idx) in integrationCards"
@@ -681,6 +746,8 @@ const tocSections = [
     children: [
       { id: 'storage-mysql',  label: 'MySQL 数据库',  anchor: 'blk-storage-mysql' },
       { id: 'storage-redis',  label: '缓存 Redis',    anchor: 'blk-storage-redis' },
+      { id: 'storage-rabbitmq', label: 'RabbitMQ 队列', anchor: 'blk-storage-rabbitmq' },
+      { id: 'collaboration-orchestration', label: '协作编舞', anchor: 'blk-collaboration-orchestration' },
       { id: 'storage-milvus', label: 'Milvus 向量引擎', anchor: 'blk-storage-milvus' },
       { id: 'storage-neo4j',  label: 'Neo4j 图数据库', anchor: 'blk-storage-neo4j' },
       { id: 'storage-minio',  label: 'MinIO 对象存储', anchor: 'blk-storage-minio' },
@@ -697,6 +764,7 @@ const tocSections = [
   {
     id: 'integrations', label: '外部集成', anchor: 'sec-integrations',
     children: [
+      { id: 'integration-jina',    label: 'Jina Reader', anchor: 'blk-integration-jina' },
       { id: 'integration-dify',    label: 'Dify',    anchor: 'blk-integration-dify' },
       { id: 'integration-ragflow', label: 'RAGFlow', anchor: 'blk-integration-ragflow' },
     ],
@@ -724,10 +792,13 @@ const isTocItemActive = (item) => (
 const cardEditState = reactive({
   'storage-mysql': false,
   'storage-redis': false,
+  'storage-rabbitmq': false,
+  'collaboration-orchestration': false,
   'storage-milvus': false,
   'storage-neo4j': false,
   'storage-minio': false,
   'ai-capabilities': false,
+  'jina-reader': false,
   dify: false,
   ragflow: false,
   'kb-retrieval': false,
@@ -765,6 +836,15 @@ const SYSTEM_PROPERTY_FALLBACKS = {
     'spring.data.redis.host': '',
     'spring.data.redis.port': '',
     'spring.data.redis.password': '',
+    'spring.rabbitmq.host': 'localhost',
+    'spring.rabbitmq.port': '5672',
+    'spring.rabbitmq.username': 'guest',
+    'spring.rabbitmq.password': 'guest',
+    'spring.rabbitmq.virtual-host': '/',
+    'orin.collaboration.mode': 'LANGGRAPH_MQ',
+    'orin.collaboration.mq-for-parallel': 'true',
+    'orin.collaboration.mq-for-sequential': 'true',
+    'orin.collaboration.mq-for-consensus': 'true',
   },
   milvus: { host: 'localhost', port: 19530, token: '' },
   ai: { jinaEnabled: false, jinaApiKey: '' },
@@ -776,7 +856,7 @@ const SYSTEM_PROPERTY_FALLBACKS = {
     defaultTopK: 5,
     similarityThreshold: 0.7,
     ocrProvider: 'local',
-    ocrModel: '',
+    ocrModel: 'tesseract',
     asrProvider: 'local',
     asrModel: 'base',
   },
@@ -831,24 +911,21 @@ const applySystemProperties = (props = {}) => {
   kbParams.chunkOverlap = parseInt(props['knowledge.chunk-overlap']) || SYSTEM_PROPERTY_FALLBACKS.kb.chunkOverlap;
   kbParams.defaultTopK = parseInt(props['knowledge.default-top-k']) || SYSTEM_PROPERTY_FALLBACKS.kb.defaultTopK;
   kbParams.similarityThreshold = parseFloat(props['knowledge.similarity-threshold']) || SYSTEM_PROPERTY_FALLBACKS.kb.similarityThreshold;
-  kbParams.ocrProvider = props['knowledge.ocr.provider'] || SYSTEM_PROPERTY_FALLBACKS.kb.ocrProvider;
+  kbParams.ocrProvider = 'local';
   kbParams.ocrModel = props['knowledge.ocr.model'] || SYSTEM_PROPERTY_FALLBACKS.kb.ocrModel;
-  kbParams.asrProvider = props['knowledge.asr.provider'] || SYSTEM_PROPERTY_FALLBACKS.kb.asrProvider;
+  kbParams.asrProvider = 'local';
   kbParams.asrModel = props['knowledge.asr.model'] || SYSTEM_PROPERTY_FALLBACKS.kb.asrModel;
 };
 
-const saveDbConfig = async () => {
+const saveDbKeys = async (keys, successMessage = '配置已保存，重启服务后生效') => {
   dbSaving.value = true;
   try {
-    await saveSystemProperties({
-      'spring.datasource.url':      dbConfig.value['spring.datasource.url'] || '',
-      'spring.datasource.username': dbConfig.value['spring.datasource.username'] || '',
-      'spring.datasource.password': dbConfig.value['spring.datasource.password'] || '',
-      'spring.data.redis.host':     dbConfig.value['spring.data.redis.host'] || '',
-      'spring.data.redis.port':     dbConfig.value['spring.data.redis.port'] || '',
-      'spring.data.redis.password': dbConfig.value['spring.data.redis.password'] || '',
-    });
-    ElMessage.success('数据库配置已保存，重启服务后生效');
+    const payload = keys.reduce((acc, key) => {
+      acc[key] = dbConfig.value[key] ?? '';
+      return acc;
+    }, {});
+    await saveSystemProperties(payload);
+    ElMessage.success(successMessage);
     return true;
   } catch (e) { ElMessage.error('保存失败: ' + e.message); }
   finally { dbSaving.value = false; }
@@ -857,17 +934,38 @@ const saveDbConfig = async () => {
 
 const MYSQL_DB_KEYS = ['spring.datasource.url', 'spring.datasource.username', 'spring.datasource.password'];
 const REDIS_DB_KEYS = ['spring.data.redis.host', 'spring.data.redis.port', 'spring.data.redis.password'];
+const RABBITMQ_DB_KEYS = [
+  'spring.rabbitmq.host',
+  'spring.rabbitmq.port',
+  'spring.rabbitmq.username',
+  'spring.rabbitmq.password',
+  'spring.rabbitmq.virtual-host',
+];
+const COLLAB_ORCHESTRATION_KEYS = [
+  'orin.collaboration.mode',
+  'orin.collaboration.mq-for-parallel',
+  'orin.collaboration.mq-for-sequential',
+  'orin.collaboration.mq-for-consensus',
+];
 
 const pickDbConfig = keys => keys.reduce((result, key) => { result[key] = dbConfig.value[key]; return result; }, {});
 const restoreDbConfig = snapshot => { Object.entries(snapshot).forEach(([key, value]) => { dbConfig.value[key] = value; }); };
 
 const startMysqlEdit = () => startCardEdit('storage-mysql', pickDbConfig(MYSQL_DB_KEYS));
 const cancelMysqlEdit = () => cancelCardEdit('storage-mysql', restoreDbConfig);
-const saveMysqlConfig = async () => { if (await saveDbConfig()) finishCardEdit('storage-mysql'); };
+const saveMysqlConfig = async () => { if (await saveDbKeys(MYSQL_DB_KEYS, 'MySQL 配置已保存，重启服务后生效')) finishCardEdit('storage-mysql'); };
 
 const startRedisEdit = () => startCardEdit('storage-redis', pickDbConfig(REDIS_DB_KEYS));
 const cancelRedisEdit = () => cancelCardEdit('storage-redis', restoreDbConfig);
-const saveRedisConfig = async () => { if (await saveDbConfig()) finishCardEdit('storage-redis'); };
+const saveRedisConfig = async () => { if (await saveDbKeys(REDIS_DB_KEYS, 'Redis 配置已保存，重启服务后生效')) finishCardEdit('storage-redis'); };
+
+const startRabbitmqEdit = () => startCardEdit('storage-rabbitmq', pickDbConfig(RABBITMQ_DB_KEYS));
+const cancelRabbitmqEdit = () => cancelCardEdit('storage-rabbitmq', restoreDbConfig);
+const saveRabbitmqConfig = async () => { if (await saveDbKeys(RABBITMQ_DB_KEYS, 'RabbitMQ 配置已保存，重启服务后生效')) finishCardEdit('storage-rabbitmq'); };
+
+const startCollabOrchestrationEdit = () => startCardEdit('collaboration-orchestration', pickDbConfig(COLLAB_ORCHESTRATION_KEYS));
+const cancelCollabOrchestrationEdit = () => cancelCardEdit('collaboration-orchestration', restoreDbConfig);
+const saveCollabOrchestrationConfig = async () => { if (await saveDbKeys(COLLAB_ORCHESTRATION_KEYS, '协作编舞配置已保存，重启服务后生效')) finishCardEdit('collaboration-orchestration'); };
 
 // Milvus
 const milvusConfig = reactive({ host: 'localhost', port: 19530, token: '' });
@@ -902,7 +1000,10 @@ const testMilvusConnection = async () => {
     const res = await request.get('/monitor/milvus/test', { params: { host: milvusConfig.host, port: milvusConfig.port, token: milvusConfig.token } });
     clearTimeout(t);
     milvusStatus.value.online = res.online;
-    if (res.online) { ElMessage.success('Milvus 连接成功'); await loadCollectionInfo(); }
+    if (res.online) {
+      ElMessage.success('Milvus 连接成功');
+      await Promise.allSettled([loadCollectionInfo(), loadCollectionDetail()]);
+    }
     else ElMessage.warning('Milvus 连接失败: ' + (res.error || '未知'));
   } catch (e) { clearTimeout(t); milvusStatus.value.online = false; ElMessage.error('测试失败: ' + (e.response?.data?.message || e.message)); }
   finally { testingMilvus.value = false; }
@@ -1053,6 +1154,7 @@ const aiConfig = reactive({
   jinaApiKey: '',
 });
 const aiCapabilitySaving = ref(false);
+const jinaSaving = ref(false);
 
 const loadAiConfig = async () => {
   try {
@@ -1064,10 +1166,27 @@ const loadAiConfig = async () => {
   } catch (e) { /* ignore */ }
 };
 
-const persistExternalAiConfig = () => Promise.all([
-  saveSystemProperties({ 'jina.reader.enabled': aiConfig.jinaEnabled, 'jina.reader.api-key': aiConfig.jinaApiKey }),
-  request.put('/model-config', { siliconFlowApiKey: aiConfig.siliconFlowApiKey, siliconFlowEndpoint: aiConfig.siliconFlowEndpoint }),
-]);
+const persistExternalAiConfig = () => request.put('/model-config', {
+  siliconFlowApiKey: aiConfig.siliconFlowApiKey,
+  siliconFlowEndpoint: aiConfig.siliconFlowEndpoint
+});
+
+const saveJinaReaderConfig = async () => {
+  jinaSaving.value = true;
+  try {
+    await saveSystemProperties({
+      'jina.reader.enabled': aiConfig.jinaEnabled,
+      'jina.reader.api-key': aiConfig.jinaApiKey
+    });
+    ElMessage.success('Jina Reader 配置已保存');
+    return true;
+  } catch (e) {
+    ElMessage.error('保存失败: ' + e.message);
+  } finally {
+    jinaSaving.value = false;
+  }
+  return false;
+};
 
 const embeddingConfig = reactive({
   provider: 'SiliconFlow',
@@ -1086,6 +1205,12 @@ const loadingModels = ref(false);
 const embeddingProviders = [
   { value: 'SiliconFlow', label: 'SiliconFlow' },
   { value: 'Ollama', label: 'Ollama（本地）' },
+];
+
+const ocrModelOptions = [
+  { id: 'tesseract', name: 'tesseract' },
+  { id: 'paddleocr', name: 'paddleocr' },
+  { id: 'ocr-general-v1', name: 'ocr-general-v1' },
 ];
 
 const loadEmbeddingConfig = async () => {
@@ -1123,6 +1248,11 @@ const persistMultimodalConfig = () => saveSystemProperties({
 const saveAiCapabilityConfig = async () => {
   aiCapabilitySaving.value = true;
   try {
+    kbParams.ocrProvider = 'local';
+    kbParams.asrProvider = 'local';
+    if (selectedKBModel.value) {
+      embeddingConfig.descGenerationModel = selectedKBModel.value;
+    }
     await Promise.all([persistExternalAiConfig(), persistEmbeddingConfig(), persistMultimodalConfig()]);
     ElMessage.success('AI 能力配置已保存');
     return true;
@@ -1132,7 +1262,10 @@ const saveAiCapabilityConfig = async () => {
 };
 
 const getAiCapabilitySnapshot = () => ({
-  aiConfig: cloneState(aiConfig),
+  aiConfig: {
+    siliconFlowApiKey: aiConfig.siliconFlowApiKey,
+    siliconFlowEndpoint: aiConfig.siliconFlowEndpoint,
+  },
   embeddingConfig: cloneState(embeddingConfig),
   kbParams: { ocrProvider: kbParams.ocrProvider, ocrModel: kbParams.ocrModel, asrProvider: kbParams.asrProvider, asrModel: kbParams.asrModel },
   selectedKB: selectedKB.value,
@@ -1150,6 +1283,9 @@ const restoreAiCapabilitySnapshot = (snapshot) => {
 const startAiCapabilitiesEdit = () => startCardEdit('ai-capabilities', getAiCapabilitySnapshot());
 const cancelAiCapabilitiesEdit = () => cancelCardEdit('ai-capabilities', restoreAiCapabilitySnapshot);
 const saveAiCapabilitiesCard = async () => { if (await saveAiCapabilityConfig()) finishCardEdit('ai-capabilities'); };
+const startJinaReaderEdit = () => startCardEdit('jina-reader', { jinaEnabled: aiConfig.jinaEnabled, jinaApiKey: aiConfig.jinaApiKey });
+const cancelJinaReaderEdit = () => cancelCardEdit('jina-reader', snapshot => Object.assign(aiConfig, snapshot));
+const saveJinaReaderCard = async () => { if (await saveJinaReaderConfig()) finishCardEdit('jina-reader'); };
 
 const onProviderChange = () => { embeddingConfig.model = ''; };
 
@@ -1278,13 +1414,6 @@ const kbParams = reactive({
 });
 const kbParamsSaving = ref(false);
 
-const kbStats = [
-  { label: '知识库总数', key: 'totalKBs' },
-  { label: '文档总数',   key: 'totalDocs' },
-  { label: '向量总数',   key: 'totalVectors' },
-];
-const knowledgeStats = ref({ totalKBs: '—', totalDocs: '—', totalVectors: '—' });
-const loadingStats = ref(false);
 const knowledgeBases = ref([]);
 const kbModels = ref([]);
 const selectedKB = ref(null);
@@ -1332,16 +1461,6 @@ const loadCollectionDetail = async () => {
   finally { loadingDetail.value = false; }
 };
 
-const loadKnowledgeStats = async () => {
-  loadingStats.value = true;
-  try {
-    const res = await diagnoseMilvus();
-    if (res?.documents) knowledgeStats.value = { totalKBs: 'N/A', totalDocs: res.documents.total, totalVectors: res.collection?.vectorCount || 'N/A' };
-    else knowledgeStats.value = { totalKBs: '—', totalDocs: '—', totalVectors: '—' };
-  } catch (e) { knowledgeStats.value = { totalKBs: '—', totalDocs: '—', totalVectors: '—' }; }
-  finally { loadingStats.value = false; }
-};
-
 const loadKnowledgeBases = async () => {
   try { const res = await request.get('/knowledge/list'); knowledgeBases.value = res || []; } catch (e) { /* ignore */ }
 };
@@ -1353,7 +1472,13 @@ const loadKBModels = async () => {
       kbModels.value = res
         .filter(m => ['CHAT', 'LLM', 'chat', 'llm'].includes(m.type) || !m.type)
         .map(m => ({ id: m.modelId || m.modelName || m.name, name: m.name || m.modelName || m.modelId, provider: m.provider || '' }));
-      if (kbModels.value.length && !selectedKBModel.value) selectedKBModel.value = kbModels.value[0].id;
+      const configuredDescModel = embeddingConfig.descGenerationModel;
+      const hasConfiguredDescModel = configuredDescModel && kbModels.value.some(m => m.id === configuredDescModel);
+      if (hasConfiguredDescModel) {
+        selectedKBModel.value = configuredDescModel;
+      } else if (kbModels.value.length && !selectedKBModel.value) {
+        selectedKBModel.value = kbModels.value[0].id;
+      }
     }
   } catch (e) { /* ignore */ }
 };
@@ -1414,7 +1539,8 @@ onMounted(async () => {
   setTimeout(() => {
     testMilvusConnection();
     testMinioConnection();
-    loadKnowledgeStats();
+    loadCollectionInfo();
+    loadCollectionDetail();
     setupObserver();
   }, 400);
 });
@@ -1586,21 +1712,4 @@ const setupObserver = () => {
   line-height: 1.5;
 }
 
-.stats-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  background: var(--neutral-gray-50);
-  border-radius: 8px;
-}
-
-.stat-label { font-size: 13px; color: var(--neutral-gray-600); }
-.stat-value { font-weight: 700; font-size: 16px; color: var(--el-color-primary); }
 </style>

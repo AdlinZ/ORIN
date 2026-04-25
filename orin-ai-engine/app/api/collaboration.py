@@ -2,6 +2,7 @@
 LangGraph 协作 API
 """
 import logging
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -195,27 +196,54 @@ async def rollback_collaboration(request: RollbackRequest):
 # ── Worker 管理 ───────────────────────────────────────────────────────────────
 
 _worker_started = False
+_worker_task: Optional[asyncio.Task] = None
+
+
+async def _worker_loop():
+    try:
+        await start_mq_worker()
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.exception("[API] MQ worker loop crashed")
+    finally:
+        global _worker_started, _worker_task
+        _worker_started = False
+        _worker_task = None
+
+
+async def ensure_worker_started():
+    global _worker_started, _worker_task
+    if _worker_started and _worker_task and not _worker_task.done():
+        return
+    _worker_task = asyncio.create_task(_worker_loop())
+    _worker_started = True
+    logger.info("[API] MQ worker started in background")
+
+
+async def ensure_worker_stopped():
+    global _worker_started, _worker_task
+    await stop_mq_worker()
+    if _worker_task and not _worker_task.done():
+        _worker_task.cancel()
+        try:
+            await _worker_task
+        except asyncio.CancelledError:
+            pass
+    _worker_task = None
+    _worker_started = False
+    logger.info("[API] MQ worker stopped")
 
 
 @router.post("/worker/start")
 async def start_worker():
     """启动 MQ Worker"""
-    global _worker_started
-
-    if not _worker_started:
-        await start_mq_worker()
-        _worker_started = True
-
-    return {"status": "started"}
+    await ensure_worker_started()
+    return {"status": "started", "running": True}
 
 
 @router.post("/worker/stop")
 async def stop_worker():
     """停止 MQ Worker"""
-    global _worker_started
-
-    if _worker_started:
-        await stop_mq_worker()
-        _worker_started = False
-
-    return {"status": "stopped"}
+    await ensure_worker_stopped()
+    return {"status": "stopped", "running": False}

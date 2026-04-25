@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
@@ -51,6 +52,8 @@ class CollaborationOrchestratorTest {
     private CollaborationEventBus eventBus;
     @Mock
     private AuditHelper auditHelper;
+    @Mock
+    private AgentManageService agentManageService;
 
     private CollaborationOrchestrator orchestrator;
     private ObjectMapper objectMapper;
@@ -60,7 +63,7 @@ class CollaborationOrchestratorTest {
         objectMapper = new ObjectMapper();
         orchestrator = new CollaborationOrchestrator(
                 packageRepository, subtaskRepository, memoryService,
-                eventBus, auditHelper, objectMapper
+                eventBus, auditHelper, agentManageService, objectMapper
         );
     }
 

@@ -242,6 +242,10 @@ public class KimiAgentManageService implements AgentManageService {
     }
 
     public Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt) {
+        return chat(agentId, message, fileId, overrideSystemPrompt, (Integer) null);
+    }
+
+    public Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt, Integer maxTokensOverride) {
         AgentAccessProfile profile = accessProfileRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent access profile not found"));
         AgentMetadata metadata = metadataRepository.findById(agentId)
@@ -249,7 +253,9 @@ public class KimiAgentManageService implements AgentManageService {
 
         double temperature = metadata.getTemperature() != null ? metadata.getTemperature() : 0.7;
         double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.7;
-        int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 500;
+        int maxTokens = maxTokensOverride != null && maxTokensOverride > 0
+                ? maxTokensOverride
+                : (metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 2000);
 
         // Kimi K2.5 and some other models only support temperature=1 and top_p=0.95
         String modelName = metadata.getModelName();

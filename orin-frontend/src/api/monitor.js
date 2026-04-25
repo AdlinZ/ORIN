@@ -278,6 +278,21 @@ export const testPrometheusConnection = (config = {}) => {
     return request.get('/monitor/prometheus/test', config);
 };
 
+export const testMilvusConnection = (host = 'localhost', port = 19530, token = '', config = {}) => {
+    return request.get('/monitor/milvus/test', {
+        params: { host, port, token },
+        ...config
+    });
+};
+
+export const getStorageHealthSnapshot = (config = {}) => {
+    return request.get('/storage/health', config);
+};
+
+export const getSystemMaintenanceHealth = (config = {}) => {
+    return request.get('/system/maintenance/health', config);
+};
+
 export const getPrometheusServerStatus = (serverId = null, config = {}) => {
     const params = {};
     if (serverId) params.serverId = serverId;

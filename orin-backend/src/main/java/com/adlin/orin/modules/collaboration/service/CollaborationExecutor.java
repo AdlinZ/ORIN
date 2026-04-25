@@ -78,6 +78,25 @@ public class CollaborationExecutor {
 
     // 待完成的人工任务 Future 注册表: packageId_subTaskId ->CompletableFuture
     private final Map<String, CompletableFuture<String>> pendingHumanTasks = new java.util.concurrent.ConcurrentHashMap<>();
+    // 并行协作时记录已分配过的 agent，避免所有分支落到同一个 agent
+    private final Map<String, Set<String>> packageUsedAgents = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static final List<String> IMAGE_INTENT_KEYWORDS = List.of(
+            "image", "photo", "picture", "poster", "thumbnail", "illustration", "draw", "design",
+            "图片", "照片", "海报", "封面", "插画", "绘图", "画图", "出图", "生成图",
+            "画一幅", "画个", "画一张", "绘制", "作画", "文生图", "绘画", "画作", "图像创作"
+    );
+    private static final List<String> IMAGE_CAPABILITY_KEYWORDS = List.of(
+            "tti", "image", "vision", "diffusion", "dalle", "sdxl", "stable-diffusion", "flux",
+            "图片", "照片", "绘图", "图像", "视觉", "文生图", "画图"
+    );
+    private static final Set<String> TEXT_ONLY_ROLES_IN_IMAGE_TASK = Set.of(
+            "PLANNER", "REVIEWER", "CRITIC", "COORDINATOR"
+    );
+    private static final List<String> IMAGE_EXECUTION_KEYWORDS = List.of(
+            "执行图像生成", "生成图像", "出图", "绘制图像", "绘制一张", "调用文生图", "直接生成图片",
+            "generate image", "text to image", "text-to-image", "render image", "create image"
+    );
 
     /**
      * 执行子任务
@@ -232,6 +251,8 @@ public class CollaborationExecutor {
     private Map<String, Object> buildContextSnapshot(String packageId) {
         Map<String, Object> snapshot = new HashMap<>();
 
+        redisService.loadContext(packageId).ifPresent(snapshot::putAll);
+
         // 添加黑板数据
         Map<String, Object> blackboard = new HashMap<>(memoryService.readAllBlackboard(packageId));
         snapshot.put("blackboard", blackboard);
@@ -366,35 +387,73 @@ public class CollaborationExecutor {
             }
 
             CollaborationPackage.ExecutionStrategy strategy = resolveExecutionStrategy(packageId);
+            String collaborationMode = getCollaborationMode(packageId);
             String policy = strategy != null && strategy.getMainAgentPolicy() != null
                     ? strategy.getMainAgentPolicy().toUpperCase(Locale.ROOT)
                     : "STATIC_THEN_BID";
             double qualityThreshold = strategy != null && strategy.getQualityThreshold() != null
                     ? strategy.getQualityThreshold()
                     : 0.82;
+            String selectionDescription = buildSelectionDescription(packageId, description);
+            boolean imageIntent = isImageIntent(selectionDescription);
+            boolean requiresImageAgent = shouldUseImageAgentForSubtask(selectionDescription, expectedRole, imageIntent);
+
+            // Capability discovery step: enumerate model names/types and derive eligibility before selection.
+            List<Map<String, Object>> capabilities = listModelCapabilities(agents, selectionDescription, expectedRole);
+            memoryService.writeToBlackboard(packageId, "model_capabilities:" + subTaskId, capabilities);
+            memoryService.writeToBlackboard(packageId, "model_capabilities:last", capabilities);
+
+            List<AgentMetadata> candidateAgents = agents;
+            Set<String> eligibleAgentIds = capabilities.stream()
+                    .filter(c -> Boolean.TRUE.equals(c.get("eligible")))
+                    .map(c -> String.valueOf(c.get("agentId")))
+                    .filter(id -> id != null && !id.isBlank())
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!eligibleAgentIds.isEmpty()) {
+                candidateAgents = agents.stream()
+                        .filter(a -> a != null && eligibleAgentIds.contains(a.getAgentId()))
+                        .toList();
+            }
+            if (requiresImageAgent) {
+                candidateAgents = filterImageCapableAgents(candidateAgents);
+                if (candidateAgents.isEmpty()) {
+                    String errorMessage = "No image-capable agent available for image generation intent";
+                    eventBus.publishSubtaskFailed(packageId, subTaskId, null, errorMessage, traceId);
+                    metricsService.recordSubtask(packageId, subTaskId, expectedRole,
+                            System.currentTimeMillis() - startTime, "FAILED");
+                    future.completeExceptionally(new RuntimeException(errorMessage));
+                    return future;
+                }
+            } else if (imageIntent) {
+                // 图像任务中的非执行分支（规划/评审/协调）优先走文本模型，避免每个分支都直接出图。
+                candidateAgents = preferTextAgents(candidateAgents);
+            }
+
+            candidateAgents = applyParallelDiversification(candidateAgents, packageId, collaborationMode);
 
             AgentSelectionContext selectionContext = AgentSelectionContext.builder()
                     .packageId(packageId)
                     .subTaskId(subTaskId)
                     .expectedRole(expectedRole)
-                    .description(description)
+                    .description(selectionDescription)
                     .qualityThreshold(qualityThreshold)
                     .build();
 
-            AgentSelectionResult staticSelection = staticSelector.select(agents, selectionContext, strategy);
+            AgentSelectionResult staticSelection = staticSelector.select(candidateAgents, selectionContext, strategy);
             String staticAgentId = staticSelection.getSelectedAgentId();
             String selectedAgentId = staticAgentId;
             String selectionMode = "static";
             String selectionReason = staticSelection.getSelectionReason();
 
-            AgentExecutionAttempt staticAttempt = executeAgentAttempt(staticAgentId, description, qualityThreshold);
+            String guardedPrompt = buildRoleGuardedPrompt(description, expectedRole, imageIntent, requiresImageAgent);
+            AgentExecutionAttempt staticAttempt = executeAgentAttempt(staticAgentId, guardedPrompt, qualityThreshold);
             AgentExecutionAttempt finalAttempt = staticAttempt;
 
             if ("STATIC_THEN_BID".equals(policy) && shouldTriggerBidding(staticAttempt)) {
-                AgentSelectionResult bidSelection = biddingSelector.select(agents, selectionContext, strategy, staticAgentId);
+                AgentSelectionResult bidSelection = biddingSelector.select(candidateAgents, selectionContext, strategy, staticAgentId);
                 String bidAgentId = bidSelection.getSelectedAgentId();
                 if (bidAgentId != null && !bidAgentId.isBlank()) {
-                    AgentExecutionAttempt bidAttempt = executeAgentAttempt(bidAgentId, description, qualityThreshold);
+                    AgentExecutionAttempt bidAttempt = executeAgentAttempt(bidAgentId, guardedPrompt, qualityThreshold);
                     selectedAgentId = bidAgentId;
                     selectionMode = "bid";
                     selectionReason = "fallback_after_static_" + staticAttempt.failureReason();
@@ -409,6 +468,8 @@ public class CollaborationExecutor {
 
             if (finalAttempt.success()) {
                 String result = finalAttempt.result();
+                String selectedAgentModel = resolveAgentModelName(agents, selectedAgentId);
+                reserveAgentForPackage(packageId, collaborationMode, selectedAgentId);
                 log.info("Agent execution completed for subtask: {}, result: {}", subTaskId,
                         result.length() > 100 ? result.substring(0, 100) + "..." : result);
 
@@ -416,6 +477,7 @@ public class CollaborationExecutor {
                 recordCollabEvent(traceId, subTaskId, "SUBTASK_COMPLETED", Map.of(
                         "packageId", packageId != null ? packageId : "",
                         "agentId", selectedAgentId != null ? selectedAgentId : "",
+                        "agentModel", selectedAgentModel != null ? selectedAgentModel : "",
                         "selectionMode", selectionMode,
                         "selectionReason", selectionReason != null ? selectionReason : "",
                         "durationMs", durationMs
@@ -427,6 +489,7 @@ public class CollaborationExecutor {
                                 "result", result,
                                 "agentId", selectedAgentId != null ? selectedAgentId : "",
                                 "selectedAgentId", selectedAgentId != null ? selectedAgentId : "",
+                                "selectedAgentModel", selectedAgentModel != null ? selectedAgentModel : "",
                                 "selectionMode", selectionMode,
                                 "selectionReason", selectionReason != null ? selectionReason : ""
                         ), traceId);
@@ -469,6 +532,9 @@ public class CollaborationExecutor {
             if (result == null || result.isBlank()) {
                 return AgentExecutionAttempt.failed("blank_response");
             }
+            if (looksLikePseudoToolCallOutput(result)) {
+                return AgentExecutionAttempt.failed("pseudo_tool_call_not_executed");
+            }
             double score = estimateQualityScore(result);
             if (score < qualityThreshold) {
                 // 质量阈值用于路由/观测，不应直接导致整轮失败。
@@ -482,8 +548,197 @@ public class CollaborationExecutor {
         }
     }
 
+    private String buildRoleGuardedPrompt(String description,
+                                          String expectedRole,
+                                          boolean imageIntent,
+                                          boolean requiresImageAgent) {
+        String role = expectedRole == null ? "SPECIALIST" : expectedRole.toUpperCase(Locale.ROOT);
+        StringBuilder sb = new StringBuilder();
+        sb.append("你正在多智能体协作中执行一个子任务。\n");
+        sb.append("必须严格遵守角色边界，禁止偏题到代码审查/系统性能报告/安全审计等与当前任务无关内容。\n");
+        sb.append("角色: ").append(role).append("\n");
+        if (imageIntent) {
+            sb.append("任务域: 图像创作\n");
+            if (requiresImageAgent) {
+                sb.append("这是“执行出图”步骤：请直接返回图像生成结果（image_url/file_id）或可执行出图结果，不要输出空泛建议。\n");
+            } else {
+                sb.append("这不是执行出图步骤：请输出文本分析/评审结论，不要调用出图工具，不要返回 image_url JSON。\n");
+            }
+        }
+        sb.append("子任务描述:\n").append(description == null ? "" : description);
+        return sb.toString();
+    }
+
     private boolean shouldTriggerBidding(AgentExecutionAttempt attempt) {
         return !attempt.success();
+    }
+
+    private boolean looksLikePseudoToolCallOutput(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        return lower.contains("<tool_call>")
+                || lower.contains("</tool_call>")
+                || lower.contains("suggest command:");
+    }
+
+    private boolean isImageIntent(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        return IMAGE_INTENT_KEYWORDS.stream().anyMatch(lower::contains);
+    }
+
+    private List<AgentMetadata> filterImageCapableAgents(List<AgentMetadata> agents) {
+        if (agents == null || agents.isEmpty()) {
+            return List.of();
+        }
+        return agents.stream().filter(this::isImageCapableAgent).toList();
+    }
+
+    private boolean isImageCapableAgent(AgentMetadata agent) {
+        if (agent == null) {
+            return false;
+        }
+        String merged = ((agent.getViewType() != null ? agent.getViewType() : "") + " "
+                + (agent.getMode() != null ? agent.getMode() : "") + " "
+                + (agent.getModelName() != null ? agent.getModelName() : "") + " "
+                + (agent.getDescription() != null ? agent.getDescription() : ""))
+                .toLowerCase(Locale.ROOT);
+        return IMAGE_CAPABILITY_KEYWORDS.stream().anyMatch(merged::contains);
+    }
+
+    private boolean isRoleMatchedAgent(AgentMetadata agent, String expectedRole) {
+        if (agent == null || expectedRole == null || expectedRole.isBlank()) {
+            return true;
+        }
+        List<String> roleKeywords = ROLE_CAPABILITY_KEYWORDS.getOrDefault(
+                expectedRole.toUpperCase(Locale.ROOT),
+                List.of()
+        );
+        if (roleKeywords.isEmpty()) {
+            return true;
+        }
+        String merged = ((agent.getName() != null ? agent.getName() : "") + " "
+                + (agent.getDescription() != null ? agent.getDescription() : "") + " "
+                + (agent.getModelName() != null ? agent.getModelName() : "") + " "
+                + (agent.getViewType() != null ? agent.getViewType() : ""))
+                .toLowerCase(Locale.ROOT);
+        return roleKeywords.stream().anyMatch(k -> merged.contains(k.toLowerCase(Locale.ROOT)));
+    }
+
+    private List<String> detectSupports(AgentMetadata agent) {
+        String merged = ((agent.getViewType() != null ? agent.getViewType() : "") + " "
+                + (agent.getMode() != null ? agent.getMode() : "") + " "
+                + (agent.getModelName() != null ? agent.getModelName() : ""))
+                .toLowerCase(Locale.ROOT);
+        List<String> supports = new ArrayList<>();
+        supports.add("text");
+        if (isImageCapableAgent(agent) || merged.contains("text_to_image") || merged.contains("tti")) {
+            supports.add("image_gen");
+        }
+        if (merged.contains("ttv") || merged.contains("video") || merged.contains("text_to_video")) {
+            supports.add("video_gen");
+        }
+        if (merged.contains("tts") || merged.contains("text_to_speech")) {
+            supports.add("speech_gen");
+        }
+        return supports;
+    }
+
+    public List<Map<String, Object>> listModelCapabilities(List<AgentMetadata> agents,
+                                                           String taskText,
+                                                           String expectedRole) {
+        if (agents == null || agents.isEmpty()) {
+            return List.of();
+        }
+        boolean imageIntent = isImageIntent(taskText);
+        boolean requiresImageAgent = shouldUseImageAgentForSubtask(taskText, expectedRole, imageIntent);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (AgentMetadata agent : agents) {
+            if (agent == null) {
+                continue;
+            }
+            boolean imageCapable = isImageCapableAgent(agent);
+            boolean roleMatched = isRoleMatchedAgent(agent, expectedRole);
+            boolean intentMatched = !requiresImageAgent || imageCapable;
+            boolean eligible = intentMatched && roleMatched;
+            Map<String, Object> row = new HashMap<>();
+            row.put("agentId", agent.getAgentId());
+            row.put("name", agent.getName() != null ? agent.getName() : "");
+            row.put("model", agent.getModelName() != null ? agent.getModelName() : "");
+            row.put("provider", agent.getProviderType() != null ? agent.getProviderType() : "");
+            row.put("type", agent.getViewType() != null ? agent.getViewType() : "CHAT");
+            row.put("supports", detectSupports(agent));
+            row.put("imageCapable", imageCapable);
+            row.put("roleMatched", roleMatched);
+            row.put("intentMatched", intentMatched);
+            row.put("healthy", true);
+            row.put("eligible", eligible);
+            result.add(row);
+        }
+        result.sort((a, b) -> Boolean.compare(
+                Boolean.TRUE.equals(b.get("eligible")),
+                Boolean.TRUE.equals(a.get("eligible"))
+        ));
+        return result;
+    }
+
+    private boolean shouldUseImageAgentForSubtask(String taskText, String expectedRole, boolean imageIntent) {
+        if (!imageIntent) {
+            return false;
+        }
+        String role = expectedRole == null ? "" : expectedRole.toUpperCase(Locale.ROOT);
+        if (TEXT_ONLY_ROLES_IN_IMAGE_TASK.contains(role)) {
+            return false;
+        }
+        String normalized = taskText == null ? "" : taskText.toLowerCase(Locale.ROOT);
+        return IMAGE_EXECUTION_KEYWORDS.stream().anyMatch(k -> normalized.contains(k.toLowerCase(Locale.ROOT)));
+    }
+
+    private List<AgentMetadata> preferTextAgents(List<AgentMetadata> agents) {
+        if (agents == null || agents.isEmpty()) {
+            return List.of();
+        }
+        List<AgentMetadata> textAgents = agents.stream()
+                .filter(agent -> agent != null && !isImageCapableAgent(agent))
+                .toList();
+        return textAgents.isEmpty() ? agents : textAgents;
+    }
+
+    private List<AgentMetadata> applyParallelDiversification(List<AgentMetadata> candidates,
+                                                             String packageId,
+                                                             String collaborationMode) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+        if (!"PARALLEL".equalsIgnoreCase(collaborationMode)) {
+            return candidates;
+        }
+        Set<String> used = packageUsedAgents.getOrDefault(packageId, Set.of());
+        if (used.isEmpty()) {
+            return candidates;
+        }
+        List<AgentMetadata> filtered = candidates.stream()
+                .filter(agent -> agent.getAgentId() != null && !used.contains(agent.getAgentId()))
+                .toList();
+        return filtered.isEmpty() ? candidates : filtered;
+    }
+
+    private void reserveAgentForPackage(String packageId, String collaborationMode, String agentId) {
+        if (packageId == null || packageId.isBlank() || agentId == null || agentId.isBlank()) {
+            return;
+        }
+        if (!"PARALLEL".equalsIgnoreCase(collaborationMode)) {
+            return;
+        }
+        packageUsedAgents.compute(packageId, (k, current) -> {
+            Set<String> next = current == null ? java.util.concurrent.ConcurrentHashMap.newKeySet() : current;
+            next.add(agentId);
+            return next;
+        });
     }
 
     private double estimateQualityScore(String text) {
@@ -525,11 +780,29 @@ public class CollaborationExecutor {
                 .orElse(null);
     }
 
+    private String buildSelectionDescription(String packageId, String subtaskDescription) {
+        String subtask = subtaskDescription != null ? subtaskDescription : "";
+        String intent = packageRepository.findByPackageId(packageId)
+                .map(CollaborationPackageEntity::getIntent)
+                .orElse("");
+        if (intent == null || intent.isBlank()) {
+            return subtask;
+        }
+        if (subtask == null || subtask.isBlank()) {
+            return intent;
+        }
+        return subtask + "\n\n任务原始意图: " + intent;
+    }
+
     private void writeSelectionAudit(String packageId, String subTaskId, AgentSelectionResult selection,
                                      String overrideReason, AgentSelectionResult previous) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("selectedAgentId", selection != null ? selection.getSelectedAgentId() : null);
-        payload.put("selectionMode", selection != null ? selection.getSelectionMode() : null);
+        String selectedAgentId = selection != null ? selection.getSelectedAgentId() : null;
+        payload.put("selectedAgentId", selectedAgentId);
+        payload.put("selectedAgentModel", findModelNameFromCandidates(selection, selectedAgentId));
+        String selectionMode = selection != null ? selection.getSelectionMode() : null;
+        payload.put("selectionMode", selectionMode);
+        payload.put("mode", selectionMode);
         payload.put("selectionReason", overrideReason != null ? overrideReason :
                 (selection != null ? selection.getSelectionReason() : null));
         payload.put("scoreBreakdown", selection != null ? selection.getScoreBreakdown() : Map.of());
@@ -540,6 +813,41 @@ public class CollaborationExecutor {
         payload.put("timestamp", System.currentTimeMillis());
         memoryService.writeToBlackboard(packageId, "selection_last", payload);
         memoryService.writeToBlackboard(packageId, "selection_" + subTaskId, payload);
+    }
+
+    private String resolveAgentModelName(List<AgentMetadata> agents, String agentId) {
+        if (agents == null || agents.isEmpty() || agentId == null || agentId.isBlank()) {
+            return null;
+        }
+        return agents.stream()
+                .filter(a -> agentId.equalsIgnoreCase(a.getAgentId()))
+                .map(AgentMetadata::getModelName)
+                .filter(model -> model != null && !model.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String findModelNameFromCandidates(AgentSelectionResult selection, String selectedAgentId) {
+        if (selection == null || selectedAgentId == null || selectedAgentId.isBlank()) {
+            return null;
+        }
+        List<Map<String, Object>> candidates = selection.getCandidates();
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+        for (Map<String, Object> item : candidates) {
+            if (item == null) {
+                continue;
+            }
+            Object agentId = item.get("agentId");
+            if (agentId != null && selectedAgentId.equalsIgnoreCase(String.valueOf(agentId))) {
+                Object modelName = item.get("modelName");
+                if (modelName != null && !String.valueOf(modelName).isBlank()) {
+                    return String.valueOf(modelName);
+                }
+            }
+        }
+        return null;
     }
 
     private record AgentExecutionAttempt(boolean success, String result, String failureReason) {
@@ -605,11 +913,25 @@ public class CollaborationExecutor {
 
             if (response.isPresent()) {
                 String result = convertResponseToString(response.get());
+                if (result == null || result.isBlank()) {
+                    String err = "blank_response";
+                    eventBus.publishSubtaskFailed(packageId, subTaskId, agentId, err, traceId);
+                    future.completeExceptionally(new RuntimeException(err));
+                    return future;
+                }
+                if (looksLikePseudoToolCallOutput(result)) {
+                    String err = "pseudo_tool_call_not_executed";
+                    eventBus.publishSubtaskFailed(packageId, subTaskId, agentId, err, traceId);
+                    future.completeExceptionally(new RuntimeException(err));
+                    return future;
+                }
                 eventBus.publishSubtaskCompleted(packageId, subTaskId, agentId,
                         Map.of("result", result), traceId);
                 future.complete(result);
             } else {
-                future.complete("Agent response is empty");
+                String err = "empty_response";
+                eventBus.publishSubtaskFailed(packageId, subTaskId, agentId, err, traceId);
+                future.completeExceptionally(new RuntimeException(err));
             }
 
         } catch (Exception e) {
@@ -776,6 +1098,13 @@ public class CollaborationExecutor {
      */
     public List<AgentMetadata> getAvailableAgents() {
         return agentManageService.getAllAgents();
+    }
+
+    public void clearPackageAgentAssignments(String packageId) {
+        if (packageId == null || packageId.isBlank()) {
+            return;
+        }
+        packageUsedAgents.remove(packageId);
     }
 
     /**

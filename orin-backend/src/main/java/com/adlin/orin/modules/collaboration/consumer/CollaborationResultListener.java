@@ -49,7 +49,10 @@ public class CollaborationResultListener {
     /**
      * 监听结果队列，处理 AI Engine 回写的执行结果
      */
-    @RabbitListener(queues = "${orin.collaboration.result.queue:collaboration-task-result-queue}")
+    @RabbitListener(
+            queues = "${orin.collaboration.result.queue:collaboration-task-result-queue}",
+            containerFactory = "collabRabbitListenerContainerFactory"
+    )
     public void handleResult(CollabTaskResult result) {
         String callbackKey = result.getPackageId() + ":" + result.getSubTaskId();
         CompletableFuture<String> future = callbacks.remove(callbackKey);
@@ -68,8 +71,8 @@ public class CollaborationResultListener {
             // 成功完成
             future.complete(result.getResult());
 
-            // 更新 subtask 状态
-            orchestrator.updateSubtaskStatus(
+            // 更新 subtask 状态（幂等：重复回执时忽略 COMPLETED->COMPLETED）
+            safeUpdateSubtaskStatus(
                     result.getPackageId(),
                     result.getSubTaskId(),
                     "COMPLETED",
@@ -109,21 +112,35 @@ public class CollaborationResultListener {
                 log.warn("Subtask failed, scheduling retry: packageId={}, subTaskId={}, attempt={}/{}, error={}",
                         result.getPackageId(), result.getSubTaskId(), currentAttempt + 1, maxRetries, errorMsg);
 
-                // 取消原 callback
-                callbacks.remove(callbackKey);
-                future.cancel(false);
+                // 关键修复：重试期间必须保留同一个回调 future，不能 cancel。
+                // 否则上游 executeSubtask 会收到 CancellationException 并立刻触发降级。
+                if (!future.isDone()) {
+                    callbacks.put(callbackKey, future);
+                }
 
                 // 发送重试消息（需要构建 CollabTaskMessage，这里简化处理）
                 scheduleRetry(result);
+                return;
             } else {
                 // 达到最大重试次数，标记失败
                 log.error("Subtask failed permanently: packageId={}, subTaskId={}, after {} attempts",
                         result.getPackageId(), result.getSubTaskId(), currentAttempt);
 
+                // 失败也写入 branch_result，避免上游轮询长时间超时。
+                redisService.writeBranchResultAndIncrement(
+                        result.getPackageId(),
+                        result.getSubTaskId(),
+                        Map.of(
+                                "status", result.getStatus(),
+                                "errorMessage", errorMsg,
+                                "attempt", currentAttempt
+                        )
+                );
+
                 future.completeExceptionally(new RuntimeException(errorMsg));
 
-                // 更新 subtask 状态为失败
-                orchestrator.updateSubtaskStatus(
+                // 更新 subtask 状态为失败（幂等）
+                safeUpdateSubtaskStatus(
                         result.getPackageId(),
                         result.getSubTaskId(),
                         "FAILED",
@@ -142,7 +159,7 @@ public class CollaborationResultListener {
      */
     private void processResult(CollabTaskResult result) {
         try {
-            orchestrator.updateSubtaskStatus(
+            safeUpdateSubtaskStatus(
                     result.getPackageId(),
                     result.getSubTaskId(),
                     result.getStatus(),
@@ -151,6 +168,24 @@ public class CollaborationResultListener {
             );
         } catch (Exception e) {
             log.error("Failed to process result without callback: {}", result.getPackageId(), e);
+        }
+    }
+
+    private void safeUpdateSubtaskStatus(String packageId,
+                                         String subTaskId,
+                                         String targetStatus,
+                                         String result,
+                                         String errorMessage) {
+        try {
+            orchestrator.updateSubtaskStatus(packageId, subTaskId, targetStatus, result, errorMessage);
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage() == null ? "" : e.getMessage();
+            if (msg.contains("Invalid status transition")) {
+                log.debug("Ignore duplicate subtask status transition: packageId={}, subTaskId={}, target={}, msg={}",
+                        packageId, subTaskId, targetStatus, msg);
+                return;
+            }
+            throw e;
         }
     }
 

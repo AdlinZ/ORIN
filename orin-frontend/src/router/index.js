@@ -106,12 +106,9 @@ const routes = [
                         meta: { title: '工作流执行', icon: 'VideoPlay' }
                     },
                     {
-                        path: 'collaboration',
-                        redirect: ROUTES.AGENTS.WORKFLOW_EXECUTION
-                    },
-                    {
                         path: 'collaboration/dashboard',
-                        redirect: ROUTES.AGENTS.WORKFLOW_EXECUTION
+                        component: () => import('@/views/revamp/collaboration/CollaborationDashboardV2.vue'),
+                        meta: { title: '协作任务包看板', icon: 'DataAnalysis' }
                     },
 
                     // 模型管理
@@ -152,6 +149,32 @@ const routes = [
                         name: 'ApplicationExtensions',
                         component: () => import('@/views/Agent/AgentExtensions.vue'),
                         meta: { title: '智能体扩展', icon: 'MagicStick' }
+                    },
+
+                    // Multi-Agent Playground
+                    {
+                        path: 'playground',
+                        name: 'AgentPlayground',
+                        component: () => import('@/views/Playground/PlaygroundContainer.vue'),
+                        meta: { title: '多智能体控制台', icon: 'Play' }
+                    },
+                    {
+                        path: 'playground/overview',
+                        name: 'PlaygroundOverview',
+                        component: () => import('@/views/Playground/PlaygroundOverview.vue'),
+                        meta: { title: '多智能体总览', icon: 'Histogram' }
+                    },
+                    {
+                        path: 'playground/workflows',
+                        name: 'PlaygroundWorkflows',
+                        component: () => import('@/views/Playground/PlaygroundWorkflows.vue'),
+                        meta: { title: '多智能体编排', icon: 'Connection' }
+                    },
+                    {
+                        path: 'playground/run',
+                        name: 'PlaygroundRun',
+                        component: () => import('@/views/Playground/PlaygroundRun.vue'),
+                        meta: { title: '多智能体运行', icon: 'VideoPlay' }
                     },
 
                     // 流程编排

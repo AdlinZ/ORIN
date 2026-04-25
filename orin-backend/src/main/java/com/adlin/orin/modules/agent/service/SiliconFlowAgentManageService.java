@@ -290,7 +290,7 @@ public class SiliconFlowAgentManageService implements AgentManageService {
 
         double temperature = metadata.getTemperature() != null ? metadata.getTemperature() : 0.7;
         double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.7;
-        int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 500;
+        int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 2000;
 
         java.util.List<java.util.Map<String, Object>> messages = new java.util.ArrayList<>();
         if (metadata.getSystemPrompt() != null && !metadata.getSystemPrompt().isEmpty()) {

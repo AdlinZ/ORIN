@@ -140,6 +140,33 @@ public class CollabSessionDtos {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class ModelCapabilityRequest {
+        private String taskText;
+        private String expectedRole;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ModelCapabilityView {
+        private String agentId;
+        private String name;
+        private String model;
+        private String provider;
+        private String type;
+        private List<String> supports;
+        private Boolean healthy;
+        private Boolean eligible;
+        private Boolean intentMatched;
+        private Boolean roleMatched;
+        private Boolean imageCapable;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class PolicySwitchRequest {
         private String mainAgentPolicy;
     }

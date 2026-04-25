@@ -1,17 +1,21 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.collaboration.dto.CollabSessionDtos;
 import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollabMessageEntity;
 import com.adlin.orin.modules.collaboration.entity.CollabSessionEntity;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.entity.CollabTurnEntity;
+import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
 import com.adlin.orin.modules.collaboration.repository.CollabMessageRepository;
 import com.adlin.orin.modules.collaboration.repository.CollabSessionRepository;
 import com.adlin.orin.modules.collaboration.repository.CollabTurnRepository;
+import com.adlin.orin.modules.collaboration.repository.CollabEventLogRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.collaboration.service.runtime.AgentRuntimeState;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +30,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.CompletableFuture;
@@ -38,14 +44,23 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class CollaborationSessionService {
+    private static final Set<String> TEXT_ONLY_ROLES_IN_IMAGE_TASK = Set.of(
+            "PLANNER", "REVIEWER", "CRITIC", "COORDINATOR"
+    );
+    private static final List<String> IMAGE_EXECUTION_KEYWORDS = List.of(
+            "执行图像生成", "生成图像", "出图", "绘制图像", "绘制一张", "调用文生图", "直接生成图片",
+            "generate image", "text to image", "text-to-image", "render image", "create image"
+    );
 
     private final CollabSessionRepository sessionRepository;
     private final CollabTurnRepository turnRepository;
     private final CollabMessageRepository messageRepository;
+    private final CollabEventLogRepository eventLogRepository;
     private final CollaborationOrchestrator orchestrator;
     private final CollaborationExecutor executor;
     private final CollaborationArbiterService arbiterService;
     private final CollaborationRedisService redisService;
+    private final CollaborationMemoryService memoryService;
     private final CollaborationSessionStreamService streamService;
     private final CollaborationPackageRepository packageRepository;
     private final AmqpAdmin amqpAdmin;
@@ -176,10 +191,13 @@ public class CollaborationSessionService {
                 } catch (Exception ignored) {
                 }
                 branches = buildBranches(packageId);
+                if (selection.isEmpty()) {
+                    selection = inferLatestSelectionFromBranches(branches);
+                }
                 evidenceRefs = collectEvidenceRefs(branches);
                 arbiter = buildArbiterSnapshot(sessionId, turn.getTurnId());
                 uiActions = buildUiActions(packageId, latestTurnStatus, branches);
-                operatorHints = buildOperatorHints(branches, latestTurnStatus);
+                operatorHints = buildOperatorHints(packageId, branches, latestTurnStatus);
             }
 
             if (selection.isEmpty()) {
@@ -291,6 +309,19 @@ public class CollaborationSessionService {
                 .build();
     }
 
+    public List<CollabSessionDtos.ModelCapabilityView> listModelCapabilities(CollabSessionDtos.ModelCapabilityRequest request) {
+        String taskText = request != null && request.getTaskText() != null ? request.getTaskText() : "";
+        String expectedRole = request != null && request.getExpectedRole() != null ? request.getExpectedRole() : "";
+        List<Map<String, Object>> capabilities = executor.listModelCapabilities(
+                executor.getAvailableAgents(),
+                taskText,
+                expectedRole
+        );
+        return capabilities.stream()
+                .map(this::toModelCapabilityView)
+                .toList();
+    }
+
     @Transactional
     public CollabSessionDtos.ActionResponse pauseTurn(String sessionId, String turnId) {
         CollabTurnEntity turn = turnRepository.findByTurnId(turnId)
@@ -395,6 +426,27 @@ public class CollaborationSessionService {
                 .toList();
     }
 
+    private CollabSessionDtos.ModelCapabilityView toModelCapabilityView(Map<String, Object> row) {
+        List<String> supports = List.of();
+        Object supportsObj = row.get("supports");
+        if (supportsObj instanceof List<?> list) {
+            supports = list.stream().map(String::valueOf).toList();
+        }
+        return CollabSessionDtos.ModelCapabilityView.builder()
+                .agentId(String.valueOf(row.getOrDefault("agentId", "")))
+                .name(String.valueOf(row.getOrDefault("name", "")))
+                .model(String.valueOf(row.getOrDefault("model", "")))
+                .provider(String.valueOf(row.getOrDefault("provider", "")))
+                .type(String.valueOf(row.getOrDefault("type", "")))
+                .supports(supports)
+                .healthy(Boolean.TRUE.equals(row.get("healthy")))
+                .eligible(Boolean.TRUE.equals(row.get("eligible")))
+                .intentMatched(Boolean.TRUE.equals(row.get("intentMatched")))
+                .roleMatched(Boolean.TRUE.equals(row.get("roleMatched")))
+                .imageCapable(Boolean.TRUE.equals(row.get("imageCapable")))
+                .build();
+    }
+
     private void runTurnAsync(CollabSessionEntity session,
                               CollabTurnEntity turn,
                               CollabSessionDtos.SessionMessageRequest request,
@@ -443,6 +495,21 @@ public class CollaborationSessionService {
                 redisService.updateContextField(pkg.getPackageId(), "failurePolicy", failurePolicy);
                 redisService.updateContextField(pkg.getPackageId(), "turnPaused", false);
 
+                // Tool step: discover model capabilities (name/type/supports) before orchestration.
+                List<CollabSessionDtos.ModelCapabilityView> discoveredCaps = listModelCapabilities(
+                        CollabSessionDtos.ModelCapabilityRequest.builder()
+                                .taskText(request.getContent())
+                                .expectedRole(null)
+                                .build()
+                );
+                redisService.updateContextField(pkg.getPackageId(), "modelCapabilities", discoveredCaps);
+                long eligibleCount = discoveredCaps.stream().filter(c -> Boolean.TRUE.equals(c.getEligible())).count();
+                publish(sessionId, turnId, "MODEL_CAPABILITIES_DISCOVERED", "MODEL_CAPABILITIES_DISCOVERED",
+                        "模型能力已枚举", Map.of(
+                                "total", discoveredCaps.size(),
+                                "eligible", eligibleCount
+                        ));
+
                 orchestrator.decompose(pkg.getPackageId(), List.of("research", "generation", "review"));
                 publish(sessionId, turnId, "DRAFT_BRANCH_STARTED", "DRAFT_BRANCH_STARTED", "并行分支已启动", Map.of(
                         "executionProfile", executionProfile,
@@ -473,7 +540,7 @@ public class CollaborationSessionService {
                                         handleBranchCompleted(pkg.getPackageId(), sessionId, turnId, subtask, result, completedCounter);
                                         return null;
                                     }
-                                    String errorText = ex.getMessage();
+                                    String errorText = extractThrowableMessage(ex);
                                     if ("AUTO_DEGRADE_CONTINUE".equalsIgnoreCase(failurePolicy)) {
                                         publish(sessionId, turnId, "BRANCH_DEGRADED", "BRANCH_DEGRADED",
                                                 "分支降级: " + subtask.getSubTaskId(), Map.of(
@@ -510,6 +577,7 @@ public class CollaborationSessionService {
                     turn.setErrorMessage("Subtasks failed");
                     turn.setCompletedAt(LocalDateTime.now());
                     turnRepository.save(turn);
+                    executor.clearPackageAgentAssignments(pkg.getPackageId());
                     publish(sessionId, turnId, "TURN_FAILED", "TURN_FAILED", "回合失败", Map.of(
                             "suggestedAction", "调整策略或重试任务"
                     ));
@@ -539,6 +607,9 @@ public class CollaborationSessionService {
                     turn.setSelectionMeta(toJson(selectionObj));
                     if (selectionObj instanceof Map<?, ?> selectionMap) {
                         Object selectionModeValue = selectionMap.get("mode");
+                        if (selectionModeValue == null) {
+                            selectionModeValue = selectionMap.get("selectionMode");
+                        }
                         if (selectionModeValue != null && "bid".equalsIgnoreCase(String.valueOf(selectionModeValue))) {
                             publish(sessionId, turnId, "BIDDING_TRIGGERED", "BIDDING_TRIGGERED", "静态主 Agent 不可用，已触发动态竞标", Map.of(
                                     "selection", selectionMap
@@ -555,6 +626,7 @@ public class CollaborationSessionService {
                         "arbiterWinnerBranchId", decision.getWinnerBranchId(),
                         "arbiterWinnerScore", decision.getWinnerScore()
                 ));
+                executor.clearPackageAgentAssignments(pkg.getPackageId());
                 streamService.complete(sessionId, turnId);
             } catch (Exception e) {
                 log.error("Failed to process collaborative turn: sessionId={}, turnId={}", sessionId, turnId, e);
@@ -562,6 +634,9 @@ public class CollaborationSessionService {
                 turn.setErrorMessage(e.getMessage());
                 turn.setCompletedAt(LocalDateTime.now());
                 turnRepository.save(turn);
+                if (turn.getPackageId() != null && !turn.getPackageId().isBlank()) {
+                    executor.clearPackageAgentAssignments(turn.getPackageId());
+                }
                 publish(sessionId, turnId, "TURN_FAILED", "TURN_FAILED", "回合执行异常", Map.of("error", e.getMessage()));
                 streamService.complete(sessionId, turnId);
             }
@@ -580,14 +655,17 @@ public class CollaborationSessionService {
         redisService.updateContextField(packageId, "branchScore:" + subtask.getSubTaskId(), scoreBreakdown);
         redisService.updateContextField(packageId, "branchEvidence:" + subtask.getSubTaskId(), evidenceRefs);
         String stage = mapStage(subtask.getExpectedRole(), completedCounter.incrementAndGet());
-        publish(sessionId, turnId, stage, stage, truncate(result), Map.of(
+        Map<String, Object> parsedResult = parseBranchResult(result);
+        publish(sessionId, turnId, stage, stage, String.valueOf(parsedResult.getOrDefault("summaryText", truncate(result))), Map.of(
                 "subTaskId", subtask.getSubTaskId(),
                 "branchId", subtask.getSubTaskId(),
                 "attemptId", (subtask.getRetryCount() == null ? 0 : subtask.getRetryCount()) + 1,
                 "expectedRole", subtask.getExpectedRole(),
                 "scoreBreakdown", scoreBreakdown,
                 "evidenceRefs", evidenceRefs,
-                "fallbackTrail", List.of("primary")
+                "fallbackTrail", List.of("primary"),
+                "imageUrl", parsedResult.getOrDefault("imageUrl", ""),
+                "fileId", parsedResult.getOrDefault("fileId", "")
         ));
         publish(sessionId, turnId, "DRAFT_BRANCH_COMPLETED", "DRAFT_BRANCH_COMPLETED", "分支已完成: " + subtask.getSubTaskId(), Map.of(
                 "subTaskId", subtask.getSubTaskId(),
@@ -603,17 +681,132 @@ public class CollaborationSessionService {
             if (agents == null || agents.isEmpty()) {
                 return null;
             }
-            String fallbackAgentId = agents.get(0).getAgentId();
+            var fallbackAgent = pickFallbackAgent(subtask, agents);
+            if (fallbackAgent == null) {
+                return null;
+            }
+            String fallbackAgentId = fallbackAgent.getAgentId();
+            Map<String, Object> fallbackSelection = new HashMap<>();
+            fallbackSelection.put("selectedAgentId", fallbackAgentId);
+            fallbackSelection.put("selectedAgentModel", fallbackAgent.getModelName() != null ? fallbackAgent.getModelName() : "");
+            fallbackSelection.put("selectionMode", "fallback");
+            fallbackSelection.put("mode", "fallback");
+            fallbackSelection.put("selectionReason", "auto_degrade_continue_first_available");
+            fallbackSelection.put("timestamp", System.currentTimeMillis());
+            memoryService.writeToBlackboard(packageId, "selection_" + subtask.getSubTaskId(), fallbackSelection);
+            memoryService.writeToBlackboard(packageId, "selection_last", fallbackSelection);
+            String role = subtask.getExpectedRole() == null ? "SPECIALIST" : subtask.getExpectedRole().toUpperCase(Locale.ROOT);
+            boolean imageExecutionStep = "SPECIALIST".equals(role)
+                    && subtask.getDescription() != null
+                    && List.of("执行图像生成", "生成图像", "出图", "draw", "generate image", "text to image").stream()
+                    .anyMatch(k -> subtask.getDescription().toLowerCase(Locale.ROOT).contains(k.toLowerCase(Locale.ROOT)));
+            String hardenedPrompt = """
+                    [Fallback execution]
+                    请直接给出可执行结果，不要输出任何工具调用建议、命令建议、或 <tool_call> 标签。
+                    不要偏题到代码审查/系统性能报告/安全审计模板。
+                    原始任务：
+                    """ + subtask.getDescription()
+                    + (imageExecutionStep
+                    ? "\n补充要求：这是执行出图步骤，优先返回 image_url/file_id。"
+                    : "\n补充要求：这是非出图执行步骤，仅返回文本结论，不要返回 image_url JSON。");
             return executor.executeWithSpecificAgent(
                             subtask.getSubTaskId() + "_fallback",
                             fallbackAgentId,
-                            "[Fallback execution] " + subtask.getDescription(),
+                            hardenedPrompt,
                             packageId,
                             traceId)
                     .get(45, TimeUnit.SECONDS);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private AgentMetadata pickFallbackAgent(CollabSubtaskEntity subtask, List<AgentMetadata> agents) {
+        if (agents == null || agents.isEmpty()) {
+            return null;
+        }
+        String desc = subtask != null && subtask.getDescription() != null
+                ? subtask.getDescription().toLowerCase(java.util.Locale.ROOT)
+                : "";
+        boolean imageIntent = List.of(
+                "image", "photo", "picture", "poster", "thumbnail", "illustration", "draw",
+                "图片", "照片", "海报", "封面", "插画", "绘图", "画图", "出图", "生成图",
+                "画一幅", "画个", "画一张", "绘制", "作画", "文生图", "绘画", "画作", "图像创作"
+        ).stream().anyMatch(desc::contains);
+        boolean requireImageAgent = shouldUseImageAgentForFallback(subtask, imageIntent);
+        if (requireImageAgent) {
+            for (AgentMetadata agent : agents) {
+                if (agent == null) {
+                    continue;
+                }
+                String merged = ((agent.getViewType() != null ? agent.getViewType() : "") + " "
+                        + (agent.getMode() != null ? agent.getMode() : "") + " "
+                        + (agent.getModelName() != null ? agent.getModelName() : "") + " "
+                        + (agent.getDescription() != null ? agent.getDescription() : ""))
+                        .toLowerCase(java.util.Locale.ROOT);
+                if (merged.contains("tti")
+                        || merged.contains("image")
+                        || merged.contains("vision")
+                        || merged.contains("dalle")
+                        || merged.contains("sdxl")
+                        || merged.contains("diffusion")
+                        || merged.contains("flux")
+                        || merged.contains("绘图")
+                        || merged.contains("图片")) {
+                    return agent;
+                }
+            }
+            return null;
+        }
+        // 图像任务中的非执行分支（规划/评审/质检/协调）和普通文本任务都优先 CHAT 视图类型。
+        List<AgentMetadata> chatAgents = agents.stream()
+                .filter(a -> a != null && (a.getViewType() == null || "CHAT".equalsIgnoreCase(a.getViewType())))
+                .sorted(java.util.Comparator.comparing(AgentMetadata::getAgentId, java.util.Comparator.nullsLast(String::compareTo)))
+                .toList();
+        List<AgentMetadata> pool = chatAgents.isEmpty()
+                ? agents.stream().filter(java.util.Objects::nonNull).toList()
+                : chatAgents;
+        if (pool.isEmpty()) {
+            return null;
+        }
+        int idx = Math.floorMod(java.util.Objects.hash(
+                subtask != null ? subtask.getSubTaskId() : "",
+                subtask != null ? subtask.getExpectedRole() : ""
+        ), pool.size());
+        return pool.get(idx);
+    }
+
+    private boolean shouldUseImageAgentForFallback(CollabSubtaskEntity subtask, boolean imageIntent) {
+        if (!imageIntent) {
+            return false;
+        }
+        String role = subtask != null && subtask.getExpectedRole() != null
+                ? subtask.getExpectedRole().toUpperCase(Locale.ROOT)
+                : "";
+        if (TEXT_ONLY_ROLES_IN_IMAGE_TASK.contains(role)) {
+            return false;
+        }
+        String description = subtask != null && subtask.getDescription() != null
+                ? subtask.getDescription().toLowerCase(Locale.ROOT)
+                : "";
+        return IMAGE_EXECUTION_KEYWORDS.stream().anyMatch(k -> description.contains(k.toLowerCase(Locale.ROOT)));
+    }
+
+    private String extractThrowableMessage(Throwable ex) {
+        if (ex == null) {
+            return "unknown";
+        }
+        Throwable cur = ex;
+        while ((cur instanceof java.util.concurrent.CompletionException
+                || cur instanceof java.util.concurrent.ExecutionException)
+                && cur.getCause() != null) {
+            cur = cur.getCause();
+        }
+        String msg = cur.getMessage();
+        if (msg == null || msg.isBlank()) {
+            return cur.getClass().getSimpleName();
+        }
+        return msg;
     }
 
     private void waitIfPaused(String packageId, String sessionId, String turnId) {
@@ -722,8 +915,10 @@ public class CollaborationSessionService {
         subtasks.stream()
                 .filter(s -> s.getResult() != null && !s.getResult().isBlank())
                 .forEach(s -> {
+                    Map<String, Object> parsed = parseBranchResult(s.getResult());
+                    String summary = String.valueOf(parsed.getOrDefault("summaryText", truncate(s.getResult())));
                     builder.append("[" + s.getExpectedRole() + "] ")
-                            .append(s.getResult())
+                            .append(summary)
                             .append("\n\n");
                 });
         if (builder.length() == 0) {
@@ -814,31 +1009,90 @@ public class CollaborationSessionService {
                 .map(m -> Map.<String, Object>of(
                         "stage", defaultString(m.getStage(), "UNKNOWN"),
                         "content", defaultString(m.getContent(), ""),
-                        "timestamp", m.getCreatedAt() != null ? m.getCreatedAt().toString() : ""
+                        "timestamp", m.getCreatedAt() != null ? m.getCreatedAt().toString() : "",
+                        "data", readMapJson(m.getMetadata())
                 ))
                 .toList();
     }
 
     private List<Map<String, Object>> buildBranches(String packageId) {
+        Map<String, Map<String, Object>> eventSelectionIndex = buildSelectionIndexFromEventLogs(packageId);
         return orchestrator.getSubtasks(packageId).stream()
                 .map(s -> {
                     Map<String, Object> score = readMapFromContext(packageId, "branchScore:" + s.getSubTaskId());
                     List<String> evidenceRefs = readListFromContext(packageId, "branchEvidence:" + s.getSubTaskId());
+                    Map<String, Object> selection = readSelectionFromBlackboard(packageId, s.getSubTaskId());
+                    if (selection.isEmpty()) {
+                        selection = eventSelectionIndex.getOrDefault(s.getSubTaskId(), Map.of());
+                    }
+                    String selectedAgentId = defaultString(asString(selection.get("selectedAgentId")), "");
+                    String selectedAgentModel = defaultString(asString(selection.get("selectedAgentModel")), "");
+                    String selectionMode = defaultString(asString(selection.get("mode")), defaultString(asString(selection.get("selectionMode")), ""));
+                    String selectionReason = defaultString(asString(selection.get("selectionReason")), "");
                     String degradeReason = "FAILED".equalsIgnoreCase(s.getStatus()) ? defaultString(s.getErrorMessage(), "unknown") : "";
-                    return Map.<String, Object>of(
-                            "branchId", s.getSubTaskId(),
-                            "subTaskId", s.getSubTaskId(),
-                            "role", defaultString(s.getExpectedRole(), "SPECIALIST"),
-                            "status", defaultString(s.getStatus(), "PENDING"),
-                            "scoreBreakdown", score,
-                            "score", score.getOrDefault("weightedTotal", 0.0),
-                            "degradeReason", degradeReason,
-                            "summary", truncate(s.getResult()),
-                            "evidenceRefs", evidenceRefs,
-                            "fallbackTrail", List.of("primary")
-                    );
+                    Map<String, Object> branch = new HashMap<>();
+                    branch.put("branchId", s.getSubTaskId());
+                    branch.put("subTaskId", s.getSubTaskId());
+                    branch.put("role", defaultString(s.getExpectedRole(), "SPECIALIST"));
+                    branch.put("status", defaultString(s.getStatus(), "PENDING"));
+                    branch.put("selectedAgentId", selectedAgentId);
+                    branch.put("selectedAgentModel", selectedAgentModel);
+                    branch.put("selectionMode", selectionMode);
+                    branch.put("selectionReason", selectionReason);
+                    branch.put("scoreBreakdown", score);
+                    branch.put("score", score.getOrDefault("weightedTotal", 0.0));
+                    branch.put("degradeReason", degradeReason);
+                    Map<String, Object> parsedResult = parseBranchResult(s.getResult());
+                    branch.put("summary", parsedResult.getOrDefault("summary", "-"));
+                    branch.put("summaryText", parsedResult.getOrDefault("summaryText", "-"));
+                    branch.put("imageUrl", parsedResult.getOrDefault("imageUrl", ""));
+                    branch.put("fileId", parsedResult.getOrDefault("fileId", ""));
+                    branch.put("rawResult", truncate(s.getResult()));
+                    branch.put("evidenceRefs", evidenceRefs);
+                    branch.put("fallbackTrail", List.of("primary"));
+                    return branch;
                 })
-                .toList();
+                .collect(Collectors.toList());
+    }
+
+    private Map<String, Map<String, Object>> buildSelectionIndexFromEventLogs(String packageId) {
+        Map<String, Map<String, Object>> index = new HashMap<>();
+        if (packageId == null || packageId.isBlank()) {
+            return index;
+        }
+        eventLogRepository.findByPackageIdOrderByCreatedAtAsc(packageId)
+                .forEach(log -> {
+                    String subTaskId = defaultString(log.getSubTaskId(), "");
+                    if (subTaskId.isBlank()) {
+                        return;
+                    }
+                    Map<String, Object> eventData = readMapJson(log.getEventData());
+                    Map<String, Object> payload = new HashMap<>();
+                    String agentId = defaultString(log.getAgentId(), defaultString(asString(eventData.get("selectedAgentId")), ""));
+                    if (!agentId.isBlank()) {
+                        payload.put("selectedAgentId", agentId);
+                    }
+                    String model = defaultString(asString(eventData.get("selectedAgentModel")), defaultString(asString(eventData.get("agentModel")), ""));
+                    if (!model.isBlank()) {
+                        payload.put("selectedAgentModel", model);
+                    }
+                    String mode = defaultString(asString(eventData.get("selectionMode")), defaultString(asString(eventData.get("mode")), ""));
+                    if (!mode.isBlank()) {
+                        payload.put("selectionMode", mode);
+                        payload.put("mode", mode);
+                    }
+                    String reason = defaultString(asString(eventData.get("selectionReason")), "");
+                    if (!reason.isBlank()) {
+                        payload.put("selectionReason", reason);
+                    }
+                    if (!payload.isEmpty()) {
+                        index.merge(subTaskId, payload, (oldVal, newVal) -> {
+                            oldVal.putAll(newVal);
+                            return oldVal;
+                        });
+                    }
+                });
+        return index;
     }
 
     private Map<String, Object> buildArbiterSnapshot(String sessionId, String turnId) {
@@ -848,6 +1102,36 @@ public class CollaborationSessionService {
             CollabMessageEntity event = events.get(i);
             if ("ARBITER_DECISION".equalsIgnoreCase(event.getStage())) {
                 return readMapJson(event.getMetadata());
+            }
+        }
+        return Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readSelectionFromBlackboard(String packageId, String subTaskId) {
+        if (packageId == null || packageId.isBlank() || subTaskId == null || subTaskId.isBlank()) {
+            return Map.of();
+        }
+        return memoryService.readFromBlackboard(packageId, "selection_" + subTaskId)
+                .filter(Map.class::isInstance)
+                .map(v -> (Map<String, Object>) v)
+                .orElse(Map.of());
+    }
+
+    private Map<String, Object> inferLatestSelectionFromBranches(List<Map<String, Object>> branches) {
+        if (branches == null || branches.isEmpty()) {
+            return Map.of();
+        }
+        for (int i = branches.size() - 1; i >= 0; i--) {
+            Map<String, Object> branch = branches.get(i);
+            String agentId = String.valueOf(branch.getOrDefault("selectedAgentId", ""));
+            if (agentId != null && !agentId.isBlank()) {
+                return Map.of(
+                        "selectedAgentId", agentId,
+                        "selectedAgentModel", String.valueOf(branch.getOrDefault("selectedAgentModel", "")),
+                        "mode", String.valueOf(branch.getOrDefault("selectionMode", "")),
+                        "selectionReason", String.valueOf(branch.getOrDefault("selectionReason", ""))
+                );
             }
         }
         return Map.of();
@@ -894,7 +1178,7 @@ public class CollaborationSessionService {
         );
     }
 
-    private List<String> buildOperatorHints(List<Map<String, Object>> branches, String latestTurnStatus) {
+    private List<String> buildOperatorHints(String packageId, List<Map<String, Object>> branches, String latestTurnStatus) {
         List<String> hints = new ArrayList<>();
         long failed = branches.stream()
                 .filter(b -> "FAILED".equalsIgnoreCase(String.valueOf(b.get("status"))))
@@ -913,10 +1197,47 @@ public class CollaborationSessionService {
         if ("RUNNING".equalsIgnoreCase(latestTurnStatus)) {
             hints.add("回合执行中，可随时暂停并观察分支状态。");
         }
+        if (isImageIntent(packageId) && !hasImageAgentRouting(branches)) {
+            hints.add("检测到图片/照片生成意图，但当前未命中图像Agent，建议配置 mainAgentStaticDefault 或 bidWhitelist。");
+        }
         if (hints.isEmpty()) {
             hints.add("当前运行稳定，可继续观察仲裁结果。");
         }
         return hints;
+    }
+
+    private boolean isImageIntent(String packageId) {
+        if (packageId == null || packageId.isBlank()) {
+            return false;
+        }
+        String intent = packageRepository.findByPackageId(packageId)
+                .map(CollaborationPackageEntity::getIntent)
+                .orElse("");
+        if (intent == null || intent.isBlank()) {
+            return false;
+        }
+        String text = intent.toLowerCase();
+        return text.contains("image") || text.contains("photo") || text.contains("picture")
+                || text.contains("图片") || text.contains("照片") || text.contains("海报")
+                || text.contains("插画") || text.contains("生成图");
+    }
+
+    private boolean hasImageAgentRouting(List<Map<String, Object>> branches) {
+        if (branches == null || branches.isEmpty()) {
+            return false;
+        }
+        for (Map<String, Object> branch : branches) {
+            String agentId = String.valueOf(branch.getOrDefault("selectedAgentId", "")).toLowerCase();
+            String model = String.valueOf(branch.getOrDefault("selectedAgentModel", "")).toLowerCase();
+            String reason = String.valueOf(branch.getOrDefault("selectionReason", "")).toLowerCase();
+            String merged = agentId + " " + model + " " + reason;
+            if (merged.contains("image") || merged.contains("vision") || merged.contains("photo")
+                    || merged.contains("dalle") || merged.contains("diffusion")
+                    || merged.contains("图片") || merged.contains("视觉") || merged.contains("绘图")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")
@@ -938,6 +1259,10 @@ public class CollaborationSessionService {
 
     private String defaultString(String value, String def) {
         return value == null || value.isBlank() ? def : value;
+    }
+
+    private String asString(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 
     private String toJson(Object obj) {
@@ -977,6 +1302,63 @@ public class CollaborationSessionService {
         return input.length() > 400 ? input.substring(0, 400) + "..." : input;
     }
 
+    private Map<String, Object> parseBranchResult(String result) {
+        if (result == null || result.isBlank()) {
+            return Map.of("summary", "-", "summaryText", "-", "imageUrl", "", "fileId", "");
+        }
+        String text = result.trim();
+        try {
+            JsonNode root = objectMapper.readTree(text);
+            JsonNode data = root.path("data");
+            String imageUrl = firstNonBlank(
+                    data.path("image_url").asText(""),
+                    root.path("image_url").asText("")
+            );
+            String fileId = firstNonBlank(
+                    data.path("file_id").asText(""),
+                    root.path("file_id").asText("")
+            );
+            String prompt = firstNonBlank(
+                    data.path("prompt").asText(""),
+                    root.path("prompt").asText("")
+            );
+            if (!imageUrl.isBlank() || !fileId.isBlank()) {
+                StringBuilder summary = new StringBuilder("已生成图片");
+                if (!fileId.isBlank()) {
+                    summary.append(" (file_id=").append(fileId).append(")");
+                }
+                if (!prompt.isBlank()) {
+                    summary.append("\nPrompt: ").append(truncate(prompt));
+                }
+                return Map.of(
+                        "summary", summary.toString(),
+                        "summaryText", summary.toString(),
+                        "imageUrl", imageUrl,
+                        "fileId", fileId
+                );
+            }
+        } catch (Exception ignored) {
+        }
+        return Map.of(
+                "summary", truncate(text),
+                "summaryText", truncate(text),
+                "imageUrl", "",
+                "fileId", ""
+        );
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
     private double computeP95(List<Long> sortedValues) {
         if (sortedValues == null || sortedValues.isEmpty()) {
             return 0.0;
@@ -993,7 +1375,11 @@ public class CollaborationSessionService {
         Map<String, Object> selection = readMapJson(turn.getSelectionMeta());
         Object mode = selection.get("mode");
         if (mode == null) {
-            return turn.getSelectionMeta().contains("\"mode\":\"bid\"");
+            mode = selection.get("selectionMode");
+        }
+        if (mode == null) {
+            return turn.getSelectionMeta().contains("\"mode\":\"bid\"")
+                    || turn.getSelectionMeta().contains("\"selectionMode\":\"bid\"");
         }
         return "bid".equalsIgnoreCase(String.valueOf(mode));
     }

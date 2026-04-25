@@ -216,6 +216,10 @@ public class DeepSeekAgentManageService implements AgentManageService {
     }
 
     public Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt) {
+        return chat(agentId, message, fileId, overrideSystemPrompt, (Integer) null);
+    }
+
+    public Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt, Integer maxTokensOverride) {
         AgentAccessProfile profile = accessProfileRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent access profile not found"));
         AgentMetadata metadata = metadataRepository.findById(agentId)
@@ -223,7 +227,9 @@ public class DeepSeekAgentManageService implements AgentManageService {
 
         double temperature = metadata.getTemperature() != null ? metadata.getTemperature() : 1.0;
         double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.7;
-        int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 2000;
+        int maxTokens = maxTokensOverride != null && maxTokensOverride > 0
+                ? maxTokensOverride
+                : (metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 2000);
 
         java.util.List<java.util.Map<String, Object>> messages = new java.util.ArrayList<>();
         String systemPrompt = (overrideSystemPrompt != null && !overrideSystemPrompt.isBlank())

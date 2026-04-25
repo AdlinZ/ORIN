@@ -13,7 +13,7 @@
         <div class="status-core" :class="healthStatusClass">
           <span class="status-dot"></span>
           <span class="status-text">
-            平台状态：{{ healthStatusText }} · 最近检测：{{ lastHealthCheck }} · 运行时长：{{ uptimeText }}
+            状态：{{ healthStatusText }} · 检测 {{ lastHealthCheck }} · 刷新 {{ refreshAgoText }}
           </span>
         </div>
       </div>
@@ -307,43 +307,6 @@
 
       <!-- 请求结构与资源分布 -->
       <div class="bottom-col">
-        <el-card class="panel-card premium-card panel-medium" shadow="never">
-          <template #header>
-            <div class="panel-header">
-              <span>请求结构与负载占比</span>
-              <span class="panel-sub">环形图</span>
-            </div>
-          </template>
-          <div class="donut-grid">
-            <div class="donut-block">
-              <div class="donut-ring" :style="{ background: requestDonutGradient }">
-                <div class="donut-inner">
-                  <strong>{{ requestSuccessRate }}%</strong>
-                  <span>成功率</span>
-                </div>
-              </div>
-              <div class="donut-legend">
-                <span><i class="dot success" />成功 {{ requestSummary.success }}</span>
-                <span><i class="dot danger" />失败 {{ requestSummary.failure }}</span>
-              </div>
-            </div>
-            <div class="donut-block">
-              <div class="donut-ring" :style="{ background: resourceDonutGradient }">
-                <div class="donut-inner">
-                  <strong>{{ resourceUsageAvg.toFixed(1) }}%</strong>
-                  <span>平均负载</span>
-                </div>
-              </div>
-              <div class="donut-legend">
-                <span><i class="dot cpu" />CPU {{ safeNumber(hardware.cpuUsage).toFixed(1) }}%</span>
-                <span><i class="dot gpu" />GPU {{ safeNumber(hardware.gpuUsage).toFixed(1) }}%</span>
-                <span><i class="dot mem" />内存 {{ safeNumber(hardware.memoryUsage).toFixed(1) }}%</span>
-                <span><i class="dot disk" />磁盘 {{ safeNumber(hardware.diskUsage).toFixed(1) }}%</span>
-              </div>
-            </div>
-          </div>
-        </el-card>
-
         <el-card class="panel-card premium-card" shadow="never">
           <template #header>
             <div class="panel-header">
@@ -444,6 +407,36 @@
           </ul>
           <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
         </el-card>
+
+        <el-card class="panel-card premium-card" shadow="never">
+          <template #header>
+            <div class="panel-header">
+              <span>依赖与基础服务状态</span>
+              <span class="panel-sub">
+                外部正常 {{ externalDependencySummary.alive }}/{{ externalDependencySummary.total }} ·
+                基础正常 {{ basicServiceSummary.alive }}/{{ basicServiceSummary.total }}
+              </span>
+            </div>
+          </template>
+          <div class="dependency-section-title">基础服务</div>
+          <ul v-if="basicServices.length" class="dependency-list dependency-list--grid">
+            <li v-for="item in basicServices" :key="item.key">
+              <span class="dependency-name">{{ item.name }}</span>
+              <el-tag size="small" :type="item.tagType">{{ item.text }}</el-tag>
+            </li>
+          </ul>
+          <el-empty v-else description="暂无基础服务状态" :image-size="40" />
+
+          <el-divider class="dependency-divider" />
+          <div class="dependency-section-title">外部依赖</div>
+          <ul v-if="externalDependencies.length" class="dependency-list dependency-list--grid">
+            <li v-for="item in externalDependencies" :key="item.key">
+              <span class="dependency-name">{{ item.name }}</span>
+              <el-tag size="small" :type="item.tagType">{{ item.text }}</el-tag>
+            </li>
+          </ul>
+          <el-empty v-else description="暂无外部依赖状态" :image-size="40" />
+        </el-card>
       </div>
     </section>
   </div>
@@ -463,13 +456,19 @@ import {
   getServerHardwareTrend,
   getServerNodes,
   getSystemHealth,
+  testPrometheusConnection,
+  testMilvusConnection,
+  getStorageHealthSnapshot,
+  getSystemMaintenanceHealth,
 } from '@/api/monitor'
+import { getIntegrationStatus } from '@/api/integrations'
 import { UI_TEXT } from '@/constants/uiText'
 
 const loading = ref(false)
 const isRefreshing = ref(false)
 const summaryData = ref({})
-const uptimeMs = ref(0)
+const lastRefreshAt = ref(0)
+const nowTick = ref(Date.now())
 const healthStatusText = ref('待检测')
 const healthStatusClass = ref('status-warn')
 const lastHealthCheck = ref('--:--:--')
@@ -492,13 +491,17 @@ const hardware = ref({ cpuUsage: 0, gpuUsage: 0, memoryUsage: 0, diskUsage: 0 })
 const serverNodes = ref([])
 const snapshotNodeId = ref('未知节点')
 const snapshotTimeText = ref('--:--:--')
+const snapshotTimestampMs = ref(0)
 const hardwareSnapshotValid = ref(false)
 const errorTypeTop = ref([])
 const slowRequestTop = ref([])
 const todayCostTrendRaw = ref([])
 const queueStats = ref({ pending: 0, running: 0, failed: 0 })
 const latencyTrendData = ref([])
-const requestSummary = ref({ success: 0, failure: 0 })
+const externalDependencies = ref([])
+const basicServices = ref([])
+let dashboardLoadSeq = 0
+const NODE_DATA_FRESH_WINDOW_MS = 3 * 60 * 1000
 
 const CHART_CONFIG = {
   left: 40,
@@ -609,12 +612,7 @@ const currentHardwareNodeId = computed(() => {
 })
 const preferredBusinessNodeId = computed(() => {
   if (!Array.isArray(serverNodes.value) || !serverNodes.value.length) return null
-  const normalizeStatus = (node) => String(node?.status || node?.state || '').toUpperCase()
-  const online = serverNodes.value.filter((node) => {
-    const status = normalizeStatus(node)
-    if (!status) return true
-    return status.includes('UP') || status.includes('ONLINE') || status.includes('HEALTHY')
-  })
+  const online = serverNodes.value.filter((node) => normalizeNodeStatus(node).statusClass === 'ok')
   const nonLocalOnline = online.find((node) => String(node?.id || '').toLowerCase() !== 'local')
   if (nonLocalOnline?.id) return String(nonLocalOnline.id)
   const nonLocalAny = serverNodes.value.find((node) => String(node?.id || '').toLowerCase() !== 'local')
@@ -624,18 +622,79 @@ const preferredBusinessNodeId = computed(() => {
 const totalNodesCount = computed(() => (Array.isArray(serverNodes.value) ? serverNodes.value.length : 0))
 const activeNodesCount = computed(() => {
   if (!Array.isArray(serverNodes.value) || !serverNodes.value.length) return 0
-  return serverNodes.value.filter((node) => {
-    const status = String(node?.status || node?.state || '').toUpperCase()
-    return status.includes('UP') || status.includes('ONLINE') || status.includes('HEALTHY')
-  }).length
+  return serverNodes.value.filter((node) => normalizeNodeStatus(node).statusClass === 'ok').length
 })
 const offlineNodesCount = computed(() => Math.max(totalNodesCount.value - activeNodesCount.value, 0))
+const normalizeEpochToMs = (value) => {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  if (n > 1e17) return Math.floor(n / 1e6) // ns
+  if (n > 1e14) return Math.floor(n / 1e3) // us
+  if (n > 1e11) return Math.floor(n) // ms
+  if (n > 1e9) return Math.floor(n * 1000) // s
+  return 0
+}
+const parseTimestampMs = (value) => {
+  if (value === undefined || value === null || value === '') return 0
+  if (Array.isArray(value) && value.length >= 6) {
+    const [year, month, day, hour, minute, second, nanos] = value
+    const ms = nanos ? Math.floor(Number(nanos) / 1e6) : 0
+    const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second), ms)
+    const ts = date.getTime()
+    return Number.isFinite(ts) ? ts : 0
+  }
+  if (typeof value === 'number') return normalizeEpochToMs(value)
+  const raw = String(value).trim()
+  if (!raw) return 0
+  if (/^\d+$/.test(raw)) return normalizeEpochToMs(Number(raw))
+  const ts = dayjs(raw).valueOf()
+  return Number.isFinite(ts) ? ts : 0
+}
+const hasNodeRuntimeData = (node) => {
+  if (!node || typeof node !== 'object') return false
+  if (node.hasData === true) return true
+  if (node.recordedAt || node.timestamp || node.lastSeenAt || node.lastReportAt) return true
+  if (
+    hasHardwareMetrics.value &&
+    snapshotNodeId.value &&
+    String(node.id || '').trim() &&
+    String(node.id) === String(snapshotNodeId.value)
+  ) {
+    return true
+  }
+  return false
+}
+const hasRecentNodeRuntimeData = (node) => {
+  if (!node || typeof node !== 'object') return false
+  const now = Date.now()
+  const candidates = [node.recordedAt, node.timestamp, node.lastSeenAt, node.lastReportAt]
+  const ts = candidates.map((item) => parseTimestampMs(item)).find((item) => item > 0) || 0
+  if (ts > 0 && now - ts <= NODE_DATA_FRESH_WINDOW_MS) return true
+  if (
+    hasHardwareMetrics.value &&
+    snapshotTimestampMs.value > 0 &&
+    now - snapshotTimestampMs.value <= NODE_DATA_FRESH_WINDOW_MS &&
+    snapshotNodeId.value &&
+    String(node.id || '').trim() &&
+    String(node.id) === String(snapshotNodeId.value)
+  ) {
+    return true
+  }
+  return false
+}
+
 const normalizeNodeStatus = (node) => {
   const raw = String(node?.status || node?.state || '').toUpperCase()
-  if (raw.includes('UP') || raw.includes('ONLINE') || raw.includes('HEALTHY')) {
+  if (node?.online === true || raw.includes('UP') || raw.includes('ONLINE') || raw.includes('HEALTHY')) {
     return { statusClass: 'ok', statusText: '在线' }
   }
-  if (raw.includes('WARN') || raw.includes('DEGRADED')) {
+  if (hasRecentNodeRuntimeData(node)) {
+    return { statusClass: 'ok', statusText: '在线' }
+  }
+  if (node?.online === false && hasNodeRuntimeData(node)) {
+    return { statusClass: 'warn', statusText: '告警' }
+  }
+  if (hasNodeRuntimeData(node) || raw.includes('WARN') || raw.includes('DEGRADED')) {
     return { statusClass: 'warn', statusText: '告警' }
   }
   return { statusClass: 'danger', statusText: '离线' }
@@ -687,49 +746,140 @@ const todayCostEmptyDescription = computed(() => {
   }
   return '今日暂无成本上报数据'
 })
-const requestSuccessRate = computed(() => {
-  const total = safeNumber(requestSummary.value.success) + safeNumber(requestSummary.value.failure)
-  if (!total) return 0
-  return Math.round((safeNumber(requestSummary.value.success) / total) * 100)
-})
-const requestDonutGradient = computed(() => {
-  const angle = (requestSuccessRate.value / 100) * 360
-  return `conic-gradient(#10b981 0deg ${angle}deg, #ef4444 ${angle}deg 360deg)`
-})
-const resourceUsageAvg = computed(() => {
-  const values = [
-    safeNumber(hardware.value?.cpuUsage),
-    safeNumber(hardware.value?.gpuUsage),
-    safeNumber(hardware.value?.memoryUsage),
-    safeNumber(hardware.value?.diskUsage),
-  ]
-  return values.reduce((sum, value) => sum + value, 0) / values.length
-})
-const resourceDonutGradient = computed(() => {
-  const raw = [
-    safeNumber(hardware.value?.cpuUsage),
-    safeNumber(hardware.value?.gpuUsage),
-    safeNumber(hardware.value?.memoryUsage),
-    safeNumber(hardware.value?.diskUsage),
-  ]
-  const fallback = [25, 25, 25, 25]
-  const values = raw.some((item) => item > 0) ? raw : fallback
-  const total = Math.max(values.reduce((sum, value) => sum + value, 0), 1)
-  const cpuAngle = (values[0] / total) * 360
-  const gpuAngle = cpuAngle + (values[1] / total) * 360
-  const memAngle = gpuAngle + (values[2] / total) * 360
-  return `conic-gradient(#0ea5e9 0deg ${cpuAngle}deg, #8b5cf6 ${cpuAngle}deg ${gpuAngle}deg, #22c55e ${gpuAngle}deg ${memAngle}deg, #f59e0b ${memAngle}deg 360deg)`
+const externalDependencySummary = computed(() => {
+  const summary = { alive: 0, down: 0, disabled: 0, total: 0 }
+  const list = Array.isArray(externalDependencies.value) ? externalDependencies.value : []
+  summary.total = list.length
+  list.forEach((item) => {
+    if (item.state === 'alive') summary.alive += 1
+    else if (item.state === 'down') summary.down += 1
+    else summary.disabled += 1
+  })
+  return summary
 })
 
-const uptimeText = computed(() => {
-  const totalSeconds = Math.floor(safeNumber(uptimeMs.value) / 1000)
-  if (totalSeconds <= 0) return '暂无数据'
-  const days = Math.floor(totalSeconds / 86400)
-  const hours = Math.floor((totalSeconds % 86400) / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  if (days > 0) return `${days}天 ${hours}小时 ${minutes}分钟`
-  if (hours > 0) return `${hours}小时 ${minutes}分钟`
-  return `${minutes}分钟`
+const normalizeDependencyState = (item) => {
+  const enabled = item?.enabled === true
+  const connected = item?.connected === true
+  const status = String(item?.status || '').toUpperCase()
+  if (!enabled || status.includes('DISABLED')) {
+    return { state: 'disabled', text: '未启用', tagType: 'info' }
+  }
+  if (connected || status.includes('CONNECTED') || status.includes('UP') || status.includes('OK')) {
+    return { state: 'alive', text: '正常', tagType: 'success' }
+  }
+  return { state: 'down', text: '异常', tagType: 'danger' }
+}
+
+const buildExternalDependencies = (integrationStatus) => {
+  const payload = integrationStatus && typeof integrationStatus === 'object' ? integrationStatus : {}
+  externalDependencies.value = Object.entries(payload).map(([key, value]) => {
+    const state = normalizeDependencyState(value)
+    return {
+      key,
+      name: key.toUpperCase(),
+      ...state,
+    }
+  })
+}
+
+const basicServiceSummary = computed(() => {
+  const summary = { alive: 0, down: 0, unknown: 0, total: 0 }
+  const list = Array.isArray(basicServices.value) ? basicServices.value : []
+  summary.total = list.length
+  list.forEach((item) => {
+    if (item.state === 'alive') summary.alive += 1
+    else if (item.state === 'down') summary.down += 1
+    else summary.unknown += 1
+  })
+  return summary
+})
+
+const normalizeBasicServiceState = (status) => {
+  const raw = String(status || '').toUpperCase()
+  if (raw.includes('UP') || raw.includes('ONLINE') || raw.includes('HEALTHY') || raw.includes('CONNECTED') || raw.includes('OK')) {
+    return { state: 'alive', text: '正常', tagType: 'success' }
+  }
+  if (raw.includes('DOWN') || raw.includes('OFFLINE') || raw.includes('ERROR') || raw.includes('FAIL')) {
+    return { state: 'down', text: '异常', tagType: 'danger' }
+  }
+  return { state: 'unknown', text: '未知', tagType: 'info' }
+}
+
+const readServiceProbeStatus = (service) => {
+  if (!service || typeof service !== 'object') return ''
+  const errorText = String(service.error || '').toUpperCase()
+  const message = String(service.message || '').toUpperCase()
+  if (errorText.includes('DISABLED') || message.includes('DISABLED')) return 'DISABLED'
+  if (service.online === true) return 'UP'
+  if (service.online === false) return 'DOWN'
+  if (service.success === true) return 'UP'
+  if (service.success === false) return 'DOWN'
+  if (service.connected === true) return 'UP'
+  if (service.connected === false) return 'DOWN'
+  if (message.includes('SUCCESS')) return 'UP'
+  if (message.includes('FAIL') || message.includes('ERROR') || message.includes('TIMEOUT')) return 'DOWN'
+  return String(service.status || service.state || '').toUpperCase()
+}
+
+const buildBasicServices = ({ health, prometheus, milvus, storage, maintenance }) => {
+  const list = []
+  const push = (key, name, status) => {
+    if (!key) return
+    const normalized = normalizeBasicServiceState(status)
+    list.push({ key, name, ...normalized })
+  }
+
+  const dbStatus = health?.database?.status || health?.components?.db?.status || maintenance?.services?.database
+  const redisStatus = health?.components?.redis?.status || maintenance?.services?.redis
+  const milvusProbeStatus = readServiceProbeStatus(milvus)
+  const prometheusProbeStatus = readServiceProbeStatus(prometheus)
+  const inferredPrometheusStatus = hasHardwareMetrics.value ? 'UP' : ''
+  const milvusStatus = health?.components?.milvus?.status || maintenance?.services?.milvus || milvusProbeStatus
+  const prometheusStatus =
+    health?.components?.prometheus?.status ||
+    maintenance?.services?.prometheus ||
+    prometheusProbeStatus ||
+    inferredPrometheusStatus
+  push('database', '数据库', dbStatus)
+  push('redis', 'Redis', redisStatus)
+  push('prometheus', 'Prometheus', prometheusStatus)
+  push('milvus', 'Milvus', milvusStatus)
+
+  const primary = storage?.primary || {}
+  const secondary = storage?.secondary || {}
+  if (primary.backend) {
+    const primaryStatus = primary.up === true ? 'UP' : primary.up === false ? 'DOWN' : ''
+    push(`storage-${primary.backend}-primary`, `${String(primary.backend).toUpperCase()}(主存储)`, primaryStatus)
+  }
+  if (secondary.backend) {
+    const secondaryStatus = secondary.up === true ? 'UP' : secondary.up === false ? 'DOWN' : ''
+    push(`storage-${secondary.backend}-secondary`, `${String(secondary.backend).toUpperCase()}(次存储)`, secondaryStatus)
+  }
+
+  const uniqueByKey = new Map()
+  list.forEach((item) => {
+    if (!uniqueByKey.has(item.key)) uniqueByKey.set(item.key, item)
+  })
+  basicServices.value = Array.from(uniqueByKey.values())
+}
+
+const formatDurationLabel = (valueMs, zeroText = '0秒') => {
+  const totalSeconds = Math.floor(Math.max(safeNumber(valueMs), 0) / 1000)
+  if (totalSeconds <= 0) return zeroText
+  if (totalSeconds < 60) return `${totalSeconds}秒`
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  if (minutes < 60) return `${minutes}分${seconds}秒`
+  const hours = Math.floor(minutes / 60)
+  const remainMinutes = minutes % 60
+  return `${hours}小时${remainMinutes}分`
+}
+
+const refreshAgoText = computed(() => {
+  if (!lastRefreshAt.value) return '暂无数据'
+  const elapsedMs = Math.max(nowTick.value - lastRefreshAt.value, 0)
+  return `${formatDurationLabel(elapsedMs, '刚刚')}前`
 })
 
 const safeNumber = (value, fallback = 0) => {
@@ -848,17 +998,12 @@ const buildTopLists = (historyList) => {
   const slowList = []
   const hourCostMap = new Map()
   const todayKey = dayjs().format('YYYY-MM-DD')
-  let successCount = 0
-  let failureCount = 0
 
   historyList.forEach((item) => {
     const isSuccess = item.success !== false
     if (!isSuccess) {
-      failureCount += 1
       const code = item.errorCode || item.errorType || item.statusCode || 'UNKNOWN'
       errorMap.set(code, (errorMap.get(code) || 0) + 1)
-    } else {
-      successCount += 1
     }
 
     const latency = safeNumber(item.latencyMs, safeNumber(item.durationMs, safeNumber(item.responseMs)))
@@ -889,11 +1034,11 @@ const buildTopLists = (historyList) => {
     return { hour, value: safeNumber(hourCostMap.get(hour), 0) }
   })
 
-  requestSummary.value = { success: successCount, failure: failureCount }
 }
 
 const hydrateHardwareSnapshot = async (fallbackHardware) => {
   hardwareSnapshotValid.value = false
+  snapshotTimestampMs.value = 0
   const candidateNodeId = preferredBusinessNodeId.value
   if (candidateNodeId) {
     try {
@@ -908,6 +1053,7 @@ const hydrateHardwareSnapshot = async (fallbackHardware) => {
           serverId: candidateNodeId,
         }
         snapshotNodeId.value = candidateNodeId
+        snapshotTimestampMs.value = parseTimestampMs(latest.timestamp)
         snapshotTimeText.value = formatCheckTime(latest.timestamp)
         hardwareSnapshotValid.value = true
         return
@@ -939,16 +1085,18 @@ const hydrateHardwareSnapshot = async (fallbackHardware) => {
     serverId: fallbackNodeId,
   }
   snapshotNodeId.value = fallbackNodeId
+  snapshotTimestampMs.value = parseTimestampMs(fallbackTime)
   snapshotTimeText.value = fallbackTime ? formatCheckTime(fallbackTime) : '--:--:--'
   hardwareSnapshotValid.value = hasFallbackMetrics && Boolean(fallbackTime)
 }
 
 
 const loadDashboardData = async () => {
+  const loadSeq = ++dashboardLoadSeq
   loading.value = true
   isRefreshing.value = true
   try {
-    const [summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes] = await Promise.all([
+    const [summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes, integrationStatusRes] = await Promise.all([
       getGlobalSummary(),
       getAgentList(),
       getTokenHistory({ size: 200 }),
@@ -957,6 +1105,7 @@ const loadDashboardData = async () => {
       getSystemHealth().catch(() => ({})),
       getTokenDistribution().catch(() => ([])),
       getServerNodes().catch(() => ([])),
+      getIntegrationStatus().catch(() => ({})),
     ])
 
     const summary = unwrapResponse(summaryRes, {}) || {}
@@ -973,6 +1122,7 @@ const loadDashboardData = async () => {
     const health = unwrapResponse(healthRes, {}) || {}
     const distributionData = unwrapResponse(distributionRes, []) || []
     const nodesData = unwrapResponse(nodesRes, []) || []
+    const integrationStatus = unwrapResponse(integrationStatusRes, {}) || {}
 
     const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length
     const todayCalls = safeNumber(summary.daily_requests, historyList.filter((item) => dayjs(item.createdAt || item.timestamp).isSame(dayjs(), 'day')).length)
@@ -982,7 +1132,6 @@ const loadDashboardData = async () => {
     summaryData.value = summary
     serverNodes.value = Array.isArray(nodesData) ? nodesData : []
     await hydrateHardwareSnapshot(hardware)
-    uptimeMs.value = safeNumber(summary.system_uptime, safeNumber(summary.systemUptime))
 
     const healthRaw = String(health?.status || health?.code || '').toUpperCase()
     if (healthRaw.includes('UP') || healthRaw.includes('OK') || healthRaw.includes('SUCCESS')) {
@@ -1013,6 +1162,40 @@ const loadDashboardData = async () => {
     buildTrendData(historyList)
     buildLatencyTrendData(historyList)
     buildTopLists(historyList)
+    buildExternalDependencies(integrationStatus)
+    buildBasicServices({
+      health,
+      prometheus: {},
+      milvus: {},
+      storage: {},
+      maintenance: {},
+    })
+
+    // Prometheus/Milvus/存储巡检改为后台更新，不阻塞主刷新
+    void Promise.allSettled([
+      testPrometheusConnection(),
+      testMilvusConnection(),
+      getStorageHealthSnapshot(),
+      getSystemMaintenanceHealth(),
+    ]).then((results) => {
+      if (loadSeq !== dashboardLoadSeq) return
+      const [prometheusRes, milvusRes, storageHealthRes, maintenanceHealthRes] = results.map((item) => {
+        if (item.status === 'fulfilled') return item.value
+        return {}
+      })
+      const prometheusHealth = unwrapResponse(prometheusRes, {}) || {}
+      const milvusHealth = unwrapResponse(milvusRes, {}) || {}
+      const storageHealth = unwrapResponse(storageHealthRes, {}) || {}
+      const maintenanceHealth = unwrapResponse(maintenanceHealthRes, {}) || {}
+      buildBasicServices({
+        health,
+        prometheus: prometheusHealth,
+        milvus: milvusHealth,
+        storage: storageHealth,
+        maintenance: maintenanceHealth,
+      })
+    })
+
     distribution.value = Array.isArray(distributionData)
       ? distributionData
           .map((item) => ({ name: item.name || item.agentName || '未知主体', value: safeNumber(item.value) }))
@@ -1038,6 +1221,7 @@ const loadDashboardData = async () => {
     ElMessage.error('加载首页数据失败，请稍后重试')
     lastHealthCheck.value = dayjs().format('HH:mm:ss')
   } finally {
+    lastRefreshAt.value = Date.now()
     loading.value = false
     isRefreshing.value = false
     window.dispatchEvent(new Event('page-refresh-done'))
@@ -1048,12 +1232,22 @@ const handleRefresh = () => {
   loadDashboardData()
 }
 
+let refreshClockTimer = null
+
 onMounted(() => {
+  lastRefreshAt.value = Date.now()
+  refreshClockTimer = window.setInterval(() => {
+    nowTick.value = Date.now()
+  }, 1000)
   loadDashboardData()
   window.addEventListener('page-refresh', handleRefresh)
 })
 
 onBeforeUnmount(() => {
+  if (refreshClockTimer) {
+    clearInterval(refreshClockTimer)
+    refreshClockTimer = null
+  }
   window.removeEventListener('page-refresh', handleRefresh)
 })
 </script>
@@ -1150,7 +1344,7 @@ onBeforeUnmount(() => {
 .header-status {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 10px;
   min-width: 0;
   flex-wrap: nowrap;
@@ -1259,19 +1453,23 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-/* 底部三列 */
+/* 底部三列 — 使用多列布局，让卡片按高度自动打包填充，避免出现空缺 */
 .bottom-section {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
+  column-count: 3;
+  column-gap: 12px;
 }
 
 .bottom-col {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
+  display: contents;
+}
+
+.bottom-section :deep(.panel-card.el-card) {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
 }
 
 /* Panel cards */
@@ -1426,7 +1624,8 @@ onBeforeUnmount(() => {
 
 .node-stat {
   flex: 1;
-  border-radius: 12px;
+  min-width: 0;
+  border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   padding: 12px;
   display: flex;
@@ -1664,12 +1863,13 @@ onBeforeUnmount(() => {
 }
 
 .asset-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 1px minmax(0, 1fr);
   align-items: center;
-  padding: 16px;
+  padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  gap: 16px;
+  gap: 14px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -1737,78 +1937,8 @@ onBeforeUnmount(() => {
   width: 1px;
   height: 32px;
   background: rgba(148, 163, 184, 0.2);
-  margin: 0 8px;
+  justify-self: center;
 }
-
-/* Donut */
-.donut-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.donut-block {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
-  background: rgba(248, 250, 252, 0.75);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.donut-ring {
-  width: 110px;
-  height: 110px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-}
-
-.donut-inner {
-  width: 72px;
-  height: 72px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-
-.donut-inner strong { color: var(--text-strong); font-size: 16px; }
-.donut-inner span { color: var(--text-subtle); font-size: 11px; }
-
-.donut-legend {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.donut-legend span {
-  color: var(--text-main);
-  font-size: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.donut-legend .dot {
-  width: 8px; height: 8px;
-  border-radius: 999px;
-  display: inline-block;
-}
-
-.donut-legend .dot.success { background: #10b981; }
-.donut-legend .dot.danger  { background: #ef4444; }
-.donut-legend .dot.cpu     { background: #0ea5e9; }
-.donut-legend .dot.gpu     { background: #8b5cf6; }
-.donut-legend .dot.mem     { background: #22c55e; }
-.donut-legend .dot.disk    { background: #f59e0b; }
 
 /* Rank list */
 .rank-list {
@@ -1869,6 +1999,49 @@ onBeforeUnmount(() => {
 .queue-item span  { color: var(--text-subtle); font-size: 12px; }
 .queue-item strong { color: var(--text-strong); font-size: 20px; }
 
+
+.dependency-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dependency-list--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.dependency-list li {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.dependency-name {
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dependency-section-title {
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.dependency-divider {
+  margin: 8px 0;
+}
+
 /* Event list */
 .event-list {
   list-style: none;
@@ -1921,15 +2094,16 @@ onBeforeUnmount(() => {
 /* Status badges */
 .status-core {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 8px 16px;
-  border-radius: 9999px;
+  border-radius: 16px;
   font-size: 13px;
   font-weight: 600;
   border: 1px solid transparent;
   min-width: 0;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
 }
 
 .status-core.status-ok {
@@ -1958,119 +2132,138 @@ onBeforeUnmount(() => {
 }
 
 .status-text {
-  display: block;
-  flex: 1;
+  display: -webkit-box;
+  flex: 1 1 auto;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
   min-width: 0;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1280px) {
   .status-core {
     padding: 8px 12px;
   }
+}
 
-  .status-text {
-    white-space: normal;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    line-height: 1.35;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+@media (max-width: 1024px) {
+  .status-core {
+    width: 100%;
   }
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .kpi-grid-primary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1560px) {
+/* Responsive — clean ladder: 1600 / 1280 / 1024 / 768 */
+@media (max-width: 1600px) {
   .bottom-section {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-count: 2;
   }
-
-  .asset-card {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .asset-divider {
-    display: none;
-  }
-
-  .asset-info {
-    flex: 1 1 calc(50% - 6px);
+  .cost-bars {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 4px;
   }
 }
 
-@media (max-width: 1240px) {
+@media (max-width: 1280px) {
+  .kpi-grid-primary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .middle-section {
     grid-template-columns: 1fr;
   }
-
-  .bottom-section {
-    grid-template-columns: 1fr;
+  .cost-bars {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
-
-  .donut-grid {
-    grid-template-columns: 1fr;
+  .panel-main :deep(.el-card__body) {
+    min-height: 260px;
   }
+  .panel-trend :deep(.el-card__body) {
+    min-height: 220px;
+  }
+}
 
-  .queue-grid {
+@media (max-width: 1024px) {
+  .cc-header-glass {
+    grid-template-columns: minmax(200px, auto) minmax(0, 1fr);
+  }
+  .header-status {
+    grid-column: 1 / -1;
+  }
+  .header-actions {
+    justify-self: end;
+  }
+  .kpi-grid-primary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
+  .bottom-section {
+    column-count: 1;
+  }
+  .queue-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .event-list li {
     grid-template-columns: 84px 1fr auto;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .dashboard-home {
     padding: 12px;
-  }
-
-  .page-header {
-    grid-template-columns: 1fr;
     gap: 12px;
   }
-
+  .cc-header-glass {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+  }
   .header-actions {
     justify-self: start;
   }
-
-  .kpi-grid-primary,
-  .bottom-section {
+  .kpi-grid-primary {
     grid-template-columns: 1fr;
   }
-
+  .kpi-value {
+    font-size: 26px;
+  }
+  .asset-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    row-gap: 10px;
+  }
+  .asset-card .asset-info:nth-of-type(2) {
+    grid-column: 1 / -1;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(148, 163, 184, 0.3);
+  }
+  .asset-divider {
+    display: none;
+  }
+  .load-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cost-bars {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .queue-grid {
+    grid-template-columns: 1fr;
+  }
+  .event-list li {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
   .panel-main :deep(.el-card__body),
   .panel-trend :deep(.el-card__body) {
     min-height: 0;
   }
-
-  .load-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .node-summary {
+    flex-wrap: wrap;
   }
-
-  .cost-bars {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .queue-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .event-list li {
-    grid-template-columns: 1fr;
-    align-items: flex-start;
+  .node-summary .node-stat {
+    flex: 1 1 calc(33.33% - 8px);
   }
 }
 
@@ -2110,7 +2303,6 @@ html.dark :deep(.panel-card .el-card__header) {
 
 html.dark .load-tile,
 html.dark .queue-item,
-html.dark .donut-block,
 html.dark .mini-rank-list li,
 html.dark .cost-bar-rail,
 html.dark .rank-item,

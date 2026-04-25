@@ -86,6 +86,15 @@ public interface AgentManageService {
     }
 
     /**
+     * 与智能体对话 (完整参数版本，支持深度思考 + max_tokens 覆盖)
+     */
+    default java.util.Optional<Object> chat(String agentId, String message, String fileId,
+            String overrideSystemPrompt, String conversationId, Boolean enableThinking, Integer thinkingBudget,
+            Integer maxTokensOverride) {
+        return chat(agentId, message, fileId, overrideSystemPrompt, conversationId, enableThinking, thinkingBudget);
+    }
+
+    /**
      * 获取所有已纳管的智能体
      */
     List<AgentMetadata> getAllAgents();

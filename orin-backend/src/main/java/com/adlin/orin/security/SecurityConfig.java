@@ -50,7 +50,8 @@ public class SecurityConfig {
                                 "/v1/providers",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/health")
+                                "/actuator/health",
+                                "/api/playground/**")
                         .permitAll()
                         // 统一API网关端点 (/v1/**) - 需要API密钥认证
                         // 由 WebConfig 中的 ApiKeyAuthInterceptor 进行 API 密钥校验

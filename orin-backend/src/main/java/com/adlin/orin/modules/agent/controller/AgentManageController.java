@@ -134,7 +134,7 @@ public class AgentManageController {
             @RequestBody ChatRequest request) {
         return agentManageService
                 .chat(agentId, request.getMessage(), request.getFileId(), request.getOverrideSystemPrompt(),
-                        request.getConversationId(), request.getEnableThinking(), request.getThinkingBudget())
+                        request.getConversationId(), request.getEnableThinking(), request.getThinkingBudget(), request.getMaxTokens())
                 .orElseGet(() -> {
                     Map<String, Object> errorResult = new java.util.HashMap<>();
                     errorResult.put("status", "ERROR");
@@ -156,6 +156,8 @@ public class AgentManageController {
         private Boolean enableThinking;
         @com.fasterxml.jackson.annotation.JsonProperty("thinking_budget")
         private Integer thinkingBudget;
+        @com.fasterxml.jackson.annotation.JsonProperty("max_tokens")
+        private Integer maxTokens;
     }
 
     @Operation(summary = "获取所有已接入的智能体档案")

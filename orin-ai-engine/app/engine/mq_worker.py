@@ -140,6 +140,10 @@ class CollabMQWorker:
         self.rabbitmq_url = getattr(settings, "RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
         self.queue_name = getattr(settings, "COLLAB_QUEUE_NAME", "collaboration-task-queue")
         self.result_queue_name = getattr(settings, "COLLAB_RESULT_QUEUE_NAME", "collaboration-task-result-queue")
+        self.exchange_name = getattr(settings, "COLLAB_EXCHANGE_NAME", "collaboration-task-exchange")
+        self.routing_key = getattr(settings, "COLLAB_ROUTING_KEY", "collaboration.task")
+        self.dead_letter_exchange_name = getattr(settings, "COLLAB_DLX_NAME", "collaboration-task-dlx")
+        self.queue_ttl = int(getattr(settings, "COLLAB_QUEUE_TTL", 300000))
         self.reply_exchange_name = getattr(settings, "COLLAB_REPLY_EXCHANGE_NAME", "collaboration-reply-exchange")
         self.reply_routing_key = getattr(settings, "COLLAB_REPLY_ROUTING_KEY", "collaboration.task.result")
 
@@ -173,8 +177,9 @@ class CollabMQWorker:
             self.queue_name,
             durable=True,
             arguments={
-                "x-dead-letter-exchange": "",
-                "x-message-ttl": 300000  # 5 min
+                "x-dead-letter-exchange": self.dead_letter_exchange_name,
+                "x-dead-letter-routing-key": f"{self.routing_key}.dlq",
+                "x-message-ttl": self.queue_ttl,
             }
         )
 

@@ -20,6 +20,14 @@ from app.models.workflow import Node, NodeExecutionOutput
 logger = logging.getLogger(__name__)
 
 
+def _bounded_int(value: Any, fallback: int, minimum: int = 256, maximum: int = 16000) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = fallback
+    return max(minimum, min(maximum, parsed))
+
+
 class TaskRuntime:
     """Single execution kernel for collaboration subtasks."""
 
@@ -35,6 +43,41 @@ class TaskRuntime:
         """Execute one agent-style (LLM) subtask."""
         context = context or {}
 
+        # Prefer ORIN native agent runtime when a specific agent is provided.
+        # This path avoids requiring OPENAI_API_KEY in ai-engine.
+        preferred_agent_id = context.get("preferred_agent_id") or context.get("preferredAgentId")
+        agent_max_tokens = _bounded_int(
+            context.get("agent_max_tokens") or context.get("agentMaxTokens"),
+            int(getattr(settings, "PLAYGROUND_AGENT_MAX_TOKENS", 1200)),
+        )
+        if preferred_agent_id:
+            backend_base = (settings.ORIN_BACKEND_URL or "http://localhost:8080").rstrip("/")
+            url = f"{backend_base}/api/v1/agents/{preferred_agent_id}/chat"
+            payload: Dict[str, Any] = {
+                "message": description,
+                # Keep subtask outputs bounded to reduce long-tail latency in collaborative runs.
+                "max_tokens": agent_max_tokens,
+            }
+            trace_id = context.get("_trace_id")
+            headers = {"Content-Type": "application/json"}
+            if trace_id:
+                headers["X-Trace-Id"] = str(trace_id)
+
+            timeout_seconds = float(getattr(settings, "PLAYGROUND_AGENT_CHAT_TIMEOUT_SECONDS", 90.0))
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                response = await client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
+
+            if isinstance(data, str):
+                return data
+            if isinstance(data, dict):
+                for key in ("answer", "text", "content", "response", "message"):
+                    value = data.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+            return str(data)
+
         node = Node(
             id="runtime_single_task",
             type="llm",
@@ -42,6 +85,7 @@ class TaskRuntime:
                 "prompt": description,
                 "model": context.get("model", "default"),
                 "expectedRole": expected_role,
+                "max_tokens": agent_max_tokens,
             },
         )
 

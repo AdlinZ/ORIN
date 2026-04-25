@@ -44,7 +44,7 @@ public class CollaborationRabbitMQConfig {
     @Value("${orin.collaboration.queue.ttl:300000}")
     private int queueTtl;
 
-    @Value("${orin.rabbitmq.listeners.auto-startup:true}")
+    @Value("${orin.collaboration.listeners.auto-startup:true}")
     private boolean listenerAutoStartup;
 
     /**

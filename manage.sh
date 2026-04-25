@@ -23,6 +23,17 @@ NC='\033[0m' # No Color
 DB_NAME="${ORIN_DB_NAME:-orindb}"
 DB_USER="${ORIN_DB_USER:-root}"
 DB_PASS="${ORIN_DB_PASS:-password}"
+DB_HOST="${ORIN_DB_HOST:-localhost}"
+DB_PORT="${ORIN_DB_PORT:-3306}"
+
+function flyway_runtime_props() {
+    local jwt_secret="${JWT_SECRET:-${ORIN_JWT_SECRET:-0123456789012345678901234567890123456789012345678901234567890123}}"
+    local datasource_url="jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+    echo "--spring.datasource.url=$datasource_url"
+    echo "--spring.datasource.username=$DB_USER"
+    echo "--spring.datasource.password=$DB_PASS"
+    echo "--jwt.secret=$jwt_secret"
+}
 
 function check_mysql() {
     echo -e "${BLUE}检查 MySQL 连接...${NC}"
@@ -121,7 +132,7 @@ function flyway_status() {
     local jar_file=$(ls $BACKEND_DIR/target/orin-backend-*.jar 2>/dev/null | head -n 1)
     if [ -n "$jar_file" ]; then
         echo -e "${BLUE}待执行的迁移检查:${NC}"
-        java -jar "$jar_file" --spring.profiles.active=dev flyway:migrate -X 2>&1 | grep -E "Current version|Successfully applied|No migrations" || true
+        java -jar "$jar_file" --spring.profiles.active=dev $(flyway_runtime_props) flyway:migrate -X 2>&1 | grep -E "Current version|Successfully applied|No migrations" || true
     fi
 
     return 0
@@ -137,7 +148,7 @@ function flyway_repair() {
         return 1
     fi
 
-    java -jar "$jar_file" --spring.profiles.active=dev flyway:repair -X 2>&1 | tail -20
+    java -jar "$jar_file" --spring.profiles.active=dev $(flyway_runtime_props) flyway:repair -X 2>&1 | tail -20
     echo -e "${GREEN}✓ Flyway Repair 完成${NC}"
 }
 
@@ -151,7 +162,7 @@ function flyway_migrate() {
         return 1
     fi
 
-    java -jar "$jar_file" --spring.profiles.active=dev flyway:migrate 2>&1 | tail -30
+    java -jar "$jar_file" --spring.profiles.active=dev $(flyway_runtime_props) flyway:migrate 2>&1 | tail -30
     return $?
 }
 
@@ -227,11 +238,37 @@ function start() {
     FPID=$!
     echo $FPID >> $PID_FILE
 
-    echo -e "${GREEN}启动成功！${NC}"
-    echo -e "后端日志: $BACKEND_DIR/backend.log"
-    echo -e "前端日志: $FRONTEND_DIR/frontend.log"
-    echo -e "AI引擎日志: $AI_ENGINE_DIR/ai_engine.log"
-    echo -e "访问地址: ${GREEN}http://localhost:5173${NC}"
+    # 4. 启动后健康校验，避免“假启动成功”（后端冷启动可能较慢）
+    local wait_seconds=45
+    local elapsed=0
+    local backend_ok=0
+    local ai_ok=0
+    local frontend_ok=0
+    while [ "$elapsed" -lt "$wait_seconds" ]; do
+        lsof -i:8080 > /dev/null 2>&1 && backend_ok=1 || backend_ok=0
+        lsof -i:8000 > /dev/null 2>&1 && ai_ok=1 || ai_ok=0
+        lsof -i:5173 > /dev/null 2>&1 && frontend_ok=1 || frontend_ok=0
+        if [ "$backend_ok" -eq 1 ] && [ "$ai_ok" -eq 1 ] && [ "$frontend_ok" -eq 1 ]; then
+            break
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+
+    if [ "$backend_ok" -eq 1 ] && [ "$ai_ok" -eq 1 ] && [ "$frontend_ok" -eq 1 ]; then
+        echo -e "${GREEN}启动成功！${NC}"
+        echo -e "后端日志: $BACKEND_DIR/backend.log"
+        echo -e "前端日志: $FRONTEND_DIR/frontend.log"
+        echo -e "AI引擎日志: $AI_ENGINE_DIR/ai_engine.log"
+        echo -e "访问地址: ${GREEN}http://localhost:5173${NC}"
+    else
+        echo -e "${RED}启动未通过健康校验：backend=$backend_ok ai_engine=$ai_ok frontend=$frontend_ok${NC}"
+        echo -e "${YELLOW}请检查日志：${NC}"
+        echo -e "  $BACKEND_DIR/backend.log"
+        echo -e "  $AI_ENGINE_DIR/ai_engine.log"
+        echo -e "  $FRONTEND_DIR/frontend.log"
+        return 1
+    fi
 }
 
 function stop() {

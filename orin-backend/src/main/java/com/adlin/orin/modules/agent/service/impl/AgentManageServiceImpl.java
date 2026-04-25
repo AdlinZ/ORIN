@@ -601,7 +601,7 @@ public class AgentManageServiceImpl implements AgentManageService {
 
     private java.util.Optional<Object> chatWithSiliconFlow(AgentAccessProfile profile, AgentMetadata metadata,
             String message, String fileId, String overrideSystemPrompt, String conversationId,
-            Boolean enableThinking, Integer thinkingBudget) {
+            Boolean enableThinking, Integer thinkingBudget, Integer maxTokensOverride) {
 
         java.util.List<java.util.Map<String, Object>> messages = new java.util.ArrayList<>();
 
@@ -664,7 +664,7 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         double temperature = metadata.getTemperature() != null ? metadata.getTemperature() : 0.7;
         double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.7;
-        int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 500;
+        int maxTokens = resolveMaxTokens(metadata.getMaxTokens(), 2000, maxTokensOverride);
 
         return siliconFlowIntegrationService.sendMessageWithFullParams(
                 profile.getEndpointUrl() + "/chat/completions",
@@ -1368,7 +1368,7 @@ public class AgentManageServiceImpl implements AgentManageService {
 
     private java.util.Optional<Object> chatWithOllama(AgentAccessProfile profile, AgentMetadata metadata,
             String message, String fileId, String overrideSystemPrompt, String conversationId,
-            Boolean enableThinking, Integer thinkingBudget) {
+            Boolean enableThinking, Integer thinkingBudget, Integer maxTokensOverride) {
 
         java.util.List<java.util.Map<String, Object>> messages = new java.util.ArrayList<>();
 
@@ -1419,7 +1419,7 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         double temperature = metadata.getTemperature() != null ? metadata.getTemperature() : 0.7;
         double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.9;
-        int maxTokens = metadata.getMaxTokens() != null ? metadata.getMaxTokens() : 512;
+        int maxTokens = resolveMaxTokens(metadata.getMaxTokens(), 2000, maxTokensOverride);
 
         return ollamaIntegrationService.sendMessageWithFullParams(
                 profile.getEndpointUrl(),
@@ -1452,13 +1452,19 @@ public class AgentManageServiceImpl implements AgentManageService {
     @Override
     public java.util.Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt,
             String conversationId, Boolean enableThinking, Integer thinkingBudget) {
+        return chat(agentId, message, fileId, overrideSystemPrompt, conversationId, enableThinking, thinkingBudget, null);
+    }
+
+    @Override
+    public java.util.Optional<Object> chat(String agentId, String message, String fileId, String overrideSystemPrompt,
+            String conversationId, Boolean enableThinking, Integer thinkingBudget, Integer maxTokensOverride) {
         // Use provided conversation ID or generate a new one
         String effectiveConversationId = (conversationId != null && !conversationId.isEmpty())
                 ? conversationId
                 : UUID.randomUUID().toString();
 
         return chatWithConversation(agentId, message, fileId, effectiveConversationId, overrideSystemPrompt,
-                enableThinking, thinkingBudget);
+                enableThinking, thinkingBudget, maxTokensOverride);
     }
 
     /**
@@ -1466,16 +1472,22 @@ public class AgentManageServiceImpl implements AgentManageService {
      */
     public java.util.Optional<Object> chatWithConversation(String agentId, String message, String fileId,
             String conversationId) {
-        return chatWithConversation(agentId, message, fileId, conversationId, null, null, null);
+        return chatWithConversation(agentId, message, fileId, conversationId, null, null, null, null);
     }
 
     public java.util.Optional<Object> chatWithConversation(String agentId, String message, String fileId,
             String conversationId, String overrideSystemPrompt) {
-        return chatWithConversation(agentId, message, fileId, conversationId, overrideSystemPrompt, null, null);
+        return chatWithConversation(agentId, message, fileId, conversationId, overrideSystemPrompt, null, null, null);
     }
 
     public java.util.Optional<Object> chatWithConversation(String agentId, String message, String fileId,
             String conversationId, String overrideSystemPrompt, Boolean enableThinking, Integer thinkingBudget) {
+        return chatWithConversation(agentId, message, fileId, conversationId, overrideSystemPrompt, enableThinking, thinkingBudget, null);
+    }
+
+    public java.util.Optional<Object> chatWithConversation(String agentId, String message, String fileId,
+            String conversationId, String overrideSystemPrompt, Boolean enableThinking, Integer thinkingBudget,
+            Integer maxTokensOverride) {
         log.info("Chatting with agent: {} (conversationId: {}, fileId: {}, hasOverride: {}, thinking: {})",
                 agentId, conversationId, fileId, overrideSystemPrompt != null, enableThinking);
 
@@ -1570,25 +1582,25 @@ public class AgentManageServiceImpl implements AgentManageService {
                     // Use dynamic prompt aware path so retrieval context can be injected.
                     response = chatWithSiliconFlow(
                             profile, metadata, message, fileId, dynamicSystemPrompt, conversationId,
-                            enableThinking, thinkingBudget);
+                            enableThinking, thinkingBudget, maxTokensOverride);
                 }
             } else if ("Ollama".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Ollama interaction for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/api/chat";
                 response = chatWithOllama(profile, metadata, message, fileId, dynamicSystemPrompt, conversationId,
-                        enableThinking, thinkingBudget);
+                        enableThinking, thinkingBudget, maxTokensOverride);
             } else if ("KIMI".equalsIgnoreCase(providerType) || "Moonshot".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Kimi (Moonshot) service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/v1/chat/completions";
-                response = kimiAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt);
+                response = kimiAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt, maxTokensOverride);
             } else if ("Zhipu".equalsIgnoreCase(providerType) || "GLM".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Zhipu (GLM) service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/api/paas/v4/chat/completions";
-                response = zhipuAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt);
+                response = zhipuAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt, maxTokensOverride);
             } else if ("DeepSeek".equalsIgnoreCase(providerType)) {
                 log.info("Routing to DeepSeek service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/v1/chat/completions";
-                response = deepSeekAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt);
+                response = deepSeekAgentManageService.chat(agentId, message, fileId, dynamicSystemPrompt, maxTokensOverride);
             } else if ("Minimax".equalsIgnoreCase(providerType)) {
                 log.info("Routing to Minimax service for agent {}", agentId);
                 actualEndpoint = profile.getEndpointUrl() + "/v1/text/chatcompletion_v2";
@@ -1992,6 +2004,16 @@ public class AgentManageServiceImpl implements AgentManageService {
             log.warn("Failed to extract response text: {}", e.getMessage());
             return String.valueOf(response);
         }
+    }
+
+    private int resolveMaxTokens(Integer configuredMaxTokens, int fallbackDefault, Integer overrideMaxTokens) {
+        if (overrideMaxTokens != null && overrideMaxTokens > 0) {
+            return overrideMaxTokens;
+        }
+        if (configuredMaxTokens != null && configuredMaxTokens > 0) {
+            return configuredMaxTokens;
+        }
+        return fallbackDefault;
     }
 
     /**

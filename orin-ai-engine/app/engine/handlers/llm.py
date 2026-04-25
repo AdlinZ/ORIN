@@ -125,13 +125,16 @@ class RealLLMNodeHandler(BaseNodeHandler):
         
         # 3. Call LLM
         try:
-             response = await run_client.chat.completions.create(
-                 model=model,
-                 messages=[
+             request_payload = {
+                 "model": model,
+                 "messages": [
                      {"role": "user", "content": prompt}
                  ],
-                 temperature=node.data.get("temperature", 0.7)
-             )
+                 "temperature": node.data.get("temperature", 0.7),
+             }
+             if node.data.get("max_tokens") is not None:
+                 request_payload["max_tokens"] = int(node.data.get("max_tokens"))
+             response = await run_client.chat.completions.create(**request_payload)
              
              content = response.choices[0].message.content
              usage = response.usage

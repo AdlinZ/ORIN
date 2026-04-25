@@ -102,6 +102,16 @@ public class CollaborationSessionController {
         return ResponseEntity.ok(sessionService.getSessionMetrics(hours));
     }
 
+    @Operation(summary = "列举模型能力（name/type/supports）并返回当前任务可选模型")
+    @PostMapping("/models/capabilities")
+    public ResponseEntity<List<CollabSessionDtos.ModelCapabilityView>> listModelCapabilities(
+            @RequestBody(required = false) CollabSessionDtos.ModelCapabilityRequest request) {
+        CollabSessionDtos.ModelCapabilityRequest body = request != null
+                ? request
+                : CollabSessionDtos.ModelCapabilityRequest.builder().build();
+        return ResponseEntity.ok(sessionService.listModelCapabilities(body));
+    }
+
     @Operation(summary = "暂停协作回合")
     @PostMapping("/{sessionId}/turns/{turnId}/pause")
     public ResponseEntity<CollabSessionDtos.ActionResponse> pauseTurn(

@@ -19,7 +19,7 @@ public class CollaborationOrchestrationMode {
     /**
      * 编舞模式：JAVA_NATIVE 或 LANGGRAPH_MQ
      */
-    private String mode = "JAVA_NATIVE";
+    private String mode = "LANGGRAPH_MQ";
 
     /**
      * PARALLEL 模式是否启用 MQ（Week 1 默认 true）
