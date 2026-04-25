@@ -27,6 +27,7 @@ import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.repository.AgentHealthStatusRepository;
 import com.adlin.orin.modules.model.service.MinimaxIntegrationService;
 import com.adlin.orin.modules.model.service.OllamaIntegrationService;
+import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
 import com.adlin.orin.modules.conversation.entity.ConversationLog;
 import com.adlin.orin.modules.conversation.service.ConversationLogService;
@@ -35,12 +36,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -651,13 +657,46 @@ public class AgentManageServiceImpl implements AgentManageService {
             log.warn("Failed to retrieve chat history for context: {}", e.getMessage());
         }
 
-        // 2. Add User Message (Text or Multimodal)
-        if (fileId != null) {
-            java.util.List<java.util.Map<String, Object>> contentList = new java.util.ArrayList<>();
-            contentList.add(java.util.Map.of("type", "text", "text", message));
-            contentList.add(java.util.Map.of("type", "image_url", "image_url", java.util.Map.of("url", fileId)));
+        String resolvedModelName = metadata.getModelName();
 
-            messages.add(java.util.Map.of("role", "user", "content", contentList));
+        // 2. Add User Message (Text or Multimodal)
+        if (fileId != null && !fileId.isBlank()) {
+            try {
+                MultimodalFile uploadedFile = multimodalFileService.getFile(fileId);
+                String fileType = uploadedFile.getFileType() == null ? "" : uploadedFile.getFileType().toUpperCase(Locale.ROOT);
+
+                if ("IMAGE".equals(fileType)) {
+                    String imageUrl = multimodalFileService.getDownloadUrl(fileId, Duration.ofMinutes(30));
+                    if (imageUrl == null || imageUrl.isBlank()) {
+                        imageUrl = fileId;
+                    }
+
+                    java.util.List<java.util.Map<String, Object>> contentList = new java.util.ArrayList<>();
+                    contentList.add(java.util.Map.of("type", "text", "text", message));
+                    contentList.add(java.util.Map.of("type", "image_url", "image_url", java.util.Map.of("url", imageUrl)));
+                    messages.add(java.util.Map.of("role", "user", "content", contentList));
+
+                    String configuredVlmModel = resolveConfiguredVlmModel();
+                    if (configuredVlmModel != null && !configuredVlmModel.isBlank()) {
+                        resolvedModelName = configuredVlmModel;
+                    }
+                } else if ("DOCUMENT".equals(fileType)) {
+                    String extractedText = extractDocumentTextForPrompt(uploadedFile, fileId);
+                    String mergedMessage = buildDocumentPrompt(message, uploadedFile.getFileName(), extractedText);
+                    messages.add(java.util.Map.of("role", "user", "content", mergedMessage));
+                } else {
+                    String mergedMessage = message
+                            + "\n\n[附件提示] 已收到文件（类型: "
+                            + fileType
+                            + "，名称: "
+                            + (uploadedFile.getFileName() != null ? uploadedFile.getFileName() : fileId)
+                            + "）。当前仅支持图片直读与文档文本抽取，其他类型请先转文字后再提问。";
+                    messages.add(java.util.Map.of("role", "user", "content", mergedMessage));
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to enrich file context for fileId={}, fallback to text only. reason={}", fileId, ex.getMessage());
+                messages.add(java.util.Map.of("role", "user", "content", message));
+            }
         } else {
             messages.add(java.util.Map.of("role", "user", "content", message));
         }
@@ -669,13 +708,88 @@ public class AgentManageServiceImpl implements AgentManageService {
         return siliconFlowIntegrationService.sendMessageWithFullParams(
                 profile.getEndpointUrl() + "/chat/completions",
                 profile.getApiKey(),
-                metadata.getModelName(),
+                resolvedModelName,
                 messages,
                 temperature,
                 topP,
                 maxTokens,
                 enableThinking,
                 thinkingBudget);
+    }
+
+    private String resolveConfiguredVlmModel() {
+        try {
+            com.adlin.orin.modules.model.entity.ModelConfig config = modelConfigService.getConfig();
+            if (config != null && config.getVlmModel() != null && !config.getVlmModel().isBlank()) {
+                return config.getVlmModel().trim();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve configured VLM model: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private String buildDocumentPrompt(String userMessage, String fileName, String extractedText) {
+        String safeUserMessage = userMessage == null ? "" : userMessage;
+        String safeFileName = fileName == null || fileName.isBlank() ? "未命名文档" : fileName;
+        String safeExtractedText = extractedText == null || extractedText.isBlank()
+                ? "（未能抽取到可用文本内容）"
+                : extractedText;
+
+        return safeUserMessage
+                + "\n\n[附件文档]"
+                + safeFileName
+                + "\n\n[文档内容摘录]\n"
+                + safeExtractedText;
+    }
+
+    private String extractDocumentTextForPrompt(MultimodalFile file, String fileId) {
+        String fileName = file.getFileName() == null ? "" : file.getFileName().toLowerCase(Locale.ROOT);
+        try (InputStream inputStream = multimodalFileService.openFileStream(fileId)) {
+            String text;
+            if (fileName.endsWith(".docx")) {
+                text = extractDocxText(inputStream);
+            } else if (fileName.endsWith(".pdf")) {
+                text = extractPdfText(inputStream);
+            } else if (fileName.endsWith(".txt") || fileName.endsWith(".md") || fileName.endsWith(".csv")
+                    || fileName.endsWith(".json")) {
+                text = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            } else {
+                return "当前仅自动解析 docx/pdf/txt/md/csv/json；该文档格式暂不支持自动提取。";
+            }
+
+            return clampTextForPrompt(text, 12000);
+        } catch (Exception e) {
+            log.warn("Failed to parse document file for prompt, fileId={}, name={}, reason={}",
+                    fileId, file.getFileName(), e.getMessage());
+            return "文档解析失败，请将文档转成纯文本后重试。";
+        }
+    }
+
+    private String extractDocxText(InputStream inputStream) throws IOException {
+        try (org.apache.poi.xwpf.usermodel.XWPFDocument docx = new org.apache.poi.xwpf.usermodel.XWPFDocument(inputStream);
+                org.apache.poi.xwpf.extractor.XWPFWordExtractor extractor = new org.apache.poi.xwpf.extractor.XWPFWordExtractor(docx)) {
+            return extractor.getText();
+        }
+    }
+
+    private String extractPdfText(InputStream inputStream) throws IOException {
+        byte[] pdfBytes = inputStream.readAllBytes();
+        try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(pdfBytes)) {
+            org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+            return stripper.getText(document);
+        }
+    }
+
+    private String clampTextForPrompt(String text, int maxChars) {
+        if (text == null) {
+            return "";
+        }
+        String normalized = text.trim();
+        if (normalized.length() <= maxChars) {
+            return normalized;
+        }
+        return normalized.substring(0, maxChars) + "\n\n[内容已截断]";
     }
 
     /**
@@ -1627,7 +1741,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             }
         } catch (Exception e) {
             log.error("Error during agent chat processing: {}", e.getMessage(), e);
-            errorMessage = e.getMessage();
+            errorMessage = extractThrowableMessage(e);
             response = java.util.Optional.empty();
         }
 
@@ -1788,6 +1902,48 @@ public class AgentManageServiceImpl implements AgentManageService {
         }
         Object statusObj = map.get("status");
         return "Provider returned non-success status: " + String.valueOf(statusObj);
+    }
+
+    private String extractThrowableMessage(Throwable throwable) {
+        if (throwable == null) {
+            return null;
+        }
+
+        Throwable cursor = throwable;
+        while (cursor != null) {
+            if (cursor instanceof HttpStatusCodeException httpEx) {
+                String providerBodyMessage = extractProviderBodyMessage(httpEx.getResponseBodyAsString());
+                if (providerBodyMessage != null && !providerBodyMessage.isBlank()) {
+                    return providerBodyMessage;
+                }
+            }
+            if (cursor.getMessage() != null && !cursor.getMessage().isBlank()) {
+                return cursor.getMessage();
+            }
+            cursor = cursor.getCause();
+        }
+        return throwable.toString();
+    }
+
+    private String extractProviderBodyMessage(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return null;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> bodyMap = new ObjectMapper().readValue(responseBody, Map.class);
+            Object messageObj = bodyMap.get("message");
+            if (messageObj != null && !String.valueOf(messageObj).isBlank()) {
+                Object codeObj = bodyMap.get("code");
+                if (codeObj != null && !String.valueOf(codeObj).isBlank()) {
+                    return "code=" + codeObj + ", message=" + messageObj;
+                }
+                return String.valueOf(messageObj);
+            }
+        } catch (Exception ignore) {
+            // ignore parse error and use raw body fallback
+        }
+        return responseBody;
     }
 
     /**

@@ -619,8 +619,10 @@ public class AgentChatService {
             boolean hasFnCallTools = fnCallTools != null && !fnCallTools.isEmpty();
             boolean hasKbs = toolCtx != null
                     && toolCtx.getKbIds() != null && !toolCtx.getKbIds().isEmpty();
+            boolean hasNonKbFnTools = hasFnCallTools && fnCallTools.stream()
+                    .anyMatch(tool -> !("BUILTIN_KB".equalsIgnoreCase(tool.getCategory())));
 
-            if (toolCtx != null && useToolCalling && (hasKbs || hasFnCallTools)) {
+            if (toolCtx != null && useToolCalling && (hasKbs || hasNonKbFnTools)) {
                 final ToolExecutionContext ctx = toolCtx;
                 String baseSystemPrompt = metaKnowledgeService.assembleSystemPrompt(agentId);
                 double temperature = metadata != null && metadata.getTemperature() != null

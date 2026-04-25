@@ -10,6 +10,10 @@ BACKEND_DIR="$SCRIPT_DIR/orin-backend"
 FRONTEND_DIR="$SCRIPT_DIR/orin-frontend"
 AI_ENGINE_DIR="$SCRIPT_DIR/orin-ai-engine"
 PID_FILE="$SCRIPT_DIR/.orin.pids"
+LOG_DIR="$SCRIPT_DIR/logs"
+BACKEND_LOG="$LOG_DIR/orin-backend.log"
+FRONTEND_LOG="$LOG_DIR/orin-frontend.log"
+AI_ENGINE_LOG="$LOG_DIR/orin-ai-engine.log"
 
 # 颜色定义
 GREEN='\033[0;32m'
@@ -68,6 +72,31 @@ function check_mysql() {
             return 1
         fi
     fi
+}
+
+function stop_existing_services() {
+    # Rebuilding the backend removes target/*.jar. Stop any old JVM first so it
+    # cannot lazily load classes/resources from a jar that mvn clean has deleted.
+    if [ -f "$PID_FILE" ]; then
+        while read -r pid; do
+            if [ -n "$pid" ] && kill -0 "$pid" > /dev/null 2>&1; then
+                echo "停止旧进程: $pid"
+                kill "$pid" > /dev/null 2>&1 || true
+            fi
+        done < "$PID_FILE"
+        sleep 2
+        while read -r pid; do
+            if [ -n "$pid" ] && kill -0 "$pid" > /dev/null 2>&1; then
+                echo "强制停止旧进程: $pid"
+                kill -9 "$pid" > /dev/null 2>&1 || true
+            fi
+        done < "$PID_FILE"
+        rm -f "$PID_FILE"
+    fi
+
+    lsof -ti:8080 | xargs kill -9 > /dev/null 2>&1 || true
+    lsof -ti:5173 | xargs kill -9 > /dev/null 2>&1 || true
+    lsof -ti:8000 | xargs kill -9 > /dev/null 2>&1 || true
 }
 
 function db_status() {
@@ -168,6 +197,9 @@ function flyway_migrate() {
 
 function start() {
     echo -e "${YELLOW}正在启动 ORIN 系统...${NC}"
+    mkdir -p "$LOG_DIR"
+
+    stop_existing_services
 
     # 0. 检查 MySQL 数据库
     check_mysql
@@ -210,13 +242,23 @@ function start() {
     # 总是重新编译以获取最新代码
     echo -e "正在编译后端..."
     mvn clean package -DskipTests -q
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}后端编译失败，启动中止${NC}"
+        exit 1
+    fi
 
     # 启动后端（使用宽松模式避免历史 checksum 问题）
-    nohup java -jar target/orin-backend-*.jar \
+    local backend_jar
+    backend_jar=$(ls target/orin-backend-*.jar 2>/dev/null | head -n 1)
+    if [ -z "$backend_jar" ]; then
+        echo -e "${RED}未找到后端 JAR 文件，启动中止${NC}"
+        exit 1
+    fi
+    nohup java -jar "$backend_jar" \
         --spring.profiles.active=dev \
         --spring.jpa.hibernate.ddl-auto=none \
         --spring.flyway.validate-on-migrate=false \
-        < /dev/null > backend.log 2>&1 &
+        < /dev/null > "$BACKEND_LOG" 2>&1 &
     BPID=$!
     echo $BPID > $PID_FILE
 
@@ -224,7 +266,7 @@ function start() {
     echo -e "启动 AI 引擎 (Port: 8000)..."
     cd $AI_ENGINE_DIR
     if [ -d "venv" ]; then
-        nohup venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 < /dev/null > ai_engine.log 2>&1 &
+        nohup venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 < /dev/null > "$AI_ENGINE_LOG" 2>&1 &
         APID=$!
         echo $APID >> $PID_FILE
     else
@@ -234,7 +276,7 @@ function start() {
     # 3. 启动前端 (Vue)
     echo -e "启动前端服务 (Port: 5173)..."
     cd $FRONTEND_DIR
-    nohup npm run dev < /dev/null > frontend.log 2>&1 &
+    nohup npm run dev < /dev/null > "$FRONTEND_LOG" 2>&1 &
     FPID=$!
     echo $FPID >> $PID_FILE
 
@@ -257,16 +299,16 @@ function start() {
 
     if [ "$backend_ok" -eq 1 ] && [ "$ai_ok" -eq 1 ] && [ "$frontend_ok" -eq 1 ]; then
         echo -e "${GREEN}启动成功！${NC}"
-        echo -e "后端日志: $BACKEND_DIR/backend.log"
-        echo -e "前端日志: $FRONTEND_DIR/frontend.log"
-        echo -e "AI引擎日志: $AI_ENGINE_DIR/ai_engine.log"
+        echo -e "后端日志: $BACKEND_LOG"
+        echo -e "前端日志: $FRONTEND_LOG"
+        echo -e "AI引擎日志: $AI_ENGINE_LOG"
         echo -e "访问地址: ${GREEN}http://localhost:5173${NC}"
     else
         echo -e "${RED}启动未通过健康校验：backend=$backend_ok ai_engine=$ai_ok frontend=$frontend_ok${NC}"
         echo -e "${YELLOW}请检查日志：${NC}"
-        echo -e "  $BACKEND_DIR/backend.log"
-        echo -e "  $AI_ENGINE_DIR/ai_engine.log"
-        echo -e "  $FRONTEND_DIR/frontend.log"
+        echo -e "  $BACKEND_LOG"
+        echo -e "  $AI_ENGINE_LOG"
+        echo -e "  $FRONTEND_LOG"
         return 1
     fi
 }
@@ -274,20 +316,7 @@ function start() {
 function stop() {
     echo -e "${YELLOW}正在停止 ORIN 系统...${NC}"
 
-    # 按照 PID 文件停止
-    if [ -f $PID_FILE ]; then
-        while read pid; do
-            echo "正在杀死进程: $pid"
-            kill -9 $pid > /dev/null 2>&1
-        done < $PID_FILE
-        rm $PID_FILE
-    fi
-
-    # 保险起见，按端口清理
-    echo "清理端口占用..."
-    lsof -ti:8080 | xargs kill -9 > /dev/null 2>&1
-    lsof -ti:5173 | xargs kill -9 > /dev/null 2>&1
-    lsof -ti:8000 | xargs kill -9 > /dev/null 2>&1
+    stop_existing_services
 
     echo -e "${RED}系统已安全停止。${NC}"
 }

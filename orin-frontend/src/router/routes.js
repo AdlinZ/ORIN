@@ -125,6 +125,7 @@ const controlRoutes = {
 }
 
 export const ROUTES = {
+    PORTAL: '/portal',
     HOME: '/dashboard/runtime/overview',
     AGENTS: agentRoutes,
     KNOWLEDGE: knowledgeRoutes,

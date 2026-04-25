@@ -1,11 +1,13 @@
 package com.adlin.orin.modules.conversation.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.util.List;
 import java.util.Map;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatMessageRequest {
     private String message;
     private List<String> toolIds;

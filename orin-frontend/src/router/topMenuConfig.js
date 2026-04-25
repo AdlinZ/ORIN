@@ -37,7 +37,7 @@ export function getDefaultHomeByRoles(userRoles = []) {
     return ROUTES.AGENTS.LIST
   }
 
-  return ROUTES.AGENTS.WORKSPACE
+  return ROUTES.PORTAL
 }
 
 /**

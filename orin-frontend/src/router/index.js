@@ -25,6 +25,12 @@ const routes = [
         component: () => import('@/views/Login.vue'),
         meta: { title: '用户登录' }
     },
+    {
+        path: '/portal',
+        name: 'UserPortal',
+        component: () => import('@/views/UserPortal.vue'),
+        meta: { title: '智能体服务门户' }
+    },
 
     // 数据大屏
     {
