@@ -179,8 +179,8 @@ const routes = [
                     {
                         path: 'playground/run',
                         name: 'PlaygroundRun',
-                        component: () => import('@/views/Playground/PlaygroundRun.vue'),
-                        meta: { title: '多智能体运行', icon: 'VideoPlay' }
+                        redirect: '/dashboard/applications/workspace',
+                        meta: { title: '协作对话', icon: 'VideoPlay' }
                     },
 
                     // 流程编排

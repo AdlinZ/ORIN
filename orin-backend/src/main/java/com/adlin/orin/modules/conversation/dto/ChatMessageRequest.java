@@ -14,6 +14,7 @@ public class ChatMessageRequest {
     private List<String> kbIds;
     private List<Long> skillIds;
     private List<Long> mcpIds;
+    private List<Map<String, Object>> conversationContextMessages;
 
     /** kbId -> documentIds mapping for filtering retrieval scope */
     private Map<String, List<String>> kbDocFilters;

@@ -50,6 +50,46 @@ class TaskRuntime:
             context.get("agent_max_tokens") or context.get("agentMaxTokens"),
             int(getattr(settings, "PLAYGROUND_AGENT_MAX_TOKENS", 1200)),
         )
+        if preferred_agent_id and str(preferred_agent_id).startswith("ephemeral:"):
+            ephemeral_agents = context.get("ephemeral_agents") if isinstance(context.get("ephemeral_agents"), list) else []
+            ephemeral_agent = next(
+                (agent for agent in ephemeral_agents if isinstance(agent, dict) and str(agent.get("id")) == str(preferred_agent_id)),
+                None,
+            )
+            if not ephemeral_agent:
+                raise ValueError(f"Ephemeral agent not found: {preferred_agent_id}")
+            system_prompt = str(ephemeral_agent.get("system_prompt") or "").strip()
+            backend_base = (settings.ORIN_BACKEND_URL or "http://localhost:8080").rstrip("/")
+            url = f"{backend_base}/api/playground/llm"
+            payload: Dict[str, Any] = {
+                "system_prompt": system_prompt or f"You are {expected_role}.",
+                "user_input": description,
+                "model": ephemeral_agent.get("model", context.get("model")),
+                "temperature": ephemeral_agent.get("temperature", 0.45),
+                "max_tokens": _bounded_int(ephemeral_agent.get("max_tokens"), agent_max_tokens),
+            }
+            trace_id = context.get("_trace_id")
+            headers = {"Content-Type": "application/json"}
+            if trace_id:
+                headers["X-Trace-Id"] = str(trace_id)
+
+            timeout_seconds = float(getattr(settings, "PLAYGROUND_AGENT_CHAT_TIMEOUT_SECONDS", 90.0))
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                response = await client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
+
+            if isinstance(data, str):
+                return data
+            if isinstance(data, dict):
+                error = data.get("error")
+                if isinstance(error, str) and error.strip():
+                    raise RuntimeError(f"Ephemeral agent {ephemeral_agent.get('name') or preferred_agent_id} failed: {error.strip()}")
+                text = data.get("text")
+                if isinstance(text, str) and text.strip():
+                    return text.strip()
+            return "No output"
+
         if preferred_agent_id:
             backend_base = (settings.ORIN_BACKEND_URL or "http://localhost:8080").rstrip("/")
             url = f"{backend_base}/api/v1/agents/{preferred_agent_id}/chat"

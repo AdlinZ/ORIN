@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     PLAYGROUND_PLANNER_CHAT_TIMEOUT_SECONDS: float = 600.0
     PLAYGROUND_PLANNER_MAX_TOKENS: int = 800
     PLAYGROUND_MERGE_CHAT_TIMEOUT_SECONDS: float = 90.0
-    PLAYGROUND_MERGE_MAX_TOKENS: int = 3200
+    PLAYGROUND_MERGE_MAX_TOKENS: int = 6000
 
     class Config:
         env_prefix = "ORIN_"

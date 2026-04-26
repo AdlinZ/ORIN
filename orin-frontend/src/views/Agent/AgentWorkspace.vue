@@ -1,11 +1,13 @@
 <template>
   <div class="agent-workspace" ref="containerRef" :class="{ 'is-wide': isWide, 'is-medium': isMedium, 'is-narrow': isNarrow }">
-    
     <div v-if="isLeftDrawer && !sessionPaneCollapsed" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
     <aside class="workspace-sidebar" :class="{ 'is-drawer': isLeftDrawer, 'is-collapsed': sessionPaneCollapsed }">
-      
       <div v-if="!sessionPaneCollapsed" class="sidebar-tabs">
         <div class="sidebar-tab" :class="{ active: sidebarTab === 'session' }" @click="sidebarTab = 'session'">会话记录</div>
+        <div class="sidebar-tab" :class="{ active: sidebarTab === 'collaboration' }" @click="sidebarTab = 'collaboration'">
+          协作
+          <span v-if="collaborationRuns.length" class="sidebar-tab-badge">{{ collaborationRuns.length }}</span>
+        </div>
         <div class="sidebar-tab" :class="{ active: sidebarTab === 'config' }" @click="sidebarTab = 'config'">工作台设置</div>
       </div>
       <div v-if="!sessionPaneCollapsed" class="sidebar-agent-switch">
@@ -88,6 +90,42 @@
           </div>
 
         </template>
+      </div>
+      <div v-show="sidebarTab === 'collaboration' && !sessionPaneCollapsed" class="workspace-collaboration-pane">
+        <div class="collaboration-sidebar-head">
+          <div>
+            <h3>协作运行</h3>
+            <p>当前会话的多智能体图谱与执行轨迹。</p>
+          </div>
+          <span>{{ collaborationRuns.length }}</span>
+        </div>
+        <div v-if="collaborationRuns.length" class="collaboration-run-list">
+          <div
+            v-for="run in collaborationRuns"
+            :key="run.key"
+            class="collaboration-run-item"
+            :class="{ active: selectedCollaborationMeta === run.meta }"
+          >
+            <div class="collaboration-run-top">
+              <strong>{{ run.title }}</strong>
+              <em :class="`status-${run.meta.status || 'completed'}`">{{ formatCollaborationStatus(run.meta) }}</em>
+            </div>
+            <div class="collaboration-run-time">{{ formatMessageTime(run.createdAt) }}</div>
+            <div class="collaboration-run-participants">
+              <span
+                v-for="participant in run.meta.participants || []"
+                :key="participant.id || participant.name"
+              >
+                @{{ participant.name }}
+              </span>
+            </div>
+            <div class="collaboration-run-actions">
+              <button type="button" @click="openCollaborationInspector(run.meta, 'graph')">图谱</button>
+              <button type="button" @click="openCollaborationInspector(run.meta, 'trace')">轨迹</button>
+            </div>
+          </div>
+        </div>
+        <el-empty v-else :image-size="56" description="暂无协作运行" />
       </div>
       <div v-show="sidebarTab === 'config' && !sessionPaneCollapsed" class="workspace-config-pane">
 
@@ -712,6 +750,15 @@
                   <button type="button" class="plus-trigger" :disabled="uploadingFile" @click="triggerFilePicker">
                     +
                   </button>
+                  <button
+                    type="button"
+                    class="collaboration-toggle-chip"
+                    :class="{ active: collaborationRequested }"
+                    :disabled="loading"
+                    @click="collaborationRequested = !collaborationRequested"
+                  >
+                    协作
+                  </button>
                 </div>
                 <div class="composer-right-tools">
                   <el-button
@@ -776,7 +823,7 @@
                   <div class="reasoning-title">检索/思考过程</div>
                   <div class="reasoning-list">
                     <div
-                      v-for="(trace, traceIdx) in msg.toolTraces"
+                      v-for="(trace, traceIdx) in getVisibleToolTraces(msg.toolTraces)"
                       :key="`${index}-reason-${traceIdx}`"
                       :class="['reasoning-item', 'trace-' + (trace.status || 'pending')]"
                     >
@@ -819,6 +866,56 @@
                   <video :src="getMessageVideoUrl(msg)" controls class="generated-video" />
                 </div>
                 <div v-else class="message-text" v-html="renderMarkdown(getMessageText(msg))" />
+
+                <div v-if="msg.collaborationMeta" class="collaboration-process">
+                  <div class="collaboration-process-header" @click="toggleCollaborationDetail(msg, index)">
+                    <div class="collaboration-process-title">
+                      <span>协作过程</span>
+                      <strong>{{ formatCollaborationStatus(msg.collaborationMeta) }}</strong>
+                    </div>
+                    <span class="collaboration-process-toggle" @click.stop="toggleCollaborationDetail(msg, index)">
+                      {{ isCollaborationDetailExpanded(msg, index) ? '收起' : '展开' }}
+                    </span>
+                  </div>
+                  <div class="collaboration-participants">
+                    <span
+                      v-for="participant in msg.collaborationMeta.participants || []"
+                      :key="participant.id || participant.name"
+                      class="collaboration-participant"
+                    >
+                      @{{ participant.name }}
+                      <em v-if="participant.ephemeral">临时</em>
+                    </span>
+                  </div>
+                  <div v-if="isCollaborationDetailExpanded(msg, index)" class="collaboration-detail">
+                    <div v-if="msg.collaborationMeta.planner" class="collaboration-report-card">
+                      <div class="collaboration-report-title">Planner</div>
+                      <div class="collaboration-report-body" v-html="renderMarkdown(formatCollaborationArtifact(msg.collaborationMeta.planner))" />
+                    </div>
+                    <div
+                      v-for="(report, reportIndex) in msg.collaborationMeta.taskReports || []"
+                      :key="`report-${reportIndex}`"
+                      class="collaboration-report-card"
+                    >
+                      <div class="collaboration-report-title">
+                        {{ report.agent_name || report.agentName || report.agent_id || `Task ${reportIndex + 1}` }}
+                      </div>
+                      <div class="collaboration-report-body" v-html="renderMarkdown(formatCollaborationArtifact(report))" />
+                    </div>
+                    <div v-if="getCollaborationTraceSummary(msg.collaborationMeta).length" class="collaboration-report-card">
+                      <div class="collaboration-report-title">轨迹摘要</div>
+                      <div class="collaboration-trace-list">
+                        <div
+                          v-for="(trace, traceIndex) in getCollaborationTraceSummary(msg.collaborationMeta)"
+                          :key="`trace-${traceIndex}`"
+                          class="collaboration-trace-item"
+                        >
+                          {{ trace }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div v-if="msg.retrievedChunks?.length" class="retrieved-context">
                   <div class="context-header context-toggle" @click="toggleRetrievedContext(msg, index)">
@@ -883,11 +980,21 @@
             <div class="input-actions">
               <div class="input-hint">
                 智能体：{{ currentAgent?.name || '未选择' }} · 模式：{{ currentInteractionLabel }} · 已附加知识库 {{ attachedKbIds.length }} 个
+                <span v-if="collaborationRequested"> · 协作已开启</span>
                 <span v-if="totalFilteredDocs > 0"> · 文档过滤 {{ totalFilteredDocs }} 个</span>
                 <span v-if="selectedUploadFileName"> · 文件：{{ selectedUploadFileName }}</span>
               </div>
               <button type="button" class="plus-trigger input-plus" :disabled="uploadingFile" @click="triggerFilePicker">
                 +
+              </button>
+              <button
+                type="button"
+                class="collaboration-toggle-chip"
+                :class="{ active: collaborationRequested }"
+                :disabled="loading"
+                @click="collaborationRequested = !collaborationRequested"
+              >
+                协作
               </button>
               <el-button
                 type="primary"
@@ -910,12 +1017,57 @@
       class="hidden-file-input"
       @change="onFileSelected"
     >
+
+    <el-drawer
+      v-model="collaborationInspectorVisible"
+      title="协作详情"
+      size="46%"
+      class="collaboration-inspector-drawer"
+      append-to-body
+      destroy-on-close
+    >
+      <div class="collaboration-inspector">
+        <div class="collaboration-inspector-summary">
+          <div>
+            <strong>{{ selectedCollaborationMeta?.workflowName || '临时协作工作流' }}</strong>
+            <span>{{ selectedCollaborationMeta?.participants?.length || 0 }} 个智能体参与</span>
+          </div>
+          <div class="collaboration-inspector-participants">
+            <span
+              v-for="participant in selectedCollaborationMeta?.participants || []"
+              :key="participant.id || participant.name"
+            >
+              @{{ participant.name }}<em v-if="participant.ephemeral">临时</em>
+            </span>
+          </div>
+        </div>
+        <el-tabs v-model="collaborationInspectorTab" class="collaboration-inspector-tabs">
+          <el-tab-pane label="工作流图" name="graph">
+            <div class="playground-scope standalone-run collaboration-playground-panel">
+              <GraphViewer
+                :graph="selectedCollaborationGraph"
+                :trace="selectedCollaborationTrace"
+                :trace-playing="selectedCollaborationMeta?.status === 'running'"
+              />
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="执行轨迹" name="trace">
+            <div class="playground-scope standalone-run collaboration-playground-panel">
+              <TraceViewer
+                :trace="selectedCollaborationTrace"
+                :playing="selectedCollaborationMeta?.status === 'running'"
+              />
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+    </el-drawer>
     
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, provide, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
@@ -924,7 +1076,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ChatRound,
-  Close,
   Cpu,
   Delete,
   Document,
@@ -955,6 +1106,7 @@ import {
   listAgents,
   listChatSessions,
   listKnowledgeBases,
+  saveChatSessionMessages,
   saveSessionToolBinding,
   sendChatMessage,
   sendChatMessageStream,
@@ -967,6 +1119,16 @@ import { getMcpServices } from '@/api/mcp';
 import { useInteractionShell } from '@/composables/useInteractionShell';
 import { runQuickChipAction } from '@/composables/useInteractionQuickChips';
 import { buildWorkspaceChipSets } from '@/composables/useInteractionChipRegistry';
+import {
+  createWorkflow,
+  fetchWorkflows as fetchPlaygroundWorkflows,
+  runWorkflow,
+  runWorkflowStream
+} from '@/views/Playground/api';
+import GraphViewer from '@/views/Playground/components/GraphViewer.vue';
+import TraceViewer from '@/views/Playground/components/TraceViewer.vue';
+import { createUiI18n, I18N_KEY } from '@/views/Playground/i18n';
+import '@/views/Playground/playground.css';
 
 const props = defineProps({
   presetAgentId: {
@@ -984,6 +1146,7 @@ marked.setOptions({
   gfm: true,
   breaks: true
 });
+provide(I18N_KEY, createUiI18n());
 
 const CONFIG_STORAGE_PREFIX = 'agent-workspace-config:';
 const WORKSPACE_STATE_KEY = 'agent-workspace-state';
@@ -1097,6 +1260,29 @@ const currentConfig = reactive(defaultConfig());
 const agentRuntimeForm = reactive(defaultRuntimeForm());
 const expandedRetrievedContext = ref({});
 const expandedTraceDetails = ref({});
+const expandedCollaborationDetails = ref({});
+const collaborationRequested = ref(false);
+const collaborationInspectorVisible = ref(false);
+const collaborationInspectorTab = ref('graph');
+const selectedCollaborationMeta = ref(null);
+const selectedCollaborationTrace = computed(() => (
+  Array.isArray(selectedCollaborationMeta.value?.trace)
+    ? selectedCollaborationMeta.value.trace
+    : []
+));
+const selectedCollaborationGraph = computed(() => (
+  selectedCollaborationMeta.value?.graph || buildCollaborationFallbackGraph(selectedCollaborationMeta.value)
+));
+const collaborationRuns = computed(() => messages.value
+  .map((message, index) => ({ message, index }))
+  .filter(({ message }) => message?.role === 'assistant' && message?.collaborationMeta)
+  .map(({ message, index }) => ({
+    key: `${message.createdAt || index}:collaboration`,
+    title: message.collaborationMeta?.workflowName || `协作运行 ${index + 1}`,
+    createdAt: message.createdAt || message.collaborationMeta?.createdAt || '',
+    meta: message.collaborationMeta,
+  }))
+  .reverse());
 const {
   containerRef,
   isWide,
@@ -1113,6 +1299,8 @@ const isMobile = isNarrow;
 
 const configProfiles = [{ id: 'default', name: '初始配置（默认）' }];
 
+const collaborationWorkflows = ref([]);
+const collaborationWorkflowsLoading = ref(false);
 
 const filteredKnowledgeBases = computed(() => {
   if (!kbSearch.value) return knowledgeBases.value;
@@ -1226,6 +1414,17 @@ const normalizeModelRecord = (item = {}) => {
     type: normalizeAgentViewType(item),
     status: item.status || ''
   };
+};
+
+const normalizeProviderModelName = (modelName = '') => {
+  const raw = String(modelName || '').trim();
+  if (!raw) return '';
+  const catalogMatch = modelCatalog.value.find((item) => {
+    const candidates = [item.value, item.label].filter(Boolean).map((val) => String(val).trim().toLowerCase());
+    return candidates.includes(raw.toLowerCase());
+  });
+  if (catalogMatch?.value) return catalogMatch.value;
+  return raw;
 };
 
 const modelOptions = computed(() => {
@@ -1737,6 +1936,83 @@ const normalizeWorkspaceMessage = (message = {}) => {
 
 const normalizeId = (value) => (value == null ? '' : String(value));
 
+const clipText = (value = '', maxLength = 1200) => {
+  const text = String(value || '');
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+};
+
+const compactCollaborationMetaForHistory = (meta = {}) => {
+  if (!meta || typeof meta !== 'object') return null;
+  return {
+    status: meta.status || '',
+    trigger: meta.trigger || '',
+    participants: Array.isArray(meta.participants) ? meta.participants.slice(0, 4).map((participant) => ({
+      id: participant.id || '',
+      name: participant.name || '',
+      base_name: participant.base_name || participant.baseName || participant.name || '',
+      role: participant.role || '',
+      ephemeral: Boolean(participant.ephemeral)
+    })) : [],
+    ephemeral: Boolean(meta.ephemeral),
+    ephemeralAgentSpecs: Array.isArray(meta.ephemeralAgentSpecs)
+      ? meta.ephemeralAgentSpecs.slice(0, 4).map((agent) => ({
+          base_name: agent.base_name || agent.baseName || agent.name || '',
+          name: agent.name || '',
+          model: agent.model || '',
+          description: clipText(agent.description || '', 360),
+          system_prompt: clipText(agent.system_prompt || agent.systemPrompt || '', 700),
+          role: agent.role || 'SPECIALIST',
+          max_tokens: Number(agent.max_tokens || agent.maxTokens || 900),
+          temperature: agent.temperature ?? 0.45,
+          planning_slot: Boolean(agent.planning_slot || agent.planningSlot),
+          ephemeral: true
+        }))
+      : [],
+    workflowId: meta.workflowId || '',
+    workflowName: meta.workflowName || '',
+    planner: meta.planner ? clipText(formatCollaborationArtifact(meta.planner), 1200) : null,
+    taskReports: Array.isArray(meta.taskReports)
+      ? meta.taskReports.slice(0, 4).map((report) => clipText(formatCollaborationArtifact(report), 1200))
+      : [],
+    trace: Array.isArray(meta.trace)
+      ? meta.trace.slice(-12).map((item) => ({
+          event_type: item.event_type || item.type || '',
+          title: item.title || item.event || '',
+          detail: clipText(item.detail || item.message || '', 280),
+          status: item.status || ''
+        }))
+      : [],
+    conversationId: meta.conversationId || '',
+    error: meta.error ? clipText(meta.error, 800) : ''
+  };
+};
+
+const toPersistableMessage = (message = {}) => {
+  const normalized = normalizeWorkspaceMessage(message);
+  const persistable = {
+    ...normalized,
+    content: clipText(typeof normalized.content === 'string' ? normalized.content : String(normalized.content || ''), 12000)
+  };
+  if (persistable.collaborationMeta) {
+    persistable.collaborationMeta = compactCollaborationMetaForHistory(persistable.collaborationMeta);
+  }
+  delete persistable.graph;
+  return persistable;
+};
+
+const persistCurrentSessionMessages = async () => {
+  if (!currentSessionId.value) return;
+  try {
+    await saveChatSessionMessages(
+      currentSessionId.value,
+      messages.value.map((message) => toPersistableMessage(message))
+    );
+  } catch (error) {
+    console.warn('Failed to persist chat session messages:', error);
+  }
+};
+
 const normalizeKbDocFilters = (filters = {}) => {
   const result = {};
   Object.entries(filters || {}).forEach(([kbId, docIds]) => {
@@ -1853,6 +2129,613 @@ const loadModelCatalog = async () => {
   } catch (error) {
     console.warn('Failed to load model catalog:', error);
     modelCatalog.value = [];
+  }
+};
+
+const loadCollaborationWorkflows = async () => {
+  collaborationWorkflowsLoading.value = true;
+  try {
+    const list = await fetchPlaygroundWorkflows();
+    collaborationWorkflows.value = Array.isArray(list) ? list : [];
+  } catch (error) {
+    console.warn('Failed to load collaboration workflows:', error);
+    collaborationWorkflows.value = [];
+  } finally {
+    collaborationWorkflowsLoading.value = false;
+  }
+};
+
+const getChatCapableAgents = () => agents.value.filter((agent) => {
+  if (!agent?.id) return false;
+  if (agent.enabled === false) return false;
+  const type = normalizeAgentViewType(agent);
+  return !['TEXT_TO_IMAGE', 'IMAGE_TO_IMAGE', 'TEXT_TO_VIDEO', 'TEXT_TO_SPEECH', 'SPEECH_TO_TEXT'].includes(type);
+});
+
+const parseMentionedAgents = (text) => {
+  const source = String(text || '');
+  if (!source.includes('@')) return [];
+  const candidates = getChatCapableAgents()
+    .filter((agent) => agent.name || agent.id)
+    .sort((a, b) => String(b.name || '').length - String(a.name || '').length);
+  const found = [];
+  const used = new Set();
+  candidates.forEach((agent) => {
+    const names = [agent.name, agent.id].filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+    const matched = names.some((name) => source.includes(`@${name}`));
+    if (matched && !used.has(normalizeId(agent.id))) {
+      used.add(normalizeId(agent.id));
+      found.push(agent);
+    }
+  });
+  return found;
+};
+
+const hasCollaborationIntent = (text) => {
+  const source = String(text || '').trim();
+  if (!source) return false;
+  const retrospectiveOnly = /(刚才|上面|前面|之前|上一轮|前文).{0,8}(讨论|协作|分工)/.test(source)
+    && !/(让|请|帮|安排|组织|启动|开启|调用|用).{0,12}(几个智能体|多个智能体|多智能体|分工|协作|讨论|评审|复核|交叉检查)/.test(source);
+  if (retrospectiveOnly) return false;
+  return /(让|请|帮|安排|组织|启动|开启|调用|用).{0,12}(几个智能体|多个智能体|多智能体|分工|协作|讨论|评审|复核|交叉检查)/.test(source)
+    || /(几个智能体|多个智能体|多智能体).{0,12}(分工|讨论|协作|评审|复核|分析)/.test(source)
+    || /(多来几个|多找几个|更多智能体|多几个专家|多个专家)/.test(source)
+    || /(分别分析|一起分析|一起看|互相评审|方案对比|交叉检查)/.test(source);
+};
+
+const wantsPreviousEphemeralAgents = (text) => /(刚才|上面|前面|之前|上一轮|上轮|上次|前一次|同一组|那两个|这些|那几个|原来的|继续).{0,12}(专家|智能体|临时智能体|角色|他们|它们|协作|复核|评审|分析)/.test(String(text || ''));
+
+const inferEphemeralAgentCount = (text = '', fallback = 2) => {
+  const source = String(text || '');
+  const digitMatch = source.match(/(?:让|请|用|找|调用|安排)?\s*(\d)\s*(?:个|位|名)?(?:临时)?(?:智能体|专家|角色)/);
+  if (digitMatch) {
+    return Math.max(2, Math.min(4, Number(digitMatch[1])));
+  }
+  const cnMap = { 两: 2, 二: 2, 三: 3, 四: 4 };
+  const cnMatch = source.match(/(?:让|请|用|找|调用|安排)?\s*([两二三四])\s*(?:个|位|名)?(?:临时)?(?:智能体|专家|角色)/);
+  if (cnMatch) {
+    return Math.max(2, Math.min(4, cnMap[cnMatch[1]] || fallback));
+  }
+  if (/(多来几个|多找几个|更多智能体|多几个专家|多个专家)/.test(source)) {
+    return 3;
+  }
+  return Math.max(2, Math.min(4, fallback));
+};
+
+const hashText = (value = '') => {
+  const source = String(value || '');
+  let hash = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36).slice(0, 8);
+};
+
+const isChatModelRecord = (model = {}) => {
+  const type = normalizeAgentViewType(model);
+  return !['TEXT_TO_IMAGE', 'IMAGE_TO_IMAGE', 'TEXT_TO_VIDEO', 'TEXT_TO_SPEECH', 'SPEECH_TO_TEXT'].includes(type);
+};
+
+const selectEphemeralModel = () => {
+  const currentModel = normalizeProviderModelName(selectedModelName.value || currentAgent.value?.model || '');
+  if (currentModel) return currentModel;
+  const preferredProvider = String(currentModelInfo.value?.provider || currentAgent.value?.provider || currentAgent.value?.providerType || '').trim().toLowerCase();
+  const models = modelCatalog.value.filter((item) => item.value && isChatModelRecord(item));
+  const sameProvider = models.find((item) => preferredProvider && String(item.provider || '').trim().toLowerCase() === preferredProvider);
+  return normalizeProviderModelName(sameProvider?.value || models[0]?.value || currentModel || 'default');
+};
+
+const stripRunLabel = (name = '') => String(name || '').replace(/\s+[A-Z0-9]{3}$/i, '').trim();
+
+const clampTokenValue = (value, fallback, min = 256, max = 16000) => {
+  const parsed = Number(value);
+  const safeValue = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Math.max(min, Math.min(max, Math.round(safeValue)));
+};
+
+const getCollaborationAgentMaxTokens = () => clampTokenValue(agentRuntimeForm.maxTokens, 2400, 1200, 8000);
+
+const getCollaborationMergeMaxTokens = () => clampTokenValue(
+  Math.max(Number(agentRuntimeForm.maxTokens || 0), 6000),
+  6000,
+  2400,
+  12000
+);
+
+const buildEphemeralAgents = (taskText = '', count = 2, previousSpecs = null) => {
+  const model = selectEphemeralModel();
+  const baseHash = hashText(`${taskText}:${model}:${Date.now()}`);
+  const previous = Array.isArray(previousSpecs) ? previousSpecs : [];
+  const defaultMaxTokens = getCollaborationAgentMaxTokens();
+  return Array.from({ length: count }).map((_, index) => {
+    const previousSpec = previous[index] || null;
+    const previousName = previousSpec ? stripRunLabel(previousSpec.base_name || previousSpec.baseName || previousSpec.name || '') : '';
+    const planningHint = previousName
+      ? `上一轮相同席位角色是“${previousName}”。请先判断当前任务是否仍需要保留这个角色，也可以调整成更合适的协作角色。`
+      : '请由 Planner 根据当前任务和会话上下文决定这个席位的角色、名称、职责和提示词。';
+    return {
+      id: `ephemeral:${baseHash}:${index + 1}`,
+      name: `协作角色 ${index + 1}`,
+      base_name: `协作角色 ${index + 1}`,
+      description: planningHint,
+      model: normalizeProviderModelName(previousSpec?.model || model),
+      system_prompt: `你是一个待规划的临时协作席位。${planningHint} 在 Planner 完成角色规划前，不要假设自己一定是专家或固定职业角色。`,
+      role: 'ORCHESTRATED_SLOT',
+      max_tokens: Math.max(Number(previousSpec?.max_tokens || previousSpec?.maxTokens || 0), defaultMaxTokens),
+      temperature: previousSpec?.temperature ?? 0.45,
+      planning_slot: true,
+      ephemeral: true
+    };
+  });
+};
+
+const inferEphemeralSpecFromParticipant = (participant = {}) => {
+  const baseName = stripRunLabel(participant.base_name || participant.baseName || participant.name || '临时角色');
+  let role = 'SPECIALIST';
+  let systemPrompt = '你是临时协作角色。延续上一轮协作职责，基于当前请求和会话上下文给出清晰、可执行的结果。';
+  if (/评审|复核|质量|审查/.test(baseName)) {
+    role = 'REVIEWER';
+    systemPrompt = '你是方案评审者。延续上一轮协作角色职责，从目标一致性、可行性、风险、遗漏和改进建议评审当前请求。';
+  } else if (/拆解|实施|执行/.test(baseName)) {
+    role = 'SPECIALIST';
+    systemPrompt = '你是实施拆解者。延续上一轮协作角色职责，把当前请求落到执行步骤、依赖、优先级和边界条件。';
+  } else if (/分析/.test(baseName)) {
+    role = 'SPECIALIST';
+    systemPrompt = '你是分析者。延续上一轮协作角色职责，拆解问题、识别关键变量，并给出结构化判断。';
+  }
+  return {
+    base_name: baseName,
+    name: baseName,
+    description: `上一轮临时协作角色：${baseName}`,
+    model: selectEphemeralModel(),
+    system_prompt: systemPrompt,
+    role,
+    max_tokens: getCollaborationAgentMaxTokens(),
+    temperature: role === 'REVIEWER' ? 0.35 : 0.45,
+    ephemeral: true
+  };
+};
+
+const getLastEphemeralAgentSpecs = () => {
+  for (let index = messages.value.length - 1; index >= 0; index -= 1) {
+    const meta = messages.value[index]?.collaborationMeta;
+    if (!meta?.ephemeral) continue;
+    if (Array.isArray(meta.ephemeralAgentSpecs) && meta.ephemeralAgentSpecs.length >= 2) {
+      return meta.ephemeralAgentSpecs;
+    }
+    if (Array.isArray(meta.participants) && meta.participants.filter((item) => item?.ephemeral).length >= 2) {
+      return meta.participants
+        .filter((item) => item?.ephemeral)
+        .slice(0, 4)
+        .map(inferEphemeralSpecFromParticipant);
+    }
+  }
+  return [];
+};
+
+const buildCollaborationContextMessages = (currentContent = '') => {
+  const current = String(currentContent || '').trim();
+  const limitChars = 1600;
+  let usedChars = 0;
+  const context = [];
+  const priorMessages = messages.value
+    .slice(0, -1)
+    .filter((message) => ['user', 'assistant'].includes(message?.role));
+
+  for (let index = priorMessages.length - 1; index >= 0 && context.length < 4; index -= 1) {
+    const message = priorMessages[index];
+    const role = message.role === 'user' ? 'user' : 'assistant';
+    let text = getMessageText(message).trim();
+    if (!text || text === current) continue;
+    if (message.collaborationMeta) {
+      text = `协作最终回复：${text}`;
+    }
+    const clipped = clipText(text, role === 'user' ? 520 : 360);
+    if (usedChars + clipped.length > limitChars) break;
+    usedChars += clipped.length;
+    context.unshift({
+      role,
+      content: clipped,
+      createdAt: message.createdAt || ''
+    });
+  }
+  return context;
+};
+
+const hasConversationReference = (content = '') => {
+  const text = String(content || '').trim();
+  if (!text) return false;
+  return /(刚才|上面|前面|之前|上一轮|上轮|上次|前一次|上述|基于刚才|基于上面|继续|接着|沿用|复核刚才|刚刚|那几个|那两个|这些|这个结论|这个方案|该方案|最终裁剪方案|开发计划)/.test(text);
+};
+
+const buildSingleAgentContextMessages = (currentContent = '') => {
+  if (!hasConversationReference(currentContent) || selectedUploadFileId.value) {
+    return [];
+  }
+  return buildCollaborationContextMessages(currentContent);
+};
+
+const resolveCollaborationDecision = (content) => {
+  if (!isChatLikeModel.value || selectedUploadFileId.value) {
+    return { enabled: false, participants: [], trigger: '' };
+  }
+  const mentioned = parseMentionedAgents(content);
+  if (mentioned.length >= 2) {
+    return { enabled: true, participants: mentioned.slice(0, 4), ephemeralAgents: [], trigger: '@' };
+  }
+  if (collaborationRequested.value || hasCollaborationIntent(content)) {
+    const requestedCount = inferEphemeralAgentCount(content, 2);
+    const previousSpecs = wantsPreviousEphemeralAgents(content) ? getLastEphemeralAgentSpecs() : [];
+    const ephemeralAgents = previousSpecs.length >= 2
+      ? buildEphemeralAgents(content, Math.min(Math.max(previousSpecs.length, requestedCount), 4), previousSpecs)
+      : buildEphemeralAgents(content, requestedCount);
+    if (ephemeralAgents.length >= 2) {
+      return {
+        enabled: true,
+        participants: ephemeralAgents,
+        ephemeralAgents,
+        trigger: previousSpecs.length >= 2 ? 'reuse' : (collaborationRequested.value ? 'manual' : 'intent')
+      };
+    }
+  }
+  return { enabled: false, participants: [], ephemeralAgents: [], trigger: '' };
+};
+
+const getWorkflowSignature = (agentIds = []) => agentIds.map(normalizeId).filter(Boolean).sort().join('|');
+
+const getShortWorkflowSignature = (agentIds = []) => {
+  const signature = getWorkflowSignature(agentIds);
+  let hash = 0;
+  for (let index = 0; index < signature.length; index += 1) {
+    hash = ((hash << 5) - hash + signature.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36).slice(0, 8);
+};
+
+const findChatWorkflow = (agentIds = []) => {
+  const signature = getWorkflowSignature(agentIds);
+  return collaborationWorkflows.value.find((workflow) => (
+    String(workflow?.name || '').startsWith('[Chat]') &&
+    workflow?.type === 'planner_executor' &&
+    getWorkflowSignature(workflow.specialist_agent_ids || []) === signature
+  )) || null;
+};
+
+const ensureChatWorkflow = async (participants) => {
+  const participantIds = participants.map((agent) => normalizeId(agent.id)).filter(Boolean);
+  if (participantIds.length < 2) {
+    throw new Error('协作至少需要两个可用智能体');
+  }
+  if (!collaborationWorkflows.value.length && !collaborationWorkflowsLoading.value) {
+    await loadCollaborationWorkflows();
+  }
+  const existing = findChatWorkflow(participantIds);
+  if (existing) return existing;
+
+  const workflowName = `[Chat] 协作 ${getShortWorkflowSignature(participantIds)}`;
+  const created = await createWorkflow({
+    name: workflowName,
+    type: 'planner_executor',
+    specialist_agent_ids: participantIds,
+    finalizer_enabled: true,
+    router_prompt: 'Chat-triggered collaboration workflow. Keep the plan compact, assign essential subtasks to the selected agents, and synthesize a complete final answer following the user requested length.',
+    execution_mode: 'DYNAMIC',
+    dag_subtasks: [],
+    agent_max_tokens: getCollaborationAgentMaxTokens()
+  });
+  const refreshed = await fetchPlaygroundWorkflows().catch(() => null);
+  if (Array.isArray(refreshed)) {
+    collaborationWorkflows.value = refreshed;
+  } else if (created?.id) {
+    collaborationWorkflows.value = [...collaborationWorkflows.value, created];
+  }
+  return collaborationWorkflows.value.find((workflow) => workflow.id === created?.id) || findChatWorkflow(participantIds) || created;
+};
+
+const ensureEphemeralChatWorkflow = async () => {
+  const current = currentAgent.value || getChatCapableAgents()[0];
+  const fallback = getChatCapableAgents().find((agent) => normalizeId(agent.id) !== normalizeId(current?.id));
+  const workflowParticipants = [current, fallback].filter(Boolean);
+  if (workflowParticipants.length >= 2) {
+    return ensureChatWorkflow(workflowParticipants);
+  }
+  throw new Error('临时协作至少需要一个当前智能体和一个可用工作流容器智能体');
+};
+
+const normalizeRunResult = (result = {}, fallbackTrace = []) => {
+  const artifacts = result.artifacts || {};
+  return {
+    content: result.assistant_message || result.content || result.answer || '协作已完成，但未返回最终正文。',
+    ephemeralAgents: Array.isArray(artifacts.ephemeral_agents)
+      ? artifacts.ephemeral_agents
+      : Array.isArray(result.ephemeral_agents)
+        ? result.ephemeral_agents
+        : [],
+    planner: artifacts.planner || result.planner || null,
+    taskReports: Array.isArray(artifacts.task_reports)
+      ? artifacts.task_reports
+      : Array.isArray(result.taskReports)
+        ? result.taskReports
+        : [],
+    trace: Array.isArray(result.trace) ? result.trace : fallbackTrace,
+    graph: result.graph || artifacts.graph || null,
+    conversationId: result.conversation_id || '',
+    workflowId: result.workflow_id || ''
+  };
+};
+
+const buildCollaborationGraphFromPlanner = (planner = null) => {
+  const subtasks = Array.isArray(planner?.subtasks) ? planner.subtasks : [];
+  if (!subtasks.length) return null;
+  const nodes = [
+    { id: 'start', label: 'Start', kind: 'start' },
+    { id: 'planner', label: 'Planner', kind: 'logic' }
+  ];
+  const edges = [{ source: 'start', target: 'planner' }];
+  const taskIds = new Set();
+  subtasks.forEach((task, index) => {
+    const id = normalizeId(task.id) || `task_${index + 1}`;
+    taskIds.add(id);
+    const label = task.preferred_agent_name || task.logical_role || `Task ${index + 1}`;
+    nodes.push({ id, label, kind: 'agent' });
+  });
+  subtasks.forEach((task, index) => {
+    const id = normalizeId(task.id) || `task_${index + 1}`;
+    const depends = Array.isArray(task.depends_on) ? task.depends_on.map(normalizeId).filter((dep) => taskIds.has(dep)) : [];
+    if (depends.length) {
+      depends.forEach((dep) => edges.push({ source: dep, target: id }));
+    } else {
+      edges.push({ source: 'planner', target: id });
+    }
+  });
+  const dependedOn = new Set();
+  subtasks.forEach((task) => {
+    (Array.isArray(task.depends_on) ? task.depends_on : []).forEach((dep) => {
+      const id = normalizeId(dep);
+      if (taskIds.has(id)) dependedOn.add(id);
+    });
+  });
+  const leaves = [...taskIds].filter((id) => !dependedOn.has(id));
+  if (taskIds.size > 1) {
+    nodes.push({ id: 'merge', label: 'Merge', kind: 'merge' });
+    leaves.forEach((id) => edges.push({ source: id, target: 'merge' }));
+    nodes.push({ id: 'end', label: 'End', kind: 'end' });
+    edges.push({ source: 'merge', target: 'end' });
+  } else {
+    nodes.push({ id: 'end', label: 'End', kind: 'end' });
+    leaves.forEach((id) => edges.push({ source: id, target: 'end' }));
+  }
+  return { nodes, edges };
+};
+
+const applyCollaborationResult = (assistantMessage, result, fallbackTrace = [], workflowId = '') => {
+  const normalized = normalizeRunResult(result, fallbackTrace);
+  const plannedEphemeralAgents = normalized.ephemeralAgents.map((agent) => ({
+    id: agent.id,
+    name: agent.name,
+    base_name: agent.base_name || agent.baseName || stripRunLabel(agent.name),
+    role: agent.role || 'SPECIALIST',
+    model: agent.model,
+    description: agent.description || '',
+    system_prompt: agent.system_prompt || agent.systemPrompt || '',
+    max_tokens: agent.max_tokens || agent.maxTokens || 900,
+    temperature: agent.temperature ?? 0.45,
+    ephemeral: true
+  }));
+  assistantMessage.content = normalized.content;
+  if (!assistantMessage.collaborationMeta) {
+    assistantMessage.collaborationMeta = {};
+  }
+  Object.assign(assistantMessage.collaborationMeta, {
+    status: 'completed',
+    ...(plannedEphemeralAgents.length
+      ? {
+          participants: plannedEphemeralAgents.map((agent) => ({
+            id: agent.id,
+            name: agent.name,
+            base_name: agent.base_name,
+            role: agent.role,
+            ephemeral: true
+          })),
+          ephemeralAgentSpecs: plannedEphemeralAgents
+        }
+      : {}),
+    planner: normalized.planner,
+    taskReports: normalized.taskReports,
+    trace: normalized.trace,
+    graph: buildCollaborationGraphFromPlanner(normalized.planner)
+      || normalized.graph
+      || assistantMessage.collaborationMeta?.graph
+      || buildCollaborationFallbackGraph(assistantMessage.collaborationMeta),
+    conversationId: normalized.conversationId,
+    workflowId: normalized.workflowId || workflowId
+  });
+  runtimeStatusLevel.value = 'idle';
+  runtimeStatusHint.value = '上一轮协作已完成';
+  collaborationRequested.value = false;
+};
+
+const sendCollaborationMessage = async (content, decision) => {
+  const participants = decision.participants || [];
+  const ephemeralAgents = decision.ephemeralAgents || [];
+  const assistantMessage = normalizeWorkspaceMessage({
+    role: 'assistant',
+    content: ephemeralAgents.length ? '正在规划协作角色...' : '正在协作处理...',
+    retrievedChunks: [],
+    toolTraces: [],
+    model: 'Collaboration',
+    provider: 'Playground',
+    createdAt: new Date().toISOString(),
+    collaborationMeta: {
+      status: 'running',
+      trigger: decision.trigger,
+      participants: participants.map((agent) => ({
+        id: agent.id,
+        name: agent.planning_slot ? '规划中' : agent.name,
+        ephemeral: Boolean(agent.ephemeral),
+        planning: Boolean(agent.planning_slot)
+      })),
+      ephemeral: ephemeralAgents.length > 0,
+      ephemeralAgentSpecs: ephemeralAgents.map((agent) => ({
+        base_name: agent.base_name || stripRunLabel(agent.name),
+        name: agent.name,
+        model: agent.model,
+        description: agent.description,
+        system_prompt: agent.system_prompt,
+        role: agent.role,
+        max_tokens: agent.max_tokens,
+        temperature: agent.temperature,
+        planning_slot: Boolean(agent.planning_slot),
+        ephemeral: true
+      })),
+      workflowId: '',
+      workflowName: '',
+      graph: null,
+      planner: null,
+      taskReports: [],
+      trace: [],
+      conversationId: ''
+    }
+  });
+  messages.value.push(assistantMessage);
+  scrollToBottom();
+  await persistCurrentSessionMessages();
+
+  const updateMeta = (patch) => {
+    if (!assistantMessage.collaborationMeta) {
+      assistantMessage.collaborationMeta = {};
+    }
+    Object.assign(assistantMessage.collaborationMeta, patch);
+  };
+
+  try {
+    loadingHint.value = '协作中...';
+    runtimeStatusHint.value = '正在准备协作工作流';
+    const workflow = ephemeralAgents.length ? await ensureEphemeralChatWorkflow() : await ensureChatWorkflow(participants);
+    updateMeta({
+      workflowId: workflow?.id || '',
+      workflowName: workflow?.name || '',
+      graph: workflow?.graph || buildCollaborationFallbackGraph(assistantMessage.collaborationMeta)
+    });
+
+    const runPayload = {
+      workflow_id: workflow.id,
+      user_input: content,
+      context_messages: buildCollaborationContextMessages(content),
+      agent_max_tokens: getCollaborationAgentMaxTokens(),
+      merge_max_tokens: getCollaborationMergeMaxTokens(),
+      ...(ephemeralAgents.length ? { ephemeral_agents: ephemeralAgents, ephemeral_only: true } : {})
+    };
+    let streamResult = null;
+    let streamError = '';
+    let transportFailed = false;
+    const streamedTrace = [];
+
+    try {
+      await runWorkflowStream(runPayload, {
+        onTrace: (event) => {
+          streamedTrace.push(event);
+          const roles = Array.isArray(event?.roles)
+            ? event.roles
+            : Array.isArray(event?.payload?.roles)
+              ? event.payload.roles
+              : [];
+          const roleParticipants = roles
+            .map((role) => ({
+              id: role.id || role.agent_id || '',
+              name: role.name || role.agent_name || '',
+              role: role.role || '',
+              ephemeral: true
+            }))
+            .filter((role) => role.id && role.name);
+          const roleGraphMeta = roleParticipants.length
+            ? { ...(assistantMessage.collaborationMeta || {}), participants: roleParticipants }
+            : null;
+          const traceSubtasks = Array.isArray(event?.subtasks)
+            ? event.subtasks
+            : Array.isArray(event?.payload?.subtasks)
+              ? event.payload.subtasks
+              : [];
+          const dynamicPlanner = traceSubtasks.length
+            ? {
+                subtasks: traceSubtasks.map((task, index) => {
+                  const preferredId = task.preferred_agent_id || task.preferredAgentId || '';
+                  const participant = roleParticipants.find((item) => normalizeId(item.id) === normalizeId(preferredId))
+                    || (assistantMessage.collaborationMeta?.participants || []).find((item) => normalizeId(item.id) === normalizeId(preferredId));
+                  return {
+                    id: task.id || `task_${index + 1}`,
+                    description: task.description || '',
+                    depends_on: Array.isArray(task.depends_on) ? task.depends_on : [],
+                    logical_role: task.logical_role || task.logicalRole || '',
+                    preferred_agent_id: preferredId,
+                    preferred_agent_name: participant?.name || task.preferred_agent_name || task.preferredAgentName || ''
+                  };
+                })
+              }
+            : null;
+          updateMeta({
+            trace: [...streamedTrace],
+            ...(roleParticipants.length
+              ? {
+                  participants: roleParticipants,
+                  graph: buildCollaborationFallbackGraph(roleGraphMeta)
+                }
+              : {}),
+            ...(dynamicPlanner
+              ? {
+                  planner: {
+                    ...(assistantMessage.collaborationMeta?.planner || {}),
+                    ...dynamicPlanner
+                  },
+                  graph: buildCollaborationGraphFromPlanner(dynamicPlanner)
+                }
+              : {})
+          });
+          const detail = String(event?.detail || event?.message || '').trim();
+          if (detail) {
+            loadingHint.value = `协作中...（${detail}）`;
+            runtimeStatusHint.value = detail;
+          }
+        },
+        onFinal: (result) => {
+          streamResult = result;
+          applyCollaborationResult(assistantMessage, result, streamedTrace, workflow.id);
+        },
+        onError: (error) => {
+          streamError = error?.message || String(error || '');
+        }
+      });
+    } catch (error) {
+      transportFailed = true;
+      console.warn('Collaboration stream unavailable, fallback to regular workflow run:', error);
+    }
+
+    if (streamResult && assistantMessage.collaborationMeta?.status !== 'completed') {
+      applyCollaborationResult(assistantMessage, streamResult, streamedTrace, workflow.id);
+    }
+
+    let result = streamResult;
+    if (!result) {
+      if (streamError && !transportFailed) {
+        throw new Error(streamError);
+      }
+      result = await runWorkflow(runPayload);
+    }
+
+    const normalized = normalizeRunResult(result, streamedTrace);
+    if (assistantMessage.collaborationMeta?.status !== 'completed') {
+      applyCollaborationResult(assistantMessage, normalized, streamedTrace, workflow.id);
+    }
+    await persistCurrentSessionMessages();
+  } catch (error) {
+    const message = formatRequestError(error);
+    assistantMessage.content = `（协作失败：${message}）`;
+    updateMeta({ status: 'error', error: message });
+    runtimeStatusLevel.value = 'error';
+    runtimeStatusHint.value = `协作失败：${message}`;
+    collaborationRequested.value = false;
+    await persistCurrentSessionMessages();
+    ElMessage.error(`协作失败：${message}`);
   }
 };
 
@@ -2502,9 +3385,30 @@ const sendMessage = async () => {
   scrollToBottom();
 
   try {
-    if (isImageModel.value || isVideoModel.value || isSpeechModel.value) {
+    const collaborationDecision = resolveCollaborationDecision(content);
+    if (collaborationDecision.enabled) {
+      await sendCollaborationMessage(content, collaborationDecision);
+    } else if (isImageModel.value || isVideoModel.value || isSpeechModel.value) {
+      if (collaborationRequested.value) {
+        ElMessage.warning('当前模型类型不支持协作执行，已按当前智能体处理');
+        collaborationRequested.value = false;
+      }
       await sendMultimodalMessage(content || selectedUploadFileName.value || '');
     } else {
+      if (collaborationRequested.value) {
+        ElMessage.warning(selectedUploadFileId.value ? '带文件消息暂不支持协作执行，已按当前智能体处理' : '未找到足够的可用智能体，已按当前智能体处理');
+        collaborationRequested.value = false;
+      }
+      const conversationContextMessages = buildSingleAgentContextMessages(content);
+      const chatPayload = {
+        message: outboundMessage,
+        toolIds: currentConfig.toolIds || [],
+        kbIds: attachedKbIds.value.map(normalizeId),
+        skillIds: currentConfig.skillIds || [],
+        mcpIds: currentConfig.mcpIds || [],
+        kbDocFilters: normalizeKbDocFilters(kbDocFilters),
+        conversationContextMessages
+      };
       const assistantMessage = normalizeWorkspaceMessage({
         role: 'assistant',
         content: '',
@@ -2523,14 +3427,7 @@ const sendMessage = async () => {
         : '（模型未返回正文，请重试或检查模型/网关配置。）';
 
       try {
-        await sendChatMessageStream(currentSessionId.value, {
-          message: outboundMessage,
-          toolIds: currentConfig.toolIds || [],
-          kbIds: attachedKbIds.value.map(normalizeId),
-          skillIds: currentConfig.skillIds || [],
-          mcpIds: currentConfig.mcpIds || [],
-          kbDocFilters: normalizeKbDocFilters(kbDocFilters)
-        }, {
+        await sendChatMessageStream(currentSessionId.value, chatPayload, {
           start: () => {
             assistantMessage.content = '正在处理...';
             loadingHint.value = '思考中...（流式连接已建立）';
@@ -2595,14 +3492,7 @@ const sendMessage = async () => {
           }
         ];
         // fallback to non-streaming if SSE is unavailable
-      const res = await sendChatMessage(currentSessionId.value, {
-        message: outboundMessage,
-        toolIds: currentConfig.toolIds || [],
-        kbIds: attachedKbIds.value.map(normalizeId),
-        skillIds: currentConfig.skillIds || [],
-        mcpIds: currentConfig.mcpIds || [],
-        kbDocFilters: normalizeKbDocFilters(kbDocFilters)
-      });
+      const res = await sendChatMessage(currentSessionId.value, chatPayload);
         streamDonePayload = res?.data || res || {};
       }
 
@@ -2672,8 +3562,36 @@ const traceIcon = (type) => {
   return iconMap[type] || 'Setting';
 };
 
+const getVisibleToolTraces = (traces = []) => {
+  if (!Array.isArray(traces) || traces.length === 0) return [];
+  const toolBindTraces = traces.filter((trace) => trace?.type === 'TOOL_BIND');
+  const others = traces.filter((trace) => trace?.type !== 'TOOL_BIND');
+  if (toolBindTraces.length <= 1) return traces;
+  const warningCount = toolBindTraces.filter((trace) => trace.status === 'warning').length;
+  const errorCount = toolBindTraces.filter((trace) => trace.status === 'error').length;
+  const status = errorCount ? 'error' : warningCount ? 'warning' : 'success';
+  const summary = {
+    type: 'TOOL_BIND_SUMMARY',
+    kbId: 'tools',
+    message: `已绑定 ${toolBindTraces.length} 个工具${warningCount ? `，${warningCount} 个降级/跳过` : ''}${errorCount ? `，${errorCount} 个失败` : ''}`,
+    status,
+    durationMs: toolBindTraces.reduce((sum, trace) => sum + Number(trace.durationMs || 0), 0),
+    detail: {
+      tools: toolBindTraces.map((trace) => ({
+        id: trace.kbId || trace.toolId || '',
+        status: trace.status || '',
+        message: trace.message || '',
+        detail: trace.detail || {}
+      }))
+    }
+  };
+  return [summary, ...others];
+};
+
 const formatTraceType = (type) => {
   const labelMap = {
+    TOOL_BIND: '工具绑定',
+    TOOL_BIND_SUMMARY: '工具绑定',
     KB_STRATEGY: '检索策略判定',
     KB_STRUCTURE: '知识库结构检查',
     KB_SEARCH: '知识检索',
@@ -2800,6 +3718,76 @@ const toggleRetrievedContext = (msg, index) => {
   expandedRetrievedContext.value[key] = !expandedRetrievedContext.value[key];
 };
 
+const getCollaborationDetailKey = (msg, index) => `${normalizeId(currentSessionId.value)}:${msg?.createdAt || ''}:collab:${index}`;
+
+const isCollaborationDetailExpanded = (msg, index) => !!expandedCollaborationDetails.value[getCollaborationDetailKey(msg, index)];
+
+const toggleCollaborationDetail = (msg, index) => {
+  const key = getCollaborationDetailKey(msg, index);
+  expandedCollaborationDetails.value[key] = !expandedCollaborationDetails.value[key];
+};
+
+const openCollaborationInspector = (meta = {}, tab = 'graph') => {
+  selectedCollaborationMeta.value = meta || {};
+  collaborationInspectorTab.value = tab;
+  collaborationInspectorVisible.value = true;
+};
+
+const buildCollaborationFallbackGraph = (meta = {}) => {
+  const participants = Array.isArray(meta?.participants) ? meta.participants : [];
+  const nodes = [
+    { id: 'start', label: 'Start', kind: 'start' },
+    { id: 'planner_core', label: 'Planner Core', kind: 'logic' },
+    { id: 'planner_validator', label: 'Plan Validator', kind: 'logic' },
+    { id: 'task_dispatcher', label: 'Task Dispatcher', kind: 'logic' },
+    ...participants.map((participant, index) => ({
+      id: normalizeId(participant.id) || `agent_${index + 1}`,
+      label: participant.name || `Agent ${index + 1}`,
+      kind: 'agent'
+    })),
+    { id: 'finalize', label: 'Merge', kind: 'merge' },
+    { id: 'end', label: 'End', kind: 'end' }
+  ];
+  const edges = [
+    { source: 'start', target: 'planner_core' },
+    { source: 'planner_core', target: 'planner_validator' },
+    { source: 'planner_validator', target: 'task_dispatcher' },
+    ...participants.flatMap((participant, index) => {
+      const id = normalizeId(participant.id) || `agent_${index + 1}`;
+      return [
+        { source: 'task_dispatcher', target: id, label: 'dispatch' },
+        { source: id, target: 'task_dispatcher', label: 'report' }
+      ];
+    }),
+    { source: 'task_dispatcher', target: 'finalize' },
+    { source: 'finalize', target: 'end' }
+  ];
+  return { nodes, edges };
+};
+
+const formatCollaborationStatus = (meta = {}) => {
+  if (meta.status === 'running') return '执行中';
+  if (meta.status === 'error') return '失败';
+  const count = Array.isArray(meta.participants) ? meta.participants.length : 0;
+  return count ? `${count} 个智能体` : '已完成';
+};
+
+const formatCollaborationArtifact = (artifact) => {
+  if (!artifact) return '';
+  if (typeof artifact === 'string') return artifact;
+  const text = artifact.content || artifact.final_answer || artifact.answer || artifact.summary || artifact.report || artifact.result || '';
+  if (text) return String(text);
+  return `\`\`\`json\n${JSON.stringify(artifact, null, 2)}\n\`\`\``;
+};
+
+const getCollaborationTraceSummary = (meta = {}) => {
+  const trace = Array.isArray(meta.trace) ? meta.trace : [];
+  return trace
+    .map((event) => String(event?.detail || event?.message || event?.payload?.node_id || event?.event || '').trim())
+    .filter(Boolean)
+    .slice(-6);
+};
+
 const openCitation = (chunk) => {
   const docId = normalizeId(chunk?.docId);
   if (!docId) {
@@ -2827,7 +3815,7 @@ const openCitation = (chunk) => {
 };
 
 const reloadWorkspace = async () => {
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog(), loadCollaborationWorkflows()]);
   if (currentAgentId.value) {
     await restoreConfigForAgent(currentAgentId.value);
     await loadAgentRuntimeConfig(currentAgentId.value);
@@ -2845,7 +3833,7 @@ onMounted(async () => {
     activeConfigTab.value = savedState.activeConfigTab ?? 'tools';
   }
 
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog(), loadCollaborationWorkflows()]);
 
   const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
   const routeAgentId = typeof route.query?.agentId === 'string' ? route.query.agentId : '';
@@ -2914,9 +3902,9 @@ watch(
 /* 1. Global & Layout 
 -------------------------------------------------- */
 .agent-workspace {
-  --left-pane-width: 320px;
+  --left-pane-width: 380px;
   --right-pane-width: 0px;
-  --drawer-left-width: 320px;
+  --drawer-left-width: 380px;
   --collapsed-pane-width: 64px;
   --drawer-right-width: 320px;
   --chat-content-max-width: 900px;
@@ -2935,24 +3923,26 @@ watch(
   overflow: hidden; /* No global scrolling */
   background-color: #f6f9fb;
   font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-sizing: border-box;
 }
 
 .agent-workspace.is-wide {
-  --left-pane-width: 320px;
+  --left-pane-width: 400px;
+  --drawer-left-width: 400px;
   --right-pane-width: 0px;
   --chat-content-max-width: 920px;
 }
 
 .agent-workspace.is-medium {
-  --left-pane-width: 280px;
-  --drawer-left-width: 280px;
+  --left-pane-width: 340px;
+  --drawer-left-width: 340px;
   --collapsed-pane-width: 56px;
   --chat-content-max-width: 820px;
 }
 
 .agent-workspace.is-narrow {
-  --left-pane-width: 260px;
-  --drawer-left-width: 260px;
+  --left-pane-width: 300px;
+  --drawer-left-width: min(360px, calc(100vw - 24px));
   --collapsed-pane-width: 50px;
   --chat-content-max-width: 740px;
 }
@@ -3024,6 +4014,21 @@ watch(
 }
 .sidebar-tab.active:hover {
   background: #ffffff;
+}
+
+.sidebar-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .sidebar-agent-switch {
@@ -3123,6 +4128,151 @@ watch(
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.workspace-collaboration-pane {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+}
+
+.collaboration-sidebar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--sidebar-line);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.collaboration-sidebar-head h3 {
+  margin: 0 0 4px;
+  color: var(--sidebar-text-strong);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.collaboration-sidebar-head p {
+  margin: 0;
+  color: var(--sidebar-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.collaboration-sidebar-head > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collaboration-run-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.collaboration-run-item {
+  padding: 12px;
+  border: 1px solid var(--sidebar-line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.collaboration-run-item.active {
+  border-color: #99f6e4;
+  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.12);
+}
+
+.collaboration-run-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.collaboration-run-top strong {
+  color: var(--sidebar-text-strong);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.collaboration-run-top em {
+  flex-shrink: 0;
+  color: #475569;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.collaboration-run-top em.status-running {
+  color: #2563eb;
+}
+
+.collaboration-run-top em.status-error {
+  color: #dc2626;
+}
+
+.collaboration-run-time {
+  margin-top: 4px;
+  color: var(--sidebar-text-muted);
+  font-size: 12px;
+}
+
+.collaboration-run-participants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.collaboration-run-participants span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.collaboration-run-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.collaboration-run-actions button {
+  appearance: none;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4338ca;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 8px 10px;
+}
+
+.collaboration-run-actions button:hover {
+  background: #eef2ff;
+  border-color: #818cf8;
 }
 
 .session-collapse-handle {
@@ -3722,6 +4872,222 @@ watch(
   color: inherit !important;
   padding: 0;
 }
+
+.collaboration-process {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #c7d2fe;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.collaboration-process-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.collaboration-process-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.collaboration-process-title strong {
+  color: #4f46e5;
+  font-size: 12px;
+}
+
+.collaboration-process-toggle {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.collaboration-process-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.collaboration-process-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.collaboration-detail-link {
+  appearance: none;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4338ca;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 9px;
+}
+
+.collaboration-detail-link:hover {
+  border-color: #818cf8;
+  background: #eef2ff;
+}
+
+.collaboration-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+}
+
+.collaboration-inspector-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.collaboration-inspector-summary strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.collaboration-inspector-summary span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.collaboration-inspector-participants {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 56%;
+}
+
+.collaboration-inspector-participants span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 700;
+}
+
+.collaboration-inspector-participants em {
+  color: #0f766e;
+  font-style: normal;
+}
+
+.collaboration-inspector-tabs {
+  min-height: 0;
+  flex: 1;
+}
+
+.collaboration-playground-panel {
+  height: calc(100vh - 230px);
+  min-height: 520px;
+}
+
+.collaboration-playground-panel :deep(.graph-shell),
+.collaboration-playground-panel :deep(.trace-shell) {
+  height: 100%;
+  min-height: 520px;
+}
+
+.collaboration-playground-panel :deep(.graph-canvas-wrap) {
+  min-height: 420px;
+}
+
+.collaboration-participants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.collaboration-participant {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.collaboration-participant em {
+  font-style: normal;
+  color: #0f766e;
+  font-size: 11px;
+}
+
+.collaboration-detail {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.collaboration-report-card {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.collaboration-report-title {
+  margin-bottom: 6px;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collaboration-report-body {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.collaboration-report-body :deep(p) {
+  margin: 0 0 8px;
+}
+
+.collaboration-report-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.collaboration-trace-list {
+  display: grid;
+  gap: 6px;
+}
+
+.collaboration-trace-item {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .message-media {
   padding: 12px;
   border-radius: 16px;
@@ -3858,6 +5224,36 @@ watch(
 }
 .input-plus {
   margin-right: 6px;
+}
+
+.collaboration-toggle-chip {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #d7e3ef;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.collaboration-toggle-chip:hover {
+  border-color: #5eead4;
+  color: #0f766e;
+  background: #f0fdfa;
+}
+
+.collaboration-toggle-chip.active {
+  border-color: #14b8a6;
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
+.collaboration-toggle-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .attached-file-row {
@@ -4520,6 +5916,7 @@ html.dark .prompt-add-btn {
   .messages-container.is-empty > .welcome-panel {
     transform: none;
   }
+
 }
 
 @media (max-width: 820px) {
@@ -4584,6 +5981,34 @@ html.dark .sidebar-tab:hover {
 html.dark .sidebar-tab.active {
   background: #0f1c1c;
   color: #f1f5f9;
+}
+
+html.dark .sidebar-tab-badge,
+html.dark .collaboration-sidebar-head > span {
+  background: rgba(38, 255, 223, 0.1);
+  color: #26FFDF;
+}
+
+html.dark .collaboration-sidebar-head,
+html.dark .collaboration-run-item {
+  background: rgba(15, 28, 28, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .collaboration-sidebar-head h3,
+html.dark .collaboration-run-top strong {
+  color: #e2e8f0;
+}
+
+html.dark .collaboration-run-participants span {
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+html.dark .collaboration-run-actions button {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(38, 255, 223, 0.22);
+  color: #26FFDF;
 }
 
 html.dark .workspace-sidebar ::-webkit-scrollbar-thumb,
@@ -4798,6 +6223,63 @@ html.dark .message-item:not(.user) .message-text :deep(code) {
   color: #26FFDF;
 }
 
+html.dark .collaboration-process {
+  background: rgba(15, 28, 28, 0.82);
+  border-color: rgba(38, 255, 223, 0.22);
+}
+
+html.dark .collaboration-process-title {
+  color: #e2e8f0;
+}
+
+html.dark .collaboration-process-title strong,
+html.dark .collaboration-process-toggle {
+  color: #26FFDF;
+}
+
+html.dark .collaboration-detail-link {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(38, 255, 223, 0.22);
+  color: #26FFDF;
+}
+
+html.dark .collaboration-process-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .collaboration-inspector-summary {
+  background: rgba(15, 28, 28, 0.82);
+  border-color: rgba(38, 255, 223, 0.18);
+}
+
+html.dark .collaboration-inspector-summary strong {
+  color: #e2e8f0;
+}
+
+html.dark .collaboration-inspector-participants span {
+  background: rgba(38, 255, 223, 0.1);
+  color: #26FFDF;
+}
+
+html.dark .collaboration-participant {
+  background: rgba(38, 255, 223, 0.1);
+  color: #26FFDF;
+}
+
+html.dark .collaboration-report-card {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .collaboration-report-title {
+  color: #f1f5f9;
+}
+
+html.dark .collaboration-report-body,
+html.dark .collaboration-trace-item {
+  color: #cbd5e1;
+}
+
 html.dark .message-media {
   background: #1e293b;
   border-color: rgba(255, 255, 255, 0.1);
@@ -4855,6 +6337,19 @@ html.dark .plus-trigger {
 html.dark .plus-trigger:hover {
   background: #334155;
   color: #26FFDF;
+}
+
+html.dark .collaboration-toggle-chip {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(15, 28, 28, 0.8);
+  color: #94a3b8;
+}
+
+html.dark .collaboration-toggle-chip:hover,
+html.dark .collaboration-toggle-chip.active {
+  border-color: rgba(38, 255, 223, 0.4);
+  color: #26FFDF;
+  background: rgba(38, 255, 223, 0.1);
 }
 
 html.dark .attached-file-name {

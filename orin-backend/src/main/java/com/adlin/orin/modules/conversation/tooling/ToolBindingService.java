@@ -94,7 +94,7 @@ public class ToolBindingService {
                 sessionBinding != null ? sessionBinding.getToolIds() : null,
                 agentBinding != null ? agentBinding.getToolIds() : null,
                 deriveToolIds(effectiveKbIds, effectiveSkillIds, effectiveMcpIds),
-                getDefaultBuiltinToolIds());
+                List.of());
 
         return EffectiveToolBinding.builder()
                 .agentId(session != null ? session.getAgentId() : null)
@@ -132,18 +132,6 @@ public class ToolBindingService {
             mcpIds.stream().filter(id -> id != null).forEach(id -> merged.add("mcp:" + id));
         }
         return new ArrayList<>(merged);
-    }
-
-    /**
-     * Returns all built-in KB/tool IDs that should be available by default
-     * when no explicit binding is configured.
-     */
-    private List<String> getDefaultBuiltinToolIds() {
-        return List.of(
-                "query_kb", "read_document", "kb_structure_scan",
-                "list_knowledge_bases", "list_documents", "get_document_metadata", "get_kb_info",
-                "list_knowledge_graphs", "get_graph_info", "list_graph_entities", "search_graph_entities"
-        );
     }
 
     private ToolBindingDto toDto(AgentToolBinding binding) {

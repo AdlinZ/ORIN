@@ -229,5 +229,12 @@ export async function runWorkflowStream(payload, { onTrace, onFinal, onError, on
     }
   }
 
+  const parsedRemainder = parseSseFrame(buffer)
+  if (parsedRemainder) {
+    if (parsedRemainder.event === "trace") onTrace?.(parsedRemainder.data)
+    if (parsedRemainder.event === "final") onFinal?.(parsedRemainder.data)
+    if (parsedRemainder.event === "error") onError?.(parsedRemainder.data)
+  }
+
   onEnd?.()
 }

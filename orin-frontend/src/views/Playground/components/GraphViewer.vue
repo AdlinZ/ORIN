@@ -244,9 +244,46 @@ const traversedEdgeKeys = computed(() => {
   return keys;
 });
 
+const completedGraphEdges = computed(() => {
+  const nodes = props.graph?.nodes || [];
+  const rawEdges = props.graph?.edges || [];
+  if (!nodes.length) return [];
+
+  const nodeIds = new Set(nodes.map((node) => node.id).filter(Boolean));
+  const edges = rawEdges
+    .filter((edge) => edge?.source && edge?.target && nodeIds.has(edge.source) && nodeIds.has(edge.target))
+    .map((edge) => ({ ...edge }));
+  const edgeKeys = new Set(edges.map((edge) => `${edge.source}->${edge.target}`));
+
+  function addEdge(source, target) {
+    if (!nodeIds.has(source) || !nodeIds.has(target)) return;
+    const key = `${source}->${target}`;
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
+    edges.push({ source, target });
+  }
+
+  if (nodeIds.has("end")) {
+    const mergeNode = nodes.find((node) => node.kind === "merge");
+    const finalNode = nodes.find((node) => node.kind === "final" || node.id === "finalize");
+    if (mergeNode) {
+      addEdge(mergeNode.id, "end");
+    } else if (finalNode) {
+      addEdge(finalNode.id, "end");
+    } else {
+      const outgoing = new Set(edges.map((edge) => edge.source));
+      nodes
+        .filter((node) => !["start", "end"].includes(node.id) && !outgoing.has(node.id))
+        .forEach((node) => addEdge(node.id, "end"));
+    }
+  }
+
+  return edges;
+});
+
 const staticEdgeKeys = computed(() => {
   const keys = new Set();
-  (props.graph?.edges || []).forEach((edge) => {
+  completedGraphEdges.value.forEach((edge) => {
     if (edge?.source && edge?.target) {
       keys.add(`${edge.source}->${edge.target}`);
     }
@@ -349,7 +386,7 @@ const graphEdges = computed(() => {
     });
   }
 
-  (props.graph?.edges || []).forEach((edge) => {
+  completedGraphEdges.value.forEach((edge) => {
     upsertEdge(edge.source, edge.target, traversedEdgeKeys.value.has(`${edge.source}->${edge.target}`), false);
   });
 
@@ -479,11 +516,7 @@ onBeforeUnmount(() => {
       </span>
     </header>
 
-    <div v-if="props.tracePlaying" class="graph-canvas-wrap graph-runtime-placeholder">
-      <div class="graph-runtime-text">{{ t("graph.running") }}</div>
-    </div>
-
-    <div v-else ref="canvasRef" class="graph-canvas-wrap">
+    <div ref="canvasRef" class="graph-canvas-wrap">
       <div v-if="!graph" class="trace-empty">{{ t("graph.empty") }}</div>
       <template v-else>
         <svg

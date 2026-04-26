@@ -184,6 +184,57 @@ public class AgentChatService {
     }
 
     /**
+     * 覆盖保存前端编排类消息历史。
+     * 用于统一对话页中的协作运行，避免绕过 Agent chat API 后历史丢失。
+     */
+    @Transactional
+    @SuppressWarnings("unchecked")
+    public void saveMessageHistory(String sessionId, Map<String, Object> body) {
+        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+
+        Object rawMessages = body != null ? body.get("messages") : null;
+        if (!(rawMessages instanceof List<?> rawList)) {
+            throw new IllegalArgumentException("messages must be an array");
+        }
+
+        List<Map<String, Object>> messages = new ArrayList<>();
+        for (Object item : rawList) {
+            if (item instanceof Map<?, ?> rawMap) {
+                Map<String, Object> message = new LinkedHashMap<>();
+                rawMap.forEach((key, value) -> {
+                    if (key != null) {
+                        message.put(String.valueOf(key), value);
+                    }
+                });
+                String role = String.valueOf(message.getOrDefault("role", "")).trim();
+                if (role.equals("user") || role.equals("assistant") || role.equals("system")) {
+                    messages.add(message);
+                }
+            }
+        }
+
+        try {
+            session.setHistory(objectMapper.writeValueAsString(messages));
+            session.setUpdatedAt(java.time.LocalDateTime.now());
+            if (!messages.isEmpty()) {
+                String firstUserText = messages.stream()
+                        .filter(msg -> "user".equals(msg.get("role")))
+                        .map(msg -> String.valueOf(msg.getOrDefault("content", "")).trim())
+                        .filter(text -> !text.isBlank())
+                        .findFirst()
+                        .orElse("");
+                if (!firstUserText.isBlank() && (session.getTitle() == null || session.getTitle().isBlank() || "新会话".equals(session.getTitle()))) {
+                    session.setTitle(firstUserText.length() > 30 ? firstUserText.substring(0, 30) + "..." : firstUserText);
+                }
+            }
+            sessionRepository.save(session);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("序列化消息历史失败", e);
+        }
+    }
+
+    /**
      * 发送消息
      */
     @Transactional
@@ -247,6 +298,10 @@ public class AgentChatService {
                 .sharedState(new HashMap<>())
                 .retrievedChunks(new ArrayList<>())
                 .build();
+        String conversationReferenceContext = buildConversationReferenceContext(request.getConversationContextMessages());
+        if (!conversationReferenceContext.isBlank()) {
+            toolCtx.putSharedState("conversationReferenceContext", conversationReferenceContext);
+        }
 
         toolExecutor.applyBinding(toolCtx, useToolCalling, eventPublisher);
 
@@ -625,6 +680,12 @@ public class AgentChatService {
             if (toolCtx != null && useToolCalling && (hasKbs || hasNonKbFnTools)) {
                 final ToolExecutionContext ctx = toolCtx;
                 String baseSystemPrompt = metaKnowledgeService.assembleSystemPrompt(agentId);
+                String conversationReferenceContext = toolCtx != null
+                        ? (String) toolCtx.getSharedState("conversationReferenceContext")
+                        : null;
+                if (conversationReferenceContext != null && !conversationReferenceContext.isBlank()) {
+                    baseSystemPrompt = appendConversationReferenceContext(baseSystemPrompt, conversationReferenceContext);
+                }
                 double temperature = metadata != null && metadata.getTemperature() != null
                         ? metadata.getTemperature() : 0.7;
                 int maxTokens = metadata != null && metadata.getMaxTokens() != null
@@ -660,8 +721,14 @@ public class AgentChatService {
             String kbStructurePreamble = buildKbStructurePreamble(toolCtx);
             String mcpContext = toolCtx != null ? (String) toolCtx.getSharedState("mcpContext") : null;
             String toolContext = toolCtx != null ? (String) toolCtx.getSharedState("toolContext") : null;
+            String conversationReferenceContext = toolCtx != null
+                    ? (String) toolCtx.getSharedState("conversationReferenceContext")
+                    : null;
 
             StringBuilder systemSuffix = new StringBuilder();
+            if (conversationReferenceContext != null && !conversationReferenceContext.isBlank()) {
+                systemSuffix.append("\n\n").append(conversationReferenceContext);
+            }
             if (kbStructurePreamble != null && !kbStructurePreamble.isBlank()) {
                 systemSuffix.append("\n\n").append(kbStructurePreamble);
             }
@@ -868,6 +935,63 @@ public class AgentChatService {
             sb.append("- ").append(name).append(": ").append(docCount).append(" 个文档\n");
         }
         return sb.toString().trim();
+    }
+
+    private String buildConversationReferenceContext(List<Map<String, Object>> contextMessages) {
+        if (contextMessages == null || contextMessages.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        int count = 0;
+        int usedChars = 0;
+        for (Map<String, Object> item : contextMessages) {
+            if (item == null || count >= 4 || usedChars >= 1800) {
+                break;
+            }
+            String role = String.valueOf(item.getOrDefault("role", "")).trim();
+            String content = String.valueOf(item.getOrDefault("content", "")).trim();
+            if (content.isBlank()) {
+                continue;
+            }
+            String label = "assistant".equalsIgnoreCase(role) ? "助手" : "用户";
+            String clipped = clipForPrompt(content, 600);
+            if (usedChars + clipped.length() > 1800) {
+                clipped = clipForPrompt(clipped, Math.max(0, 1800 - usedChars));
+            }
+            if (clipped.isBlank()) {
+                continue;
+            }
+            sb.append(label).append(": ").append(clipped).append("\n");
+            usedChars += clipped.length();
+            count += 1;
+        }
+
+        if (sb.length() == 0) {
+            return "";
+        }
+        return "同一会话近期上下文，用于解析用户提到的“刚才、上面、继续、这个、上述”等指代。"
+                + "请优先保持上下文连续，但不要在回答中复述这段说明：\n"
+                + sb.toString().trim();
+    }
+
+    private String appendConversationReferenceContext(String baseSystemPrompt, String conversationReferenceContext) {
+        String base = baseSystemPrompt != null ? baseSystemPrompt : "";
+        if (conversationReferenceContext == null || conversationReferenceContext.isBlank()) {
+            return base;
+        }
+        return base + "\n\n" + conversationReferenceContext;
+    }
+
+    private String clipForPrompt(String text, int maxChars) {
+        if (text == null || maxChars <= 0) {
+            return "";
+        }
+        String normalized = text.replaceAll("\\s+", " ").trim();
+        if (normalized.length() <= maxChars) {
+            return normalized;
+        }
+        return normalized.substring(0, Math.max(0, maxChars - 1)) + "…";
     }
 
     private String extractContent(Map<String, Object> respMap) {

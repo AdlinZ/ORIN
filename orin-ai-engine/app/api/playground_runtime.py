@@ -8,11 +8,13 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from app.core.collab_state import poll_branch_result, read_collab_ctx
 from app.core.config import settings
+from app.engine.task_runtime import TaskRuntime
 
 router = APIRouter(prefix="/api/playground/runtime")
 
@@ -21,6 +23,8 @@ class PlaygroundRunRequest(BaseModel):
     run_id: str
     workflow: dict[str, Any]
     agents: list[dict[str, Any]] = Field(default_factory=list)
+    ephemeral_agents: list[dict[str, Any]] = Field(default_factory=list)
+    context_messages: list[dict[str, Any]] = Field(default_factory=list)
     user_input: str
     conversation_id: str | None = None
 
@@ -34,6 +38,48 @@ def text(value: Any, fallback: str = "") -> str:
         return fallback
     value = str(value).strip()
     return value or fallback
+
+
+def normalize_context_messages(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    if not isinstance(messages, list):
+        return normalized
+    for item in messages[:4]:
+        if not isinstance(item, dict):
+            continue
+        role = text(item.get("role"), "user").lower()
+        if role not in {"user", "assistant"}:
+            continue
+        content = text(item.get("content"), "")
+        if not content:
+            continue
+        normalized.append({
+            "role": role,
+            "content": content[:600],
+        })
+    return normalized
+
+
+def format_context_messages(messages: list[dict[str, str]]) -> str:
+    if not messages:
+        return ""
+    lines = []
+    for item in messages:
+        role = "用户" if item.get("role") == "user" else "助手"
+        lines.append(f"{role}: {text(item.get('content'), '')}")
+    return "\n".join(lines)
+
+
+def contextual_user_input(user_input: str, messages: list[dict[str, str]]) -> str:
+    context_text = format_context_messages(messages)
+    if not context_text:
+        return user_input
+    return (
+        "当前用户请求：\n"
+        f"{user_input}\n\n"
+        "同一会话近期上下文（用于解析“这个/上面/继续”等指代；最终回答必须聚焦当前用户请求）：\n"
+        f"{context_text}"
+    )
 
 
 def bounded_int(value: Any, fallback: int, minimum: int = 256, maximum: int = 16000) -> int:
@@ -127,6 +173,33 @@ def agent_name(agent: dict[str, Any], fallback: str = "Agent") -> str:
     return text(agent.get("name"), fallback)
 
 
+def normalize_ephemeral_agents(agents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for item in agents or []:
+        if not isinstance(item, dict):
+            continue
+        current_id = text(item.get("id"), "")
+        current_name = text(item.get("name"), "")
+        model = text(item.get("model"), "")
+        if not current_id.startswith("ephemeral:") or not current_name or not model:
+            continue
+        normalized.append({
+            "id": current_id,
+            "name": current_name,
+            "description": text(item.get("description"), text(item.get("system_prompt"), ""))[:300],
+            "system_prompt": text(item.get("system_prompt"), ""),
+            "model": model,
+            "role": text(item.get("role"), "SPECIALIST"),
+            "max_tokens": bounded_int(item.get("max_tokens"), int(getattr(settings, "PLAYGROUND_AGENT_MAX_TOKENS", 1200))),
+            "temperature": item.get("temperature"),
+            "planning_slot": bool(item.get("planning_slot") or item.get("planningSlot")),
+            "ephemeral": True,
+        })
+        if len(normalized) >= 4:
+            break
+    return normalized
+
+
 def build_graph(workflow: dict[str, Any], agents: list[dict[str, Any]]) -> dict[str, Any]:
     workflow_type = text(workflow.get("type"), "router_specialists")
     finalizer = bool(workflow.get("finalizer_enabled", True))
@@ -143,7 +216,7 @@ def build_graph(workflow: dict[str, Any], agents: list[dict[str, Any]]) -> dict[
 
 def append_final(nodes: list[dict[str, Any]], edges: list[dict[str, Any]], source: str, finalizer: bool) -> None:
     if finalizer:
-        nodes.append(node("finalize", "Finalizer", "final"))
+        nodes.append(node("finalize", "Merge", "merge"))
         edges.append(edge(source, "finalize"))
         nodes.append(node("end", "End", "end"))
         edges.append(edge("finalize", "end"))
@@ -170,7 +243,7 @@ def graph_router_specialists(agents: list[dict[str, Any]], finalizer: bool) -> d
         edges.append(edge("router", selected_id, "route"))
         edges.append(edge(selected_id, "finalize" if finalizer else "end"))
     if finalizer:
-        nodes.extend([node("finalize", "Finalizer", "final"), node("end", "End", "end")])
+        nodes.extend([node("finalize", "Merge", "merge"), node("end", "End", "end")])
         edges.append(edge("finalize", "end"))
     else:
         nodes.append(node("end", "End", "end"))
@@ -349,6 +422,12 @@ def _workflow_dag_subtasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _append_trace(state: dict[str, Any], evt: dict[str, Any]) -> None:
     state.setdefault("trace", []).append(evt)
+    queue = state.get("_trace_queue")
+    if queue is not None:
+        try:
+            queue.put_nowait({"event": "trace", "data": evt})
+        except Exception:
+            pass
 
 
 def _extract_result_value(value: Any) -> str:
@@ -580,6 +659,142 @@ def _validate_plan_ir(
     return normalized
 
 
+def _ephemeral_agents_need_planning(agents: list[dict[str, Any]]) -> bool:
+    if not agents:
+        return False
+    return any(
+        bool(agent.get("planning_slot")) or text(agent.get("role"), "").upper() == "ORCHESTRATED_SLOT"
+        for agent in agents
+        if isinstance(agent, dict)
+    )
+
+
+def _fallback_planned_ephemeral_agents(agents: list[dict[str, Any]], user_input: str) -> list[dict[str, Any]]:
+    role_pool = [
+        ("需求分析者", "SPECIALIST", "负责澄清目标、拆解问题、识别关键约束和输入缺口。"),
+        ("方案复核者", "REVIEWER", "负责检查方案漏洞、反例、风险和不充分假设。"),
+        ("执行规划者", "PLANNER", "负责把结论拆成步骤、依赖、里程碑和验收标准。"),
+        ("风险质询者", "CRITIC", "负责提出尖锐质疑，识别失败点、安全、成本和上线风险。"),
+    ]
+    planned: list[dict[str, Any]] = []
+    for index, agent in enumerate(agents[:4]):
+        name, role, description = role_pool[index % len(role_pool)]
+        planned.append({
+            **agent,
+            "name": name,
+            "description": description,
+            "system_prompt": (
+                f"你是{name}。{description}"
+                "严格围绕用户任务和会话上下文输出，避免泛泛而谈，结论要具体、可执行。"
+            ),
+            "role": role,
+            "planning_slot": False,
+            "ephemeral": True,
+        })
+    return planned
+
+
+def _validate_ephemeral_agent_plan(plan: dict[str, Any], agents: list[dict[str, Any]], user_input: str) -> list[dict[str, Any]]:
+    items = plan.get("agents") if isinstance(plan, dict) else None
+    if not isinstance(items, list) or not items:
+        return _fallback_planned_ephemeral_agents(agents, user_input)
+
+    planned: list[dict[str, Any]] = []
+    allowed_roles = {"SPECIALIST", "REVIEWER", "PLANNER", "CRITIC", "PM", "RESEARCHER", "IMPLEMENTER", "TESTER", "COORDINATOR"}
+    for index, base in enumerate(agents[:4]):
+        item = items[index] if index < len(items) and isinstance(items[index], dict) else {}
+        name = text(item.get("name"), "").strip()
+        description = text(item.get("description"), "").strip()
+        system_prompt = text(item.get("system_prompt"), "").strip()
+        role = text(item.get("role"), text(base.get("role"), "SPECIALIST")).upper()
+        if role not in allowed_roles:
+            role = "SPECIALIST"
+        if not name:
+            name = text(base.get("name"), f"协作角色 {index + 1}")
+        if not description:
+            description = text(item.get("responsibility"), text(base.get("description"), "根据 Planner 分配承担本轮协作任务。"))
+        if not system_prompt:
+            system_prompt = f"你是{name}。{description} 输出要具体、简洁、可执行。"
+        planned.append({
+            **base,
+            "name": name[:30],
+            "description": description[:300],
+            "system_prompt": system_prompt[:1200],
+            "role": role,
+            "max_tokens": bounded_int(item.get("max_tokens"), bounded_int(base.get("max_tokens"), int(getattr(settings, "PLAYGROUND_AGENT_MAX_TOKENS", 2400)))),
+            "temperature": item.get("temperature", base.get("temperature")),
+            "planning_slot": False,
+            "ephemeral": True,
+        })
+    return planned or _fallback_planned_ephemeral_agents(agents, user_input)
+
+
+async def _plan_ephemeral_agents_by_llm(
+    user_input: str,
+    context_messages: list[dict[str, Any]],
+    agents: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not agents:
+        return agents
+    if not _ephemeral_agents_need_planning(agents):
+        return agents
+
+    planner_agent = agents[0]
+    planner_agent_id = agent_id(planner_agent, "")
+    context_text = "\n".join(
+        f"{text(item.get('role'), 'user')}: {text(item.get('content'), '')}"
+        for item in context_messages[-4:]
+        if isinstance(item, dict) and text(item.get("content"), "")
+    )
+    slot_hints = [
+        {
+            "slot_id": agent_id(agent, f"slot_{idx}"),
+            "hint": text(agent.get("description"), ""),
+        }
+        for idx, agent in enumerate(agents, start=1)
+    ]
+
+    planner_system_prompt = "You are ORIN Collaboration Role Planner. Return compact JSON only. No markdown."
+    planner_user_prompt = (
+        "Plan temporary collaboration roles for this single run.\n"
+        "Output one JSON object: "
+        "{\"agents\":[{\"slot_id\":\"...\",\"name\":\"...\",\"role\":\"SPECIALIST|REVIEWER|PLANNER|CRITIC|PM|RESEARCHER|IMPLEMENTER|TESTER|COORDINATOR\","
+        "\"description\":\"...\",\"system_prompt\":\"...\",\"temperature\":0.4,\"max_tokens\":2400}]}.\n"
+        "Rules:\n"
+        f"- output exactly {len(agents)} agents, aligned to slot order\n"
+        "- do not default every role to 专家; choose natural roles such as 评审者、执行者、协调者、研究员、测试者、反对者、产品取舍者\n"
+        "- names must be short Chinese role names without random suffixes\n"
+        "- system_prompt must define responsibility for this task, not generic persona\n"
+        "- if the user says to continue previous roles, keep useful roles but you may rename or replace roles when the task changed\n"
+        f"user_input={user_input}\n"
+        f"context={context_text}\n"
+        f"slots={json.dumps(slot_hints, ensure_ascii=False)}"
+    )
+
+    planner_override = {
+        **planner_agent,
+        "system_prompt": planner_system_prompt,
+        "max_tokens": int(getattr(settings, "PLAYGROUND_PLANNER_MAX_TOKENS", 800)),
+        "temperature": 0.2,
+    }
+    try:
+        runtime = TaskRuntime()
+        raw_text = await runtime.execute_agent_task(
+            description=planner_user_prompt,
+            expected_role="PLANNER",
+            context={
+                "preferred_agent_id": planner_agent_id,
+                "ephemeral_agents": [planner_override],
+                "agent_max_tokens": int(getattr(settings, "PLAYGROUND_PLANNER_MAX_TOKENS", 800)),
+            },
+        )
+        plan = _extract_json_object(raw_text)
+        return _validate_ephemeral_agent_plan(plan, agents, user_input)
+    except Exception:
+        logger.exception("Ephemeral role planning failed; falling back to deterministic role plan")
+        return _fallback_planned_ephemeral_agents(agents, user_input)
+
+
 async def _plan_tasks_by_llm(workflow: dict[str, Any], user_input: str, agents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not agents:
         raise RuntimeError("planner_executor requires at least one agent for LLM planner")
@@ -609,6 +824,26 @@ async def _plan_tasks_by_llm(workflow: dict[str, Any], user_input: str, agents: 
         f"user_input={user_input}\n"
         f"agent_catalog={json.dumps(catalog, ensure_ascii=False)}"
     )
+
+    if planner_agent_id.startswith("ephemeral:"):
+        planner_override = {
+            **planner_agent,
+            "system_prompt": planner_system_prompt,
+            "max_tokens": int(getattr(settings, "PLAYGROUND_PLANNER_MAX_TOKENS", 800)),
+            "temperature": 0.2,
+        }
+        runtime = TaskRuntime()
+        raw_text = await runtime.execute_agent_task(
+            description=planner_user_prompt,
+            expected_role="PLANNER",
+            context={
+                "preferred_agent_id": planner_agent_id,
+                "ephemeral_agents": [planner_override, *[agent for agent in agents if agent_id(agent, "") != planner_agent_id]],
+                "agent_max_tokens": int(getattr(settings, "PLAYGROUND_PLANNER_MAX_TOKENS", 800)),
+            },
+        )
+        plan = _extract_json_object(raw_text)
+        return _validate_plan_ir(plan, agents, user_input)
 
     url = f"{settings.ORIN_BACKEND_URL}/api/v1/agents/{planner_agent_id}/chat"
     payload = {
@@ -762,14 +997,14 @@ def build_runtime_graph(subtasks: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             edges.append(edge("planner", task_id))
 
-    nodes.append(node("end", "End", "end"))
     depended_on: set[str] = set()
     for task in subtasks:
         depends = task.get("depends_on") if isinstance(task.get("depends_on"), list) else []
         depended_on.update(text(dep, "") for dep in depends if text(dep, "") in task_ids)
     leaves = [task_id for task_id in task_ids if task_id not in depended_on]
-    if len(leaves) > 1:
-        # Explicit join node for parallel branches before workflow end.
+    nodes.append(node("end", "End", "end"))
+    if len(task_ids) > 1:
+        # Explicit merge node for any multi-task collaboration before workflow end.
         nodes.append(node("merge", "Merge", "merge"))
         for task_id in leaves:
             edges.append(edge(task_id, "merge"))
@@ -779,6 +1014,28 @@ def build_runtime_graph(subtasks: list[dict[str, Any]]) -> dict[str, Any]:
             edges.append(edge(task_id, "end"))
 
     return {"nodes": nodes, "edges": edges}
+
+
+def _attach_context_to_subtasks(tasks: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[str, Any]]:
+    context_text = format_context_messages(state.get("context_messages") or [])
+    if not context_text:
+        return tasks
+    current_input = text(state.get("user_input"), "")
+    suffix = (
+        "\n\n执行上下文：\n"
+        f"- 当前用户请求：{current_input}\n"
+        "- 近期会话上下文用于解析“上面/这个/刚才”等指代：\n"
+        f"{context_text[:1800]}\n"
+        "请只执行本子任务，并基于上述上下文作答。"
+    )
+    enriched: list[dict[str, Any]] = []
+    for item in tasks:
+        if not isinstance(item, dict):
+            continue
+        next_item = dict(item)
+        next_item["description"] = f"{text(next_item.get('description'), text(next_item.get('objective'), ''))}{suffix}"
+        enriched.append(next_item)
+    return enriched
 
 
 async def _bootstrap_collaboration_package(state: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
@@ -792,14 +1049,27 @@ async def _bootstrap_collaboration_package(state: dict[str, Any]) -> tuple[str, 
             raise RuntimeError("DAG_STRICT requires non-empty workflow.dag_subtasks")
         tasks = dag_subtasks
     elif workflow_type == "planner_executor":
-        tasks = await _plan_tasks_by_llm(workflow, state["user_input"], state["agents"])
+        tasks = await _plan_tasks_by_llm(workflow, state.get("contextual_user_input") or state["user_input"], state["agents"])
     else:
-        tasks = _workflow_tasks(workflow_type, state["user_input"], state["agents"])
+        tasks = _workflow_tasks(workflow_type, state.get("contextual_user_input") or state["user_input"], state["agents"])
+
+    tasks = _attach_context_to_subtasks(tasks, state)
+
+    if state.get("ephemeral_agents"):
+        subtasks = []
+        for item in tasks:
+            if isinstance(item, dict):
+                normalized = _normalize_subtask_payload(item)
+                normalized["_ephemeral_agents"] = state.get("ephemeral_agents") or []
+                subtasks.append(normalized)
+        if not subtasks:
+            raise RuntimeError("Ephemeral collaboration produced no subtasks")
+        return f"ephemeral:{state['run_id']}", subtasks
 
     url = f"{settings.ORIN_BACKEND_URL}/api/playground/collaboration/bootstrap"
     payload = {
         "run_id": state["run_id"],
-        "intent": state["user_input"],
+        "intent": state.get("contextual_user_input") or state["user_input"],
         "workflow_type": workflow_type,
         "collaboration_mode": mode,
         "trace_id": state.get("trace_id") or state["run_id"],
@@ -824,7 +1094,9 @@ async def _bootstrap_collaboration_package(state: dict[str, Any]) -> tuple[str, 
     subtasks = []
     for item in raw_subtasks:
         if isinstance(item, dict):
-            subtasks.append(_normalize_subtask_payload(item))
+            normalized = _normalize_subtask_payload(item)
+            normalized["_ephemeral_agents"] = state.get("ephemeral_agents") or []
+            subtasks.append(normalized)
     if not package_id:
         raise RuntimeError("Bootstrap failed: empty package_id")
     return package_id, subtasks
@@ -843,6 +1115,7 @@ async def _trigger_subtask(package_id: str, subtask: dict[str, Any], trace_id: s
         "contextSnapshot": {
             "playground": True,
             "runId": trace_id,
+            "ephemeral_agents": subtask.get("_ephemeral_agents") if isinstance(subtask.get("_ephemeral_agents"), list) else [],
         },
     }
     headers = {"X-Trace-Id": trace_id}
@@ -874,6 +1147,24 @@ async def _planner_node(state: dict[str, Any]) -> dict[str, Any]:
             "RUNNING",
             package_id=package_id,
             subtask_count=len(subtasks),
+            subtasks=[
+                {
+                    "id": text(task.get("id"), ""),
+                    "description": text(task.get("description"), ""),
+                    "depends_on": task.get("depends_on") if isinstance(task.get("depends_on"), list) else [],
+                    "logical_role": (
+                        task.get("input_data", {}).get("logical_role")
+                        if isinstance(task.get("input_data"), dict)
+                        else None
+                    ),
+                    "preferred_agent_id": (
+                        task.get("input_data", {}).get("preferred_agent_id")
+                        if isinstance(task.get("input_data"), dict)
+                        else None
+                    ),
+                }
+                for task in subtasks
+            ],
             execution_mode=execution_mode,
             planning_source="dag_subtasks" if execution_mode == "DAG_STRICT" else ("planner_llm" if workflow_type == "planner_executor" else "builtin"),
         ),
@@ -891,6 +1182,7 @@ async def _planner_node(state: dict[str, Any]) -> dict[str, Any]:
 async def _execute_one_subtask(state: dict[str, Any], subtask: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
     subtask_id = text(subtask.get("id"), "")
     subtask_desc = text(subtask.get("description"), "")
+    input_data = subtask.get("input_data") if isinstance(subtask.get("input_data"), dict) else {}
 
     _append_trace(
         state,
@@ -904,6 +1196,44 @@ async def _execute_one_subtask(state: dict[str, Any], subtask: dict[str, Any]) -
             package_id=state["package_id"],
         ),
     )
+
+    if state.get("ephemeral_agents") or str(input_data.get("preferred_agent_id", "")).startswith("ephemeral:"):
+        runtime = TaskRuntime()
+        result_text = await runtime.execute_agent_task(
+            description=subtask_desc,
+            expected_role=text(subtask.get("role"), "SPECIALIST"),
+            context={
+                **input_data,
+                "package_id": state.get("package_id"),
+                "sub_task_id": subtask_id,
+                "_trace_id": state.get("trace_id") or state["run_id"],
+                "ephemeral_agents": state.get("ephemeral_agents") or subtask.get("_ephemeral_agents") or [],
+                "agent_max_tokens": bounded_int(
+                    state.get("workflow", {}).get("agent_max_tokens"),
+                    int(getattr(settings, "PLAYGROUND_AGENT_MAX_TOKENS", 1200)),
+                ),
+            },
+        )
+        _append_trace(
+            state,
+            event(
+                "node_exited",
+                "Node Exited",
+                f"Subtask {subtask_id} completed by ephemeral runtime.",
+                subtask_id,
+                state["run_id"],
+                "COMPLETED",
+                package_id=state["package_id"],
+            ),
+        )
+        report_text = f"[{subtask_id}] {subtask_desc}\n{result_text}"
+        report = {
+            "task_id": subtask_id,
+            "description": subtask_desc,
+            "status": "COMPLETED",
+            "result": result_text,
+        }
+        return subtask_id, report_text, report
 
     await _trigger_subtask(state["package_id"], subtask, state.get("trace_id") or state["run_id"])
 
@@ -1044,14 +1374,42 @@ async def _merge_reports_by_llm(state: dict[str, Any], task_reports: list[dict[s
     merge_system_prompt = (
         "You are ORIN Merge Synthesizer. Synthesize multiple task outputs into one final answer.\n"
         "Strictly follow formatting constraints requested by user_input.\n"
+        "Do not impose an arbitrary length cap. Be complete enough to satisfy the user's requested structure and detail.\n"
+        "If the user asks for a short answer, keep it short; otherwise include the important synthesis, conflicts, tradeoffs, and final recommendation.\n"
         "Do not include internal reasoning."
     )
     merge_user_prompt = (
         f"user_input:\n{state.get('user_input')}\n\n"
+        f"conversation_context:\n{format_context_messages(state.get('context_messages') or []) or 'None'}\n\n"
         "task_reports_json:\n"
         f"{json.dumps(compact_reports, ensure_ascii=False)}\n\n"
         "Output final answer only."
     )
+
+    if merge_agent_id.startswith("ephemeral:"):
+        runtime = TaskRuntime()
+        merge_max_tokens = bounded_int(
+            workflow.get("merge_max_tokens"),
+            int(getattr(settings, "PLAYGROUND_MERGE_MAX_TOKENS", 6000)),
+        )
+        merge_ephemeral_agents = [
+            {**agent, "max_tokens": merge_max_tokens} if agent_id(agent, "") == merge_agent_id else agent
+            for agent in (state.get("ephemeral_agents") or [])
+            if isinstance(agent, dict)
+        ]
+        merged_text = await runtime.execute_agent_task(
+            description=merge_user_prompt,
+            expected_role="MERGE",
+            context={
+                "preferred_agent_id": merge_agent_id,
+                "ephemeral_agents": merge_ephemeral_agents,
+                "agent_max_tokens": merge_max_tokens,
+            },
+        )
+        merged_text = text(merged_text, "")
+        if not merged_text:
+            raise RuntimeError("merge llm failed: empty response")
+        return merged_text, merge_agent_id
 
     url = f"{settings.ORIN_BACKEND_URL}/api/v1/agents/{merge_agent_id}/chat"
     payload = {
@@ -1059,7 +1417,7 @@ async def _merge_reports_by_llm(state: dict[str, Any], task_reports: list[dict[s
         "system_prompt": merge_system_prompt,
         "max_tokens": bounded_int(
             workflow.get("merge_max_tokens"),
-            int(getattr(settings, "PLAYGROUND_MERGE_MAX_TOKENS", 3200)),
+            int(getattr(settings, "PLAYGROUND_MERGE_MAX_TOKENS", 6000)),
         ),
         "enable_thinking": False,
     }
@@ -1100,7 +1458,7 @@ async def _finalizer_node(state: dict[str, Any]) -> dict[str, Any]:
         depends = task.get("depends_on") if isinstance(task.get("depends_on"), list) else []
         depended_on.update(text(dep, "") for dep in depends if text(dep, "") in task_ids)
     leaves = [task_id for task_id in task_ids if task_id and task_id not in depended_on]
-    merge_active = len(leaves) > 1
+    merge_active = len(task_ids) > 1
     if merge_active:
         _append_trace(
             state,
@@ -1230,6 +1588,22 @@ async def _finalizer_node(state: dict[str, Any]) -> dict[str, Any]:
                 for task in (state.get("subtasks") or [])
             ],
         },
+        "ephemeral_agents": [
+            {
+                "id": agent_id(agent, ""),
+                "name": agent_name(agent),
+                "base_name": agent_name(agent),
+                "description": text(agent.get("description"), ""),
+                "system_prompt": text(agent.get("system_prompt"), ""),
+                "model": text(agent.get("model"), ""),
+                "role": text(agent.get("role"), "SPECIALIST"),
+                "max_tokens": agent.get("max_tokens"),
+                "temperature": agent.get("temperature"),
+                "ephemeral": True,
+            }
+            for agent in (state.get("ephemeral_agents") or [])
+            if isinstance(agent, dict)
+        ],
         "task_reports": task_reports,
         "task_count": len(task_reports),
         "merge": {
@@ -1262,8 +1636,14 @@ def _build_runtime_graph():
 _runtime_graph = _build_runtime_graph()
 
 
-@router.post("/runs")
-async def run_playground_workflow(request: PlaygroundRunRequest) -> dict[str, Any]:
+async def _run_playground_workflow(request: PlaygroundRunRequest, trace_queue: asyncio.Queue | None = None) -> dict[str, Any]:
+    ephemeral_agents = normalize_ephemeral_agents(request.ephemeral_agents)
+    context_messages = normalize_context_messages(request.context_messages)
+    role_planning_requested = _ephemeral_agents_need_planning(ephemeral_agents)
+    if ephemeral_agents:
+        ephemeral_agents = await _plan_ephemeral_agents_by_llm(request.user_input, context_messages, ephemeral_agents)
+    runtime_agents = ephemeral_agents or request.agents
+    contextual_input = contextual_user_input(request.user_input, context_messages)
     trace = [
         event(
             "run_started",
@@ -1275,32 +1655,54 @@ async def run_playground_workflow(request: PlaygroundRunRequest) -> dict[str, An
             workflow_type=text(request.workflow.get("type"), "router_specialists"),
         )
     ]
+    if role_planning_requested:
+        roles_event = event(
+            "roles_planned",
+            "Roles Planned",
+            f"Planner selected {len(ephemeral_agents)} temporary collaboration role(s).",
+            "planner",
+            request.run_id,
+            "COMPLETED",
+            roles=[
+                {"id": agent_id(agent, ""), "name": agent_name(agent), "role": text(agent.get("role"), "")}
+                for agent in ephemeral_agents
+            ],
+        )
+        trace.append(roles_event)
+        if trace_queue is not None:
+            trace_queue.put_nowait({"event": "trace", "data": roles_event})
 
     state: dict[str, Any] = {
         "run_id": request.run_id,
         "trace_id": request.run_id,
         "workflow": request.workflow,
-        "agents": request.agents,
+        "agents": runtime_agents,
+        "persistent_agents": request.agents,
+        "ephemeral_agents": ephemeral_agents,
         "user_input": request.user_input,
+        "context_messages": context_messages,
+        "contextual_user_input": contextual_input,
         "conversation_id": request.conversation_id,
         "trace": trace,
+        "_trace_queue": trace_queue,
     }
 
     try:
         result_state = await _runtime_graph.ainvoke(state)
     except Exception as exc:
         runtime_graph = build_runtime_graph(state.get("subtasks") or [])
-        trace.append(
-            event(
-                "run_failed",
-                "Run Failed",
-                error_text(exc),
-                "end",
-                request.run_id,
-                "FAILED",
-                error_message=error_text(exc),
-            )
+        failed_event = event(
+            "run_failed",
+            "Run Failed",
+            error_text(exc),
+            "end",
+            request.run_id,
+            "FAILED",
+            error_message=error_text(exc),
         )
+        trace.append(failed_event)
+        if trace_queue is not None:
+            trace_queue.put_nowait({"event": "trace", "data": failed_event})
         return {
             "workflow_id": request.workflow.get("id"),
             "user_input": request.user_input,
@@ -1331,3 +1733,40 @@ async def run_playground_workflow(request: PlaygroundRunRequest) -> dict[str, An
         },
         "conversation_id": request.conversation_id,
     }
+
+
+@router.post("/runs")
+async def run_playground_workflow(request: PlaygroundRunRequest) -> dict[str, Any]:
+    return await _run_playground_workflow(request)
+
+
+def _sse_frame(event_name: str, data: Any) -> str:
+    return f"event: {event_name}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@router.post("/runs/stream")
+async def run_playground_workflow_stream(request: PlaygroundRunRequest):
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def event_stream():
+        async def runner():
+            try:
+                result = await _run_playground_workflow(request, queue)
+                await queue.put({"event": "final", "data": result})
+            except Exception as exc:
+                await queue.put({"event": "error", "data": {"message": error_text(exc)}})
+            finally:
+                await queue.put({"event": "_end", "data": {}})
+
+        task = asyncio.create_task(runner())
+        try:
+            while True:
+                item = await queue.get()
+                if item.get("event") == "_end":
+                    break
+                yield _sse_frame(text(item.get("event"), "message"), item.get("data"))
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

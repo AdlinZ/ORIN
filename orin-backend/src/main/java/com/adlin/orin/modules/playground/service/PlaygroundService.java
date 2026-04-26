@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 
 @Slf4j
 @Service
@@ -190,13 +191,32 @@ public class PlaygroundService {
 
     @Transactional
     public Map<String, Object> runWorkflow(Map<String, Object> payload, String userId, String traceId) {
+        return runWorkflowInternal(payload, userId, traceId, null);
+    }
+
+    @Transactional
+    public Map<String, Object> runWorkflowStream(Map<String, Object> payload, String userId, String traceId,
+                                                 BiConsumer<String, Object> eventConsumer) {
+        return runWorkflowInternal(payload, userId, traceId, eventConsumer);
+    }
+
+    private Map<String, Object> runWorkflowInternal(Map<String, Object> payload, String userId, String traceId,
+                                                   BiConsumer<String, Object> eventConsumer) {
         long started = System.currentTimeMillis();
         String workflowId = requireText(payload.get("workflow_id"), "workflow_id is required.");
         String userInput = requireText(payload.get("user_input"), "user_input is required.");
         PlaygroundWorkflowEntity workflow = workflowRepository.findById(workflowId)
                 .orElseThrow(() -> notFound("Workflow not found."));
         Map<String, Object> workflowDto = workflowDto(workflow);
+        if (payload.containsKey("agent_max_tokens")) {
+            workflowDto.put("agent_max_tokens", normalizeAgentMaxTokens(payload.get("agent_max_tokens")));
+        }
+        if (payload.containsKey("merge_max_tokens")) {
+            workflowDto.put("merge_max_tokens", normalizeAgentMaxTokens(payload.get("merge_max_tokens")));
+        }
         List<Map<String, Object>> agents = resolveAgents(parseStringList(workflow.getSpecialistAgentIdsJson()));
+        List<Map<String, Object>> ephemeralAgents = sanitizeEphemeralAgents(payload.get("ephemeral_agents"));
+        List<Map<String, Object>> contextMessages = sanitizeContextMessages(payload.get("context_messages"));
         String conversationId = ensureConversation(workflowId, text(payload.get("conversation_id"), null), userInput);
         saveMessage(conversationId, "user", userInput, null);
 
@@ -213,7 +233,11 @@ public class PlaygroundService {
 
         Map<String, Object> result;
         try {
-            result = callRuntime(run.getId(), workflowDto, agents, userInput, conversationId);
+            if (eventConsumer != null) {
+                result = callRuntimeStream(run.getId(), workflowDto, agents, ephemeralAgents, contextMessages, userInput, conversationId, eventConsumer);
+            } else {
+                result = callRuntime(run.getId(), workflowDto, agents, ephemeralAgents, contextMessages, userInput, conversationId);
+            }
         } catch (Exception e) {
             String normalizedError = resolveErrorMessage(e);
             log.error("Playground ai-engine runtime failed: {}", normalizedError, e);
@@ -270,15 +294,38 @@ public class PlaygroundService {
     }
 
     private Map<String, Object> callRuntime(String runId, Map<String, Object> workflow,
-                                            List<Map<String, Object>> agents, String userInput,
+                                            List<Map<String, Object>> agents,
+                                            List<Map<String, Object>> ephemeralAgents,
+                                            List<Map<String, Object>> contextMessages,
+                                            String userInput,
                                             String conversationId) {
-        return runtimeClient.run(Map.of(
-                "run_id", runId,
-                "workflow", workflow,
-                "agents", agents,
-                "user_input", userInput,
-                "conversation_id", conversationId
-        ));
+        Map<String, Object> runtimePayload = new LinkedHashMap<>();
+        runtimePayload.put("run_id", runId);
+        runtimePayload.put("workflow", workflow);
+        runtimePayload.put("agents", agents);
+        runtimePayload.put("ephemeral_agents", ephemeralAgents);
+        runtimePayload.put("context_messages", contextMessages);
+        runtimePayload.put("user_input", userInput);
+        runtimePayload.put("conversation_id", conversationId);
+        return runtimeClient.run(runtimePayload);
+    }
+
+    private Map<String, Object> callRuntimeStream(String runId, Map<String, Object> workflow,
+                                                  List<Map<String, Object>> agents,
+                                                  List<Map<String, Object>> ephemeralAgents,
+                                                  List<Map<String, Object>> contextMessages,
+                                                  String userInput,
+                                                  String conversationId,
+                                                  BiConsumer<String, Object> eventConsumer) {
+        Map<String, Object> runtimePayload = new LinkedHashMap<>();
+        runtimePayload.put("run_id", runId);
+        runtimePayload.put("workflow", workflow);
+        runtimePayload.put("agents", agents);
+        runtimePayload.put("ephemeral_agents", ephemeralAgents);
+        runtimePayload.put("context_messages", contextMessages);
+        runtimePayload.put("user_input", userInput);
+        runtimePayload.put("conversation_id", conversationId);
+        return runtimeClient.runStream(runtimePayload, eventConsumer);
     }
 
     @Transactional
@@ -655,6 +702,69 @@ public class PlaygroundService {
                 Map<String, Object> normalized = new LinkedHashMap<>();
                 map.forEach((k, v) -> normalized.put(String.valueOf(k), v));
                 result.add(normalized);
+            }
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> sanitizeEphemeralAgents(Object value) {
+        List<Map<String, Object>> source = mapList(value);
+        if (source.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> item : source) {
+            String id = text(item.get("id"), "");
+            String name = text(item.get("name"), "");
+            String model = text(item.get("model"), "");
+            if (!id.startsWith("ephemeral:") || name.isBlank() || model.isBlank()) {
+                continue;
+            }
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            normalized.put("id", id);
+            normalized.put("name", name);
+            normalized.put("model", model);
+            normalized.put("description", text(item.get("description"), ""));
+            normalized.put("system_prompt", text(item.get("system_prompt"), ""));
+            normalized.put("role", text(item.get("role"), "SPECIALIST"));
+            normalized.put("max_tokens", normalizeAgentMaxTokens(item.get("max_tokens")));
+            normalized.put("temperature", item.get("temperature"));
+            normalized.put("planning_slot", Boolean.TRUE.equals(item.get("planning_slot"))
+                    || Boolean.TRUE.equals(item.get("planningSlot")));
+            normalized.put("ephemeral", true);
+            result.add(normalized);
+            if (result.size() >= 4) {
+                break;
+            }
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> sanitizeContextMessages(Object value) {
+        List<Map<String, Object>> source = mapList(value);
+        if (source.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> item : source) {
+            String role = text(item.get("role"), "user").toLowerCase();
+            if (!role.equals("user") && !role.equals("assistant")) {
+                continue;
+            }
+            String content = text(item.get("content"), "");
+            if (content.isBlank()) {
+                continue;
+            }
+            if (content.length() > 600) {
+                content = content.substring(0, 600);
+            }
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            normalized.put("role", role);
+            normalized.put("content", content);
+            normalized.put("created_at", text(item.get("createdAt"), text(item.get("created_at"), "")));
+            result.add(normalized);
+            if (result.size() >= 4) {
+                break;
             }
         }
         return result;

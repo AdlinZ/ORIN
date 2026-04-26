@@ -44,6 +44,15 @@ public class AgentChatController {
         return ResponseEntity.ok(agentChatService.getSession(sessionId));
     }
 
+    @Operation(summary = "覆盖保存会话消息历史")
+    @PutMapping("/sessions/{sessionId}/messages/history")
+    public ResponseEntity<Map<String, Object>> saveMessageHistory(
+            @PathVariable String sessionId,
+            @RequestBody Map<String, Object> body) {
+        agentChatService.saveMessageHistory(sessionId, body);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
     @Operation(summary = "发送消息")
     @PostMapping("/sessions/{sessionId}/messages")
     public ResponseEntity<ChatMessageResponse> sendMessage(

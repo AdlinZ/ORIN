@@ -57,6 +57,14 @@ export function getChatSession(sessionId) {
   });
 }
 
+export function saveChatSessionMessages(sessionId, messages) {
+  return request({
+    url: `/agents/chat/sessions/${sessionId}/messages/history`,
+    method: 'put',
+    data: { messages },
+  });
+}
+
 // 发送对话消息（支持知识库检索）
 export function sendChatMessage(sessionId, data) {
   return request({

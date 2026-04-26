@@ -100,6 +100,19 @@ public class RouterService {
             return selectProviderByType("openai", request);
         } else if (normalizedModel.startsWith("dify-")) {
             return selectProviderByType("dify", request);
+        } else if (normalizedModel.startsWith("pro/")
+                || normalizedModel.startsWith("deepseek-ai/")
+                || normalizedModel.startsWith("zai-org/")
+                || normalizedModel.startsWith("moonshotai/")
+                || normalizedModel.startsWith("minimaxai/")
+                || normalizedModel.startsWith("stepfun-ai/")
+                || normalizedModel.startsWith("inclusionai/")
+                || normalizedModel.startsWith("bytedance-seed/")
+                || normalizedModel.startsWith("tencent/")
+                || normalizedModel.startsWith("paddlepaddle/")
+                || normalizedModel.startsWith("kwaipilot/")) {
+            return selectProviderById("siliconflow")
+                    .or(() -> selectProviderByType("openai", request));
         } else if (normalizedModel.contains("local") || normalizedModel.contains("llama")
                 || normalizedModel.contains("qwen")) {
             // Priority for Ollama if it involves local models

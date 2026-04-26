@@ -1,57 +1,55 @@
 <template>
-  <div class="user-portal" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
-    <aside class="portal-sidebar" :class="{ collapsed: isSidebarCollapsed }">
+  <div class="chatgpt-portal" :class="{ collapsed: isSidebarCollapsed }">
+    <aside class="portal-sidebar">
+      <div class="sidebar-tools">
+        <button class="icon-btn" type="button" title="收起侧栏" @click="toggleSidebar">
+          <el-icon><component :is="isSidebarCollapsed ? Expand : Fold" /></el-icon>
+        </button>
+        <button class="icon-btn" type="button" title="搜索会话">
+          <el-icon><Search /></el-icon>
+        </button>
+      </div>
+
       <div class="sidebar-brand">
         <div class="brand-avatar">{{ avatarText }}</div>
         <div class="brand-copy">
           <strong>ORIN</strong>
           <span>{{ displayName }}</span>
-          <em>{{ userStore.isAdmin ? '管理员账号' : '用户账号' }}</em>
         </div>
       </div>
 
-      <nav class="primary-nav">
+      <nav class="sidebar-nav">
         <button class="nav-item active" type="button" @click="startNewSession">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>新对话</span>
-          <kbd>⌘ K</kbd>
-        </button>
-        <button class="nav-item" type="button">
           <el-icon><EditPen /></el-icon>
-          <span>AI 创作</span>
+          <span>新对话</span>
         </button>
         <button class="nav-item" type="button">
-          <el-icon><Grid /></el-icon>
-          <span>更多</span>
-          <span class="nav-arrow">›</span>
+          <el-icon><Collection /></el-icon>
+          <span>我的内容</span>
         </button>
       </nav>
 
       <section class="sidebar-section">
-        <div class="section-title">当前服务</div>
-        <div class="service-status">
-          <span class="service-dot" :class="{ online: currentAgent }"></span>
-          <div>
-            <strong>{{ currentAgent ? 'ORIN 助手' : '服务未就绪' }}</strong>
-            <span>{{ currentAgent?.modelType || currentAgent?.modelName || '系统自动选择可用能力' }}</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="sidebar-section history-section">
         <div class="section-title">历史对话</div>
         <div class="session-list">
           <button
             v-for="session in sessions"
             :key="session.id"
-            class="session-card"
+            class="session-item"
             :class="{ active: currentSessionId === session.id }"
             type="button"
             @click="openSession(session)"
           >
-            <div class="session-main">
-              <el-icon><ChatDotRound /></el-icon>
-              <strong>{{ session.title || '未命名会话' }}</strong>
+            <div class="session-head">
+              <span class="session-title">{{ session.title || '未命名会话' }}</span>
+              <button
+                class="session-delete"
+                type="button"
+                title="删除会话"
+                @click.stop="removeSession(session)"
+              >
+                <el-icon><Delete /></el-icon>
+              </button>
             </div>
             <span class="session-time">{{ formatDate(session.updatedAt || session.createdAt) }}</span>
           </button>
@@ -59,33 +57,33 @@
         </div>
       </section>
 
-      <div class="sidebar-footer">
-        <button type="button" @click="router.push('/dashboard/profile')">个人中心</button>
-        <button v-if="userStore.isAdmin" type="button" @click="router.push('/dashboard')">管理端</button>
+      <div class="sidebar-bottom">
+        <button class="nav-item" type="button" @click="router.push('/dashboard/profile')">
+          <el-icon><User /></el-icon>
+          <span>设置与帮助</span>
+        </button>
       </div>
     </aside>
 
-    <main class="chat-shell">
-      <header class="chat-header">
-        <button class="sidebar-toggle" type="button" @click="isSidebarCollapsed = !isSidebarCollapsed">
-          <el-icon>
-            <component :is="isSidebarCollapsed ? Expand : Fold" />
-          </el-icon>
-        </button>
-        <div class="chat-title">
-          <strong>{{ currentSessionTitle }}</strong>
-          <span>{{ currentAgent ? '内容由 ORIN AI 生成' : '正在等待服务初始化' }}</span>
+    <main class="portal-main">
+      <header class="main-header">
+        <div class="header-left">
+          <button class="icon-btn" type="button" @click="toggleSidebar">
+            <el-icon><component :is="isSidebarCollapsed ? Expand : Fold" /></el-icon>
+          </button>
+          <strong>ORIN</strong>
         </div>
-        <div class="chat-actions">
+        <div class="header-right">
           <el-button text :icon="RefreshRight" :loading="loadingAgents" @click="refreshPortal">刷新</el-button>
           <el-dropdown trigger="click" @command="handleUserCommand">
-            <button class="user-button" type="button">
-              <el-icon><User /></el-icon>
-              <span>{{ displayName }}</span>
+            <button class="user-pill" type="button">
+              <span>{{ userStore.isAdmin ? 'PRO' : 'USER' }}</span>
+              <div class="brand-avatar mini">{{ avatarText }}</div>
             </button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                <el-dropdown-item v-if="userStore.isAdmin" command="dashboard">管理端</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -93,22 +91,97 @@
         </div>
       </header>
 
-      <section ref="messagesRef" class="message-feed" :class="{ empty: messages.length === 0 }">
-        <div v-if="!currentAgent" class="empty-state">
-          <h1>你好，我是 ORIN</h1>
-          <p>当前没有可用服务，请联系管理员完成模型或智能体配置。</p>
-        </div>
+      <section ref="messagesRef" class="chat-stage" :class="{ home: isHome }">
+        <template v-if="!currentAgent">
+          <div class="home-center">
+            <h1>你好，我是 ORIN</h1>
+            <p>当前没有可用服务，请联系管理员完成模型配置。</p>
+          </div>
+        </template>
 
-        <template v-else-if="messages.length === 0">
-          <div class="empty-state">
-            <h1>你好，我是 {{ currentAgent.name }}</h1>
-            <p>{{ currentAgent.description || '我可以帮你完成咨询、写作、知识库问答和业务任务处理。' }}</p>
-            <div class="prompt-row">
+        <template v-else-if="isHome">
+          <div class="home-center">
+            <p class="home-kicker">准备好了，随时开始</p>
+            <h1>{{ currentSessionTitle }}</h1>
+            <div class="input-card">
+              <input ref="fileInputRef" class="hidden-file-input" type="file" @change="onFileSelected" />
+              <div v-if="uploadingFile" class="uploading-chip">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>文件上传中...</span>
+              </div>
+              <div v-else-if="selectedUploadFileName" class="attachment-chip">
+                <el-icon><Document /></el-icon>
+                <span>{{ selectedUploadFileName }}</span>
+                <button type="button" @click="clearUploadedFile">移除</button>
+              </div>
+              <el-input
+                v-model="inputMessage"
+                class="composer-input"
+                type="textarea"
+                resize="none"
+                :autosize="{ minRows: 2, maxRows: 5 }"
+                :disabled="!currentAgent || sending || uploadingFile"
+                :placeholder="selectedUploadFileName ? '补充你想让 ORIN 如何处理这个文件...' : '有问题，尽管问'"
+                @keydown.enter.exact.prevent="sendMessage"
+              />
+              <div class="tools-row">
+                <div class="tools-left">
+                  <button
+                    type="button"
+                    class="icon-btn ghost"
+                    :disabled="!currentAgent || uploadingFile"
+                    @click="triggerFilePicker"
+                  >
+                    <el-icon><component :is="uploadingFile ? Loading : Plus" /></el-icon>
+                  </button>
+                  <el-popover placement="top-start" :width="340" trigger="click">
+                    <template #reference>
+                      <button type="button" class="chip-btn" :disabled="!currentSessionId">知识库</button>
+                    </template>
+                    <div class="kb-popover">
+                      <div class="popover-title">选择知识库</div>
+                      <el-input
+                        v-model="kbSearch"
+                        class="popover-search"
+                        placeholder="搜索知识库"
+                        :prefix-icon="Search"
+                        clearable
+                      />
+                      <label v-for="kb in filteredKnowledgeBases" :key="kb.id" class="kb-item">
+                        <div>
+                          <strong>{{ kb.name }}</strong>
+                          <span>{{ kb.documentCount || 0 }} 个文档</span>
+                        </div>
+                        <el-checkbox
+                          :model-value="selectedKbIds.includes(kb.id)"
+                          :disabled="!currentSessionId"
+                          @change="toggleKnowledgeBase(kb.id)"
+                        />
+                      </label>
+                    </div>
+                  </el-popover>
+                </div>
+                <div class="tools-right">
+                  <el-button
+                    class="send-button"
+                    type="primary"
+                    circle
+                    :icon="Top"
+                    :loading="sending"
+                    :disabled="uploadingFile || !currentAgent || (!inputMessage.trim() && !selectedUploadFileId)"
+                    @click="sendMessage"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="suggestions">
               <button
                 v-for="prompt in quickPrompts"
                 :key="prompt"
+                class="suggestion-chip"
                 type="button"
-                @click="inputMessage = prompt"
+                @click="applyPrompt(prompt)"
               >
                 {{ prompt }}
               </button>
@@ -116,136 +189,114 @@
           </div>
         </template>
 
-        <div
-          v-for="(message, index) in messages"
-          :key="`${message.role}-${index}-${message.createdAt || ''}`"
-          class="message-row"
-          :class="message.role"
-        >
-          <div class="message-avatar">
-            <el-icon v-if="message.role === 'user'"><User /></el-icon>
-            <el-icon v-else><Cpu /></el-icon>
-          </div>
-          <div class="message-bubble">
-            <div class="message-role">{{ message.role === 'user' ? '我' : currentAgent?.name || 'ORIN' }}</div>
+        <template v-else>
+          <div class="messages-wrap">
             <div
-              v-if="message.role === 'assistant'"
-              class="message-content markdown-body"
-              v-html="renderAssistantMarkdown(message.content)"
-            />
-            <div v-else class="message-content">{{ message.content }}</div>
-          </div>
-        </div>
+              v-for="(message, index) in messages"
+              :key="`${message.role}-${index}-${message.createdAt || ''}`"
+              class="message-row"
+              :class="message.role"
+            >
+              <div class="message-avatar">
+                <el-icon v-if="message.role === 'user'"><User /></el-icon>
+                <el-icon v-else><Cpu /></el-icon>
+              </div>
+              <div class="message-bubble">
+                <div class="message-role">{{ message.role === 'user' ? '我' : currentAgent?.name || 'ORIN' }}</div>
+                <div
+                  v-if="message.role === 'assistant'"
+                  class="message-content markdown-body"
+                  v-html="renderAssistantMarkdown(message.content)"
+                />
+                <div v-else class="message-content">{{ message.content }}</div>
+              </div>
+            </div>
 
-        <div v-if="sending" class="message-row assistant">
-          <div class="message-avatar"><el-icon><Cpu /></el-icon></div>
-          <div class="message-bubble">
-            <div class="message-role">{{ currentAgent?.name || 'ORIN' }}</div>
-            <div class="typing-line">正在处理...</div>
+            <div v-if="sending" class="message-row assistant">
+              <div class="message-avatar"><el-icon><Cpu /></el-icon></div>
+              <div class="message-bubble">
+                <div class="message-role">{{ currentAgent?.name || 'ORIN' }}</div>
+                <div class="typing-line">正在处理...</div>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
 
-      <footer class="composer-wrap">
-        <div class="composer">
-          <input
-            ref="fileInputRef"
-            class="hidden-file-input"
-            type="file"
-            @change="onFileSelected"
-          />
-          <div v-if="uploadingFile" class="uploading-chip">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            <span>文件上传中...</span>
-          </div>
-          <div v-else-if="selectedUploadFileName" class="attachment-chip">
-            <el-icon><Document /></el-icon>
-            <span>{{ selectedUploadFileName }}</span>
-            <button type="button" @click="clearUploadedFile">移除</button>
-          </div>
-          <el-input
-            v-model="inputMessage"
-            class="composer-input"
-            type="textarea"
-            resize="none"
-            :autosize="{ minRows: 2, maxRows: 5 }"
-            :disabled="!currentAgent || sending || uploadingFile"
-            :placeholder="selectedUploadFileName ? '补充你想让 ORIN 如何处理这个文件...' : '发消息...'"
-            @keydown.enter.exact.prevent="sendMessage"
-          />
-
-          <div class="tool-row">
-            <div class="tool-left">
-              <button
-                type="button"
-                class="icon-tool"
-                :disabled="!currentAgent || uploadingFile"
-                :title="uploadingFile ? '正在上传' : '上传文件'"
-                @click="triggerFilePicker"
-              >
-                <el-icon :class="{ 'is-loading': uploadingFile }">
-                  <component :is="uploadingFile ? Loading : Plus" />
-                </el-icon>
-              </button>
-              <el-popover placement="top-start" :width="340" trigger="click">
-                <template #reference>
-                  <button type="button" class="tool-button" :disabled="!currentSessionId">
-                    <el-icon><Collection /></el-icon>
-                    <span>知识库</span>
-                  </button>
-                </template>
-                <div class="kb-popover">
-                  <div class="popover-title">选择知识库</div>
-                  <el-input
-                    v-model="kbSearch"
-                    class="popover-search"
-                    placeholder="搜索知识库"
-                    :prefix-icon="Search"
-                    clearable
-                  />
-                  <label v-for="kb in filteredKnowledgeBases" :key="kb.id" class="kb-item">
-                    <div>
-                      <strong>{{ kb.name }}</strong>
-                      <span>{{ kb.documentCount || 0 }} 个文档</span>
-                    </div>
-                    <el-checkbox
-                      :model-value="selectedKbIds.includes(kb.id)"
-                      :disabled="!currentSessionId"
-                      @change="toggleKnowledgeBase(kb.id)"
-                    />
-                  </label>
-                  <div v-if="!loadingKnowledge && filteredKnowledgeBases.length === 0" class="popover-empty">暂无知识库</div>
-                </div>
-              </el-popover>
-              <button type="button" class="tool-button">
-                <el-icon><EditPen /></el-icon>
-                <span>帮我写作</span>
-              </button>
-              <button type="button" class="tool-button">
+          <footer class="composer-dock">
+            <div class="input-card compact">
+              <input ref="fileInputRef" class="hidden-file-input" type="file" @change="onFileSelected" />
+              <div v-if="uploadingFile" class="uploading-chip">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>文件上传中...</span>
+              </div>
+              <div v-else-if="selectedUploadFileName" class="attachment-chip">
                 <el-icon><Document /></el-icon>
-                <span>总结</span>
-              </button>
-              <button type="button" class="tool-button">
-                <el-icon><Grid /></el-icon>
-                <span>更多</span>
-              </button>
-            </div>
-
-            <div class="tool-right">
-              <span class="kb-status">{{ currentKbNames }}</span>
-              <el-button
-                class="send-button"
-                type="primary"
-                circle
-                :icon="Top"
-                :loading="sending"
-                :disabled="uploadingFile || !currentAgent || (!inputMessage.trim() && !selectedUploadFileId)"
-                @click="sendMessage"
+                <span>{{ selectedUploadFileName }}</span>
+                <button type="button" @click="clearUploadedFile">移除</button>
+              </div>
+              <el-input
+                v-model="inputMessage"
+                class="composer-input"
+                type="textarea"
+                resize="none"
+                :autosize="{ minRows: 2, maxRows: 5 }"
+                :disabled="!currentAgent || sending || uploadingFile"
+                :placeholder="selectedUploadFileName ? '补充你想让 ORIN 如何处理这个文件...' : '有问题，尽管问'"
+                @keydown.enter.exact.prevent="sendMessage"
               />
+              <div class="tools-row">
+                <div class="tools-left">
+                  <button
+                    type="button"
+                    class="icon-btn ghost"
+                    :disabled="!currentAgent || uploadingFile"
+                    @click="triggerFilePicker"
+                  >
+                    <el-icon><component :is="uploadingFile ? Loading : Plus" /></el-icon>
+                  </button>
+                  <el-popover placement="top-start" :width="340" trigger="click">
+                    <template #reference>
+                      <button type="button" class="chip-btn" :disabled="!currentSessionId">知识库</button>
+                    </template>
+                    <div class="kb-popover">
+                      <div class="popover-title">选择知识库</div>
+                      <el-input
+                        v-model="kbSearch"
+                        class="popover-search"
+                        placeholder="搜索知识库"
+                        :prefix-icon="Search"
+                        clearable
+                      />
+                      <label v-for="kb in filteredKnowledgeBases" :key="kb.id" class="kb-item">
+                        <div>
+                          <strong>{{ kb.name }}</strong>
+                          <span>{{ kb.documentCount || 0 }} 个文档</span>
+                        </div>
+                        <el-checkbox
+                          :model-value="selectedKbIds.includes(kb.id)"
+                          :disabled="!currentSessionId"
+                          @change="toggleKnowledgeBase(kb.id)"
+                        />
+                      </label>
+                    </div>
+                  </el-popover>
+                </div>
+                <div class="tools-right">
+                  <span class="kb-status">{{ currentKbNames }}</span>
+                  <el-button
+                    class="send-button"
+                    type="primary"
+                    circle
+                    :icon="Top"
+                    :loading="sending"
+                    :disabled="uploadingFile || !currentAgent || (!inputMessage.trim() && !selectedUploadFileId)"
+                    @click="sendMessage"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </footer>
+          </footer>
+        </template>
+      </section>
     </main>
   </div>
 </template>
@@ -253,17 +304,16 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { marked } from 'marked';
 import {
-  ChatDotRound,
   Collection,
   Cpu,
+  Delete,
   Document,
   EditPen,
   Expand,
   Fold,
-  Grid,
   Loading,
   Plus,
   RefreshRight,
@@ -274,6 +324,7 @@ import {
 import {
   attachKnowledgeBase,
   createChatSession,
+  deleteChatSession,
   getAttachedKnowledgeBases,
   getChatSession,
   listAgents,
@@ -316,16 +367,18 @@ const quickPrompts = [
   '把下面内容改写成正式邮件'
 ];
 
-const displayName = computed(() => {
-  return userStore.userInfo?.name || userStore.userInfo?.username || userStore.username || '用户';
-});
+const displayName = computed(() => userStore.userInfo?.name || userStore.userInfo?.username || userStore.username || '用户');
 const avatarText = computed(() => String(displayName.value || 'U').slice(0, 1).toUpperCase());
+const isHome = computed(() => messages.value.length === 0);
 
 const currentAgent = computed(() => agents.value.find((agent) => agent.id === currentAgentId.value));
 
 const currentSessionTitle = computed(() => {
-  const session = sessions.value.find((item) => item.id === currentSessionId.value);
-  return session?.title || '新对话';
+  if (currentSessionId.value) {
+    const session = sessions.value.find((item) => item.id === currentSessionId.value);
+    if (session?.title) return session.title;
+  }
+  return '有什么可以帮你？';
 });
 
 const filteredKnowledgeBases = computed(() => {
@@ -493,6 +546,43 @@ const openSession = async (session) => {
   }
 };
 
+const removeSession = async (session) => {
+  const sessionId = normalizeId(session?.id);
+  if (!sessionId) return;
+
+  try {
+    await ElMessageBox.confirm(
+      `确认删除会话「${session.title || '未命名会话'}」吗？该操作不可恢复。`,
+      '删除会话',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+  } catch (error) {
+    return;
+  }
+
+  try {
+    await deleteChatSession(sessionId);
+    sessions.value = sessions.value.filter((item) => item.id !== sessionId);
+    ElMessage.success('会话已删除');
+
+    if (currentSessionId.value === sessionId) {
+      messages.value = [];
+      selectedKbIds.value = [];
+      currentSessionId.value = '';
+      const nextSession = sessions.value[0];
+      if (nextSession) {
+        await openSession(nextSession);
+      }
+    }
+  } catch (error) {
+    ElMessage.error(error?.message || '删除会话失败');
+  }
+};
+
 const toggleKnowledgeBase = async (kbId) => {
   if (!currentAgentId.value) {
     ElMessage.warning('请先选择智能体');
@@ -586,7 +676,6 @@ const normalizeReplyText = (value) => {
 
 const extractAssistantReply = (res) => {
   const data = res?.data ?? res;
-
   const directText = normalizeReplyText(data);
   if (directText) return directText;
 
@@ -673,6 +762,7 @@ const sendMessage = async () => {
         message: outboundMessage,
         kbIds: selectedKbIds.value
       });
+
     messages.value.push({
       role: 'assistant',
       content: extractAssistantReply(res),
@@ -699,12 +789,23 @@ const refreshPortal = async () => {
   }
 };
 
+const toggleSidebar = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+};
+
+const applyPrompt = (prompt) => {
+  inputMessage.value = prompt;
+};
+
 const handleUserCommand = (command) => {
   if (command === 'profile') {
     router.push('/dashboard/profile');
     return;
   }
-
+  if (command === 'dashboard') {
+    router.push('/dashboard');
+    return;
+  }
   if (command === 'logout') {
     userStore.logout();
     router.push('/login');
@@ -732,1103 +833,418 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.user-portal {
-  min-height: 100vh;
-  color: #172033;
-  background:
-    radial-gradient(circle at 22% 0%, rgba(37, 99, 235, 0.12), transparent 32%),
-    linear-gradient(180deg, #f7f9fd 0%, #eef3f9 100%);
-}
-
-.portal-header {
-  height: 72px;
-  padding: 0 30px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(255, 255, 255, 0.82);
-  border-bottom: 1px solid rgba(203, 213, 225, 0.72);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.brand-block,
-.header-actions,
-.chat-topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  font-weight: 800;
-  background: linear-gradient(145deg, #155eef 0%, #0f766e 100%);
-  box-shadow: 0 12px 30px rgba(21, 94, 239, 0.28);
-}
-
-.brand-title {
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.brand-subtitle {
-  font-size: 12px;
-  color: #66758a;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.portal-kicker {
-  height: 32px;
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #33506f;
-  background: rgba(241, 245, 249, 0.92);
-  border: 1px solid rgba(203, 213, 225, 0.75);
-  border-radius: 999px;
-  font-size: 13px;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
-}
-
-.ghost-action {
-  color: #475569;
-}
-
-.user-button {
-  border: 1px solid rgba(203, 213, 225, 0.9);
-  background: #ffffff;
-  color: #1f2937;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
-}
-
-.portal-shell {
-  display: grid;
-  grid-template-columns: 304px minmax(0, 1fr) 322px;
-  gap: 18px;
-  padding: 18px;
-  height: calc(100vh - 72px);
-  box-sizing: border-box;
-}
-
-.agent-panel,
-.context-panel {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.agent-panel {
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  color: #d8e4f2;
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 35, 62, 0.96)),
-    #0f172a;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
-}
-
-.agent-panel-hero {
-  margin-bottom: 18px;
-  padding: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, rgba(21, 94, 239, 0.28), rgba(15, 118, 110, 0.18)),
-    rgba(255, 255, 255, 0.04);
-}
-
-.agent-panel-hero span {
-  display: block;
-  margin-bottom: 8px;
-  color: #9fb4d1;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.agent-panel-hero strong {
-  display: block;
-  color: #ffffff;
-  font-size: 20px;
-  line-height: 1.35;
-}
-
-.panel-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.panel-head.compact {
-  align-items: center;
-}
-
-.panel-head h2 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.panel-head p {
-  margin: 4px 0 0;
-  color: #718096;
-  font-size: 12px;
-}
-
-.agent-panel .panel-head p {
-  color: #9fb4d1;
-}
-
-.count-pill {
-  min-width: 30px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  color: #c7d9ff;
-  background: rgba(59, 130, 246, 0.18);
-  font-weight: 700;
-}
-
-.search-input {
-  margin-bottom: 12px;
-}
-
-.agent-panel :deep(.el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
-}
-
-.agent-panel :deep(.el-input__inner) {
-  color: #ffffff;
-}
-
-.agent-panel :deep(.el-input__inner::placeholder) {
-  color: #9fb4d1;
-}
-
-.agent-list,
-.kb-list,
-.session-list {
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.agent-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.agent-card {
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255, 255, 255, 0.055);
-  color: #d8e4f2;
-  border-radius: 14px;
-  padding: 13px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-}
-
-.agent-card:hover {
-  border-color: rgba(96, 165, 250, 0.52);
-  background: rgba(255, 255, 255, 0.09);
-  transform: translateY(-1px);
-}
-
-.agent-card.active {
-  border-color: rgba(125, 211, 252, 0.72);
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.34), rgba(20, 184, 166, 0.18));
-}
-
-.agent-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  color: #c7d9ff;
-  background: rgba(219, 234, 254, 0.1);
-}
-
-.agent-card.active .agent-icon {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.agent-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.agent-copy strong {
-  color: #ffffff;
-}
-
-.agent-copy strong,
-.session-card strong,
-.kb-item strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.agent-copy span,
-.kb-item span,
-.session-card span {
-  color: #6b7a90;
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.agent-copy span {
-  color: #9fb4d1;
-}
-
-.agent-card-arrow {
-  margin-left: auto;
-  color: #9fb4d1;
-  font-size: 22px;
-  line-height: 1;
-}
-
-.chat-panel {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 18px;
-  box-shadow: 0 22px 58px rgba(15, 23, 42, 0.11);
-}
-
-.chat-topbar {
-  padding: 22px 24px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  border-bottom: 1px solid #edf1f7;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-}
-
-.eyebrow {
-  color: #155eef;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.chat-topbar h1 {
-  margin: 0;
-  font-size: 26px;
-  line-height: 1.25;
-}
-
-.chat-topbar p {
-  max-width: 680px;
-  margin: 8px 0 0;
-  color: #607188;
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.model-tag {
-  border-color: #bfdbfe;
-  color: #155eef;
-  background: #eff6ff;
-}
-
-.new-session-action {
-  border-radius: 10px;
-}
-
-.message-feed {
-  flex: 1;
-  overflow-y: auto;
-  padding: 28px;
-  background:
-    linear-gradient(rgba(248, 251, 255, 0.95), rgba(248, 251, 255, 0.95)),
-    radial-gradient(circle at 16px 16px, rgba(148, 163, 184, 0.18) 1px, transparent 1px);
-  background-size: auto, 24px 24px;
-}
-
-.message-feed.empty {
-  display: grid;
-  place-items: center;
-}
-
-.empty-state {
-  max-width: 560px;
-  text-align: center;
-  color: #52657d;
-}
-
-.empty-icon {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 22px;
-  color: #155eef;
-  background: linear-gradient(145deg, #eef4ff, #ffffff);
-  box-shadow: 0 18px 40px rgba(37, 99, 235, 0.13);
-}
-
-.empty-icon .el-icon {
-  font-size: 36px;
-}
-
-.empty-state h2 {
-  margin: 18px 0 8px;
-  color: #172033;
-  font-size: 24px;
-}
-
-.prompt-row {
-  margin-top: 18px;
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.prompt-row button {
-  border: 1px solid #dbe4ef;
-  background: #ffffff;
-  border-radius: 999px;
-  padding: 9px 14px;
-  color: #33506f;
-  cursor: pointer;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
-
-.prompt-row button:hover {
-  border-color: #93c5fd;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
-  transform: translateY(-1px);
-}
-
-.message-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.message-row.user {
-  flex-direction: row-reverse;
-}
-
-.message-row.user .message-bubble {
-  border-color: transparent;
-  background: linear-gradient(135deg, #155eef 0%, #2563eb 100%);
-  color: #ffffff;
-  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.24);
-}
-
-.message-row.user .message-role {
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.message-bubble {
-  max-width: min(720px, 78%);
-  background: #ffffff;
-  border: 1px solid #e1e8f2;
-  border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
-}
-
-.message-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 13px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  color: #155eef;
-  background: #eef4ff;
-}
-
-.message-role {
-  color: #718096;
-  font-size: 12px;
-  margin-bottom: 6px;
-}
-
-.message-content {
-  white-space: pre-wrap;
-  line-height: 1.65;
-}
-
-.typing-line {
-  color: #718096;
-}
-
-.composer {
-  padding: 16px 18px 18px;
-  border-top: 1px solid #edf1f7;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.composer-box {
-  border: 1px solid #dbe4ef;
-  border-radius: 16px;
-  padding: 4px;
-  background: #ffffff;
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
-}
-
-.composer-box :deep(.el-textarea__inner) {
-  border: 0;
-  box-shadow: none;
-  border-radius: 12px;
-  font-size: 14px;
-}
-
-.composer-meta {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #6b7a90;
-  font-size: 12px;
-}
-
-.context-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.profile-card,
-.context-card {
-  min-height: 0;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  border-radius: 18px;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
-}
-
-.profile-card {
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  min-height: auto;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
-}
-
-.profile-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  background: #0f766e;
-  font-weight: 800;
-}
-
-.profile-card strong,
-.profile-card span {
-  display: block;
-}
-
-.profile-card span {
-  margin-top: 3px;
-  color: #6b7a90;
-  font-size: 12px;
-}
-
-.context-card .panel-head .el-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  color: #155eef;
-  background: #eef4ff;
-}
-
-.sessions-card {
-  flex: 1;
-}
-
-.kb-list,
-.session-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.kb-item,
-.session-card {
-  border: 1px solid #e1e8f2;
-  background: #ffffff;
-  border-radius: 13px;
-  padding: 11px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  transition: border-color 0.18s ease, background 0.18s ease;
-}
-
-.kb-item:hover,
-.session-card:hover {
-  border-color: #bfdbfe;
-  background: #f8fbff;
-}
-
-.kb-item > div,
-.session-card {
-  min-width: 0;
-}
-
-.kb-item > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.session-card {
-  width: 100%;
-  flex-direction: column;
-  align-items: flex-start;
-  cursor: pointer;
-}
-
-.session-card.active {
-  border-color: #155eef;
-  background: #eff6ff;
-}
-
-@media (max-width: 1180px) {
-  .portal-shell {
-    grid-template-columns: 286px minmax(0, 1fr);
-  }
-
-  .context-panel {
-    display: none;
-  }
-}
-
-@media (max-width: 760px) {
-  .portal-header {
-    padding: 0 14px;
-  }
-
-  .portal-kicker {
-    display: none;
-  }
-
-  .header-actions .el-button {
-    display: none;
-  }
-
-  .portal-shell {
-    height: auto;
-    min-height: calc(100vh - 72px);
-    grid-template-columns: 1fr;
-  }
-
-  .agent-panel {
-    max-height: 330px;
-  }
-
-  .chat-panel {
-    min-height: 620px;
-  }
-
-  .chat-topbar {
-    flex-direction: column;
-  }
-
-  .message-bubble {
-    max-width: 86%;
-  }
-}
-
-/* Chat-first portal overrides */
-.user-portal {
-  --sidebar-width: 282px;
+.chatgpt-portal {
+  --sidebar-width: 280px;
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  color: #191b1f;
-  background: #ffffff;
+  background: #f8f9fb;
+  color: #171717;
 }
 
-.user-portal.sidebar-collapsed {
-  --sidebar-width: 84px;
+.chatgpt-portal.collapsed {
+  --sidebar-width: 78px;
 }
 
 .portal-sidebar {
-  min-height: 0;
   height: 100vh;
-  padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  background: #f7f7f8;
-  border-right: 1px solid #e7e7ea;
+  gap: 12px;
+  padding: 10px;
+  background: #f2f2f3;
+  border-right: 1px solid #e7e7e9;
   box-sizing: border-box;
 }
 
-.portal-sidebar.collapsed .brand-copy,
-.portal-sidebar.collapsed .section-title,
-.portal-sidebar.collapsed .service-status > div,
-.portal-sidebar.collapsed .session-main strong,
-.portal-sidebar.collapsed .session-time,
-.portal-sidebar.collapsed .nav-item span,
-.portal-sidebar.collapsed .nav-item kbd,
-.portal-sidebar.collapsed .nav-arrow,
-.portal-sidebar.collapsed .sidebar-footer {
-  display: none;
+.sidebar-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.portal-sidebar.collapsed .nav-item,
-.portal-sidebar.collapsed .session-card {
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #5b5d63;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  padding: 0;
+  cursor: pointer;
 }
 
-.portal-sidebar.collapsed .service-status {
-  justify-content: center;
+.icon-btn:hover {
+  background: #e7e8eb;
+}
+
+.icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.icon-btn.ghost {
+  background: #eff0f2;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 8px;
-  border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #e5e8ef;
+  padding: 6px 8px;
 }
 
 .brand-avatar {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  color: #ffffff;
-  background: linear-gradient(145deg, #155eef, #0f766e);
-  font-weight: 800;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(145deg, #2563eb, #0ea5a4);
 }
 
-.sidebar-brand strong,
-.sidebar-brand span {
-  display: block;
+.brand-avatar.mini {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
 }
 
 .brand-copy {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
-.sidebar-brand strong {
-  font-size: 18px;
-  line-height: 1.2;
+.brand-copy strong {
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
-.sidebar-brand span {
+.brand-copy span {
   margin-top: 2px;
-  color: #616672;
-  font-size: 12px;
+  color: #7a7d84;
+  font-size: 13px;
 }
 
-.brand-copy em {
-  margin-top: 2px;
-  color: #9aa0ab;
-  font-size: 11px;
-  font-style: normal;
-}
-
-.primary-nav {
+.sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-.nav-item,
-.agent-option,
-.session-card,
-.sidebar-footer button {
+.nav-item {
   width: 100%;
   min-height: 42px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
-  color: #272a31;
+  color: #2f3137;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 12px;
+  padding: 0 10px;
   font-size: 15px;
-  text-align: left;
   cursor: pointer;
 }
 
-.nav-item:hover,
-.agent-option:hover,
-.session-card:hover,
-.sidebar-footer button:hover {
-  background: #eceef3;
+.nav-item:hover {
+  background: #e8eaef;
 }
 
-.nav-item.active,
-.agent-option.active,
-.session-card.active {
-  color: #1261ff;
-  background: #eaf0ff;
-}
-
-.nav-item kbd {
-  margin-left: auto;
-  min-width: 36px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #9aa3b2;
-  border: 1px solid #d4d9e3;
-  border-radius: 6px;
-  font-size: 12px;
-  font-family: inherit;
-}
-
-.nav-arrow {
-  margin-left: auto;
-  color: #9aa0aa;
-  font-size: 24px;
+.nav-item.active {
+  background: #e5ebff;
+  color: #2e4aa7;
 }
 
 .sidebar-section {
   min-height: 0;
-}
-
-.history-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .section-title {
-  margin: 0 10px 8px;
-  color: #9a9da5;
+  padding: 6px 10px;
+  color: #7a7d84;
   font-size: 13px;
   font-weight: 600;
 }
 
-.sidebar-search {
-  margin: 0 0 8px;
-}
-
-.sidebar-search :deep(.el-input__wrapper) {
-  background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 0 0 1px #e1e4ea inset;
-}
-
-.agent-picker,
 .session-list {
   min-height: 0;
   overflow-y: auto;
-}
-
-.service-status {
-  min-height: 58px;
-  margin: 0 2px;
-  padding: 10px 12px;
-  border: 1px solid #e2e6ee;
-  border-radius: 12px;
-  background: #ffffff;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.service-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #c4c8d0;
-  flex: 0 0 auto;
-}
-
-.service-dot.online {
-  background: #18b26b;
-  box-shadow: 0 0 0 4px rgba(24, 178, 107, 0.12);
-}
-
-.service-status strong,
-.service-status span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.service-status strong {
-  color: #25272d;
-  font-size: 14px;
-}
-
-.service-status span {
-  margin-top: 3px;
-  color: #8a909b;
-  font-size: 12px;
-}
-
-.agent-option,
-.session-card {
-  min-height: 52px;
-  font-size: 14px;
-}
-
-.agent-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #8aa4ff;
-  flex: 0 0 auto;
-}
-
-.session-main {
+.session-item {
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.session-main .el-icon {
-  flex: 0 0 auto;
-  color: #a4a8b2;
-}
-
-.session-main strong,
-.agent-option span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-main strong {
-  color: #2a2f39;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.session-time {
-  width: 100%;
-  margin-top: 2px;
-  color: #97a0ae;
-  font-size: 11px;
-  line-height: 1;
-  padding-left: 24px;
-}
-
-.sidebar-empty {
-  padding: 10px 12px;
-  color: #9a9da5;
-  font-size: 13px;
-}
-
-.sidebar-footer {
-  padding-top: 10px;
-  border-top: 1px solid #e4e6eb;
-  display: flex;
-  gap: 6px;
-}
-
-.sidebar-footer button {
-  min-height: 36px;
-  justify-content: center;
-  color: #777b84;
-  font-size: 13px;
-}
-
-.chat-shell {
-  height: 100vh;
-  min-width: 0;
-  display: grid;
-  grid-template-rows: 74px minmax(0, 1fr) auto;
-  background: #ffffff;
-}
-
-.chat-header {
-  display: grid;
-  grid-template-columns: 60px minmax(0, 1fr) auto;
-  align-items: center;
-  border-bottom: 1px solid #eeeeef;
-}
-
-.sidebar-toggle {
-  width: 36px;
-  height: 36px;
-  margin-left: 18px;
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #25272d;
+  text-align: left;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   cursor: pointer;
 }
 
-.sidebar-toggle:hover {
-  background: #f1f2f4;
+.session-item:hover {
+  background: #e8eaef;
 }
 
-.chat-title {
-  text-align: center;
+.session-item.active {
+  background: #e5ebff;
 }
 
-.chat-title strong,
-.chat-title span {
-  display: block;
+.session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
-.chat-title strong {
-  font-size: 16px;
+.session-title {
+  color: #2f3137;
+  font-size: 13px;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.chat-title span {
-  margin-top: 3px;
-  color: #c3c4c8;
+.session-delete {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #8a8d95;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.session-item:hover .session-delete,
+.session-item.active .session-delete {
+  opacity: 1;
+}
+
+.session-delete:hover {
+  background: #eceef2;
+  color: #e23d3d;
+}
+
+.session-time {
+  color: #8a8d95;
+  font-size: 11px;
+}
+
+.sidebar-empty {
+  color: #8a8d95;
   font-size: 12px;
+  padding: 8px 10px;
 }
 
-.chat-actions {
-  padding-right: 20px;
+.sidebar-bottom {
+  padding-top: 8px;
+  border-top: 1px solid #e6e7ea;
+}
+
+.portal-main {
+  min-width: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 62px minmax(0, 1fr);
+}
+
+.main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  border-bottom: 1px solid #ececef;
+  background: rgba(248, 249, 251, 0.92);
+}
+
+.header-left,
+.header-right {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.user-button {
-  height: 38px;
-  border: 0;
-  border-radius: 12px;
-  padding: 0 13px;
-  color: #ffffff;
-  background: #24262b;
+.header-left strong {
+  font-size: 20px;
+  color: #1f2329;
+  font-weight: 600;
+}
+
+.user-pill {
+  border: 1px solid #e3e5e9;
+  background: #fff;
+  border-radius: 999px;
+  padding: 2px 4px 2px 10px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
 }
 
-.message-feed {
-  width: min(980px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 36px 0 170px;
-  overflow-y: auto;
-  background: #ffffff;
+.user-pill span {
+  color: #5c606a;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
 }
 
-.message-feed.empty {
+.chat-stage {
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+}
+
+.chat-stage.home {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.empty-state {
-  width: 100%;
-  max-width: 980px;
+.home-center {
+  width: min(860px, 100%);
   text-align: center;
-  transform: translateY(-24px);
 }
 
-.empty-state h1 {
-  margin: 0 0 28px;
-  color: #0f1115;
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: 0;
+.home-center h1 {
+  margin: 6px 0 18px;
+  color: #242628;
+  font-size: clamp(24px, 3vw, 40px);
+  line-height: 1.16;
+  font-weight: 600;
 }
 
-.empty-state p {
-  margin: -14px 0 26px;
-  color: #888d98;
-  font-size: 15px;
+.home-kicker {
+  margin: 0;
+  color: #575b63;
+  font-size: 40px;
+  font-weight: 500;
 }
 
-.prompt-row {
+.input-card {
+  border: 1px solid #e7e8eb;
+  border-radius: 28px;
+  background: #fff;
+  padding: 14px 16px 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  text-align: left;
+}
+
+.input-card.compact {
+  border-radius: 24px;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.composer-input :deep(.el-textarea__inner) {
+  min-height: 56px !important;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: #1f2329;
+  font-size: 24px;
+  line-height: 1.34;
+  padding: 2px 4px 8px;
+}
+
+.tools-row {
   display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
-.prompt-row button {
-  min-height: 46px;
+.tools-left,
+.tools-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip-btn {
+  height: 34px;
   border: 0;
-  border-radius: 14px;
-  padding: 0 18px;
-  color: #202329;
-  background: #f3f3f4;
-  font-size: 15px;
+  border-radius: 16px;
+  background: #f2f3f5;
+  color: #41444c;
+  padding: 0 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 
-.prompt-row button:hover {
-  background: #ebedf1;
-  transform: none;
-  box-shadow: none;
+.chip-btn:hover {
+  background: #eaebef;
+}
+
+.chip-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.send-button {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: #10a37f;
+}
+
+.send-button.is-disabled {
+  background: #c7ccd4;
+}
+
+.suggestions {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.suggestion-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #f2f3f5;
+  color: #3f434b;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.suggestion-chip:hover {
+  background: #e9ebef;
+}
+
+.messages-wrap {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding-bottom: 180px;
 }
 
 .message-row {
   display: flex;
-  gap: 14px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .message-row.user {
@@ -1836,44 +1252,47 @@ onMounted(async () => {
 }
 
 .message-avatar {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
+  background: #eceef2;
+  color: #4b4f57;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  color: #1261ff;
-  background: #eef3ff;
 }
 
 .message-bubble {
-  max-width: min(760px, 78%);
-  border: 0;
+  max-width: min(820px, 82%);
+  border: 1px solid #e8e9ed;
   border-radius: 16px;
-  padding: 13px 16px;
-  background: #f5f6f8;
-  box-shadow: none;
+  background: #fff;
+  padding: 12px 14px;
 }
 
 .message-row.user .message-bubble {
-  color: #ffffff;
-  background: #1261ff;
-  box-shadow: none;
+  border-color: transparent;
+  color: #fff;
+  background: #2f6feb;
 }
 
 .message-role {
-  margin-bottom: 6px;
-  color: #8a909b;
+  color: #8a8f98;
   font-size: 12px;
+  margin-bottom: 5px;
 }
 
 .message-row.user .message-role {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .message-content {
   white-space: pre-wrap;
-  line-height: 1.7;
+  line-height: 1.68;
+}
+
+.typing-line {
+  color: #6d7280;
 }
 
 .markdown-body {
@@ -1883,109 +1302,79 @@ onMounted(async () => {
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
-  margin: 0.3em 0 0.5em;
-  line-height: 1.35;
+  margin: 0.3em 0 0.55em;
 }
 
 .markdown-body :deep(p) {
-  margin: 0.5em 0;
-  line-height: 1.7;
+  margin: 0.52em 0;
 }
 
 .markdown-body :deep(ul),
 .markdown-body :deep(ol) {
-  margin: 0.5em 0 0.6em;
-  padding-left: 1.25em;
-}
-
-.markdown-body :deep(li) {
-  margin: 0.24em 0;
+  margin: 0.5em 0 0.7em;
+  padding-left: 1.2em;
 }
 
 .markdown-body :deep(code) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.92em;
-  padding: 0.1em 0.28em;
+  padding: 0.08em 0.3em;
   border-radius: 6px;
-  background: rgba(148, 163, 184, 0.15);
+  background: rgba(100, 116, 139, 0.18);
 }
 
 .markdown-body :deep(pre) {
-  margin: 0.7em 0;
+  margin: 0.75em 0;
   padding: 10px 12px;
   border-radius: 10px;
-  overflow-x: auto;
   background: #0f172a;
-  color: #e2e8f0;
+  color: #e5e7eb;
+  overflow-x: auto;
 }
 
 .markdown-body :deep(pre code) {
-  padding: 0;
   background: transparent;
-  color: inherit;
+  padding: 0;
 }
 
-.message-row.user .markdown-body :deep(pre) {
-  background: rgba(18, 22, 32, 0.42);
-  color: #eef2ff;
-}
-
-.composer-wrap {
+.composer-dock {
   position: fixed;
-  left: var(--sidebar-width);
-  right: 0;
-  bottom: 0;
-  padding: 0 24px 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), #ffffff 30%);
+  left: calc(var(--sidebar-width) + 20px);
+  right: 20px;
+  bottom: 16px;
 }
 
-.composer {
+.composer-dock .input-card {
   width: min(980px, 100%);
   margin: 0 auto;
-  padding: 14px 16px 12px;
-  border: 1.5px solid #b8d0ff;
-  border-radius: 22px;
-  background: #ffffff;
-  box-shadow: 0 20px 60px rgba(27, 65, 128, 0.12);
 }
 
-.hidden-file-input {
-  display: none;
+.kb-status {
+  max-width: 220px;
+  color: #8a8d95;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.uploading-chip {
+.uploading-chip,
+.attachment-chip {
   width: fit-content;
-  min-height: 34px;
+  max-width: 100%;
   margin-bottom: 8px;
+  border-radius: 12px;
+  border: 1px solid #e3e5e9;
+  background: #f4f5f7;
+  color: #3e424b;
+  min-height: 34px;
   padding: 0 10px;
-  border: 1px solid #dbe6ff;
-  border-radius: 10px;
-  background: #f4f7ff;
-  color: #22304a;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
 }
 
-.attachment-chip {
-  width: fit-content;
-  max-width: 100%;
-  min-height: 34px;
-  margin-bottom: 8px;
-  padding: 0 8px 0 10px;
-  border: 1px solid #dbe6ff;
-  border-radius: 10px;
-  background: #f4f7ff;
-  color: #22304a;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-}
-
 .attachment-chip span {
-  max-width: 420px;
+  max-width: 360px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1994,83 +1383,8 @@ onMounted(async () => {
 .attachment-chip button {
   border: 0;
   background: transparent;
-  color: #1261ff;
+  color: #2563eb;
   cursor: pointer;
-  font-size: 13px;
-}
-
-.composer-input :deep(.el-textarea__inner) {
-  min-height: 42px !important;
-  border: 0;
-  box-shadow: none;
-  padding: 4px 6px;
-  color: #191b1f;
-  font-size: 16px;
-}
-
-.tool-row {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.tool-left,
-.tool-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.icon-tool,
-.tool-button {
-  height: 34px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: #262931;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-  font-size: 14px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.icon-tool {
-  width: 34px;
-  justify-content: center;
-  font-size: 18px;
-}
-
-.icon-tool:hover,
-.tool-button:hover {
-  background: #f2f4f8;
-}
-
-.icon-tool:disabled,
-.tool-button:disabled {
-  cursor: not-allowed;
-  color: #c1c5ce;
-}
-
-.kb-status {
-  max-width: 210px;
-  color: #8a909b;
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.send-button {
-  width: 40px;
-  height: 40px;
-  background: #1261ff;
-  border-color: #1261ff;
 }
 
 .kb-popover {
@@ -2080,20 +1394,16 @@ onMounted(async () => {
 }
 
 .popover-title {
-  font-weight: 700;
-  color: #202329;
-}
-
-.popover-search {
-  margin-bottom: 4px;
+  font-weight: 600;
+  color: #2b2f37;
 }
 
 .kb-item {
-  min-height: 48px;
-  border: 1px solid #eceef3;
+  border: 1px solid #e9ebef;
   border-radius: 10px;
+  background: #fff;
+  min-height: 50px;
   padding: 8px 10px;
-  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2105,18 +1415,42 @@ onMounted(async () => {
   display: block;
 }
 
-.kb-item strong {
-  font-size: 14px;
-}
-
-.kb-item span,
-.popover-empty {
-  color: #8a909b;
+.kb-item span {
+  color: #8b9099;
   font-size: 12px;
 }
 
-@media (max-width: 920px) {
-  .user-portal {
+.chatgpt-portal.collapsed .brand-copy,
+.chatgpt-portal.collapsed .nav-item span,
+.chatgpt-portal.collapsed .section-title,
+.chatgpt-portal.collapsed .session-title,
+.chatgpt-portal.collapsed .session-time,
+.chatgpt-portal.collapsed .sidebar-bottom {
+  display: none;
+}
+
+.chatgpt-portal.collapsed .session-item,
+.chatgpt-portal.collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+@media (max-width: 1080px) {
+  .chatgpt-portal {
+    --sidebar-width: 240px;
+  }
+
+  .home-kicker {
+    font-size: 30px;
+  }
+
+  .composer-input :deep(.el-textarea__inner) {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 880px) {
+  .chatgpt-portal {
     grid-template-columns: 1fr;
   }
 
@@ -2124,17 +1458,14 @@ onMounted(async () => {
     display: none;
   }
 
-  .composer-wrap {
-    left: 0;
+  .composer-dock {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
   }
 
-  .chat-actions :deep(.el-button) {
-    display: none;
-  }
-
-  .tool-button span,
-  .kb-status {
-    display: none;
+  .chat-stage {
+    padding: 12px 12px 18px;
   }
 }
 </style>

@@ -24,9 +24,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -164,55 +167,20 @@ public class PlaygroundController {
                                 @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
         SseEmitter emitter = new SseEmitter(0L);
         Thread worker = new Thread(() -> {
-            long startedAt = System.currentTimeMillis();
-            AtomicReference<Map<String, Object>> resultRef = new AtomicReference<>();
-            AtomicReference<Throwable> errorRef = new AtomicReference<>();
-            FutureTask<Void> runTask = new FutureTask<>(() -> {
-                Map<String, Object> result = playgroundService.runWorkflow(payload, userId, traceId);
-                resultRef.set(result);
-                return null;
-            });
-            Thread runtimeThread = new Thread(runTask, "playground-runtime");
-            runtimeThread.setDaemon(true);
-            runtimeThread.start();
-
             try {
-                while (!runTask.isDone()) {
-                    long elapsed = (System.currentTimeMillis() - startedAt) / 1000;
-                    emitter.send(SseEmitter.event().name("trace").data(Map.of(
-                            "type", "node_progress",
-                            "title", "Runtime Executing",
-                            "detail", "Workflow is still running (" + elapsed + "s).",
-                            "status", "RUNNING",
-                            "at", OffsetDateTime.now().toString(),
-                            "payload", Map.of(
-                                    "node_id", "runtime_wait",
-                                    "status", "RUNNING",
-                                    "execution_path", "langgraph_mq"
-                            )
-                    )));
-                    Thread.sleep(1500L);
-                }
-
-                try {
-                    runTask.get();
-                } catch (Exception e) {
-                    errorRef.set(e.getCause() != null ? e.getCause() : e);
-                }
-
-                if (errorRef.get() != null) {
-                    throw new RuntimeException(resolveErrorMessage(errorRef.get()), errorRef.get());
-                }
-
-                Map<String, Object> result = resultRef.get();
+                Map<String, Object> result = playgroundService.runWorkflowStream(payload, userId, traceId, (eventName, data) -> {
+                    try {
+                        if ("trace".equals(eventName)) {
+                            emitter.send(SseEmitter.event().name("trace").data(data));
+                        } else if ("error".equals(eventName)) {
+                            emitter.send(SseEmitter.event().name("error").data(data));
+                        }
+                    } catch (IOException ioException) {
+                        throw new RuntimeException(ioException);
+                    }
+                });
                 if (result == null) {
                     throw new IllegalStateException("Playground runtime returned empty result.");
-                }
-                Object traceObj = result.get("trace");
-                if (traceObj instanceof List<?> trace) {
-                    for (Object event : trace) {
-                        emitter.send(SseEmitter.event().name("trace").data(event));
-                    }
                 }
                 emitter.send(SseEmitter.event().name("final").data(result));
                 emitter.complete();
@@ -239,11 +207,17 @@ public class PlaygroundController {
     public Map<String, Object> llm(@RequestBody Map<String, Object> payload) {
         String systemPrompt = String.valueOf(payload.getOrDefault("system_prompt", "You are a helpful assistant."));
         String userInput = String.valueOf(payload.getOrDefault("user_input", ""));
-        String model = payload.get("model") instanceof String s && !s.isBlank() ? s : null;
+        String model = payload.get("model") instanceof String s && !s.isBlank() ? normalizeRuntimeModelName(s) : null;
 
         ChatCompletionRequest req = new ChatCompletionRequest();
         req.setStream(false);
         if (model != null) req.setModel(model);
+        if (payload.get("temperature") instanceof Number temperature) {
+            req.setTemperature(temperature.doubleValue());
+        }
+        if (payload.get("max_tokens") instanceof Number maxTokens) {
+            req.setMaxTokens(Math.max(1, Math.min(16000, maxTokens.intValue())));
+        }
 
         List<ChatCompletionRequest.Message> messages = new ArrayList<>();
         if (!systemPrompt.isBlank()) {
@@ -268,11 +242,24 @@ public class PlaygroundController {
         }
 
         try {
-            ChatCompletionResponse response = providerOpt.get().chatCompletion(req).block();
+            ProviderAdapter provider = providerOpt.get();
+            ChatCompletionResponse response;
+            try {
+                response = provider.chatCompletion(req).block();
+            } catch (Exception firstError) {
+                Optional<String> fallbackModel = findFallbackChatModel(provider, model);
+                if (fallbackModel.isEmpty()) {
+                    throw firstError;
+                }
+                log.warn("Playground LLM model '{}' failed: {}. Retrying with fallback model '{}'.",
+                        model, resolveErrorMessage(firstError), fallbackModel.get());
+                req.setModel(fallbackModel.get());
+                response = provider.chatCompletion(req).block();
+            }
             String text = (response != null && response.getChoices() != null && !response.getChoices().isEmpty())
                     ? response.getChoices().get(0).getMessage().getContent()
                     : "";
-            return Map.of("text", text);
+            return Map.of("text", text, "model", req.getModel() != null ? req.getModel() : "");
         } catch (Exception e) {
             String errorMessage = resolveErrorMessage(e);
             log.warn("Playground LLM call failed: {}", errorMessage);
@@ -312,5 +299,85 @@ public class PlaygroundController {
             return cause.getMessage();
         }
         return error.getClass().getSimpleName();
+    }
+
+    private Optional<String> findFallbackChatModel(ProviderAdapter provider, String failedModel) {
+        if (provider == null) {
+            return Optional.empty();
+        }
+        try {
+            Map<String, Object> modelResponse = provider.getModels().block();
+            Set<String> modelIds = new LinkedHashSet<>();
+            collectModelIds(modelResponse, modelIds);
+            String failed = failedModel == null ? "" : failedModel.trim();
+            return modelIds.stream()
+                    .map(String::trim)
+                    .filter(model -> !model.isBlank())
+                    .filter(model -> !model.equals(failed))
+                    .filter(this::isLikelyChatModel)
+                    .findFirst();
+        } catch (Exception e) {
+            log.warn("Playground LLM fallback model lookup failed: {}", resolveErrorMessage(e));
+            return Optional.empty();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectModelIds(Object value, Set<String> collector) {
+        if (value == null || collector.size() >= 64) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map) {
+            Object id = map.get("id");
+            if (id instanceof String s && !s.isBlank()) {
+                collector.add(normalizeRuntimeModelName(s));
+            }
+            Object modelId = map.get("modelId");
+            if (modelId instanceof String s && !s.isBlank()) {
+                collector.add(normalizeRuntimeModelName(s));
+            }
+            Object modelName = map.get("modelName");
+            if (modelName instanceof String s && !s.isBlank()) {
+                collector.add(normalizeRuntimeModelName(s));
+            }
+            for (Object nested : map.values()) {
+                collectModelIds(nested, collector);
+            }
+            return;
+        }
+        if (value instanceof Collection<?> collection) {
+            for (Object item : collection) {
+                collectModelIds(item, collector);
+            }
+        }
+    }
+
+    private boolean isLikelyChatModel(String model) {
+        String lower = model == null ? "" : model.toLowerCase();
+        if (lower.isBlank()) {
+            return false;
+        }
+        return !(lower.contains("embedding")
+                || lower.contains("embed")
+                || lower.contains("rerank")
+                || lower.contains("whisper")
+                || lower.contains("tts")
+                || lower.contains("speech")
+                || lower.contains("stable-diffusion")
+                || lower.contains("flux")
+                || lower.contains("image")
+                || lower.contains("video")
+                || lower.contains("wan-"));
+    }
+
+    private String normalizeRuntimeModelName(String rawModel) {
+        if (rawModel == null) {
+            return null;
+        }
+        String model = rawModel.trim();
+        if (model.isBlank()) {
+            return null;
+        }
+        return model;
     }
 }

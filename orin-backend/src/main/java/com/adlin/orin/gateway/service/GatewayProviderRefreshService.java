@@ -23,6 +23,7 @@ public class GatewayProviderRefreshService {
     private static final String PROVIDER_OLLAMA = "local-ollama";
     private static final String PROVIDER_SILICONFLOW = "siliconflow";
     private static final String PROVIDER_DIFY = "dify";
+    private static final String DEFAULT_SILICONFLOW_ENDPOINT = "https://api.siliconflow.cn/v1";
 
     private final ProviderRegistry providerRegistry;
     private final DifyIntegrationService difyIntegrationService;
@@ -66,9 +67,6 @@ public class GatewayProviderRefreshService {
     }
 
     private void registerSiliconFlow(ModelConfig config) {
-        if (!isConfigured(config.getSiliconFlowEndpoint())) {
-            return;
-        }
         var credentialOpt = gatewaySecretService.resolveProviderCredential(PROVIDER_SILICONFLOW);
         if (credentialOpt.isEmpty() || !isConfigured(credentialOpt.get().getApiKey())) {
             log.warn("Skip siliconflow provider registration: missing credential in gateway secret center");
@@ -77,7 +75,9 @@ public class GatewayProviderRefreshService {
         String apiKey = credentialOpt.get().getApiKey().trim();
         String endpoint = isConfigured(credentialOpt.get().getBaseUrl())
                 ? credentialOpt.get().getBaseUrl().trim()
-                : config.getSiliconFlowEndpoint().trim();
+                : isConfigured(config.getSiliconFlowEndpoint())
+                        ? config.getSiliconFlowEndpoint().trim()
+                        : DEFAULT_SILICONFLOW_ENDPOINT;
 
         OpenAIProviderAdapter siliconFlowAdapter = new OpenAIProviderAdapter(
                 PROVIDER_SILICONFLOW,
