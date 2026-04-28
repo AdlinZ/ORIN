@@ -1,9 +1,10 @@
 <template>
   <div class="workflow-container">
-    <PageHeader
+    <OrinPageShell
       title="工作流编排"
       description="创建、编辑并维护可复用的业务工作流"
       icon="Connection"
+      domain="流程编排"
     >
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="handleCreate">
@@ -21,57 +22,21 @@
       </template>
 
       <template #filters>
-        <el-input
-          v-model="searchQuery"
-          placeholder="搜索工作流..."
-          :prefix-icon="Search"
-          clearable
-          class="search-input"
-        />
+        <OrinFilterBar>
+          <el-input
+            v-model="searchQuery"
+            placeholder="搜索工作流..."
+            :prefix-icon="Search"
+            clearable
+            class="search-input"
+          />
+        </OrinFilterBar>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
-    <!-- Stats Cards -->
-    <div class="stats-row">
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-content">
-          <div class="stat-info">
-            <span class="label">总工作流</span>
-            <span class="value">{{ stats.total }}</span>
-          </div>
-          <el-icon class="icon primary">
-            <Connection />
-          </el-icon>
-        </div>
-      </el-card>
+    <OrinMetricStrip :metrics="workflowMetrics" class="stats-row" />
 
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-content">
-          <div class="stat-info">
-            <span class="label">已发布</span>
-            <span class="value">{{ stats.published }}</span>
-          </div>
-          <el-icon class="icon success">
-            <VideoPlay />
-          </el-icon>
-        </div>
-      </el-card>
-
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-content">
-          <div class="stat-info">
-            <span class="label">草稿</span>
-            <span class="value">{{ stats.draft }}</span>
-          </div>
-          <el-icon class="icon warning">
-            <Edit />
-          </el-icon>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- Workflow List -->
-    <el-card class="table-card" shadow="never">
+    <OrinDataTable class="table-card">
       <template #header>
         <div class="card-header">
           <span>工作流列表</span>
@@ -132,8 +97,15 @@
             </el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <OrinEmptyState
+            description="暂无工作流，请创建可复用的业务流程"
+            action-label="新建工作流"
+            @action="handleCreate"
+          />
+        </template>
       </el-table>
-    </el-card>
+    </OrinDataTable>
 
     <!-- Import Dialog -->
     <el-dialog
@@ -254,7 +226,11 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import dayjs from 'dayjs';
 import { getWorkflows, importWorkflow, deleteWorkflow, exportWorkflow, listDifyWorkflows, importFromDify, testDifyConnection } from '@/api/workflow';
 import { getDifyConfig } from '@/api/integrations';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -283,6 +259,12 @@ const filteredWorkflows = computed(() => {
     return name.includes(q) || desc.includes(q);
   });
 });
+
+const workflowMetrics = computed(() => [
+  { label: '总工作流', value: stats.value.total, meta: '已纳管流程资产' },
+  { label: '已发布', value: stats.value.published, meta: '可稳定运行' },
+  { label: '草稿', value: stats.value.draft, meta: '待确认或调试' }
+]);
 
 // Dify Sync
 const syncDialogVisible = ref(false);

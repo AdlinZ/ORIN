@@ -5,8 +5,7 @@
       title="审计中心"
       description="统一追踪访问行为、系统操作与关键配置变更"
       icon="List"
-      domain="系统与网关"
-      maturity="available"
+      domain="组织治理"
     >
       <template v-if="props.showHeaderActions" #actions>
         <el-button :icon="Refresh" @click="loadAll">
@@ -23,24 +22,27 @@
       </template>
     </OrinPageShell>
 
+    <OrinStatusSummary :items="auditStatusItems" class="audit-summary" />
+
     <el-tabs v-model="activeTab">
       <el-tab-pane label="实时审计记录" name="logs">
-        <el-card shadow="never">
+        <OrinDataTable>
+          <template #header>
+            <div class="card-head with-actions">
+              <span>实时审计记录</span>
+              <span>{{ auditRows.length }} 条最近记录</span>
+            </div>
+          </template>
           <OrinAsyncState :status="logsState.status" empty-text="暂无审计记录" @retry="loadLogs">
             <OrinAuditTable :rows="auditRows" />
           </OrinAsyncState>
-        </el-card>
+        </OrinDataTable>
       </el-tab-pane>
 
       <el-tab-pane v-if="showConfigTab" label="审计存储配置" name="config">
         <el-row :gutter="16">
           <el-col :xs="24" :lg="12">
-            <el-card shadow="never">
-              <template #header>
-                <div class="card-head">
-                  审计策略
-                </div>
-              </template>
+            <OrinDetailPanel title="审计策略">
               <el-form label-width="130px">
                 <el-form-item label="全局审计开关">
                   <el-switch v-model="config.auditEnabled" />
@@ -56,16 +58,11 @@
                   <el-input-number v-model="config.retentionDays" :min="1" :max="365" />
                 </el-form-item>
               </el-form>
-            </el-card>
+            </OrinDetailPanel>
           </el-col>
 
           <el-col :xs="24" :lg="12">
-            <el-card shadow="never">
-              <template #header>
-                <div class="card-head">
-                  存储统计
-                </div>
-              </template>
+            <OrinDetailPanel title="存储统计">
               <OrinAsyncState :status="statsState.status" empty-text="暂无统计数据" @retry="loadStats">
                 <div class="stat-line">
                   <span>日志总量</span>
@@ -91,7 +88,7 @@
                   </el-button>
                 </div>
               </OrinAsyncState>
-            </el-card>
+            </OrinDetailPanel>
           </el-col>
         </el-row>
       </el-tab-pane>
@@ -177,6 +174,9 @@ import request from '@/utils/request'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinAuditTable from '@/components/orin/OrinAuditTable.vue'
+import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinDetailPanel from '@/components/orin/OrinDetailPanel.vue'
 import { createAsyncState, markEmpty, markError, markLoading, markSuccess } from '@/viewmodels'
 
 const props = defineProps({
@@ -221,6 +221,30 @@ const config = reactive({
 })
 const loggers = ref([])
 const supportedLevels = ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'OFF']
+
+const auditStatusItems = computed(() => [
+  {
+    label: '全局审计',
+    value: config.auditEnabled ? '已开启' : '已关闭',
+    meta: `日志分级：${config.logLevel}`,
+    intent: config.auditEnabled ? 'success' : 'danger'
+  },
+  {
+    label: '最近记录',
+    value: auditRows.value.length,
+    meta: '当前查询窗口返回记录数'
+  },
+  {
+    label: '保留策略',
+    value: `${config.retentionDays} 天`,
+    meta: '超过策略的日志可按需清理'
+  },
+  {
+    label: '日志规模',
+    value: stats.totalCount,
+    meta: `${stats.estimatedSizeMb} MB 估算占用`
+  }
+])
 
 const CONFIG_KEYS = {
   AUDIT_ENABLED: 'log.audit.enabled',
@@ -405,7 +429,25 @@ watch(
 
 <style scoped>
 .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   font-weight: 600;
+}
+
+.card-head span + span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.audit-summary {
+  margin-bottom: 16px;
+}
+
+.el-tabs :deep(.el-tabs__content) {
+  padding-top: 4px;
 }
 
 .stat-line {

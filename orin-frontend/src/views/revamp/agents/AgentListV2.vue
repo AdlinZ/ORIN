@@ -65,23 +65,7 @@
       </template>
     </OrinPageShell>
 
-    <section class="agent-overview-grid">
-      <el-card shadow="never" class="overview-card overview-card-accent">
-        <span class="overview-label">智能体总数</span>
-        <strong class="overview-value">{{ rows.length }}</strong>
-        <span class="overview-meta">覆盖对话、工作流和多模态执行</span>
-      </el-card>
-      <el-card shadow="never" class="overview-card">
-        <span class="overview-label">运行中</span>
-        <strong class="overview-value">{{ runningCount }}</strong>
-        <span class="overview-meta">当前可直接进入控制台的智能体</span>
-      </el-card>
-      <el-card shadow="never" class="overview-card">
-        <span class="overview-label">最近访问</span>
-        <strong class="overview-value">{{ recentAgents.length }}</strong>
-        <span class="overview-meta">从下方卡片可继续最近的工作现场</span>
-      </el-card>
-    </section>
+    <OrinMetricStrip class="agent-metric-strip" :metrics="agentMetrics" />
 
     <el-card v-if="recentAgents.length" shadow="never" class="recent-panel">
       <template #header>
@@ -124,7 +108,16 @@
       </div>
     </el-card>
 
-    <el-card shadow="never">
+    <OrinDataTable>
+      <template #header>
+        <div class="table-heading">
+          <div>
+            <strong>智能体资产清单</strong>
+            <span>按服务商、模型、状态与最近活跃情况管理企业 AI 服务</span>
+          </div>
+          <span class="table-count">{{ viewRows.length }} / {{ rows.length }}</span>
+        </div>
+      </template>
       <OrinAsyncState :status="state.status" empty-text="暂无智能体数据" @retry="loadData">
         <el-table
           class="agent-list-table"
@@ -173,7 +166,7 @@
           </el-table-column>
         </el-table>
       </OrinAsyncState>
-    </el-card>
+    </OrinDataTable>
   </div>
 </template>
 
@@ -200,6 +193,8 @@ import { deleteAgent } from '@/api/agent'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import {
   createAsyncState,
   markEmpty,
@@ -246,6 +241,32 @@ const typeOptions = computed(() => {
 })
 
 const runningCount = computed(() => rows.value.filter((row) => row.status === 'RUNNING').length)
+const agentMetrics = computed(() => [
+  {
+    key: 'total',
+    label: '智能体总数',
+    value: rows.value.length,
+    meta: '覆盖对话、工作流和多模态执行'
+  },
+  {
+    key: 'running',
+    label: '运行中',
+    value: runningCount.value,
+    meta: '当前可直接进入控制台'
+  },
+  {
+    key: 'recent',
+    label: '最近访问',
+    value: recentAgents.value.length,
+    meta: '保留最近打开过的工作现场'
+  },
+  {
+    key: 'filtered',
+    label: '当前结果',
+    value: viewRows.value.length,
+    meta: '随筛选条件实时收敛'
+  }
+])
 
 const loadData = async () => {
   markLoading(state)
@@ -382,59 +403,13 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.agent-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+.agent-metric-strip {
   margin-bottom: 16px;
-}
-
-.overview-card {
-  border-radius: 18px;
-}
-
-.overview-card :deep(.el-card__body) {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 18px 20px;
-}
-
-.overview-card-accent {
-  background: linear-gradient(140deg, #0f766e, #155e75) !important;
-  border-color: #0f766e !important;
-  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.18);
-}
-
-.overview-card-accent .overview-label,
-.overview-card-accent .overview-value,
-.overview-card-accent .overview-meta {
-  color: #f8fafc;
-}
-
-.overview-label {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #475569;
-}
-
-.overview-value {
-  font-size: 36px;
-  line-height: 1;
-  color: #0f172a;
-}
-
-.overview-meta {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #334155;
 }
 
 .recent-panel {
   margin-bottom: 16px;
-  border-radius: 22px;
+  border-radius: 8px;
 }
 
 .recent-panel-header {
@@ -471,17 +446,17 @@ onMounted(loadData)
   width: 100%;
   padding: 16px 18px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), #f8fafc);
+  border-radius: 8px;
+  background: #ffffff;
   text-align: left;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .recent-card:hover {
-  transform: translateY(-2px);
+  transform: none;
   border-color: rgba(13, 148, 136, 0.3);
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
 }
 
 .recent-icon {
@@ -562,7 +537,7 @@ onMounted(loadData)
 
 html.dark .recent-card {
   border-color: rgba(71, 85, 105, 0.55);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.9));
+  background: rgba(15, 23, 42, 0.94);
   box-shadow: 0 10px 24px rgba(2, 8, 23, 0.38);
 }
 
@@ -617,6 +592,37 @@ html.dark .refresh-button:hover {
   width: 36px;
   height: 36px;
   font-size: 18px;
+}
+
+.table-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.table-heading strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.table-heading span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.table-heading .table-count {
+  margin-top: 0;
+  color: #0f766e;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+html.dark .table-heading strong {
+  color: #e2e8f0;
 }
 
 .page-container :deep(.header-description) {

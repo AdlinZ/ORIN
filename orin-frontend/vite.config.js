@@ -11,6 +11,7 @@ const buildDate = new Date().toISOString().split('T')[0]
 const toPackageChunk = (id) => {
   if (!id.includes('node_modules')) return null
   if (id.includes('/node_modules/echarts/')) return 'echarts'
+  if (id.includes('/node_modules/@arco-design/')) return 'arco-design'
   if (id.includes('/node_modules/element-plus/') || id.includes('/node_modules/@element-plus/')) return 'element-plus'
   if (id.includes('/node_modules/@vue-flow/')) return 'vue-flow'
   if (
@@ -87,7 +88,7 @@ export default defineConfig({
     globals: true,
     server: {
       deps: {
-        inline: ['element-plus', '@element-plus/icons-vue']
+        inline: ['element-plus', '@element-plus/icons-vue', '@arco-design/web-vue']
       }
     }
   }

@@ -19,7 +19,7 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
-    ;[agents.value, workflows.value, templates.value] = await Promise.all([
+    [agents.value, workflows.value, templates.value] = await Promise.all([
       fetchAgents(),
       fetchWorkflows(),
       fetchTemplates(),
@@ -90,12 +90,12 @@ const steps = [
         <!-- Hero + Stats row -->
         <section class="po-overview-grid">
           <div class="po-glass po-hero-card">
-            <span class="po-chip po-chip-blue">编排优先演示</span>
+            <span class="po-chip po-chip-blue">编排优先体验</span>
             <h2>
               先定义模式。<br />
               再观察智能体协作。
             </h2>
-            <p>该界面用于演示：在一个视图中查看 Agents、编排路由和运行 Trace。</p>
+            <p>该界面用于在一个视图中查看 Agents、编排路由和运行 Trace。</p>
             <div class="po-hero-orb"></div>
           </div>
 
@@ -203,9 +203,7 @@ const steps = [
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  background:
-    radial-gradient(circle at top center, rgba(148, 163, 184, 0.08), transparent 28%),
-    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #ffffff;
   font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
   color: var(--text);
   box-sizing: border-box;
@@ -225,8 +223,8 @@ const steps = [
   top: 0;
   z-index: 10;
   padding: 16px 0;
-  backdrop-filter: blur(16px);
-  background: rgba(248, 250, 252, 0.78);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.9);
   border-bottom: 1px solid rgba(226, 232, 240, 0.9);
 }
 
@@ -393,9 +391,9 @@ const steps = [
   flex-shrink: 0;
 }
 
-.po-stat-blue   { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
-.po-stat-violet { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
-.po-stat-green  { background: linear-gradient(135deg, #dcfce7, #bbf7d0); }
+.po-stat-blue   { background: #dbeafe; }
+.po-stat-violet { background: #ede9fe; }
+.po-stat-green  { background: #dcfce7; }
 
 .po-stat-label { color: var(--muted); font-size: 13px; font-weight: 700; }
 .po-stat-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; }

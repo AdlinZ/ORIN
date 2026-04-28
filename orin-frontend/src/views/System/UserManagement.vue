@@ -1,243 +1,239 @@
 <template>
   <div class="user-management fade-in">
-    <PageHeader
+    <OrinEntityHeader
+      domain="组织治理"
       title="用户管理"
-      description="管理系统用户、账号状态与访问范围"
-      icon="User"
-    />
-    
-    <div class="premium-card">
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <div class="left-tools">
-          <el-button type="primary" class="create-btn" @click="handleCreate">
-            <el-icon class="mr-1">
-              <Plus />
-            </el-icon>
-            创建用户
-          </el-button>
-        </div>
-        
-        <div class="right-tools">
-          <el-input
+      description="管理企业成员、权限角色、账号状态与组织范围"
+      :summary="userHeaderSummary"
+    >
+      <template #actions>
+        <a-button type="primary" class="create-btn" @click="handleCreate">
+          创建用户
+        </a-button>
+      </template>
+
+      <template #filters>
+        <div class="user-header-filters">
+          <a-input-search
             v-model="searchQuery"
             placeholder="搜索用户名 / 邮箱..."
             class="search-input"
-            clearable
+            allow-clear
             @input="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-          <el-button circle class="icon-btn" @click="loadUsers">
-            <el-icon><Refresh /></el-icon>
-          </el-button>
+          />
+          <a-button class="icon-btn" @click="loadUsers">
+            刷新
+          </a-button>
         </div>
-      </div>
+      </template>
+    </OrinEntityHeader>
 
-      <!-- 用户列表 -->
-      <el-table
-        v-loading="loading"
-        border
-        :data="filteredUsers"
-        style="width: 100%"
-        class="premium-table"
-        :header-cell-style="{ background: 'transparent', color: 'var(--el-text-color-secondary)' }"
-        :row-class-name="tableRowClassName"
-      >
-        <el-table-column prop="username" label="用户名" min-width="150">
-          <template #default="{ row }">
-            <div class="user-info">
-              <el-avatar :size="32" class="user-avatar" :src="row.avatar">
-                {{ row.username.charAt(0).toUpperCase() }}
-              </el-avatar>
-              <span class="username">{{ row.username }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="email" label="邮箱" min-width="200" />
-        
-        <el-table-column label="角色" width="140">
-          <template #default="{ row }">
-            <span :class="['role-badge', getRoleBadgeClass(row.role)]">
-              {{ getRoleName(row.role) }}
-            </span>
-          </template>
-        </el-table-column>
+    <OrinArcoDataTable
+      :columns="userColumns"
+      :data="filteredUsers"
+      :loading="loading"
+      row-key="id"
+      @row-click="openUserDetail"
+    >
+      <template #header>
+        <div class="table-title">
+          <strong>组织用户清单</strong>
+          <span>以权限和账号状态为核心维护口径</span>
+        </div>
+      </template>
 
-        <el-table-column label="部门" width="150">
-          <template #default="{ row }">
-            <span class="department-text">{{ getDepartmentName(row.departmentId) }}</span>
-          </template>
-        </el-table-column>
+      <template #username="{ record }">
+        <div class="user-info">
+          <a-avatar :size="32" class="user-avatar">
+            {{ record.username.charAt(0).toUpperCase() }}
+          </a-avatar>
+          <span class="username">{{ record.username }}</span>
+        </div>
+      </template>
 
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <div class="status-indicator">
-              <span :class="['status-dot', row.status === 'active' ? 'active' : 'inactive']" />
-              {{ row.status === 'active' ? '激活' : '禁用' }}
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="createdAt" label="创建时间" width="180">
-          <template #default="{ row }">
-            <span class="time-text">{{ formatDate(row.createdAt) }}</span>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="lastLogin" label="最后登录" width="180">
-          <template #default="{ row }">
-            <span class="time-text">{{ formatDate(row.lastLogin) }}</span>
-          </template>
-        </el-table-column>
-        
-        <el-table-column
-          label="操作"
-          fixed="right"
-          width="180"
-          align="center"
-        >
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-tooltip content="编辑" placement="top" :show-after="500">
-                <el-button link class="action-btn edit" @click="handleEdit(row)">
-                  <el-icon><Edit /></el-icon>
-                </el-button>
-              </el-tooltip>
-              
-              <el-tooltip :content="row.status === 'active' ? '禁用账号' : '启用账号'" placement="top" :show-after="500">
-                <el-button 
-                  link 
-                  :class="['action-btn', row.status === 'active' ? 'warning' : 'success']"
-                  @click="handleToggleStatus(row)"
-                >
-                  <el-icon v-if="row.status === 'active'">
-                    <Lock />
-                  </el-icon>
-                  <el-icon v-else>
-                    <Unlock />
-                  </el-icon>
-                </el-button>
-              </el-tooltip>
-              
-              <el-tooltip content="删除" placement="top" :show-after="500">
-                <el-button link class="action-btn delete" @click="handleDelete(row)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+      <template #role="{ record }">
+        <span :class="['role-badge', getRoleBadgeClass(record.role)]">
+          {{ getRoleName(record.role) }}
+        </span>
+      </template>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="currentPage"
+      <template #department="{ record }">
+        <span class="department-text">{{ getDepartmentName(record.departmentId) }}</span>
+      </template>
+
+      <template #status="{ record }">
+        <div class="status-indicator">
+          <span :class="['status-dot', record.status === 'active' ? 'active' : 'inactive']" />
+          {{ record.status === 'active' ? '激活' : '禁用' }}
+        </div>
+      </template>
+
+      <template #createdAt="{ record }">
+        <span class="time-text">{{ formatDate(record.createdAt) }}</span>
+      </template>
+
+      <template #lastLogin="{ record }">
+        <span class="time-text">{{ formatDate(record.lastLogin) }}</span>
+      </template>
+
+      <template #actions="{ record }">
+        <div class="action-buttons" @click.stop>
+          <a-button type="text" size="mini" @click="openUserDetail(record)">详情</a-button>
+          <a-button type="text" size="mini" @click="handleEdit(record)">编辑</a-button>
+          <a-button
+            type="text"
+            size="mini"
+            :status="record.status === 'active' ? 'warning' : 'success'"
+            @click="handleToggleStatus(record)"
+          >
+            {{ record.status === 'active' ? '禁用' : '启用' }}
+          </a-button>
+          <a-button type="text" size="mini" status="danger" @click="handleDelete(record)">删除</a-button>
+        </div>
+      </template>
+
+      <template #empty>
+        <OrinEmptyState
+          description="暂无组织用户，请创建用户或调整搜索条件"
+          action-label="创建用户"
+          @action="handleCreate"
+        />
+      </template>
+
+      <template #footer>
+        <a-pagination
+          v-model:current="currentPage"
           v-model:page-size="pageSize"
           :page-sizes="[10, 20, 50]"
           :total="totalUsers"
-          layout="total, ->, sizes, prev, pager, next"
-          background
-          small
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
+          show-total
+          show-page-size
+          size="small"
+          @page-size-change="handleSizeChange"
+          @change="handlePageChange"
         />
-      </div>
-    </div>
+      </template>
+    </OrinArcoDataTable>
+
+    <OrinArcoDetailDrawer
+      v-model="detailVisible"
+      title="用户详情"
+      :width="420"
+    >
+      <OrinDetailPanel
+        v-if="selectedUser"
+        :title="selectedUser.username"
+        :eyebrow="getRoleName(selectedUser.role)"
+      >
+        <dl class="user-detail-list">
+          <div>
+            <dt>邮箱</dt>
+            <dd>{{ selectedUser.email || '-' }}</dd>
+          </div>
+          <div>
+            <dt>部门</dt>
+            <dd>{{ getDepartmentName(selectedUser.departmentId) }}</dd>
+          </div>
+          <div>
+            <dt>账号状态</dt>
+            <dd>{{ selectedUser.status === 'active' ? '已激活' : '已禁用' }}</dd>
+          </div>
+          <div>
+            <dt>创建时间</dt>
+            <dd>{{ formatDate(selectedUser.createdAt) }}</dd>
+          </div>
+          <div>
+            <dt>最后登录</dt>
+            <dd>{{ formatDate(selectedUser.lastLogin) }}</dd>
+          </div>
+        </dl>
+        <div class="drawer-actions">
+          <a-button @click="detailVisible = false">关闭</a-button>
+          <a-button type="primary" @click="handleEdit(selectedUser)">编辑用户</a-button>
+        </div>
+      </OrinDetailPanel>
+    </OrinArcoDetailDrawer>
 
     <!-- 创建/编辑用户对话框 -->
-    <el-dialog
+    <OrinArcoFormDialog
+      ref="formRef"
       v-model="dialogVisible"
       :title="isEdit ? '编辑用户' : '创建用户'"
-      width="480px"
-      class="custom-dialog"
-      align-center
+      :width="480"
+      :model="formData"
+      :rules="formRules"
     >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-position="top"
-        class="custom-form"
-      >
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="formData.username" placeholder="请输入用户名" />
-        </el-form-item>
-        
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="formData.email" placeholder="请输入邮箱" />
-        </el-form-item>
-        
-        <el-form-item v-if="!isEdit" label="密码" prop="password">
-          <el-input 
-            v-model="formData.password" 
-            type="password" 
-            placeholder="设置初始密码"
-            show-password
-          />
-        </el-form-item>
-        
-        <div class="form-row">
-          <el-form-item label="角色" prop="role" class="half-width">
-            <el-select v-model="formData.role" placeholder="选择角色">
-              <el-option label="超级管理员" value="ROLE_SUPER_ADMIN" />
-              <el-option label="平台管理员" value="ROLE_PLATFORM_ADMIN" />
-              <el-option label="业务运营" value="ROLE_OPERATOR" />
-              <el-option label="管理员" value="ROLE_ADMIN" />
-              <el-option label="普通用户" value="ROLE_USER" />
-            </el-select>
-          </el-form-item>
+      <a-form-item label="用户名" field="username">
+        <a-input v-model="formData.username" placeholder="请输入用户名" />
+      </a-form-item>
 
-          <el-form-item label="部门" prop="departmentId" class="half-width">
-            <el-select v-model="formData.departmentId" placeholder="选择部门" clearable>
-              <el-option
-                v-for="dept in departments"
-                :key="dept.departmentId"
-                :label="dept.departmentName"
-                :value="dept.departmentId"
-              />
-            </el-select>
-          </el-form-item>
-        </div>
+      <a-form-item label="邮箱" field="email">
+        <a-input v-model="formData.email" placeholder="请输入邮箱" />
+      </a-form-item>
 
-        <el-form-item label="状态" prop="status">
-          <div class="status-switch-wrapper">
-            <el-switch
-              v-model="formData.status"
-              active-value="active"
-              inactive-value="inactive"
-              style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+      <a-form-item v-if="!isEdit" label="密码" field="password">
+        <a-input-password v-model="formData.password" placeholder="设置初始密码" />
+      </a-form-item>
+
+      <div class="form-row">
+        <a-form-item label="角色" field="role" class="half-width">
+          <a-select v-model="formData.role" placeholder="选择角色">
+            <a-option label="超级管理员" value="ROLE_SUPER_ADMIN" />
+            <a-option label="平台管理员" value="ROLE_PLATFORM_ADMIN" />
+            <a-option label="业务运营" value="ROLE_OPERATOR" />
+            <a-option label="管理员" value="ROLE_ADMIN" />
+            <a-option label="普通用户" value="ROLE_USER" />
+          </a-select>
+        </a-form-item>
+
+        <a-form-item label="部门" field="departmentId" class="half-width">
+          <a-select v-model="formData.departmentId" placeholder="选择部门" allow-clear>
+            <a-option
+              v-for="dept in departments"
+              :key="dept.departmentId"
+              :label="dept.departmentName"
+              :value="dept.departmentId"
             />
-            <span class="status-text">{{ formData.status === 'active' ? '已激活' : '已禁用' }}</span>
-          </div>
-        </el-form-item>
-      </el-form>
-      
+          </a-select>
+        </a-form-item>
+      </div>
+
+      <a-form-item label="状态" field="status">
+        <div class="status-switch-wrapper">
+          <a-switch
+            v-model="formData.status"
+            checked-value="active"
+            unchecked-value="inactive"
+          />
+          <span class="status-text">{{ formData.status === 'active' ? '已激活' : '已禁用' }}</span>
+        </div>
+      </a-form-item>
+
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">
+          <a-button @click="dialogVisible = false">
             取消
-          </el-button>
-          <el-button type="primary" :loading="submitting" @click="handleSubmit">
+          </a-button>
+          <a-button type="primary" :loading="submitting" @click="handleSubmit">
             确认{{ isEdit ? '更新' : '创建' }}
-          </el-button>
+          </a-button>
         </div>
       </template>
-    </el-dialog>
+    </OrinArcoFormDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete, Lock, Unlock, Refresh } from '@element-plus/icons-vue'
 import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus, getRoles } from '@/api/userManage'
 import { getDepartmentList } from '@/api/department'
-import PageHeader from '@/components/PageHeader.vue'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
+import OrinDetailPanel from '@/components/orin/OrinDetailPanel.vue'
+import OrinArcoDataTable from '@/ui/arco/OrinArcoDataTable.vue'
+import OrinArcoDetailDrawer from '@/ui/arco/OrinArcoDetailDrawer.vue'
+import OrinArcoFormDialog from '@/ui/arco/OrinArcoFormDialog.vue'
 
 // 数据状态
 const loading = ref(false)
@@ -251,6 +247,8 @@ const totalUsers = ref(0)
 
 // 对话框状态
 const dialogVisible = ref(false)
+const detailVisible = ref(false)
+const selectedUser = ref(null)
 const isEdit = ref(false)
 const formRef = ref(null)
 const formData = reactive({
@@ -282,16 +280,51 @@ const formRules = {
   ]
 }
 
+const userColumns = [
+  { title: '用户名', dataIndex: 'username', minWidth: 170, slotName: 'username', fixed: 'left' },
+  { title: '邮箱', dataIndex: 'email', minWidth: 220 },
+  { title: '角色', dataIndex: 'role', width: 150, slotName: 'role' },
+  { title: '部门', dataIndex: 'departmentId', width: 160, slotName: 'department' },
+  { title: '状态', dataIndex: 'status', width: 120, slotName: 'status' },
+  { title: '创建时间', dataIndex: 'createdAt', width: 180, slotName: 'createdAt' },
+  { title: '最后登录', dataIndex: 'lastLogin', width: 180, slotName: 'lastLogin' },
+  { title: '操作', dataIndex: 'actions', width: 220, align: 'center', fixed: 'right', slotName: 'actions' }
+]
+
 // 过滤后的用户列表
 const filteredUsers = computed(() => {
   if (!searchQuery.value) return users.value
-  
+
   const query = searchQuery.value.toLowerCase()
-  return users.value.filter(user => 
+  return users.value.filter(user =>
     user.username.toLowerCase().includes(query) ||
     user.email.toLowerCase().includes(query)
   )
 })
+
+const userHeaderSummary = computed(() => [
+  {
+    label: '用户总数',
+    value: totalUsers.value || users.value.length
+  },
+  {
+    label: '已启用',
+    value: users.value.filter(user => user.status === 'active').length
+  },
+  {
+    label: '禁用',
+    value: users.value.filter(user => user.status !== 'active').length
+  },
+  {
+    label: '权限角色',
+    value: new Set(users.value.map(user => user.role).filter(Boolean)).size
+  }
+])
+
+const openUserDetail = (row) => {
+  selectedUser.value = row
+  detailVisible.value = true
+}
 
 // 获取角色名称
 const getRoleName = (role) => {
@@ -416,36 +449,35 @@ const handleEdit = (row) => {
 const handleSubmit = async () => {
   if (!formRef.value) return
 
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
+  const errors = await formRef.value.validate()
+  if (errors) return
 
-    submitting.value = true
-    try {
-      const userData = {
-        username: formData.username,
-        email: formData.email,
-        role: formData.role,
-        status: formData.status === 'active' ? 'ENABLED' : 'DISABLED',
-        departmentId: formData.departmentId
-      }
-
-      if (isEdit.value) {
-        await updateUser(formData.id, userData)
-        ElMessage.success('用户更新成功')
-      } else {
-        userData.password = formData.password
-        await createUser(userData)
-        ElMessage.success('用户创建成功')
-      }
-
-      dialogVisible.value = false
-      loadUsers()
-    } catch (error) {
-      ElMessage.error(isEdit.value ? '更新失败' : '创建失败')
-    } finally {
-      submitting.value = false
+  submitting.value = true
+  try {
+    const userData = {
+      username: formData.username,
+      email: formData.email,
+      role: formData.role,
+      status: formData.status === 'active' ? 'ENABLED' : 'DISABLED',
+      departmentId: formData.departmentId
     }
-  })
+
+    if (isEdit.value) {
+      await updateUser(formData.id, userData)
+      ElMessage.success('用户更新成功')
+    } else {
+      userData.password = formData.password
+      await createUser(userData)
+      ElMessage.success('用户创建成功')
+    }
+
+    dialogVisible.value = false
+    loadUsers()
+  } catch (error) {
+    ElMessage.error(isEdit.value ? '更新失败' : '创建失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 切换用户状态
@@ -497,13 +529,6 @@ const handleDelete = async (row) => {
   }
 }
 
-const tableRowClassName = ({ rowIndex }) => {
-  // if (rowIndex === 1) {
-  //   return 'warning-row'
-  // }
-  return ''
-}
-
 onMounted(() => {
   loadUsers()
   window.addEventListener('page-refresh', loadUsers)
@@ -519,7 +544,7 @@ onUnmounted(() => {
   padding: 32px;
   max-width: 1600px;
   margin: 0 auto;
-  background: var(--bg-color, #f8fafc);
+  background: #ffffff;
   min-height: 100vh;
 }
 
@@ -532,46 +557,45 @@ onUnmounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.premium-card {
-  background: var(--card-bg, var(--el-bg-color));
-  border-radius: 12px;
-  border: 1px solid var(--border-color, var(--el-border-color-light));
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  padding: 24px;
-  transition: all 0.3s ease;
-}
-
-.premium-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-}
-
-.toolbar {
+.user-header-filters {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .create-btn {
-  height: 40px;
-  padding: 0 20px;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: transform 0.2s;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 5px;
+  font-weight: 600;
+  transition: transform 0.15s;
 }
 
 .create-btn:active {
   transform: scale(0.98);
 }
 
-.right-tools {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
 .search-input {
   width: 260px;
+}
+
+.table-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.table-title strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.table-title span {
+  color: #64748b;
+  font-size: 12px;
 }
 
 :deep(.search-input .el-input__wrapper) {
@@ -694,10 +718,10 @@ html.dark .status-dot.active {
 }
 
 .action-btn {
-  width: 32px;
+  min-width: 32px;
   height: 32px;
   border-radius: 6px;
-  padding: 0;
+  padding: 0 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -724,10 +748,37 @@ html.dark .status-dot.active {
   color: var(--el-color-danger);
 }
 
-.pagination-wrapper {
-  margin-top: 24px;
+.user-detail-list {
+  margin: 0;
+  padding: 16px;
+}
+
+.user-detail-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
+}
+
+.user-detail-list dt {
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.user-detail-list dd {
+  margin: 0;
+  color: var(--text-primary, #1e293b);
+  text-align: right;
+}
+
+.drawer-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+  border-top: 1px solid var(--orin-border-strong, #d8e0e8);
 }
 
 /* Dialog Styles */
@@ -761,17 +812,6 @@ html.dark .status-dot.active {
 /* Dark Mode Overrides */
 html.dark .user-management {
   background: var(--bg-color);
-}
-
-html.dark .premium-card {
-  background: var(--card-bg);
-  backdrop-filter: blur(10px);
-  border-color: var(--border-color);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-}
-
-html.dark .premium-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
 }
 
 html.dark .search-input :deep(.el-input__wrapper) {

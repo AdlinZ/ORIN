@@ -4,8 +4,7 @@
       title="多智能体协作"
       description="任务包、子任务与事件流的统一协作控制台"
       icon="DataAnalysis"
-      domain="协作协调"
-      maturity="beta"
+      domain="流程编排"
     >
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="showCreate = true">
@@ -34,20 +33,7 @@
       </template>
     </OrinPageShell>
 
-    <el-row :gutter="16" class="stats-row">
-      <el-col :xs="12" :md="6">
-        <StatCard label="任务总数" :value="stats.total" icon="Tickets" />
-      </el-col>
-      <el-col :xs="12" :md="6">
-        <StatCard label="执行中" :value="stats.running" icon="Loading" />
-      </el-col>
-      <el-col :xs="12" :md="6">
-        <StatCard label="已完成" :value="stats.completed" icon="CircleCheck" />
-      </el-col>
-      <el-col :xs="12" :md="6">
-        <StatCard label="成功率" :value="`${stats.successRate}%`" icon="DataLine" />
-      </el-col>
-    </el-row>
+    <OrinMetricStrip :metrics="collaborationMetrics" class="stats-row" />
 
     <el-card shadow="never" class="chat-entry-card">
       <template #header>
@@ -70,7 +56,13 @@
 
     <el-row :gutter="16">
       <el-col :xs="24" :lg="15">
-        <el-card shadow="never">
+        <OrinDataTable>
+          <template #header>
+            <div class="table-header">
+              <strong>协作任务包</strong>
+              <span>{{ filteredPackages.length }} 个结果</span>
+            </div>
+          </template>
           <OrinAsyncState :status="packagesState.status" empty-text="暂无协作任务包" @retry="loadPackages">
             <el-table :data="filteredPackages" border stripe>
               <el-table-column
@@ -110,20 +102,15 @@
               </el-table-column>
             </el-table>
           </OrinAsyncState>
-        </el-card>
+        </OrinDataTable>
       </el-col>
 
       <el-col :xs="24" :lg="9">
-        <el-card shadow="never">
-          <template #header>
-            <div class="side-header">
-              事件时间线
-            </div>
-          </template>
+        <OrinDetailPanel title="事件时间线" eyebrow="任务包详情">
           <OrinAsyncState :status="timelineState.status" empty-text="请选择任务包查看事件">
             <OrinTaskTimeline :items="timeline" />
           </OrinAsyncState>
-        </el-card>
+        </OrinDetailPanel>
       </el-col>
     </el-row>
 
@@ -164,9 +151,11 @@ import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import StatCard from '@/components/StatCard.vue'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinDetailPanel from '@/components/orin/OrinDetailPanel.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinTaskTimeline from '@/components/orin/OrinTaskTimeline.vue'
 import { ROUTES } from '@/router/routes'
@@ -211,6 +200,13 @@ const filteredPackages = computed(() => {
   if (!statusFilter.value) return packages.value
   return packages.value.filter((item) => item.status === statusFilter.value)
 })
+
+const collaborationMetrics = computed(() => [
+  { label: '任务总数', value: stats.total, meta: '当前纳管任务包' },
+  { label: '执行中', value: stats.running, meta: '需要持续跟进' },
+  { label: '已完成', value: stats.completed, meta: '稳定交付结果' },
+  { label: '成功率', value: `${stats.successRate}%`, meta: '最近协作任务口径' }
+])
 
 const loadStats = async () => {
   try {
@@ -318,6 +314,18 @@ onMounted(loadAll)
 
 .side-header {
   font-weight: 600;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.table-header span {
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 @media (max-width: 992px) {

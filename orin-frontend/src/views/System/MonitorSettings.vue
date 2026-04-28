@@ -1,11 +1,10 @@
 <template>
   <div class="page-container">
-    <OrinPageShell
-      title="系统环境配置"
-      description="配置平台基础服务连接与运行参数"
-      icon="Tools"
-      domain="系统管理"
-      maturity="available"
+    <OrinEntityHeader
+      domain="系统配置"
+      title="系统环境"
+      description="维护数据库、缓存、队列、向量引擎与知识服务等运行环境参数"
+      :summary="systemHeaderSummary"
     />
 
     <div class="layout">
@@ -14,7 +13,7 @@
         <!-- ① 存储层 -->
         <section id="sec-storage" class="config-section">
 
-        <el-card id="blk-storage-mysql" shadow="never">
+        <OrinArcoConfigSection id="blk-storage-mysql">
           <template #header>
             <div class="card-head">
               <span>MySQL 数据库</span>
@@ -39,9 +38,9 @@
               <el-input v-model="dbConfig['spring.datasource.password']" :disabled="!cardEditState['storage-mysql']" type="password" show-password />
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
-        <el-card id="blk-storage-redis" shadow="never" style="margin-top: 16px">
+        <OrinArcoConfigSection id="blk-storage-redis" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
               <span>缓存 Redis</span>
@@ -65,9 +64,9 @@
               <el-input v-model="dbConfig['spring.data.redis.password']" :disabled="!cardEditState['storage-redis']" type="password" show-password />
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
-        <el-card id="blk-storage-rabbitmq" shadow="never" style="margin-top: 16px">
+        <OrinArcoConfigSection id="blk-storage-rabbitmq" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
               <span>RabbitMQ 队列</span>
@@ -97,9 +96,9 @@
               <el-input v-model="dbConfig['spring.rabbitmq.virtual-host']" :disabled="!cardEditState['storage-rabbitmq']" />
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
-        <el-card id="blk-collaboration-orchestration" shadow="never" style="margin-top: 16px">
+        <OrinArcoConfigSection id="blk-collaboration-orchestration" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
               <span>协作编舞（LangGraph + MQ）</span>
@@ -144,9 +143,9 @@
               />
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
-        <el-card id="blk-storage-milvus" shadow="never" style="margin-top: 16px">
+        <OrinArcoConfigSection id="blk-storage-milvus" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
               <div class="name-with-badge">
@@ -224,9 +223,9 @@
             </el-table>
           </div>
           <el-empty v-else description="Collection 不存在或未连接" :image-size="60" />
-        </el-card>
+        </OrinArcoConfigSection>
 
-        <el-card id="blk-storage-neo4j" shadow="never" style="margin-top: 16px">
+        <OrinArcoConfigSection id="blk-storage-neo4j" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
               <div class="name-with-badge">
@@ -279,9 +278,9 @@
               <el-button :disabled="!neo4jConfig.enabled" @click="handleTestNeo4jConnection">测试连接</el-button>
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
-        <el-card id="blk-storage-minio" shadow="never" style="margin-top: 16px">
+        <OrinArcoConfigSection id="blk-storage-minio" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
               <div class="name-with-badge">
@@ -382,14 +381,14 @@
               </el-button>
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
         </section>
 
         <!-- ② AI 服务 -->
         <section id="sec-ai-services" class="config-section">
 
-        <el-card id="blk-ai-capabilities" shadow="never">
+        <OrinArcoConfigSection id="blk-ai-capabilities">
           <template #header>
             <div class="card-head">
               <div>
@@ -537,14 +536,14 @@
             </el-button>
             <p class="form-tip" style="margin-top: 8px">AI 将根据知识库文档内容自动生成名称和描述</p>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
         </section>
 
         <!-- ③ 外部集成 -->
         <section id="sec-integrations" class="config-section">
 
-        <el-card id="blk-integration-jina" shadow="never">
+        <OrinArcoConfigSection id="blk-integration-jina">
           <template #header>
             <div class="card-head">
               <div class="name-with-badge">
@@ -578,9 +577,9 @@
               />
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
-        <el-card
+        <OrinArcoConfigSection
           v-for="(card, idx) in integrationCards"
           :key="card.key"
           :id="card.anchor"
@@ -620,14 +619,14 @@
               <el-button :disabled="!card.config.enabled" @click="card.onTest">测试连接</el-button>
             </el-form-item>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
         </section>
 
         <!-- ④ 知识库参数 -->
         <section id="sec-kb-params" class="config-section">
 
-        <el-card id="blk-kb-retrieval" shadow="never">
+        <OrinArcoConfigSection id="blk-kb-retrieval">
           <template #header>
             <div class="card-head">
               <span>检索参数</span>
@@ -672,7 +671,7 @@
               </el-col>
             </el-row>
           </el-form>
-        </el-card>
+        </OrinArcoConfigSection>
 
         </section>
 
@@ -731,7 +730,8 @@
 import { ref, reactive, onMounted, onUnmounted, markRaw } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/utils/request';
-import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue';
+import OrinArcoConfigSection from '@/ui/arco/OrinArcoConfigSection.vue';
 import { Check, Connection, Reading, Share } from '@element-plus/icons-vue';
 import { diagnoseMilvus } from '@/api/knowledge';
 import {
@@ -775,6 +775,13 @@ const tocSections = [
       { id: 'kb-retrieval', label: '检索参数',     anchor: 'blk-kb-retrieval' },
     ],
   },
+];
+
+const systemHeaderSummary = [
+  { label: '存储层', value: '7 项' },
+  { label: 'AI 能力', value: '1 组' },
+  { label: '外部集成', value: '3 项' },
+  { label: '检索策略', value: '1 组' }
 ];
 
 const tocEntries = tocSections.flatMap(s => [s, ...s.children]);
@@ -1570,19 +1577,14 @@ const setupObserver = () => {
 <style scoped>
 .page-container {
   padding: 0;
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  color: #243244;
 }
 
 .layout {
   display: flex;
-  gap: 32px;
+  gap: 20px;
   align-items: flex-start;
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .main-content {
@@ -1591,8 +1593,37 @@ const setupObserver = () => {
 }
 
 .config-section {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
   scroll-margin-top: 12px;
+}
+
+.page-container :deep(.orin-config-section + .orin-config-section) {
+  margin-top: 12px !important;
+}
+
+.page-container :deep(.section-header) {
+  padding: 13px 16px;
+}
+
+.page-container :deep(.section-body) {
+  padding: 16px;
+}
+
+.page-container :deep(.el-form-item__label) {
+  color: #526178;
+  font-weight: 520;
+}
+
+.page-container :deep(.el-input__wrapper),
+.page-container :deep(.el-select__wrapper),
+.page-container :deep(.el-input-number) {
+  box-shadow: 0 0 0 1px #dbe4ee inset;
+}
+
+.page-container :deep(.el-table) {
+  border: 1px solid #e3e9ef;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 /* 右侧目录 */

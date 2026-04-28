@@ -11,11 +11,11 @@
   --domain-system: #344054;
 
   /* ==================== Density / Grid ==================== */
-  --orin-page-gap: 20px;
-  --orin-grid-gap: 16px;
-  --orin-block-gap: 12px;
+  --orin-page-gap: 18px;
+  --orin-grid-gap: 14px;
+  --orin-block-gap: 10px;
   --orin-card-padding: 16px;
-  --orin-table-row-height: 44px;
+  --orin-table-row-height: 42px;
 
   /* ==================== Async State Colors ==================== */
   --status-available-bg: #ecfdf3;
@@ -24,20 +24,20 @@
   --status-beta-fg: #b54708;
   --status-planned-bg: #f2f4f7;
   --status-planned-fg: #344054;
-  /* ==================== Glassmorphism & Soft Gradients ==================== */
-  /* Subtle gradient backgrounds */
+  /* ==================== Surface Materials ==================== */
+  /* Legacy gradient variables remain for compatibility. New business pages should prefer flat surfaces. */
   --orin-gradient-soft: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
   --orin-gradient-warm: linear-gradient(135deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%);
   --orin-gradient-cool: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%);
   --orin-gradient-soft-lg: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.7) 100%);
 
   /* Glass effect variables */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-bg-hover: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.3);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --glass-blur: blur(16px);
-  --glass-blur-strong: blur(24px);
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-bg-hover: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(216, 224, 232, 0.78);
+  --glass-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  --glass-blur: blur(10px);
+  --glass-blur-strong: blur(14px);
 
   /* Subtle ambient light effects */
   --ambient-glow-primary: radial-gradient(ellipse at top left, rgba(13, 148, 136, 0.08) 0%, transparent 50%);
@@ -52,11 +52,14 @@
   --orin-primary-active: #0a5c52;
   --orin-primary-soft: #f0fdfa;
   --orin-primary-fade: rgba(13, 148, 136, 0.1);
-  --orin-glow: 0 0 15px rgba(13, 148, 136, 0.3);
+  --orin-glow: none;
 
   /* Backgrounds & Text */
-  --orin-bg: #F8FAFC;
+  --orin-bg: #FFFFFF;
   --orin-bg-white: #FFFFFF;
+  --orin-surface: #FFFFFF;
+  --orin-surface-muted: #F6F8FA;
+  --orin-border-strong: #D8E0E8;
   --orin-text: #0F3A3A;
   --orin-border: #E2E8F0;
   --orin-glass: blur(20px) saturate(180%);
@@ -243,7 +246,7 @@
   --progress-critical-end: var(--error-500);
 
   /* Neutral Colors (Light Mode) */
-  --neutral-bg: var(--orin-bg);
+  --neutral-bg: #ffffff;
   --neutral-white: #ffffff;
   --neutral-gray-50: #f8fafc;
   --neutral-gray-100: #f1f5f9;
@@ -257,7 +260,7 @@
   --neutral-gray-900: #0f172a;
 
   /* Light mode semantic colors */
-  --bg-color: #f8fafc;
+  --bg-color: #ffffff;
   --card-bg: #ffffff;
   --border-color: #e2e8f0;
   --border-light: #f1f5f9;
@@ -285,8 +288,8 @@
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-base: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
   --radius-2xl: 24px;
   --radius-full: 9999px;
 
@@ -315,12 +318,12 @@
   /* ==================== Shadows ==================== */
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 8px 15px -3px rgba(13, 148, 136, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 6px 14px rgba(15, 23, 42, 0.07);
+  --shadow-lg: 0 10px 22px rgba(15, 23, 42, 0.08);
+  --shadow-xl: 0 16px 32px rgba(15, 23, 42, 0.1);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --shadow-premium: 0 8px 24px rgba(13, 148, 136, 0.05);
-  --shadow-glow: 0 0 20px var(--orin-glow);
+  --shadow-premium: 0 8px 18px rgba(15, 23, 42, 0.05);
+  --shadow-glow: none;
 
   /* ==================== Transitions ==================== */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -342,13 +345,16 @@ html.dark {
   color-scheme: dark;
 
   /* Night Mode: Electric Cyan */
-  --orin-primary: #26FFDF;
+  --orin-primary: #2dd4bf;
   --orin-primary-hover: #2DD4BF;
   --orin-primary-soft: rgba(38, 255, 223, 0.1);
-  --orin-bg: #041010;
+  --orin-bg: #0b1118;
   /* Deep Dark Cyan-Black */
   --orin-text: #F1F5F9;
   --orin-border: rgba(255, 255, 255, 0.1);
+  --orin-surface: #111827;
+  --orin-surface-muted: #0f172a;
+  --orin-border-strong: #263241;
 
   --neutral-bg: var(--orin-bg);
   --neutral-white: #0a1616;
@@ -365,7 +371,7 @@ html.dark {
   --neutral-gray-900: #f8fafc;
 
   --primary-color: var(--orin-primary);
-  --primary-glow: 0 0 20px rgba(38, 255, 223, 0.25);
+  --primary-glow: none;
 
   /* Element Plus Dark Mode Force */
   --el-bg-color: var(--orin-bg);
@@ -451,12 +457,7 @@ body {
   font-family: var(--font-body);
   font-size: var(--text-base);
   line-height: 1.6;
-  background:
-    var(--ambient-glow-primary),
-    var(--ambient-glow-secondary),
-    var(--ambient-glow-accent),
-    var(--neutral-bg);
-  background-attachment: fixed;
+  background: var(--neutral-bg);
   color: var(--neutral-gray-700);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -525,7 +526,7 @@ code {
   font-family: var(--font-heading);
   border-radius: var(--radius-base) !important;
   font-weight: var(--font-semibold);
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   transition: all var(--transition-base);
   border: 1px solid var(--neutral-gray-200);
 }
@@ -559,14 +560,16 @@ code {
 }
 
 .el-button--primary {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%) !important;
-  border: none !important;
-  box-shadow: 0 4px 14px 0 var(--primary-glow);
+  background: var(--primary-600) !important;
+  border: 1px solid var(--primary-600) !important;
+  box-shadow: none;
 }
 
 .el-button--primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px 0 var(--primary-glow);
+  transform: none;
+  background: var(--primary-700) !important;
+  border-color: var(--primary-700) !important;
+  box-shadow: none;
 }
 
 .el-button--success {
@@ -602,9 +605,9 @@ html.dark .el-card {
 }
 
 .el-card.is-hover-shadow:hover {
-  transform: translateY(-2px);
+  transform: none;
   box-shadow: var(--shadow-md) !important;
-  border-color: var(--orin-primary) !important;
+  border-color: var(--orin-border-strong) !important;
 }
 
 .el-card__header {
@@ -632,9 +635,9 @@ html.dark .el-card__header {
 }
 
 .glass-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(13, 148, 136, 0.12) !important;
-  border-color: rgba(13, 148, 136, 0.3) !important;
+  transform: none;
+  box-shadow: var(--glass-shadow), var(--shadow-sm) !important;
+  border-color: var(--orin-border-strong, #d8e0e8) !important;
 }
 
 /* Input Fields */
@@ -1043,7 +1046,7 @@ html.dark .lock-tabs > .el-tabs__header .el-tabs__item.is-active {
 
 .status-dot.online {
   background-color: var(--success-color);
-  box-shadow: 0 0 12px var(--success-glow);
+  box-shadow: none;
 }
 
 .status-dot.online::after {
@@ -1098,10 +1101,7 @@ html.dark .lock-tabs > .el-tabs__header .el-tabs__item.is-active {
   font-family: var(--font-heading);
   font-size: var(--text-3xl);
   font-weight: var(--font-extrabold);
-  background: linear-gradient(to right, var(--neutral-gray-900), var(--primary-color));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--neutral-gray-900);
   margin-bottom: var(--spacing-xl);
 }
 
@@ -1172,15 +1172,15 @@ html.dark .lock-tabs > .el-tabs__header .el-tabs__item.is-active {
   animation: amber-pulse 2s infinite;
 }
 
-/* Action Bar - Glassmorphism */
+/* Action Bar - light glass material */
 .action-bar {
-  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(248,250,252,0.75) 100%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
+  box-shadow: var(--shadow-sm);
   margin-bottom: var(--spacing-lg);
   display: flex;
   justify-content: space-between;
@@ -1189,20 +1189,18 @@ html.dark .lock-tabs > .el-tabs__header .el-tabs__item.is-active {
 }
 
 html.dark .action-bar {
-  background: linear-gradient(180deg, rgba(19, 36, 36, 0.85) 0%, rgba(10, 22, 22, 0.75) 100%);
-  border-color: rgba(38, 255, 223, 0.15);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: none;
 }
 
-/* Stats Card - Glassmorphism */
+/* Stats Card - business surface */
 .stats-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(248,250,252,0.7) 100%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: var(--orin-surface, #ffffff);
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-base);
 }
 

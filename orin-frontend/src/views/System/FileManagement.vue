@@ -1,259 +1,163 @@
 <template>
   <div class="page-container">
-    <PageHeader
-      title="文件管理"
-      description="管理服务器内部的多模态文件，包括文字转图片、文字转视频、文字转语音生成的资源文件"
-      icon="Folder"
+    <OrinEntityHeader
+      domain="系统配置"
+      title="文件治理"
+      description="管理多模态生成文件、文件类型、存储占用与下载入口"
+      :summary="fileHeaderSummary"
     >
       <template #actions>
-        <el-button :icon="Refresh" :loading="loading" @click="fetchFiles">
+        <a-button class="quiet-action" :loading="loading" @click="fetchFiles">
           刷新
-        </el-button>
+        </a-button>
       </template>
-    </PageHeader>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stats-row">
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-icon total">
-            <el-icon><Files /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">
-              {{ stats.totalFiles }}
-            </div>
-            <div class="stat-label">
-              总文件数
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-icon image">
-            <el-icon><Picture /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">
-              {{ stats.imageCount }}
-            </div>
-            <div class="stat-label">
-              图片
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-icon video">
-            <el-icon><VideoCamera /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">
-              {{ stats.videoCount }}
-            </div>
-            <div class="stat-label">
-              视频
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-icon audio">
-            <el-icon><Microphone /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">
-              {{ stats.audioCount }}
-            </div>
-            <div class="stat-label">
-              音频
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 筛选和操作栏 -->
-    <el-card shadow="never" class="filter-card">
-      <el-row :gutter="20" align="middle">
-        <el-col :span="12">
-          <div class="media-filter-tabs" role="tablist" aria-label="文件类型筛选">
-            <button
+      <template #filters>
+        <OrinArcoFilterGrid>
+          <a-select
+            v-model="fileTypeFilter"
+            placeholder="文件类型"
+            allow-clear
+            @change="handleTypeChange"
+          >
+            <a-option
               v-for="option in fileTypeOptions"
               :key="option.value || 'all'"
-              type="button"
-              class="media-filter-tab"
-              :class="{ active: fileTypeFilter === option.value }"
-              @click="handleTypeChange(option.value)"
-            >
-              <span class="tab-label">{{ option.label }}</span>
-              <span class="tab-count">{{ getTypeCount(option.value) }}</span>
-            </button>
-          </div>
-        </el-col>
-        <el-col :span="12" style="text-align: right;">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索文件名..."
-            :prefix-icon="Search"
-            clearable
-            style="width: 250px;"
-            @input="handleSearch"
-          />
-        </el-col>
-      </el-row>
-    </el-card>
+              :label="`${option.label} ${getTypeCount(option.value)}`"
+              :value="option.value"
+            />
+          </a-select>
+          <template #search>
+            <a-input-search
+              v-model="searchKeyword"
+              placeholder="搜索文件名..."
+              allow-clear
+              @input="handleSearch"
+            />
+          </template>
+          <template #reset>
+            <a-button class="quiet-action" @click="resetFilters">
+              重置
+            </a-button>
+          </template>
+        </OrinArcoFilterGrid>
+      </template>
+    </OrinEntityHeader>
 
-    <!-- 文件列表 -->
-    <el-card shadow="never" class="table-card">
-      <el-table v-loading="loading" :data="filteredFiles" stripe>
-        <el-table-column label="预览" width="80" align="center">
-          <template #default="{ row }">
+    <OrinArcoDataTable
+      class="table-card"
+      :columns="fileColumns"
+      :data="filteredFiles"
+      :loading="loading"
+      row-key="id"
+    >
+      <template #header>
+        <div class="table-title">
+          <strong>文件清单</strong>
+          <span>按文件类型、名称和上传时间维护生成资源</span>
+        </div>
+      </template>
+
+      <template #preview="{ record }">
             <div class="file-preview">
               <el-image
-                v-if="row.fileType === 'IMAGE' && row.thumbnailPath"
-                :src="`/api/v1/multimodal/files/${row.id}/thumbnail`"
-                :preview-src-list="[`/api/v1/multimodal/files/${row.id}/download`]"
+                v-if="record.fileType === 'IMAGE' && record.thumbnailPath"
+                :src="`/api/v1/multimodal/files/${record.id}/thumbnail`"
+                :preview-src-list="[`/api/v1/multimodal/files/${record.id}/download`]"
                 fit="cover"
                 class="preview-img"
               />
-              <el-icon v-else-if="row.fileType === 'IMAGE'" :size="24" class="file-icon">
+              <el-icon v-else-if="record.fileType === 'IMAGE'" :size="24" class="file-icon">
                 <Picture />
               </el-icon>
-              <el-icon v-else-if="row.fileType === 'VIDEO'" :size="24" class="file-icon">
+              <el-icon v-else-if="record.fileType === 'VIDEO'" :size="24" class="file-icon">
                 <VideoCamera />
               </el-icon>
-              <el-icon v-else-if="row.fileType === 'AUDIO'" :size="24" class="file-icon">
+              <el-icon v-else-if="record.fileType === 'AUDIO'" :size="24" class="file-icon">
                 <Microphone />
               </el-icon>
               <el-icon v-else :size="24" class="file-icon">
                 <Document />
               </el-icon>
             </div>
-          </template>
-        </el-table-column>
+      </template>
 
-        <el-table-column
-          prop="fileName"
-          label="文件名"
-          min-width="200"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            <span class="file-name">{{ row.fileName }}</span>
-          </template>
-        </el-table-column>
+      <template #fileName="{ record }">
+        <span class="file-name">{{ record.fileName }}</span>
+      </template>
 
-        <el-table-column
-          prop="fileType"
-          label="类型"
-          width="100"
-          align="center"
-        >
-          <template #default="{ row }">
-            <el-tag :type="getFileTypeTag(row.fileType)" size="small">
-              {{ getFileTypeLabel(row.fileType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
+      <template #fileType="{ record }">
+        <OrinArcoSemanticTag family="file" :value="record.fileType">
+          {{ getFileTypeLabel(record.fileType) }}
+        </OrinArcoSemanticTag>
+      </template>
 
-        <el-table-column
-          prop="fileSize"
-          label="大小"
-          width="120"
-          align="center"
-        >
-          <template #default="{ row }">
-            {{ formatFileSize(row.fileSize) }}
-          </template>
-        </el-table-column>
+      <template #fileSize="{ record }">
+        <span>{{ formatFileSize(record.fileSize) }}</span>
+      </template>
 
-        <el-table-column
-          prop="uploadedBy"
-          label="上传者"
-          width="100"
-          align="center"
-        >
-          <template #default="{ row }">
-            {{ row.uploadedBy || 'system' }}
-          </template>
-        </el-table-column>
+      <template #uploadedBy="{ record }">
+        <span>{{ record.uploadedBy || 'system' }}</span>
+      </template>
 
-        <el-table-column
-          prop="uploadedAt"
-          label="上传时间"
-          width="180"
-          sortable
-        >
-          <template #default="{ row }">
-            {{ formatDateTime(row.uploadedAt) }}
-          </template>
-        </el-table-column>
+      <template #uploadedAt="{ record }">
+        <span class="time-text">{{ formatDateTime(record.uploadedAt) }}</span>
+      </template>
 
-        <el-table-column
-          label="操作"
-          width="150"
-          align="center"
-          fixed="right"
-        >
-          <template #default="{ row }">
-            <el-button
-              type="primary"
-              link
-              :icon="Download"
-              @click="downloadFile(row)"
-            >
-              下载
-            </el-button>
-            <el-button
-              type="danger"
-              link
-              :icon="Delete"
-              @click="confirmDelete(row)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <template #actions="{ record }">
+        <OrinArcoRowActions
+          :actions="fileRowActions"
+          @select="action => handleRowAction(action, record)"
+        />
+      </template>
 
-      <el-pagination
-        v-if="totalFiles > pageSize"
-        :current-page="currentPage"
-        :page-size="pageSize"
-        :total="totalFiles"
-        layout="total, prev, pager, next"
-        class="pagination"
-        @current-change="handlePageChange"
-      />
-    </el-card>
+      <template #empty>
+        <OrinEmptyState
+          description="暂无文件资源，请调整筛选或等待生成任务产出"
+          action-label="刷新文件"
+          @action="fetchFiles"
+        />
+      </template>
 
-    <!-- 删除确认对话框 -->
-    <el-dialog v-model="deleteDialogVisible" title="确认删除" width="400px">
+      <template #footer>
+        <a-pagination
+          v-if="totalFiles > pageSize"
+          v-model:current="currentPage"
+          :page-size="pageSize"
+          :total="totalFiles"
+          show-total
+          size="small"
+          @change="handlePageChange"
+        />
+      </template>
+    </OrinArcoDataTable>
+
+    <OrinArcoConfirmDialog
+      v-model="deleteDialogVisible"
+      title="确认删除"
+      ok-text="删除"
+      status="danger"
+      @confirm="deleteFile"
+    >
       <p>确定要删除文件 <strong>{{ currentFile?.fileName }}</strong> 吗？</p>
       <p class="text-danger">
         此操作不可恢复
       </p>
-      <template #footer>
-        <el-button @click="deleteDialogVisible = false">
-          取消
-        </el-button>
-        <el-button type="danger" :loading="deleting" @click="deleteFile">
-          删除
-        </el-button>
-      </template>
-    </el-dialog>
+    </OrinArcoConfirmDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Search, Download, Delete, Files, Picture, VideoCamera, Microphone, Document } from '@element-plus/icons-vue'
-import PageHeader from '@/components/PageHeader.vue'
+import { ElMessage } from 'element-plus'
+import { Picture, VideoCamera, Microphone, Document } from '@element-plus/icons-vue'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
+import OrinArcoConfirmDialog from '@/ui/arco/OrinArcoConfirmDialog.vue'
+import OrinArcoDataTable from '@/ui/arco/OrinArcoDataTable.vue'
+import OrinArcoFilterGrid from '@/ui/arco/OrinArcoFilterGrid.vue'
+import OrinArcoRowActions from '@/ui/arco/OrinArcoRowActions.vue'
+import OrinArcoSemanticTag from '@/ui/arco/OrinArcoSemanticTag.vue'
 import request from '@/utils/request'
 
 // 文件类型过滤选项
@@ -277,6 +181,29 @@ const pageSize = ref(20)
 const totalFiles = ref(0)
 const deleteDialogVisible = ref(false)
 const currentFile = ref(null)
+
+const fileColumns = [
+  { title: '预览', dataIndex: 'preview', width: 76, align: 'center', slotName: 'preview' },
+  { title: '文件名', dataIndex: 'fileName', width: 280, ellipsis: true, tooltip: true, slotName: 'fileName' },
+  { title: '类型', dataIndex: 'fileType', width: 110, slotName: 'fileType' },
+  { title: '大小', dataIndex: 'fileSize', width: 110, slotName: 'fileSize' },
+  { title: '上传者', dataIndex: 'uploadedBy', width: 120, slotName: 'uploadedBy' },
+  { title: '上传时间', dataIndex: 'uploadedAt', width: 180, slotName: 'uploadedAt' },
+  { title: '操作', dataIndex: 'actions', width: 120, fixed: 'right', slotName: 'actions' }
+]
+
+const fileRowActions = [
+  { key: 'download', label: '下载' },
+  { key: 'delete', label: '删除', danger: true }
+]
+
+const fileHeaderSummary = computed(() => [
+  { label: '文件总数', value: stats.value.totalFiles || 0 },
+  { label: '图片', value: stats.value.imageCount || 0 },
+  { label: '视频', value: stats.value.videoCount || 0 },
+  { label: '音频', value: stats.value.audioCount || 0 },
+  { label: '文档', value: stats.value.documentCount || 0 }
+])
 
 // 获取文件列表
 const fetchFiles = async () => {
@@ -339,6 +266,21 @@ const handleTypeChange = (type) => {
   fetchFiles()
 }
 
+const resetFilters = () => {
+  fileTypeFilter.value = ''
+  searchKeyword.value = ''
+  currentPage.value = 1
+  fetchFiles()
+}
+
+const handleRowAction = (action, row) => {
+  const handlers = {
+    download: downloadFile,
+    delete: confirmDelete
+  }
+  handlers[action]?.(row)
+}
+
 // 下载文件
 const downloadFile = (row) => {
   window.open(`/api/v1/multimodal/files/${row.id}/download`, '_blank')
@@ -369,16 +311,6 @@ const deleteFile = async () => {
 }
 
 // 工具函数
-const getFileTypeTag = (type) => {
-  const map = {
-    IMAGE: 'success',
-    VIDEO: 'warning',
-    AUDIO: 'info',
-    DOCUMENT: ''
-  }
-  return map[type] || ''
-}
-
 const getFileTypeLabel = (type) => {
   const map = {
     IMAGE: '图片',
@@ -432,119 +364,35 @@ onMounted(() => {
 
 <style scoped>
 .page-container {
-  padding: 20px;
-}
-
-.stats-row {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e2e8f0);
-}
-
-.stat-card :deep(.el-card__body) {
-  display: flex;
-  align-items: center;
-  padding: 20px;
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 15px;
-  font-size: 22px;
-}
-
-.stat-icon.total { background: var(--primary-light); color: var(--orin-primary); }
-.stat-icon.image { background: var(--success-light); color: var(--success-600); }
-.stat-icon.video { background: var(--warning-light); color: var(--warning-600); }
-.stat-icon.audio { background: var(--info-light); color: var(--info-600); }
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary, #1e293b);
-}
-
-.stat-label {
-  font-size: 13px;
-  color: var(--text-secondary, #64748b);
-  margin-top: 4px;
-}
-
-.filter-card {
-  margin-bottom: 20px;
-}
-
-.media-filter-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.media-filter-tab {
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary, #64748b);
-  border-radius: 10px;
-  height: 36px;
-  padding: 0 12px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.media-filter-tab:hover {
-  background: rgba(15, 159, 149, 0.08);
-  color: var(--orin-primary, #0f9f95);
-}
-
-.media-filter-tab.active {
-  background: linear-gradient(135deg, #0fa89d 0%, #0f8f86 100%);
-  color: #ffffff;
-  box-shadow: 0 6px 16px rgba(15, 159, 149, 0.22);
-}
-
-.tab-count {
-  min-width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  padding: 0 6px;
-  background: rgba(100, 116, 139, 0.14);
-  color: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 20px;
-  text-align: center;
-}
-
-.media-filter-tab.active .tab-count {
-  background: rgba(255, 255, 255, 0.24);
+  padding: 0;
+  color: #243244;
 }
 
 .table-card {
-  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.table-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.table-title strong {
+  color: #243244;
+  font-weight: 680;
+}
+
+.table-title span {
+  color: #6b7a90;
+  font-size: 12px;
+}
+
+.quiet-action {
+  border-color: #e3e9ef;
+  color: #3f4d63;
+  background: #ffffff;
 }
 
 .file-preview {
@@ -566,47 +414,12 @@ onMounted(() => {
 }
 
 .file-name {
-  font-weight: 500;
-}
-
-.pagination {
-  margin-top: 20px;
-  justify-content: flex-end;
+  color: #243244;
+  font-weight: 560;
 }
 
 .text-danger {
   color: var(--error-500);
   font-size: 14px;
-}
-
-/* Dark mode */
-html.dark .stat-card {
-  border-color: var(--border-color);
-}
-
-html.dark .stat-value {
-  color: var(--text-primary);
-}
-
-html.dark .stat-label {
-  color: var(--text-secondary);
-}
-
-html.dark .media-filter-tabs {
-  background: rgba(30, 41, 59, 0.72);
-  border-color: rgba(71, 85, 105, 0.5);
-}
-
-html.dark .media-filter-tab {
-  color: #94a3b8;
-}
-
-html.dark .media-filter-tab .tab-count {
-  background: rgba(15, 23, 42, 0.72);
-}
-
-html.dark .media-filter-tab.active {
-  background: rgba(45, 212, 191, 0.18);
-  color: #5eead4;
 }
 </style>

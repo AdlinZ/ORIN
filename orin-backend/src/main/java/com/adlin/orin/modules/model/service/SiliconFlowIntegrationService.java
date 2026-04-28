@@ -7,6 +7,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.InputStream;
@@ -364,10 +365,45 @@ public class SiliconFlowIntegrationService {
                 // Fallback: return full response if extraction fails
                 return Optional.of(body);
             }
+        } catch (HttpStatusCodeException e) {
+            log.error("Failed to send message to SiliconFlow with params: status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            return Optional.of(buildErrorPayload(e));
         } catch (Exception e) {
             log.error("Failed to send message to SiliconFlow with params: ", e);
+            return Optional.of(buildErrorPayload(e));
         }
         return Optional.empty();
+    }
+
+    private Map<String, Object> buildErrorPayload(Exception e) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "FAILED");
+        error.put("provider", "SiliconFlow");
+        if (e instanceof HttpStatusCodeException httpEx) {
+            error.put("httpStatus", httpEx.getStatusCode().value());
+            String body = httpEx.getResponseBodyAsString();
+            if (body != null && !body.isBlank()) {
+                error.put("providerBody", body);
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> bodyMap = new com.fasterxml.jackson.databind.ObjectMapper().readValue(body, Map.class);
+                    Object message = bodyMap.get("message");
+                    Object code = bodyMap.get("code");
+                    if (message != null) {
+                        error.put("errorMessage", code != null ? "code=" + code + ", message=" + message : String.valueOf(message));
+                    }
+                } catch (Exception ignore) {
+                    error.put("errorMessage", body);
+                }
+            }
+            if (!error.containsKey("errorMessage")) {
+                error.put("errorMessage", "SiliconFlow HTTP " + httpEx.getStatusCode().value());
+            }
+        } else {
+            error.put("errorMessage", e.getMessage() != null ? e.getMessage() : e.toString());
+        }
+        return error;
     }
 
     /**

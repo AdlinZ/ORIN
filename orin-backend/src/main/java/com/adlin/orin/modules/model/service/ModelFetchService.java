@@ -1,32 +1,51 @@
 package com.adlin.orin.modules.model.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
+import com.adlin.orin.modules.apikey.entity.ExternalProviderKey;
+import com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
+import com.adlin.orin.modules.model.entity.ModelConfig;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ModelFetchService {
 
     private final RestTemplate restTemplate = new RestTemplate();
+    private final GatewaySecretService gatewaySecretService;
+    private final ExternalProviderKeyRepository providerKeyRepository;
+    private final ModelConfigService modelConfigService;
+
+    @Value("${siliconflow.api.key:}")
+    private String configuredSiliconFlowApiKey;
 
     public List<Map<String, Object>> fetchModelsFromApi(String baseUrl, String apiKey) {
-        if (baseUrl.contains("siliconflow")) {
-            return fetchSiliconFlowModels(baseUrl, apiKey);
+        String normalizedBaseUrl = baseUrl == null ? "" : baseUrl.trim();
+        if (normalizedBaseUrl.toLowerCase().contains("siliconflow")) {
+            return fetchSiliconFlowModels(normalizedBaseUrl, apiKey);
         }
 
-        if (baseUrl.contains("11434") || baseUrl.toLowerCase().contains("ollama")) {
-            return fetchOllamaModels(baseUrl);
+        if (normalizedBaseUrl.contains("11434") || normalizedBaseUrl.toLowerCase().contains("ollama")) {
+            return fetchOllamaModels(normalizedBaseUrl);
         }
 
         try {
-            String url = baseUrl;
+            String url = normalizedBaseUrl;
             if (!url.endsWith("/models") && !url.contains("/models?")) {
                 if (url.endsWith("/")) {
                     url += "models";
@@ -98,12 +117,17 @@ public class ModelFetchService {
      */
     private List<Map<String, Object>> fetchSiliconFlowModels(String baseUrl, String apiKey) {
         log.info("Starting precise SiliconFlow model fetch using API parameters");
-        java.util.Map<String, Map<String, Object>> masterList = new java.util.LinkedHashMap<>();
+        String modelsUrl = normalizeModelsUrl(baseUrl);
+        List<String> apiKeyCandidates = resolveSiliconFlowApiKeyCandidates(apiKey);
+        if (apiKeyCandidates.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "未找到可用的 SiliconFlow API Key，请填写 API Key 或先保存一个 SiliconFlow 密钥");
+        }
 
         // 定义抓取任务： sub_type -> internal type
         // 参考官方参数：chat, embedding, reranker, text-to-image, image-to-image,
         // speech-to-text, text-to-video, image-to-video, text-to-speech, image-to-text
-        Map<String, String> subTypeQueries = new java.util.HashMap<>();
+        Map<String, String> subTypeQueries = new java.util.LinkedHashMap<>();
         subTypeQueries.put("chat", "CHAT");
         subTypeQueries.put("embedding", "EMBEDDING");
         subTypeQueries.put("reranker", "RERANKER");
@@ -115,24 +139,106 @@ public class ModelFetchService {
         subTypeQueries.put("text-to-speech", "TEXT_TO_SPEECH"); // 补上 TTS
         subTypeQueries.put("image-to-text", "CHAT"); // 多模态理解，归类为 CHAT
 
-        // 1. 根据 sub_type 抓取
-        for (Map.Entry<String, String> entry : subTypeQueries.entrySet()) {
-            String url = baseUrl + (baseUrl.contains("?") ? "&" : "?") + "sub_type=" + entry.getKey();
-            fetchAndMerge(url, apiKey, entry.getValue(), masterList);
+        Exception lastError = null;
+        for (String candidateKey : apiKeyCandidates) {
+            java.util.Map<String, Map<String, Object>> masterList = new java.util.LinkedHashMap<>();
+            try {
+                for (Map.Entry<String, String> entry : subTypeQueries.entrySet()) {
+                    String url = appendQuery(modelsUrl, "sub_type=" + entry.getKey(), "page=1", "page_size=100");
+                    fetchAndMerge(url, candidateKey, entry.getValue(), masterList);
+                }
+
+                fetchAndMerge(appendQuery(modelsUrl, "type=audio", "page=1", "page_size=100"), candidateKey,
+                        "TEXT_TO_SPEECH", masterList);
+                fetchAndMerge(appendQuery(modelsUrl, "type=image", "page=1", "page_size=100"), candidateKey,
+                        "TEXT_TO_IMAGE", masterList);
+                fetchAndMerge(appendQuery(modelsUrl, "type=video", "page=1", "page_size=100"), candidateKey,
+                        "TEXT_TO_VIDEO", masterList);
+                fetchAndMerge(appendQuery(modelsUrl, "page=1", "page_size=100"), candidateKey, "CHAT", masterList);
+
+                if (!masterList.isEmpty()) {
+                    log.info("Fetched {} SiliconFlow models", masterList.size());
+                    return new java.util.ArrayList<>(masterList.values());
+                }
+            } catch (HttpClientErrorException.Unauthorized e) {
+                lastError = e;
+                log.warn("SiliconFlow API key rejected, trying next configured key if available");
+            } catch (HttpClientErrorException.Forbidden e) {
+                lastError = e;
+                log.warn("SiliconFlow API key forbidden, trying next configured key if available");
+            } catch (Exception e) {
+                lastError = e;
+                log.warn("SiliconFlow model fetch failed with one credential: {}", e.getMessage());
+            }
         }
 
-        // 2. 根据 type 抓取 (补充 type=audio/image/video 整体分类)
-        fetchAndMerge(baseUrl + (baseUrl.contains("?") ? "&" : "?") + "type=audio", apiKey, "TEXT_TO_SPEECH",
-                masterList);
-        fetchAndMerge(baseUrl + (baseUrl.contains("?") ? "&" : "?") + "type=image", apiKey, "TEXT_TO_IMAGE",
-                masterList);
-        fetchAndMerge(baseUrl + (baseUrl.contains("?") ? "&" : "?") + "type=video", apiKey, "TEXT_TO_VIDEO",
-                masterList);
+        if (lastError instanceof HttpClientErrorException.Unauthorized
+                || lastError instanceof HttpClientErrorException.Forbidden) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "SiliconFlow API Key 无效或无权限，请换一个保存的密钥，或清空当前密钥后使用系统密钥");
+        }
 
-        // 3. 最后抓取全部，查漏补缺 (对未知类型的兜底)
-        fetchAndMerge(baseUrl, apiKey, "CHAT", masterList);
+        throw new BusinessException(ErrorCode.MODEL_API_ERROR,
+                "未能从 SiliconFlow 获取模型列表，请检查网络、Endpoint 和 API Key");
+    }
 
-        return new java.util.ArrayList<>(masterList.values());
+    private List<String> resolveSiliconFlowApiKeyCandidates(String apiKey) {
+        Set<String> candidates = new LinkedHashSet<>();
+        if (isConfigured(apiKey)) {
+            candidates.add(apiKey.trim());
+        }
+
+        var unifiedCredential = gatewaySecretService.resolveProviderCredential("siliconflow");
+        if (unifiedCredential.isPresent() && isConfigured(unifiedCredential.get().getApiKey())) {
+            candidates.add(unifiedCredential.get().getApiKey().trim());
+        }
+
+        for (String provider : List.of("SiliconFlow", "siliconflow")) {
+            List<ExternalProviderKey> keys = providerKeyRepository.findByProvider(provider);
+            ExternalProviderKey key = keys.stream()
+                    .filter(k -> Boolean.TRUE.equals(k.getEnabled()))
+                    .findFirst()
+                    .orElse(keys.isEmpty() ? null : keys.get(0));
+            if (key != null && isConfigured(key.getApiKey())) {
+                candidates.add(key.getApiKey().trim());
+            }
+        }
+
+        try {
+            ModelConfig config = modelConfigService.getConfig();
+            if (config != null && isConfigured(config.getSiliconFlowApiKey())) {
+                candidates.add(config.getSiliconFlowApiKey().trim());
+            }
+        } catch (Exception e) {
+            log.warn("Could not load SiliconFlow API key from model config: {}", e.getMessage());
+        }
+
+        if (isConfigured(configuredSiliconFlowApiKey)) {
+            candidates.add(configuredSiliconFlowApiKey.trim());
+        }
+        return new java.util.ArrayList<>(candidates);
+    }
+
+    private boolean isConfigured(String value) {
+        return value != null && !value.isBlank() && !"sk-placeholder".equals(value) && !"sk-dummy".equals(value);
+    }
+
+    private String normalizeModelsUrl(String baseUrl) {
+        String url = baseUrl == null || baseUrl.isBlank() ? "https://api.siliconflow.cn/v1" : baseUrl.trim();
+        if (!url.endsWith("/models") && !url.contains("/models?")) {
+            url = url.endsWith("/") ? url + "models" : url + "/models";
+        }
+        return url;
+    }
+
+    private String appendQuery(String url, String... params) {
+        StringBuilder builder = new StringBuilder(url);
+        String separator = url.contains("?") ? "&" : "?";
+        for (String param : params) {
+            builder.append(separator).append(param);
+            separator = "&";
+        }
+        return builder.toString();
     }
 
     private void fetchAndMerge(String url, String apiKey, String type, Map<String, Map<String, Object>> masterList) {
@@ -161,6 +267,8 @@ public class ModelFetchService {
                     }
                 }
             }
+        } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden e) {
+            throw e;
         } catch (Exception e) {
             log.warn("SiliconFlow fetch failed for url {}: {}", url, e.getMessage());
         }

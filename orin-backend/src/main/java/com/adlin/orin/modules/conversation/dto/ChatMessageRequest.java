@@ -10,6 +10,7 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatMessageRequest {
     private String message;
+    private String fileId;
     private List<String> toolIds;
     private List<String> kbIds;
     private List<Long> skillIds;

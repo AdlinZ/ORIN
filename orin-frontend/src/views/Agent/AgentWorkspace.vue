@@ -10,7 +10,7 @@
         </div>
         <div class="sidebar-tab" :class="{ active: sidebarTab === 'config' }" @click="sidebarTab = 'config'">工作台设置</div>
       </div>
-      <div v-if="!sessionPaneCollapsed" class="sidebar-agent-switch">
+      <div v-if="!sessionPaneCollapsed && sidebarTab === 'config'" class="sidebar-agent-switch">
         <span class="sidebar-agent-switch-label">当前智能体</span>
         <el-select
           v-model="currentAgentId"
@@ -125,14 +125,17 @@
             </div>
           </div>
         </div>
-        <el-empty v-else :image-size="56" description="暂无协作运行" />
+        <div v-else class="collaboration-empty">
+          <el-empty :image-size="56" description="暂无运行任务" />
+          <el-button text class="collaboration-empty-action" @click="sidebarTab = 'session'">去发起协作</el-button>
+        </div>
       </div>
       <div v-show="sidebarTab === 'config' && !sessionPaneCollapsed" class="workspace-config-pane">
 
         <el-tabs v-model="activeConfigTab" class="config-tabs">
-          <el-tab-pane label="模型" name="model" />
-          <el-tab-pane label="工具" name="tools" />
-          <el-tab-pane label="其他" name="other" />
+          <el-tab-pane label="模型配置" name="model" />
+          <el-tab-pane label="工具权限" name="tools" />
+          <el-tab-pane label="高级" name="other" />
         </el-tabs>
 
         <div class="config-scroll">
@@ -735,6 +738,15 @@
                 >
                   {{ chip.label }}
                 </button>
+                <button
+                  type="button"
+                  class="quick-config-chip is-toggle"
+                  :class="{ active: collaborationRequested }"
+                  :disabled="loading"
+                  @click="collaborationRequested = !collaborationRequested"
+                >
+                  协作
+                </button>
               </div>
               <el-input
                 v-model="inputMessage"
@@ -967,6 +979,15 @@
               >
                 {{ chip.label }}
               </button>
+              <button
+                type="button"
+                class="quick-config-chip is-toggle"
+                :class="{ active: collaborationRequested }"
+                :disabled="loading"
+                @click="collaborationRequested = !collaborationRequested"
+              >
+                协作
+              </button>
             </div>
             <el-input
               v-model="inputMessage"
@@ -979,22 +1000,13 @@
             />
             <div class="input-actions">
               <div class="input-hint">
-                智能体：{{ currentAgent?.name || '未选择' }} · 模式：{{ currentInteractionLabel }} · 已附加知识库 {{ attachedKbIds.length }} 个
-                <span v-if="collaborationRequested"> · 协作已开启</span>
-                <span v-if="totalFilteredDocs > 0"> · 文档过滤 {{ totalFilteredDocs }} 个</span>
-                <span v-if="selectedUploadFileName"> · 文件：{{ selectedUploadFileName }}</span>
+                <span class="input-hint-agent" :title="currentAgent?.name || '未选择'">当前：{{ currentAgent?.name || '未选择' }}</span>
+                <span v-if="collaborationRequested">协作已开启</span>
+                <span v-if="totalFilteredDocs > 0">文档过滤 {{ totalFilteredDocs }} 个</span>
+                <span v-if="selectedUploadFileName">文件：{{ selectedUploadFileName }}</span>
               </div>
               <button type="button" class="plus-trigger input-plus" :disabled="uploadingFile" @click="triggerFilePicker">
                 +
-              </button>
-              <button
-                type="button"
-                class="collaboration-toggle-chip"
-                :class="{ active: collaborationRequested }"
-                :disabled="loading"
-                @click="collaborationRequested = !collaborationRequested"
-              >
-                协作
               </button>
               <el-button
                 type="primary"
@@ -3908,14 +3920,14 @@ watch(
   --collapsed-pane-width: 64px;
   --drawer-right-width: 320px;
   --chat-content-max-width: 900px;
-  --sidebar-accent: var(--orin-primary, #0f9f95);
+  --sidebar-accent: #0f766e;
   --sidebar-text-strong: #0f172a;
   --sidebar-text: #334155;
   --sidebar-text-muted: #64748b;
-  --sidebar-line: rgba(226, 232, 240, 0.9);
-  --sidebar-soft-bg: rgba(248, 250, 252, 0.9);
-  --sidebar-hover-bg: rgba(241, 245, 249, 0.9);
-  --sidebar-active-bg: rgba(237, 249, 247, 0.92);
+  --sidebar-line: #dce3ea;
+  --sidebar-soft-bg: #f8fafc;
+  --sidebar-hover-bg: #f1f5f9;
+  --sidebar-active-bg: #ecfdf5;
   position: relative;
   width: 100%;
   height: 100%; /* Fill the host shell height */
@@ -4036,15 +4048,16 @@ watch(
   align-items: center;
   gap: 10px;
   margin: 0 14px 8px;
-  padding: 8px 10px;
-  background: rgba(248, 250, 252, 0.92);
+  padding: 10px 12px;
+  background: #ffffff;
   border: 1px solid var(--sidebar-line);
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .sidebar-agent-switch-label {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--sidebar-text-muted);
 }
 
@@ -4137,6 +4150,7 @@ watch(
   display: flex;
   flex-direction: column;
   padding: 14px;
+  background: #f8fafc;
 }
 
 .collaboration-sidebar-head {
@@ -4145,10 +4159,10 @@ watch(
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 12px;
-  padding: 12px;
+  padding: 12px 14px;
   border: 1px solid var(--sidebar-line);
   border-radius: 12px;
-  background: rgba(248, 250, 252, 0.92);
+  background: #ffffff;
 }
 
 .collaboration-sidebar-head h3 {
@@ -4172,10 +4186,28 @@ watch(
   min-width: 26px;
   height: 26px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #4338ca;
+  background: #ecfdf5;
+  color: #0f766e;
   font-size: 12px;
   font-weight: 800;
+}
+
+.collaboration-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed var(--sidebar-line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.collaboration-empty-action {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .collaboration-run-list {
@@ -4471,7 +4503,7 @@ watch(
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  background: #f6f9fb;
+  background: #ffffff;
 }
 
 .state-panel {
@@ -5116,7 +5148,7 @@ watch(
 /* Input Area Fixed to Bottom */
 .input-area {
   padding: 16px 24px 24px;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.9) 30%, #f8fafc 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.92) 30%, #ffffff 100%);
   z-index: 5;
   width: 100%;
   max-width: calc(var(--chat-content-max-width) + 48px);
@@ -5184,6 +5216,12 @@ watch(
   background: #eff6ff;
 }
 
+.quick-config-chip.is-toggle.active {
+  border-color: #14b8a6;
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
 .quick-config-chip:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -5192,7 +5230,9 @@ watch(
 .input-actions, .composer-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 12px;
 }
 
@@ -5223,7 +5263,7 @@ watch(
   cursor: not-allowed;
 }
 .input-plus {
-  margin-right: 6px;
+  margin-right: 0;
 }
 
 .collaboration-toggle-chip {
@@ -5312,8 +5352,22 @@ watch(
 }
 
 .input-hint {
+  margin-right: auto;
+  max-width: min(100%, 520px);
   font-size: 12px;
-  color: #94a3b8;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.input-hint span + span {
+  margin-left: 8px;
+}
+
+.input-hint-agent {
+  color: #334155;
+  font-weight: 600;
 }
 
 .quick-prompts {
@@ -5372,20 +5426,20 @@ watch(
 .config-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
 .config-tabs :deep(.el-tabs__nav) {
   width: 100%;
-  background: rgba(241, 245, 249, 0.92);
+  background: #f1f5f9;
   border: 1px solid var(--sidebar-line);
   border-radius: 12px;
   padding: 4px;
 }
 .config-tabs :deep(.el-tabs__item) {
   width: 33.33%;
-  height: 32px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   padding: 0;
   line-height: 1;
   transform: translateY(-1px);
@@ -5393,10 +5447,11 @@ watch(
   transition: all 0.2s ease;
 }
 .config-tabs :deep(.el-tabs__item.is-active) {
-  background: #ffffff;
-  color: var(--sidebar-text-strong);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  background: #ecfdf5;
+  border: 1px solid #99f6e4;
+  color: #0f766e;
+  font-weight: 700;
+  box-shadow: none;
 }
 .config-tabs :deep(.el-tabs__active-bar) { display: none; }
 
@@ -5989,10 +6044,28 @@ html.dark .collaboration-sidebar-head > span {
   color: #26FFDF;
 }
 
+html.dark .sidebar-agent-switch {
+  background: rgba(15, 28, 28, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 html.dark .collaboration-sidebar-head,
 html.dark .collaboration-run-item {
   background: rgba(15, 28, 28, 0.72);
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .workspace-collaboration-pane {
+  background: rgba(9, 16, 24, 0.82);
+}
+
+html.dark .collaboration-empty {
+  background: rgba(15, 28, 28, 0.72);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.dark .collaboration-empty-action {
+  color: #26ffdf;
 }
 
 html.dark .collaboration-sidebar-head h3,
@@ -6423,8 +6496,9 @@ html.dark .config-tabs :deep(.el-tabs__item) {
 }
 
 html.dark .config-tabs :deep(.el-tabs__item.is-active) {
-  background: #0f1c1c;
-  color: #f1f5f9;
+  background: rgba(38, 255, 223, 0.16);
+  border: 1px solid rgba(38, 255, 223, 0.32);
+  color: #26ffdf;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 

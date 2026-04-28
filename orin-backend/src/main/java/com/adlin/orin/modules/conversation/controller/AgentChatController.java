@@ -2,6 +2,7 @@ package com.adlin.orin.modules.conversation.controller;
 
 import com.adlin.orin.modules.conversation.dto.*;
 import com.adlin.orin.modules.conversation.service.AgentChatService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 public class AgentChatController {
 
     private final AgentChatService agentChatService;
+    private final ObjectMapper objectMapper;
 
     @Operation(summary = "创建会话")
     @PostMapping("/sessions")
@@ -72,7 +74,9 @@ public class AgentChatController {
             try {
                 agentChatService.sendMessageStream(sessionId, request, (eventType, payload) -> {
                     try {
-                        emitter.send(SseEmitter.event().name(eventType).data(payload));
+                        emitter.send(SseEmitter.event()
+                                .name(eventType)
+                                .data(objectMapper.writeValueAsString(payload), MediaType.APPLICATION_JSON));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -81,7 +85,9 @@ public class AgentChatController {
             } catch (Exception e) {
                 log.error("SSE chat failed for session {}: {}", sessionId, e.getMessage(), e);
                 try {
-                    emitter.send(SseEmitter.event().name("error").data(Map.of("message", e.getMessage())));
+                    emitter.send(SseEmitter.event()
+                            .name("error")
+                            .data(objectMapper.writeValueAsString(Map.of("message", e.getMessage())), MediaType.APPLICATION_JSON));
                 } catch (Exception ignored) {
                 }
                 emitter.completeWithError(e);

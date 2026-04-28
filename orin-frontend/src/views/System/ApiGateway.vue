@@ -1,13 +1,12 @@
 <template>
   <div class="api-gateway-container">
-    <div class="gateway-header">
-      <div class="gateway-header-title">
-        <el-icon class="gateway-header-icon"><Connection /></el-icon>
-        <div>
-          <h2 class="gateway-title">统一网关</h2>
-          <p class="gateway-desc">{{ pageDesc }}</p>
-        </div>
-      </div>
+    <OrinEntityHeader
+      domain="系统配置"
+      title="统一网关"
+      :description="pageDesc"
+      :summary="gatewayHeaderSummary"
+    >
+      <template #filters>
       <div class="gateway-nav">
         <button
           v-for="tab in tabs"
@@ -20,7 +19,8 @@
           <span>{{ tab.label }}</span>
         </button>
       </div>
-    </div>
+      </template>
+    </OrinEntityHeader>
 
     <div class="gateway-content">
       <GatewayOverviewTab v-show="activeTab === 'overview'" />
@@ -37,7 +37,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Connection, DataAnalysis, Share, SetUp, Lock, Operation, Lightning, Key } from '@element-plus/icons-vue'
+import { DataAnalysis, Share, SetUp, Lock, Operation, Lightning, Key } from '@element-plus/icons-vue'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
 import GatewayOverviewTab from './components/gateway/GatewayOverviewTab.vue'
 import GatewayRoutesTab from './components/gateway/GatewayRoutesTab.vue'
 import GatewayServicesTab from './components/gateway/GatewayServicesTab.vue'
@@ -51,6 +52,12 @@ const activeTab = ref('overview')
 const pageDesc = computed(() => activeTab.value === 'secrets'
   ? '统一管理访问密钥、供应商凭据、轮换与受控回显'
   : '管理 API 网关配置、路由规则和访问控制')
+
+const gatewayHeaderSummary = computed(() => [
+  { label: '当前模块', value: tabs.find(tab => tab.name === activeTab.value)?.label || '-' },
+  { label: '治理范围', value: '7 项' },
+  { label: '密钥中心', value: activeTab.value === 'secrets' ? '当前' : '可切换' }
+])
 
 if (route.query.tab === 'secrets') {
   activeTab.value = 'secrets'
@@ -72,71 +79,32 @@ const tabs = [
 
 <style scoped>
 .api-gateway-container {
-  padding: 24px 24px 0;
+  padding: 0;
+  color: #243244;
 }
 
-/* Header: title + tabs in one block, no card */
-.gateway-header {
-  margin-bottom: 24px;
-}
-
-.gateway-header-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.gateway-header-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--el-color-primary-light-9, #eff6ff);
-  color: var(--el-color-primary, #2563eb);
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.gateway-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--neutral-gray-900, #111827);
-  margin: 0 0 3px;
-  line-height: 1.2;
-}
-
-.gateway-desc {
-  font-size: 13px;
-  color: var(--neutral-gray-500, #6b7280);
-  margin: 0;
-}
-
-/* Underline tab nav */
 .gateway-nav {
   display: flex;
   align-items: center;
-  gap: 0;
-  border-bottom: 1px solid var(--neutral-gray-200, #e5e7eb);
+  gap: 8px;
+  overflow-x: auto;
 }
 
 .gateway-nav-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 16px 10px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #dbe4ee;
+  border-radius: 6px;
+  background: #ffffff;
   font-size: 13px;
   font-weight: 500;
   color: var(--neutral-gray-500, #6b7280);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
   white-space: nowrap;
-  margin-bottom: -1px;
 }
 
 .gateway-nav-item .el-icon {
@@ -145,16 +113,18 @@ const tabs = [
 
 .gateway-nav-item:hover:not(.active) {
   color: var(--neutral-gray-800, #1f2937);
+  border-color: #9edbd4;
 }
 
 .gateway-nav-item.active {
-  color: var(--el-color-primary, #2563eb);
-  border-bottom-color: var(--el-color-primary, #2563eb);
+  color: #0d9488;
+  background: #ecfdf9;
+  border-color: #0d9488;
   font-weight: 600;
 }
 
 .gateway-content {
-  padding-top: 20px;
+  padding-top: 0;
   min-height: 400px;
 }
 

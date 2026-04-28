@@ -279,6 +279,9 @@ public class AgentChatService {
         Map<String, Object> userMsg = new HashMap<>();
         userMsg.put("role", "user");
         userMsg.put("content", request.getMessage());
+        if (request.getFileId() != null && !request.getFileId().isBlank()) {
+            userMsg.put("fileId", request.getFileId());
+        }
         userMsg.put("createdAt", java.time.LocalDateTime.now().toString());
         messages.add(userMsg);
 
@@ -455,6 +458,7 @@ public class AgentChatService {
         Map<String, Object> agentResult = callAgent(
                 session.getAgentId(),
                 request.getMessage(),
+                request.getFileId(),
                 context,
                 toolCtx,
                 eventPublisher,
@@ -650,7 +654,7 @@ public class AgentChatService {
     /**
      * 调用智能体，返回内容和usage信息
      */
-    private Map<String, Object> callAgent(String agentId, String userMessage, String context,
+    private Map<String, Object> callAgent(String agentId, String userMessage, String fileId, String context,
                              ToolExecutionContext toolCtx,
                              BiConsumer<String, Object> eventPublisher,
                              boolean useToolCalling) {
@@ -751,8 +755,8 @@ public class AgentChatService {
 
             // 调用 AgentManageService 的 chat 方法；有知识库/MCP 上下文时通过 overrideSystemPrompt 注入
             Optional<Object> response = extendedSystemPrompt != null
-                    ? agentManageService.chat(agentId, userMessage, null, extendedSystemPrompt, toolCtx.getSessionId())
-                    : agentManageService.chat(agentId, userMessage, null, null, toolCtx.getSessionId());
+                    ? agentManageService.chat(agentId, userMessage, fileId, extendedSystemPrompt, toolCtx.getSessionId())
+                    : agentManageService.chat(agentId, userMessage, fileId, null, toolCtx.getSessionId());
 
             if (response.isPresent()) {
                 Object resp = response.get();
@@ -769,9 +773,9 @@ public class AgentChatService {
                             && context != null && !context.isBlank()) {
                         log.warn("检索上下文调用未返回正文，触发无上下文回退重试: agentId={}", agentId);
                         try {
-                            Optional<Object> fallbackResp = agentManageService.chat(agentId, userMessage, (String) null);
+                            Optional<Object> fallbackResp = agentManageService.chat(agentId, userMessage, fileId);
                             if (fallbackResp.isEmpty()) {
-                                fallbackResp = agentManageService.chat(agentId, userMessage, null, null, toolCtx.getSessionId());
+                                fallbackResp = agentManageService.chat(agentId, userMessage, fileId, null, toolCtx.getSessionId());
                             }
                             if (fallbackResp.isPresent() && fallbackResp.get() instanceof Map) {
                                 @SuppressWarnings("unchecked")
@@ -1013,6 +1017,18 @@ public class AgentChatService {
                 if (contentObj instanceof String s && !s.isBlank()) {
                     return s;
                 }
+                String contentListText = extractTextFromContentParts(contentObj);
+                if (!contentListText.isBlank()) {
+                    return contentListText;
+                }
+                Object reasoningObj = messageMap.get("reasoning_content");
+                if (reasoningObj instanceof String s && !s.isBlank()) {
+                    return s;
+                }
+            }
+            Object textObj = choiceMap.get("text");
+            if (textObj instanceof String s && !s.isBlank()) {
+                return s;
             }
         }
 
@@ -1030,6 +1046,10 @@ public class AgentChatService {
             Object contentObj = dataMap.get("content");
             if (contentObj instanceof String s && !s.isBlank()) {
                 return s;
+            }
+            String contentListText = extractTextFromContentParts(contentObj);
+            if (!contentListText.isBlank()) {
+                return contentListText;
             }
         }
 
@@ -1078,7 +1098,36 @@ public class AgentChatService {
             return s;
         }
 
+        Object textObj = respMap.get("text");
+        if (textObj instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
         return "";
+    }
+
+    private String extractTextFromContentParts(Object contentObj) {
+        if (!(contentObj instanceof List<?> contentList)) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Object item : contentList) {
+            if (item instanceof Map<?, ?> partMap) {
+                Object textObj = partMap.get("text");
+                if (textObj instanceof String text && !text.isBlank()) {
+                    if (sb.length() > 0) {
+                        sb.append('\n');
+                    }
+                    sb.append(text);
+                }
+            } else if (item instanceof String text && !text.isBlank()) {
+                if (sb.length() > 0) {
+                    sb.append('\n');
+                }
+                sb.append(text);
+            }
+        }
+        return sb.toString();
     }
 
     private String extractErrorText(Map<String, Object> respMap) {

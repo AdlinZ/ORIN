@@ -1,7 +1,12 @@
 <template>
   <div class="orin-async-state">
     <el-skeleton v-if="status === 'loading' || status === 'retrying'" animated :rows="rows" />
-    <el-empty v-else-if="status === 'empty'" :description="emptyText" />
+    <OrinEmptyState
+      v-else-if="status === 'empty'"
+      :description="emptyText"
+      :action-label="emptyActionLabel"
+      @action="$emit('empty-action')"
+    />
     <el-result
       v-else-if="status === 'error'"
       icon="error"
@@ -19,7 +24,9 @@
 </template>
 
 <script setup>
-defineEmits(['retry'])
+import OrinEmptyState from './OrinEmptyState.vue'
+
+defineEmits(['retry', 'empty-action'])
 
 defineProps({
   status: {
@@ -32,7 +39,11 @@ defineProps({
   },
   emptyText: {
     type: String,
-    default: '暂无数据'
+    default: '暂无可用记录'
+  },
+  emptyActionLabel: {
+    type: String,
+    default: ''
   },
   errorTitle: {
     type: String,

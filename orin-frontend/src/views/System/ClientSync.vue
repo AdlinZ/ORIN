@@ -1,33 +1,39 @@
 <template>
   <div class="sync-container">
-    <!-- Header -->
-    <div class="sync-header">
-      <div class="sync-header-title">
-        <el-icon class="sync-header-icon"><Refresh /></el-icon>
-        <div>
-          <h2 class="sync-title">数据同步</h2>
-          <p class="sync-desc">管理知识库端侧同步与 Dify 上游同步</p>
+    <OrinEntityHeader
+      domain="系统配置"
+      title="数据同步"
+      description="管理知识库端侧同步、Webhook 回调与 Dify 上游同步"
+      :summary="syncHeaderSummary"
+    >
+      <template #actions>
+        <el-button
+          :icon="Refresh"
+          :loading="statusLoading"
+          :disabled="syncPolling"
+          @click="loadStatus"
+        >
+          刷新状态
+        </el-button>
+      </template>
+      <template #filters>
+        <div class="sync-nav">
+          <button
+            v-for="tab in tabs"
+            :key="tab.name"
+            class="sync-nav-item"
+            :class="{ active: activeTab === tab.name }"
+            @click="switchTab(tab.name)"
+          >
+            <el-icon><component :is="tab.icon" /></el-icon>
+            <span>{{ tab.label }}</span>
+          </button>
         </div>
-      </div>
-    </div>
-
-    <!-- Tab 导航 -->
-    <div class="sync-nav">
-      <button
-        v-for="tab in tabs"
-        :key="tab.name"
-        class="sync-nav-item"
-        :class="{ active: activeTab === tab.name }"
-        @click="switchTab(tab.name)"
-      >
-        <el-icon><component :is="tab.icon" /></el-icon>
-        <span>{{ tab.label }}</span>
-      </button>
-    </div>
+      </template>
+    </OrinEntityHeader>
 
     <!-- 主内容 -->
-    <template>
-      <!-- 状态栏 -->
+    <!-- 状态栏 -->
       <div v-if="activeTab !== 'dify'" class="status-bar">
         <div class="status-item">
           <span class="status-label">最新检查点</span>
@@ -41,14 +47,6 @@
             {{ pendingCount }}
           </el-tag>
         </div>
-        <el-button
-          size="small"
-          :icon="Refresh"
-          circle
-          :loading="statusLoading"
-          :disabled="syncPolling"
-          @click="loadStatus"
-        />
       </div>
 
       <el-alert
@@ -266,11 +264,9 @@
           </div>
         </div>
       </div>
-    </template>
-  </div>
 
-  <!-- Webhook 对话框 -->
-  <el-dialog v-model="showWebhookDialog" title="添加 Webhook" width="480px">
+    <!-- Webhook 对话框 -->
+    <el-dialog v-model="showWebhookDialog" title="添加 Webhook" width="480px">
     <el-form :model="webhookForm" label-position="top">
       <el-form-item label="关联 Agent">
         <el-select
@@ -309,7 +305,8 @@
       <el-button @click="showWebhookDialog = false">取消</el-button>
       <el-button type="primary" @click="handleSaveWebhook">保存</el-button>
     </template>
-  </el-dialog>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>
@@ -317,6 +314,7 @@ import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, List, Promotion, Link } from '@element-plus/icons-vue'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
 import {
   getClientChanges,
   getClientCheckpoint,
@@ -392,6 +390,13 @@ const difyKeyType = computed(() => {
   if (normalizedDifyApiKey.value.startsWith('app-')) return 'app'
   return 'unknown'
 })
+
+const syncHeaderSummary = computed(() => [
+  { label: '当前模块', value: tabs.find(tab => tab.name === activeTab.value)?.label || '-' },
+  { label: '待同步变更', value: pendingCount.value },
+  { label: '同步状态', value: syncPolling.value ? '进行中' : '空闲' },
+  { label: 'Agent', value: agentList.value.length || 0 }
+])
 
 const unwrapResponse = (res) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
 const getErrorMessage = (error) => {
@@ -832,55 +837,8 @@ onUnmounted(() => {
 
 <style scoped>
 .sync-container {
-  padding: 24px;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Header */
-.sync-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.sync-header-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.sync-header-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--el-color-primary-light-9, #eff6ff);
-  color: var(--el-color-primary, #2563eb);
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.sync-title {
-  margin: 0 0 4px;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.sync-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
+  padding: 0;
+  color: #243244;
 }
 
 .agent-option-id {
@@ -908,7 +866,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 20px;
   padding: 10px 16px;
-  background: var(--el-fill-color-light, #f5f7fa);
+  background: #ffffff;
+  border: 1px solid #e3e9ef;
   border-radius: 8px;
   margin-bottom: 16px;
   flex-wrap: wrap;
@@ -932,36 +891,36 @@ onUnmounted(() => {
 /* Tab 导航 */
 .sync-nav {
   display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--el-border-color-light);
-  padding-bottom: 0;
+  gap: 8px;
+  overflow-x: auto;
 }
 
 .sync-nav-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  background: transparent;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #dbe4ee;
+  background: #ffffff;
   cursor: pointer;
   font-size: 14px;
   color: var(--el-text-color-secondary);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: 6px;
   transition: color 0.2s, border-color 0.2s;
-  border-radius: 0;
+  white-space: nowrap;
 }
 
 .sync-nav-item:hover {
-  color: var(--el-color-primary);
+  color: #0d9488;
+  border-color: #9edbd4;
 }
 
 .sync-nav-item.active {
-  color: var(--el-color-primary);
-  border-bottom-color: var(--el-color-primary);
-  font-weight: 500;
+  color: #0d9488;
+  border-color: #0d9488;
+  background: #ecfdf9;
+  font-weight: 600;
 }
 
 /* 内容区 */

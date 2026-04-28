@@ -39,15 +39,6 @@
                   <component :is="getIconComponent(child.icon)" />
                 </el-icon>
                 <span>{{ child.title }}</span>
-                <el-tag
-                  v-if="child.status"
-                  size="small"
-                  :type="getMaturityTagType(child.status)"
-                  effect="plain"
-                  class="dropdown-status-tag"
-                >
-                  {{ getMaturityText(child.status) }}
-                </el-tag>
               </router-link>
             </template>
           </div>
@@ -174,14 +165,6 @@
             @click="closeMobileMenu"
           >
             {{ child.title }}
-            <el-tag
-              v-if="child.status"
-              size="small"
-              :type="getMaturityTagType(child.status)"
-              effect="plain"
-            >
-              {{ getMaturityText(child.status) }}
-            </el-tag>
           </router-link>
         </template>
       </div>
@@ -334,7 +317,6 @@ import { ElMessage } from 'element-plus'
 import { useTheme } from '@/composables/useTheme'
 import { useUser } from '@/composables/useUser'
 import { getIconComponent } from '@/utils/iconMap'
-import { getMaturityTagType, getMaturityText } from '@/utils/maturity'
 
 const router = useRouter()
 const route = useRoute()
@@ -644,11 +626,11 @@ onMounted(() => {
 <style scoped>
 .top-navbar {
   height: 64px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(248,250,252,0.8) 100%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -733,17 +715,17 @@ onMounted(() => {
   transition: all 0.3s;
 }
 
-/* 下拉菜单 - Glassmorphism */
+/* 下拉菜单 - 轻毛玻璃 */
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
+  border-radius: 8px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
   min-width: 180px;
   padding: 8px;
   z-index: 1001;
@@ -768,10 +750,6 @@ onMounted(() => {
 
 .dropdown-item .el-icon {
   font-size: 16px;
-}
-
-.dropdown-status-tag {
-  margin-left: auto;
 }
 
 /* 下拉动画 */
@@ -959,11 +937,11 @@ onMounted(() => {
 
 /* 深色模式适配 - Glassmorphism */
 html.dark .top-navbar {
-  background: linear-gradient(180deg, rgba(10, 22, 22, 0.9) 0%, rgba(4, 16, 16, 0.85) 100%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  border-bottom: 1px solid rgba(38, 255, 223, 0.1);
+  background: rgba(15, 23, 42, 0.86);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.24);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 html.dark .logo-text {
@@ -983,11 +961,11 @@ html.dark .menu-title {
 }
 
 html.dark .dropdown-menu {
-  background: linear-gradient(180deg, rgba(20, 36, 36, 0.95) 0%, rgba(10, 22, 22, 0.92) 100%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(38, 255, 223, 0.15);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.94);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 html.dark .dropdown-item {
@@ -1128,9 +1106,9 @@ html.dark .action-divider {
 .status-dot {
   width: 6px;
   height: 6px;
-  background: #00ff9d;
+  background: #2dd4bf;
   border-radius: 50%;
-  box-shadow: 0 0 5px #00ff9d;
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.24);
 }
 
 .close-icon {
@@ -1244,7 +1222,7 @@ html.dark .action-divider {
 
 .terminal-footer {
   padding: 20px 40px 30px 40px;
-  background: linear-gradient(to top, var(--el-bg-color) 60%, transparent);
+  background: var(--el-bg-color);
   border-top: 1px solid var(--el-border-color-lighter);
 }
 

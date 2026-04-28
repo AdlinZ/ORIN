@@ -1,5 +1,5 @@
 <template>
-  <div class="chatgpt-portal" :class="{ collapsed: isSidebarCollapsed }">
+  <div class="service-portal" :class="{ collapsed: isSidebarCollapsed }">
     <aside class="portal-sidebar">
       <div class="sidebar-tools">
         <button class="icon-btn" type="button" title="收起侧栏" @click="toggleSidebar">
@@ -298,6 +298,26 @@
         </template>
       </section>
     </main>
+    <aside class="portal-context">
+      <section class="context-card">
+        <span class="context-eyebrow">当前服务</span>
+        <strong>{{ currentAgent?.name || '未选择智能体' }}</strong>
+        <p>{{ currentAgent?.description || '选择一个已接入的智能体后，即可开始企业服务会话。' }}</p>
+      </section>
+      <section class="context-card">
+        <span class="context-eyebrow">知识范围</span>
+        <strong>{{ selectedKbIds.length }} 个知识库</strong>
+        <p>{{ currentKbNames }}</p>
+      </section>
+      <section class="context-card">
+        <span class="context-eyebrow">会话治理</span>
+        <div class="context-list">
+          <span>消息数：{{ messages.length }}</span>
+          <span>历史会话：{{ sessions.length }}</span>
+          <span>附件：{{ selectedUploadFileName || '未附加' }}</span>
+        </div>
+      </section>
+    </aside>
   </div>
 </template>
 
@@ -833,16 +853,17 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.chatgpt-portal {
+.service-portal {
   --sidebar-width: 280px;
+  --context-width: 300px;
   min-height: 100vh;
   display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--context-width);
   background: #f8f9fb;
   color: #171717;
 }
 
-.chatgpt-portal.collapsed {
+.service-portal.collapsed {
   --sidebar-width: 78px;
 }
 
@@ -852,8 +873,10 @@ onMounted(async () => {
   flex-direction: column;
   gap: 12px;
   padding: 10px;
-  background: #f2f2f3;
-  border-right: 1px solid #e7e7e9;
+  background: rgba(255, 255, 255, 0.84);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid #e1e6ec;
   box-sizing: border-box;
 }
 
@@ -899,12 +922,12 @@ onMounted(async () => {
 .brand-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   color: #fff;
   font-weight: 700;
-  background: linear-gradient(145deg, #2563eb, #0ea5a4);
+  background: #0f766e;
 }
 
 .brand-avatar.mini {
@@ -942,7 +965,7 @@ onMounted(async () => {
   width: 100%;
   min-height: 42px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 8px;
   background: transparent;
   color: #2f3137;
   display: flex;
@@ -958,8 +981,8 @@ onMounted(async () => {
 }
 
 .nav-item.active {
-  background: #e5ebff;
-  color: #2e4aa7;
+  background: #ecfdf5;
+  color: #0f766e;
 }
 
 .sidebar-section {
@@ -1075,7 +1098,9 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 0 18px;
   border-bottom: 1px solid #ececef;
-  background: rgba(248, 249, 251, 0.92);
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .header-left,
@@ -1128,7 +1153,7 @@ onMounted(async () => {
 .home-center h1 {
   margin: 6px 0 18px;
   color: #242628;
-  font-size: clamp(24px, 3vw, 40px);
+  font-size: clamp(24px, 3vw, 36px);
   line-height: 1.16;
   font-weight: 600;
 }
@@ -1136,13 +1161,13 @@ onMounted(async () => {
 .home-kicker {
   margin: 0;
   color: #575b63;
-  font-size: 40px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .input-card {
   border: 1px solid #e7e8eb;
-  border-radius: 28px;
+  border-radius: 12px;
   background: #fff;
   padding: 14px 16px 10px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
@@ -1150,7 +1175,7 @@ onMounted(async () => {
 }
 
 .input-card.compact {
-  border-radius: 24px;
+  border-radius: 12px;
 }
 
 .hidden-file-input {
@@ -1163,7 +1188,7 @@ onMounted(async () => {
   box-shadow: none;
   background: transparent;
   color: #1f2329;
-  font-size: 24px;
+  font-size: 16px;
   line-height: 1.34;
   padding: 2px 4px 8px;
 }
@@ -1185,7 +1210,7 @@ onMounted(async () => {
 .chip-btn {
   height: 34px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #f2f3f5;
   color: #41444c;
   padding: 0 14px;
@@ -1206,7 +1231,7 @@ onMounted(async () => {
   width: 40px;
   height: 40px;
   border: 0;
-  background: #10a37f;
+  background: #0f766e;
 }
 
 .send-button.is-disabled {
@@ -1223,7 +1248,7 @@ onMounted(async () => {
 
 .suggestion-chip {
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 10px 14px;
   background: #f2f3f5;
   color: #3f434b;
@@ -1254,7 +1279,7 @@ onMounted(async () => {
 .message-avatar {
   width: 30px;
   height: 30px;
-  border-radius: 50%;
+  border-radius: 8px;
   background: #eceef2;
   color: #4b4f57;
   display: grid;
@@ -1265,7 +1290,7 @@ onMounted(async () => {
 .message-bubble {
   max-width: min(820px, 82%);
   border: 1px solid #e8e9ed;
-  border-radius: 16px;
+  border-radius: 10px;
   background: #fff;
   padding: 12px 14px;
 }
@@ -1273,7 +1298,7 @@ onMounted(async () => {
 .message-row.user .message-bubble {
   border-color: transparent;
   color: #fff;
-  background: #2f6feb;
+  background: #0f766e;
 }
 
 .message-role {
@@ -1338,8 +1363,56 @@ onMounted(async () => {
 .composer-dock {
   position: fixed;
   left: calc(var(--sidebar-width) + 20px);
-  right: 20px;
+  right: calc(var(--context-width) + 20px);
   bottom: 16px;
+}
+
+.portal-context {
+  height: 100vh;
+  padding: 14px;
+  border-left: 1px solid #e1e6ec;
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.context-card {
+  padding: 14px;
+  border: 1px solid #e1e6ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.context-eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.context-card strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.context-card p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.context-list {
+  display: grid;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
 }
 
 .composer-dock .input-card {
@@ -1420,24 +1493,33 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-.chatgpt-portal.collapsed .brand-copy,
-.chatgpt-portal.collapsed .nav-item span,
-.chatgpt-portal.collapsed .section-title,
-.chatgpt-portal.collapsed .session-title,
-.chatgpt-portal.collapsed .session-time,
-.chatgpt-portal.collapsed .sidebar-bottom {
+.service-portal.collapsed .brand-copy,
+.service-portal.collapsed .nav-item span,
+.service-portal.collapsed .section-title,
+.service-portal.collapsed .session-title,
+.service-portal.collapsed .session-time,
+.service-portal.collapsed .sidebar-bottom {
   display: none;
 }
 
-.chatgpt-portal.collapsed .session-item,
-.chatgpt-portal.collapsed .nav-item {
+.service-portal.collapsed .session-item,
+.service-portal.collapsed .nav-item {
   justify-content: center;
   padding: 0;
 }
 
 @media (max-width: 1080px) {
-  .chatgpt-portal {
+  .service-portal {
     --sidebar-width: 240px;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .portal-context {
+    display: none;
+  }
+
+  .composer-dock {
+    right: 20px;
   }
 
   .home-kicker {
@@ -1450,7 +1532,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 880px) {
-  .chatgpt-portal {
+  .service-portal {
     grid-template-columns: 1fr;
   }
 

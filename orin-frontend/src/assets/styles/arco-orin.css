@@ -1,0 +1,84 @@
+:root {
+  --primary-1: 232, 247, 245;
+  --primary-2: 204, 236, 232;
+  --primary-3: 153, 216, 208;
+  --primary-4: 94, 190, 179;
+  --primary-5: 32, 150, 139;
+  --primary-6: 13, 148, 136;
+  --primary-7: 15, 118, 110;
+  --primary-8: 13, 101, 95;
+  --primary-9: 9, 69, 65;
+  --primary-10: 7, 54, 51;
+  --orin-arco-border: #e3e9ef;
+  --orin-arco-border-soft: #edf2f6;
+  --orin-arco-text: #243244;
+  --orin-arco-text-subtle: #6b7a90;
+  --orin-arco-surface: #ffffff;
+  --orin-arco-primary: #0d9488;
+}
+
+.arco-btn {
+  border-radius: 5px;
+  font-weight: 550;
+  box-shadow: none;
+}
+
+.arco-btn-size-medium {
+  height: 30px;
+  padding-inline: 12px;
+}
+
+.arco-input-wrapper,
+.arco-select-view-single,
+.arco-textarea-wrapper,
+.arco-input-number {
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.arco-table {
+  color: var(--orin-arco-text);
+}
+
+.arco-table-th {
+  height: 36px;
+  background: #ffffff !important;
+  color: var(--orin-arco-text-subtle);
+  font-size: 12px;
+  font-weight: 620;
+  border-bottom: 1px solid var(--orin-arco-border) !important;
+}
+
+.arco-table-td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--orin-arco-border-soft) !important;
+}
+
+.arco-table-tr:hover .arco-table-td {
+  background: #fcfdfd !important;
+}
+
+.arco-modal,
+.arco-drawer {
+  --border-radius-large: 8px;
+}
+
+.arco-modal-header,
+.arco-drawer-header {
+  border-bottom-color: var(--orin-arco-border);
+}
+
+.arco-modal-footer,
+.arco-drawer-footer {
+  border-top-color: var(--orin-arco-border);
+}
+
+.arco-form-item-label {
+  color: #3f4d63;
+  font-weight: 560;
+}
+
+html body {
+  --color-primary-6: var(--orin-arco-primary);
+}

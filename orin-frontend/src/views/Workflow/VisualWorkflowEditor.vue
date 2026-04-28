@@ -1408,9 +1408,9 @@ const nodeGroups = [
     title: '逻辑控制 (Logic)',
     items: [
       { type: 'code', label: '代码 (Code)', icon: Monitor, color: '#f2e6ff' },
-      { type: 'if_else', label: '条件分支 (Condition)', icon: Share, color: '#f8fafc' },
-      { type: 'iteration', label: '迭代 (Iteration)', icon: RefreshRight, color: '#f8fafc' },
-      { type: 'loop', label: '循环 (Loop)', icon: Refresh, color: '#f8fafc' },
+      { type: 'if_else', label: '条件分支 (Condition)', icon: Share, color: '#ffffff' },
+      { type: 'iteration', label: '迭代 (Iteration)', icon: RefreshRight, color: '#ffffff' },
+      { type: 'loop', label: '循环 (Loop)', icon: Refresh, color: '#ffffff' },
       { type: 'question_classifier', label: '意图识别 (Intent Recognition)', icon: Connection, color: '#fdf4ff' },
       { type: 'variable_aggregator', label: '变量聚合 (Variable Merit)', icon: Files, color: '#f2e6ff' },
     ]
@@ -2297,7 +2297,7 @@ const runWorkflow = async () => {
 }
 
 .tool-item.highlight:hover {
-  background: #f1f5f9;
+  background: #ffffff;
 }
 
 .el-divider--horizontal {

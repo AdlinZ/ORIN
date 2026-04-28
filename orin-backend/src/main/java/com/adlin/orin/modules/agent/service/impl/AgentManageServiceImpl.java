@@ -15,8 +15,12 @@ import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.agent.service.provider.MultiModalProvider;
 import com.adlin.orin.modules.agent.service.provider.MultiModalProvider.InteractionRequest;
 import com.adlin.orin.modules.agent.service.provider.MultiModalProvider.InteractionResult;
+import com.adlin.orin.modules.apikey.entity.ExternalProviderKey;
+import com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import com.adlin.orin.modules.model.service.SiliconFlowIntegrationService;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.service.AuditLogService;
@@ -41,12 +45,22 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -72,6 +86,8 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final MetaKnowledgeService metaKnowledgeService;
     private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
     private final com.adlin.orin.modules.model.service.ModelConfigService modelConfigService;
+    private final GatewaySecretService gatewaySecretService;
+    private final ExternalProviderKeyRepository providerKeyRepository;
     private final Map<String, MultiModalProvider> providerMap = new HashMap<>();
 
     // Provider-specific AgentManageService instances
@@ -98,6 +114,8 @@ public class AgentManageServiceImpl implements AgentManageService {
             MinimaxIntegrationService minimaxIntegrationService,
             OllamaIntegrationService ollamaIntegrationService,
             com.adlin.orin.modules.model.service.ModelConfigService modelConfigService,
+            GatewaySecretService gatewaySecretService,
+            ExternalProviderKeyRepository providerKeyRepository,
             List<MultiModalProvider> providers,
             com.adlin.orin.modules.agent.service.SiliconFlowAgentManageService siliconFlowAgentManageService,
             com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
@@ -120,6 +138,8 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.metaKnowledgeService = metaKnowledgeService;
         this.modelMetadataRepository = modelMetadataRepository;
         this.modelConfigService = modelConfigService;
+        this.gatewaySecretService = gatewaySecretService;
+        this.providerKeyRepository = providerKeyRepository;
         this.siliconFlowAgentManageService = siliconFlowAgentManageService;
         this.zhipuAgentManageService = zhipuAgentManageService;
         this.kimiAgentManageService = kimiAgentManageService;
@@ -666,10 +686,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                 String fileType = uploadedFile.getFileType() == null ? "" : uploadedFile.getFileType().toUpperCase(Locale.ROOT);
 
                 if ("IMAGE".equals(fileType)) {
-                    String imageUrl = multimodalFileService.getDownloadUrl(fileId, Duration.ofMinutes(30));
-                    if (imageUrl == null || imageUrl.isBlank()) {
-                        imageUrl = fileId;
-                    }
+                    String imageUrl = resolveChatImageInput(uploadedFile, fileId);
 
                     java.util.List<java.util.Map<String, Object>> contentList = new java.util.ArrayList<>();
                     contentList.add(java.util.Map.of("type", "text", "text", message));
@@ -705,16 +722,116 @@ public class AgentManageServiceImpl implements AgentManageService {
         double topP = metadata.getTopP() != null ? metadata.getTopP() : 0.7;
         int maxTokens = resolveMaxTokens(metadata.getMaxTokens(), 2000, maxTokensOverride);
 
-        return siliconFlowIntegrationService.sendMessageWithFullParams(
-                profile.getEndpointUrl() + "/chat/completions",
-                profile.getApiKey(),
-                resolvedModelName,
-                messages,
-                temperature,
-                topP,
-                maxTokens,
-                enableThinking,
-                thinkingBudget);
+        String chatEndpoint = buildSiliconFlowChatEndpoint(profile.getEndpointUrl());
+        String lastError = null;
+        for (String candidateKey : resolveSiliconFlowApiKeyCandidates(profile.getApiKey())) {
+            java.util.Optional<Object> response = siliconFlowIntegrationService.sendMessageWithFullParams(
+                    chatEndpoint,
+                    candidateKey,
+                    resolvedModelName,
+                    messages,
+                    temperature,
+                    topP,
+                    maxTokens,
+                    enableThinking,
+                    thinkingBudget);
+
+            if (response.isPresent() && isProviderResponseSuccessful(response.get())) {
+                return response;
+            }
+
+            if (response.isPresent()) {
+                lastError = extractProviderErrorMessage(response.get());
+                if (isSiliconFlowAuthFailure(response.get())) {
+                    log.warn("SiliconFlow API key failed for agent {}, trying next configured key if available: {}",
+                            metadata.getAgentId(), lastError);
+                    continue;
+                }
+                return response;
+            }
+            lastError = "SiliconFlow returned no response";
+        }
+
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "FAILED");
+        error.put("errorMessage", lastError != null ? lastError
+                : "未找到可用的 SiliconFlow API Key，请检查智能体密钥或系统保存的 SiliconFlow 密钥");
+        return java.util.Optional.of(error);
+    }
+
+    private String buildSiliconFlowChatEndpoint(String endpointUrl) {
+        String baseUrl = endpointUrl == null || endpointUrl.isBlank() ? "https://api.siliconflow.cn/v1" : endpointUrl.trim();
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        if (baseUrl.endsWith("/chat/completions")) {
+            return baseUrl;
+        }
+        return baseUrl + "/chat/completions";
+    }
+
+    private List<String> resolveSiliconFlowApiKeyCandidates(String agentApiKey) {
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+        if (isConfiguredApiKey(agentApiKey)) {
+            candidates.add(agentApiKey.trim());
+        }
+
+        try {
+            var unifiedCredential = gatewaySecretService.resolveProviderCredential("siliconflow");
+            if (unifiedCredential.isPresent() && isConfiguredApiKey(unifiedCredential.get().getApiKey())) {
+                candidates.add(unifiedCredential.get().getApiKey().trim());
+            }
+        } catch (Exception e) {
+            log.warn("Could not resolve SiliconFlow gateway credential: {}", e.getMessage());
+        }
+
+        for (String provider : List.of("SiliconFlow", "siliconflow")) {
+            try {
+                List<ExternalProviderKey> keys = providerKeyRepository.findByProvider(provider);
+                ExternalProviderKey key = keys.stream()
+                        .filter(k -> Boolean.TRUE.equals(k.getEnabled()))
+                        .findFirst()
+                        .orElse(keys.isEmpty() ? null : keys.get(0));
+                if (key != null && isConfiguredApiKey(key.getApiKey())) {
+                    candidates.add(key.getApiKey().trim());
+                }
+            } catch (Exception e) {
+                log.warn("Could not resolve SiliconFlow external provider key for {}: {}", provider, e.getMessage());
+            }
+        }
+
+        try {
+            com.adlin.orin.modules.model.entity.ModelConfig config = modelConfigService.getConfig();
+            if (config != null && isConfiguredApiKey(config.getSiliconFlowApiKey())) {
+                candidates.add(config.getSiliconFlowApiKey().trim());
+            }
+        } catch (Exception e) {
+            log.warn("Could not resolve SiliconFlow key from model config: {}", e.getMessage());
+        }
+
+        return new java.util.ArrayList<>(candidates);
+    }
+
+    private boolean isConfiguredApiKey(String value) {
+        return value != null && !value.isBlank() && !"sk-placeholder".equals(value) && !"sk-dummy".equals(value);
+    }
+
+    private boolean isSiliconFlowAuthFailure(Object respObj) {
+        if (!(respObj instanceof Map<?, ?> map)) {
+            return false;
+        }
+        Object httpStatus = map.get("httpStatus");
+        String status = httpStatus == null ? "" : String.valueOf(httpStatus);
+        if ("401".equals(status) || "403".equals(status)) {
+            return true;
+        }
+        String message = extractProviderErrorMessage(respObj).toLowerCase(Locale.ROOT);
+        return message.contains("unauthorized")
+                || message.contains("forbidden")
+                || message.contains("invalid token")
+                || message.contains("api key")
+                || message.contains("无效")
+                || message.contains("无权限");
     }
 
     private String resolveConfiguredVlmModel() {
@@ -727,6 +844,70 @@ public class AgentManageServiceImpl implements AgentManageService {
             log.warn("Failed to resolve configured VLM model: {}", e.getMessage());
         }
         return null;
+    }
+
+    private String resolveChatImageInput(MultimodalFile uploadedFile, String fileId) throws IOException {
+        String signedUrl = multimodalFileService.getDownloadUrl(fileId, Duration.ofMinutes(30));
+        if (signedUrl != null && (signedUrl.startsWith("http://") || signedUrl.startsWith("https://"))) {
+            return signedUrl;
+        }
+
+        byte[] imageBytes;
+        try (InputStream inputStream = multimodalFileService.openFileStream(fileId)) {
+            imageBytes = inputStream.readAllBytes();
+        }
+
+        byte[] normalizedBytes = normalizeImageBytesForVision(imageBytes);
+        String base64 = Base64.getEncoder().encodeToString(normalizedBytes);
+        log.info("Prepared local image for VLM: fileId={}, name={}, originalBytes={}, normalizedBytes={}",
+                fileId,
+                uploadedFile.getFileName(),
+                imageBytes.length,
+                normalizedBytes.length);
+        return "data:image/jpeg;base64," + base64;
+    }
+
+    private byte[] normalizeImageBytesForVision(byte[] imageBytes) throws IOException {
+        BufferedImage source = ImageIO.read(new java.io.ByteArrayInputStream(imageBytes));
+        if (source == null) {
+            return imageBytes;
+        }
+
+        int maxSide = 1536;
+        int width = source.getWidth();
+        int height = source.getHeight();
+        double scale = Math.min(1.0, (double) maxSide / Math.max(width, height));
+        int targetWidth = Math.max(1, (int) Math.round(width * scale));
+        int targetHeight = Math.max(1, (int) Math.round(height * scale));
+
+        BufferedImage rgbImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = rgbImage.createGraphics();
+        try {
+            graphics.setColor(java.awt.Color.WHITE);
+            graphics.fillRect(0, 0, targetWidth, targetHeight);
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.drawImage(source, 0, 0, targetWidth, targetHeight, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
+        try (ImageOutputStream imageOutput = ImageIO.createImageOutputStream(output)) {
+            writer.setOutput(imageOutput);
+            ImageWriteParam params = writer.getDefaultWriteParam();
+            if (params.canWriteCompressed()) {
+                params.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                params.setCompressionQuality(0.86f);
+            }
+            writer.write(null, new IIOImage(rgbImage, null, null), params);
+        } finally {
+            writer.dispose();
+        }
+
+        return output.toByteArray();
     }
 
     private String buildDocumentPrompt(String userMessage, String fileName, String extractedText) {

@@ -1,285 +1,205 @@
 <template>
   <div class="page-container">
-    <PageHeader 
-      title="模型配置" 
-      description="管理平台接入模型、供应商资源与启用状态"
-      icon="Box"
+    <OrinEntityHeader
+      domain="模型资源"
+      title="模型资源"
+      description="统一管理模型资源、供应商能力、密钥入口与启用状态"
+      :summary="modelHeaderSummary"
     >
       <template #actions>
-        <el-button type="primary" :icon="Plus" @click="handleAdd">
+        <a-button type="primary" class="orin-primary-action" @click="handleAdd">
           添加模型资源
-        </el-button>
-        <el-button :icon="Key" @click="openKeyManagement">
+        </a-button>
+        <a-button class="orin-secondary-action" @click="openKeyManagement">
           API 密钥管理
-        </el-button>
+        </a-button>
       </template>
-    </PageHeader>
 
-
-    <!-- Stats Row -->
-    <el-row :gutter="24" class="model-stats" style="margin-bottom: 24px;">
-      <el-col v-for="stat in stats" :key="stat.label" :span="6">
-        <el-card shadow="hover" :body-style="{ padding: '20px' }">
-          <div class="text-secondary" style="margin-bottom: 8px;">
-            {{ stat.label }}
-          </div>
-          <div class="page-title" style="margin-bottom: 0;">
-            {{ stat.value }}
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- Table Section -->
-    <el-card shadow="never" class="table-card">
-      <div class="table-toolbar" style="margin-bottom: 24px;">
-        <div class="header-left">
-          <el-select 
-            v-model="typeFilter" 
-            placeholder="模型类型筛选" 
-            clearable 
-            style="width: 200px" 
-            @change="handleTabChange"
+      <template #filters>
+        <OrinArcoFilterGrid>
+          <a-select
+            v-model="providerFilter"
+            placeholder="供应商"
+            allow-clear
+            style="width: 180px"
           >
-            <el-option label="全部类型" value="ALL" />
-            <!-- options -->
-            <el-option label="对话 (Chat)" value="CHAT" />
-            <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
-            <el-option label="结果重排 (Reranker)" value="RERANKER" />
-            <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
-            <el-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
-            <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
-            <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
-          </el-select>
-        </div>
-        <div class="action-bar">
-          <el-tooltip content="从 SiliconFlow 后台复制定价数据批量导入" placement="top">
-            <el-button :icon="Money" style="margin-right: 12px;" @click="handleImportPricing">
-              导入定价(JSON)
-            </el-button>
-          </el-tooltip>
-          <el-input 
-            v-model="searchQuery" 
-            placeholder="搜索名称或供应商..." 
-            :prefix-icon="Search" 
-            clearable 
-            class="search-input"
-            style="width: 280px"
-          />
-          <el-button 
-            v-if="selectedIds.length > 0" 
-            type="danger" 
-            plain 
-            :icon="Delete" 
-            style="margin-left: 12px"
+            <a-option label="全部供应商" value="ALL" />
+            <a-option
+              v-for="provider in providerFilterOptions"
+              :key="provider"
+              :label="provider"
+              :value="provider"
+            />
+          </a-select>
+          <a-select
+            v-model="typeFilter"
+            placeholder="模型类型"
+            allow-clear
+            style="width: 180px"
+          >
+            <a-option label="全部类型" value="ALL" />
+            <a-option label="对话 (Chat)" value="CHAT" />
+            <a-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
+            <a-option label="结果重排 (Reranker)" value="RERANKER" />
+            <a-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
+            <a-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
+            <a-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
+            <a-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
+          </a-select>
+          <a-select
+            v-model="statusFilter"
+            placeholder="运行状态"
+            allow-clear
+            style="width: 150px"
+          >
+            <a-option label="全部状态" value="ALL" />
+            <a-option label="已启用" value="ENABLED" />
+            <a-option label="已禁用" value="DISABLED" />
+          </a-select>
+          <a-select
+            v-model="sortMode"
+            placeholder="排序方式"
+            style="width: 180px"
+          >
+            <a-option label="最近创建优先" value="created_desc" />
+            <a-option label="最早创建优先" value="created_asc" />
+            <a-option label="模型名称 A-Z" value="name_asc" />
+            <a-option label="模型名称 Z-A" value="name_desc" />
+            <a-option label="供应商 A-Z" value="provider_asc" />
+            <a-option label="模型类型 A-Z" value="type_asc" />
+          </a-select>
+          <template #search>
+            <a-input-search
+              v-model="searchQuery"
+              placeholder="搜索名称 / Model ID..."
+              allow-clear
+              class="search-input"
+            />
+          </template>
+          <template #reset>
+            <a-button class="quiet-action reset-action" @click="resetFilters">
+              重置
+            </a-button>
+          </template>
+        </OrinArcoFilterGrid>
+        <div class="filter-actions">
+          <a-button
+            v-if="selectedIds.length > 0"
+            status="danger"
             @click="handleBatchDelete"
           >
             批量删除 ({{ selectedIds.length }})
-          </el-button>
+          </a-button>
+        </div>
+      </template>
+    </OrinEntityHeader>
+
+    <OrinArcoDataTable
+      v-model:selected-keys="selectedIds"
+      class="table-card"
+      :columns="modelColumns"
+      :data="displayedList"
+      :loading="loading"
+      selectable
+      row-key="id"
+    >
+      <template #header>
+        <div class="table-title">
+          <strong>资源清单</strong>
+          <span>按供应商、类型和启用状态维护生产可用模型</span>
+        </div>
+      </template>
+
+      <template #name="{ record }">
+        <div class="model-info">
+          <OrinArcoSemanticTag family="provider" :value="record.provider">
+            {{ record.provider }}
+          </OrinArcoSemanticTag>
+          <span class="name">{{ record.name }}</span>
+        </div>
+      </template>
+
+      <template #type="{ record }">
+        <OrinArcoSemanticTag family="type" :value="record.type">
+          {{ formatModelType(record.type) }}
+        </OrinArcoSemanticTag>
+      </template>
+
+      <template #status="{ record }">
+        <button
+          class="status-toggle"
+          :class="{ 'is-enabled': record.status === 'ENABLED' }"
+          @click="handleToggleStatus(record)"
+        >
+          <span class="status-dot" />
+          {{ record.status === 'ENABLED' ? '已启用' : '已禁用' }}
+        </button>
+      </template>
+
+      <template #createTime="{ record }">
+        <span class="time-compact">{{ formatTime(record.createTime) }}</span>
+      </template>
+
+      <template #actions="{ record }">
+        <OrinArcoRowActions
+          :actions="modelRowActions"
+          @select="action => handleRowAction(action, record)"
+        />
+      </template>
+
+      <template #empty>
+        <OrinEmptyState
+          description="暂无模型资源，请先接入服务商模型"
+          action-label="添加模型资源"
+          @action="handleAdd"
+        />
+      </template>
+    </OrinArcoDataTable>
+
+    <OrinArcoDetailDrawer
+      v-model="modelDetailVisible"
+      title="模型详情"
+      :width="460"
+    >
+      <div v-if="selectedModel" class="model-detail-drawer">
+        <div class="detail-heading">
+          <span class="detail-provider">{{ selectedModel.provider }}</span>
+          <h3>{{ selectedModel.name }}</h3>
+          <p>{{ selectedModel.modelId }}</p>
+        </div>
+        <dl class="detail-list">
+          <div>
+            <dt>模型类型</dt>
+            <dd>{{ formatModelType(selectedModel.type) }}</dd>
+          </div>
+          <div>
+            <dt>运行状态</dt>
+            <dd>{{ selectedModel.status === 'ENABLED' ? '已启用' : '已禁用' }}</dd>
+          </div>
+          <div>
+            <dt>创建时间</dt>
+            <dd>{{ formatTime(selectedModel.createTime) }}</dd>
+          </div>
+          <div>
+            <dt>描述</dt>
+            <dd>{{ selectedModel.description || '-' }}</dd>
+          </div>
+        </dl>
+        <div class="drawer-actions">
+          <a-button @click="modelDetailVisible = false">关闭</a-button>
+          <a-button type="primary" @click="handleEdit(selectedModel)">编辑模型</a-button>
         </div>
       </div>
-
-      <el-dialog
-        v-model="pricingImportVisible"
-        title="批量导入定价 (从 SiliconFlow 后台)"
-        width="700px"
-        :close-on-click-modal="false"
-      >
-        <el-alert 
-          type="info" 
-          :closable="false" 
-          show-icon
-          style="margin-bottom: 20px;"
-        >
-          <template #title>
-            由于定价信息包含 Session 验证，无法自动抓取。请选择以下方式：
-          </template>
-        </el-alert>
-
-        <el-tabs v-model="importModeTab" type="border-card" class="import-help-tabs">
-          <el-tab-pane label="官方预设 (推荐)" name="preset">
-            <div class="help-content">
-              <p>ORIN 已内置常见模型在 SiliconFlow 上的参考价格。</p>
-              <el-select v-model="selectedPreset" placeholder="请选择预设配置" style="width: 100%; margin: 10px 0;">
-                <el-option
-                  v-for="p in PRESET_PRICING"
-                  :key="p.name"
-                  :label="p.name"
-                  :value="p.name"
-                />
-              </el-select>
-              <el-alert
-                title="注意：预设价格可能随时变动，建议仅作参考。"
-                type="warning"
-                :closable="false"
-                show-icon
-              />
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="从浏览器 Network 复制" name="manual">
-            <div class="help-content step-guide">
-              <!-- Steps same as before -->
-              <div class="step-item">
-                <div class="step-num">
-                  1
-                </div><div class="step-text">
-                  登录 <a href="https://cloud.siliconflow.cn/models" target="_blank">SiliconFlow 后台</a>。
-                </div>
-              </div>
-              <div class="step-item">
-                <div class="step-num">
-                  2
-                </div><div class="step-text">
-                  按 <kbd>F12</kbd> 打开 Network，刷新页面。
-                </div>
-              </div>
-              <div class="step-item">
-                <div class="step-num">
-                  3
-                </div><div class="step-text">
-                  筛选 <code>models</code> 请求 (GET)。
-                </div>
-              </div>
-              <div class="step-item">
-                <div class="step-num">
-                  4
-                </div><div class="step-text">
-                  选中 Response，全选复制 JSON，粘贴至下方。
-                </div>
-              </div>
-            </div>
-            <el-input 
-              v-model="pricingJson" 
-              type="textarea" 
-              :rows="6" 
-              placeholder="在此处粘贴 JSON 内容..." 
-              style="margin-top: 10px;"
-            />
-          </el-tab-pane>
-        </el-tabs>
-        
-        <template #footer>
-          <div class="dialog-footer">
-            <span v-if="importModeTab === 'manual'" class="tip-text">已粘贴 {{ pricingJson.length }} 字符</span>
-            <span v-else class="tip-text">将导入 {{ selectedPreset ? PRESET_PRICING.find(p => p.name === selectedPreset).data.length : 0 }} 条规则</span>
-            <div>
-              <el-button @click="pricingImportVisible = false">
-                取消
-              </el-button>
-              <el-button type="primary" :loading="importLoading" @click="() => { importMode = importModeTab; submitPricingImport(); }">
-                确认导入
-              </el-button>
-            </div>
-          </div>
-        </template>
-      </el-dialog>
-
-      <ResizableTable v-loading="loading" :data="filteredList" @selection-change="handleSelectionChange">
-        <el-table-column
-          type="selection"
-          width="55"
-          align="center"
-          fixed="left"
-        />
-        <el-table-column label="模型名称" min-width="220">
-          <template #default="{ row }">
-            <div class="model-info">
-              <el-icon class="text-secondary">
-                <component :is="row.type === 'LLM' ? ChatDotRound : Connection" />
-              </el-icon>
-              <div class="provider-tag" :class="row.provider.toLowerCase()">
-                {{ row.provider }}
-              </div>
-              <span class="name">{{ row.name }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="modelId" label="模型标识 (Model ID)" width="180" />
-        
-        <el-table-column
-          prop="type"
-          label="类型"
-          width="120"
-          align="center"
-        >
-          <template #default="{ row }">
-            <el-tag :type="getModelTypeTag(row.type)" effect="plain">
-              {{ formatModelType(row.type) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column
-          prop="status"
-          label="运行状态"
-          width="120"
-          align="center"
-        >
-          <template #default="{ row }">
-            <el-tag 
-              :type="row.status === 'ENABLED' ? 'success' : 'info'" 
-              class="clickable-tag"
-              @click="handleToggleStatus(row)"
-            >
-              {{ row.status === 'ENABLED' ? '已启用' : '已禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column
-          prop="createTime"
-          label="创建时间"
-          width="160"
-          align="center"
-        >
-          <template #default="{ row }">
-            {{ formatTime(row.createTime) }}
-          </template>
-        </el-table-column>
-        
-        <el-table-column
-          label="操作"
-          width="220"
-          align="center"
-          fixed="right"
-        >
-          <template #default="{ row }">
-            <el-button
-              link
-              type="primary"
-              :icon="Cpu"
-              @click="handleTestModel(row)"
-            >
-              测试
-            </el-button>
-            <el-button
-              link
-              type="primary"
-              :icon="Edit"
-              @click="handleEdit(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              link
-              type="danger"
-              :icon="Delete"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </ResizableTable>
-    </el-card>
+    </OrinArcoDetailDrawer>
 
     <!-- Form Dialog - 向导式新增模型 -->
-    <el-dialog
+    <OrinArcoFormDialog
+      ref="formRef"
       v-model="dialogVisible"
       :title="form.id ? '编辑模型' : '新增模型'"
       width="700px"
+      :model="form"
+      :rules="rules"
       top="5vh"
       class="model-edit-dialog"
       destroy-on-close
@@ -294,7 +214,7 @@
           :class="{ 'active': wizardStep === index, 'completed': wizardStep > index }"
         >
           <div class="step-icon-wrapper">
-            <el-icon><component :is="step.icon" /></el-icon>
+            <span class="inline-icon"><component :is="step.icon" /></span>
           </div>
           <div class="step-text">
             <span class="step-label">Step 0{{ index + 1 }}</span>
@@ -306,15 +226,15 @@
 
       <!-- Step 01: 选择供应商 -->
       <div v-show="wizardStep === 0" class="step-content">
-        <el-form-item label="选择供应商" prop="provider">
-          <el-select
+        <a-form-item label="选择供应商" field="provider">
+          <a-select
             v-model="form.provider"
             placeholder="请选择模型供应商"
             size="large"
             style="width: 100%"
             @change="handleProviderChange"
           >
-            <el-option
+            <a-option
               v-for="provider in providerOptions"
               :key="provider.value"
               :label="provider.label"
@@ -322,9 +242,9 @@
               class="provider-option"
             >
               <div class="provider-option-content">
-                <el-icon class="provider-icon">
+                <span class="inline-icon">
                   <component :is="provider.icon" />
-                </el-icon>
+                </span>
                 <div class="provider-info">
                   <div class="provider-label">
                     {{ provider.label }}
@@ -334,32 +254,32 @@
                   </div>
                 </div>
               </div>
-            </el-option>
-          </el-select>
-        </el-form-item>
+            </a-option>
+          </a-select>
+        </a-form-item>
 
-        <el-form-item label="模型类型" prop="type">
-          <el-select
+        <a-form-item label="模型类型" field="type">
+          <a-select
             v-model="form.type"
             placeholder="请选择模型类型"
             size="large"
             style="width: 100%"
           >
-            <el-option label="对话 (Chat/LLM)" value="CHAT" />
-            <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
-            <el-option label="结果重排 (Reranker)" value="RERANKER" />
-            <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
-            <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
-            <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
-          </el-select>
-        </el-form-item>
+            <a-option label="对话 (Chat/LLM)" value="CHAT" />
+            <a-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
+            <a-option label="结果重排 (Reranker)" value="RERANKER" />
+            <a-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
+            <a-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
+            <a-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
+          </a-select>
+        </a-form-item>
       </div>
 
       <!-- Step 02: 配置密钥 -->
       <div v-show="wizardStep === 1" class="step-content">
         <!-- 有已保存密钥时 -->
         <template v-if="savedKeys.length > 0">
-          <el-alert
+          <a-alert
             title="使用已保存密钥"
             type="info"
             description="选择已保存的 API 密钥，或手动输入新的密钥"
@@ -368,30 +288,30 @@
             style="margin-bottom: 16px;"
           />
 
-          <el-form-item label="选择已保存密钥">
-            <el-select
+          <a-form-item label="选择已保存密钥">
+            <a-select
               v-model="selectedSavedKeyId"
               placeholder="选择已保存的凭据"
               size="large"
               style="width: 100%"
-              clearable
+              allow-clear
               @change="onSavedKeyChange"
             >
-              <el-option
+              <a-option
                 v-for="key in savedKeys"
                 :key="key.id"
                 :label="`${key.name} (${key.provider})`"
                 :value="key.id"
               />
-            </el-select>
-          </el-form-item>
+            </a-select>
+          </a-form-item>
 
-          <el-divider>或手动输入</el-divider>
+          <a-divider>或手动输入</a-divider>
         </template>
 
         <!-- 无密钥时引导 -->
         <template v-else>
-          <el-alert
+          <a-alert
             title="暂无 API 密钥"
             type="warning"
             description="请先添加供应商密钥，以便快速获取模型列表。也可以直接手动输入模型标识符。"
@@ -399,79 +319,79 @@
             show-icon
             style="margin-bottom: 16px;"
           />
-          <el-button
+          <a-button
             type="primary"
             plain
             :icon="Link"
             @click="keyDialogVisible = true; fetchExternalKeys()"
           >
             前往添加 API 密钥
-          </el-button>
-          <el-divider>或直接手动输入</el-divider>
+          </a-button>
+          <a-divider>或直接手动输入</a-divider>
         </template>
 
-        <el-form-item label="API Base URL">
-          <el-input
+        <a-form-item label="API Base URL">
+          <a-input
             v-model="fetchConfig.baseUrl"
             placeholder="例如: https://api.openai.com/v1"
             size="large"
           >
             <template #prefix>
-              <el-icon><Link /></el-icon>
+              <span class="inline-icon"><Link /></span>
             </template>
-          </el-input>
-        </el-form-item>
+          </a-input>
+        </a-form-item>
 
-        <el-form-item label="API Key">
-          <el-input
+        <a-form-item label="API Key">
+          <a-input
             v-model="fetchConfig.apiKey"
             type="password"
-            show-password
+            allow-clear
             placeholder="sk-..."
             size="large"
           >
             <template #prefix>
-              <el-icon><Key /></el-icon>
+              <span class="inline-icon"><Key /></span>
             </template>
-          </el-input>
-        </el-form-item>
+          </a-input>
+        </a-form-item>
       </div>
 
       <!-- Step 03: 获取并选择模型 -->
       <div v-show="wizardStep === 2" class="step-content">
-        <el-form-item label="模型标识符">
-          <el-input
+        <a-form-item label="模型标识符">
+          <a-input
             v-model="form.modelId"
             placeholder="例如: gpt-4o, llama3:8b, text-embedding-3-small"
             size="large"
           >
             <template #prefix>
-              <el-icon><Cpu /></el-icon>
+              <span class="inline-icon"><Cpu /></span>
             </template>
             <template #append>
-              <el-button :loading="isFetchingModels" @click="handleFetchFromApi">
+              <a-button :loading="isFetchingModels" @click="handleFetchFromApi">
                 从 API 获取
-              </el-button>
+              </a-button>
             </template>
-          </el-input>
+          </a-input>
           <template #extra>
             <span style="color: var(--neutral-gray-500); font-size: 12px;">
               点击"从 API 获取"按钮自动获取供应商提供的所有模型
             </span>
           </template>
-        </el-form-item>
+        </a-form-item>
 
         <!-- 获取到的模型列表 -->
         <div v-if="availableModels.length > 0" class="fetched-models-section">
           <div class="fetched-header">
             <span>发现 {{ availableModels.length }} 个模型：</span>
-            <el-button type="success" size="small" @click="handleImportAll">
+            <a-button status="success" size="small" @click="handleImportAll">
               一键全部导入
-            </el-button>
+            </a-button>
           </div>
-          <el-scrollbar max-height="200px">
+          <div class="arco-scroll-panel">
             <div class="model-grid">
-              <el-tag
+              <a-tag
                 v-for="m in availableModels"
                 :key="m.id"
                 size="large"
@@ -480,18 +400,18 @@
                 @click="onSelectFetchedModel(m)"
               >
                 {{ m.id }}
-              </el-tag>
+              </a-tag>
             </div>
-          </el-scrollbar>
+          </div>
         </div>
       </div>
 
       <!-- 定价配置 (可选，任何步骤都可访问) -->
       <div v-if="showPricing" class="pricing-section">
-        <el-divider />
-        <el-collapse v-model="pricingCollapse">
-          <el-collapse-item title="高级配置：定价策略 (可选)" name="pricing">
-            <el-alert
+        <a-divider />
+        <a-collapse v-model="pricingCollapse">
+          <a-collapse-item title="高级配置：定价策略 (可选)" name="pricing">
+            <a-alert
               title="此处只配置默认租户组的价格，高级配置请前往系统设置。"
               type="info"
               :closable="false"
@@ -499,105 +419,105 @@
               style="margin-bottom: 16px;"
             />
 
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="计费模式">
-                  <el-radio-group v-model="pricingForm.billingMode">
-                    <el-radio-button label="PER_TOKEN">Token计费</el-radio-button>
-                    <el-radio-button label="PER_REQUEST">按次计费</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="结算货币">
-                  <el-select v-model="pricingForm.currency" style="width: 100%">
-                    <el-option label="USD ($)" value="USD" />
-                    <el-option label="CNY (¥)" value="CNY" />
-                    <el-option label="EUR (€)" value="EUR" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-            </el-row>
+            <a-row :gutter="20">
+              <a-col :span="12">
+                <a-form-item label="计费模式">
+                  <a-radio-group v-model="pricingForm.billingMode">
+                    <a-radio label="PER_TOKEN">Token计费</a-radio>
+                    <a-radio label="PER_REQUEST">按次计费</a-radio>
+                  </a-radio-group>
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="结算货币">
+                  <a-select v-model="pricingForm.currency" style="width: 100%">
+                    <a-option label="USD ($)" value="USD" />
+                    <a-option label="CNY (¥)" value="CNY" />
+                    <a-option label="EUR (€)" value="EUR" />
+                  </a-select>
+                </a-form-item>
+              </a-col>
+            </a-row>
 
-            <el-row :gutter="20">
-              <el-col :span="12">
+            <a-row :gutter="20">
+              <a-col :span="12">
                 <div class="pricing-header">
                   成本 (Internal Cost)
                 </div>
-                <el-form-item label="Input / 1k">
-                  <el-input-number
+                <a-form-item label="Input / 1k">
+                  <a-input-number
                     v-model="pricingForm.inputCostUnit"
                     :precision="6"
                     :step="0.001"
                     style="width: 100%"
                   />
-                </el-form-item>
-                <el-form-item label="Output / 1k">
-                  <el-input-number
+                </a-form-item>
+                <a-form-item label="Output / 1k">
+                  <a-input-number
                     v-model="pricingForm.outputCostUnit"
                     :precision="6"
                     :step="0.001"
                     style="width: 100%"
                   />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
                 <div class="pricing-header">
                   报价 (External Price)
                 </div>
-                <el-form-item label="Input / 1k">
-                  <el-input-number
+                <a-form-item label="Input / 1k">
+                  <a-input-number
                     v-model="pricingForm.inputPriceUnit"
                     :precision="6"
                     :step="0.001"
                     style="width: 100%"
                   />
-                </el-form-item>
-                <el-form-item label="Output / 1k">
-                  <el-input-number
+                </a-form-item>
+                <a-form-item label="Output / 1k">
+                  <a-input-number
                     v-model="pricingForm.outputPriceUnit"
                     :precision="6"
                     :step="0.001"
                     style="width: 100%"
                   />
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-collapse-item>
-        </el-collapse>
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-collapse-item>
+        </a-collapse>
       </div>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">
+          <a-button @click="dialogVisible = false">
             取消
-          </el-button>
-          <el-button v-if="wizardStep > 0" @click="wizardStep--">
+          </a-button>
+          <a-button v-if="wizardStep > 0" @click="wizardStep--">
             上一步
-          </el-button>
-          <el-button v-if="wizardStep < 2" type="primary" @click="nextStep">
+          </a-button>
+          <a-button v-if="wizardStep < 2" type="primary" @click="nextStep">
             下一步
-          </el-button>
-          <el-button
+          </a-button>
+          <a-button
             v-if="wizardStep === 2"
             type="primary"
             :loading="submitting"
             @click="handleSubmit"
           >
             确认保存
-          </el-button>
+          </a-button>
         </div>
       </template>
-    </el-dialog>
+    </OrinArcoFormDialog>
 
     <!-- Test Result Dialog -->
-    <el-dialog v-model="testResultVisible" title="模型连通性测试" width="500px">
+    <OrinArcoFormDialog v-model="testResultVisible" title="模型连通性测试" width="500px">
       <div v-if="testResult" class="test-result-body">
         <div class="result-item">
           <span class="label">测试结果:</span>
-          <el-tag :type="testResult.success ? 'success' : 'danger'">
+          <a-tag :type="testResult.success ? 'success' : 'danger'">
             {{ testResult.success ? '成功' : '失败' }}
-          </el-tag>
+          </a-tag>
         </div>
         <div class="result-item">
           <span class="label">响应耗时:</span>
@@ -613,14 +533,14 @@
         </div>
       </div>
       <template #footer>
-        <el-button type="primary" @click="testResultVisible = false">
+        <a-button type="primary" @click="testResultVisible = false">
           完成
-        </el-button>
+        </a-button>
       </template>
-    </el-dialog>
+    </OrinArcoFormDialog>
 
     <!-- API 密钥管理 Dialog -->
-    <el-dialog
+    <OrinArcoFormDialog
       v-model="keyDialogVisible"
       title="API 密钥管理"
       width="800px"
@@ -633,140 +553,120 @@
       </div>
 
       <div style="margin-bottom: 16px;">
-        <el-button type="primary" :icon="Plus" @click="openKeyForm()">
+        <a-button type="primary" @click="openKeyForm()">
           添加 API 密钥
-        </el-button>
+        </a-button>
       </div>
 
-      <el-table
-        v-loading="keyLoading"
+      <OrinArcoDataTable
+        :loading="keyLoading"
         :data="externalKeys"
-        border
-        stripe
+        :columns="keyColumns"
+        row-key="id"
       >
-        <el-table-column prop="name" label="密钥名称" min-width="150" />
-        <el-table-column prop="provider" label="供应商" width="120">
-          <template #default="{ row }">
-            <el-tag size="small">
-              {{ row.provider }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="API密钥" min-width="180">
-          <template #default="{ row }">
-            <code class="key-preview">
-              {{ isKeyVisible(row.id) ? row.apiKey : maskKey(row.apiKey) }}
-            </code>
-            <el-button link :icon="isKeyVisible(row.id) ? Hide : View" @click="toggleKeyVisibility(row.id)" />
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="baseUrl"
-          label="端点地址"
-          min-width="150"
-          show-overflow-tooltip
-        />
-        <el-table-column
-          prop="enabled"
-          label="状态"
-          width="80"
-          align="center"
-        >
-          <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="toggleKeyStatus(row)" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              size="small"
-              type="primary"
-              link
-              @click="openKeyForm(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              size="small"
-              type="danger"
-              link
-              @click="deleteKey(row)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #provider="{ record }">
+          <OrinArcoSemanticTag family="provider" :value="record.provider">
+            {{ record.provider }}
+          </OrinArcoSemanticTag>
+        </template>
+        <template #keyPreview="{ record }">
+          <code class="key-preview">
+            {{ isKeyVisible(record.id) ? record.apiKey : maskKey(record.apiKey) }}
+          </code>
+          <a-button type="text" size="mini" @click="toggleKeyVisibility(record.id)">
+            {{ isKeyVisible(record.id) ? '隐藏' : '显示' }}
+          </a-button>
+        </template>
+        <template #enabled="{ record }">
+          <a-switch v-model="record.enabled" @change="toggleKeyStatus(record)" />
+        </template>
+        <template #actions="{ record }">
+          <OrinArcoRowActions
+            :actions="keyRowActions"
+            @select="action => handleKeyRowAction(action, record)"
+          />
+        </template>
+      </OrinArcoDataTable>
 
       <template #footer>
-        <el-button @click="keyDialogVisible = false">
+        <a-button @click="keyDialogVisible = false">
           关闭
-        </el-button>
+        </a-button>
       </template>
-    </el-dialog>
+    </OrinArcoFormDialog>
 
     <!-- API 密钥编辑表单 Dialog -->
-    <el-dialog v-model="keyFormVisible" :title="keyFormData.id ? '编辑 API 密钥' : '添加 API 密钥'" width="500px">
-      <el-form ref="keyFormRef" :model="keyFormData" label-position="top">
-        <el-form-item label="密钥名称" prop="name">
-          <el-input v-model="keyFormData.name" placeholder="例如: 我的 OpenAI 主密钥" />
-        </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="供应商" prop="provider">
-              <el-select v-model="keyFormData.provider" style="width: 100%">
-                <el-option label="OpenAI" value="OpenAI" />
-                <el-option label="DeepSeek" value="DeepSeek" />
-                <el-option label="SiliconFlow" value="SiliconFlow" />
-                <el-option label="Anthropic" value="Anthropic" />
-                <el-option label="Groq" value="Groq" />
-                <el-option label="Ollama (本地)" value="Ollama" />
-                <el-option label="Dify" value="Dify" />
-                <el-option label="智谱 AI" value="Zhipu" />
-                <el-option label="阿里云" value="Aliyun" />
-                <el-option label="百度" value="Baidu" />
-                <el-option label="腾讯云" value="Tencent" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="Base URL (可选)">
-              <el-input v-model="keyFormData.baseUrl" placeholder="默认官方地址" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="API Key" prop="apiKey">
-          <el-input
+    <OrinArcoFormDialog
+      ref="keyFormRef"
+      v-model="keyFormVisible"
+      :title="keyFormData.id ? '编辑 API 密钥' : '添加 API 密钥'"
+      width="500px"
+      :model="keyFormData"
+    >
+        <a-form-item label="密钥名称" field="name">
+          <a-input v-model="keyFormData.name" placeholder="例如: 我的 OpenAI 主密钥" />
+        </a-form-item>
+        <a-row :gutter="20">
+          <a-col :span="12">
+            <a-form-item label="供应商" field="provider">
+              <a-select v-model="keyFormData.provider" style="width: 100%">
+                <a-option label="OpenAI" value="OpenAI" />
+                <a-option label="DeepSeek" value="DeepSeek" />
+                <a-option label="SiliconFlow" value="SiliconFlow" />
+                <a-option label="Anthropic" value="Anthropic" />
+                <a-option label="Groq" value="Groq" />
+                <a-option label="Ollama (本地)" value="Ollama" />
+                <a-option label="Dify" value="Dify" />
+                <a-option label="智谱 AI" value="Zhipu" />
+                <a-option label="阿里云" value="Aliyun" />
+                <a-option label="百度" value="Baidu" />
+                <a-option label="腾讯云" value="Tencent" />
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="Base URL (可选)">
+              <a-input v-model="keyFormData.baseUrl" placeholder="默认官方地址" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="API Key" field="apiKey">
+          <a-input
             v-model="keyFormData.apiKey"
             type="password"
-            show-password
+            allow-clear
             placeholder="sk-..."
           />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="keyFormData.description" type="textarea" :rows="2" />
-        </el-form-item>
-      </el-form>
+        </a-form-item>
+        <a-form-item label="备注">
+          <a-textarea v-model="keyFormData.description" :rows="2" />
+        </a-form-item>
       <template #footer>
-        <el-button @click="keyFormVisible = false">
+        <a-button @click="keyFormVisible = false">
           取消
-        </el-button>
-        <el-button type="primary" @click="saveKey">
+        </a-button>
+        <a-button type="primary" @click="saveKey">
           保存
-        </el-button>
+        </a-button>
       </template>
-    </el-dialog>
+    </OrinArcoFormDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Plus, Edit, Delete, Search, Box, Money, Link, Key, View, Hide, ChatDotRound, Connection, Cpu, Moon, Star, Platform, Monitor, Opportunity, Sunrise } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
-import ResizableTable from '@/components/ResizableTable.vue';
+import { Link, Key, Connection, Cpu, Moon, Star, Platform, Monitor, Opportunity, Sunrise } from '@element-plus/icons-vue';
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue';
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';
+import OrinArcoDataTable from '@/ui/arco/OrinArcoDataTable.vue';
+import OrinArcoDetailDrawer from '@/ui/arco/OrinArcoDetailDrawer.vue';
+import OrinArcoFilterGrid from '@/ui/arco/OrinArcoFilterGrid.vue';
+import OrinArcoFormDialog from '@/ui/arco/OrinArcoFormDialog.vue';
+import OrinArcoRowActions from '@/ui/arco/OrinArcoRowActions.vue';
+import OrinArcoSemanticTag from '@/ui/arco/OrinArcoSemanticTag.vue';
 import { getModelList, saveModel, deleteModel, toggleModelStatus, fetchModels } from '@/api/model';
-import { getPricingConfig, getPricingByProvider, savePricingConfig } from '@/api/monitor';
+import { getPricingConfig, savePricingConfig } from '@/api/monitor';
 import { getModelConfig } from '@/api/modelConfig';
 import { getExternalKeys, saveExternalKey, deleteExternalKey, toggleExternalKeyStatus } from '@/api/apiKey';
 import { getProviderList } from '@/api/system';
@@ -786,12 +686,16 @@ const fetchConfig = reactive({
 });
 const testResultVisible = ref(false);
 const testResult = ref(null);
+const modelDetailVisible = ref(false);
+const selectedModel = ref(null);
 const modelList = ref([]);
 const searchQuery = ref('');
+const providerFilter = ref('ALL');
 const typeFilter = ref('ALL');
+const statusFilter = ref('ALL');
+const sortMode = ref('created_desc');
 const dialogVisible = ref(false);
 const formRef = ref(null);
-const activeTab = ref('basic');
 
 // 向导步骤配置
 const wizardStep = ref(0);
@@ -860,6 +764,36 @@ const rules = {
   modelId: [{ required: true, message: '请输入 Model ID', trigger: 'blur' }]
 };
 
+const modelColumns = [
+  { title: '模型名称', dataIndex: 'name', width: 300, slotName: 'name' },
+  { title: '模型标识 (Model ID)', dataIndex: 'modelId', width: 320, ellipsis: true, tooltip: true },
+  { title: '类型', dataIndex: 'type', width: 124, slotName: 'type' },
+  { title: '运行状态', dataIndex: 'status', width: 120, slotName: 'status' },
+  { title: '创建时间', dataIndex: 'createTime', width: 168, slotName: 'createTime' },
+  { title: '操作', dataIndex: 'actions', width: 168, align: 'left', fixed: 'right', slotName: 'actions' }
+];
+
+const keyColumns = [
+  { title: '密钥名称', dataIndex: 'name', minWidth: 150 },
+  { title: '供应商', dataIndex: 'provider', width: 120, slotName: 'provider' },
+  { title: 'API 密钥', dataIndex: 'apiKey', minWidth: 220, slotName: 'keyPreview' },
+  { title: '端点地址', dataIndex: 'baseUrl', minWidth: 180, ellipsis: true, tooltip: true },
+  { title: '状态', dataIndex: 'enabled', width: 90, align: 'center', slotName: 'enabled' },
+  { title: '操作', dataIndex: 'actions', width: 130, align: 'center', fixed: 'right', slotName: 'actions' }
+];
+
+const modelRowActions = [
+  { key: 'detail', label: '查看详情' },
+  { key: 'test', label: '连通测试' },
+  { key: 'edit', label: '编辑配置' },
+  { key: 'delete', label: '删除', danger: true }
+];
+
+const keyRowActions = [
+  { key: 'edit', label: '编辑配置' },
+  { key: 'delete', label: '删除', danger: true }
+];
+
 const fetchData = async () => {
   loading.value = true;
   try {
@@ -873,31 +807,92 @@ const fetchData = async () => {
   }
 };
 
-const handleTabChange = async (val) => {
-  loading.value = true;
-  await new Promise(r => setTimeout(r, 300)); // Smooth transition
-  fetchData();
-  ElMessage.info(`已切换至: ${val === 'ALL' ? '全部模型' : val}`);
-};
+const providerFilterOptions = computed(() => {
+  return Array.from(new Set(modelList.value.map(item => item.provider).filter(Boolean))).sort();
+});
 
 const filteredList = computed(() => {
   let list = modelList.value;
+  if (providerFilter.value !== 'ALL') {
+    list = list.filter(m => m.provider === providerFilter.value);
+  }
   if (typeFilter.value !== 'ALL') {
     list = list.filter(m => m.type === typeFilter.value);
   }
+  if (statusFilter.value !== 'ALL') {
+    list = list.filter(m => m.status === statusFilter.value);
+  }
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
-    list = list.filter(m => m.name.toLowerCase().includes(q) || m.provider.toLowerCase().includes(q));
+    list = list.filter(m => {
+      return [
+        m.name,
+        m.modelId,
+        m.provider,
+        formatModelType(m.type)
+      ].some(value => String(value || '').toLowerCase().includes(q));
+    });
   }
   return list;
 });
 
-const stats = computed(() => [
-  { label: '纳管模型总数', value: modelList.value.length },
-  { label: 'Chat 模型', value: modelList.value.filter(m => (m.type === 'CHAT' || m.type === 'LLM') && m.status === 'ENABLED').length },
-  { label: 'Embedding', value: modelList.value.filter(m => m.type === 'EMBEDDING').length },
-  { label: '多模态/其他', value: modelList.value.filter(m => !['CHAT', 'LLM', 'EMBEDDING'].includes(m.type)).length }
-]);
+const resetFilters = () => {
+  providerFilter.value = 'ALL';
+  typeFilter.value = 'ALL';
+  statusFilter.value = 'ALL';
+  sortMode.value = 'created_desc';
+  searchQuery.value = '';
+};
+
+const toTimestamp = (value) => {
+  if (!value) return 0;
+  if (Array.isArray(value)) {
+    return new Date(value[0], value[1] - 1, value[2], value[3] || 0, value[4] || 0, value[5] || 0).getTime();
+  }
+  return new Date(String(value).replace(' ', 'T')).getTime() || 0;
+};
+
+const compareText = (left, right) => String(left || '').localeCompare(String(right || ''), 'zh-CN');
+
+const displayedList = computed(() => {
+  const list = [...filteredList.value];
+  const sorters = {
+    created_desc: (a, b) => toTimestamp(b.createTime) - toTimestamp(a.createTime),
+    created_asc: (a, b) => toTimestamp(a.createTime) - toTimestamp(b.createTime),
+    name_asc: (a, b) => compareText(a.name, b.name),
+    name_desc: (a, b) => compareText(b.name, a.name),
+    provider_asc: (a, b) => compareText(a.provider, b.provider),
+    type_asc: (a, b) => compareText(formatModelType(a.type), formatModelType(b.type))
+  };
+  return list.sort(sorters[sortMode.value] || sorters.created_desc);
+});
+
+const modelHeaderSummary = computed(() => {
+  const enabled = filteredList.value.filter(item => item.status === 'ENABLED').length;
+  const disabled = filteredList.value.length - enabled;
+  const providers = new Set(filteredList.value.map(item => item.provider).filter(Boolean)).size;
+  const enabledRate = filteredList.value.length ? `${Math.round((enabled / filteredList.value.length) * 100)}%` : '0%';
+  const providerCounts = filteredList.value.reduce((map, item) => {
+    if (!item.provider) return map;
+    map.set(item.provider, (map.get(item.provider) || 0) + 1);
+    return map;
+  }, new Map());
+  const typeCounts = filteredList.value.reduce((map, item) => {
+    if (!item.type) return map;
+    map.set(item.type, (map.get(item.type) || 0) + 1);
+    return map;
+  }, new Map());
+  const topProvider = [...providerCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  const topType = [...typeCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  return [
+    { label: '当前结果', value: `${filteredList.value.length}/${modelList.value.length}` },
+    { label: '启用率', value: enabledRate },
+    { label: '已禁用', value: disabled },
+    { label: '供应商', value: providers },
+    { label: '主供应商', value: topProvider ? `${topProvider[0]} ${topProvider[1]}` : '-' },
+    { label: '主类型', value: topType ? `${formatModelType(topType[0])} ${topType[1]}` : '-' }
+  ];
+});
 
 const handleAdd = async () => {
   // 跳转到全屏向导页面
@@ -1014,6 +1009,14 @@ const deleteKey = async (row) => {
   } catch (e) { /* cancel */ }
 };
 
+const handleKeyRowAction = (action, row) => {
+  const handlers = {
+    edit: openKeyForm,
+    delete: deleteKey
+  };
+  handlers[action]?.(row);
+};
+
 const toggleKeyStatus = async (row) => {
   try {
     await toggleExternalKeyStatus(row.id);
@@ -1075,25 +1078,25 @@ const onSelectFetchedModel = (m) => {
 
 const handleImportAll = async () => {
   if (!form.provider) return ElMessage.warning('请先选择供应商');
-  
+
   const count = availableModels.value.length;
   await ElMessageBox.confirm(`确认将获取到的 ${count} 个模型全部导入吗？`, '批量导入确认', {
     confirmButtonText: '立即导入',
     cancelButtonText: '取消',
     type: 'info'
   });
-  
+
   submitting.value = true;
   let successCount = 0;
   try {
     const provider = form.provider;
-    
+
     // Check for existing models to avoid duplicates (optional but better)
     const existingModelIds = modelList.value.map(m => m.modelId);
-    
+
     for (const m of availableModels.value) {
       if (existingModelIds.includes(m.id)) continue;
-      
+
       // Use inferred type if available, otherwise fallback to current form selection or CHAT
       const modelType = m.type || form.type || 'CHAT';
 
@@ -1107,7 +1110,7 @@ const handleImportAll = async () => {
       });
       successCount++;
     }
-    
+
     ElMessage.success(`导入完成：新添加 ${successCount} 个模型`);
     dialogVisible.value = false;
     fetchData();
@@ -1125,7 +1128,7 @@ const handleEdit = async (row) => {
   wizardStep.value = 2; // Jump to details/pricing
   resetPricingForm();
   dialogVisible.value = true;
-  
+
   // 2. Fetch pricing in background
   try {
     const pid = row.modelId;
@@ -1133,7 +1136,7 @@ const handleEdit = async (row) => {
     const res = await getPricingConfig();
     const list = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
     const data = Array.isArray(list) ? list.find(p => p.providerId === pid && p.tenantGroup === 'default') : null;
-    
+
     if (data) {
         Object.assign(pricingForm, data);
         console.log('Pricing loaded successfully');
@@ -1141,22 +1144,27 @@ const handleEdit = async (row) => {
         pricingForm.providerId = pid;
         console.log('No existing pricing rule, using defaults');
     }
-  } catch(e) { 
+  } catch(e) {
     console.error('Failed to load pricing info:', e);
   }
 };
 
+const openModelDetail = (row) => {
+  selectedModel.value = row;
+  modelDetailVisible.value = true;
+};
+
 const handleSubmit = async () => {
   if (!formRef.value) return;
-  
+
   try {
-    const valid = await formRef.value.validate().catch(() => false);
-    if (!valid) return;
+    const errors = await formRef.value.validate();
+    if (errors) return;
 
     submitting.value = true;
     // 1. Save Model
     await saveModel(form);
-    
+
     // 2. Save Pricing (only if modelId is set and we have input values)
     if (form.modelId && (pricingForm.inputCostUnit > 0 || pricingForm.outputCostUnit > 0 || pricingForm.id)) {
         pricingForm.providerId = form.modelId;
@@ -1203,16 +1211,22 @@ const handleTestModel = async (row) => {
   }
 };
 
+const handleRowAction = (action, row) => {
+  const handlers = {
+    detail: openModelDetail,
+    test: handleTestModel,
+    edit: handleEdit,
+    delete: handleDelete
+  };
+  handlers[action]?.(row);
+};
+
 const handleDelete = (row) => {
   ElMessageBox.confirm(`确定删除模型资源 "${row.name}" 吗?`, '警告', { type: 'warning' }).then(async () => {
     await deleteModel(row.id);
     ElMessage.success('删除成功');
     fetchData();
   });
-};
-
-const handleSelectionChange = (selection) => {
-  selectedIds.value = selection.map(item => item.id);
 };
 
 const handleBatchDelete = () => {
@@ -1239,20 +1253,6 @@ const handleBatchDelete = () => {
   });
 };
 
-const getModelTypeTag = (type) => {
-  const map = {
-    'CHAT': 'primary',
-    'LLM': 'primary',
-    'EMBEDDING': 'warning',
-    'RERANKER': 'info',
-    'TEXT_TO_IMAGE': 'success',
-    'TEXT_TO_VIDEO': 'danger',
-    'SPEECH_TO_TEXT': '',
-    'TEXT_TO_SPEECH': ''
-  };
-  return map[type] || 'info';
-};
-
 const formatModelType = (type) => {
   const map = {
     'CHAT': '对话 (Chat)',
@@ -1269,7 +1269,7 @@ const formatModelType = (type) => {
 
 const formatTime = (ts) => {
   if (!ts) return '-';
-  
+
   // Handle Array format [yyyy, MM, dd, HH, mm, ss]
   if (Array.isArray(ts)) {
     // Note: Month in JS Date is 0-indexed
@@ -1292,159 +1292,37 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('page-refresh', fetchData);
 });
-
-
-/* --- Batch Import Pricing Logic --- */
-const pricingImportVisible = ref(false);
-const pricingJson = ref('');
-const importLoading = ref(false);
-const importMode = ref('manual'); // 'manual' | 'preset'
-const selectedPreset = ref('');
-
-// Updated 2024-05 Pricing (Approximate)
-// Unit: CNY per 1M tokens (stored as per 1k in DB, so we divide by 1000)
-// This list covers popular free and paid models on SiliconFlow.
-const PRESET_PRICING = [
-  { 
-    name: 'SiliconFlow: DeepSeek V3/R1 (Promotional/Free)', 
-    data: [
-      { id: 'deepseek-ai/DeepSeek-V3', pricing: { input: 0, output: 0 } },
-      { id: 'deepseek-ai/DeepSeek-R1', pricing: { input: 0, output: 0 } },
-      { id: 'deepseek-ai/DeepSeek-R1-Distill-Llama-8B', pricing: { input: 0, output: 0 } },
-      { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', pricing: { input: 0, output: 0 } },
-      { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B', pricing: { input: 0, output: 0 } }
-    ]
-  },
-  {
-    name: 'SiliconFlow: Qwen 2.5 (Commercial)',
-    data: [
-      { id: 'Qwen/Qwen2.5-7B-Instruct', pricing: { input: 1, output: 2 } }, // Example prices
-      { id: 'Qwen/Qwen2.5-72B-Instruct', pricing: { input: 4, output: 14 } },
-      { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', pricing: { input: 2, output: 6 } }
-    ]
-  },
-  {
-    name: 'SiliconFlow: Yi (01.AI)',
-    data: [
-      { id: '01-ai/Yi-1.5-34B-Chat-16K', pricing: { input: 2, output: 12 } },
-      { id: '01-ai/Yi-1.5-9B-Chat-16K', pricing: { input: 1, output: 2 } }
-    ]
-  },
-  {
-    name: 'SiliconFlow: All Known Models (Common)',
-    data: [
-       // DeepSeek
-       { id: 'deepseek-ai/DeepSeek-V3', pricing: { input: 0, output: 0 } },
-       { id: 'deepseek-ai/DeepSeek-R1', pricing: { input: 0, output: 0 } },
-       // Qwen
-       { id: 'Qwen/Qwen2.5-72B-Instruct', pricing: { input: 4.13, output: 13.75 } }, // approx CNY
-       { id: 'Qwen/Qwen2.5-32B-Instruct', pricing: { input: 1.25, output: 3.75 } },
-       { id: 'Qwen/Qwen2.5-7B-Instruct', pricing: { input: 0.35, output: 0.7 } },
-       // GLM
-       { id: 'THUDM/glm-4-9b-chat', pricing: { input: 1, output: 1 } },
-       // Llama
-       { id: 'meta-llama/Meta-Llama-3.1-8B-Instruct', pricing: { input: 0, output: 0 } }, // Often free tier
-       { id: 'meta-llama/Meta-Llama-3.1-405B-Instruct', pricing: { input: 25, output: 75 } },
-       // Vendor Specific
-       { id: 'internlm/internlm2_5-7b-chat', pricing: { input: 0, output: 0 } }
-    ]
-  }
-];
-
-const handleImportPricing = () => {
-  pricingJson.value = '';
-  importMode.value = 'manual';
-  selectedPreset.value = '';
-  pricingImportVisible.value = true;
-};
-
-const submitPricingImport = async () => {
-  let sourceData = [];
-
-  if (importMode.value === 'preset') {
-      if (!selectedPreset.value) return ElMessage.warning('请选择一个预设配置');
-      const preset = PRESET_PRICING.find(p => p.name === selectedPreset.value);
-      if (preset) sourceData = preset.data;
-  } else {
-      if (!pricingJson.value.trim()) return ElMessage.warning('请输入 JSON 内容');
-      try {
-        let data = JSON.parse(pricingJson.value);
-        if (data.data && Array.isArray(data.data)) data = data.data;
-        else if (!Array.isArray(data)) throw new Error('Format error');
-        sourceData = data;
-      } catch(e) {
-        return ElMessage.error('JSON 解析失败: ' + e.message);
-      }
-  }
-
-  importLoading.value = true;
-  let successCount = 0;
-
-  try {
-    const existingModels = modelList.value;
-    
-    for (const item of sourceData) {
-       const pid = item.id || item.model || item.model_id;
-       if (!pid) continue;
-
-       // Attempt to read pricing (Per Million assumed if from preset or simple numbers)
-       let input = 0, output = 0;
-       
-       if (item.pricing) {
-           input = Number(item.pricing.input || 0);
-           output = Number(item.pricing.output || 0);
-       } else if (item.price) {
-           input = Number(item.price.input || 0);
-           output = Number(item.price.output || 0);
-       }
-       
-       // Note: Cloud APIs usually quote per 1M tokens. 
-       // Our DB stores "Unit Cost per 1k".
-       // So we divide by 1000.
-       
-       // However, if the user manually inputs per-1k prices in JSON, we might under-price.
-       // But typically JSON dumps from APIs are Per-1M (e.g. 0.5 CNY/1M).
-       
-       // Filter: If import mode is preset, we trust the mapping.
-       // If manual, we apply heuristic.
-       
-       // Update logic
-       await savePricingConfig({
-           providerId: pid,
-           tenantGroup: 'default',
-           billingMode: 'PER_TOKEN',
-           inputCostUnit: input / 1000,
-           outputCostUnit: output / 1000,
-           inputPriceUnit: (input / 1000) * 1.2, // 20% Markup default
-           outputPriceUnit: (output / 1000) * 1.2,
-           currency: 'CNY'
-       });
-       successCount++;
-    }
-    
-    ElMessage.success(`成功更新 ${successCount} 个模型的定价规则`);
-    pricingImportVisible.value = false;
-  } catch (e) {
-    ElMessage.error('导入失败: ' + e.message);
-  } finally {
-    importLoading.value = false;
-  }
-};
-
-
-const copyHelperScript = () => {
-    const code = "fetch('https://api.siliconflow.cn/v1/models?sub_type=chat&page=1&page_size=100').then(r=>r.json()).then(d=>{const t=document.createElement('textarea');t.value=JSON.stringify(d);document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('模型数据已复制到剪贴板！请回到 ORIN 粘贴。')}).catch(e=>alert('获取失败，请确保您已登录'))";
-    navigator.clipboard.writeText(code).then(() => {
-        ElMessage.success('脚本已复制，请前往控制台粘贴');
-    }).catch(() => {
-        ElMessage.error('复制失败，请手动复制');
-    });
-};
 </script>
 
 <style scoped>
 .page-container {
   padding: 0;
+  --text-primary: #243244;
+  --text-secondary: #6b7a90;
+  --orin-border-strong: #e3e9ef;
+  --orin-border-soft: #edf2f6;
+  --orin-primary: #0d9488;
+  --orin-primary-soft: #ecfdf5;
+  --orin-arco-border: #e3e9ef;
+  --orin-arco-border-soft: #edf2f6;
+  --orin-arco-text: #243244;
+  --orin-arco-text-subtle: #6b7a90;
+  --orin-arco-primary: #0d9488;
+  color: #243244;
+}
+
+.filter-actions {
+  gap: 8px;
+}
+
+.filter-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.filter-actions {
+  flex: none;
 }
 
 /* 步骤引导样式 */
@@ -1482,7 +1360,7 @@ const copyHelperScript = () => {
 
 .onboard-stepper .step-item.active .step-icon-wrapper,
 .onboard-stepper .step-item.completed .step-icon-wrapper {
-  background: linear-gradient(135deg, var(--orin-primary) 0%, var(--accent-500) 100%);
+  background: var(--orin-primary);
   color: #fff;
 }
 
@@ -1609,40 +1487,175 @@ const copyHelperScript = () => {
 html.dark .test-result-body p {
   background: #1e293b;
 }
-.clickable-tag { cursor: pointer; }
 
-.table-card { border-radius: 12px; }
-.table-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+.table-card {
+  border-radius: 8px;
 }
-.search-input { width: 300px; }
+
+.table-title span {
+  color: #6b7a90;
+  font-size: 12px;
+}
+
+.resource-filters,
+.table-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.table-title strong {
+  color: #243244;
+  font-weight: 650;
+}
+
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reset-action {
+  flex: none;
+  min-width: 72px;
+}
+
+.quiet-action,
+.orin-secondary-action {
+  border-color: #e3e9ef;
+  color: #3f4d63;
+  background: #ffffff;
+}
+
+.orin-primary-action {
+  background: #0d9488;
+  border-color: #0d9488;
+}
+
+@media (max-width: 960px) {
+  .filter-actions {
+    width: 100%;
+  }
+}
+
+.status-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid #e3e9ef;
+  border-radius: 4px;
+  color: #6b7a90;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status-toggle .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.status-toggle.is-enabled {
+  color: #0d9488;
+  border-color: #99f6e4;
+}
+
+.status-toggle.is-enabled .status-dot {
+  background: #0d9488;
+}
+
+.time-compact {
+  white-space: nowrap;
+}
 
 .model-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
-.provider-tag {
-  font-size: 10px;
+.name {
+  min-width: 0;
+  overflow: hidden;
+  color: #243244;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-detail-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.detail-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #edf2f6;
+}
+
+.detail-provider {
+  width: fit-content;
+  padding: 2px 8px;
+  border: 1px solid #e3e9ef;
+  border-radius: 999px;
+  color: #516174;
+  font-size: 11px;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
   text-transform: uppercase;
-  background: var(--neutral-gray-100);
-  color: var(--neutral-gray-600);
 }
-.provider-tag.openai { background: #10a37f; color: #fff; }
-.provider-tag.anthropic { background: #d97757; color: #fff; }
-.provider-tag.ollama { background: #000; color: #fff; }
-.provider-tag.dify { background: var(--info-600); color: #fff; }
-.provider-tag.siliconflow { background: #6b46c1; color: #fff; }
-.provider-tag.deepseek { background: #2f54eb; color: #fff; }
 
-.name { font-weight: 600; color: var(--neutral-gray-900); }
+.detail-heading h3 {
+  margin: 0;
+  color: #243244;
+  font-size: 20px;
+}
+
+.detail-heading p {
+  margin: 0;
+  color: #6b7a90;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.detail-list div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.detail-list dt {
+  color: #6b7a90;
+}
+
+.detail-list dd {
+  margin: 0;
+  color: #243244;
+}
+
+.drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #edf2f6;
+}
 
 .api-fetch-section {
   padding: 15px;

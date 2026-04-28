@@ -5,7 +5,7 @@
       <div class="logo-box">
         <BrandingLogo :height="appStore.isCollapse ? 28 : 32" class="logo" />
       </div>
-      <span v-if="!appStore.isCollapse" class="title"><span class="highlight">管理平台</span></span>
+      <span v-if="!appStore.isCollapse" class="title">企业 AI 中枢</span>
     </div>
 
     <!-- Menu Section (scrollable) -->
@@ -39,14 +39,6 @@
                     <component :is="getIconComponent(item.icon)" />
                   </el-icon>
                   <span>{{ item.title }}</span>
-                  <span
-                    v-if="item.status"
-                    class="menu-status-dot"
-                    :class="`is-${item.status}`"
-                  >
-                    <i class="dot" />
-                    {{ getMaturityText(item.status) }}
-                  </span>
                 </el-menu-item>
               </el-menu-item-group>
               <template v-else>
@@ -59,14 +51,6 @@
                     <component :is="getIconComponent(item.icon)" />
                   </el-icon>
                   <span>{{ item.title }}</span>
-                  <span
-                    v-if="item.status"
-                    class="menu-status-dot"
-                    :class="`is-${item.status}`"
-                  >
-                    <i class="dot" />
-                    {{ getMaturityText(item.status) }}
-                  </span>
                 </el-menu-item>
               </template>
             </template>
@@ -161,7 +145,6 @@ import { DArrowLeft, DArrowRight, Refresh, Moon, Sunny, Bell, Expand, User, Swit
 import { useUser } from '@/composables/useUser'
 import { useTheme } from '@/composables/useTheme'
 import { getIconComponent } from '@/utils/iconMap'
-import { getMaturityText } from '@/utils/maturity'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
@@ -203,7 +186,7 @@ const handleRefresh = () => {
 }
 
 const showNotifications = () => {
-  ElMessage.info('通知中心功能开发中')
+  ElMessage.info('通知中心已在系统配置中统一管理')
 }
 
 const handleCommand = (command) => {
@@ -246,11 +229,11 @@ router.afterEach(() => {
   left: 0;
   top: 0;
   bottom: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(248,250,252,0.75) 100%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-right: 1px solid var(--neutral-gray-200);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.84);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--orin-border-strong, #d8e0e8);
+  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1001;
   overflow: hidden;
@@ -314,7 +297,7 @@ router.afterEach(() => {
 .logo {
   height: 32px;
   width: auto;
-  filter: drop-shadow(0 0 8px var(--primary-glow));
+  filter: none;
   transition: all 0.3s;
 }
 
@@ -325,16 +308,12 @@ router.afterEach(() => {
 
 .title {
   font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: 18px;
+  font-weight: 600;
+  font-size: 15px;
   color: var(--neutral-gray-900);
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
   white-space: nowrap;
   transition: opacity 0.3s;
-}
-
-.title .highlight {
-  color: var(--orin-primary);
 }
 
 /* Menu wrapper - scrollable area */
@@ -421,7 +400,7 @@ router.afterEach(() => {
 :deep(.el-menu-item.is-active) {
   color: var(--orin-primary) !important;
   background-color: var(--orin-primary-soft) !important;
-  font-weight: 600;
+  font-weight: 560;
   border-left: none !important;
 }
 
@@ -451,9 +430,9 @@ router.afterEach(() => {
   flex-shrink: 0;
   padding: 16px;
   border-top: 1px solid var(--neutral-gray-100);
-  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(248,250,252,0.5) 100%);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: rgba(248, 250, 252, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   transition: all 0.3s;
 }
 
@@ -547,7 +526,7 @@ router.afterEach(() => {
 
 /* Dark mode */
 html.dark .sidebar-container {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(4, 10, 18, 0.9) 100%);
+  background: rgba(15, 23, 42, 0.86);
   border-color: var(--orin-border);
 }
 
@@ -601,34 +580,4 @@ html.dark .user-name {
   color: #fff;
 }
 
-/* Menu status indicator */
-.menu-status-dot {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 8px;
-  font-size: 10px;
-  line-height: 1;
-  color: var(--neutral-gray-500);
-  opacity: 0.92;
-}
-
-.menu-status-dot .dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-.menu-status-dot.is-available {
-  color: #10b981;
-}
-
-.menu-status-dot.is-beta {
-  color: #f59e0b;
-}
-
-.menu-status-dot.is-planned {
-  color: #94a3b8;
-}
 </style>

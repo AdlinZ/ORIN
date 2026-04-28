@@ -1,5 +1,14 @@
 <template>
   <div class="page-container">
+    <OrinPageShell
+      title="模型系统配置"
+      description="维护模型调度中枢、认证策略、本地模型与训练工作空间"
+      icon="Connection"
+      domain="系统配置"
+    />
+
+    <OrinStatusSummary :items="systemStatusItems" class="system-status" />
+
     <el-form 
       ref="formRef" 
       :model="form" 
@@ -10,7 +19,7 @@
       <el-row :gutter="24">
         <!-- Left Column: Core Connectivity -->
         <el-col :lg="14" :md="24">
-          <el-card shadow="never" class="premium-card connectivity-card">
+          <el-card shadow="never" class="system-card connectivity-card">
             <template #header>
               <div class="card-header">
                 <div class="header-left">
@@ -89,7 +98,7 @@
           </el-card>
 
           <!-- Ollama Local Model Configuration -->
-          <el-card shadow="never" class="premium-card local-card" style="margin-top: 24px;">
+          <el-card shadow="never" class="system-card local-card" style="margin-top: 24px;">
             <template #header>
               <div class="card-header">
                 <div class="header-left">
@@ -135,7 +144,7 @@
             </el-row>
           </el-card>
 
-          <el-card shadow="never" class="premium-card remark-card" style="margin-top: 24px;">
+          <el-card shadow="never" class="system-card remark-card" style="margin-top: 24px;">
             <template #header>
               <div class="card-header">
                 <div class="header-left">
@@ -158,7 +167,7 @@
 
         <!-- Right Column: Framework & Paths -->
         <el-col :lg="10" :md="24">
-          <el-card shadow="never" class="premium-card framework-card">
+          <el-card shadow="never" class="system-card framework-card">
             <template #header>
               <div class="card-header">
                 <div class="header-left">
@@ -235,11 +244,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue';
+import { ref, onMounted, reactive, computed } from 'vue';
 import { 
   Connection, Cpu, Link, Service, FolderOpened, Monitor, InfoFilled, Document, User, Lock, Place, RefreshLeft
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue';
 import { 
   getModelConfig, updateModelConfig, 
   testOllamaConnection
@@ -273,6 +284,33 @@ const form = reactive({
   ollamaModel: 'llama3',
   autoAnalysisEnabled: true
 });
+
+const systemStatusItems = computed(() => [
+  {
+    label: '调度中枢',
+    value: form.baseUrl ? '已配置' : '待配置',
+    meta: form.baseUrl || '请补充上游服务访问地址',
+    intent: form.baseUrl ? 'success' : 'warning'
+  },
+  {
+    label: '连接检测',
+    value: lastTestSuccess.value ? '通过' : '未验证',
+    meta: lastTestSuccess.value ? '最近一次检测可用' : '保存前建议完成连接检测',
+    intent: lastTestSuccess.value ? 'success' : 'warning'
+  },
+  {
+    label: '本地模型',
+    value: form.ollamaEndpoint ? '可维护' : '未设置',
+    meta: form.ollamaModel || '默认模型尚未填写',
+    intent: form.ollamaEndpoint ? 'success' : 'warning'
+  },
+  {
+    label: '工作空间',
+    value: form.modelSavePath ? '已指定' : '待指定',
+    meta: form.modelSavePath || '训练输出目录会影响上线交付',
+    intent: form.modelSavePath ? 'success' : 'warning'
+  }
+]);
 
 const rules = {
   baseUrl: [
@@ -377,14 +415,16 @@ onMounted(() => {
 }
 
 /* Card Styling */
-.premium-card {
-  border: 1px solid var(--neutral-gray-100) !important;
-  border-radius: var(--radius-lg) !important;
-  transition: all 0.3s ease;
+.system-status {
+  margin-bottom: 18px;
 }
 
-.premium-card:hover {
-  box-shadow: var(--shadow-md) !important;
+.system-card {
+  border: 1px solid var(--neutral-gray-100) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.system-card:hover {
   border-color: var(--primary-light) !important;
 }
 
@@ -447,16 +487,14 @@ onMounted(() => {
 }
 
 .submit-btn {
-  background: linear-gradient(135deg, var(--primary-color), #4f46e5) !important;
-  border: none !important;
+  background: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
   height: 54px;
   font-weight: 700;
-  box-shadow: 0 10px 20px var(--primary-glow);
 }
 
 .submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px var(--primary-glow);
+  background: var(--primary-hover) !important;
 }
 
 /* Dark Mode Tweaks */

@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="开发者服务百宝箱"
+    title="外部服务控制台"
     width="800px"
     class="dev-hub-dialog"
     destroy-on-close
@@ -9,7 +9,7 @@
   >
     <div class="hub-container">
       <div class="hub-description">
-        全面汇总了主流的 AI 开发者生态控制台，快速导航到各大平台。
+        汇总企业 AI 服务交付常用的模型、编排和部署控制台。
       </div>
       
       <el-tabs v-model="activeTab" class="hub-tabs">
@@ -48,10 +48,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { 
-  Platform, Connection, DataAnalysis, Monitor, Message, Promotion, Key, 
-  Link, Box, ChatDotRound, Star, Cpu, DataLine, Setting, Right
-} from '@element-plus/icons-vue'
+import { Right } from '@element-plus/icons-vue'
 
 const props = defineProps({
   modelValue: {
@@ -83,7 +80,7 @@ const categories = [
       { name: 'Minimax (海螺AI)', desc: 'MiniMax 开放平台', url: 'https://platform.minimaxi.com/', icon: 'Star', color: '#ec4899' },
       { name: '零一万物 (01.AI)', desc: '李开复团队的 Yi 系列模型', url: 'https://platform.lingyiwanwu.com/', icon: 'Box', color: '#4f46e5' },
       { name: '百川智能 (Baichuan)', desc: '百川大模型 API', url: 'https://platform.baichuan-ai.com/', icon: 'Box', color: '#f59e0b' },
-      { name: '阿里百炼', desc: '阿里云通义大模型平台', url: 'https://bailian.console.aliyun.com/', icon: 'Platform', color: '#f97316' },
+      { name: '阿里百炼', desc: '阿里云通义大模型平台', url: 'https://bailian.console.aliyun.com/', icon: 'Monitor', color: '#f97316' },
       { name: '讯飞星火', desc: '各种认知大模型服务', url: 'https://xinghuo.xfyun.cn/sparkapi', icon: 'Cpu', color: '#06b6d4' }
     ]
   },
@@ -94,11 +91,11 @@ const categories = [
       { name: 'n8n', desc: '强大的工作流自动化与 AI 编排', url: 'https://n8n.io/', icon: 'Connection', color: '#ff6d5a' },
       { name: 'Dify', desc: '强大的 LLM 应用编排平台', url: 'https://cloud.dify.ai/apps', icon: 'Connection', color: '#3b82f6' },
       { name: 'Coze (扣子)', desc: '字节跳动的智能体创建平台', url: 'https://www.coze.cn/', icon: 'DataLine', color: '#8b5cf6' },
-      { name: 'Flowise', desc: 'LangChain 拖拽式 UI', url: 'https://flowiseai.com/', icon: 'Platform', color: '#10b981' },
+      { name: 'Flowise', desc: 'LangChain 拖拽式 UI', url: 'https://flowiseai.com/', icon: 'Connection', color: '#10b981' },
       { name: 'Langflow', desc: '无需写代码构建 AI 管道', url: 'https://www.langflow.org/', icon: 'Setting', color: '#ec4899' },
       { name: 'FastGPT', desc: '基于 LLM 的知识库问答', url: 'https://fastgpt.in/', icon: 'Setting', color: '#10b981' },
       { name: 'Langfuse', desc: '大模型应用的可观测性平台', url: 'https://cloud.langfuse.com/', icon: 'Monitor', color: '#6366f1' },
-      { name: 'Smith (LangChain)', desc: 'LangChain 的调试诊断平台', url: 'https://smith.langchain.com/', icon: 'Platform', color: '#f43f5e' }
+      { name: 'Smith (LangChain)', desc: 'LangChain 的调试诊断平台', url: 'https://smith.langchain.com/', icon: 'Monitor', color: '#f43f5e' }
     ]
   },
   {
@@ -114,12 +111,11 @@ const categories = [
   },
   {
     id: 'hub',
-    name: '🌐 生态与社区',
+    name: '服务资产',
     platforms: [
-      { name: 'ModelScope (魔搭)', desc: '阿里主导的 AI 模型库', url: 'https://modelscope.cn/', icon: 'Platform', color: '#6366f1' },
-      { name: 'HuggingFace', desc: '全球最大的 AI 模型社区', url: 'https://huggingface.co/', icon: 'Promotion', color: '#fbbf24' },
-      { name: 'GitHub', desc: '代码托管与开源协作', url: 'https://github.com/', icon: 'Link', color: '#1f2937' },
-      { name: 'Gitee', desc: '国内代码托管平台', url: 'https://gitee.com/', icon: 'Connection', color: '#ef4444' }
+      { name: 'ModelScope (魔搭)', desc: '阿里主导的 AI 模型库', url: 'https://modelscope.cn/', icon: 'Box', color: '#6366f1' },
+      { name: 'HuggingFace', desc: '模型托管与评估资源', url: 'https://huggingface.co/', icon: 'Promotion', color: '#fbbf24' },
+      { name: 'Gitee', desc: '企业代码托管平台', url: 'https://gitee.com/', icon: 'Connection', color: '#ef4444' }
     ]
   }
 ]

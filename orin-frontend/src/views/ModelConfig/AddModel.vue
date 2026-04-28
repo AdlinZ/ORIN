@@ -1,30 +1,14 @@
 <template>
   <div class="page-container">
-    <PageHeader
-      title="添加模型"
-      description="选择供应商类型，配置连接信息，快速添加模型资源"
+    <OrinPageShell
+      title="添加模型资源"
+      description="按服务商、密钥、模型标识、检测与启用流程接入模型能力"
       icon="CirclePlus"
+      domain="模型资源"
     />
 
-    <el-card shadow="hover" class="onboard-card">
-      <!-- 步骤引导 -->
-      <div class="onboard-stepper">
-        <div
-          v-for="(step, index) in guideSteps"
-          :key="index"
-          class="step-item"
-          :class="{ 'active': currentStepIndex >= index }"
-        >
-          <div class="step-icon-wrapper">
-            <el-icon><component :is="step.icon" /></el-icon>
-          </div>
-          <div class="step-text">
-            <span class="step-label">Step 0{{ index + 1 }}</span>
-            <span class="step-name">{{ step.title }}</span>
-          </div>
-          <div v-if="index < guideSteps.length - 1" class="step-line" />
-        </div>
-      </div>
+    <el-card shadow="never" class="onboard-card">
+      <OrinStepFlow :steps="guideSteps" :active="currentStepIndex" />
 
       <el-form
         ref="formRef"
@@ -698,7 +682,8 @@ import { useRouter } from 'vue-router';
 import {
   Link, Key, Cpu, Platform, Opportunity, Star, Sunrise, Connection, Monitor, Moon, Edit, Refresh, Plus, Check
 } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinStepFlow from '@/components/orin/OrinStepFlow.vue';
 import { ElMessage } from 'element-plus';
 import { getExternalKeys } from '@/api/apiKey';
 import { saveModel } from '@/api/model';
@@ -709,7 +694,13 @@ const formRef = ref(null);
 const submitting = ref(false);
 const providerKeys = ref([]);
 const selectedSavedKeyId = ref(null);
-const currentStepIndex = ref(0);
+const currentStepIndex = computed(() => {
+  if (submitting.value) return 4;
+  if (form.modelId) return 3;
+  if (form.apiKey || form.providerType === 'ollama') return 2;
+  if (form.providerType) return 1;
+  return 0;
+});
 
 // 批量导入相关
 const isBatchImporting = ref(false);
@@ -717,9 +708,11 @@ const detectedModels = ref([]);
 
 // 步骤引导
 const guideSteps = [
-  { title: '选择供应商', icon: Platform },
-  { title: '配置密钥', icon: Key },
-  { title: '填写信息', icon: Cpu }
+  { title: '服务商选择', description: '确认模型来源与计费主体' },
+  { title: '密钥治理', description: '录入或复用受控访问凭据' },
+  { title: '模型标识', description: '填写模型 ID 与能力类型' },
+  { title: '模型检测', description: '导入或校验可用模型' },
+  { title: '启用确认', description: '保存后进入模型资源池' }
 ];
 
 // Provider选项 - 从API获取
@@ -1040,96 +1033,14 @@ const handleSubmit = async () => {
   padding: 0;
 }
 
-.onboard-card {
-  width: 100%;
+.onboard-card { width: 100%; }
+
+.onboard-card :deep(.el-card__body) {
+  padding: var(--spacing-xl);
 }
 
 .onboard-form {
-  padding: var(--spacing-xl) var(--spacing-2xl);
   margin-top: var(--spacing-lg);
-}
-
-.onboard-stepper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-2xl) var(--spacing-xl);
-  background: var(--neutral-gray-50);
-  border-bottom: 2px solid var(--neutral-gray-200);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-}
-
-.step-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-sm);
-  position: relative;
-  flex: 1;
-  z-index: 1;
-}
-
-.step-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  color: var(--neutral-gray-400);
-  border: 2px solid var(--neutral-gray-200);
-  font-size: 24px;
-  transition: all var(--transition-base);
-  z-index: 2;
-}
-
-.step-text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.step-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--neutral-gray-500);
-  font-weight: var(--font-bold);
-}
-
-.step-name {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--neutral-gray-900);
-}
-
-.step-line {
-  position: absolute;
-  top: 24px;
-  left: 50%;
-  width: 100%;
-  height: 2px;
-  background: var(--neutral-gray-200);
-  z-index: 1;
-  transition: all var(--transition-base);
-}
-
-/* Active State */
-.step-item.active .step-icon-wrapper {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 15px rgba(var(--orin-primary-rgb), 0.3);
-}
-
-.step-item.active .step-name {
-  color: var(--primary-color);
-}
-
-.step-item.active .step-line {
-  background: var(--primary-color);
 }
 
 /* Provider选项 */

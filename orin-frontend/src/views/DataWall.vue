@@ -10,8 +10,8 @@
       <div class="header-left">
         <BrandingLogo :height="48" class="header-logo" />
         <div class="header-title">
-          <h1>智能平台监控中心</h1>
-          <span class="subtitle">AI Platform Monitoring Center</span>
+          <h1>运营观测中心</h1>
+          <span class="subtitle">ORIN Operations Center</span>
         </div>
       </div>
       <div class="header-center">
@@ -264,22 +264,22 @@ const miniStats = computed(() => [
 const bigStats = computed(() => [
   { 
     key: 'total', label: '总请求数', value: summary.value.daily_requests || 0, unit: '次',
-    icon: Tickets, gradient: 'linear-gradient(135deg, var(--info-500), var(--info-600))', color: 'var(--info-500)',
+    icon: Tickets, gradient: 'var(--info-50)', color: 'var(--info-500)',
     history: [10, 15, 12, 18, 20, 22, 19, 25]
   },
   { 
     key: 'agents', label: '活跃智能体', value: summary.value.total_agents || 0, unit: '个',
-    icon: Monitor, gradient: 'linear-gradient(135deg, #10b981, #059669)', color: '#10b981',
+    icon: Monitor, gradient: 'rgba(16, 185, 129, 0.12)', color: '#10b981',
     history: [3, 4, 3, 5, 4, 6, 5, 6]
   },
   { 
     key: 'tokens', label: 'Token消耗', value: summary.value.total_tokens || 0, unit: 'K',
-    icon: Cpu, gradient: 'linear-gradient(135deg, var(--accent-500), var(--accent-600))', color: 'var(--accent-500)',
+    icon: Cpu, gradient: 'var(--accent-50)', color: 'var(--accent-500)',
     history: [100, 95, 98, 92, 90, 88, 85, 82]
   },
   { 
     key: 'latency', label: '平均延迟', value: parseInt(summary.value.avg_latency) || 0, unit: 'ms',
-    icon: Connection, gradient: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#f59e0b',
+    icon: Connection, gradient: 'rgba(245, 158, 11, 0.14)', color: '#f59e0b',
     history: [150, 140, 135, 130, 125, 120, 115, 110]
   }
 ]);
@@ -438,9 +438,7 @@ onUnmounted(() => {
 .bg-pattern {
   position: absolute;
   inset: 0;
-  background-image: 
-    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-image: none;
   background-size: 40px 40px;
 }
 

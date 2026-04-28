@@ -1,27 +1,30 @@
 <template>
   <div class="mail-workbench gmail-layout">
-    <div class="gmail-topbar">
-      <div class="brand-block">
-        <el-icon :size="18"><Message /></el-icon>
-        <span>ORIN Mail</span>
-      </div>
-      <div class="search-block">
-        <el-input v-model="inboxKeyword" placeholder="搜索邮件（发件人、主题、内容）" clearable>
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-      </div>
-      <div class="top-actions">
+    <OrinEntityHeader
+      domain="系统配置"
+      title="通知渠道"
+      description="统一管理邮箱服务、收件箱、发送模板与通知投递记录"
+      :summary="mailHeaderSummary"
+    >
+      <template #actions>
         <div class="status-cluster">
           <span class="status-chip">{{ unreadInboxCount }} 封未读</span>
           <span class="status-chip" :class="{ warning: !imapConfigured }">
             IMAP {{ imapConfigured ? '已配置' : '未配置' }}
           </span>
         </div>
-        <el-button class="top-setting-btn" text @click="switchModule('service')">设置</el-button>
-      </div>
-    </div>
+        <el-button class="top-setting-btn" @click="switchModule('service')">服务配置</el-button>
+      </template>
+      <template #filters>
+        <div class="search-block">
+          <el-input v-model="inboxKeyword" placeholder="搜索邮件（发件人、主题、内容）" clearable>
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+        </div>
+      </template>
+    </OrinEntityHeader>
 
     <div class="gmail-main">
       <aside class="gmail-sidebar">
@@ -383,8 +386,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import PageHeader from '@/components/PageHeader.vue'
-import { Message, Search, ArrowDown } from '@element-plus/icons-vue'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { getNotificationConfig, saveNotificationConfig, testNotificationChannel } from '@/api/alert'
 import {
   getMailConfig,
@@ -714,6 +717,14 @@ const templateVariables = computed(() => {
 })
 
 const unreadInboxCount = computed(() => inboxList.value.filter((item) => !item.read && !item.isRead).length)
+
+const mailHeaderSummary = computed(() => [
+  { label: '收件箱', value: inboxList.value.length },
+  { label: '未读', value: unreadInboxCount.value },
+  { label: '模板', value: templates.value.length },
+  { label: '发送记录', value: trackingTotal.value },
+  { label: '服务状态', value: mailConnected.value ? '已连接' : '未连接' }
+])
 
 const filteredInboxList = computed(() => {
   const keyword = inboxKeyword.value.trim().toLowerCase()
@@ -1379,36 +1390,18 @@ onMounted(async () => {
   box-sizing: border-box;
   height: 100%;
   min-height: 100%;
-  background: #f7f9fd;
-  border: 1px solid #e7ecf5;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.gmail-topbar {
-  height: 64px;
-  padding: 0 16px;
-  display: grid;
-  grid-template-columns: 200px 1fr 220px;
-  gap: 12px;
-  align-items: center;
-  background: #fff;
-  border-bottom: 1px solid #e6eaf2;
-}
-
-.brand-block {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #223047;
+  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .search-block :deep(.el-input__wrapper) {
-  border-radius: 24px;
-  background: #eef3fd;
+  width: min(520px, 100%);
+  border-radius: 6px;
+  background: #ffffff;
   box-shadow: none;
+  border: 1px solid #dbe4ee;
 }
 
 .top-actions {
@@ -1445,6 +1438,7 @@ onMounted(async () => {
 .top-setting-btn {
   color: #304767;
   font-weight: 600;
+  border-color: #dbe4ee;
 }
 
 .gmail-main {
@@ -1452,6 +1446,9 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 220px 1fr;
   min-height: 0;
+  border: 1px solid #e3e9ef;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .gmail-sidebar {

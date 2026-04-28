@@ -47,7 +47,7 @@ public class ModelManageController {
     @GetMapping("/fetch")
     public List<java.util.Map<String, Object>> fetchModels(
             @RequestParam String baseUrl,
-            @RequestParam String apiKey) {
+            @RequestParam(required = false) String apiKey) {
         return modelFetchService.fetchModelsFromApi(baseUrl, apiKey);
     }
 }

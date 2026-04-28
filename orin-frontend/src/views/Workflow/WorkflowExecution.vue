@@ -4,8 +4,7 @@
       title="工作流执行"
       description="查看工作流运行状态、实例结果与执行历史"
       icon="VideoPlay"
-      domain="工作流运行"
-      maturity="available"
+      domain="流程编排"
     >
       <template #actions>
         <el-button :icon="Edit" @click="goToWorkflowList">
@@ -28,28 +27,7 @@
       </template>
     </OrinPageShell>
 
-    <section class="execution-overview-grid">
-      <el-card shadow="never" class="overview-card overview-card-accent">
-        <span class="overview-label">可执行工作流</span>
-        <strong class="overview-value">{{ workflowStats.total }}</strong>
-        <span class="overview-meta">从这里直接运行已接入的工作流</span>
-      </el-card>
-      <el-card shadow="never" class="overview-card">
-        <span class="overview-label">已发布</span>
-        <strong class="overview-value">{{ workflowStats.published }}</strong>
-        <span class="overview-meta">可作为稳定入口运行的工作流</span>
-      </el-card>
-      <el-card shadow="never" class="overview-card">
-        <span class="overview-label">最近实例</span>
-        <strong class="overview-value">{{ executionStats.totalInstances }}</strong>
-        <span class="overview-meta">当前选中工作流的最近执行记录</span>
-      </el-card>
-      <el-card shadow="never" class="overview-card">
-        <span class="overview-label">最近成功率</span>
-        <strong class="overview-value">{{ executionStats.successRate }}%</strong>
-        <span class="overview-meta">基于当前工作流最近实例计算</span>
-      </el-card>
-    </section>
+    <OrinMetricStrip :metrics="executionMetrics" class="execution-overview-grid" />
 
     <el-row :gutter="16">
       <el-col :xs="24" :xl="11">
@@ -60,7 +38,13 @@
               <span>{{ filteredWorkflows.length }} 个结果</span>
             </div>
           </template>
-          <OrinAsyncState :status="workflowState.status" empty-text="暂无工作流数据" @retry="loadWorkflows">
+          <OrinAsyncState
+            :status="workflowState.status"
+            empty-text="暂无可执行工作流，请先创建或导入流程"
+            empty-action-label="回到编排页"
+            @retry="loadWorkflows"
+            @empty-action="goToWorkflowList"
+          >
             <div class="workflow-list">
               <button
                 v-for="workflow in filteredWorkflows"
@@ -142,10 +126,10 @@
             </div>
           </div>
 
-          <el-empty v-else description="从左侧选择一个工作流后即可执行" :image-size="88" />
+          <OrinEmptyState v-else description="从左侧选择一个工作流后即可执行" />
         </el-card>
 
-        <el-card shadow="never" class="panel-card instances-panel">
+        <OrinDataTable class="panel-card instances-panel">
           <template #header>
             <div class="panel-header">
               <strong>最近执行实例</strong>
@@ -178,7 +162,7 @@
               </el-table-column>
             </el-table>
           </OrinAsyncState>
-        </el-card>
+        </OrinDataTable>
       </el-col>
     </el-row>
   </div>
@@ -192,7 +176,10 @@ import { CaretRight, Edit, Refresh, Search, VideoPlay } from '@element-plus/icon
 import { ElMessage } from 'element-plus'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { ROUTES } from '@/router/routes'
 import { createAsyncState, markEmpty, markError, markLoading, markSuccess, toWorkflowListViewModel, toWorkflowStatsViewModel } from '@/viewmodels'
 import { executeWorkflow, getWorkflowInstances, getWorkflows } from '@/api/workflow'
@@ -230,6 +217,13 @@ const executionStats = computed(() => {
   const successRate = totalInstances ? Math.round((successCount / totalInstances) * 100) : 0
   return { totalInstances, successRate }
 })
+
+const executionMetrics = computed(() => [
+  { label: '可执行工作流', value: workflowStats.value.total, meta: '从这里直接运行已接入的工作流' },
+  { label: '已发布', value: workflowStats.value.published, meta: '可作为稳定入口运行' },
+  { label: '最近实例', value: executionStats.value.totalInstances, meta: '当前选中工作流记录' },
+  { label: '最近成功率', value: `${executionStats.value.successRate}%`, meta: '基于当前工作流最近实例计算' }
+])
 
 const normalizeInstances = (payload) => {
   const list = Array.isArray(payload?.data?.records)
@@ -398,14 +392,14 @@ onMounted(async () => {
 }
 
 .overview-card-accent {
-  background: linear-gradient(135deg, #7c3aed, #5b21b6);
-  border-color: transparent;
+  background: var(--orin-surface, #ffffff);
+  border-color: var(--orin-border-strong, #d8e0e8);
 }
 
 .overview-card-accent .overview-label,
 .overview-card-accent .overview-value,
 .overview-card-accent .overview-meta {
-  color: #f8fafc;
+  color: inherit;
 }
 
 .overview-label {
@@ -453,7 +447,7 @@ onMounted(async () => {
   padding: 16px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), #f8fafc);
+  background: rgba(255, 255, 255, 0.96);
   text-align: left;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -571,7 +565,7 @@ html.dark .summary-line {
 }
 
 html.dark .workflow-item {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.78));
+  background: rgba(15, 23, 42, 0.86);
   border-color: rgba(71, 85, 105, 0.52);
 }
 

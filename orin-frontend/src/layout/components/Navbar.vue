@@ -540,9 +540,9 @@ const quickCommand = (cmd) => {
 .status-dot {
     width: 6px;
     height: 6px;
-    background: #00ff9d;
+    background: #2dd4bf;
     border-radius: 50%;
-    box-shadow: 0 0 5px #00ff9d;
+    box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.24);
 }
 
 .close-icon {
@@ -659,7 +659,7 @@ const quickCommand = (cmd) => {
 /* 4. Footer Input Bar */
 .terminal-footer {
     padding: 20px 40px 30px 40px;
-    background: linear-gradient(to top, var(--el-bg-color) 60%, transparent);
+    background: var(--el-bg-color);
     border-top: 1px solid var(--el-border-color-lighter);
 }
 

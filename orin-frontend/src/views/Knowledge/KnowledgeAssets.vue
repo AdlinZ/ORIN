@@ -78,7 +78,11 @@
         </div>
 
         <div v-if="!filteredRows.length && !loading" class="list-empty">
-          <el-empty :image-size="90" description="暂无符合条件的资产" />
+          <OrinEmptyState
+            description="暂无符合条件的知识资产，请调整筛选或返回知识中心创建"
+            action-label="返回知识中心"
+            @action="goCenter"
+          />
         </div>
 
         <div v-else class="list-scroll">
@@ -323,6 +327,7 @@ import {
 } from '@element-plus/icons-vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { ROUTES } from '@/router/routes'
 import { buildGraph, getGraphEntities, getGraphList, getGraphRelations, getKnowledgeList } from '@/api/knowledge'
 
@@ -668,19 +673,19 @@ onMounted(loadData)
 }
 
 .overview-card.primary {
-  background: linear-gradient(150deg, #f0fbf7 0%, #ffffff 80%);
+  background: #ffffff;
 }
 
 .overview-card.success {
-  background: linear-gradient(150deg, #f3fdf8 0%, #ffffff 80%);
+  background: #ffffff;
 }
 
 .overview-card.neutral {
-  background: linear-gradient(150deg, #f6fafc 0%, #ffffff 80%);
+  background: #ffffff;
 }
 
 .overview-card.warning {
-  background: linear-gradient(150deg, #fff9ef 0%, #ffffff 80%);
+  background: #ffffff;
 }
 
 .overview-label {
@@ -727,7 +732,7 @@ onMounted(loadData)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, #f7fbfa 0%, #ffffff 100%);
+  background: #ffffff;
 }
 
 .list-title {
@@ -885,7 +890,7 @@ onMounted(loadData)
 .asset-detail {
   border: 1px solid var(--ka-border);
   border-radius: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdfd 100%);
+  background: #ffffff;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -924,7 +929,7 @@ onMounted(loadData)
 .detail-hero {
   border: 1px solid var(--ka-border-soft);
   border-radius: 14px;
-  background: linear-gradient(155deg, #f4fbf9 0%, #ffffff 70%);
+  background: #ffffff;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -1050,17 +1055,17 @@ onMounted(loadData)
 }
 
 .binding-card.kb {
-  background: linear-gradient(135deg, #eefcf9 0%, #ffffff 100%);
+  background: #ffffff;
   border-color: #cbece4;
 }
 
 .binding-card.graph {
-  background: linear-gradient(135deg, #f4fbfa 0%, #ffffff 100%);
+  background: #ffffff;
   border-color: #d8ece8;
 }
 
 .binding-card.disabled {
-  background: #f8fafc;
+  background: #ffffff;
   border-color: #e5eaf3;
   border-style: dashed;
 }
@@ -1118,14 +1123,15 @@ onMounted(loadData)
 }
 
 .binding-link.linked .link-line {
-  background: linear-gradient(90deg, #0f9d8a 0%, #1bb5a0 100%);
+  background: var(--ka-accent);
 }
 
 .link-chip {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 999px;
-  background: #f1f5f9;
+  background: #ffffff;
+  border: 1px solid var(--ka-border-soft);
   color: #475569;
   font-weight: 600;
   white-space: nowrap;
@@ -1142,13 +1148,7 @@ onMounted(loadData)
 }
 
 .binding-link.unlinked .link-line {
-  background: repeating-linear-gradient(
-    90deg,
-    #cbd5e1 0,
-    #cbd5e1 3px,
-    transparent 3px,
-    transparent 6px
-  );
+  background: #cbd5e1;
 }
 
 .stats-grid {
@@ -1161,7 +1161,7 @@ onMounted(loadData)
   border: 1px solid #dbe8e4;
   border-radius: 12px;
   padding: 10px;
-  background: linear-gradient(180deg, #f7fbfa 0%, #fdfefe 100%);
+  background: #ffffff;
 }
 
 .stat-key {

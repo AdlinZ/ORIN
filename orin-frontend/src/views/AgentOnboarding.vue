@@ -1,30 +1,15 @@
 <template>
   <div class="page-container">
-    <PageHeader 
-      title="接入新 Agent" 
-      description="选择 Provider 类型，配置连接信息，快速纳管您的智能体实例"
+    <OrinPageShell
+      title="智能体接入"
+      description="按服务商、密钥治理、模型检测与启用确认纳管企业智能体"
       icon="CirclePlus"
+      domain="AI 中枢"
     />
 
 
-    <el-card shadow="hover" class="onboard-card">
-      <div class="onboard-stepper">
-        <div 
-          v-for="(step, index) in guideSteps" 
-          :key="index" 
-          class="step-item"
-          :class="{ 'active': currentStepIndex >= index }"
-        >
-          <div class="step-icon-wrapper">
-            <el-icon><component :is="step.icon" /></el-icon>
-          </div>
-          <div class="step-text">
-            <span class="step-label">Step 0{{ index + 1 }}</span>
-            <span class="step-name">{{ step.title }}</span>
-          </div>
-          <div v-if="index < guideSteps.length - 1" class="step-line" />
-        </div>
-      </div>
+    <el-card shadow="never" class="onboard-card">
+      <OrinStepFlow :steps="guideSteps" :active="currentStepIndex" />
 
       <el-form 
         ref="formRef" 
@@ -803,7 +788,8 @@ import { onboardKimiAgent } from '../api/kimiAgent';
 import { getModelList } from '../api/model';
 import { getExternalKeys } from '../api/apiKey';
 import { getProviderList } from '@/api/system';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinStepFlow from '@/components/orin/OrinStepFlow.vue';
 import { ElMessage } from 'element-plus';
 import { 
   Link, Key, InfoFilled, Collection, Service, OfficeBuilding,
@@ -879,9 +865,11 @@ const filteredModels = computed(() => {
 });
 
 const currentStepIndex = computed(() => {
-  if (loading.value) return 2; // Step 03: 完成接入
-  if (form.providerType) return 1; // Step 02: 配置与测试
-  return 0; // Step 01: 选择 Provider
+  if (loading.value) return 4;
+  if (connectionTested.value) return 3;
+  if (form.model) return 2;
+  if (form.providerType) return 1;
+  return 0;
 });
 
 // Provider选项 - 从API获取
@@ -1009,19 +997,24 @@ const currentProviderInfo = computed(() => {
 // 接入指南步骤
 const guideSteps = [
   {
-    icon: Platform,
-    title: '选择Provider',
-    description: '选择您要接入的AI服务提供商'
+    title: '服务商选择',
+    description: '确认接入来源与服务边界'
   },
   {
-    icon: Connection,
-    title: '测试连接',
-    description: '验证配置信息是否正确'
+    title: '密钥治理',
+    description: '录入或复用受控访问凭据'
   },
   {
-    icon: Check,
-    title: '完成接入',
-    description: '开始管理和监控您的Agent'
+    title: '模型配置',
+    description: '选择默认模型与能力参数'
+  },
+  {
+    title: '连通检测',
+    description: '验证配置与运行可用性'
+  },
+  {
+    title: '启用确认',
+    description: '完成纳管并进入运营列表'
   }
 ];
 
@@ -1247,7 +1240,7 @@ const onSubmit = async () => {
           );
           ElMessage.success('Kimi Agent 接入成功！');
         } else {
-          ElMessage.warning('该Provider接入功能正在开发中');
+          ElMessage.warning('该 Provider 当前需要补充接入参数，请先完成服务商配置后再启用。');
           loading.value = false;
           return;
         }
@@ -1271,105 +1264,14 @@ const onSubmit = async () => {
 .page-container {
   padding: 0;
 }
-.onboard-card {
-  width: 100%;
+.onboard-card { width: 100%; }
+
+.onboard-card :deep(.el-card__body) {
+  padding: var(--spacing-xl);
 }
 
 .onboard-form {
-  padding: var(--spacing-xl) var(--spacing-2xl);
   margin-top: var(--spacing-lg);
-}
-
-.onboard-stepper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-2xl) var(--spacing-xl);
-  background: var(--neutral-gray-50);
-  border-bottom: 2px solid var(--neutral-gray-200);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-}
-
-.step-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-sm);
-  position: relative;
-  flex: 1;
-  z-index: 1;
-}
-
-.step-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--orin-bg-white);
-  color: var(--neutral-gray-400);
-  border: 2px solid var(--neutral-gray-200);
-  font-size: 24px;
-  transition: all var(--transition-base);
-  z-index: 2;
-}
-
-.step-text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.step-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--neutral-gray-500);
-  font-weight: var(--font-bold);
-}
-
-.step-name {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--neutral-gray-900);
-}
-
-.step-line {
-  position: absolute;
-  top: 24px;
-  left: 50%;
-  width: 100%;
-  height: 2px;
-  background: var(--neutral-gray-200);
-  z-index: 1;
-  transition: all var(--transition-base);
-}
-
-/* Active State */
-.step-item.active .step-icon-wrapper {
-  background: var(--orin-primary);
-  color: white;
-  border-color: var(--orin-primary);
-  box-shadow: var(--orin-glow);
-}
-
-.step-item.active .step-name {
-  color: var(--orin-primary);
-}
-.step-item.active .step-line {
-  background: var(--orin-primary);
-}
-
-/* Theme-aware variables handle stepper colors */
-html.dark .onboard-stepper {
-  background: var(--neutral-gray-800);
-  border-color: var(--neutral-gray-700);
-}
-html.dark .step-icon-wrapper {
-  background: var(--neutral-gray-700);
-  border-color: var(--neutral-gray-600);
 }
 
 @media (max-width: 992px) {

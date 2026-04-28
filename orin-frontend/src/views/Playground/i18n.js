@@ -200,10 +200,10 @@ const messages = {
       saving: "保存中...",
     },
     overview: {
-      chip: "编排优先演示",
+      chip: "编排优先体验",
       headline1: "先定义模式。",
       headline2: "再观察智能体协作。",
-      desc: "该界面用于演示：在一个视图中查看 Agents、编排路由和运行 Trace。",
+      desc: "该界面用于在一个视图中查看 Agents、编排路由和运行 Trace。",
       flowTitle: "流程",
       flowDesc: "按下面顺序体验最清晰。",
       step1Title: "创建 Agents",

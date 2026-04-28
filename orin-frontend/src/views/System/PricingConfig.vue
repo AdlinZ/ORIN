@@ -1,9 +1,10 @@
 <template>
   <div class="cost-dashboard">
-    <PageHeader
+    <OrinPageShell
       title="成本与定价"
-      description="查看模型调用成本、分析供应商分布与定价策略配置"
+      description="管理模型调用成本、供应商分布与企业定价策略"
       icon="Money"
+      domain="组织治理"
     >
       <template #actions>
         <el-button :icon="RefreshRight" @click="fetchCostData">
@@ -35,65 +36,9 @@
           </div>
         </div>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
-    <div class="stats-grid">
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon today-icon">
-          <el-icon><Calendar /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            今日成本
-          </div>
-          <div class="stat-value">
-            {{ formatCurrency(costSummary.daily) }}
-          </div>
-        </div>
-      </el-card>
-
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon week-icon">
-          <el-icon><Histogram /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            本周成本
-          </div>
-          <div class="stat-value">
-            {{ formatCurrency(costSummary.weekly) }}
-          </div>
-        </div>
-      </el-card>
-
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon month-icon">
-          <el-icon><DataAnalysis /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            本月成本
-          </div>
-          <div class="stat-value">
-            {{ formatCurrency(costSummary.monthly) }}
-          </div>
-        </div>
-      </el-card>
-
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon total-icon">
-          <el-icon><Money /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            累计成本
-          </div>
-          <div class="stat-value">
-            {{ formatCurrency(costSummary.total) }}
-          </div>
-        </div>
-      </el-card>
-    </div>
+    <OrinMetricStrip :metrics="costMetrics" class="stats-grid" />
 
     <div class="content-grid">
       <el-card shadow="never" class="distribution-card">
@@ -300,10 +245,11 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { Calendar, DataAnalysis, Histogram, Money, Monitor, RefreshRight, Plus, Search } from '@element-plus/icons-vue';
+import { Money, Monitor, RefreshRight, Plus, Search } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
 import PricingEditDialog from '@/components/PricingEditDialog.vue';
 import { getCostDistribution, getTokenStats } from '@/api/monitor';
 import { getPricingConfig, deletePricingConfig } from '@/api/pricing';
@@ -337,6 +283,12 @@ const distributionParams = computed(() => {
 
 const distributionTotal = computed(() => distributionData.value.reduce((sum, item) => sum + Number(item.value || 0), 0));
 const rankingTopFive = computed(() => distributionData.value.slice(0, 5));
+const costMetrics = computed(() => [
+  { label: '今日成本', value: formatCurrency(costSummary.value.daily), meta: '日内模型调用消耗' },
+  { label: '本周成本', value: formatCurrency(costSummary.value.weekly), meta: '周维度预算观察' },
+  { label: '本月成本', value: formatCurrency(costSummary.value.monthly), meta: '月度成本控制口径' },
+  { label: '累计成本', value: formatCurrency(costSummary.value.total), meta: '当前统计周期总消耗' }
+]);
 
 // 定价配置相关
 const tableData = ref([]);

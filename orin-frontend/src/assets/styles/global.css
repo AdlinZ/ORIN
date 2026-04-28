@@ -61,7 +61,7 @@
 /* ========== Dashboard 视觉节奏统一 ========== */
 .content-area {
   --orin-page-gap: 20px;
-  --orin-card-radius: 12px;
+  --orin-card-radius: 8px;
 }
 
 /* 统一卡片圆角，减少页面之间的边界差异 */
@@ -173,26 +173,26 @@ html.dark .tab-wrapper-card.el-card :deep(.el-tabs > .el-tabs__header) {
   padding: 0;
 }
 
-/* ========== 通用 premium-card（轻量毛玻璃，轻于 .glass-card）========== */
+/* ========== 通用 premium-card（商务浅毛玻璃，仅用于重点概览容器）========== */
 .premium-card {
   border-radius: var(--orin-card-radius, 12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(248,250,252,0.75) 100%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
-  backdrop-filter: blur(12px) saturate(160%);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid var(--orin-border-strong, #d8e0e8) !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.08)) !important;
   transition: all 0.3s ease;
 }
 
 .premium-card:hover {
-  border-color: rgba(13, 148, 136, 0.25) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  border-color: var(--orin-border-strong, #d8e0e8) !important;
+  box-shadow: var(--shadow-md, 0 6px 14px rgba(15, 23, 42, 0.07)) !important;
 }
 
 html.dark .premium-card {
-  background: rgba(15, 28, 28, 0.8) !important;
-  border-color: rgba(38, 255, 223, 0.12) !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+  background: rgba(15, 23, 42, 0.78) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24) !important;
 }
 
 /* ========== 创建卡片 ========== */

@@ -14,6 +14,7 @@ import com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
@@ -259,28 +260,75 @@ public class MultimodalFileService {
 
     public InputStream openFileStream(String fileId) throws IOException {
         MultimodalFile file = getFile(fileId);
-        return fileStorageService.openStream(file.getStoragePath());
+        return openFileStream(file);
     }
 
     public InputStream openThumbnailStream(String fileId) throws IOException {
         MultimodalFile file = getFile(fileId);
-        if (file.getThumbnailPath() == null) {
+        return openThumbnailStream(file);
+    }
+
+    public InputStream openFileStream(MultimodalFile file) throws IOException {
+        String locator = resolveFileLocator(file);
+        if (!StringUtils.hasText(locator)) {
+            throw new IOException("Storage locator is blank");
+        }
+        return fileStorageService.openStream(locator);
+    }
+
+    public InputStream openThumbnailStream(MultimodalFile file) throws IOException {
+        String locator = resolveThumbnailLocator(file);
+        if (!StringUtils.hasText(locator)) {
             throw new RuntimeException("Thumbnail not available");
         }
-        return fileStorageService.openStream(file.getThumbnailPath());
+        return fileStorageService.openStream(locator);
     }
 
     public String getDownloadUrl(String fileId, Duration ttl) {
         MultimodalFile file = getFile(fileId);
-        return fileStorageService.generateDownloadUrl(file.getStoragePath(), ttl);
+        return getDownloadUrl(file, ttl);
     }
 
     public String getThumbnailUrl(String fileId, Duration ttl) {
         MultimodalFile file = getFile(fileId);
-        if (file.getThumbnailPath() == null) {
+        return getThumbnailUrl(file, ttl);
+    }
+
+    public String getDownloadUrl(MultimodalFile file, Duration ttl) {
+        String locator = resolveFileLocator(file);
+        if (!StringUtils.hasText(locator)) {
             return null;
         }
-        return fileStorageService.generateDownloadUrl(file.getThumbnailPath(), ttl);
+        return fileStorageService.generateDownloadUrl(locator, ttl);
+    }
+
+    public String getThumbnailUrl(MultimodalFile file, Duration ttl) {
+        String locator = resolveThumbnailLocator(file);
+        if (!StringUtils.hasText(locator)) {
+            return null;
+        }
+        return fileStorageService.generateDownloadUrl(locator, ttl);
+    }
+
+    public String resolveFileLocator(MultimodalFile file) {
+        if (file == null) {
+            return null;
+        }
+        if (StringUtils.hasText(file.getStoragePath())) {
+            return file.getStoragePath();
+        }
+        // Backward compatibility: legacy records may only keep objectKey.
+        if (StringUtils.hasText(file.getObjectKey())) {
+            return file.getObjectKey();
+        }
+        return null;
+    }
+
+    public String resolveThumbnailLocator(MultimodalFile file) {
+        if (file == null) {
+            return null;
+        }
+        return StringUtils.hasText(file.getThumbnailPath()) ? file.getThumbnailPath() : null;
     }
 
     /**

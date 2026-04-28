@@ -1,11 +1,11 @@
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="tab-wrapper-card">
-      <PageHeader
-        flat
+    <div class="tab-wrapper-card">
+      <OrinPageShell
         title="API 密钥"
-        description="管理访问密钥、调用额度与限流策略"
+        description="管理平台访问密钥、供应商凭据、调用额度与限流策略"
         icon="Key"
+        domain="组织治理"
       >
         <template #actions>
           <el-button
@@ -25,11 +25,13 @@
             添加供应商密钥
           </el-button>
         </template>
-      </PageHeader>
+      </OrinPageShell>
+
+      <OrinStatusSummary :items="apiKeyStatusItems" class="governance-summary" />
 
       <el-tabs v-model="activeTab" class="api-key-tabs">
       <el-tab-pane label="平台访问密钥" name="platform">
-        <el-card shadow="never" class="table-card premium-card">
+        <OrinDataTable class="table-card">
           <el-table
             v-loading="loading"
             border
@@ -167,12 +169,19 @@
                 </el-button>
               </template>
             </el-table-column>
+            <template #empty>
+              <OrinEmptyState
+                description="暂无平台访问密钥，请先创建受控调用凭据"
+                action-label="创建平台密钥"
+                @action="showCreateDialog"
+              />
+            </template>
           </el-table>
-        </el-card>
+        </OrinDataTable>
       </el-tab-pane>
 
       <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
-        <el-card shadow="never" class="table-card premium-card">
+        <OrinDataTable class="table-card">
           <el-table
             v-loading="loading"
             border
@@ -232,11 +241,18 @@
                 </el-button>
               </template>
             </el-table-column>
+            <template #empty>
+              <OrinEmptyState
+                description="暂无供应商密钥，请添加上游模型服务凭据"
+                action-label="添加供应商密钥"
+                @action="showExternalCreate"
+              />
+            </template>
           </el-table>
-        </el-card>
+        </OrinDataTable>
       </el-tab-pane>
     </el-tabs>
-    </el-card>
+    </div>
 
     <!-- 已存在的创建密钥对话框 (平台) - Truncated for diff but preserved in file -->
 
@@ -394,9 +410,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Plus, CopyDocument } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getProviderList } from '@/api/system';
 import {
@@ -432,6 +451,31 @@ const formRef = ref(null);
 const createdSecretKey = ref('');
 const revealLoadingKeys = ref(new Set());
 let secretAutoHideTimer = null;
+
+const apiKeyStatusItems = computed(() => [
+  {
+    label: '平台密钥',
+    value: apiKeys.value.length,
+    meta: '面向业务系统的访问凭据'
+  },
+  {
+    label: '启用中',
+    value: apiKeys.value.filter(key => key.enabled).length,
+    meta: '当前可调用平台网关',
+    intent: 'success'
+  },
+  {
+    label: '供应商凭据',
+    value: externalKeys.value.length,
+    meta: '上游模型服务访问凭据'
+  },
+  {
+    label: '停用凭据',
+    value: apiKeys.value.filter(key => !key.enabled).length + externalKeys.value.filter(key => !key.enabled).length,
+    meta: '已从调用链路移除',
+    intent: 'warning'
+  }
+]);
 
 const formData = ref({
   name: '',
@@ -742,9 +786,9 @@ onUnmounted(() => {
   max-width: 1800px;
 }
 
-.premium-card {
-  border-radius: var(--radius-xl) !important;
-  border: 1px solid var(--neutral-gray-100) !important;
+.tab-wrapper-card,
+.governance-summary {
+  margin-bottom: 16px;
 }
 
 .expand-content {

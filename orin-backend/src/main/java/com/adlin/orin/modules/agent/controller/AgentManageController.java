@@ -9,6 +9,7 @@ import com.adlin.orin.modules.agent.service.KimiAgentManageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
@@ -49,12 +50,14 @@ public class AgentManageController {
 
     @Operation(summary = "接入新智能体")
     @PostMapping("/onboard")
+    @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardAgent(@RequestBody AgentOnboardRequest request) {
         return agentManageService.onboardAgent(request);
     }
 
     @Operation(summary = "接入硅基流动智能体")
     @PostMapping("/onboard-silicon-flow")
+    @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardSiliconFlowAgent(
             @RequestParam String endpointUrl,
             @RequestParam String apiKey,
@@ -65,6 +68,7 @@ public class AgentManageController {
 
     @Operation(summary = "接入智谱AI智能体")
     @PostMapping("/onboard-zhipu")
+    @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardZhipuAgent(
             @RequestParam String endpointUrl,
             @RequestParam String apiKey,
@@ -76,6 +80,7 @@ public class AgentManageController {
 
     @Operation(summary = "接入DeepSeek智能体")
     @PostMapping("/onboard-deepseek")
+    @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardDeepSeekAgent(
             @RequestParam String endpointUrl,
             @RequestParam String apiKey,
@@ -87,6 +92,7 @@ public class AgentManageController {
 
     @Operation(summary = "接入MiniMax智能体")
     @PostMapping("/onboard-minimax")
+    @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardMinimaxAgent(
             @RequestParam String endpointUrl,
             @RequestParam String apiKey,
@@ -97,6 +103,7 @@ public class AgentManageController {
 
     @Operation(summary = "接入Kimi智能体")
     @PostMapping("/onboard-kimi")
+    @CacheEvict(value = "agent_list", allEntries = true)
     public AgentMetadata onboardKimiAgent(
             @RequestParam String endpointUrl,
             @RequestParam String apiKey,
@@ -191,6 +198,7 @@ public class AgentManageController {
 
     @Operation(summary = "批量导入智能体配置")
     @PostMapping(value = "/batch/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @CacheEvict(value = "agent_list", allEntries = true)
     public void batchImport(@RequestPart("file") MultipartFile file) {
         agentManageService.batchImportAgents(file);
     }
@@ -203,6 +211,7 @@ public class AgentManageController {
 
     @Operation(summary = "刷新所有智能体元数据")
     @PostMapping("/refresh")
+    @CacheEvict(value = "agent_list", allEntries = true)
     public void refreshAllAgents() {
         agentManageService.refreshAllAgentsMetadata();
     }

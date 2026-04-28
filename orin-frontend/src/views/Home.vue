@@ -149,7 +149,7 @@
             智能体管理与全链路监控系统
           </div>
           <h1 class="hero-title animate-up delay-1">
-            ORIN <span class="highlight">智能体监控</span>与管理系统
+            ORIN <span class="highlight">企业 AI 中枢</span>
           </h1>
           <p class="hero-subtitle animate-up delay-2">
             下一代企业级 AI 智能体治理平台，连接 Dify、RAGFlow 与业务系统的桥梁。
@@ -162,7 +162,7 @@
               class="start-btn"
               @click="$router.push(ROUTES.HOME)"
             >
-              进入监控大屏 <el-icon class="el-icon--right">
+              进入运营总览 <el-icon class="el-icon--right">
                 <ArrowRight />
               </el-icon>
             </el-button>
@@ -871,7 +871,7 @@ html.dark .visual-card {
 
 .metric-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--orin-primary), #10B981);
+  background: var(--orin-primary);
   border-radius: 4px;
   transition: width 1s ease;
 }

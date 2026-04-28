@@ -64,7 +64,7 @@ const isNotificationChannelsRoute = computed(() => String($route.path || '') ===
 <style scoped>
 .main-layout {
   min-height: 100vh;
-  background: var(--bg-color);
+  background: #ffffff;
 }
 
 .content-area {
@@ -78,7 +78,7 @@ const isNotificationChannelsRoute = computed(() => String($route.path || '') ===
   margin: 0 auto;
 }
 
-/* 全宽页面（首页大屏、邮件客户端、工作流编辑器）不受比例限制 */
+/* 全宽页面（运营总览、邮件客户端、工作流编辑器）不受比例限制 */
 .content-inner:has(.command-center-root),
 .content-inner:has(.gmail-layout),
 .content-inner:has(.visual-workflow-editor),
@@ -159,10 +159,10 @@ html.dark .content-area {
   transform: translateY(-50%);
   width: 20px;
   height: 48px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--neutral-gray-200);
+  background: rgba(255, 255, 255, 0.88);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
   border-left: none;
   border-radius: 0 8px 8px 0;
   display: flex;
@@ -170,7 +170,7 @@ html.dark .content-area {
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 10px rgba(15, 23, 42, 0.08);
   z-index: 100;
   opacity: 0;
 }

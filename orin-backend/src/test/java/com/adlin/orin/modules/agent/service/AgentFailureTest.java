@@ -7,6 +7,8 @@ import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentJobRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.service.impl.AgentManageServiceImpl;
+import com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.conversation.service.ConversationLogService;
@@ -88,6 +90,12 @@ class AgentFailureTest {
     private ModelConfigService modelConfigService;
 
     @Mock
+    private GatewaySecretService gatewaySecretService;
+
+    @Mock
+    private ExternalProviderKeyRepository providerKeyRepository;
+
+    @Mock
     private DifyIntegrationService difyIntegrationService;
 
     @Mock
@@ -128,6 +136,8 @@ class AgentFailureTest {
                 minimaxIntegrationService,
                 ollamaIntegrationService,
                 modelConfigService,
+                gatewaySecretService,
+                providerKeyRepository,
                 Collections.emptyList(), // providers list
                 siliconFlowAgentManageService,
                 zhipuAgentManageService,

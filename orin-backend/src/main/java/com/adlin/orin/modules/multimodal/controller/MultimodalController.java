@@ -9,8 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -70,17 +72,40 @@ public class MultimodalController {
     public ResponseEntity<?> downloadFile(@PathVariable String fileId) {
         try {
             MultimodalFile file = fileService.getFile(fileId);
-            String signedUrl = fileService.getDownloadUrl(fileId, Duration.ofMinutes(10));
-            if (signedUrl != null) {
-                return ResponseEntity.status(302).location(URI.create(signedUrl)).build();
-            } else {
-                Resource resource = new InputStreamResource(fileService.openFileStream(fileId));
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION,
-                                "attachment; filename=\"" + file.getFileName() + "\"")
-                        .contentType(MediaType.parseMediaType(file.getMimeType()))
-                        .body(resource);
+            String locator = fileService.resolveFileLocator(file);
+            if (!StringUtils.hasText(locator)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "File storage locator missing", "fileId", fileId));
             }
+
+            String signedUrl = fileService.getDownloadUrl(file, Duration.ofMinutes(10));
+            if (StringUtils.hasText(signedUrl)) {
+                return ResponseEntity.status(302).location(URI.create(signedUrl)).build();
+            }
+
+            Resource resource = new InputStreamResource(fileService.openFileStream(file));
+            MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+            if (StringUtils.hasText(file.getMimeType())) {
+                try {
+                    mediaType = MediaType.parseMediaType(file.getMimeType());
+                } catch (Exception ignored) {
+                    mediaType = MediaType.APPLICATION_OCTET_STREAM;
+                }
+            }
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + file.getFileName() + "\"")
+                    .contentType(mediaType)
+                    .body(resource);
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().startsWith("File not found:")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", e.getMessage(), "fileId", fileId));
+            }
+            throw e;
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "File content not available", "fileId", fileId));
         } catch (Exception e) {
             throw new RuntimeException("Failed to download file: " + e.getMessage(), e);
         }

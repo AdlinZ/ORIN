@@ -125,8 +125,7 @@ defineProps({
   transition: fill 0.3s ease;
 }
 
-/* Add a subtle glow in dark mode for the primary parts */
 :global(html.dark) .primary-part {
-  filter: drop-shadow(0 0 4px var(--orin-primary-glow, rgba(38, 255, 223, 0.5)));
+  filter: none;
 }
 </style>

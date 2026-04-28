@@ -41,6 +41,15 @@ public class LocalFileStorageServiceImpl implements ObjectStorageProvider {
         if (locatorOrKey.startsWith(PREFIX)) {
             return locatorOrKey.substring(PREFIX.length());
         }
+        String normalized = locatorOrKey.replace("\\", "/");
+        String configuredRoot = storageProperties.getLocal().getRoot();
+        if (configuredRoot != null && !configuredRoot.isBlank()) {
+            String normalizedRoot = configuredRoot.replace("\\", "/");
+            normalizedRoot = normalizedRoot.startsWith("./") ? normalizedRoot.substring(2) : normalizedRoot;
+            if (normalized.startsWith(normalizedRoot + "/")) {
+                return normalized.substring(normalizedRoot.length() + 1);
+            }
+        }
         Path p = Paths.get(locatorOrKey);
         if (p.isAbsolute()) {
             try {

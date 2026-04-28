@@ -22,6 +22,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+FRONTEND_HOST="${ORIN_FRONTEND_HOST:-127.0.0.1}"
+FRONTEND_PORT="${ORIN_FRONTEND_PORT:-5173}"
+
 # 数据库配置 (支持环境变量覆盖)
 # 使用方法: export ORIN_DB_PASS="your_password" 后再运行脚本
 DB_NAME="${ORIN_DB_NAME:-orindb}"
@@ -95,7 +98,7 @@ function stop_existing_services() {
     fi
 
     lsof -ti:8080 | xargs kill -9 > /dev/null 2>&1 || true
-    lsof -ti:5173 | xargs kill -9 > /dev/null 2>&1 || true
+    lsof -ti:"$FRONTEND_PORT" | xargs kill -9 > /dev/null 2>&1 || true
     lsof -ti:8000 | xargs kill -9 > /dev/null 2>&1 || true
 }
 
@@ -274,9 +277,9 @@ function start() {
     fi
 
     # 3. 启动前端 (Vue)
-    echo -e "启动前端服务 (Port: 5173)..."
+    echo -e "启动前端服务 (${FRONTEND_HOST}:${FRONTEND_PORT})..."
     cd $FRONTEND_DIR
-    nohup npm run dev < /dev/null > "$FRONTEND_LOG" 2>&1 &
+    nohup npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" < /dev/null > "$FRONTEND_LOG" 2>&1 &
     FPID=$!
     echo $FPID >> $PID_FILE
 
@@ -289,7 +292,7 @@ function start() {
     while [ "$elapsed" -lt "$wait_seconds" ]; do
         lsof -i:8080 > /dev/null 2>&1 && backend_ok=1 || backend_ok=0
         lsof -i:8000 > /dev/null 2>&1 && ai_ok=1 || ai_ok=0
-        lsof -i:5173 > /dev/null 2>&1 && frontend_ok=1 || frontend_ok=0
+        curl -fsS "http://${FRONTEND_HOST}:${FRONTEND_PORT}/" > /dev/null 2>&1 && frontend_ok=1 || frontend_ok=0
         if [ "$backend_ok" -eq 1 ] && [ "$ai_ok" -eq 1 ] && [ "$frontend_ok" -eq 1 ]; then
             break
         fi
@@ -302,7 +305,7 @@ function start() {
         echo -e "后端日志: $BACKEND_LOG"
         echo -e "前端日志: $FRONTEND_LOG"
         echo -e "AI引擎日志: $AI_ENGINE_LOG"
-        echo -e "访问地址: ${GREEN}http://localhost:5173${NC}"
+        echo -e "访问地址: ${GREEN}http://${FRONTEND_HOST}:${FRONTEND_PORT}${NC}"
     else
         echo -e "${RED}启动未通过健康校验：backend=$backend_ok ai_engine=$ai_ok frontend=$frontend_ok${NC}"
         echo -e "${YELLOW}请检查日志：${NC}"
@@ -325,7 +328,7 @@ function status() {
     echo -e "${BLUE}=== 服务状态 ===${NC}"
 
     B_RUNNING=$(lsof -i:8080)
-    F_RUNNING=$(lsof -i:5173)
+    F_RUNNING=$(lsof -i:"$FRONTEND_PORT")
     A_RUNNING=$(lsof -i:8000)
 
     if [ ! -z "$B_RUNNING" ]; then

@@ -3,9 +3,9 @@
     <header class="page-header cc-header-glass">
       <!-- 1. 品牌区 -->
       <div class="header-brand">
-        <h1 class="logo-text">ORIN<span class="logo-dot">.</span>ASIA</h1>
+        <h1 class="logo-text">ORIN 企业 AI 中枢</h1>
         <span class="header-divider"></span>
-        <p class="header-subtitle">查看平台整体健康状态、调用趋势与关键异常</p>
+        <p class="header-subtitle">运营总览、服务健康、调用趋势与待处理异常</p>
       </div>
 
       <!-- 2. 状态区 -->
@@ -56,10 +56,10 @@
     <section class="middle-section">
       <!-- 左侧：趋势与成本 -->
       <div class="middle-col-main">
-        <el-card class="panel-card premium-card panel-trend" shadow="never">
+        <el-card class="panel-card panel-trend" shadow="never">
           <template #header>
             <div class="panel-header">
-              <span>近 7 天调用趋势</span>
+              <span>调用趋势</span>
               <span class="panel-sub">单位：请求次数</span>
             </div>
           </template>
@@ -92,13 +92,13 @@
               </div>
             </div>
           </div>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <OrinEmptyState v-else description="暂无调用趋势数据" />
         </el-card>
 
-        <el-card class="panel-card premium-card panel-trend" shadow="never">
+        <el-card class="panel-card panel-trend" shadow="never">
           <template #header>
             <div class="panel-header">
-              <span>平均时延趋势</span>
+              <span>响应时延</span>
               <span class="panel-sub">单位：ms（近 7 天）</span>
             </div>
           </template>
@@ -131,13 +131,13 @@
               </div>
             </div>
           </div>
-          <el-empty v-else :description="todayCostEmptyDescription" :image-size="72" />
+          <OrinEmptyState v-else :description="todayCostEmptyDescription" />
         </el-card>
       </div>
 
       <!-- 右侧：节点健康 + 平台态势 -->
       <div class="middle-col-side">
-        <el-card class="panel-card premium-card panel-main" shadow="never">
+        <el-card class="panel-card panel-main" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>节点健康概览</span>
@@ -164,7 +164,7 @@
               <span class="node-status" :class="node.statusClass">{{ node.statusText }}</span>
             </li>
           </ul>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <OrinEmptyState v-else description="暂无节点状态数据" />
           <div class="node-load-block">
             <div class="node-load-head">
               <span>节点负载</span>
@@ -226,7 +226,7 @@
                 </div>
               </div>
             </template>
-            <el-empty v-else description="当前节点暂无硬件监控数据" :image-size="56" />
+            <OrinEmptyState v-else description="当前节点暂无硬件监控数据" :image-size="56" />
           </div>
         </el-card>
 
@@ -237,7 +237,7 @@
     <section class="bottom-section">
       <!-- 成本与负载 -->
       <div class="bottom-col">
-        <el-card class="panel-card premium-card panel-medium" shadow="never">
+        <el-card class="panel-card panel-medium" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>今日成本趋势</span>
@@ -255,10 +255,10 @@
             </div>
             <div class="cost-total">今日累计成本：¥{{ todayCostTotal.toFixed(2) }}</div>
           </div>
-          <el-empty v-else :description="todayCostEmptyDescription" :image-size="72" />
+          <OrinEmptyState v-else :description="todayCostEmptyDescription" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>资产与运行负载</span>
@@ -307,7 +307,7 @@
 
       <!-- 请求结构与资源分布 -->
       <div class="bottom-col">
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>资源分布（按智能体）</span>
@@ -326,10 +326,10 @@
               </div>
             </div>
           </div>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <OrinEmptyState v-else description="暂无智能体资源分布数据" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>队列与任务积压</span>
@@ -355,7 +355,7 @@
 
       <!-- 风险与审计 -->
       <div class="bottom-col">
-        <el-card class="panel-card premium-card panel-main" shadow="never">
+        <el-card class="panel-card panel-main" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>实时审计日志</span>
@@ -371,10 +371,10 @@
               </el-tag>
             </li>
           </ul>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <OrinEmptyState v-else description="暂无审计日志" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>慢请求 Top 5</span>
@@ -388,10 +388,10 @@
               <strong class="mini-rank-value">{{ item.value }}ms</strong>
             </li>
           </ul>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <OrinEmptyState v-else description="暂无慢请求数据" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>错误类型 Top 5</span>
@@ -405,10 +405,10 @@
               <strong class="mini-rank-value">{{ item.value }}</strong>
             </li>
           </ul>
-          <el-empty v-else :description="UI_TEXT.common.noData" :image-size="72" />
+          <OrinEmptyState v-else description="暂无错误类型数据" />
         </el-card>
 
-        <el-card class="panel-card premium-card" shadow="never">
+        <el-card class="panel-card" shadow="never">
           <template #header>
             <div class="panel-header">
               <span>依赖与基础服务状态</span>
@@ -425,7 +425,7 @@
               <el-tag size="small" :type="item.tagType">{{ item.text }}</el-tag>
             </li>
           </ul>
-          <el-empty v-else description="暂无基础服务状态" :image-size="40" />
+          <OrinEmptyState v-else description="暂无基础服务状态" :image-size="40" />
 
           <el-divider class="dependency-divider" />
           <div class="dependency-section-title">外部依赖</div>
@@ -435,7 +435,7 @@
               <el-tag size="small" :type="item.tagType">{{ item.text }}</el-tag>
             </li>
           </ul>
-          <el-empty v-else description="暂无外部依赖状态" :image-size="40" />
+          <OrinEmptyState v-else description="暂无外部依赖状态" :image-size="40" />
         </el-card>
       </div>
     </section>
@@ -446,6 +446,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
+import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { getAgentList } from '@/api/agent'
 import {
   getGlobalSummary,
@@ -877,7 +878,7 @@ const formatDurationLabel = (valueMs, zeroText = '0秒') => {
 }
 
 const refreshAgoText = computed(() => {
-  if (!lastRefreshAt.value) return '暂无数据'
+  if (!lastRefreshAt.value) return '尚未刷新'
   const elapsedMs = Math.max(nowTick.value - lastRefreshAt.value, 0)
   return `${formatDurationLabel(elapsedMs, '刚刚')}前`
 })
@@ -943,9 +944,9 @@ const getTileThresholdClass = (value) => {
 
 const getTileFillGradient = (value) => {
   const numValue = safeNumber(value)
-  if (numValue >= 85) return 'linear-gradient(90deg, var(--progress-critical-start), var(--progress-critical-end))'
-  if (numValue >= 70) return 'linear-gradient(90deg, var(--progress-warning-start), var(--progress-warning-end))'
-  return 'linear-gradient(90deg, var(--success-400), var(--success-500))'
+  if (numValue >= 85) return 'var(--progress-critical-end)'
+  if (numValue >= 70) return 'var(--progress-warning-end)'
+  return 'var(--success-500)'
 }
 
 const buildTrendData = (historyList) => {
@@ -1254,9 +1255,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .command-center-root {
-  --bg-page: #f4f7fb;
+  --bg-page: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-soft: #f8fbfd;
+  --bg-card-soft: #ffffff;
   --border-soft: rgba(148, 163, 184, 0.22);
   --text-strong: #0f172a;
   --text-main: #1e293b;
@@ -1301,12 +1302,12 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 16px;
   padding: 16px 24px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--bg-card) 88%, transparent);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border-soft);
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
 }
 
 .header-brand {
@@ -1318,9 +1319,9 @@ onBeforeUnmount(() => {
 
 .logo-text {
   margin: 0;
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0;
   color: var(--text-strong);
 }
 
@@ -1377,20 +1378,20 @@ onBeforeUnmount(() => {
 .kpi-card {
   position: relative;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   border: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--bg-card) 90%, transparent);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+  transform: none;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
 }
 
 .kpi-card.kpi-danger {
@@ -1557,7 +1558,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   min-height: 140px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(241, 245, 249, 0.5) 100%);
+  background: #ffffff;
   border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 12px;
   box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.02);
@@ -1583,12 +1584,12 @@ onBeforeUnmount(() => {
   stroke-width: 2.8;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 3px 5px rgba(13, 148, 136, 0.2));
+  filter: none;
 }
 
 .trend-line.latency {
   stroke: var(--info-500);
-  filter: drop-shadow(0 3px 5px rgba(37, 99, 235, 0.2));
+  filter: none;
 }
 
 .trend-dot {
@@ -1631,7 +1632,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: #ffffff;
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
@@ -1643,9 +1644,9 @@ onBeforeUnmount(() => {
   top: 0; left: 0; right: 0; height: 3px;
 }
 
-.node-stat.ok::before { background: linear-gradient(90deg, #22c55e, #86efac); }
-.node-stat.warn::before { background: linear-gradient(90deg, #f59e0b, #fcd34d); }
-.node-stat.danger::before { background: linear-gradient(90deg, #ef4444, #fca5a5); }
+.node-stat.ok::before { background: #22c55e; }
+.node-stat.warn::before { background: #f59e0b; }
+.node-stat.danger::before { background: #ef4444; }
 
 .node-stat-label {
   color: var(--text-subtle);
@@ -1749,7 +1750,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248, 250, 252, 0.6) 100%);
+  background: #ffffff;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -1799,12 +1800,12 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.tile-fill.cpu  { background: linear-gradient(90deg, var(--info-400), var(--info-500)); }
-.tile-fill.gpu  { background: linear-gradient(90deg, var(--accent-400), var(--accent-500)); }
-.tile-fill.memory { background: linear-gradient(90deg, var(--success-400), var(--success-500)); }
-.tile-fill.disk  { background: linear-gradient(90deg, var(--warning-400), var(--warning-500)); }
-.tile-fill.warning  { background: linear-gradient(90deg, var(--progress-warning-start), var(--progress-warning-end)) !important; }
-.tile-fill.critical { background: linear-gradient(90deg, var(--progress-critical-start), var(--progress-critical-end)) !important; }
+.tile-fill.cpu  { background: var(--info-500); }
+.tile-fill.gpu  { background: var(--accent-500); }
+.tile-fill.memory { background: var(--success-500); }
+.tile-fill.disk  { background: var(--warning-500); }
+.tile-fill.warning  { background: var(--progress-warning-end) !important; }
+.tile-fill.critical { background: var(--progress-critical-end) !important; }
 
 /* Cost trend */
 .cost-trend {
@@ -1841,7 +1842,7 @@ onBeforeUnmount(() => {
 .cost-bar-fill {
   width: 100%;
   border-radius: 5px;
-  background: linear-gradient(180deg, var(--info-400) 0%, var(--primary-500) 100%);
+  background: var(--primary-500);
 }
 
 .cost-hour {
@@ -1876,26 +1877,20 @@ onBeforeUnmount(() => {
 }
 
 .asset-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  opacity: 0.1;
-  pointer-events: none;
+  display: none;
 }
 
 .asset-card.primary {
-  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  background: #ffffff;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
 }
-.asset-card.primary::before { background: radial-gradient(circle at top right, #0ea5e9, transparent 60%); }
-.asset-card.primary .asset-icon { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); color: #0284c7; }
+.asset-card.primary .asset-icon { background: #e0f2fe; color: #0284c7; }
 
 .asset-card.secondary {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: #ffffff;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
 }
-.asset-card.secondary::before { background: radial-gradient(circle at top right, #10b981, transparent 60%); }
-.asset-card.secondary .asset-icon { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #059669; }
+.asset-card.secondary .asset-icon { background: #dcfce7; color: #059669; }
 
 .asset-card:hover {
   transform: translateY(-2px);
@@ -1976,7 +1971,7 @@ onBeforeUnmount(() => {
 .rank-fill {
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--success-500) 0%, var(--info-500) 100%);
+  background: var(--success-500);
 }
 
 /* Queue */
