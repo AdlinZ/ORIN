@@ -1660,9 +1660,14 @@ public class MonitorServiceImpl implements MonitorService {
                         status.put("diskUsage", 0); // OSHI 不直接提供磁盘使用率百分比
                         status.put("gpuModel", info.getOrDefault("gpuModel", "N/A"));
                         status.put("gpuUsage", 0);
-                        status.put("gpuMemoryTotal", 0L);
+                        status.put("gpuMemoryTotal", info.getOrDefault("gpuMemoryTotal", 0L));
                         status.put("gpuMemoryUsage", 0);
                         status.put("uptime", info.getOrDefault("uptime", 0L));
+                        status.put("processCount", info.getOrDefault("processCount", 0));
+                        status.put("cpuLogicalCores", info.getOrDefault("cpuLogicalCores", 0));
+                        status.put("cpuTemperature", info.getOrDefault("cpuTemperature", null));
+                        status.put("gpuTemperature", info.getOrDefault("gpuTemperature", null));
+                        status.put("gpuPower", info.getOrDefault("gpuPower", null));
                 } catch (Exception e) {
                         log.error("Failed to get local server hardware status: {}", e.getMessage());
                         status.put("online", false);
@@ -1680,11 +1685,19 @@ public class MonitorServiceImpl implements MonitorService {
                         return getLocalServerHardwareStatus();
                 }
 
-                // 查询该节点的 ServerInfo，获取 Prometheus URL
-                ServerInfo serverInfo = serverInfoRepository.findByServerId(serverId).orElse(null);
+                // 查询该节点的 ServerInfo（兼容别名），获取 Prometheus URL
+                List<String> aliases = buildServerIdAliases(serverId);
+                ServerInfo serverInfo = serverInfoRepository.findByServerIdIn(aliases).stream().findFirst().orElse(null);
                 String baseUrl = null;
                 if (serverInfo != null && serverInfo.getPrometheusUrl() != null && !serverInfo.getPrometheusUrl().isEmpty()) {
                         baseUrl = serverInfo.getPrometheusUrl();
+                }
+
+                // Fallback: allow direct Prometheus URL in serverId when mapping is missing.
+                if ((baseUrl == null || baseUrl.isEmpty())
+                                && serverId != null
+                                && (serverId.startsWith("http://") || serverId.startsWith("https://"))) {
+                        baseUrl = serverId;
                 }
 
                 // 如果没有配置 Prometheus URL，返回离线状态
@@ -1723,9 +1736,33 @@ public class MonitorServiceImpl implements MonitorService {
                         status.put("gpuModel", prometheusService.getGpuModel(baseUrl));
                         status.put("gpuUsage", prometheusService.getGpuUsage(baseUrl));
                         status.put("gpuMemoryTotal", prometheusService.getGpuMemoryTotalBytes(baseUrl));
+                        status.put("gpuMemoryUsed", prometheusService.getGpuMemoryUsedBytes(baseUrl));
                         status.put("gpuMemoryUsage", prometheusService.getGpuMemoryUsage(baseUrl));
                         status.put("networkReceiveRate", prometheusService.getNetworkReceiveRate(baseUrl));
                         status.put("networkTransmitRate", prometheusService.getNetworkTransmitRate(baseUrl));
+                        status.put("processCount", prometheusService.getProcessCount(baseUrl));
+                        status.put("cpuTemperature", prometheusService.getCpuTemperature(baseUrl));
+                        status.put("gpuTemperature", prometheusService.getGpuTemperature(baseUrl));
+                        status.put("gpuPower", prometheusService.getGpuPowerWatts(baseUrl));
+
+                        String gpuModel = String.valueOf(status.getOrDefault("gpuModel", "Unknown"));
+                        long gpuMemoryTotal = parseLong(status.get("gpuMemoryTotal"));
+                        long gpuMemoryUsed = parseLong(status.get("gpuMemoryUsed"));
+                        double gpuUsage = parseDouble(status.get("gpuUsage"));
+                        double gpuMemoryUsage = parseDouble(status.get("gpuMemoryUsage"));
+
+                        if ((gpuModel == null || gpuModel.isBlank() || "Unknown".equalsIgnoreCase(gpuModel) || "N/A".equalsIgnoreCase(gpuModel))
+                                        && (gpuMemoryTotal > 0 || gpuMemoryUsed > 0 || gpuUsage > 0 || gpuMemoryUsage > 0)) {
+                                status.put("gpuModel", "NVIDIA GPU");
+                        }
+
+                        if (gpuMemoryTotal > 0) {
+                                long used = gpuMemoryUsed;
+                                if (used <= 0 && gpuMemoryUsage > 0) {
+                                        used = (long) (gpuMemoryTotal * (gpuMemoryUsage / 100.0));
+                                }
+                                status.put("gpuMemory", formatBytes(Math.max(used, 0)) + " / " + formatBytes(gpuMemoryTotal));
+                        }
 
                 } catch (Exception e) {
                         log.error("Failed to get Prometheus server status for {}: {}", serverId, e.getMessage());

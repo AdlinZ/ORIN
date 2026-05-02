@@ -34,6 +34,12 @@ public class AlertHistory {
     private String ruleId;
 
     /**
+     * 关联的规则名称（冗余存储，用于前端展示）
+     */
+    @Column(name = "rule_name", length = 100)
+    private String ruleName;
+
+    /**
      * 关联的智能体 ID
      */
     @Column(name = "agent_id", length = 50)
@@ -70,7 +76,7 @@ public class AlertHistory {
     private LocalDateTime resolvedAt;
 
     /**
-     * 状态: TRIGGERED, RESOLVED
+     * 状态: TRIGGERED, RESOLVED, SUPPRESSED
      */
     @Column(name = "status", length = 20)
     @Builder.Default

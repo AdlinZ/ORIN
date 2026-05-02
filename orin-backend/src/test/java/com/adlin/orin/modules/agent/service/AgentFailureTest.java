@@ -421,7 +421,8 @@ class AgentFailureTest {
         when(metaKnowledgeService.assembleSystemPrompt(agentId)).thenReturn("");
 
         // Given: Chat 调用触发限流
-        when(siliconFlowAgentManageService.chat(eq(agentId), eq("Hi"), (String) isNull()))
+        when(siliconFlowIntegrationService.sendMessageWithFullParams(
+                anyString(), anyString(), anyString(), anyList(), anyDouble(), anyDouble(), anyInt(), any(), any()))
                 .thenThrow(new HttpClientErrorException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "Rate limit exceeded",
@@ -466,7 +467,8 @@ class AgentFailureTest {
         when(metaKnowledgeService.assembleSystemPrompt(agentId)).thenReturn("");
 
         // Given: Chat 调用触发 500 错误
-        when(siliconFlowAgentManageService.chat(eq(agentId), eq("Hi"), (String) isNull()))
+        when(siliconFlowIntegrationService.sendMessageWithFullParams(
+                anyString(), anyString(), anyString(), anyList(), anyDouble(), anyDouble(), anyInt(), any(), any()))
                 .thenThrow(new HttpServerErrorException(
                         HttpStatus.INTERNAL_SERVER_ERROR,
                         "Internal Server Error",
@@ -511,7 +513,8 @@ class AgentFailureTest {
         when(metaKnowledgeService.assembleSystemPrompt(agentId)).thenReturn("");
 
         // Given: Chat 调用被熔断器拒绝
-        when(siliconFlowAgentManageService.chat(eq(agentId), eq("Hi"), (String) isNull()))
+        when(siliconFlowIntegrationService.sendMessageWithFullParams(
+                anyString(), anyString(), anyString(), anyList(), anyDouble(), anyDouble(), anyInt(), any(), any()))
                 .thenThrow(new RuntimeException("CircuitBreaker is OPEN - SiliconFlow API is temporarily unavailable"));
 
         // When: 发送聊天消息
@@ -637,7 +640,8 @@ class AgentFailureTest {
         when(metaKnowledgeService.assembleSystemPrompt(agentId)).thenReturn("");
 
         // Given: Chat 返回空 Optional
-        when(siliconFlowAgentManageService.chat(eq(agentId), eq("Hi"), (String) isNull()))
+        when(siliconFlowIntegrationService.sendMessageWithFullParams(
+                anyString(), anyString(), anyString(), anyList(), anyDouble(), anyDouble(), anyInt(), any(), any()))
                 .thenReturn(Optional.empty());
 
         // When: 发送聊天消息
@@ -756,7 +760,8 @@ class AgentFailureTest {
         when(metaKnowledgeService.assembleSystemPrompt(agentId)).thenReturn("");
 
         // Given: Chat 调用超时
-        when(siliconFlowAgentManageService.chat(eq(agentId), eq("Hi"), (String) isNull()))
+        when(siliconFlowIntegrationService.sendMessageWithFullParams(
+                anyString(), anyString(), anyString(), anyList(), anyDouble(), anyDouble(), anyInt(), any(), any()))
                 .thenThrow(new RuntimeException("Read timed out after 60000 ms"));
 
         // When: 发送聊天消息

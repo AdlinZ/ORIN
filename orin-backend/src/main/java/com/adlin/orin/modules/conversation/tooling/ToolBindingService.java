@@ -8,19 +8,34 @@ import com.adlin.orin.modules.conversation.entity.AgentToolBinding;
 import com.adlin.orin.modules.conversation.entity.SessionToolBinding;
 import com.adlin.orin.modules.conversation.repository.AgentToolBindingRepository;
 import com.adlin.orin.modules.conversation.repository.SessionToolBindingRepository;
+import com.adlin.orin.modules.skill.entity.McpService;
+import com.adlin.orin.modules.skill.entity.SkillEntity;
+import com.adlin.orin.modules.skill.repository.McpServiceRepository;
+import com.adlin.orin.modules.skill.repository.SkillRepository;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ToolBindingService {
 
     private final AgentToolBindingRepository agentToolBindingRepository;
     private final SessionToolBindingRepository sessionToolBindingRepository;
+    private final SkillRepository skillRepository;
+    private final McpServiceRepository mcpServiceRepository;
+
+    @Value("${orin.conversation.default-bind-active-skills:false}")
+    private boolean defaultBindActiveSkills;
+    @Value("${orin.conversation.default-bind-connected-mcp:false}")
+    private boolean defaultBindConnectedMcp;
 
     public ToolBindingDto getAgentBinding(String agentId) {
         AgentToolBinding binding = agentToolBindingRepository.findById(agentId)
@@ -83,11 +98,29 @@ public class ToolBindingService {
                 agentBinding != null ? agentBinding.getSkillIds() : null,
                 List.of());
 
+        boolean explicitToolSelection = request != null
+                && ((request.getToolIds() != null && !request.getToolIds().isEmpty())
+                || (request.getSkillIds() != null && !request.getSkillIds().isEmpty())
+                || (request.getMcpIds() != null && !request.getMcpIds().isEmpty()));
+        if (defaultBindActiveSkills && !explicitToolSelection && effectiveSkillIds.isEmpty()) {
+            effectiveSkillIds = skillRepository.findByStatus(SkillEntity.SkillStatus.ACTIVE).stream()
+                    .map(SkillEntity::getId)
+                    .filter(id -> id != null)
+                    .collect(Collectors.toList());
+        }
+
         List<Long> effectiveMcpIds = firstNonEmptyLong(
                 request != null ? request.getMcpIds() : null,
                 sessionBinding != null ? sessionBinding.getMcpIds() : null,
                 agentBinding != null ? agentBinding.getMcpIds() : null,
                 List.of());
+        if (defaultBindConnectedMcp && !explicitToolSelection && effectiveMcpIds.isEmpty()) {
+            effectiveMcpIds = mcpServiceRepository.findByStatus(McpService.McpStatus.CONNECTED).stream()
+                    .filter(service -> Boolean.TRUE.equals(service.getEnabled()))
+                    .map(McpService::getId)
+                    .filter(id -> id != null)
+                    .collect(Collectors.toList());
+        }
 
         List<String> effectiveToolIds = firstNonEmpty(
                 request != null ? request.getToolIds() : null,
@@ -95,6 +128,14 @@ public class ToolBindingService {
                 agentBinding != null ? agentBinding.getToolIds() : null,
                 deriveToolIds(effectiveKbIds, effectiveSkillIds, effectiveMcpIds),
                 List.of());
+
+        log.info("Effective tool binding resolved: agentId={}, sessionId={}, toolIds={}, kbIds={}, skillIds={}, mcpIds={}",
+                session != null ? session.getAgentId() : null,
+                session != null ? session.getSessionId() : null,
+                effectiveToolIds,
+                effectiveKbIds,
+                effectiveSkillIds,
+                effectiveMcpIds);
 
         return EffectiveToolBinding.builder()
                 .agentId(session != null ? session.getAgentId() : null)

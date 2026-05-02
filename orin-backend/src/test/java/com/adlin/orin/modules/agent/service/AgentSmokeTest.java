@@ -280,13 +280,14 @@ class AgentSmokeTest {
         when(metadataRepository.findById(agentId)).thenReturn(Optional.of(metadata));
         when(metaKnowledgeService.assembleSystemPrompt(agentId)).thenReturn("");
 
-        // Mock chat response - SiliconFlow agent falls back to siliconFlowAgentManageService.chat() for CHAT viewType
+        // Mock provider chat response for the current SiliconFlow integration path.
         Map<String, Object> mockResponse = new HashMap<>();
         mockResponse.put("status", "SUCCESS");
         mockResponse.put("content", "Hello! How can I help you?");
         mockResponse.put("conversation_id", "test-conversation-id");
 
-        when(siliconFlowAgentManageService.chat(eq(agentId), eq("Hi"), (String) isNull()))
+        when(siliconFlowIntegrationService.sendMessageWithFullParams(
+                anyString(), anyString(), anyString(), anyList(), anyDouble(), anyDouble(), anyInt(), any(), any()))
                 .thenReturn(Optional.of(mockResponse));
 
         // When: 发送聊天消息

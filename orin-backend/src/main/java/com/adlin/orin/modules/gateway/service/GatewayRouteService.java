@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 public class GatewayRouteService {
 
     private final GatewayRouteRepository routeRepository;
+    private final GatewayCircuitBreakerService circuitBreakerService;
+    private final GatewayRateLimiterService rateLimiterService;
 
     public List<GatewayRouteResponse> getAllRoutes() {
         return routeRepository.findAllByOrderByPriorityDesc().stream()
@@ -96,6 +98,9 @@ public class GatewayRouteService {
         if (!routeRepository.existsById(id)) {
             throw new RuntimeException("Route not found: " + id);
         }
+        // 清理路由关联的熔断器和限流器状态，防止内存泄漏
+        circuitBreakerService.removeRouteState(id);
+        rateLimiterService.removeRouteBuckets(id);
         routeRepository.deleteById(id);
         log.info("Deleted gateway route: {}", id);
     }

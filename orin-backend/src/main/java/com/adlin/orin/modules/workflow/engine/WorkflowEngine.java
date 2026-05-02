@@ -108,6 +108,11 @@ public class WorkflowEngine {
                 // 使用图执行器
                 log.info("Executing graph-based workflow");
                 // IMPORTANT: Pass instanceId to GraphExecutor for event publishing
+                // Set TraceContext for graph-based workflows so SkillTraceInterceptor can trace skill executions
+                if (instance.getTraceId() != null) {
+                    SkillTraceInterceptor.TraceContext.setTraceId(instance.getTraceId());
+                    SkillTraceInterceptor.TraceContext.setInstanceId(instance.getId());
+                }
                 graphExecutor.setInstanceId(instance.getId());
                 outputs = graphExecutor.executeGraph(graphDefinition, context);
             } else {

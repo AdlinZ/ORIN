@@ -2,6 +2,7 @@ package com.adlin.orin.modules.knowledge.service;
 
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,16 @@ class RetrievalServiceTest {
     private KnowledgeDocumentChunkRepository chunkRepository;
 
     @Mock
+    private KnowledgeDocumentRepository documentRepository;
+
+    @Mock
+    private StorageManagementService storageManagementService;
+
+    @Mock
     private com.adlin.orin.modules.multimodal.service.VisualAnalysisService visualAnalysisService;
+
+    @Mock
+    private RerankService rerankService;
 
     @InjectMocks
     private RetrievalService retrievalService;

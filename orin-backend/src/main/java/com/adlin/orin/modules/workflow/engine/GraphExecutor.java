@@ -263,40 +263,79 @@ public class GraphExecutor {
                         SkillTraceInterceptor.TraceContext.setStepId(getNumericId(nodeId));
                         SkillTraceInterceptor.TraceContext
                                 .setStepName((String) nodeDef.getOrDefault("title", nodeDef.get("type")));
-                        if (traceService != null) {
-                            // In real imp, ensure we call startTrace here or inside handler
-                        }
-                        eventPublisher.publishNodeStarted(currentInstanceId, nodeId, (String) nodeDef.get("type"));
-
-                        long nodeStartTime = System.currentTimeMillis();
                         String nodeType = (String) nodeDef.getOrDefault("type", "unknown");
                         String nodeTitle = (String) nodeDef.getOrDefault("title", nodeType);
 
-                        NodeExecutionResult result = handler.execute(
-                                nodeDef.get("data") != null ? (Map<String, Object>) nodeDef.get("data")
-                                        : Collections.emptyMap(),
-                                context);
+                        // Record trace start to local workflow_traces table
+                        com.adlin.orin.modules.trace.entity.WorkflowTraceEntity traceEntity = null;
+                        if (traceService != null && parentTraceId != null) {
+                            try {
+                                traceEntity = traceService.startTrace(
+                                        parentTraceId,
+                                        currentInstanceId,
+                                        getNumericId(nodeId),
+                                        nodeTitle,
+                                        null, // skillId not available at this level
+                                        nodeType,
+                                        new HashMap<>() // inputData
+                                );
+                            } catch (Exception ex) {
+                                log.warn("Failed to start trace for node {}: {}", nodeId, ex.getMessage());
+                            }
+                        }
+                        eventPublisher.publishNodeStarted(currentInstanceId, nodeId, nodeType);
+
+                        long nodeStartTime = System.currentTimeMillis();
+                        NodeExecutionResult result = null;
+                        try {
+                            result = handler.execute(
+                                    nodeDef.get("data") != null ? (Map<String, Object>) nodeDef.get("data")
+                                            : Collections.emptyMap(),
+                                    context);
+                        } catch (Exception handlerEx) {
+                            // Record failed trace before rethrowing
+                            if (traceEntity != null) {
+                                try {
+                                    Map<String, Object> errorDetails = new HashMap<>();
+                                    errorDetails.put("exception", handlerEx.getClass().getName());
+                                    errorDetails.put("stackTrace", handlerEx.getMessage());
+                                    traceService.failTrace(traceEntity.getId(), "HANDLER_EXECUTION_ERROR",
+                                            handlerEx.getMessage(), errorDetails);
+                                } catch (Exception ex) {
+                                    log.warn("Failed to record failed trace for node {}: {}", nodeId, ex.getMessage());
+                                }
+                            }
+                            throw handlerEx;
+                        }
 
                         long nodeDurationMs = System.currentTimeMillis() - nodeStartTime;
 
                         // Record node execution to Langfuse as span
                         recordNodeSpan(parentTraceId, nodeId, nodeType, nodeTitle, nodeStartTime, nodeDurationMs, result);
 
+                        // Complete local trace record
+                        if (traceEntity != null) {
+                            try {
+                                if (result.isSuccess()) {
+                                    traceService.completeTrace(traceEntity.getId(), result.getOutputs());
+                                } else {
+                                    Map<String, Object> errorDetails = new HashMap<>();
+                                    String errorMsg = result.getOutputs() != null
+                                            ? (String) result.getOutputs().getOrDefault("error", result.getOutputs().getOrDefault("errorMessage", "Unknown error"))
+                                            : "Unknown error";
+                                    errorDetails.put("error", errorMsg);
+                                    traceService.failTrace(traceEntity.getId(), "NODE_EXECUTION_ERROR",
+                                            errorMsg, errorDetails);
+                                }
+                            } catch (Exception ex) {
+                                log.warn("Failed to complete trace for node {}: {}", nodeId, ex.getMessage());
+                            }
+                        }
+
                         // Update Context
                         if (result.isSuccess() && result.getOutputs() != null) {
-                            // We might want to namespace outputs: context.put(nodeId, result.getOutputs());
-                            // Or Flatten: context.putAll(result.getOutputs());
-                            // Dify typically puts it under `nodeId` key in a separate state, but flat
-                            // context for vars.
-                            // For V1, lets put in separate `nodeOutputs` map inside context?
-                            // No, existing handlers expect flat or `inputs` map.
-                            // Let's stick to: Context is global variables. Nodes write to Global? No,
-                            // dangerous.
-                            // Correct: Context contains "sys", "vars", and "nodeId" -> output map.
-
                             // Write to context under nodeId
                             context.put(nodeId, result.getOutputs());
-                            // Also flatten for "Start" node or explicit variable assigners
                         }
 
                         nodeStates.put(nodeId, NodeExecutionStatus.COMPLETED);

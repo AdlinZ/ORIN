@@ -135,10 +135,21 @@ public class ToolCatalogService {
         List<ToolCatalogItemDto> result = new ArrayList<>();
         for (McpService service : services) {
             Map<String, Object> schema = new HashMap<>();
-            schema.put("type", service.getType() != null ? service.getType().name() : "STDIO");
-            schema.put("command", service.getCommand());
-            schema.put("url", service.getUrl());
-            schema.put("description", service.getDescription());
+            schema.put("type", "object");
+            schema.put("properties", Map.of(
+                    "operation", Map.of(
+                            "type", "string",
+                            "description", "MCP operation name",
+                            "enum", List.of("status", "log", "branch", "diff")),
+                    "cwd", Map.of(
+                            "type", "string",
+                            "description", "Optional working directory"),
+                    "args", Map.of(
+                            "type", "array",
+                            "items", Map.of("type", "string"),
+                            "description", "Optional extra args for the operation")
+            ));
+            schema.put("required", List.of("operation"));
 
             result.add(ToolCatalogItemDto.builder()
                     .toolId("mcp:" + service.getId())
@@ -146,7 +157,9 @@ public class ToolCatalogService {
                     .category(CATEGORY_MCP)
                     .schema(schema)
                     .enabled(Boolean.TRUE.equals(service.getEnabled()))
-                    .runtimeMode(MODE_CONTEXT_ONLY)
+                    .runtimeMode(service.getStatus() == McpService.McpStatus.CONNECTED
+                            ? MODE_FUNCTION_CALL
+                            : MODE_CONTEXT_ONLY)
                     .healthStatus(service.getStatus() != null ? service.getStatus().name() : "UNKNOWN")
                     .version("1.0.0")
                     .source("MCP")

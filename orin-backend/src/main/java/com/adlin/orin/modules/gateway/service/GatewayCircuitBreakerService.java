@@ -29,6 +29,21 @@ public class GatewayCircuitBreakerService {
     private final ConcurrentHashMap<Long, CircuitBreakerState> states = new ConcurrentHashMap<>();
 
     /**
+     * 删除路由时清理对应状态，防止内存泄漏
+     */
+    public void removeRouteState(Long routeId) {
+        states.remove(routeId);
+        log.debug("Circuit breaker state removed for routeId={}", routeId);
+    }
+
+    /**
+     * 检查当前状态数量（用于监控）
+     */
+    public int getStateCount() {
+        return states.size();
+    }
+
+    /**
      * 检查熔断器是否允许本次请求通过。
      *
      * @return true 表示允许，false 表示熔断拒绝

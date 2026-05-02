@@ -16,6 +16,8 @@ import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeGraphService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.model.service.OllamaIntegrationService;
+import com.adlin.orin.modules.skill.entity.McpService;
+import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.adlin.orin.modules.skill.service.SkillService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.PageRequest;
@@ -47,6 +49,7 @@ public class ToolCallingKbStrategy {
     private final KnowledgeManageService knowledgeManageService;
     private final KnowledgeGraphService knowledgeGraphService;
     private final SkillService skillService;
+    private final McpServiceRepository mcpServiceRepository;
     private final ObjectMapper objectMapper;
 
     public Map<String, Object> execute(
@@ -121,15 +124,23 @@ public class ToolCallingKbStrategy {
 
             Map<String, Object> message = extractMessage(respMap);
             if (message == null) {
+                String responseError = extractResponseError(respMap);
                 emitTrace(traceConsumer, ToolTrace.builder()
                         .type("KB_MODEL_TOOL_FINAL")
                         .kbId("multiple")
                         .message("无法解析模型响应，工具调用流程提前结束")
                         .status("error")
                         .durationMs(0L)
-                        .detail(Map.of("round", round + 1, "totalToolCalls", totalToolCalls))
+                        .detail(Map.of(
+                                "round", round + 1,
+                                "totalToolCalls", totalToolCalls,
+                                "responseKeys", respMap.keySet(),
+                                "responseError", responseError != null ? responseError : ""))
                         .build());
-                return result("（无法解析模型响应）", "", promptTokens, completionTokens, totalTokens);
+                String errorText = responseError != null && !responseError.isBlank()
+                        ? "（模型响应解析失败：" + responseError + "）"
+                        : "（无法解析模型响应）";
+                return result(errorText, "", promptTokens, completionTokens, totalTokens);
             }
 
             messages.add(new HashMap<>(message));
@@ -264,10 +275,93 @@ public class ToolCallingKbStrategy {
             }
         }
         if (toolId.startsWith("mcp:")) {
-            return "（MCP 服务 " + tool.getDisplayName() + " 暂不支持 tool calling 直接执行，"
-                    + "请通过对应的 Skill 代理使用其能力）";
+            Long mcpId = parseLong(toolId.substring("mcp:".length()));
+            if (mcpId == null) return "（无效的 mcp id: " + toolId + "）";
+            return executeMcpTool(mcpId, tool.getDisplayName(), args);
         }
         return "（工具 " + toolId + " 未注册执行器，已作为占位返回）";
+    }
+
+    private String executeMcpTool(Long mcpId, String displayName, Map<String, Object> args) {
+        Optional<McpService> serviceOpt = mcpServiceRepository.findById(mcpId);
+        if (serviceOpt.isEmpty()) {
+            return "（MCP 服务不存在: " + mcpId + "）";
+        }
+        McpService service = serviceOpt.get();
+        if (!Boolean.TRUE.equals(service.getEnabled())) {
+            return "（MCP 服务已禁用: " + service.getName() + "）";
+        }
+        if (service.getStatus() != McpService.McpStatus.CONNECTED) {
+            return "（MCP 服务未连接: " + service.getName() + "）";
+        }
+
+        String nameLower = (service.getName() != null ? service.getName() : "").toLowerCase(Locale.ROOT);
+        String commandLower = (service.getCommand() != null ? service.getCommand() : "").toLowerCase(Locale.ROOT);
+        boolean isGitMcp = nameLower.contains("git")
+                || commandLower.contains("git")
+                || "git".equalsIgnoreCase(service.getToolKey());
+        if (!isGitMcp) {
+            return "（MCP 服务 " + (displayName != null ? displayName : service.getName()) + " 尚未实现自动执行适配）";
+        }
+
+        return executeGitMcp(args);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String executeGitMcp(Map<String, Object> args) {
+        String operation = String.valueOf(args != null ? args.getOrDefault("operation", "status") : "status");
+        String cwd = args != null && args.get("cwd") != null ? String.valueOf(args.get("cwd")) : ".";
+        List<String> extraArgs = new ArrayList<>();
+        if (args != null && args.get("args") instanceof List<?> values) {
+            for (Object value : values) {
+                if (value != null) extraArgs.add(String.valueOf(value));
+            }
+        }
+
+        List<String> command = new ArrayList<>();
+        command.add("git");
+        switch (operation) {
+            case "status" -> {
+                command.add("status");
+                command.add("--short");
+                command.add("--branch");
+            }
+            case "log" -> {
+                command.add("log");
+                command.add("--oneline");
+                command.add("-n");
+                command.add("20");
+            }
+            case "branch" -> {
+                command.add("branch");
+                command.add("-vv");
+            }
+            case "diff" -> {
+                command.add("diff");
+                command.add("--stat");
+            }
+            default -> {
+                return "（不支持的 git MCP operation: " + operation + "）";
+            }
+        }
+        command.addAll(extraArgs);
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(Path.of(cwd).toFile());
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            byte[] outputBytes = process.getInputStream().readAllBytes();
+            int exitCode = process.waitFor();
+            String output = new String(outputBytes);
+            if (exitCode != 0) {
+                return "（git 执行失败，exitCode=" + exitCode + "）\n" + output;
+            }
+            return output == null || output.isBlank() ? "（git 命令执行成功，无输出）" : output.trim();
+        } catch (Exception e) {
+            log.warn("Git MCP execution failed: op={}, cwd={}, err={}", operation, cwd, e.getMessage());
+            return "（Git MCP 执行异常: " + e.getMessage() + "）";
+        }
     }
 
     private Long parseLong(String value) {
@@ -603,9 +697,72 @@ public class ToolCallingKbStrategy {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> extractMessage(Map<String, Object> respMap) {
-        List<Map<String, Object>> choices = (List<Map<String, Object>>) respMap.get("choices");
-        if (choices == null || choices.isEmpty()) return null;
-        return (Map<String, Object>) choices.get(0).get("message");
+        if (respMap == null || respMap.isEmpty()) {
+            return null;
+        }
+
+        Object choicesObj = respMap.get("choices");
+        if (choicesObj instanceof List<?> choices && !choices.isEmpty()) {
+            Object first = choices.get(0);
+            if (first instanceof Map<?, ?> firstMapAny) {
+                Map<String, Object> firstMap = (Map<String, Object>) firstMapAny;
+                Object messageObj = firstMap.get("message");
+                if (messageObj instanceof Map<?, ?> msgMapAny) {
+                    Map<String, Object> msgMap = new HashMap<>((Map<String, Object>) msgMapAny);
+                    Object altToolCalls = msgMap.get("toolCalls");
+                    if (msgMap.get("tool_calls") == null && altToolCalls instanceof List<?>) {
+                        msgMap.put("tool_calls", altToolCalls);
+                    }
+                    return msgMap;
+                }
+                if (messageObj instanceof String msgStr) {
+                    return Map.of("content", msgStr);
+                }
+                if (firstMap.get("text") instanceof String text) {
+                    return Map.of("content", text);
+                }
+                if (firstMap.get("content") instanceof String content) {
+                    return Map.of("content", content);
+                }
+            }
+        }
+
+        Object messageObj = respMap.get("message");
+        if (messageObj instanceof Map<?, ?> msgMapAny) {
+            Map<String, Object> msgMap = new HashMap<>((Map<String, Object>) msgMapAny);
+            Object altToolCalls = msgMap.get("toolCalls");
+            if (msgMap.get("tool_calls") == null && altToolCalls instanceof List<?>) {
+                msgMap.put("tool_calls", altToolCalls);
+            }
+            return msgMap;
+        }
+        if (messageObj instanceof String msgStr) {
+            return Map.of("content", msgStr);
+        }
+        if (respMap.get("content") instanceof String content) {
+            return Map.of("content", content);
+        }
+        return null;
+    }
+
+    private String extractResponseError(Map<String, Object> respMap) {
+        if (respMap == null || respMap.isEmpty()) {
+            return "";
+        }
+        Object err = respMap.get("error");
+        if (err instanceof Map<?, ?> errMap) {
+            Object msg = errMap.get("message");
+            if (msg != null) return String.valueOf(msg);
+            return String.valueOf(errMap);
+        }
+        if (err != null) return String.valueOf(err);
+        Object msg = respMap.get("errorMessage");
+        if (msg != null) return String.valueOf(msg);
+        Object status = respMap.get("status");
+        if (status != null && !"ok".equalsIgnoreCase(String.valueOf(status))) {
+            return "status=" + status;
+        }
+        return "";
     }
 
     private String extractModel(Map<String, Object> respMap) {

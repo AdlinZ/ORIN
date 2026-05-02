@@ -239,7 +239,11 @@ public class CollaborationOrchestrator {
                 return subtaskRepository.saveAll(subtasks);
             }
         }
-        return generateTemplateSubtasks(packageId, category);
+        List<CollabSubtaskEntity> templateSubtasks = generateTemplateSubtasks(packageId, category);
+        if (!templateSubtasks.isEmpty()) {
+            return subtaskRepository.saveAll(templateSubtasks);
+        }
+        return templateSubtasks;
     }
 
     private boolean isSimpleImageIntent(String intent) {

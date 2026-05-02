@@ -1,11 +1,20 @@
 <template>
   <div class="department-management fade-in">
-    <PageHeader
+    <OrinEntityHeader
+      domain="组织治理"
       title="部门管理"
       description="管理系统部门组织结构"
-      icon="OfficeBuilding"
+      :summary="departmentHeaderSummary"
     >
       <template #actions>
+        <el-button type="primary" @click="handleCreateRoot">
+          <el-icon class="mr-1">
+            <Plus />
+          </el-icon>
+          创建顶级部门
+        </el-button>
+      </template>
+      <template #filters>
         <div class="header-toolbar">
           <el-input
             v-model="searchKeyword"
@@ -29,15 +38,9 @@
           <el-button title="刷新" @click="loadDepartments">
             <el-icon><Refresh /></el-icon>
           </el-button>
-          <el-button type="primary" @click="handleCreateRoot">
-            <el-icon class="mr-1">
-              <Plus />
-            </el-icon>
-            创建顶级部门
-          </el-button>
         </div>
       </template>
-    </PageHeader>
+    </OrinEntityHeader>
 
     <div class="content-wrapper">
       <!-- 左侧部门树 -->
@@ -368,7 +371,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown, ArrowUp, OfficeBuilding, Clock } from '@element-plus/icons-vue'
 import { getDepartmentList, getAllDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/department'
 import { getUserList } from '@/api/userManage'
-import PageHeader from '@/components/PageHeader.vue'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
 
 // 数据状态
 const loading = ref(false)
@@ -397,6 +400,12 @@ const stats = computed(() => {
     root: all.filter(d => !d.parentId || d.parentId === 0).length
   }
 })
+
+const departmentHeaderSummary = computed(() => ([
+  { label: '部门总数', value: String(stats.value.total) },
+  { label: '已启用', value: String(stats.value.enabled) },
+  { label: '顶级部门', value: String(stats.value.root) }
+]))
 
 // 过滤后的树数据
 const filteredTreeData = computed(() => {
@@ -686,7 +695,8 @@ onUnmounted(() => {
 <style scoped>
 .department-management {
   padding: 32px;
-  max-width: 1600px;
+  max-width: none;
+  width: 100%;
   margin: 0 auto;
   background: var(--bg-color, #f8fafc);
   min-height: 100vh;
@@ -706,6 +716,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .search-input {

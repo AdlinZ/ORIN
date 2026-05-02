@@ -379,7 +379,7 @@ const getAgentAccent = (agent) => {
   if (normalized === 'TEXT_TO_VIDEO' || normalized === 'TTV') {
     return { soft: 'rgba(239, 68, 68, 0.14)', strong: '#b91c1c' }
   }
-  return { soft: 'rgba(20, 184, 166, 0.14)', strong: '#0f766e' }
+  return { soft: 'rgba(13, 148, 136, 0.14)', strong: 'var(--orin-primary, #0d9488)' }
 }
 
 const loadRecentAgents = () => {
@@ -425,7 +425,7 @@ onMounted(loadData)
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #0f766e;
+  color: var(--orin-primary, #0d9488);
 }
 
 .recent-note {
@@ -455,7 +455,7 @@ onMounted(loadData)
 
 .recent-card:hover {
   transform: none;
-  border-color: rgba(13, 148, 136, 0.3);
+  border-color: rgba(13, 148, 136, 0.32);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
 }
 
@@ -616,7 +616,7 @@ html.dark .refresh-button:hover {
 
 .table-heading .table-count {
   margin-top: 0;
-  color: #0f766e;
+  color: var(--orin-primary, #0d9488);
   font-weight: 700;
   white-space: nowrap;
 }

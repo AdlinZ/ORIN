@@ -1,0 +1,12 @@
+package com.adlin.orin.modules.integrationsync.repository;
+
+import com.adlin.orin.modules.integrationsync.entity.SyncConflict;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface SyncConflictRepository extends JpaRepository<SyncConflict, Long> {
+    List<SyncConflict> findByIntegrationIdAndStatus(Long integrationId, String status);
+}

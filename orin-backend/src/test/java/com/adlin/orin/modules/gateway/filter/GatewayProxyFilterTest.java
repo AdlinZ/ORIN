@@ -230,4 +230,39 @@ class GatewayProxyFilterTest {
         verify(statsService).incrementRequestCount();
         verify(auditLogRepository).save(ArgumentMatchers.any());
     }
+
+    @Test
+    void doFilter_shouldForwardSuccessfulEmptyUpstreamResponse() throws Exception {
+        mockWebServer = new MockWebServer();
+        mockWebServer.start();
+        mockWebServer.enqueue(new MockResponse().setResponseCode(204));
+
+        GatewayRoute route = GatewayRoute.builder()
+                .id(5L)
+                .name("empty-route")
+                .pathPattern("/proxy/**")
+                .authRequired(false)
+                .timeoutMs(2000)
+                .build();
+        String targetUrl = String.format("http://localhost:%d/upstream", mockWebServer.getPort());
+        GatewayRuntimeRoutingService.ResolvedRoute resolved = GatewayRuntimeRoutingService.ResolvedRoute.builder()
+                .route(route)
+                .targetUrl(targetUrl)
+                .targetService("empty-service")
+                .build();
+        when(routingService.resolveRoute("/proxy/empty", "GET", null)).thenReturn(Optional.of(resolved));
+        when(aclService.testIp(anyString(), anyString())).thenReturn(Map.of("action", "ALLOW", "apiKeyRequired", false));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/proxy/empty");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        gatewayProxyFilter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(204);
+        assertThat(response.getContentAsByteArray()).isEmpty();
+        verify(statsService).incrementRequestCount();
+        verify(statsService, never()).incrementErrorCount();
+        verify(circuitBreakerService).recordResult(route, true);
+        verify(auditLogRepository).save(ArgumentMatchers.any());
+    }
 }

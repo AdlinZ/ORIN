@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -154,7 +155,7 @@ public class OllamaIntegrationService {
 
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("status", "FAILED");
-            errorResult.put("errorMessage", lastError != null ? lastError : "No successful response from Ollama");
+            errorResult.put("errorMessage", lastError != null ? lastError : "No successful response from model endpoint");
             return Optional.of(errorResult);
         } catch (Exception e) {
             log.error("Failed to send message to Ollama: {}", e.getMessage());
@@ -194,6 +195,7 @@ public class OllamaIntegrationService {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
             String[] urls = buildOllamaUrls(baseUrl);
+            String lastError = null;
             for (String url : urls) {
                 try {
                     ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -202,13 +204,18 @@ public class OllamaIntegrationService {
                     if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                         return Optional.of(response.getBody());
                     }
+                } catch (HttpStatusCodeException e) {
+                    String body = e.getResponseBodyAsString();
+                    lastError = "URL=" + url + ", HTTP=" + e.getStatusCode() + ", BODY=" + body;
+                    log.warn("Tool-calling request rejected: {}", lastError);
                 } catch (Exception e) {
+                    lastError = "URL=" + url + ", ERR=" + e.getMessage();
                     log.debug("Ollama tool-calling attempt failed at {}: {}", url, e.getMessage());
                 }
             }
             Map<String, Object> err = new HashMap<>();
             err.put("status", "FAILED");
-            err.put("errorMessage", "No successful response from Ollama");
+            err.put("errorMessage", lastError != null ? lastError : "No successful response from model endpoint");
             return Optional.of(err);
         } catch (Exception e) {
             log.error("Failed to send tool-calling message to Ollama: {}", e.getMessage());
@@ -267,6 +274,9 @@ public class OllamaIntegrationService {
                             return msg != null && msg.get("tool_calls") != null;
                         }
                     }
+                } catch (HttpStatusCodeException e) {
+                    log.debug("Tool calling probe rejected at {}: HTTP={}, body={}",
+                            url, e.getStatusCode(), e.getResponseBodyAsString());
                 } catch (Exception e) {
                     log.debug("Tool calling probe failed at {}: {}", url, e.getMessage());
                 }

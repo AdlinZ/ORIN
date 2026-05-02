@@ -185,7 +185,8 @@ public class KimiAgentManageService implements AgentManageService {
         if (request.getEndpointUrl() != null && !request.getEndpointUrl().isEmpty()) {
             profile.setEndpointUrl(request.getEndpointUrl());
         }
-        if (request.getApiKey() != null && !request.getApiKey().isEmpty()) {
+        if (request.getApiKey() != null && !request.getApiKey().isEmpty()
+                && !request.getApiKey().contains("****")) {
             profile.setApiKey(request.getApiKey());
         }
         profile.setUpdatedAt(LocalDateTime.now());

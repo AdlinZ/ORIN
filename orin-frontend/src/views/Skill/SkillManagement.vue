@@ -60,8 +60,8 @@
     <div v-else class="embedded-toolbar">
       <div class="embedded-toolbar-main">
         <div class="embedded-title-group">
-          <h2 class="embedded-title">技能绑定</h2>
-          <p class="embedded-description">管理 Agent 的核心能力扩展，支持 API、知识库、Shell 和复合工作流</p>
+          <h2 class="embedded-title">技能</h2>
+          <p class="embedded-description">管理可供智能体使用的技能能力，支持 API、知识库、Shell 和复合工作流</p>
         </div>
         <div class="embedded-actions">
         <el-button type="success" @click="showImportDialog">
@@ -114,9 +114,22 @@
 
     <!-- 技能列表 -->
     <el-card class="table-card">
+      <el-alert
+        v-if="loadError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="load-error"
+        :title="loadError"
+      >
+        <template #default>
+          <el-button type="primary" text @click="loadSkills">重试</el-button>
+        </template>
+      </el-alert>
       <el-table
         v-loading="loading"
         :data="skills"
+        empty-text="暂无技能，点击右上角“创建技能”开始添加"
         stripe
         border
       >
@@ -158,15 +171,10 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
-            <el-tooltip content="测试执行" placement="top">
-              <el-button size="small" circle @click="showExecuteDialog(row)">
-                <el-icon><VideoPlay /></el-icon>
-              </el-button>
-            </el-tooltip>
             <el-button size="small" @click="viewSkillMd(row)">
-              SKILL.md
+              查看文件(SKILL.md)
             </el-button>
             <el-button size="small" type="primary" @click="editSkill(row)">
               编辑
@@ -324,39 +332,6 @@
       </template>
     </el-dialog>
 
-    <!-- 执行测试对话框 -->
-    <el-dialog v-model="executeDialogVisible" title="技能执行测试" width="650px">
-      <el-form label-position="top">
-        <el-form-item label="输入参数 (JSON)">
-          <el-input
-            v-model="executeInputs"
-            type="textarea"
-            :rows="6"
-            placeholder="{&quot;param1&quot;: &quot;value1&quot;}"
-          />
-        </el-form-item>
-      </el-form>
-
-      <div v-if="executeResult" class="result-container">
-        <div class="result-header">
-          <span>执行结果</span>
-          <el-tag :type="executeResult.success ? 'success' : 'danger'">
-            {{ executeResult.success ? '成功' : '失败' }}
-          </el-tag>
-        </div>
-        <pre class="result-body">{{ JSON.stringify(executeResult, null, 2) }}</pre>
-      </div>
-
-      <template #footer>
-        <el-button @click="executeDialogVisible = false">
-          关闭
-        </el-button>
-        <el-button type="success" :loading="executing" @click="runExecute">
-          运行测试
-        </el-button>
-      </template>
-    </el-dialog>
-
     <!-- 导入对话框 -->
     <el-dialog v-model="importDialogVisible" title="从外部平台导入技能" width="500px">
       <el-form :model="importForm" label-width="100px">
@@ -384,8 +359,8 @@
       </template>
     </el-dialog>
 
-    <!-- SKILL.md 预览对话框 -->
-    <el-dialog v-model="mdDialogVisible" title="SKILL.md 规范预览" width="850px">
+    <!-- SKILL.md 文件预览对话框 -->
+    <el-dialog v-model="mdDialogVisible" title="SKILL.md 文件预览" width="850px">
       <div v-if="mdLoading" class="p-10 text-center">
         <el-icon class="is-loading">
           <Loading />
@@ -399,14 +374,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Download, VideoPlay, Loading } from '@element-plus/icons-vue'
+import { Plus, Delete, Download, Loading } from '@element-plus/icons-vue'
 import { 
   getSkillList, 
   createSkill, 
   updateSkill, 
   deleteSkill as apiDeleteSkill, 
   getSkillMd, 
-  executeSkill as apiExecuteSkill, 
   importSkill 
 } from '@/api/skill'
 import { marked } from 'marked'
@@ -424,7 +398,6 @@ const skills = ref([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const mdDialogVisible = ref(false)
-const executeDialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const isEdit = ref(false)
 const activeTab = ref('basic')
@@ -432,12 +405,7 @@ const filterType = ref('')
 const filterStatus = ref('')
 const renderedMd = ref('')
 const mdLoading = ref(false)
-
-// 执行相关
-const currentSkill = ref(null)
-const executeInputs = ref('{}')
-const executeResult = ref(null)
-const executing = ref(false)
+const loadError = ref('')
 
 // 导入相关
 const importForm = reactive({
@@ -479,6 +447,7 @@ onUnmounted(() => {
 
 const loadSkills = async () => {
   loading.value = true
+  loadError.value = ''
   try {
     const params = {}
     if (filterType.value) params.type = filterType.value
@@ -489,6 +458,7 @@ const loadSkills = async () => {
   } catch (error) {
     // Error is handled by request interceptor, but we can add secondary logging
     console.error('Failed to load skills:', error)
+    loadError.value = `技能列表加载失败：${error?.message || '未知错误'}`
   } finally {
     loading.value = false
     window.dispatchEvent(new Event('page-refresh-done'))
@@ -600,30 +570,6 @@ const viewSkillMd = async (skill) => {
     mdDialogVisible.value = false
   } finally {
     mdLoading.value = false
-  }
-}
-
-const showExecuteDialog = (skill) => {
-  currentSkill.value = skill
-  executeInputs.value = JSON.stringify(skill.inputSchema || {}, null, 2)
-  executeResult.value = null
-  executeDialogVisible.value = true
-}
-
-const runExecute = async () => {
-  executing.value = true
-  executeResult.value = null
-  try {
-    const inputs = JSON.parse(executeInputs.value)
-    const data = await apiExecuteSkill(currentSkill.value.id, inputs)
-    executeResult.value = data
-  } catch (error) {
-    executeResult.value = {
-      success: false,
-      error: error.response?.data?.message || error.message
-    }
-  } finally {
-    executing.value = false
   }
 }
 
@@ -748,6 +694,10 @@ const getStatusLabel = (status) => {
   padding-top: 14px;
 }
 
+.load-error {
+  margin-bottom: 12px;
+}
+
 .tip-info {
   font-size: 12px;
   color: var(--neutral-gray-400);
@@ -763,39 +713,6 @@ const getStatusLabel = (status) => {
 
 .w-full {
   width: 100%;
-}
-
-.result-container {
-  margin-top: 20px;
-  border: 1px solid var(--neutral-gray-200);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.result-header {
-  padding: 10px 16px;
-  background: var(--neutral-gray-50);
-  border-bottom: 1px solid var(--neutral-gray-200);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-}
-
-.result-body {
-  margin: 0;
-  padding: 15px;
-  background: #282c34;
-  color: #abb2bf;
-  font-family: 'Fira Code', monospace;
-  font-size: 13px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-html.dark .result-body {
-  background: #1e1e1e;
-  color: #d4d4d4;
 }
 
 .markdown-preview {

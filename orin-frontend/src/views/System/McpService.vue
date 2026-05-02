@@ -10,8 +10,8 @@
       />
 
       <div v-else class="embedded-toolbar">
-        <h2 class="embedded-title">MCP 服务管理</h2>
-        <p class="embedded-description">管理 MCP (Model Context Protocol) 服务的配置、连接健康和工具安装</p>
+        <h2 class="embedded-title">MCP服务</h2>
+        <p class="embedded-description">管理 MCP（Model Context Protocol）服务配置、连接健康与工具安装</p>
       </div>
 
       <el-tabs v-model="activeTab" class="mcp-tabs">
@@ -45,8 +45,25 @@
               <el-icon><Refresh /></el-icon>
             </el-button>
           </div>
+          <el-alert
+            v-if="loadError"
+            class="load-error"
+            type="error"
+            show-icon
+            :closable="false"
+            :title="loadError"
+          >
+            <template #default>
+              <el-button type="primary" text @click="loadMcpServices">重试</el-button>
+            </template>
+          </el-alert>
 
-          <el-table v-loading="loading" :data="mcpServices" stripe>
+          <el-table
+            v-loading="loading"
+            :data="mcpServices"
+            empty-text="暂无 MCP 服务，点击“添加服务”创建"
+            stripe
+          >
             <el-table-column prop="name" label="服务名称" min-width="150" />
             <el-table-column prop="type" label="类型" width="100">
               <template #default="{ row }">
@@ -298,6 +315,7 @@ const testingId = ref(null)
 const installingToolKey = ref('')
 const toggleServiceId = ref(null)
 const formRef = ref(null)
+const loadError = ref('')
 
 // 分页和搜索
 const searchQuery = ref('')
@@ -358,6 +376,7 @@ const formRules = {
 // 加载 MCP 服务列表
 const loadMcpServices = async () => {
   loading.value = true
+  loadError.value = ''
   try {
     const params = {
       keyword: searchQuery.value || undefined,
@@ -369,6 +388,7 @@ const loadMcpServices = async () => {
     totalServices.value = res?.length || 0
   } catch (e) {
     console.error('加载 MCP 服务失败:', e)
+    loadError.value = `MCP 服务加载失败：${e?.message || '未知错误'}`
     ElMessage.error('加载失败: ' + (e.message || '未知错误'))
   } finally {
     loading.value = false
@@ -640,6 +660,10 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.load-error {
+  margin-bottom: 12px;
 }
 
 .search-input {

@@ -24,7 +24,8 @@ public class ToolCallingCapabilityDetector {
     private static final Set<String> KNOWN_PREFIXES = Set.of(
             "qwen", "deepseek", "glm-4", "glm-z1", "internlm", "yi-",
             "llama-3", "mistral", "mixtral", "gpt-", "claude-", "gemini-",
-            "baichuan", "minimax", "phi-3", "phi-4", "command-r"
+            "baichuan", "minimax", "phi-3", "phi-4", "command-r",
+            "moonshot", "moonshotai", "kimi"
     );
 
     private final OllamaIntegrationService ollamaIntegrationService;
@@ -56,7 +57,10 @@ public class ToolCallingCapabilityDetector {
         if (metadata != null && metadata.getModelName() != null) {
             String lower = metadata.getModelName().toLowerCase();
             for (String prefix : KNOWN_PREFIXES) {
-                if (lower.startsWith(prefix) || lower.contains(":" + prefix)) {
+                if (lower.startsWith(prefix)
+                        || lower.contains(":" + prefix)
+                        || lower.contains("/" + prefix)
+                        || lower.contains(prefix)) {
                     log.debug("Tool calling whitelist hit: model={}", metadata.getModelName());
                     return ToolCallingDecision.builder()
                             .supported(true)

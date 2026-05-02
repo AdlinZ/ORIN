@@ -7,9 +7,15 @@
       domain="组织治理"
     >
       <template #actions>
-        <el-button :icon="RefreshRight" @click="fetchCostData">
-          刷新数据
-        </el-button>
+        <div class="header-actions">
+          <el-radio-group v-model="activeTab" class="view-switch">
+            <el-radio-button label="cost-detail">成本明细</el-radio-button>
+            <el-radio-button label="pricing-config">定价策略配置</el-radio-button>
+          </el-radio-group>
+          <el-button :icon="RefreshRight" @click="handleRefreshData">
+            刷新数据
+          </el-button>
+        </div>
       </template>
       <template #filters>
         <div class="filters-row">
@@ -40,107 +46,107 @@
 
     <OrinMetricStrip :metrics="costMetrics" class="stats-grid" />
 
-    <div class="content-grid">
-      <el-card shadow="never" class="distribution-card">
-        <template #header>
-          <div class="card-header">
-            <div>
-              <h3 class="card-title">
-                供应商成本分布
-              </h3>
-              <p class="card-subtitle">
-                按模型供应商汇总最近时间范围内的成本消耗
-              </p>
-            </div>
-            <div class="header-total">
-              {{ formatCurrency(distributionTotal) }}
-            </div>
-          </div>
-        </template>
-        <div v-loading="loading" class="chart-wrap">
-          <div v-if="distributionData.length > 0" ref="pieChartRef" class="chart" />
-          <el-empty v-else description="暂无成本数据" :image-size="72" />
-        </div>
-      </el-card>
-
-      <el-card shadow="never" class="ranking-card">
-        <template #header>
-          <div class="card-header">
-            <div>
-              <h3 class="card-title">
-                成本排行
-              </h3>
-              <p class="card-subtitle">
-                便于快速看出主要成本来源
-              </p>
-            </div>
-          </div>
-        </template>
-        <div v-loading="loading" class="ranking-list">
-          <div
-            v-for="(item, index) in rankingTopFive"
-            :key="`${item.name}-${index}`"
-            class="ranking-item"
-          >
-            <div class="ranking-main">
-              <div class="ranking-index">
-                {{ index + 1 }}
+    <template v-if="activeTab === 'cost-detail'">
+      <div class="content-grid">
+        <el-card shadow="never" class="distribution-card">
+          <template #header>
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">
+                  供应商成本分布
+                </h3>
+                <p class="card-subtitle">
+                  按模型供应商汇总最近时间范围内的成本消耗
+                </p>
               </div>
-              <div class="ranking-info">
-                <div class="ranking-name">
-                  {{ item.name || '未知供应商' }}
-                </div>
-                <div class="ranking-share">
-                  占比 {{ formatPercent(item.share) }}
-                </div>
+              <div class="header-total">
+                {{ formatCurrency(distributionTotal) }}
               </div>
             </div>
-            <div class="ranking-value">
-              {{ formatCurrency(item.value) }}
-            </div>
+          </template>
+          <div v-loading="loading" class="chart-wrap">
+            <div v-if="distributionData.length > 0" ref="pieChartRef" class="chart" />
+            <el-empty v-else description="暂无成本数据" :image-size="72" />
           </div>
-          <el-empty v-if="rankingTopFive.length === 0" description="暂无排行数据" :image-size="72" />
-        </div>
+        </el-card>
+
+        <el-card shadow="never" class="ranking-card">
+          <template #header>
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">
+                  成本排行
+                </h3>
+                <p class="card-subtitle">
+                  便于快速看出主要成本来源
+                </p>
+              </div>
+            </div>
+          </template>
+          <div v-loading="loading" class="ranking-list">
+            <div
+              v-for="(item, index) in rankingTopFive"
+              :key="`${item.name}-${index}`"
+              class="ranking-item"
+            >
+              <div class="ranking-main">
+                <div class="ranking-index">
+                  {{ index + 1 }}
+                </div>
+                <div class="ranking-info">
+                  <div class="ranking-name">
+                    {{ item.name || '未知供应商' }}
+                  </div>
+                  <div class="ranking-share">
+                    占比 {{ formatPercent(item.share) }}
+                  </div>
+                </div>
+              </div>
+              <div class="ranking-value">
+                {{ formatCurrency(item.value) }}
+              </div>
+            </div>
+            <el-empty v-if="rankingTopFive.length === 0" description="暂无排行数据" :image-size="72" />
+          </div>
+        </el-card>
+      </div>
+
+      <el-card shadow="never" class="tab-wrapper-card">
+        <div class="pane-subtitle">当前仅按供应商聚合</div>
+        <el-table
+          v-loading="loading"
+          :data="distributionData"
+          border
+          stripe
+          style="width: 100%"
+        >
+          <el-table-column
+            type="index"
+            label="#"
+            width="60"
+            align="center"
+          />
+          <el-table-column
+            prop="name"
+            label="供应商"
+            min-width="220"
+            show-overflow-tooltip
+          />
+          <el-table-column label="成本" min-width="160" align="right">
+            <template #default="{ row }">
+              {{ formatCurrency(row.value) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="占比" min-width="120" align="right">
+            <template #default="{ row }">
+              {{ formatPercent(row.share) }}
+            </template>
+          </el-table-column>
+        </el-table>
       </el-card>
-    </div>
+    </template>
 
-    <el-card shadow="never" class="tab-wrapper-card">
-      <el-tabs v-model="activeTab" class="content-tabs">
-        <el-tab-pane label="成本明细" name="cost-detail">
-          <div class="pane-subtitle">当前仅按供应商聚合</div>
-          <el-table
-            v-loading="loading"
-            :data="distributionData"
-            border
-            stripe
-            style="width: 100%"
-          >
-            <el-table-column
-              type="index"
-              label="#"
-              width="60"
-              align="center"
-            />
-            <el-table-column
-              prop="name"
-              label="供应商"
-              min-width="220"
-              show-overflow-tooltip
-            />
-            <el-table-column label="成本" min-width="160" align="right">
-              <template #default="{ row }">
-                {{ formatCurrency(row.value) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="占比" min-width="120" align="right">
-              <template #default="{ row }">
-                {{ formatPercent(row.share) }}
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-
-        <el-tab-pane label="定价策略配置" name="pricing-config">
+    <el-card v-else shadow="never" class="tab-wrapper-card">
           <div class="filter-bar">
             <el-input
               v-model="filterKeyword"
@@ -160,6 +166,13 @@
               <el-option label="VIP" value="VIP" />
               <el-option label="Internal" value="internal" />
             </el-select>
+            <el-radio-group v-model="tokenUnit" size="small" class="token-unit-switch">
+              <el-radio-button label="1k">Token / 1k</el-radio-button>
+              <el-radio-button label="1m">Token / 1m</el-radio-button>
+            </el-radio-group>
+            <el-button :loading="importingPricing" :icon="Download" @click="handleQuickImportPricing">
+              一键导入模型
+            </el-button>
             <el-button type="primary" :icon="Plus" @click="handleAdd">
               新增规则
             </el-button>
@@ -188,27 +201,27 @@
             </el-table-column>
 
             <el-table-column label="内部成本 (Cost)" align="center">
-              <el-table-column prop="inputCostUnit" label="Input / 1k" width="130">
+              <el-table-column prop="inputCostUnit" :label="`Input / ${tokenUnit}`" width="130">
                 <template #default="{ row }">
-                  {{ formatPrice(row.inputCostUnit, row.currency) }}
+                  {{ formatPriceForUnit(row.inputCostUnit, row.currency, row.billingMode) }}
                 </template>
               </el-table-column>
-              <el-table-column prop="outputCostUnit" label="Output / 1k" width="130">
+              <el-table-column prop="outputCostUnit" :label="`Output / ${tokenUnit}`" width="130">
                 <template #default="{ row }">
-                  {{ formatPrice(row.outputCostUnit, row.currency) }}
+                  {{ formatPriceForUnit(row.outputCostUnit, row.currency, row.billingMode) }}
                 </template>
               </el-table-column>
             </el-table-column>
 
             <el-table-column label="外部报价 (Price)" align="center">
-              <el-table-column prop="inputPriceUnit" label="Input / 1k" width="130">
+              <el-table-column prop="inputPriceUnit" :label="`Input / ${tokenUnit}`" width="130">
                 <template #default="{ row }">
-                  <span class="price-highlight">{{ formatPrice(row.inputPriceUnit, row.currency) }}</span>
+                  <span class="price-highlight">{{ formatPriceForUnit(row.inputPriceUnit, row.currency, row.billingMode) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="outputPriceUnit" label="Output / 1k" width="130">
+              <el-table-column prop="outputPriceUnit" :label="`Output / ${tokenUnit}`" width="130">
                 <template #default="{ row }">
-                  <span class="price-highlight">{{ formatPrice(row.outputPriceUnit, row.currency) }}</span>
+                  <span class="price-highlight">{{ formatPriceForUnit(row.outputPriceUnit, row.currency, row.billingMode) }}</span>
                 </template>
               </el-table-column>
             </el-table-column>
@@ -230,8 +243,6 @@
               </template>
             </el-table-column>
           </el-table>
-        </el-tab-pane>
-      </el-tabs>
     </el-card>
 
     <!-- 编辑/新增 Dialog -->
@@ -245,14 +256,15 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { Money, Monitor, RefreshRight, Plus, Search } from '@element-plus/icons-vue';
+import { Money, Monitor, RefreshRight, Plus, Search, Download } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
 import PricingEditDialog from '@/components/PricingEditDialog.vue';
 import { getCostDistribution, getTokenStats } from '@/api/monitor';
-import { getPricingConfig, deletePricingConfig } from '@/api/pricing';
+import { getPricingConfig, deletePricingConfig, savePricingConfig } from '@/api/pricing';
+import { getModelList } from '@/api/model';
 
 const loading = ref(false);
 const pricingLoading = ref(false);
@@ -292,6 +304,8 @@ const costMetrics = computed(() => [
 
 // 定价配置相关
 const tableData = ref([]);
+const importingPricing = ref(false);
+const tokenUnit = ref('1k');
 const dialogVisible = ref(false);
 const currentEditRow = ref(null);
 const filterKeyword = ref('');
@@ -324,12 +338,18 @@ const fetchCostData = async () => {
       total: Number(statsData?.total_cost || 0)
     };
 
-    const total = (costData || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
-    distributionData.value = (costData || [])
+    const normalized = (costData || [])
       .map(item => ({
         ...item,
-        value: Number(item.value || 0),
-        share: total > 0 ? Number(item.value || 0) / total : 0
+        value: Number(item.value || 0)
+      }))
+      .filter(item => item.value > 0);
+
+    const total = normalized.reduce((sum, item) => sum + item.value, 0);
+    distributionData.value = normalized
+      .map(item => ({
+        ...item,
+        share: total > 0 ? item.value / total : 0
       }))
       .sort((a, b) => b.value - a.value);
 
@@ -353,6 +373,70 @@ const fetchPricingData = async () => {
     console.error('加载定价规则失败', e);
   } finally {
     pricingLoading.value = false;
+  }
+};
+
+const normalizeModelList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const resolveProviderId = (model) => {
+  return String(model?.modelId || model?.id || model?.name || '').trim();
+};
+
+const handleQuickImportPricing = async () => {
+  importingPricing.value = true;
+  try {
+    const modelRes = await getModelList();
+    const modelList = normalizeModelList(modelRes);
+    const providerIds = [...new Set(modelList.map(resolveProviderId).filter(Boolean))];
+
+    if (!providerIds.length) {
+      ElMessage.warning('未找到可导入的模型，请先在模型管理中添加模型');
+      return;
+    }
+
+    const existing = new Set(
+      (tableData.value || [])
+        .map(item => `${item.providerId}::${item.tenantGroup || 'default'}`)
+    );
+
+    const candidates = providerIds.filter(id => !existing.has(`${id}::default`));
+    if (!candidates.length) {
+      ElMessage.info('模型已全部存在默认定价规则，无需导入');
+      return;
+    }
+
+    let created = 0;
+    let failed = 0;
+    for (const providerId of candidates) {
+      try {
+        await savePricingConfig({
+          providerId,
+          tenantGroup: 'default',
+          billingMode: 'PER_TOKEN',
+          currency: 'USD',
+          inputCostUnit: 0,
+          outputCostUnit: 0,
+          inputPriceUnit: 0,
+          outputPriceUnit: 0
+        });
+        created += 1;
+      } catch (error) {
+        failed += 1;
+        console.error(`导入定价规则失败: ${providerId}`, error);
+      }
+    }
+
+    await fetchPricingData();
+    ElMessage.success(`导入完成：新增 ${created} 条，跳过 ${providerIds.length - candidates.length} 条，失败 ${failed} 条`);
+  } catch (error) {
+    console.error('一键导入定价规则失败', error);
+    ElMessage.error(error?.message || '一键导入失败');
+  } finally {
+    importingPricing.value = false;
   }
 };
 
@@ -414,6 +498,14 @@ const handleDateRangeChange = () => {
   fetchCostData();
 };
 
+const handleRefreshData = () => {
+  if (activeTab.value === 'pricing-config') {
+    fetchPricingData();
+    return;
+  }
+  fetchCostData();
+};
+
 const handleAutoRefreshChange = enabled => {
   if (enabled) {
     autoRefreshTimer = setInterval(fetchCostData, 30000);
@@ -462,6 +554,12 @@ const formatPrice = (val, currency = 'USD') => {
   if (val == null) return '-';
   const sym = CURRENCY_SYMBOLS[currency] ?? currency;
   return `${sym}${Number(val).toFixed(6)}`;
+};
+
+const formatPriceForUnit = (val, currency = 'USD', billingMode = 'PER_TOKEN') => {
+  const raw = Number(val || 0);
+  const display = billingMode === 'PER_TOKEN' && tokenUnit.value === '1m' ? raw * 1000 : raw;
+  return formatPrice(display, currency);
 };
 
 const calculateMargin = (row) => {
@@ -514,6 +612,16 @@ onUnmounted(() => {
 .cost-dashboard {
   background: transparent;
   min-height: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.view-switch :deep(.el-radio-button__inner) {
+  padding: 8px 14px;
 }
 
 .filters-row {
@@ -725,6 +833,16 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .view-switch {
+    width: 100%;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
   }

@@ -131,19 +131,22 @@
       </div>
 
       <el-alert
-        v-if="serverOnline === false && !loading"
+        v-if="serverOnline === false"
         type="warning"
         :closable="false"
         show-icon
         style="margin: 0 24px 16px;"
       >
         <template #title>
-          <span>节点 <strong>{{ currentServerName }}</strong> 当前离线，自动刷新已暂停。</span>
+          <span>
+            节点 <strong>{{ currentServerName }}</strong> 当前离线，自动刷新已暂停。正在展示最近一次采集数据
+            <template v-if="lastSnapshotTime">（{{ lastSnapshotTime }}）</template>。
+          </span>
           <el-button link type="primary" style="margin-left: 8px;" :loading="loading" @click="fetchAllData">重新检测</el-button>
         </template>
       </el-alert>
 
-      <div class="messages-container" v-loading="loading">
+      <div class="messages-container" v-loading="contentLoading">
         <div class="dashboard-content">
           <div class="panel-section">
             <el-row :gutter="20" class="margin-bottom-lg">
@@ -187,11 +190,11 @@
                 <el-card shadow="never" class="metric-card gpu-card">
                   <div class="metric-header"><el-icon><Star /></el-icon><span>GPU 使用</span></div>
                   <div class="metric-value">{{ formatPercent(gpuInfo.used) }}</div>
-                  <div class="metric-sub"><span>显存: {{ selectedSnapshot.gpuMemory || `${formatBytesOrNA(gpuInfo.memoryUsed)} / ${formatBytesOrNA(gpuInfo.memoryTotal)}` }}</span></div>
+                  <div class="metric-sub"><span>显存: {{ gpuMemoryDisplay }}</span></div>
                   <div class="metric-gauge">
                     <el-progress :percentage="gpuInfo.used || 0" :stroke-width="6" :show-text="false" :color="getUsageColor(gpuInfo.used)" />
                   </div>
-                  <div class="metric-label">型号: {{ selectedServerInfo.gpuModel || 'N/A' }}</div>
+                  <div class="metric-label">型号: {{ gpuModelDisplay }}</div>
                 </el-card>
               </el-col>
             </el-row>
@@ -214,6 +217,9 @@
                         <div class="info-item"><span class="info-label">进程数</span><span class="info-value">{{ formatCount(selectedServerInfo.processCount) }}</span></div>
                         <div class="info-item"><span class="info-label">GPU</span><span class="info-value">{{ selectedServerInfo.gpuModel || 'N/A' }}</span></div>
                         <div class="info-item"><span class="info-label">磁盘</span><span class="info-value">{{ diskInfo.devices || 'N/A' }}</span></div>
+                        <div class="info-item"><span class="info-label">CPU 温度</span><span class="info-value">{{ formatTemperature(selectedServerInfo.cpuTemperature) }}</span></div>
+                        <div class="info-item"><span class="info-label">GPU 温度</span><span class="info-value">{{ formatTemperature(selectedServerInfo.gpuTemperature) }}</span></div>
+                        <div class="info-item"><span class="info-label">GPU 功耗</span><span class="info-value">{{ formatPower(selectedServerInfo.gpuPower) }}</span></div>
                       </div>
                     </section>
 
@@ -247,33 +253,33 @@
             </el-row>
 
             <el-row :gutter="20" class="margin-bottom-lg">
-              <el-col :xs="24" :xl="12">
-                <el-card shadow="never" class="chart-card">
-                  <template #header><div class="card-header"><el-icon><TrendCharts /></el-icon><span>CPU & 内存使用趋势</span></div></template>
-                  <div v-loading="loading" style="height: 280px;">
-                    <LineChart v-if="trendData.length > 0" :data="trendData" title="" y-axis-name="使用率 (%)" height="260px" color="#667eea" :max-points="200" />
-                    <el-empty v-else description="暂无趋势数据" :image-size="80" />
-                  </div>
-                </el-card>
-              </el-col>
-
-              <el-col :xs="24" :xl="12">
+              <el-col :span="24">
                 <el-card shadow="never" class="chart-card">
                   <template #header>
                     <div class="card-header">
-                      <el-icon><DataLine /></el-icon>
-                      <span>历史记录</span>
-                      <el-select v-model="period" size="small" style="margin-left: auto; width: 100px;" @change="fetchTrendData">
-                        <el-option label="5分钟" value="5m" />
-                        <el-option label="1小时" value="1h" />
-                        <el-option label="24小时" value="24h" />
-                        <el-option label="7天" value="7d" />
+                      <el-icon><TrendCharts /></el-icon>
+                      <span>指标趋势</span>
+                      <el-select v-model="selectedTrendMetric" size="small" style="margin-left: auto; width: 180px;">
+                        <el-option
+                          v-for="option in trendMetricOptions"
+                          :key="option.value"
+                          :label="option.label"
+                          :value="option.value"
+                        />
                       </el-select>
                     </div>
                   </template>
-                  <div v-loading="loading" style="height: 280px;">
-                    <LineChart v-if="diskTrendData.length > 0" :data="diskTrendData" title="" y-axis-name="使用率 (%)" height="260px" color="#f39c12" :max-points="200" />
-                    <el-empty v-else description="暂无磁盘数据" :image-size="80" />
+                  <div v-loading="contentLoading" style="height: 280px;">
+                    <LineChart
+                      v-if="trendChartData.length > 0"
+                      :data="trendChartData"
+                      :title="selectedTrendMeta.label"
+                      :y-axis-name="selectedTrendMeta.unit"
+                      height="260px"
+                      :color="selectedTrendMeta.color"
+                      :max-points="200"
+                    />
+                    <el-empty v-else description="暂无趋势数据" :image-size="80" />
                   </div>
                 </el-card>
               </el-col>
@@ -285,6 +291,12 @@
                   <el-icon><List /></el-icon>
                   <span>采集历史记录</span>
                   <span class="record-count">当前节点 {{ currentServerName }}，共 {{ historyTotal }} 条</span>
+                  <el-select v-model="period" size="small" style="margin-left: 12px; width: 100px;" @change="handlePeriodChange">
+                    <el-option label="5分钟" value="5m" />
+                    <el-option label="1小时" value="1h" />
+                    <el-option label="24小时" value="24h" />
+                    <el-option label="7天" value="7d" />
+                  </el-select>
                   <el-button type="primary" size="small" style="margin-left: auto;" :loading="collecting" @click="collectNow">
                     <el-icon style="margin-right: 4px;"><Refresh /></el-icon>
                     立即采集
@@ -292,7 +304,7 @@
                 </div>
               </template>
 
-              <el-table v-loading="loading" :data="historyData" style="width: 100%">
+              <el-table v-loading="contentLoading" :data="historyData" style="width: 100%">
                 <el-table-column label="时间" min-width="180" fixed>
                   <template #default="{ row }">
                     <div class="time-cell"><el-icon><Clock /></el-icon>{{ formatDateTime(row.recordedAt || row.timestamp) }}</div>
@@ -464,7 +476,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  ArrowLeft, ArrowRight, CircleClose, Clock, Coin, Connection, Cpu, DataLine,
+  ArrowLeft, ArrowRight, CircleClose, Clock, Coin, Connection, Cpu,
   Folder, List, Loading, Menu, Monitor, More, Plus, Refresh, Search, Star, TrendCharts
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -483,6 +495,7 @@ const router = useRouter();
 const loading = ref(false);
 const collecting = ref(false);
 const period = ref('24h');
+const selectedTrendMetric = ref('cpuUsage');
 const isMobile = ref(false);
 const sessionPaneCollapsed = ref(true);
 const serverNodes = ref([]);
@@ -496,7 +509,6 @@ const serverOnline = ref(null);
 const serverError = ref('');
 const nodeSnapshots = ref({});
 const trendData = ref([]);
-const diskTrendData = ref([]);
 const historyData = ref([]);
 const page = ref(1);
 const pageSize = ref(10);
@@ -512,6 +524,14 @@ const nodeForm = ref({ serverId: '', serverName: '', prometheusUrl: '', remark: 
 const prometheusConfig = ref({ prometheusUrl: '', enabled: false, cacheTtl: 10, refreshInterval: 15 });
 const hardwareAutoCollectEnabled = ref(true);
 let refreshTimer = null;
+
+const trendMetricOptions = [
+  { value: 'cpuUsage', label: 'CPU 使用率', unit: '%', color: '#667eea' },
+  { value: 'memoryUsage', label: '内存使用率', unit: '%', color: '#10b981' },
+  { value: 'diskUsage', label: '磁盘使用率', unit: '%', color: '#f39c12' },
+  { value: 'gpuUsage', label: 'GPU 使用率', unit: '%', color: '#ef4444' },
+  { value: 'gpuMemoryUsage', label: 'GPU 显存使用率', unit: '%', color: '#8b5cf6' }
+];
 
 const isHttpUrl = (value = '') => {
   const text = String(value || '').trim();
@@ -547,8 +567,23 @@ const createEmptySnapshot = (node = {}) => ({
   serverId: node.id || '', serverName: node.name || node.id || '', timestamp: 0, recordedAt: '', online: null,
   errorMessage: '', cpuUsage: 0, memoryUsage: 0, diskUsage: 0, gpuUsage: 0, cpuCores: 0, cpuLogicalCores: 0,
   cpuModel: '', memoryTotal: 0, memoryUsed: 0, diskTotal: 0, diskUsed: 0, gpuModel: '', gpuMemory: '', gpuMemoryTotal: 0,
-  gpuMemoryUsed: 0, os: '', uptime: '', processCount: 0, networkDownload: '', networkUpload: '', devices: ''
+  gpuMemoryUsed: 0, os: '', uptime: '', processCount: 0, networkDownload: '', networkUpload: '', devices: '',
+  cpuTemperature: null, gpuTemperature: null, gpuPower: null
 });
+
+const withTimeout = async (promise, timeoutMs = 6000, timeoutMessage = '请求超时') => {
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
 
 const normalizeNode = (node = {}) => ({
   ...node,
@@ -566,31 +601,122 @@ const filteredNodes = computed(() => {
 });
 const selectedNode = computed(() => normalizedNodes.value.find((node) => node.id === currentServerId.value) || null);
 const selectedSnapshot = computed(() => nodeSnapshots.value[currentServerId.value] || createEmptySnapshot(selectedNode.value || {}));
-const selectedServerInfo = computed(() => selectedSnapshot.value);
 const selectedServerMeta = computed(() => serverInfoMap.value[currentServerId.value] || {});
+const selectedServerInfo = computed(() => {
+  const snapshot = selectedSnapshot.value || {};
+  const meta = selectedServerMeta.value || {};
+  const pickText = (...values) => {
+    for (const value of values) {
+      const text = String(value ?? '').trim();
+      if (text && text.toLowerCase() !== 'unknown' && text.toLowerCase() !== 'n/a') return text;
+    }
+    return '';
+  };
+  const pickNumber = (...values) => {
+    for (const value of values) {
+      const n = Number(value);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return 0;
+  };
+  return {
+    ...snapshot,
+    os: pickText(snapshot.os, meta.os),
+    cpuModel: pickText(snapshot.cpuModel, meta.cpuModel),
+    gpuModel: pickText(snapshot.gpuModel, meta.gpuModel),
+    cpuCores: pickNumber(snapshot.cpuCores, meta.cpuCores),
+    memoryTotal: pickNumber(snapshot.memoryTotal, meta.memoryTotal),
+    diskTotal: pickNumber(snapshot.diskTotal, meta.diskTotal),
+    gpuMemoryTotal: pickNumber(snapshot.gpuMemoryTotal, meta.gpuMemoryTotal)
+  };
+});
 const memoryInfo = computed(() => {
-  const total = Number(selectedSnapshot.value.memoryTotal) || 0;
-  const used = Number(selectedSnapshot.value.memoryUsed) || 0;
-  const percent = clampPercent(selectedSnapshot.value.memoryUsage);
+  const total = Number(selectedServerInfo.value.memoryTotal) || 0;
+  const used = Number(selectedServerInfo.value.memoryUsed) || 0;
+  const percent = clampPercent(selectedServerInfo.value.memoryUsage);
   return { total, used, available: Math.max(total - used, 0), percent };
 });
 const diskInfo = computed(() => {
-  const total = Number(selectedSnapshot.value.diskTotal) || 0;
-  const used = Number(selectedSnapshot.value.diskUsed) || 0;
-  const percent = clampPercent(selectedSnapshot.value.diskUsage);
-  return { total, used, available: Math.max(total - used, 0), percent, devices: selectedSnapshot.value.devices || 'Root Disk' };
+  const total = Number(selectedServerInfo.value.diskTotal) || 0;
+  const used = Number(selectedServerInfo.value.diskUsed) || 0;
+  const percent = clampPercent(selectedServerInfo.value.diskUsage);
+  return { total, used, available: Math.max(total - used, 0), percent, devices: selectedServerInfo.value.devices || 'Root Disk' };
 });
-const gpuInfo = computed(() => ({ used: clampPercent(selectedSnapshot.value.gpuUsage), memoryUsed: Number(selectedSnapshot.value.gpuMemoryUsed) || 0, memoryTotal: Number(selectedSnapshot.value.gpuMemoryTotal) || 0 }));
+const gpuInfo = computed(() => {
+  const memoryUsed = Number(selectedServerInfo.value.gpuMemoryUsed) || 0;
+  const memoryTotal = Number(selectedServerInfo.value.gpuMemoryTotal) || 0;
+  const rawUsage = Number(selectedServerInfo.value.gpuUsage);
+  const hasUsageMetric = Number.isFinite(rawUsage) && rawUsage > 0;
+  const estimatedUsage = memoryTotal > 0 ? (memoryUsed / memoryTotal) * 100 : 0;
+  return {
+    used: clampPercent(hasUsageMetric ? rawUsage : estimatedUsage),
+    memoryUsed,
+    memoryTotal,
+    isEstimated: !hasUsageMetric && memoryTotal > 0
+  };
+});
+const gpuModelDisplay = computed(() => {
+  const value = String(selectedServerInfo.value.gpuModel || '').trim();
+  if (!value || value.toLowerCase() === 'unknown' || value.toLowerCase() === 'n/a') return '未检测到 GPU';
+  return value;
+});
+const gpuMemoryDisplay = computed(() => {
+  const raw = String(selectedServerInfo.value.gpuMemory || '').trim();
+  if (raw && raw.toLowerCase() !== 'unknown' && raw.toLowerCase() !== 'n/a') return raw;
+  if (gpuInfo.value.memoryTotal > 0) {
+    return `${formatBytes(gpuInfo.value.memoryUsed)} / ${formatBytes(gpuInfo.value.memoryTotal)}`;
+  }
+  return '无显存数据';
+});
+const selectedTrendMeta = computed(
+  () => trendMetricOptions.find((item) => item.value === selectedTrendMetric.value) || trendMetricOptions[0]
+);
+const trendChartData = computed(() => {
+  const key = selectedTrendMeta.value.value;
+  return (trendData.value || []).map((item) => ({
+    timestamp: item.timestamp,
+    value: clampPercent(item?.[key])
+  }));
+});
 const cpuUsagePercent = computed(() => clampPercent(selectedSnapshot.value.cpuUsage));
+const hasCachedData = computed(() => {
+  const snapshotTimestamp = Number(selectedSnapshot.value.timestamp) || 0;
+  return snapshotTimestamp > 0 || trendData.value.length > 0 || historyData.value.length > 0;
+});
+const contentLoading = computed(() => loading.value && !(serverOnline.value === false && hasCachedData.value));
+const lastSnapshotTime = computed(() => {
+  const value = selectedSnapshot.value.recordedAt || selectedSnapshot.value.timestamp;
+  return value ? formatDateTime(value, true) : '';
+});
+const periodToMs = {
+  '5m': 5 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000
+};
+const getTimeWindowByPeriod = (value) => {
+  const now = Date.now();
+  const range = periodToMs[value] || periodToMs['24h'];
+  return {
+    startTime: now - range,
+    endTime: now
+  };
+};
 
 const fetchNodes = async () => {
   nodesLoading.value = true;
   try {
-    const data = await getServerNodes();
+    const data = await withTimeout(
+      getServerNodes(),
+      4000,
+      '节点列表请求超时'
+    );
     serverNodes.value = (data || []).map(normalizeNode);
     if (!serverNodes.value.some((node) => node.id === currentServerId.value)) {
       router.replace(ROUTES.MONITOR.SERVER);
     }
+  } catch (error) {
+    console.warn('fetchNodes failed, keep previous nodes:', error);
   } finally {
     nodesLoading.value = false;
   }
@@ -598,60 +724,97 @@ const fetchNodes = async () => {
 
 const fetchServerMeta = async () => {
   try {
-    const list = await getServerInfoList();
+    const list = await withTimeout(
+      getServerInfoList(),
+      4000,
+      '节点元数据请求超时'
+    );
     const map = {};
     (list || []).forEach((item) => {
       if (item?.serverId) map[item.serverId] = item;
     });
     serverInfoMap.value = map;
-  } catch {
-    serverInfoMap.value = {};
+  } catch (error) {
+    console.warn('fetchServerMeta failed, keep previous metadata:', error);
   }
 };
 
 const buildSnapshotFromMetric = (metric = {}, node = {}) => {
+  const pick = (...keys) => {
+    for (const key of keys) {
+      const value = metric?.[key];
+      if (value !== undefined && value !== null && value !== '') return value;
+    }
+    return undefined;
+  };
+
   const snapshot = createEmptySnapshot(node);
-  snapshot.serverId = metric.serverId || node.id || snapshot.serverId;
-  snapshot.serverName = metric.serverName || node.name || snapshot.serverName;
-  snapshot.timestamp = Number(metric.timestamp) || 0;
-  snapshot.recordedAt = metric.recordedAt || '';
+  snapshot.serverId = pick('serverId', 'server_id') || node.id || snapshot.serverId;
+  snapshot.serverName = pick('serverName', 'server_name') || node.name || snapshot.serverName;
+  snapshot.timestamp = Number(pick('timestamp')) || 0;
+  snapshot.recordedAt = pick('recordedAt', 'recorded_at') || '';
   snapshot.online = typeof metric.online === 'boolean' ? metric.online : null;
-  snapshot.errorMessage = metric.errorMessage || metric.error || '';
-  snapshot.cpuUsage = Number(metric.cpuUsage) || 0;
-  snapshot.memoryUsage = Number(metric.memoryUsage) || 0;
-  snapshot.diskUsage = Number(metric.diskUsage) || 0;
-  snapshot.gpuUsage = Number(metric.gpuUsage) || 0;
-  snapshot.cpuCores = Number(metric.cpuCores) || 0;
-  snapshot.cpuLogicalCores = Number(metric.cpuLogicalCores) || 0;
-  snapshot.cpuModel = metric.cpuModel || '';
-  snapshot.memoryTotal = Number(metric.memoryTotal) || 0;
-  snapshot.memoryUsed = Number(metric.memoryUsed) || 0;
-  snapshot.diskTotal = Number(metric.diskTotal) || 0;
-  snapshot.diskUsed = Number(metric.diskUsed) || 0;
-  snapshot.gpuModel = metric.gpuModel || '';
-  snapshot.gpuMemory = metric.gpuMemory || '';
-  snapshot.gpuMemoryTotal = Number(metric.gpuMemoryTotal) || 0;
-  snapshot.gpuMemoryUsed = Number(metric.gpuMemoryUsed) || 0;
-  snapshot.os = metric.os || '';
-  snapshot.uptime = metric.uptime || '';
-  snapshot.processCount = Number(metric.processCount) || 0;
-  snapshot.networkDownload = metric.networkDownload || metric.networkReceiveRate || '';
-  snapshot.networkUpload = metric.networkUpload || metric.networkTransmitRate || '';
-  snapshot.devices = metric.devices || '';
+  snapshot.errorMessage = pick('errorMessage', 'error_message', 'error') || '';
+  snapshot.cpuUsage = Number(pick('cpuUsage', 'cpu_usage')) || 0;
+  snapshot.memoryUsage = Number(pick('memoryUsage', 'memory_usage')) || 0;
+  snapshot.diskUsage = Number(pick('diskUsage', 'disk_usage')) || 0;
+  snapshot.gpuUsage = Number(pick('gpuUsage', 'gpu_usage')) || 0;
+  snapshot.cpuCores = Number(pick('cpuCores', 'cpu_cores')) || 0;
+  snapshot.cpuLogicalCores = Number(pick('cpuLogicalCores', 'cpu_logical_cores')) || 0;
+  snapshot.cpuModel = pick('cpuModel', 'cpu_model') || '';
+  snapshot.memoryTotal = Number(pick('memoryTotal', 'memory_total')) || 0;
+  snapshot.memoryUsed = Number(pick('memoryUsed', 'memory_used')) || 0;
+  snapshot.diskTotal = Number(pick('diskTotal', 'disk_total')) || 0;
+  snapshot.diskUsed = Number(pick('diskUsed', 'disk_used')) || 0;
+  snapshot.gpuModel = pick('gpuModel', 'gpu_model', 'gpuName', 'gpu_name') || '';
+  snapshot.gpuMemory = pick('gpuMemory', 'gpu_memory') || '';
+  snapshot.gpuMemoryTotal = Number(pick('gpuMemoryTotal', 'gpu_memory_total', 'gpuVramTotal', 'gpu_vram_total')) || 0;
+  snapshot.gpuMemoryUsed = Number(pick('gpuMemoryUsed', 'gpu_memory_used', 'gpuVramUsed', 'gpu_vram_used')) || 0;
+  snapshot.os = pick('os') || '';
+  snapshot.uptime = pick('uptime') || '';
+  snapshot.processCount = Number(pick('processCount', 'process_count')) || 0;
+  snapshot.cpuTemperature = Number(pick('cpuTemperature', 'cpu_temperature')) || null;
+  snapshot.gpuTemperature = Number(pick('gpuTemperature', 'gpu_temperature')) || null;
+  snapshot.gpuPower = Number(pick('gpuPower', 'gpu_power', 'gpuPowerWatts', 'gpu_power_watts')) || null;
+  snapshot.networkDownload = pick('networkDownload', 'network_download', 'networkReceiveRate', 'network_receive_rate') || '';
+  snapshot.networkUpload = pick('networkUpload', 'network_upload', 'networkTransmitRate', 'network_transmit_rate') || '';
+  snapshot.devices = pick('devices') || '';
   return snapshot;
 };
 
-const fetchNodeSnapshots = async () => {
-  const results = await Promise.all(normalizedNodes.value.map(async (node) => {
+const fetchNodeSnapshots = async (options = {}) => {
+  const onlyCurrent = Boolean(options.onlyCurrent);
+  const nodesToFetch = onlyCurrent
+    ? normalizedNodes.value.filter((node) => node.id === currentServerId.value)
+    : normalizedNodes.value;
+  const previousSnapshots = nodeSnapshots.value || {};
+
+  const results = await Promise.all(nodesToFetch.map(async (node) => {
+    const previous = previousSnapshots[node.id];
     try {
-      const data = await getServerHardwareHistory({ serverId: node.id, page: 0, size: 1 });
+      const data = await withTimeout(
+        getServerHardwareHistory({ serverId: node.id, page: 0, size: 1 }),
+        onlyCurrent ? 7000 : 3500,
+        `节点 ${node.id} 采集超时`
+      );
       const latest = data?.content?.[0];
-      return [node.id, latest ? buildSnapshotFromMetric(latest, node) : createEmptySnapshot(node)];
+      if (latest) {
+        return [node.id, buildSnapshotFromMetric(latest, node)];
+      }
+      // No fresh data from backend: keep last snapshot to avoid blanking UI.
+      return [node.id, previous || createEmptySnapshot(node)];
     } catch (error) {
+      // Preserve previous snapshot for offline/timeout nodes, only annotate state.
+      if (previous) {
+        return [node.id, { ...previous, online: false, errorMessage: error.message || '请求失败' }];
+      }
       return [node.id, { ...createEmptySnapshot(node), online: false, errorMessage: error.message || '请求失败' }];
     }
   }));
-  nodeSnapshots.value = Object.fromEntries(results);
+  nodeSnapshots.value = {
+    ...previousSnapshots,
+    ...Object.fromEntries(results)
+  };
   await hydrateCurrentNodeSnapshot();
 };
 
@@ -661,20 +824,43 @@ const hydrateCurrentNodeSnapshot = async () => {
   const snapshot = nodeSnapshots.value[serverId];
   if (!snapshot) return;
 
-  const needsHydration = (Number(snapshot.memoryTotal) || 0) <= 0 || (Number(snapshot.diskTotal) || 0) <= 0;
+  const gpuModelText = String(snapshot.gpuModel || '').trim().toLowerCase();
+  const gpuMemoryText = String(snapshot.gpuMemory || '').trim().toLowerCase();
+  const cpuTemp = Number(snapshot.cpuTemperature);
+  const gpuTemp = Number(snapshot.gpuTemperature);
+  const gpuPower = Number(snapshot.gpuPower);
+  const needsHydration = (Number(snapshot.memoryTotal) || 0) <= 0
+    || (Number(snapshot.diskTotal) || 0) <= 0
+    || !gpuModelText
+    || gpuModelText === 'unknown'
+    || gpuModelText === 'n/a'
+    || ((Number(snapshot.gpuMemoryTotal) || 0) <= 0 && (!gpuMemoryText || gpuMemoryText === 'unknown' || gpuMemoryText === 'n/a'))
+    || !Number.isFinite(cpuTemp)
+    || !Number.isFinite(gpuTemp)
+    || !Number.isFinite(gpuPower);
   if (!needsHydration) return;
 
   try {
-    const realtime = await getPrometheusServerStatus(serverId);
+    let realtime = await getPrometheusServerStatus(serverId);
+
+    // Fallback: some environments bind status by datasource URL rather than node id.
+    if (!realtime || realtime.online === false) {
+      const fallbackServerId = String(selectedServerMeta.value?.prometheusUrl || '').trim();
+      if (fallbackServerId && fallbackServerId !== serverId) {
+        realtime = await getPrometheusServerStatus(fallbackServerId);
+      }
+    }
+
     if (!realtime || realtime.online === false) return;
 
     const next = { ...snapshot };
-    const memoryTotal = Number(realtime.memoryTotal) || 0;
-    const diskTotal = Number(realtime.diskTotal) || 0;
-    const memoryUsage = Number(realtime.memoryUsage) || 0;
-    const diskUsage = Number(realtime.diskUsage) || 0;
-    const gpuMemoryTotal = Number(realtime.gpuMemoryTotal) || 0;
-    const gpuMemoryUsed = Number(realtime.gpuMemoryUsed) || 0;
+    const memoryTotal = Number(realtime.memoryTotal ?? realtime.memory_total) || 0;
+    const diskTotal = Number(realtime.diskTotal ?? realtime.disk_total) || 0;
+    const memoryUsage = Number(realtime.memoryUsage ?? realtime.memory_usage ?? realtime.memoryUsagePercent) || 0;
+    const diskUsage = Number(realtime.diskUsage ?? realtime.disk_usage) || 0;
+    const gpuMemoryTotal = Number(realtime.gpuMemoryTotal ?? realtime.gpu_memory_total ?? realtime.gpuVramTotal) || 0;
+    const gpuMemoryUsed = Number(realtime.gpuMemoryUsed ?? realtime.gpu_memory_used ?? realtime.gpuVramUsed) || 0;
+    const realtimeGpuUsage = Number(realtime.gpuUsage ?? realtime.gpu_usage) || 0;
 
     if ((Number(next.memoryTotal) || 0) <= 0 && memoryTotal > 0) next.memoryTotal = memoryTotal;
     if ((Number(next.diskTotal) || 0) <= 0 && diskTotal > 0) next.diskTotal = diskTotal;
@@ -683,6 +869,12 @@ const hydrateCurrentNodeSnapshot = async () => {
     }
     if ((Number(next.diskUsed) || 0) <= 0 && (Number(next.diskTotal) || 0) > 0 && diskUsage >= 0) {
       next.diskUsed = Math.round((Number(next.diskTotal) || 0) * (diskUsage / 100));
+    }
+    if ((Number(next.cpuCores) || 0) <= 0 && Number(realtime.cpuCores ?? realtime.cpu_cores) > 0) {
+      next.cpuCores = Number(realtime.cpuCores ?? realtime.cpu_cores) || 0;
+    }
+    if ((Number(next.cpuLogicalCores) || 0) <= 0 && Number(realtime.cpuLogicalCores ?? realtime.cpu_logical_cores ?? realtime.threadCount) > 0) {
+      next.cpuLogicalCores = Number(realtime.cpuLogicalCores ?? realtime.cpu_logical_cores ?? realtime.threadCount) || 0;
     }
 
     if ((Number(next.gpuMemoryTotal) || 0) <= 0 && gpuMemoryTotal > 0) next.gpuMemoryTotal = gpuMemoryTotal;
@@ -693,12 +885,33 @@ const hydrateCurrentNodeSnapshot = async () => {
       next.gpuMemory = `${formatBytes(used)} / ${formatBytes(gpuMemoryTotal)}`;
     }
 
-    next.cpuModel = next.cpuModel || realtime.cpuModel || '';
+    next.cpuModel = next.cpuModel || realtime.cpuModel || realtime.cpu_model || '';
+    next.os = next.os || realtime.os || realtime.osName || realtime.os_name || '';
+    if (realtime.processCount !== undefined || realtime.process_count !== undefined) {
+      next.processCount = Number(realtime.processCount ?? realtime.process_count) || 0;
+    }
+    if (realtime.cpuTemperature !== undefined || realtime.cpu_temperature !== undefined) {
+      const v = Number(realtime.cpuTemperature ?? realtime.cpu_temperature);
+      next.cpuTemperature = Number.isFinite(v) && v > 0 ? v : null;
+    }
+    if (realtime.gpuTemperature !== undefined || realtime.gpu_temperature !== undefined) {
+      const v = Number(realtime.gpuTemperature ?? realtime.gpu_temperature);
+      next.gpuTemperature = Number.isFinite(v) && v > 0 ? v : null;
+    }
+    if (realtime.gpuPower !== undefined || realtime.gpu_power !== undefined || realtime.gpuPowerWatts !== undefined) {
+      const v = Number(realtime.gpuPower ?? realtime.gpu_power ?? realtime.gpuPowerWatts);
+      next.gpuPower = Number.isFinite(v) && v >= 0 ? v : null;
+    }
+    if (!next.devices) {
+      next.devices = realtime.devices || realtime.diskDevices || realtime.disk_devices || next.devices || '';
+    }
     const currentGpuModel = String(next.gpuModel || '').trim().toLowerCase();
     if (!currentGpuModel || currentGpuModel === 'unknown' || currentGpuModel === 'n/a') {
-      next.gpuModel = realtime.gpuModel || next.gpuModel || '';
+      next.gpuModel = realtime.gpuModel || realtime.gpu_model || realtime.gpuName || next.gpuModel || '';
     }
-    next.os = next.os || realtime.os || '';
+    if ((Number(next.gpuUsage) || 0) <= 0 && realtimeGpuUsage > 0) {
+      next.gpuUsage = realtimeGpuUsage;
+    }
     next.online = typeof next.online === 'boolean' ? next.online : Boolean(realtime.online);
     nodeSnapshots.value = { ...nodeSnapshots.value, [serverId]: next };
   } catch {
@@ -707,17 +920,26 @@ const hydrateCurrentNodeSnapshot = async () => {
 };
 
 const fetchNodesAndSnapshots = async () => {
-  await Promise.all([fetchNodes(), fetchServerMeta()]);
-  await fetchNodeSnapshots();
+  await Promise.allSettled([fetchNodes(), fetchServerMeta()]);
+  // Single node panel: only fetch selected node snapshot for faster refresh.
+  await fetchNodeSnapshots({ onlyCurrent: true });
 };
 
 const fetchPrometheusStatus = async () => {
   try {
-    const config = await getPrometheusConfig();
+    const config = await withTimeout(
+      getPrometheusConfig(),
+      3500,
+      'Prometheus 配置请求超时'
+    );
     if (config) {
       prometheusConfig.value = { prometheusUrl: config.prometheusUrl || '', enabled: !!config.enabled, cacheTtl: config.cacheTtl || 10, refreshInterval: config.refreshInterval || 15 };
     }
-    const properties = await getSystemProperties();
+    const properties = await withTimeout(
+      getSystemProperties(),
+      3500,
+      '系统属性请求超时'
+    );
     const rawEnabled = properties?.['orin.hardware.monitor.enabled'];
     hardwareAutoCollectEnabled.value = rawEnabled === undefined || rawEnabled === null || rawEnabled === ''
       ? true
@@ -742,27 +964,62 @@ const syncSelectedServerState = () => {
 };
 
 const fetchTrendData = async () => {
-  let points = await getServerHardwareTrend(period.value, currentServerId.value);
-  if (!Array.isArray(points) || points.length === 0) {
-    const fallback = await getServerHardwareHistory({ serverId: currentServerId.value, page: 0, size: 40 });
-    points = (fallback?.content || []).slice().reverse();
+  try {
+    let points = await getServerHardwareTrend(period.value, currentServerId.value);
+    if (!Array.isArray(points) || points.length === 0) {
+      const fallback = await getServerHardwareHistory({ serverId: currentServerId.value, page: 0, size: 40 });
+      points = (fallback?.content || []).slice().reverse();
+    }
+    trendData.value = (points || []).map((item) => ({
+      timestamp: item.timestamp,
+      cpuUsage: Number(item.cpuUsage) || 0,
+      memoryUsage: Number(item.memoryUsage) || 0,
+      diskUsage: Number(item.diskUsage) || 0,
+      gpuUsage: Number(item.gpuUsage) || 0,
+      gpuMemoryUsage: Number(item.gpuMemoryUsage) || 0
+    }));
+  } catch (error) {
+    console.warn('fetchTrendData failed, keep previous trend data:', error);
   }
-  trendData.value = (points || []).map((item) => ({ timestamp: item.timestamp, value: item.cpuUsage || 0, memoryUsage: item.memoryUsage || 0 }));
-  diskTrendData.value = (points || []).map((item) => ({ timestamp: item.timestamp, value: item.diskUsage || 0, gpuUsage: item.gpuUsage || 0 }));
 };
 
 const fetchHistoryData = async () => {
-  const data = await getServerHardwareHistory({ serverId: currentServerId.value, page: page.value - 1, size: pageSize.value });
-  historyData.value = data?.content || [];
-  historyTotal.value = data?.totalElements || 0;
+  try {
+    const window = getTimeWindowByPeriod(period.value);
+    const data = await getServerHardwareHistory({
+      serverId: currentServerId.value,
+      page: page.value - 1,
+      size: pageSize.value,
+      startTime: window.startTime,
+      endTime: window.endTime
+    });
+    historyData.value = data?.content || [];
+    historyTotal.value = data?.totalElements || 0;
+  } catch (error) {
+    console.warn('fetchHistoryData failed, keep previous history data:', error);
+  }
+};
+
+const handlePeriodChange = async () => {
+  page.value = 1;
+  await Promise.allSettled([fetchTrendData(), fetchHistoryData()]);
 };
 
 const fetchAllData = async () => {
   loading.value = true;
   try {
-    await fetchNodesAndSnapshots();
-    await Promise.all([fetchPrometheusStatus(), fetchTrendData(), fetchHistoryData()]);
+    await withTimeout(fetchNodesAndSnapshots(), 9000, '节点快照刷新超时');
     syncSelectedServerState();
+    await withTimeout(fetchPrometheusStatus(), 5000, '监控配置刷新超时');
+    if (serverOnline.value === false) {
+      return;
+    }
+    await Promise.allSettled([
+      withTimeout(fetchTrendData(), 6000, '趋势数据刷新超时'),
+      withTimeout(fetchHistoryData(), 6000, '历史数据刷新超时')
+    ]);
+  } catch (error) {
+    console.error('fetchAllData failed:', error);
   } finally {
     loading.value = false;
   }
@@ -770,7 +1027,7 @@ const fetchAllData = async () => {
 
 const refreshSnapshotsOnly = async () => {
   if (serverOnline.value === false) return;
-  await fetchNodeSnapshots();
+  await fetchNodeSnapshots({ onlyCurrent: true });
   syncSelectedServerState();
 };
 
@@ -891,13 +1148,21 @@ const clampPercent = (value) => Math.max(0, Math.min(100, Number((Number(value) 
 const formatPercent = (value) => `${clampPercent(value).toFixed(1)}%`;
 const formatCount = (value) => {
   const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n : 'N/A';
+  return Number.isFinite(n) && n >= 0 ? n : 'N/A';
 };
 const formatLogicalCores = (snapshot = {}) => {
   const logical = Number(snapshot.cpuLogicalCores);
   if (Number.isFinite(logical) && logical > 0) return logical;
   const physical = Number(snapshot.cpuCores);
   return Number.isFinite(physical) && physical > 0 ? physical : 'N/A';
+};
+const formatTemperature = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? `${n.toFixed(1)} °C` : 'N/A';
+};
+const formatPower = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? `${n.toFixed(1)} W` : 'N/A';
 };
 const formatBytesOrNA = (bytes) => {
   const value = Number(bytes);

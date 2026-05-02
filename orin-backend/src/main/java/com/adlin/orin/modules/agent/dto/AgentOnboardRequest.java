@@ -11,6 +11,7 @@ public class AgentOnboardRequest {
     private String apiKey;
     private String datasetApiKey;
     private String providerType;
+    private Long providerKeyId;
 
     public String getEndpointUrl() {
         return endpointUrl;

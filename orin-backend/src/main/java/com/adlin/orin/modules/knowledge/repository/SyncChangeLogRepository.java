@@ -18,6 +18,10 @@ public interface SyncChangeLogRepository extends JpaRepository<SyncChangeLog, Lo
 
     List<SyncChangeLog> findByAgentIdAndSyncedFalseOrderByChangedAtAsc(String agentId);
 
+    List<SyncChangeLog> findByIntegrationIdAndSyncedFalseOrderByChangedAtAsc(Long integrationId);
+
+    List<SyncChangeLog> findByIntegrationIdAndSyncStatusOrderByChangedAtAsc(Long integrationId, String syncStatus);
+
     Page<SyncChangeLog> findByAgentIdOrderByChangedAtDesc(String agentId, Pageable pageable);
 
     Page<SyncChangeLog> findByAgentIdAndChangedAtBetweenOrderByChangedAtDesc(
@@ -31,6 +35,8 @@ public interface SyncChangeLogRepository extends JpaRepository<SyncChangeLog, Lo
     int markAllSynced(@Param("agentId") String agentId);
 
     long countByAgentIdAndSyncedFalse(String agentId);
+
+    long countByIntegrationIdAndSyncedFalse(Long integrationId);
 
     Optional<SyncChangeLog> findByIdempotencyKey(String idempotencyKey);
 }

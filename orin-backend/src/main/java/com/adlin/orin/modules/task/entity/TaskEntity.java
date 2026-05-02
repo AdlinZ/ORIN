@@ -102,6 +102,9 @@ public class TaskEntity {
 
     @PrePersist
     protected void onCreate() {
+        if (taskCategory == null) {
+            taskCategory = TaskCategory.WORKFLOW;
+        }
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }

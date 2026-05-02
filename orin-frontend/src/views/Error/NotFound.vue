@@ -109,7 +109,7 @@
 <style scoped>
 .bsod-container {
   min-height: 100vh;
-  background-color: var(--app-bg, #f8fafc);
+  background-color: var(--bg-color, var(--el-bg-color-page, #f8fafc));
   color: var(--text-primary, #1e293b);
   display: flex;
   justify-content: flex-start;
@@ -140,6 +140,7 @@
   font-weight: 500;
   line-height: 1.3;
   margin: 0 0 20px 0;
+  color: var(--text-primary, #1e293b);
 }
 
 .secondary-msg {
@@ -226,5 +227,32 @@
 html.dark .qr-placeholder {
   background: #f8fafc; /* Keep QR area bright in dark mode for scannability */
   border-color: transparent;
+}
+
+html.dark .bsod-container {
+  background: var(--orin-bg, #0b1118);
+  color: var(--el-text-color-primary, #f1f5f9);
+}
+
+html.dark .main-msg {
+  color: var(--el-text-color-primary, #f1f5f9);
+}
+
+html.dark .secondary-msg,
+html.dark .info-details {
+  color: var(--el-text-color-secondary, #94a3b8);
+}
+
+html.dark .stop-code .bold {
+  color: var(--el-text-color-primary, #f1f5f9);
+}
+
+html.dark .bsod-btn {
+  color: var(--el-text-color-primary, #f1f5f9) !important;
+  border-color: var(--el-border-color-dark, #334155) !important;
+}
+
+html.dark .bsod-btn:hover {
+  background: rgba(45, 212, 191, 0.12) !important;
 }
 </style>

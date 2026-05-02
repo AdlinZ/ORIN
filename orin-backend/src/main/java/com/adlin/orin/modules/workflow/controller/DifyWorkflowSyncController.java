@@ -16,7 +16,10 @@ import java.util.*;
 /**
  * Dify 工作流同步控制器
  * 提供从 Dify 同步工作流的功能
+ *
+ * @deprecated Use /api/v1/integration-sync for new Dify synchronization flows.
  */
+@Deprecated
 @Slf4j
 @RestController
 @RequestMapping("/api/workflows/sync")

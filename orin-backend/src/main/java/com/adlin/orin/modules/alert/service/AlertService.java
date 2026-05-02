@@ -117,6 +117,7 @@ public class AlertService {
                 // 仍然创建告警历史，但不发送通知
                 AlertHistory history = AlertHistory.builder()
                         .ruleId(ruleId)
+                        .ruleName(rule.getRuleName())
                         .agentId(agentId)
                         .traceId(traceId)
                         .alertMessage(message)
@@ -133,6 +134,7 @@ public class AlertService {
         // 创建告警历史
         AlertHistory history = AlertHistory.builder()
                 .ruleId(ruleId)
+                .ruleName(rule.getRuleName())
                 .agentId(agentId)
                 .traceId(traceId)
                 .alertMessage(message)
@@ -200,6 +202,7 @@ public class AlertService {
             log.warn("No active rule found for type {}. Generating generic alert.", ruleType);
             AlertHistory history = AlertHistory.builder()
                     .ruleId("SYSTEM_DEFAULT")
+                    .ruleName("系统默认告警")
                     .agentId(agentId)
                     .traceId(traceId)
                     .alertMessage(message)

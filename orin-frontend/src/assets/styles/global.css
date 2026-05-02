@@ -19,6 +19,8 @@
   .trace-viewer,
   .skill-management,
   .user-management,
+  .department-management,
+  .role-management,
   .notification-channels-container,
   .mail-system-container,
   .kb-create-page,
@@ -44,6 +46,8 @@
   .rate-limit-config,
   .system-maintenance-page,
   .api-gateway-page,
+  .department-management,
+  .role-management,
   .role-management-page
 ):not(.command-center-root) {
   padding: 0 !important;
@@ -90,6 +94,8 @@
   .trace-viewer,
   .skill-management,
   .user-management,
+  .department-management,
+  .role-management,
   .notification-channels-container,
   .mail-system-container,
   .kb-create-page,
@@ -108,6 +114,8 @@
   .rate-limit-config,
   .system-maintenance-page,
   .api-gateway-page,
+  .department-management,
+  .role-management,
   .role-management-page
 ):not(.command-center-root) > * {
   margin-bottom: var(--orin-page-gap);
@@ -121,6 +129,8 @@
   .trace-viewer,
   .skill-management,
   .user-management,
+  .department-management,
+  .role-management,
   .notification-channels-container,
   .mail-system-container,
   .kb-create-page,
@@ -139,6 +149,8 @@
   .rate-limit-config,
   .system-maintenance-page,
   .api-gateway-page,
+  .department-management,
+  .role-management,
   .role-management-page
 ):not(.command-center-root) > *:last-child {
   margin-bottom: 0;

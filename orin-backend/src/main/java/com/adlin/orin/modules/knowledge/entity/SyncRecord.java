@@ -26,6 +26,37 @@ public class SyncRecord {
     @Column(name = "agent_id", length = 64)
     private String agentId;
 
+    /**
+     * 外部集成 ID。为空时表示旧知识库同步记录。
+     */
+    @Column(name = "integration_id")
+    private Long integrationId;
+
+    /**
+     * 平台类型: DIFY, N8N, COZE, RAGFLOW, CUSTOM
+     */
+    @Column(name = "platform_type", length = 30)
+    private String platformType;
+
+    /**
+     * integration-sync 层的 job id。
+     */
+    @Column(name = "sync_job_id")
+    private Long syncJobId;
+
+    /**
+     * 触发方式: MANUAL, SCHEDULED, CHANGELOG, WEBHOOK
+     */
+    @Column(name = "trigger_type", length = 30)
+    private String triggerType;
+
+    /**
+     * 资源范围: ALL, WORKFLOW, AGENT, TOOL, KNOWLEDGE_BASE, DOCUMENT, EXECUTION, VARIABLE,
+     * CREDENTIAL_REF, PUBLISH_STATUS
+     */
+    @Column(name = "resource_scope", length = 40)
+    private String resourceScope;
+
     @Column(name = "sync_type", length = 20)
     private String syncType; // FULL, INCREMENTAL
 

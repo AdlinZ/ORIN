@@ -1,6 +1,7 @@
 package com.adlin.orin.gateway.service;
 
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
+import com.adlin.orin.gateway.config.GatewayModelProperties;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,8 @@ class RouterServiceTest {
     @Mock
     private ProviderRegistry providerRegistry;
     @Mock
+    private GatewayModelProperties modelProperties;
+    @Mock
     private ProviderAdapter openAiProvider;
     @Mock
     private ProviderAdapter ollamaProvider;
@@ -28,7 +31,7 @@ class RouterServiceTest {
 
     @BeforeEach
     void setUp() {
-        routerService = new RouterService(providerRegistry);
+        routerService = new RouterService(providerRegistry, modelProperties);
     }
 
     @Test
@@ -55,5 +58,20 @@ class RouterServiceTest {
         Optional<ProviderAdapter> selected = routerService.selectProviderByModel("qwen2.5:7b", request);
 
         assertThat(selected).contains(ollamaProvider);
+    }
+
+    @Test
+    void selectProvider_roundRobinShouldClampIndexWhenProviderListShrinks() {
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model("gpt-4o-mini")
+                .build();
+        when(providerRegistry.getHealthyProviders())
+                .thenReturn(List.of(openAiProvider, ollamaProvider))
+                .thenReturn(List.of(openAiProvider));
+
+        routerService.selectProvider(request, RouterService.RoutingStrategy.ROUND_ROBIN);
+        Optional<ProviderAdapter> selected = routerService.selectProvider(request, RouterService.RoutingStrategy.ROUND_ROBIN);
+
+        assertThat(selected).contains(openAiProvider);
     }
 }

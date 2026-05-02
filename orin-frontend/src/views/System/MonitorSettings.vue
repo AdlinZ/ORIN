@@ -148,13 +148,11 @@
         <OrinArcoConfigSection id="blk-storage-milvus" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
-              <div class="name-with-badge">
-                <span>Milvus 向量引擎</span>
+              <span>Milvus 向量引擎</span>
+              <div class="card-actions card-actions-right">
                 <el-tag :type="milvusStatus.online ? 'success' : 'danger'" size="small">
                   {{ milvusStatus.online ? '已连接' : '未连接' }}
                 </el-tag>
-              </div>
-              <div class="card-actions">
                 <el-button v-if="!cardEditState['storage-milvus']" size="small" @click="startMilvusEdit">编辑</el-button>
                 <template v-else>
                   <el-button size="small" @click="cancelMilvusEdit">取消</el-button>
@@ -228,15 +226,15 @@
         <OrinArcoConfigSection id="blk-storage-neo4j" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
-              <div class="name-with-badge">
+              <div class="card-head-main">
                 <el-icon size="15"><Share /></el-icon>
                 <span>Neo4j 图数据库</span>
                 <span class="card-desc">Graph / RAG 知识图谱</span>
+              </div>
+              <div class="card-actions card-actions-right">
                 <el-tag :type="neo4jConfig.enabled ? 'success' : 'info'" size="small">
                   {{ neo4jConfig.enabled ? '已启用' : '未启用' }}
                 </el-tag>
-              </div>
-              <div class="card-actions">
                 <el-button v-if="!cardEditState['storage-neo4j']" size="small" @click="startNeo4jEdit">编辑</el-button>
                 <template v-else>
                   <el-button size="small" @click="cancelNeo4jEdit">取消</el-button>
@@ -283,13 +281,13 @@
         <OrinArcoConfigSection id="blk-storage-minio" style="margin-top: 16px">
           <template #header>
             <div class="card-head">
-              <div class="name-with-badge">
+              <div class="card-head-main">
                 <span>MinIO 对象存储</span>
+              </div>
+              <div class="card-actions card-actions-right">
                 <el-tag :type="minioStatus.up ? 'success' : 'danger'" size="small">
                   {{ minioStatus.up ? '已连接' : '未连接' }}
                 </el-tag>
-              </div>
-              <div class="card-actions">
                 <el-button v-if="!cardEditState['storage-minio']" size="small" @click="startMinioEdit">编辑</el-button>
                 <template v-else>
                   <el-button size="small" @click="cancelMinioEdit">取消</el-button>
@@ -546,15 +544,15 @@
         <OrinArcoConfigSection id="blk-integration-jina">
           <template #header>
             <div class="card-head">
-              <div class="name-with-badge">
+              <div class="card-head-main">
                 <el-icon size="15"><Connection /></el-icon>
                 <span>Jina Reader</span>
                 <span class="card-desc">网页 URL 转 Markdown 解析</span>
+              </div>
+              <div class="card-actions card-actions-right">
                 <el-tag :type="aiConfig.jinaEnabled ? 'success' : 'info'" size="small">
                   {{ aiConfig.jinaEnabled ? '已启用' : '未启用' }}
                 </el-tag>
-              </div>
-              <div class="card-actions">
                 <el-button v-if="!cardEditState['jina-reader']" size="small" @click="startJinaReaderEdit">编辑</el-button>
                 <template v-else>
                   <el-button size="small" @click="cancelJinaReaderEdit">取消</el-button>
@@ -588,15 +586,15 @@
         >
           <template #header>
             <div class="card-head">
-              <div class="name-with-badge">
+              <div class="card-head-main">
                 <el-icon size="15"><component :is="card.icon" /></el-icon>
                 <span>{{ card.title }}</span>
                 <span class="card-desc">{{ card.description }}</span>
+              </div>
+              <div class="card-actions card-actions-right">
                 <el-tag :type="card.config.enabled ? 'success' : 'info'" size="small">
                   {{ card.config.enabled ? '已启用' : '未启用' }}
                 </el-tag>
-              </div>
-              <div class="card-actions">
                 <el-button v-if="!cardEditState[card.key]" size="small" @click="startIntegrationEdit(card.key)">编辑</el-button>
                 <template v-else>
                   <el-button size="small" @click="cancelIntegrationEdit(card.key)">取消</el-button>
@@ -1689,6 +1687,7 @@ const setupObserver = () => {
 
 .card-head {
   display: flex;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   font-weight: 600;
@@ -1712,9 +1711,21 @@ const setupObserver = () => {
 
 .card-actions {
   display: flex;
+  margin-left: auto;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.card-actions-right {
+  margin-left: auto;
+}
+
+.card-head-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .name-with-badge {
@@ -1741,6 +1752,18 @@ const setupObserver = () => {
   color: var(--neutral-gray-500);
   margin: 5px 0 0;
   line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .card-head {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .card-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 }
 
 </style>

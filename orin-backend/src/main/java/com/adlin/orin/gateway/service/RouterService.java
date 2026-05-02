@@ -1,6 +1,7 @@
 package com.adlin.orin.gateway.service;
 
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
+import com.adlin.orin.gateway.config.GatewayModelProperties;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 智能路由服务
@@ -20,6 +22,7 @@ import java.util.Optional;
 public class RouterService {
 
     private final ProviderRegistry providerRegistry;
+    private final GatewayModelProperties modelProperties;
 
     /**
      * 路由策略枚举
@@ -46,7 +49,7 @@ public class RouterService {
         PRIORITY
     }
 
-    private int roundRobinIndex = 0;
+    private final AtomicInteger roundRobinIndex = new AtomicInteger(0);
 
     /**
      * 选择最佳Provider
@@ -78,11 +81,11 @@ public class RouterService {
      * @return Provider
      */
     public Optional<ProviderAdapter> selectProviderById(String providerId) {
-        return providerRegistry.getProvider(providerId)
-                .filter(provider -> {
-                    // 检查健康状态
-                    return providerRegistry.checkHealth(providerId).block();
-                });
+        Optional<ProviderAdapter> providerOpt = providerRegistry.getProvider(providerId);
+        if (providerOpt.isEmpty()) return Optional.empty();
+        boolean healthy = providerRegistry.checkHealth(providerId).block();
+        if (!healthy) return Optional.empty();
+        return providerOpt;
     }
 
     /**
@@ -93,9 +96,24 @@ public class RouterService {
      * @return Provider
      */
     public Optional<ProviderAdapter> selectProviderByModel(String modelName, ChatCompletionRequest request) {
-        String normalizedModel = modelName == null ? "" : modelName.toLowerCase();
+        if (modelName == null || modelName.isBlank()) {
+            return selectProvider(request, RoutingStrategy.LOWEST_COST);
+        }
 
-        // 根据模型名称前缀判断Provider类型
+        String normalizedModel = modelName.toLowerCase();
+
+        // 尝试从配置的属性中查找映射
+        GatewayModelProperties.ModelMapping mapping = modelProperties.findMapping(normalizedModel);
+        if (mapping != null) {
+            if (mapping.getProviderId() != null && !mapping.getProviderId().isBlank()) {
+                Optional<ProviderAdapter> provider = selectProviderById(mapping.getProviderId());
+                if (provider.isPresent()) return provider;
+            }
+            Optional<ProviderAdapter> byType = selectProviderByType(mapping.getProviderType(), request);
+            if (byType.isPresent()) return byType;
+        }
+
+        // 兜底：内置模型前缀判断（用于未在配置中声明的前缀）
         if (normalizedModel.startsWith("gpt-")) {
             return selectProviderByType("openai", request);
         } else if (normalizedModel.startsWith("dify-")) {
@@ -115,14 +133,11 @@ public class RouterService {
                     .or(() -> selectProviderByType("openai", request));
         } else if (normalizedModel.contains("local") || normalizedModel.contains("llama")
                 || normalizedModel.contains("qwen")) {
-            // Priority for Ollama if it involves local models
             Optional<ProviderAdapter> ollama = selectProviderByType("ollama", request);
-            if (ollama.isPresent())
-                return ollama;
+            if (ollama.isPresent()) return ollama;
             return selectProviderByType("local", request);
         }
 
-        // 默认使用最低成本策略
         return selectProvider(request, RoutingStrategy.LOWEST_COST);
     }
 
@@ -153,9 +168,8 @@ public class RouterService {
             return Optional.empty();
         }
 
-        int index = roundRobinIndex % providers.size();
-        roundRobinIndex = (roundRobinIndex + 1) % providers.size();
-
+        int rawIndex = roundRobinIndex.getAndUpdate(current -> Math.floorMod(current + 1, providers.size()));
+        int index = Math.floorMod(rawIndex, providers.size());
         ProviderAdapter selected = providers.get(index);
         log.debug("Round-robin selected provider: {}", selected.getProviderName());
         return Optional.of(selected);

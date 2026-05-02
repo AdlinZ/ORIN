@@ -134,8 +134,26 @@
             </el-table-column>
             <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'RESOLVED' ? 'success' : 'warning'" size="small">
-                  {{ row.status === 'RESOLVED' ? '已解决' : '待处理' }}
+                <el-tag
+                  v-if="row.status === 'RESOLVED'"
+                  type="success"
+                  size="small"
+                >
+                  已解决
+                </el-tag>
+                <el-tag
+                  v-else-if="row.status === 'SUPPRESSED'"
+                  type="info"
+                  size="small"
+                >
+                  已抑制
+                </el-tag>
+                <el-tag
+                  v-else
+                  type="warning"
+                  size="small"
+                >
+                  待处理
                 </el-tag>
               </template>
             </el-table-column>
@@ -439,7 +457,8 @@ const getRuleTypeText = (type) => {
   const map = {
     'HEALTH_CHECK': '健康检查',
     'PERFORMANCE': '性能监控',
-    'ERROR_RATE': '错误率'
+    'ERROR_RATE': '错误率',
+    'COLLAB_HEALTH': '协作健康'
   }
   return map[type] || type
 }

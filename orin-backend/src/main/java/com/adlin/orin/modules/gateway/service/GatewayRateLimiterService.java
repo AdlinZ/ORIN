@@ -29,6 +29,22 @@ public class GatewayRateLimiterService {
     private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
 
     /**
+     * 删除路由时清理对应限流桶，防止内存泄漏
+     */
+    public void removeRouteBuckets(Long routeId) {
+        String prefix = routeId + ":";
+        buckets.keySet().removeIf(key -> key.startsWith(prefix));
+        log.debug("Rate limiter buckets removed for routeId={}", routeId);
+    }
+
+    /**
+     * 检查当前桶数量（用于监控）
+     */
+    public int getBucketCount() {
+        return buckets.size();
+    }
+
+    /**
      * 尝试消耗一个令牌。
      *
      * @return true 表示允许通过，false 表示被限流

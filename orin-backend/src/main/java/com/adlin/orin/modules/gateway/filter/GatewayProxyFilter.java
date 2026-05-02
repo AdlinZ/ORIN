@@ -29,6 +29,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -115,7 +117,7 @@ public class GatewayProxyFilter implements Filter {
         GatewayRoute matchedRoute = resolvedRoute.getRoute();
         statsService.incrementRequestCount();
 
-        boolean isLocal = isLocalRoute(matchedRoute);
+        boolean isLocal = isLocalRoute(matchedRoute, resolvedRoute);
         log.info("Route matched: {} [{}]", matchedRoute.getName(), isLocal ? "LOCAL" : "PROXY");
 
         // ③ API Key 解析（后续认证和限流需要）
@@ -235,26 +237,58 @@ public class GatewayProxyFilter implements Filter {
         double retryBackoff = resolveRetryBackoff(route);
 
         byte[] requestBody = StreamUtils.copyToByteArray(request.getInputStream());
-        HttpEntity<byte[]> entity = new HttpEntity<>(requestBody, buildRequestHeaders(request, route, traceId));
+        HttpHeaders requestHeaders = buildRequestHeaders(request, route, traceId);
         int timeout = route.getTimeoutMs() != null ? route.getTimeoutMs() : 30000;
-        RestTemplate restTemplate = createRestTemplate(timeout);
 
-        ResponseEntity<byte[]> result = null;
+        WebClient webClient = createWebClient(timeout);
+
+        byte[] responseBody = null;
+        org.springframework.http.HttpStatus responseStatus = null;
+        org.springframework.http.HttpHeaders responseHeaders = null;
         Exception lastException = null;
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                result = restTemplate.exchange(targetUrl, httpMethod, entity, byte[].class);
-                if (attempt < maxAttempts && retryStatusCodes.contains(result.getStatusCode().value())) {
+                org.springframework.web.reactive.function.client.ClientResponse clientResponse =
+                        webClient.method(httpMethod)
+                                .uri(targetUrl)
+                                .headers(headers -> headers.addAll(requestHeaders))
+                                .bodyValue(requestBody)
+                                .exchange()
+                                .block(java.time.Duration.ofMillis(timeout));
+
+                if (clientResponse == null) {
+                    lastException = new IOException("No response from upstream");
+                    if (attempt < maxAttempts) {
+                        sleepBackoff(retryInitialMs, retryBackoff, attempt);
+                        continue;
+                    }
+                    break;
+                }
+
+                responseStatus = org.springframework.http.HttpStatus.valueOf(clientResponse.statusCode().value());
+                responseHeaders = clientResponse.headers().asHttpHeaders();
+                responseBody = clientResponse.bodyToMono(byte[].class).block(java.time.Duration.ofMillis(timeout));
+
+                if (attempt < maxAttempts && retryStatusCodes.contains(responseStatus.value())) {
                     log.warn("Retry {}/{}: {} {} status={}",
-                            attempt, maxAttempts, method, targetUrl, result.getStatusCode().value());
+                            attempt, maxAttempts, method, targetUrl, responseStatus.value());
                     sleepBackoff(retryInitialMs, retryBackoff, attempt);
-                    lastException = null;
                     continue;
                 }
                 lastException = null;
                 break;
-            } catch (RestClientException e) {
+            } catch (WebClientResponseException e) {
+                lastException = e;
+                responseStatus = org.springframework.http.HttpStatus.valueOf(e.getStatusCode().value());
+                if (attempt < maxAttempts && retryStatusCodes.contains(e.getStatusCode().value())) {
+                    log.warn("Retry {}/{}: {} {} error={}",
+                            attempt, maxAttempts, method, targetUrl, e.getMessage());
+                    sleepBackoff(retryInitialMs, retryBackoff, attempt);
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
                 lastException = e;
                 if (attempt < maxAttempts) {
                     log.warn("Retry {}/{}: {} {} error={}",
@@ -266,7 +300,7 @@ public class GatewayProxyFilter implements Filter {
 
         long latency = System.currentTimeMillis() - start;
 
-        if (lastException != null || result == null) {
+        if (lastException != null || responseStatus == null) {
             String errMsg = lastException != null ? lastException.getMessage() : "No response";
             log.error("Proxy failed after {} attempt(s): {}", maxAttempts, errMsg);
             statsService.incrementErrorCount();
@@ -278,18 +312,20 @@ public class GatewayProxyFilter implements Filter {
             return;
         }
 
-        boolean upstreamSuccess = result.getStatusCode().is2xxSuccessful();
+        boolean upstreamSuccess = responseStatus.is2xxSuccessful();
         circuitBreakerService.recordResult(route, upstreamSuccess);
 
-        response.setStatus(result.getStatusCode().value());
-        result.getHeaders().forEach((name, values) -> {
-            if (!isHopByHopHeader(name)) values.forEach(v -> response.addHeader(name, v));
-        });
+        response.setStatus(responseStatus.value());
+        if (responseHeaders != null) {
+            responseHeaders.forEach((name, values) -> {
+                if (!isHopByHopHeader(name)) values.forEach(v -> response.addHeader(name, v));
+            });
+        }
         response.setHeader(TRACE_ID_HEADER, traceId);
-        if (result.getBody() != null) response.getOutputStream().write(result.getBody());
+        if (responseBody != null) response.getOutputStream().write(responseBody);
 
         saveAuditLog(request, route, targetUrl, resolvedRoute.getTargetService(),
-                result.getStatusCode().value(), upstreamSuccess ? "SUCCESS" : "ERROR", null, latency);
+                responseStatus.value(), upstreamSuccess ? "SUCCESS" : "ERROR", null, latency);
         if (!upstreamSuccess) statsService.incrementErrorCount();
     }
 
@@ -298,8 +334,12 @@ public class GatewayProxyFilter implements Filter {
     // =========================================================================
 
     /** 本地路由：无 targetUrl 且无 serviceId，不做代理，仅执行策略后放行到 Spring MVC */
-    private boolean isLocalRoute(GatewayRoute route) {
-        return (route.getTargetUrl() == null || route.getTargetUrl().isBlank())
+    private boolean isLocalRoute(GatewayRoute route, GatewayRuntimeRoutingService.ResolvedRoute resolvedRoute) {
+        String resolvedTargetUrl = resolvedRoute != null ? resolvedRoute.getTargetUrl() : null;
+        String resolvedTargetService = resolvedRoute != null ? resolvedRoute.getTargetService() : null;
+        return (resolvedTargetUrl == null || resolvedTargetUrl.isBlank())
+                && (resolvedTargetService == null || resolvedTargetService.isBlank())
+                && (route.getTargetUrl() == null || route.getTargetUrl().isBlank())
                 && route.getServiceId() == null;
     }
 
@@ -366,6 +406,12 @@ public class GatewayProxyFilter implements Filter {
         factory.setConnectTimeout(timeoutMs);
         factory.setReadTimeout(timeoutMs);
         return new RestTemplate(factory);
+    }
+
+    private WebClient createWebClient(int timeoutMs) {
+        return WebClient.builder()
+                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector())
+                .build();
     }
 
     private Optional<GatewaySecret> resolveApiKey(HttpServletRequest request) {

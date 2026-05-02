@@ -19,7 +19,7 @@ public class PrometheusService {
     public PrometheusService() {
         org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(2000); // 2 seconds connect timeout
-        factory.setReadTimeout(3000); // 3 seconds read timeout (Fast for dashboard)
+        factory.setReadTimeout(8000); // GPU exporter queries are often slower than CPU/memory
         // FORCE DIRECT CONNECTION: Bypass system proxies for queries too
         factory.setProxy(java.net.Proxy.NO_PROXY);
         this.restTemplate = new RestTemplate(factory);
@@ -311,6 +311,78 @@ public class PrometheusService {
     }
 
     /**
+     * 获取进程数
+     */
+    public Integer getProcessCount(String baseUrl) {
+        // Linux node_exporter: running processes
+        Double val = queryValue(baseUrl, "node_procs_running");
+        if (Double.isNaN(val)) {
+            // Fallback: running + blocked
+            val = queryValue(baseUrl, "node_procs_running + node_procs_blocked");
+        }
+        if (Double.isNaN(val)) {
+            // windows_exporter
+            val = queryValue(baseUrl, "windows_system_processes");
+        }
+        if (Double.isNaN(val)) {
+            // legacy wmi_exporter
+            val = queryValue(baseUrl, "wmi_system_processes");
+        }
+        return !Double.isNaN(val) && val.intValue() > 0 ? val.intValue() : 0;
+    }
+
+    /**
+     * 获取 CPU 温度 (摄氏度)
+     */
+    public Double getCpuTemperature(String baseUrl) {
+        String[] queries = {
+            "avg(node_hwmon_temp_celsius{chip=~\".*coretemp.*|.*k10temp.*|.*zenpower.*\"})",
+            "avg(node_hwmon_temp_celsius)",
+            "avg(node_thermal_zone_temp) / 1000",
+            "avg(windows_thermalzone_temperature_celsius)"
+        };
+        for (String query : queries) {
+            Double val = queryValue(baseUrl, query);
+            if (!Double.isNaN(val) && val > 0) return val;
+        }
+        return Double.NaN;
+    }
+
+    /**
+     * 获取 GPU 温度 (摄氏度)
+     */
+    public Double getGpuTemperature(String baseUrl) {
+        String[] queries = {
+            "avg(DCGM_FI_DEV_GPU_TEMP)",
+            "avg(nvidia_smi_temperature_gpu)",
+            "avg(nvidia_gpu_temperature)",
+            "avg(amdgpu_temperature_celsius)"
+        };
+        for (String query : queries) {
+            Double val = queryValue(baseUrl, query);
+            if (!Double.isNaN(val) && val > 0) return val;
+        }
+        return Double.NaN;
+    }
+
+    /**
+     * 获取 GPU 功耗 (W)
+     */
+    public Double getGpuPowerWatts(String baseUrl) {
+        String[] queries = {
+            "avg(DCGM_FI_DEV_POWER_USAGE)",
+            "avg(nvidia_smi_power_draw_watts)",
+            "avg(nvidia_gpu_power_draw_watts)",
+            "avg(amdgpu_power_watts)"
+        };
+        for (String query : queries) {
+            Double val = queryValue(baseUrl, query);
+            if (!Double.isNaN(val) && val >= 0) return val;
+        }
+        return Double.NaN;
+    }
+
+    /**
      * 获取 CPU 型号信息
      */
     public String getCpuModel(String baseUrl) {
@@ -391,7 +463,9 @@ public class PrometheusService {
             "avg(nvidia_smi_utilization_gpu_ratio) * 100",  // nvidia_smi (node_exporter)
             "avg(DCGM_FI_DEV_GPU_UTIL)",                     // DCGM exporter
             "avg(gpu_utilization)",                           // nvidia_gpu_exporter
-            "avg(gpu_utilization_ratio) * 100"               // alternative nvidia_gpu_exporter
+            "avg(gpu_utilization_ratio) * 100",              // alternative nvidia_gpu_exporter
+            "avg(nvidia_gpu_duty_cycle)",                    // nvidia exporter common metric
+            "avg(nvidia_gpu_utilization)"                    // alternative naming
         };
 
         for (String query : queries) {
@@ -415,8 +489,10 @@ public class PrometheusService {
             "(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100",  // nvidia_smi
             "avg(nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes) * 100",
             "avg(DCGM_FI_DEV_MEMORY_USED_PCT)",               // DCGM exporter
+            "avg((DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE)) * 100)", // DCGM FB metrics
             "(gpu_memory_used_bytes / gpu_memory_total_bytes) * 100", // nvidia_gpu_exporter
-            "avg(gpu_memory_used_bytes / gpu_memory_total_bytes) * 100"
+            "avg(gpu_memory_used_bytes / gpu_memory_total_bytes) * 100",
+            "avg((nvidia_gpu_memory_used_bytes / nvidia_gpu_memory_total_bytes) * 100)"
         };
 
         for (String query : queries) {
@@ -438,7 +514,11 @@ public class PrometheusService {
         String[] queries = {
             "nvidia_smi_memory_total_bytes",
             "DCGM_FI_DEV_MEMORY_TOTAL",
-            "gpu_memory_total_bytes"
+            "gpu_memory_total_bytes",
+            "nvidia_gpu_memory_total_bytes",
+            "sum(DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE)",
+            "nvidia_gpu_memory_total * 1024 * 1024",
+            "sum(nvidia_gpu_memory_total) * 1024 * 1024"
         };
 
         for (String query : queries) {
@@ -460,7 +540,11 @@ public class PrometheusService {
         String[] queries = {
             "nvidia_smi_memory_used_bytes",
             "DCGM_FI_DEV_MEMORY_USED",
-            "gpu_memory_used_bytes"
+            "gpu_memory_used_bytes",
+            "nvidia_gpu_memory_used_bytes",
+            "sum(DCGM_FI_DEV_FB_USED)",
+            "nvidia_gpu_memory_used * 1024 * 1024",
+            "sum(nvidia_gpu_memory_used) * 1024 * 1024"
         };
 
         for (String query : queries) {
@@ -483,9 +567,13 @@ public class PrometheusService {
         String[][] metricLabelPairs = {
             {"nvidia_smi_gpu_info", "name"},
             {"DCGM_FI_DEV_NAME", "device"},
+            {"DCGM_FI_DEV_GPU_UTIL", "modelName"},
+            {"DCGM_FI_DEV_FB_USED", "modelName"},
             {"gpu_info", "name"},
             {"gpu_name", "name"},
-            {"nvidia_smi_gpu_info", "gpu_name"}
+            {"nvidia_smi_gpu_info", "gpu_name"},
+            {"nvidia_gpu_info", "name"},
+            {"nvidia_gpu_info", "model"}
         };
 
         for (String[] pair : metricLabelPairs) {
@@ -496,7 +584,48 @@ public class PrometheusService {
             }
         }
 
+        // Some exporters expose usage/memory metrics without model labels.
+        // If GPU metrics exist, return a generic but meaningful model string.
+        Double memTotalMb = queryValue(baseUrl, "nvidia_gpu_memory_total");
+        if (!Double.isNaN(memTotalMb) && memTotalMb > 0) {
+            return "NVIDIA GPU";
+        }
+        Double memTotalBytes = queryValue(baseUrl, "nvidia_gpu_memory_total_bytes");
+        if (!Double.isNaN(memTotalBytes) && memTotalBytes > 0) {
+            return "NVIDIA GPU";
+        }
+        Double utilization = queryValue(baseUrl, "nvidia_gpu_utilization");
+        if (!Double.isNaN(utilization)) {
+            return "NVIDIA GPU";
+        }
+
+        // Extended fallback: detect vendor by common exporter metrics even when
+        // model labels are missing and usage can be zero.
+        if (hasMetric(baseUrl, "DCGM_FI_DEV_GPU_UTIL")
+                || hasMetric(baseUrl, "DCGM_FI_DEV_FB_USED")
+                || hasMetric(baseUrl, "nvidia_smi_utilization_gpu_ratio")
+                || hasMetric(baseUrl, "nvidia_smi_memory_total_bytes")
+                || hasMetric(baseUrl, "nvidia_gpu_utilization")
+                || hasMetric(baseUrl, "nvidia_gpu_memory_total_bytes")) {
+            return "NVIDIA GPU";
+        }
+        if (hasMetric(baseUrl, "amd_gpu_busy_percent")
+                || hasMetric(baseUrl, "amdgpu_gpu_activity_percent")
+                || hasMetric(baseUrl, "rocm_smi_gpu_use_percent")) {
+            return "AMD GPU";
+        }
+        if (hasMetric(baseUrl, "intel_gpu_render_busy_percent")
+                || hasMetric(baseUrl, "xe_gpu_frequency_mhz")) {
+            return "Intel GPU";
+        }
+
         return "Unknown";
+    }
+
+    private boolean hasMetric(String baseUrl, String metricName) {
+        if (metricName == null || metricName.isBlank()) return false;
+        Double count = queryValue(baseUrl, "count(" + metricName + ")");
+        return !Double.isNaN(count) && count > 0;
     }
 
     /**

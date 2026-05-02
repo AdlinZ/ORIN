@@ -71,6 +71,12 @@
       <el-divider content-position="left">
         定价配置（单位: {{ form.currency }}）
       </el-divider>
+      <el-form-item v-if="form.billingMode === 'PER_TOKEN'" label="Token 单位">
+        <el-radio-group v-model="tokenUnit" size="small">
+          <el-radio-button label="1k">按 1k Token</el-radio-button>
+          <el-radio-button label="1m">按 1m Token</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
 
       <!-- 快速加价工具 -->
       <div class="markup-tool">
@@ -97,7 +103,7 @@
         <div class="grid-label">{{ billingLabelInput }}</div>
         <el-form-item prop="inputCostUnit" label-width="0">
           <el-input-number
-            v-model="form.inputCostUnit"
+            v-model="inputCostDisplay"
             :precision="6"
             :step="0.001"
             :min="0"
@@ -107,7 +113,7 @@
         </el-form-item>
         <el-form-item prop="inputPriceUnit" label-width="0">
           <el-input-number
-            v-model="form.inputPriceUnit"
+            v-model="inputPriceDisplay"
             :precision="6"
             :step="0.001"
             :min="0"
@@ -120,7 +126,7 @@
         <div class="grid-label">{{ billingLabelOutput }}</div>
         <el-form-item prop="outputCostUnit" label-width="0">
           <el-input-number
-            v-model="form.outputCostUnit"
+            v-model="outputCostDisplay"
             :precision="6"
             :step="0.001"
             :min="0"
@@ -130,7 +136,7 @@
         </el-form-item>
         <el-form-item prop="outputPriceUnit" label-width="0">
           <el-input-number
-            v-model="form.outputPriceUnit"
+            v-model="outputPriceDisplay"
             :precision="6"
             :step="0.001"
             :min="0"
@@ -179,6 +185,7 @@ const visible = computed({
 const formRef = ref(null);
 const saving = ref(false);
 const markupRate = ref(50);
+const tokenUnit = ref('1k');
 
 const EMPTY_FORM = {
   id: null,
@@ -205,15 +212,39 @@ const rules = {
 
 // ─────────────────── 标签计算 ───────────────────
 const billingLabelInput = computed(() => {
-  if (form.billingMode === 'PER_TOKEN') return 'Input / 1k Tokens';
+  if (form.billingMode === 'PER_TOKEN') return `Input / ${tokenUnit.value} Tokens`;
   if (form.billingMode === 'PER_REQUEST') return 'Request Base';
   return 'Unit Cost';
 });
 
 const billingLabelOutput = computed(() => {
-  if (form.billingMode === 'PER_TOKEN') return 'Output / 1k Tokens';
+  if (form.billingMode === 'PER_TOKEN') return `Output / ${tokenUnit.value} Tokens`;
   if (form.billingMode === 'PER_REQUEST') return 'Request Extra';
   return 'Unit Extra';
+});
+
+const tokenUnitDivisor = computed(() => (form.billingMode === 'PER_TOKEN' && tokenUnit.value === '1m' ? 1000 : 1));
+const toDisplayValue = (raw) => Number(raw || 0) * tokenUnitDivisor.value;
+const toStoredValue = (display) => Number(display || 0) / tokenUnitDivisor.value;
+
+const inputCostDisplay = computed({
+  get: () => toDisplayValue(form.inputCostUnit),
+  set: (value) => { form.inputCostUnit = toStoredValue(value); }
+});
+
+const outputCostDisplay = computed({
+  get: () => toDisplayValue(form.outputCostUnit),
+  set: (value) => { form.outputCostUnit = toStoredValue(value); }
+});
+
+const inputPriceDisplay = computed({
+  get: () => toDisplayValue(form.inputPriceUnit),
+  set: (value) => { form.inputPriceUnit = toStoredValue(value); }
+});
+
+const outputPriceDisplay = computed({
+  get: () => toDisplayValue(form.outputPriceUnit),
+  set: (value) => { form.outputPriceUnit = toStoredValue(value); }
 });
 
 // ─────────────────── Dialog 打开时数据填充 ───────────────────

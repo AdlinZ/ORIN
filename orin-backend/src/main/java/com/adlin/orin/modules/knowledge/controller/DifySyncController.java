@@ -14,7 +14,10 @@ import java.util.Map;
 
 /**
  * Dify 知识库同步 API（系统级）
+ *
+ * @deprecated Use /api/v1/integration-sync for new Dify synchronization flows.
  */
+@Deprecated
 @RestController
 @RequestMapping("/api/v1/knowledge/sync")
 @RequiredArgsConstructor

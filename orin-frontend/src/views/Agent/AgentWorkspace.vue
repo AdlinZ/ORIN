@@ -206,6 +206,41 @@
                 <span>提供方</span>
                 <strong>{{ currentProviderLabel }}</strong>
               </div>
+              <div class="config-row">
+                <span>系统密钥</span>
+                <el-select
+                  v-model="selectedProviderKeyId"
+                  class="model-switcher"
+                  placeholder="选择系统已有 Key（可选）"
+                  clearable
+                >
+                  <el-option
+                    v-for="item in filteredProviderKeyOptions"
+                    :key="item.id"
+                    :label="item.label"
+                    :value="item.id"
+                  />
+                </el-select>
+              </div>
+              <div class="config-row">
+                <span>接口地址</span>
+                <el-input
+                  v-model="agentAccessProfileForm.endpointUrl"
+                  class="model-switcher"
+                  placeholder="例如 https://api.siliconflow.cn/v1"
+                />
+              </div>
+              <div class="config-row">
+                <span>API Key</span>
+                <el-input
+                  v-model="agentAccessProfileForm.apiKey"
+                  class="model-switcher"
+                  type="password"
+                  show-password
+                  clearable
+                  :placeholder="agentAccessProfileForm.maskedApiKey ? `当前已配置: ${agentAccessProfileForm.maskedApiKey}` : '输入新的 API Key（留空则不修改）'"
+                />
+              </div>
             </section>
 
             <section class="config-card">
@@ -819,12 +854,24 @@
 
               <div class="message-bubble">
                 <div class="message-role">
-                  <span>{{ msg.role === 'user' ? '你' : currentAgent.name }}</span>
+                  <span>{{ msg.role === 'user' ? currentUserLabel : currentAgent.name }}</span>
                   <span v-if="msg.createdAt" class="message-time">{{ formatMessageTime(msg.createdAt) }}</span>
                   <span v-if="msg.role === 'assistant' && (msg.model || msg.provider)" class="message-meta">
                     <span v-if="msg.model">{{ msg.model }}</span>
                     <span v-if="msg.promptTokens || msg.completionTokens" class="meta-tokens">
                       ↑{{ msg.promptTokens || 0 }} ↓{{ msg.completionTokens || 0 }}
+                    </span>
+                  </span>
+                  <span
+                    v-if="msg.role === 'assistant' && getAssistantRuntimeMeta(msg).length"
+                    class="message-runtime-meta"
+                  >
+                    <span
+                      v-for="item in getAssistantRuntimeMeta(msg)"
+                      :key="`${msg.createdAt || 'runtime'}-${item}`"
+                      class="runtime-chip"
+                    >
+                      {{ item }}
                     </span>
                   </span>
                 </div>
@@ -847,9 +894,9 @@
                             {{ formatTraceStatus(trace.status) }}
                           </span>
                           <span v-if="trace.durationMs != null" class="reasoning-duration">{{ trace.durationMs }}ms</span>
-                          <span class="reasoning-expand">
+                          <button type="button" class="reasoning-expand-btn">
                             {{ isTraceDetailExpanded(msg, index, traceIdx) ? '收起' : '详情' }}
-                          </span>
+                          </button>
                         </div>
                         <div class="reasoning-msg">{{ trace.message }}</div>
                         <div
@@ -1101,10 +1148,12 @@ import {
 } from '@element-plus/icons-vue';
 import {
   chatAgent,
+  getAgentAccessProfile,
   getAgentMetadata,
   uploadMultimodalFile,
   updateAgent,
 } from '@/api/agent';
+import { getExternalKeys } from '@/api/apiKey';
 import {
   attachKnowledgeBase,
   createChatSession,
@@ -1131,6 +1180,7 @@ import { getMcpServices } from '@/api/mcp';
 import { useInteractionShell } from '@/composables/useInteractionShell';
 import { runQuickChipAction } from '@/composables/useInteractionQuickChips';
 import { buildWorkspaceChipSets } from '@/composables/useInteractionChipRegistry';
+import { useUserStore } from '@/stores/user';
 import {
   createWorkflow,
   fetchWorkflows as fetchPlaygroundWorkflows,
@@ -1154,6 +1204,7 @@ const props = defineProps({
 });
 const router = useRouter();
 const route = useRoute();
+const userStore = useUserStore();
 marked.setOptions({
   gfm: true,
   breaks: true
@@ -1270,6 +1321,13 @@ const uploadingFile = ref(false);
 const messagesContainer = ref(null);
 const currentConfig = reactive(defaultConfig());
 const agentRuntimeForm = reactive(defaultRuntimeForm());
+const agentAccessProfileForm = reactive({
+  endpointUrl: '',
+  apiKey: '',
+  maskedApiKey: ''
+});
+const providerKeyOptions = ref([]);
+const selectedProviderKeyId = ref(null);
 const expandedRetrievedContext = ref({});
 const expandedTraceDetails = ref({});
 const expandedCollaborationDetails = ref({});
@@ -1310,6 +1368,13 @@ const {
 const isMobile = isNarrow;
 
 const configProfiles = [{ id: 'default', name: '初始配置（默认）' }];
+
+const currentUserLabel = computed(() => {
+  const profile = userStore.userInfo || {};
+  const preferred = profile.nickname || profile.displayName || profile.realName || profile.name || userStore.username;
+  const normalized = String(preferred || '').trim();
+  return normalized || '我';
+});
 
 const collaborationWorkflows = ref([]);
 const collaborationWorkflowsLoading = ref(false);
@@ -1461,6 +1526,13 @@ const currentProviderLabel = computed(() => {
     currentAgent.value?.providerType ||
     '未知'
   );
+});
+
+const filteredProviderKeyOptions = computed(() => {
+  const provider = String(currentProviderLabel.value || '').trim().toLowerCase();
+  if (!provider || provider === '未知') return providerKeyOptions.value;
+  const matched = providerKeyOptions.value.filter((item) => item.provider.includes(provider));
+  return matched.length ? matched : providerKeyOptions.value;
 });
 
 const inferModelTypeFromName = (modelName = '') => {
@@ -1668,11 +1740,20 @@ const syncRuntimeFormFromMetadata = (metadata = {}) => {
 const loadAgentRuntimeConfig = async (agentId) => {
   if (!agentId) {
     Object.assign(agentRuntimeForm, defaultRuntimeForm());
+    Object.assign(agentAccessProfileForm, { endpointUrl: '', apiKey: '', maskedApiKey: '' });
+    selectedProviderKeyId.value = null;
     return;
   }
   try {
     const metadata = await getAgentMetadata(agentId);
+    const accessProfile = await getAgentAccessProfile(agentId).catch(() => null);
     syncRuntimeFormFromMetadata(metadata || {});
+    Object.assign(agentAccessProfileForm, {
+      endpointUrl: accessProfile?.endpointUrl || '',
+      apiKey: '',
+      maskedApiKey: accessProfile?.apiKey || ''
+    });
+    selectedProviderKeyId.value = null;
     if (metadata?.viewType || metadata?.modelName || metadata?.name) {
       const nextModel = metadata.modelName || selectedModelName.value || currentAgent.value?.model || '';
       currentAgent.value = {
@@ -1709,8 +1790,16 @@ const loadAgentRuntimeConfig = async (agentId) => {
 const buildRuntimePayloadByModelType = () => {
   const payload = {
     name: currentAgent.value?.name,
-    model: selectedModelName.value || currentAgent.value?.model || ''
+    model: selectedModelName.value || currentAgent.value?.model || '',
+    endpointUrl: agentAccessProfileForm.endpointUrl || undefined
   };
+  if (selectedProviderKeyId.value) {
+    payload.providerKeyId = selectedProviderKeyId.value;
+  }
+  const inputApiKey = String(agentAccessProfileForm.apiKey || '').trim();
+  if (inputApiKey && !inputApiKey.includes('****')) {
+    payload.apiKey = inputApiKey;
+  }
   if (isImageModel.value) {
     return {
       ...payload,
@@ -1807,6 +1896,30 @@ const formatMessageTime = (time) => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+const getAssistantRuntimeMeta = (msg = {}) => {
+  const chips = [];
+  const prompt = Number(msg.promptTokens || 0);
+  const completion = Number(msg.completionTokens || 0);
+  const total = prompt + completion;
+  if (total > 0) {
+    chips.push(`总Token ${total}`);
+  }
+
+  const traceDuration = Array.isArray(msg.toolTraces)
+    ? msg.toolTraces.reduce((sum, trace) => sum + Number(trace?.durationMs || 0), 0)
+    : 0;
+  const responseMs = Number(msg.responseMs || 0);
+  const duration = responseMs > 0 ? responseMs : traceDuration;
+  if (duration > 0) {
+    chips.push(`耗时 ${duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(2)}s`}`);
+  }
+
+  if (Array.isArray(msg.toolTraces) && msg.toolTraces.length > 0) {
+    chips.push(`步骤 ${msg.toolTraces.length}`);
+  }
+  return chips;
 };
 
 const formatMcpStatus = (status) => {
@@ -2105,6 +2218,23 @@ const loadSkills = async () => {
   } catch (error) {
     console.warn('Failed to load skills:', error);
     skills.value = [];
+  }
+};
+
+const loadProviderKeys = async () => {
+  try {
+    const res = await getExternalKeys();
+    const list = Array.isArray(res) ? res : res?.data || [];
+    providerKeyOptions.value = list
+      .filter((item) => item?.id && item?.enabled !== false)
+      .map((item) => ({
+        id: item.id,
+        provider: String(item.provider || '').toLowerCase(),
+        label: `${item.name || '未命名'} · ${item.provider || 'provider'} · ${item.apiKey || '****'}`
+      }));
+  } catch (error) {
+    console.warn('Failed to load provider keys:', error);
+    providerKeyOptions.value = [];
   }
 };
 
@@ -3394,6 +3524,7 @@ const sendMessage = async () => {
   loadingHint.value = '思考中...';
   runtimeStatusLevel.value = 'running';
   runtimeStatusHint.value = '请求已发出，正在处理';
+  const requestStartedAt = Date.now();
   scrollToBottom();
 
   try {
@@ -3520,12 +3651,14 @@ const sendMessage = async () => {
       assistantMessage.promptTokens = data.promptTokens || 0;
       assistantMessage.completionTokens = data.completionTokens || 0;
       assistantMessage.createdAt = data.createdAt || assistantMessage.createdAt || new Date().toISOString();
+      assistantMessage.responseMs = Number(data.responseMs || data.durationMs || 0) || Math.max(0, Date.now() - requestStartedAt);
       if (runtimeStatusLevel.value !== 'error') {
         runtimeStatusLevel.value = 'idle';
         runtimeStatusHint.value = '上一轮请求已完成';
       }
     }
     setCachedSessionMessages(currentSessionId.value, messages.value);
+    await persistCurrentSessionMessages();
     clearUploadedFile();
   } catch (error) {
     const status = error?.response?.status;
@@ -3549,6 +3682,7 @@ const sendMessage = async () => {
       createdAt: new Date().toISOString()
     }));
     setCachedSessionMessages(currentSessionId.value, messages.value);
+    await persistCurrentSessionMessages();
     ElMessage.error(`发送消息失败：${finalReason}`);
     runtimeStatusLevel.value = 'error';
     runtimeStatusHint.value = `请求失败：${finalReason}`;
@@ -3685,9 +3819,45 @@ const renderMarkdown = (text) => {
   }
 };
 
+const normalizeModelResponseError = (rawText) => {
+  const raw = String(rawText || '').trim();
+  if (!raw) return '';
+
+  const isModelParseError = raw.includes('模型响应解析失败');
+  const lower = raw.toLowerCase();
+  const has401 = /http\s*=\s*401\b/i.test(raw) || /\b401\s+unauthorized\b/i.test(raw) || lower.includes('invalid token');
+  const has429 = /http\s*=\s*429\b/i.test(raw) || lower.includes('rate limit');
+  const has5xx = /http\s*=\s*5\d\d\b/i.test(raw);
+  const ollamaNoResponse = lower.includes('no successful response from ollama');
+
+  if (!isModelParseError && !has401 && !has429 && !has5xx && !ollamaNoResponse) {
+    return raw;
+  }
+
+  let friendly = '';
+  if (has401) {
+    friendly = '模型鉴权失败（401）。请在工作台设置中更新模型提供方 API Key，并确认该 Key 对当前模型有调用权限。';
+  } else if (has429) {
+    friendly = '模型请求被限流（429）。请稍后重试，或降低并发/提升配额。';
+  } else if (has5xx) {
+    friendly = '模型服务端暂时异常（5xx）。请稍后重试。';
+  } else if (ollamaNoResponse) {
+    friendly = '模型服务未返回成功响应（Ollama）。请检查模型服务状态与连接配置。';
+  } else {
+    friendly = '模型响应解析失败，请稍后重试或切换模型。';
+  }
+
+  return `${friendly}\n\n原始错误：${raw}`;
+};
+
 const getMessageText = (msg) => {
   if (!msg) return '';
-  if (typeof msg.content === 'string') return msg.content;
+  if (typeof msg.content === 'string') {
+    if (String(msg.role || '').toLowerCase() === 'assistant') {
+      return normalizeModelResponseError(msg.content);
+    }
+    return msg.content;
+  }
   if (msg.content == null) return '';
   return JSON.stringify(msg.content, null, 2);
 };
@@ -3827,7 +3997,7 @@ const openCitation = (chunk) => {
 };
 
 const reloadWorkspace = async () => {
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog(), loadCollaborationWorkflows()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog(), loadCollaborationWorkflows(), loadProviderKeys()]);
   if (currentAgentId.value) {
     await restoreConfigForAgent(currentAgentId.value);
     await loadAgentRuntimeConfig(currentAgentId.value);
@@ -3845,7 +4015,7 @@ onMounted(async () => {
     activeConfigTab.value = savedState.activeConfigTab ?? 'tools';
   }
 
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog(), loadCollaborationWorkflows()]);
+  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog(), loadCollaborationWorkflows(), loadProviderKeys()]);
 
   const presetId = props.presetAgentId ? String(props.presetAgentId) : '';
   const routeAgentId = typeof route.query?.agentId === 'string' ? route.query.agentId : '';
@@ -4309,7 +4479,7 @@ watch(
 
 .session-collapse-handle {
   position: absolute;
-  right: -14px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 20;
@@ -4324,20 +4494,22 @@ watch(
 }
 
 .collapse-btn {
-  width: 28px !important;
-  height: 28px !important;
+  width: 30px !important;
+  height: 46px !important;
+  border-radius: 14px !important;
   font-size: 14px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-  color: #64748b;
-  transition: 0.2s ease;
+  background: linear-gradient(180deg, #f8fbff 0%, #f1f7ff 100%);
+  border: 1px solid #d7e4f3;
+  box-shadow: 0 8px 16px -12px rgba(15, 23, 42, 0.4);
+  color: #5b6b80;
+  transition: all 0.2s ease;
 }
 .collapse-btn:hover {
-  color: var(--sidebar-accent);
-  border-color: #99f6e4;
-  box-shadow: 0 4px 12px rgba(15, 159, 149, 0.12);
-  transform: scale(1.05);
+  color: #0f766e;
+  border-color: rgba(15, 159, 149, 0.42);
+  background: linear-gradient(180deg, #f2fffc 0%, #e9fbf7 100%);
+  box-shadow: 0 12px 20px -12px rgba(15, 159, 149, 0.3);
+  transform: translateX(-1px);
 }
 
 /* Sidebar Top */
@@ -4420,18 +4592,18 @@ watch(
   padding: 12px 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
 
 .session-item {
   display: flex;
   align-items: center;
-  padding: 9px 10px;
+  padding: 10px 11px;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
   border: 1px solid var(--sidebar-line);
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .session-item:hover {
@@ -4661,6 +4833,7 @@ watch(
 .message-bubble {
   max-width: min(85%, 760px);
   min-width: 0;
+  overflow: hidden;
 }
 .message-item.user .message-bubble {
   display: flex;
@@ -4675,6 +4848,8 @@ watch(
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
 }
 .message-item.user .message-role {
   flex-direction: row-reverse;
@@ -4683,6 +4858,27 @@ watch(
 .message-time, .message-meta {
   font-size: 11px;
   color: #cbd5e1;
+}
+
+.message-runtime-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.runtime-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 159, 149, 0.26);
+  background: rgba(237, 249, 247, 0.92);
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* Tool Traces (Nested Cards) */
@@ -4742,6 +4938,112 @@ watch(
   font-size: 12px;
   color: #475569;
   margin-top: 4px;
+}
+
+.reasoning-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.reasoning-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  width: 100%;
+}
+
+.reasoning-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.reasoning-status {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.reasoning-status.status-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.reasoning-status.status-running {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.reasoning-status.status-warning {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.reasoning-status.status-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.reasoning-duration {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.reasoning-expand-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 52px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transition: all 0.18s ease;
+  user-select: none;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.reasoning-top:hover .reasoning-expand-btn {
+  border-color: #64748b;
+  background: #eef2ff;
+  box-shadow: 0 2px 6px rgba(30, 64, 175, 0.14);
+}
+
+.reasoning-detail {
+  margin-top: 8px;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.reasoning-detail pre {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Citations */
@@ -4865,6 +5167,9 @@ watch(
   line-height: 1.6;
   box-shadow: 0 2px 10px rgba(0,0,0,0.02);
   border: 1px solid rgba(226, 232, 240, 0.4);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .message-item.user .message-text {
   background: #3b82f6; /* Modern Blue */
@@ -5380,9 +5685,9 @@ watch(
 }
 
 .prompt-tag {
-  border: 1px solid rgba(125, 211, 252, 0.45) !important;
-  background: rgba(240, 249, 255, 0.9) !important;
-  color: #0369a1 !important;
+  border: 1px solid rgba(15, 159, 149, 0.42) !important;
+  background: rgba(237, 249, 247, 0.95) !important;
+  color: #0f766e !important;
   border-radius: 999px !important;
   font-size: 13px !important;
   padding: 7px 12px !important;
@@ -5391,9 +5696,9 @@ watch(
 }
 
 .prompt-tag:hover {
-  background: #e0f2fe !important;
-  border-color: rgba(14, 165, 233, 0.55) !important;
-  color: #075985 !important;
+  background: #dff8f2 !important;
+  border-color: rgba(15, 159, 149, 0.6) !important;
+  color: #0d6b63 !important;
   transform: translateY(-1px);
 }
 
@@ -5421,37 +5726,44 @@ watch(
 }
 
 .config-tabs {
-  padding: 10px 14px 0;
+  padding: 12px 14px 0;
 }
 .config-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
 .config-tabs :deep(.el-tabs__nav) {
   width: 100%;
-  background: #f1f5f9;
-  border: 1px solid var(--sidebar-line);
-  border-radius: 12px;
-  padding: 4px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%);
+  border: 1px solid #d7e4f3;
+  border-radius: 14px;
+  padding: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 .config-tabs :deep(.el-tabs__item) {
   width: 33.33%;
-  height: 36px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 10px;
   font-size: 13px;
-  color: #475569;
+  color: #516579;
   padding: 0;
   line-height: 1;
-  transform: translateY(-1px);
+  transform: translateY(0);
   text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   transition: all 0.2s ease;
 }
+.config-tabs :deep(.el-tabs__item:hover) {
+  color: #0f766e;
+  background: rgba(15, 159, 149, 0.08);
+}
 .config-tabs :deep(.el-tabs__item.is-active) {
-  background: #ecfdf5;
-  border: 1px solid #99f6e4;
+  background: linear-gradient(180deg, #e8faf6 0%, #ddf7f1 100%);
+  border: 1px solid rgba(15, 159, 149, 0.35);
   color: #0f766e;
   font-weight: 700;
-  box-shadow: none;
+  box-shadow: 0 6px 12px -10px rgba(15, 159, 149, 0.45);
 }
 .config-tabs :deep(.el-tabs__active-bar) { display: none; }
 
@@ -6126,6 +6438,20 @@ html.dark .session-delete:hover {
   color: #ef4444;
 }
 
+html.dark .collapse-btn {
+  background: linear-gradient(180deg, rgba(20, 36, 36, 0.96) 0%, rgba(15, 28, 28, 0.96) 100%);
+  border-color: rgba(38, 255, 223, 0.24);
+  color: #8cd7cf;
+  box-shadow: 0 10px 18px -14px rgba(0, 0, 0, 0.65);
+}
+
+html.dark .collapse-btn:hover {
+  background: linear-gradient(180deg, rgba(30, 56, 56, 0.96) 0%, rgba(21, 46, 46, 0.96) 100%);
+  border-color: rgba(38, 255, 223, 0.45);
+  color: #26ffdf;
+  box-shadow: 0 12px 22px -14px rgba(38, 255, 223, 0.35);
+}
+
 html.dark .collapsed-new-btn {
   background: #26FFDF;
   color: #041010;
@@ -6184,6 +6510,12 @@ html.dark .message-meta {
   color: #64748b;
 }
 
+html.dark .runtime-chip {
+  background: rgba(38, 255, 223, 0.1);
+  border-color: rgba(38, 255, 223, 0.34);
+  color: #5fffe5;
+}
+
 html.dark .reasoning-section {
   background: rgba(15, 28, 28, 0.6);
   border-color: rgba(255, 255, 255, 0.1);
@@ -6216,6 +6548,60 @@ html.dark .trace-error .reasoning-step-dot { background: rgba(248, 113, 113, 0.1
 
 html.dark .reasoning-msg {
   color: #94a3b8;
+}
+
+html.dark .reasoning-name {
+  color: #cbd5e1;
+}
+
+html.dark .reasoning-status {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+}
+
+html.dark .reasoning-status.status-success {
+  background: rgba(38, 255, 223, 0.15);
+  color: #5fffe5;
+}
+
+html.dark .reasoning-status.status-running {
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
+}
+
+html.dark .reasoning-status.status-warning {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+html.dark .reasoning-status.status-error {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+html.dark .reasoning-duration {
+  color: #94a3b8;
+}
+
+html.dark .reasoning-expand-btn {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(30, 41, 59, 0.7);
+  color: #e2e8f0;
+}
+
+html.dark .reasoning-top:hover .reasoning-expand-btn {
+  border-color: rgba(38, 255, 223, 0.5);
+  background: rgba(38, 255, 223, 0.12);
+  color: #5fffe5;
+}
+
+html.dark .reasoning-detail {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.7);
+}
+
+html.dark .reasoning-detail pre {
+  color: #cbd5e1;
 }
 
 html.dark .citation-item {
@@ -6487,19 +6873,25 @@ html.dark .config-header :deep(.el-input__inner) {
 }
 
 html.dark .config-tabs :deep(.el-tabs__nav) {
-  background: rgba(30, 41, 59, 0.8);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.82) 0%, rgba(15, 23, 42, 0.86) 100%);
+  border-color: rgba(148, 163, 184, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 html.dark .config-tabs :deep(.el-tabs__item) {
-  color: #64748b;
+  color: #8ca3b8;
+}
+
+html.dark .config-tabs :deep(.el-tabs__item:hover) {
+  color: #5fffe5;
+  background: rgba(38, 255, 223, 0.08);
 }
 
 html.dark .config-tabs :deep(.el-tabs__item.is-active) {
-  background: rgba(38, 255, 223, 0.16);
-  border: 1px solid rgba(38, 255, 223, 0.32);
+  background: linear-gradient(180deg, rgba(38, 255, 223, 0.22) 0%, rgba(16, 185, 129, 0.16) 100%);
+  border: 1px solid rgba(38, 255, 223, 0.42);
   color: #26ffdf;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 14px -10px rgba(38, 255, 223, 0.42);
 }
 
 html.dark .config-card {

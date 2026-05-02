@@ -92,6 +92,7 @@ public class LocalServerInfoService {
                 Map<String, Object> gpuInfo = new HashMap<>();
                 gpuInfo.put("name", gpu.getName());
                 gpuInfo.put("vendor", gpu.getVendor());
+                gpuInfo.put("vram", gpu.getVRam());
                 gpus.add(gpuInfo);
             }
             info.put("gpus", gpus);
@@ -99,6 +100,17 @@ public class LocalServerInfoService {
             // 取第一个 GPU 作为主 GPU
             if (!gpus.isEmpty()) {
                 info.put("gpuModel", gpus.get(0).get("name"));
+                Object vram = gpus.get(0).get("vram");
+                if (vram instanceof Number) {
+                    info.put("gpuMemoryTotal", ((Number) vram).longValue());
+                }
+            }
+
+            // 温度信息（OSHI 传感器，部分平台可能拿不到）
+            Sensors sensors = systemInfo.getHardware().getSensors();
+            double cpuTemp = sensors.getCpuTemperature();
+            if (Double.isFinite(cpuTemp) && cpuTemp > 0) {
+                info.put("cpuTemperature", cpuTemp);
             }
 
             // 网络信息

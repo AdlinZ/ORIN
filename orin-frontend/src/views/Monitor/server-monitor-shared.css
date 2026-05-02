@@ -365,9 +365,9 @@
   font-weight: 600;
   line-height: 1.4;
   color: var(--monitor-text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .record-count {

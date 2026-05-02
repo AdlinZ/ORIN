@@ -2309,4 +2309,27 @@ html.dark .asset-card.secondary {
   background: rgba(30, 41, 59, 0.8);
   border-color: rgba(71, 85, 105, 0.5);
 }
+
+html.dark .trend-svg {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(71, 85, 105, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+html.dark .trend-grid-line {
+  stroke: rgba(148, 163, 184, 0.2);
+}
+
+html.dark .trend-dot,
+html.dark .trend-dot.latency {
+  stroke: #0f172a;
+}
+
+html.dark .tile-rail {
+  background: rgba(15, 23, 42, 0.78);
+}
+
+html.dark .cost-bar-rail {
+  background: rgba(15, 23, 42, 0.78);
+}
 </style>

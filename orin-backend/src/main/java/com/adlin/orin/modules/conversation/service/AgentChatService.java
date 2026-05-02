@@ -699,7 +699,7 @@ public class AgentChatService {
                         ollamaIntegrationService, retrievalService, documentRepository,
                         knowledgeBaseRepository, knowledgeGraphRepository, graphEntityRepository,
                         graphRelationRepository,
-                        knowledgeManageService, knowledgeGraphService, skillService, objectMapper);
+                        knowledgeManageService, knowledgeGraphService, skillService, mcpServiceRepository, objectMapper);
 
                 List<String> kbIdsForStrategy = hasKbs ? ctx.getKbIds() : Collections.emptyList();
                 List<ToolCatalogItemDto> boundForStrategy = hasFnCallTools

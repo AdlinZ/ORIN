@@ -51,7 +51,7 @@
       <!-- 动态插槽容器 (Teleport 目标) -->
       <div id="navbar-actions" class="navbar-page-actions" />
       <!-- 刷新按钮 -->
-      <div class="action-item">
+      <div class="action-item optional-action">
         <el-tooltip content="刷新页面" placement="bottom">
           <el-button
             text
@@ -63,7 +63,7 @@
       </div>
 
       <!-- 主题切换按钮 -->
-      <div class="action-item">
+      <div class="action-item optional-action">
         <el-tooltip :content="isDarkMode ? '切换到浅色模式' : '切换到深色模式'" placement="bottom">
           <el-button 
             text 
@@ -75,7 +75,7 @@
       </div>
 
       <!-- 通知图标 -->
-      <div class="action-item">
+      <div class="action-item optional-action">
         <el-tooltip content="通知中心" placement="bottom">
           <el-button
             text
@@ -625,15 +625,17 @@ onMounted(() => {
 
 <style scoped>
 .top-navbar {
-  height: 64px;
+  height: 72px;
   background: rgba(255, 255, 255, 0.86);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) auto;
   align-items: center;
-  padding: 0 24px;
+  gap: 18px;
+  padding: 0 28px;
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -645,7 +647,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  padding-left: 12px;
+  min-width: 0;
 }
 
 .navbar-logo:hover {
@@ -653,7 +655,7 @@ onMounted(() => {
 }
 
 .navbar-logo img {
-  height: 44px;
+  height: 48px;
   width: auto;
   display: block;
 }
@@ -667,27 +669,33 @@ onMounted(() => {
 /* 一级菜单 - 始终居中 */
 .navbar-menu {
   display: flex;
-  gap: 8px;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: visible;
 }
 
 .menu-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  justify-content: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 13px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background-color 0.22s ease, box-shadow 0.22s ease, color 0.22s ease;
   user-select: none;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .menu-item .el-icon {
   color: var(--neutral-gray-600);
-  font-size: 18px;
+  font-size: 17px;
+  flex: 0 0 auto;
 }
 
 .menu-item:hover {
@@ -701,6 +709,7 @@ onMounted(() => {
 
 .menu-item.active {
   background: var(--orin-primary-soft);
+  box-shadow: inset 0 0 0 1px rgba(0, 191, 165, 0.14);
 }
 
 .menu-item.active .el-icon,
@@ -711,8 +720,10 @@ onMounted(() => {
 
 .menu-title {
   font-size: 14px;
+  line-height: 1;
   color: var(--neutral-gray-700);
   transition: all 0.3s;
+  white-space: nowrap;
 }
 
 /* 下拉菜单 - 轻毛玻璃 */
@@ -768,8 +779,18 @@ onMounted(() => {
 .navbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: auto;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.navbar-page-actions {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-page-actions:empty {
+  display: none;
 }
 
 .action-item {
@@ -778,14 +799,14 @@ onMounted(() => {
 }
 
 .action-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   color: var(--neutral-gray-600);
-  font-size: 18px;
+  font-size: 17px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .action-btn:hover {
@@ -803,11 +824,13 @@ onMounted(() => {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  border-radius: 8px;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px 0 8px;
+  border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s;
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .user-info:hover {
@@ -816,9 +839,9 @@ onMounted(() => {
 
 .user-name {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--neutral-gray-900);
-  max-width: 120px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -907,6 +930,61 @@ onMounted(() => {
 }
 
 /* 响应式 */
+@media (max-width: 1280px) {
+  .top-navbar {
+    grid-template-columns: minmax(140px, 210px) minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 0 20px;
+  }
+
+  .navbar-logo img {
+    height: 42px;
+  }
+
+  .navbar-menu {
+    gap: 3px;
+  }
+
+  .menu-item {
+    height: 40px;
+    gap: 5px;
+    padding: 0 9px;
+    border-radius: 10px;
+  }
+
+  .menu-title {
+    font-size: 13px;
+  }
+
+  .menu-item .el-icon {
+    font-size: 16px;
+  }
+
+  .navbar-actions {
+    gap: 3px;
+  }
+
+  .action-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .user-info {
+    height: 44px;
+    padding-right: 10px;
+  }
+
+  .user-name {
+    max-width: 116px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .optional-action {
+    display: none;
+  }
+}
+
 @media (max-width: 1024px) {
   .navbar-menu {
     display: none;
@@ -953,7 +1031,8 @@ html.dark .menu-item:hover {
 }
 
 html.dark .menu-item.active {
-  background: rgba(21, 94, 239, 0.2);
+  background: rgba(0, 191, 165, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(0, 191, 165, 0.28), 0 10px 28px rgba(0, 191, 165, 0.08);
 }
 
 html.dark .menu-title {
@@ -978,7 +1057,7 @@ html.dark .dropdown-item:hover {
 }
 
 html.dark .user-info {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 html.dark .user-info:hover {

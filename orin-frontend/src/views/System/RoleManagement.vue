@@ -1,23 +1,20 @@
 <template>
   <div class="role-management fade-in">
-    <PageHeader
+    <OrinEntityHeader
+      domain="组织治理"
       title="角色管理"
       description="配置系统角色及其菜单与操作权限"
-      icon="UserFilled"
-    />
-
-    <div class="premium-card">
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <div class="left-tools">
-          <el-button type="primary" class="create-btn" @click="handleCreate">
-            <el-icon class="mr-1">
-              <Plus />
-            </el-icon>
-            创建角色
-          </el-button>
-        </div>
-
+      :summary="roleHeaderSummary"
+    >
+      <template #actions>
+        <el-button type="primary" class="create-btn" @click="handleCreate">
+          <el-icon class="mr-1">
+            <Plus />
+          </el-icon>
+          创建角色
+        </el-button>
+      </template>
+      <template #filters>
         <div class="right-tools">
           <el-input
             v-model="searchQuery"
@@ -34,8 +31,10 @@
             <el-icon><Refresh /></el-icon>
           </el-button>
         </div>
-      </div>
+      </template>
+    </OrinEntityHeader>
 
+    <div class="premium-card">
       <!-- 角色列表 -->
       <el-table
         v-loading="loading"
@@ -172,7 +171,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Refresh } from '@element-plus/icons-vue'
 import { getRoleList, createRole, updateRole, deleteRole } from '@/api/role'
-import PageHeader from '@/components/PageHeader.vue'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
 
 // 数据状态
 const loading = ref(false)
@@ -222,6 +221,18 @@ const filteredRoles = computed(() => {
 const isSystemRole = (roleCode) => {
   return ['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_OPERATOR', 'ROLE_ADMIN', 'ROLE_USER'].includes(roleCode)
 }
+
+const roleHeaderSummary = computed(() => {
+  const allRoles = roles.value || []
+  const total = totalRoles.value || allRoles.length
+  const system = allRoles.filter(role => isSystemRole(role.roleCode)).length
+  const custom = Math.max(total - system, 0)
+  return [
+    { label: '角色总数', value: String(total) },
+    { label: '系统角色', value: String(system) },
+    { label: '自定义角色', value: String(custom) }
+  ]
+})
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -366,7 +377,8 @@ onUnmounted(() => {
 <style scoped>
 .role-management {
   padding: 32px;
-  max-width: 1600px;
+  max-width: none;
+  width: 100%;
   margin: 0 auto;
   background: var(--bg-color, #f8fafc);
   min-height: 100vh;
@@ -394,19 +406,12 @@ onUnmounted(() => {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
 }
 
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
 .create-btn {
-  height: 40px;
-  padding: 0 20px;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: transform 0.2s;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 5px;
+  font-weight: 600;
+  transition: transform 0.15s;
 }
 
 .create-btn:active {

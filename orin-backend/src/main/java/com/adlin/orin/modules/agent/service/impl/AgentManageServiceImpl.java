@@ -511,6 +511,23 @@ public class AgentManageServiceImpl implements AgentManageService {
         // 2. Update Access Profile (Endpoint, API Key)
         accessProfileRepository.findById(agentId).ifPresent(profile -> {
             boolean changed = false;
+            if (request.getProviderKeyId() != null) {
+                final boolean[] applied = { false };
+                providerKeyRepository.findById(request.getProviderKeyId()).ifPresent(providerKey -> {
+                    if (Boolean.TRUE.equals(providerKey.getEnabled())
+                            && providerKey.getApiKey() != null
+                            && !providerKey.getApiKey().isBlank()) {
+                        profile.setApiKey(providerKey.getApiKey().trim());
+                        if ((request.getEndpointUrl() == null || request.getEndpointUrl().isEmpty())
+                                && providerKey.getBaseUrl() != null
+                                && !providerKey.getBaseUrl().isBlank()) {
+                            profile.setEndpointUrl(providerKey.getBaseUrl().trim());
+                        }
+                        applied[0] = true;
+                    }
+                });
+                changed = applied[0];
+            }
             if (request.getEndpointUrl() != null && !request.getEndpointUrl().isEmpty()) {
                 profile.setEndpointUrl(request.getEndpointUrl());
                 changed = true;

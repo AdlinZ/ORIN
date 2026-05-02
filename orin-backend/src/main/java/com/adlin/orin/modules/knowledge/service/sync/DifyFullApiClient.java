@@ -447,6 +447,118 @@ public class DifyFullApiClient {
         return doc;
     }
 
+    @SuppressWarnings("unchecked")
+    public String createDocument(String endpointUrl, String apiKey, String datasetId, String docName, String content) {
+        try {
+            String url = buildUrl(endpointUrl, String.format("/v1/datasets/%s/documents", datasetId));
+            HttpHeaders headers = createHeaders(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("indexing_technique", "high_quality");
+            requestBody.put("doc_form", "text");
+            requestBody.put("doc_language", "Auto");
+            requestBody.put("name", docName);
+            requestBody.put("process_rule", Map.of(
+                    "mode", "custom",
+                    "rules", Map.of(
+                            "pre_processing_rules", List.of(
+                                    Map.of("id", "remove_extra_spaces", "enabled", true),
+                                    Map.of("id", "remove_urls_and_emails", "enabled", false)
+                            ),
+                            "segmentation", Map.of("separator", "\n", "max_tokens", 500)
+                    )
+            ));
+            if (content != null && !content.isBlank()) {
+                requestBody.put("data_source", Map.of(
+                        "type", "upload_file",
+                        "file_info", Map.of("file_name", docName + ".txt")
+                ));
+            }
+
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody, headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Object data = response.getBody().get("data");
+                if (data instanceof Map<?, ?> dataMap) {
+                    Object document = dataMap.get("document");
+                    if (document instanceof Map<?, ?> documentMap && documentMap.get("id") != null) {
+                        return String.valueOf(documentMap.get("id"));
+                    }
+                    if (dataMap.get("id") != null) {
+                        return String.valueOf(dataMap.get("id"));
+                    }
+                }
+                Object id = response.getBody().get("id");
+                if (id != null) {
+                    return String.valueOf(id);
+                }
+                Object batch = response.getBody().get("batch");
+                if (batch != null) {
+                    return String.valueOf(batch);
+                }
+            }
+            log.warn("Unexpected Dify create document response: status={}, body={}", response.getStatusCode(), response.getBody());
+        } catch (Exception e) {
+            log.error("Failed to create Dify document in dataset {}: {}", datasetId, e.getMessage());
+        }
+        return null;
+    }
+
+    public boolean uploadDocumentContent(String endpointUrl, String apiKey, String datasetId, String documentId, String content) {
+        try {
+            String url = buildUrl(endpointUrl, String.format("/v1/datasets/%s/documents/%s/upload", datasetId, documentId));
+            HttpHeaders headers = createHeaders(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("file", List.of(Map.of(
+                    "type", "text",
+                    "name", "content.txt",
+                    "content", content == null ? "" : content
+            )));
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody, headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            log.error("Failed to upload Dify document content {}/{}: {}", datasetId, documentId, e.getMessage());
+            return false;
+        }
+    }
+
+    public String updateDocument(String endpointUrl, String apiKey, String datasetId, String oldDocumentId, String docName, String content) {
+        if (oldDocumentId != null && !oldDocumentId.isBlank()) {
+            deleteDocument(endpointUrl, apiKey, datasetId, oldDocumentId);
+        }
+        String newId = createDocument(endpointUrl, apiKey, datasetId, docName, content);
+        if (newId != null && content != null && !content.isBlank()) {
+            uploadDocumentContent(endpointUrl, apiKey, datasetId, newId, content);
+        }
+        return newId;
+    }
+
+    public boolean deleteDocument(String endpointUrl, String apiKey, String datasetId, String documentId) {
+        try {
+            String url = buildUrl(endpointUrl, String.format("/v1/datasets/%s/documents/%s", datasetId, documentId));
+            HttpHeaders headers = createHeaders(apiKey);
+            ResponseEntity<Map<String, Object>> response = difyRestTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    new HttpEntity<>(headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            log.error("Failed to delete Dify document {} from dataset {}: {}", documentId, datasetId, e.getMessage());
+            return false;
+        }
+    }
+
     // ==================== 对话 (Conversations) ====================
 
     /**

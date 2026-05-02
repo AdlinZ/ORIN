@@ -10,11 +10,20 @@
     --orin-orange-soft: #fff7ed;
 }
 
+html.dark {
+    --orin-orange-soft: rgba(251, 146, 60, 0.14);
+}
+
 /* --- 高端 Slider --- */
 .el-slider {
     --el-slider-main-bg-color: var(--orin-primary);
     --el-slider-runway-bg-color: #f1f5f9;
     --el-slider-stop-bg-color: #f1f5f9;
+}
+
+html.dark .el-slider {
+    --el-slider-runway-bg-color: var(--el-fill-color-light);
+    --el-slider-stop-bg-color: var(--el-fill-color-light);
 }
 
 .el-slider__runway {
@@ -43,4 +52,13 @@
 .orin-playground-input:focus-within {
     background-color: #fff;
     box-shadow: 0 0 0 1px var(--orin-primary) !important;
+}
+
+html.dark .orin-playground-input {
+    background-color: var(--el-fill-color);
+    color: var(--el-text-color-primary);
+}
+
+html.dark .orin-playground-input:focus-within {
+    background-color: var(--el-bg-color-overlay);
 }

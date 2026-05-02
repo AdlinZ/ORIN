@@ -12,6 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -42,6 +47,9 @@ public class SkillServiceImplEnhanced implements SkillService {
 
     @Value("${milvus.token:}")
     private String milvusToken;
+
+    @Value("${skill.storage.path:storage/skills}")
+    private String skillStorageRoot;
 
     @Override
     @Transactional
@@ -76,8 +84,10 @@ public class SkillServiceImplEnhanced implements SkillService {
                 .status(SkillEntity.SkillStatus.ACTIVE)
                 .build();
 
-        entity.setSkillMdContent(generateSkillMdContent(entity));
+        String skillMd = generateSkillMdContent(entity);
+        entity.setSkillMdContent(skillMd);
         SkillEntity saved = skillRepository.save(entity);
+        writeSkillMdFile(saved, skillMd);
         log.info("Skill created successfully with ID: {}", saved.getId());
 
         return SkillResponse.fromEntity(saved);
@@ -110,8 +120,10 @@ public class SkillServiceImplEnhanced implements SkillService {
         if (request.getOutputSchema() != null)
             entity.setOutputSchema(request.getOutputSchema());
 
-        entity.setSkillMdContent(generateSkillMdContent(entity));
+        String skillMd = generateSkillMdContent(entity);
+        entity.setSkillMdContent(skillMd);
         SkillEntity updated = skillRepository.save(entity);
+        writeSkillMdFile(updated, skillMd);
         log.info("Skill updated successfully: {}", id);
 
         return SkillResponse.fromEntity(updated);
@@ -121,10 +133,10 @@ public class SkillServiceImplEnhanced implements SkillService {
     @Transactional
     public void deleteSkill(Long id) {
         log.info("Deleting skill ID: {}", id);
-        if (!skillRepository.existsById(id)) {
-            throw new IllegalArgumentException("Skill not found: " + id);
-        }
+        SkillEntity entity = skillRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Skill not found: " + id));
         skillRepository.deleteById(id);
+        deleteSkillMdFile(entity);
         log.info("Skill deleted successfully: {}", id);
     }
 
@@ -160,7 +172,14 @@ public class SkillServiceImplEnhanced implements SkillService {
     public String generateSkillMd(Long id) {
         SkillEntity entity = skillRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Skill not found: " + id));
-        return generateSkillMdContent(entity);
+        Path skillMdPath = getSkillMdPath(entity.getId());
+        if (Files.exists(skillMdPath)) {
+            return readSkillMdFile(skillMdPath);
+        }
+
+        String content = generateSkillMdContent(entity);
+        writeSkillMdFile(entity, content);
+        return content;
     }
 
     @Override
@@ -289,6 +308,54 @@ public class SkillServiceImplEnhanced implements SkillService {
         md.append("This skill can be invoked through the Skill-Hub API or integrated into workflows.\n");
 
         return md.toString();
+    }
+
+    private Path getSkillMdPath(Long skillId) {
+        return Paths.get(skillStorageRoot, String.valueOf(skillId), "SKILL.md").toAbsolutePath().normalize();
+    }
+
+    private void writeSkillMdFile(SkillEntity skill, String content) {
+        Path skillMdPath = getSkillMdPath(skill.getId());
+        try {
+            Files.createDirectories(skillMdPath.getParent());
+            Files.writeString(skillMdPath, content, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to write SKILL.md for skill: " + skill.getId(), e);
+        }
+    }
+
+    private String readSkillMdFile(Path skillMdPath) {
+        try {
+            return Files.readString(skillMdPath, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read SKILL.md: " + skillMdPath, e);
+        }
+    }
+
+    private void deleteSkillMdFile(SkillEntity skill) {
+        Path skillDir = getSkillMdPath(skill.getId()).getParent();
+        try {
+            if (!Files.exists(skillDir)) {
+                return;
+            }
+            try (var paths = Files.walk(skillDir)) {
+                paths.sorted(Comparator.reverseOrder())
+                        .forEach(path -> {
+                            try {
+                                Files.deleteIfExists(path);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+            }
+        } catch (RuntimeException e) {
+            if (e.getCause() instanceof IOException ioException) {
+                throw new IllegalStateException("Failed to delete skill storage for skill: " + skill.getId(), ioException);
+            }
+            throw e;
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to delete skill storage for skill: " + skill.getId(), e);
+        }
     }
 
     /**
