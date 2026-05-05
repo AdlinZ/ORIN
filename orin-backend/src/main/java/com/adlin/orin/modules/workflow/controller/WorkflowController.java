@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.workflow.controller;
 
 import com.adlin.orin.modules.workflow.dto.WorkflowRequest;
+import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
 import com.adlin.orin.modules.workflow.dto.WorkflowResponse;
 import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
@@ -88,13 +89,14 @@ public class WorkflowController {
 
     @PostMapping("/{id}/execute")
     @Operation(summary = "执行工作流")
-    public ResponseEntity<Map<String, Object>> executeWorkflow(
+    public ResponseEntity<WorkflowExecutionSubmissionResponse> executeWorkflow(
             @PathVariable Long id,
             @RequestBody Map<String, Object> inputs,
             @RequestParam(required = false, defaultValue = "system") String triggeredBy) {
         log.info("REST request to execute workflow: {}", id);
-        Long instanceId = workflowService.triggerWorkflow(id, inputs, triggeredBy);
-        return ResponseEntity.ok(Map.of("instanceId", instanceId));
+        WorkflowExecutionSubmissionResponse response =
+                workflowService.triggerWorkflowWithPriority(id, inputs, null, triggeredBy);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping

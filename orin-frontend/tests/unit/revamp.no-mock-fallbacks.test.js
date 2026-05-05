@@ -22,7 +22,7 @@ describe('mock fallback guardrails', () => {
   it('keeps removed fake-data pages deleted', () => {
     const removedFiles = [
       'src/views/Knowledge/KBList.vue',
-      'src/views/revamp/system/SystemGatewayV2.vue'
+      'src/views/revamp/system/SystemUnifiedGatewayV2.vue'
     ]
 
     for (const file of removedFiles) {

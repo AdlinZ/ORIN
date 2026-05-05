@@ -22,7 +22,7 @@ class AlertNotificationServiceTest {
     private AlertNotificationConfigRepository configRepository;
 
     @Mock
-    private AlertChannelGateway alertChannelGateway;
+    private AlertChannelGateway alertChannelUnifiedGateway;
 
     @Mock
     private SystemNotificationService systemNotificationService;
@@ -31,8 +31,8 @@ class AlertNotificationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AlertNotificationService(configRepository, alertChannelGateway, systemNotificationService);
-        lenient().when(alertChannelGateway.normalizeChannel(anyString())).thenAnswer(invocation -> invocation.getArgument(0, String.class).toLowerCase());
+        service = new AlertNotificationService(configRepository, alertChannelUnifiedGateway, systemNotificationService);
+        lenient().when(alertChannelUnifiedGateway.normalizeChannel(anyString())).thenAnswer(invocation -> invocation.getArgument(0, String.class).toLowerCase());
     }
 
     @Test
@@ -51,14 +51,14 @@ class AlertNotificationServiceTest {
         service.sendRuleNotification(rule, "warn message");
 
         verifyNoInteractions(systemNotificationService);
-        verify(alertChannelGateway, never()).send(anyString(), any(), anyString(), anyString(), any());
+        verify(alertChannelUnifiedGateway, never()).send(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
     void ruleNotificationSendsInAppAndEmailWhenEnabled() {
         AlertNotificationConfig config = baseConfig();
         when(configRepository.findFirstConfig()).thenReturn(Optional.of(config));
-        when(alertChannelGateway.send(eq("email"), eq(config), anyString(), anyString(), eq("ops@example.com"))).thenReturn(true);
+        when(alertChannelUnifiedGateway.send(eq("email"), eq(config), anyString(), anyString(), eq("ops@example.com"))).thenReturn(true);
 
         AlertRule rule = AlertRule.builder()
                 .ruleName("Error Rule")
@@ -70,7 +70,7 @@ class AlertNotificationServiceTest {
         service.sendRuleNotification(rule, "error message");
 
         verify(systemNotificationService).sendMessage(contains("Error Rule"), contains("error message"), eq("ERROR"), isNull(), eq("ALERT"), eq("BROADCAST"));
-        verify(alertChannelGateway).send(eq("email"), eq(config), contains("Error Rule"), contains("error message"), eq("ops@example.com"));
+        verify(alertChannelUnifiedGateway).send(eq("email"), eq(config), contains("Error Rule"), contains("error message"), eq("ops@example.com"));
     }
 
     @Test
@@ -88,8 +88,8 @@ class AlertNotificationServiceTest {
 
         service.sendRuleNotification(rule, "critical message");
 
-        verify(alertChannelGateway).send(eq("email"), eq(config), anyString(), anyString(), isNull());
-        verify(alertChannelGateway).send(eq("dingtalk"), eq(config), anyString(), anyString(), isNull());
+        verify(alertChannelUnifiedGateway).send(eq("email"), eq(config), anyString(), anyString(), isNull());
+        verify(alertChannelUnifiedGateway).send(eq("dingtalk"), eq(config), anyString(), anyString(), isNull());
     }
 
     private AlertNotificationConfig baseConfig() {

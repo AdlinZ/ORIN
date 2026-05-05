@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <OrinEntityHeader
-      domain="系统配置"
-      title="系统环境"
+      domain="系统设置"
+      title="环境配置"
       description="维护数据库、缓存、队列、向量引擎与知识服务等运行环境参数"
       :summary="systemHeaderSummary"
     />

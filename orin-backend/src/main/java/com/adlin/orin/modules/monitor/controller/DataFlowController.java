@@ -41,7 +41,7 @@ public class DataFlowController {
 
         // Stage 1: Request Received
         view.getStages().add(TraceStage.builder()
-                .name("Request Gateway")
+                .name("Request UnifiedGateway")
                 .timestamp(log.getCreatedAt())
                 .details("Received " + log.getMethod() + " request from " + log.getIpAddress())
                 .status("SUCCESS")

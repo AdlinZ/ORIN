@@ -112,7 +112,7 @@
       <template #header>
         <div class="table-heading">
           <div>
-            <strong>智能体资产清单</strong>
+            <strong>智能体列表</strong>
             <span>按服务商、模型、状态与最近活跃情况管理企业 AI 服务</span>
           </div>
           <span class="table-count">{{ viewRows.length }} / {{ rows.length }}</span>

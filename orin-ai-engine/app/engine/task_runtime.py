@@ -197,9 +197,19 @@ class TaskRuntime:
             payload = response.json()
 
         if isinstance(payload, dict):
-            instance_id = payload.get("instanceId")
-            if instance_id is not None:
-                return f"Workflow executed: instanceId={instance_id}"
+            task_id = payload.get("taskId") or payload.get("task_id")
+            instance_id = (
+                payload.get("workflowInstanceId")
+                or payload.get("workflow_instance_id")
+                or payload.get("instanceId")
+            )
+            if task_id is not None or instance_id is not None:
+                parts = []
+                if task_id is not None:
+                    parts.append(f"taskId={task_id}")
+                if instance_id is not None:
+                    parts.append(f"workflowInstanceId={instance_id}")
+                return "Workflow enqueued: " + ", ".join(parts)
             return json.dumps(payload, ensure_ascii=False)
 
         return str(payload)

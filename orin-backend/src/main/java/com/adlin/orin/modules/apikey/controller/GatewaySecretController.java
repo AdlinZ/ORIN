@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/gateway/secrets")
 @RequiredArgsConstructor
-@Tag(name = "Gateway Secret Center", description = "统一网关密钥中心")
+@Tag(name = "UnifiedGateway Secret Center", description = "统一网关密钥中心")
 public class GatewaySecretController {
 
     private final GatewaySecretService gatewaySecretService;

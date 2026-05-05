@@ -103,7 +103,7 @@ describe('AuditCenterV2', () => {
     const wrapper = createWrapper()
     await Promise.resolve()
     await Promise.resolve()
-    expect(getMock).toHaveBeenCalledWith('/audit/logs', { params: { page: 1, size: 20 } })
+    expect(getMock).toHaveBeenCalledWith('/audit/logs', { params: { page: 0, size: 20 } })
     expect(wrapper.find('.audit-rows').text()).toBe('1')
   })
 
@@ -134,7 +134,7 @@ describe('AuditCenterV2', () => {
     expect(postMock).toHaveBeenCalledWith('/system/log-config/cleanup', null, { params: { days: 30 } })
     expect(successMock).toHaveBeenCalledWith('日志清理任务已提交')
     expect(getMock).toHaveBeenCalledWith('/system/log-config/stats')
-    expect(getMock).toHaveBeenCalledWith('/audit/logs', { params: { page: 1, size: 20 } })
+    expect(getMock).toHaveBeenCalledWith('/audit/logs', { params: { page: 0, size: 20 } })
   })
 
   it('does not reset all loggers when confirmation is canceled', async () => {

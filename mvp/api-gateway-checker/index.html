@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ORIN API Chat Tester</title>
+    <link rel="stylesheet" href="./styles.css?v=20260505-1458" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="config-panel" aria-label="API 配置">
+        <div class="product-title">
+          <p>ORIN MVP</p>
+          <h1>API 聊天测试</h1>
+          <span>配置网关地址后，直接用聊天验证服务是否可用。</span>
+        </div>
+
+        <form id="config-form" class="config-form">
+          <label>
+            <span>后端地址</span>
+            <input id="base-url" type="url" value="http://127.0.0.1:8080" />
+          </label>
+
+          <label>
+            <span>API Key</span>
+            <input id="api-key" type="password" placeholder="sk-orin-xxxx" autocomplete="off" />
+          </label>
+
+          <label>
+            <span>模型</span>
+            <input id="model" type="text" value="Qwen/Qwen2.5-7B-Instruct" />
+          </label>
+
+          <label>
+            <span>超时秒数</span>
+            <input id="timeout" type="number" min="1" max="120" value="30" />
+          </label>
+
+          <div class="button-row">
+            <button id="save-config" type="submit">保存配置</button>
+            <button id="test-api" class="secondary" type="button">测试连接</button>
+          </div>
+        </form>
+
+        <section class="status-box" aria-live="polite">
+          <p id="status-title">等待配置</p>
+          <span id="status-text">先确认后端地址和 API Key，然后发送一条消息。</span>
+        </section>
+      </aside>
+
+      <section class="chat-panel" aria-label="聊天测试区">
+        <header class="chat-header">
+          <div>
+            <p>聊天区</p>
+            <h2>统一网关实时测试</h2>
+          </div>
+          <button id="clear-chat" class="secondary small" type="button">清空</button>
+        </header>
+
+        <div id="messages" class="messages" aria-live="polite"></div>
+
+        <form id="chat-form" class="chat-form">
+          <textarea id="chat-input" rows="3" placeholder="输入一句话，测试 /v1/chat/completions..."></textarea>
+          <button id="send-message" type="submit">发送</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="./app.js?v=20260505-1458"></script>
+  </body>
+</html>

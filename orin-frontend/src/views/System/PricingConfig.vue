@@ -4,7 +4,7 @@
       title="成本与定价"
       description="管理模型调用成本、供应商分布与企业定价策略"
       icon="Money"
-      domain="组织治理"
+      domain="组织权限"
     >
       <template #actions>
         <div class="header-actions">

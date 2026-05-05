@@ -1,10 +1,10 @@
 <template>
   <div class="page-container">
     <OrinPageShell
-      title="添加模型资源"
+      title="添加模型"
       description="按服务商、密钥、模型标识、检测与启用流程接入模型能力"
       icon="CirclePlus"
-      domain="模型资源"
+      domain="模型管理"
     />
 
     <el-card shadow="never" class="onboard-card">
@@ -712,7 +712,7 @@ const guideSteps = [
   { title: '密钥治理', description: '录入或复用受控访问凭据' },
   { title: '模型标识', description: '填写模型 ID 与能力类型' },
   { title: '模型检测', description: '导入或校验可用模型' },
-  { title: '启用确认', description: '保存后进入模型资源池' }
+  { title: '启用确认', description: '保存后进入模型池' }
 ];
 
 // Provider选项 - 从API获取

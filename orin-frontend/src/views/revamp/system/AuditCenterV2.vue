@@ -5,7 +5,7 @@
       title="审计中心"
       description="统一追踪访问行为、系统操作与关键配置变更"
       icon="List"
-      domain="组织治理"
+      domain="组织权限"
     >
       <template v-if="props.showHeaderActions" #actions>
         <el-button :icon="Refresh" @click="loadAll">

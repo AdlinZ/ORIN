@@ -4,7 +4,7 @@
       title="工作流执行"
       description="查看工作流运行状态、实例结果与执行历史"
       icon="VideoPlay"
-      domain="流程编排"
+      domain="工作流管理"
     >
       <template #actions>
         <el-button :icon="Edit" @click="goToWorkflowList">
@@ -122,6 +122,45 @@
                 <strong>最近执行结果</strong>
                 <span>{{ formatTime(latestExecutionAt) }}</span>
               </div>
+              <div v-if="executionIdentifiers.length" class="execution-identifiers">
+                <div
+                  v-for="item in executionIdentifiers"
+                  :key="item.label"
+                  class="execution-id-item"
+                >
+                  <span>{{ item.label }}</span>
+                  <code>{{ item.value }}</code>
+                </div>
+              </div>
+              <div v-if="latestExecutionObject?.taskId" class="task-actions">
+                <el-button size="small" :icon="Search" :loading="taskStatusLoading" @click="queryLatestTask">
+                  查询任务状态
+                </el-button>
+                <el-button
+                  v-if="latestExecutionObject?.statusUrl"
+                  size="small"
+                  text
+                  @click="openStatusUrl(latestExecutionObject.statusUrl)"
+                >
+                  打开状态接口
+                </el-button>
+              </div>
+              <el-alert
+                v-if="taskStatusResult"
+                type="info"
+                :closable="false"
+                class="execution-alert"
+              >
+                <template #title>
+                  任务状态：{{ taskStatusResult.status || taskStatusResult.data?.status || 'UNKNOWN' }}
+                </template>
+                <div v-if="taskStatusResult.workflowInstanceId || taskStatusResult.data?.workflowInstanceId">
+                  实例ID：{{ taskStatusResult.workflowInstanceId || taskStatusResult.data?.workflowInstanceId }}
+                </div>
+                <div v-if="taskStatusResult.errorMessage || taskStatusResult.data?.errorMessage">
+                  错误：{{ taskStatusResult.errorMessage || taskStatusResult.data?.errorMessage }}
+                </div>
+              </el-alert>
               <pre class="result-pre">{{ latestExecution }}</pre>
             </div>
           </div>
@@ -181,6 +220,7 @@ import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { ROUTES } from '@/router/routes'
+import request from '@/utils/request'
 import { createAsyncState, markEmpty, markError, markLoading, markSuccess, toWorkflowListViewModel, toWorkflowStatsViewModel } from '@/viewmodels'
 import { executeWorkflow, getWorkflowInstances, getWorkflows } from '@/api/workflow'
 
@@ -197,8 +237,11 @@ const instances = ref([])
 const executionInput = ref('{\n  "query": ""\n}')
 const executing = ref(false)
 const latestExecution = ref('')
+const latestExecutionObject = ref(null)
 const latestExecutionAt = ref('')
 const executionError = ref('')
+const taskStatusLoading = ref(false)
+const taskStatusResult = ref(null)
 
 const filteredWorkflows = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -224,6 +267,15 @@ const executionMetrics = computed(() => [
   { label: '最近实例', value: executionStats.value.totalInstances, meta: '当前选中工作流记录' },
   { label: '最近成功率', value: `${executionStats.value.successRate}%`, meta: '基于当前工作流最近实例计算' }
 ])
+
+const executionIdentifiers = computed(() => {
+  const payload = latestExecutionObject.value || {}
+  return [
+    { label: 'taskId', value: payload.taskId },
+    { label: 'workflowInstanceId', value: payload.workflowInstanceId || payload.instanceId },
+    { label: 'traceId', value: payload.traceId }
+  ].filter((item) => item.value !== undefined && item.value !== null && String(item.value).length > 0)
+})
 
 const normalizeInstances = (payload) => {
   const list = Array.isArray(payload?.data?.records)
@@ -304,8 +356,10 @@ const reloadAll = async () => {
 const selectWorkflow = async (workflow) => {
   selectedWorkflow.value = workflow
   latestExecution.value = ''
+  latestExecutionObject.value = null
   latestExecutionAt.value = ''
   executionError.value = ''
+  taskStatusResult.value = null
   await loadInstances()
 }
 
@@ -327,15 +381,38 @@ const runSelectedWorkflow = async () => {
   executing.value = true
   try {
     const response = await executeWorkflow(selectedWorkflow.value.id, parsedInput)
-    latestExecution.value = JSON.stringify(response?.data ?? response, null, 2)
+    const payload = response?.data ?? response
+    latestExecutionObject.value = payload && typeof payload === 'object' ? payload : null
+    latestExecution.value = JSON.stringify(payload, null, 2)
     latestExecutionAt.value = new Date().toISOString()
-    ElMessage.success(`工作流已执行：${selectedWorkflow.value.workflowName}`)
+    taskStatusResult.value = null
+    const taskLabel = latestExecutionObject.value?.taskId ? `，任务 ${latestExecutionObject.value.taskId}` : ''
+    ElMessage.success(`工作流已入队：${selectedWorkflow.value.workflowName}${taskLabel}`)
     await loadInstances()
   } catch (error) {
     executionError.value = error?.response?.data?.message || error?.message || '工作流执行失败'
   } finally {
     executing.value = false
   }
+}
+
+const queryLatestTask = async () => {
+  const taskId = latestExecutionObject.value?.taskId
+  if (!taskId) return
+  taskStatusLoading.value = true
+  try {
+    const response = await request.get(`/v1/tasks/${taskId}`, { baseURL: '' })
+    taskStatusResult.value = response?.data ?? response
+  } catch (error) {
+    ElMessage.error(error?.response?.data?.message || error?.message || '任务状态查询失败')
+  } finally {
+    taskStatusLoading.value = false
+  }
+}
+
+const openStatusUrl = (url) => {
+  if (!url) return
+  window.open(url, '_blank', 'noopener')
 }
 
 const editWorkflow = (workflow) => {
@@ -508,6 +585,45 @@ onMounted(async () => {
   padding-top: 16px;
 }
 
+.execution-identifiers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.execution-id-item {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.execution-id-item span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.execution-id-item code {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  color: #0f172a;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
 .result-pre {
   margin: 12px 0 0;
   padding: 16px;
@@ -545,6 +661,10 @@ onMounted(async () => {
   .runner-actions {
     width: 100%;
   }
+
+  .execution-identifiers {
+    grid-template-columns: 1fr;
+  }
 }
 
 html.dark .overview-label {
@@ -567,6 +687,15 @@ html.dark .summary-line {
 html.dark .workflow-item {
   background: rgba(15, 23, 42, 0.86);
   border-color: rgba(71, 85, 105, 0.52);
+}
+
+html.dark .execution-id-item {
+  background: rgba(15, 23, 42, 0.62);
+  border-color: rgba(71, 85, 105, 0.52);
+}
+
+html.dark .execution-id-item code {
+  color: #e2e8f0;
 }
 
 html.dark .workflow-item:hover,

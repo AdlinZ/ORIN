@@ -7,7 +7,7 @@
     >
       <template #actions>
         <el-button type="primary" :icon="Refresh" @click="loadData">刷新</el-button>
-        <el-button plain :icon="ArrowLeft" @click="goCenter">返回知识中心</el-button>
+        <el-button plain :icon="ArrowLeft" @click="goCenter">返回知识库</el-button>
       </template>
       <template #filters>
         <OrinFilterBar>
@@ -79,8 +79,8 @@
 
         <div v-if="!filteredRows.length && !loading" class="list-empty">
           <OrinEmptyState
-            description="暂无符合条件的知识资产，请调整筛选或返回知识中心创建"
-            action-label="返回知识中心"
+            description="暂无符合条件的知识资产，请调整筛选或返回知识库创建"
+            action-label="返回知识库"
             @action="goCenter"
           />
         </div>

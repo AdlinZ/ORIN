@@ -39,6 +39,15 @@ public class TaskService {
     @Transactional
     public TaskEntity createAndEnqueueTask(Long workflowId, Map<String, Object> inputData,
                                            TaskPriority priority, String triggeredBy, String triggerSource) {
+        return createAndEnqueueTask(workflowId, null, inputData, priority, triggeredBy, triggerSource);
+    }
+
+    /**
+     * 创建任务并绑定已创建的工作流实例后入队。
+     */
+    @Transactional
+    public TaskEntity createAndEnqueueTask(Long workflowId, Long workflowInstanceId, Map<String, Object> inputData,
+                                           TaskPriority priority, String triggeredBy, String triggerSource) {
         // 生成唯一任务ID
         String taskId = "task-" + UUID.randomUUID().toString();
 
@@ -46,6 +55,7 @@ public class TaskService {
         TaskEntity task = TaskEntity.builder()
                 .taskId(taskId)
                 .workflowId(workflowId)
+                .workflowInstanceId(workflowInstanceId)
                 .priority(priority != null ? priority : TaskPriority.NORMAL)
                 .status(TaskStatus.QUEUED)
                 .inputData(inputData)
@@ -61,6 +71,7 @@ public class TaskService {
         TaskMessage message = TaskMessage.builder()
                 .taskId(task.getTaskId())
                 .workflowId(task.getWorkflowId())
+                .workflowInstanceId(task.getWorkflowInstanceId())
                 .priority(task.getPriority())
                 .inputData(task.getInputData())
                 .triggeredBy(task.getTriggeredBy())

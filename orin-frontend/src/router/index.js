@@ -68,17 +68,17 @@ const routes = [
                 meta: { title: '个人中心', icon: 'User' }
             },
 
-            // ==================== 应用模块 ====================
+            // ==================== 智能体管理模块 ====================
             {
                 path: 'applications',
-                meta: { title: '应用', category: 'applications' },
+                meta: { title: '智能体管理', category: 'applications' },
                 children: [
                     // 应用列表（智能体）
                     {
                         path: 'agents',
                         name: 'ApplicationAgents',
                         component: () => import('@/views/revamp/agents/AgentListV2.vue'),
-                        meta: { title: '应用列表', icon: 'Grid' }
+                        meta: { title: '智能体列表', icon: 'Grid' }
                     },
                     {
                         path: 'agents/console',
@@ -96,7 +96,7 @@ const routes = [
                         path: 'agents/onboard',
                         name: 'AgentOnboard',
                         component: () => import('@/views/AgentOnboarding.vue'),
-                        meta: { title: '接入新应用', hidden: true }
+                        meta: { title: '智能体接入', hidden: true }
                     },
 
                     // 会话记录
@@ -190,12 +190,12 @@ const routes = [
                         meta: { title: '协作对话', icon: 'VideoPlay' }
                     },
 
-                    // 流程编排
+                    // 工作流管理
                     {
                         path: 'workflows',
                         name: 'ApplicationWorkflows',
                         component: () => import('@/views/Workflow/WorkflowList.vue'),
-                        meta: { title: '流程编排', icon: 'Connection' }
+                        meta: { title: '工作流设计', icon: 'Connection' }
                     },
                     {
                         path: 'workflows/:id',
@@ -230,10 +230,10 @@ const routes = [
                 ]
             },
 
-            // ==================== 运行模块 ====================
+            // ==================== 运行监控模块 ====================
             {
                 path: 'runtime',
-                meta: { title: '运行', category: 'runtime' },
+                meta: { title: '运行监控', category: 'runtime' },
                 children: [
                     // 监控总览
                     {
@@ -252,7 +252,7 @@ const routes = [
                         path: 'metrics',
                         name: 'RuntimeMetrics',
                         component: () => import('@/views/Monitor/TokenStats.vue'),
-                        meta: { title: '实时指标', icon: 'TrendCharts' }
+                        meta: { title: '用量统计', icon: 'TrendCharts' }
                     },
                     {
                         path: 'costs',
@@ -262,7 +262,7 @@ const routes = [
                         path: 'latency',
                         name: 'RuntimeLatency',
                         component: () => import('@/views/Monitor/LatencyStats.vue'),
-                        meta: { title: '时延统计', icon: 'Timer' }
+                        meta: { title: '性能分析', icon: 'Timer' }
                     },
                     {
                         path: 'errors',
@@ -353,10 +353,10 @@ const routes = [
                 ]
             },
 
-            // ==================== 资源模块 ====================
+            // ==================== 知识库管理模块 ====================
             {
                 path: 'resources',
-                meta: { title: '资源', category: 'resources' },
+                meta: { title: '知识库管理', category: 'resources' },
                 children: [
                     {
                         path: '',
@@ -366,7 +366,7 @@ const routes = [
                         path: 'center',
                         name: 'ResourcesKnowledgeCenter',
                         redirect: '/dashboard/resources/retrieval',
-                        meta: { title: '知识中心', icon: 'Reading' }
+                        meta: { title: '知识库', icon: 'Reading' }
                     },
                     {
                         path: 'assets',
@@ -458,10 +458,10 @@ const routes = [
                 ]
             },
 
-            // ==================== 控制模块 ====================
+            // ==================== 系统设置模块 ====================
             {
                 path: 'control',
-                meta: { title: '控制', category: 'control', requiresAdmin: true },
+                meta: { title: '系统设置', category: 'control', requiresAdmin: true },
                 children: [
                     // 用户权限
                     {
@@ -497,8 +497,8 @@ const routes = [
                     {
                         path: 'api-keys',
                         name: 'ApiKeyManagement',
-                        component: () => import('@/views/System/ApiGateway.vue'),
-                        meta: { title: 'API 密钥管理（已合并至统一网关）', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
+                        component: () => import('@/views/System/UnifiedGateway.vue'),
+                        meta: { title: 'API 密钥管理（已合并至 统一网关）', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 文件管理
@@ -509,17 +509,18 @@ const routes = [
                         meta: { title: '文件管理', icon: 'Folder', roles: ADMIN_ROUTE_ROLES }
                     },
 
-                    // 系统环境配置
+                    // 环境配置
                     {
                         path: 'system-env',
                         name: 'ControlSystemEnv',
                         component: () => import('@/views/System/MonitorSettings.vue'),
-                        meta: { title: '系统环境', icon: 'Tools', roles: ADMIN_ROUTE_ROLES }
+                        meta: { title: '环境配置', icon: 'Tools', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'gateway',
-                        name: 'ControlGateway',
-                        component: () => import('@/views/System/ApiGateway.vue'),
+                        name: 'ControlUnifiedGateway',
+                        alias: 'unified-gateway',
+                        component: () => import('@/views/System/UnifiedGateway.vue'),
                         meta: { title: '统一网关', icon: 'Connection', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
@@ -552,7 +553,7 @@ const routes = [
                         path: 'notification-channels',
                         name: 'NotificationChannels',
                         component: () => import('@/views/Mail/MailSetup.vue'),
-                        meta: { title: '邮件服务中心', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
+                        meta: { title: '通知设置', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 数据同步

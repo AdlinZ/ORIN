@@ -1,7 +1,7 @@
 <template>
   <div class="role-management fade-in">
     <OrinEntityHeader
-      domain="组织治理"
+      domain="组织权限"
       title="角色管理"
       description="配置系统角色及其菜单与操作权限"
       :summary="roleHeaderSummary"

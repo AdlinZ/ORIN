@@ -290,8 +290,8 @@ function start() {
     local ai_ok=0
     local frontend_ok=0
     while [ "$elapsed" -lt "$wait_seconds" ]; do
-        lsof -i:8080 > /dev/null 2>&1 && backend_ok=1 || backend_ok=0
-        lsof -i:8000 > /dev/null 2>&1 && ai_ok=1 || ai_ok=0
+        curl -fsS "http://127.0.0.1:8080/v1/health" > /dev/null 2>&1 && backend_ok=1 || backend_ok=0
+        curl -fsS "http://127.0.0.1:8000/health" > /dev/null 2>&1 && ai_ok=1 || ai_ok=0
         curl -fsS "http://${FRONTEND_HOST}:${FRONTEND_PORT}/" > /dev/null 2>&1 && frontend_ok=1 || frontend_ok=0
         if [ "$backend_ok" -eq 1 ] && [ "$ai_ok" -eq 1 ] && [ "$frontend_ok" -eq 1 ]; then
             break

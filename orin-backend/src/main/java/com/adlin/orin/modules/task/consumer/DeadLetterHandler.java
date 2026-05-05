@@ -77,7 +77,6 @@ public class DeadLetterHandler {
         TaskMessage taskMessage = TaskMessage.builder()
                 .taskId(task.getTaskId() + "-replay-" + System.currentTimeMillis())
                 .workflowId(task.getWorkflowId())
-                .workflowInstanceId(task.getWorkflowInstanceId())
                 .priority(task.getPriority())
                 .inputData(task.getInputData())
                 .triggeredBy(task.getTriggeredBy())
@@ -90,6 +89,7 @@ public class DeadLetterHandler {
 
         // 重置任务状态为排队中
         task.setStatus(TaskStatus.QUEUED);
+        task.setWorkflowInstanceId(null);
         task.setRetryCount(0);
         task.setErrorMessage(null);
         task.setErrorStack(null);

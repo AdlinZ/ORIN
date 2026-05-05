@@ -152,7 +152,7 @@ const loadData = async () => {
     knowledgeRows.value = Array.isArray(kbs) ? kbs : []
     graphRows.value = Array.isArray(graphs) ? graphs : []
   } catch {
-    ElMessage.error('加载知识中心数据失败')
+    ElMessage.error('加载知识库数据失败')
   } finally {
     loading.value = false
   }

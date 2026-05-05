@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <OrinEntityHeader
-      domain="系统配置"
-      title="文件治理"
+      domain="系统设置"
+      title="文件管理"
       description="管理多模态生成文件、文件类型、存储占用与下载入口"
       :summary="fileHeaderSummary"
     >

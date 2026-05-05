@@ -149,10 +149,10 @@ public class RouterService {
      * @return Provider
      */
     public Optional<ProviderAdapter> selectProviderByType(String providerType, ChatCompletionRequest request) {
-        List<ProviderAdapter> providers = providerRegistry.getProvidersByType(providerType);
+        List<ProviderAdapter> providers = providerRegistry.getHealthyProvidersByType(providerType);
 
         if (providers.isEmpty()) {
-            log.warn("No providers found for type: {}", providerType);
+            log.warn("No healthy providers found for type: {}", providerType);
             return Optional.empty();
         }
 

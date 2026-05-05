@@ -1,7 +1,7 @@
 <template>
   <div class="department-management fade-in">
     <OrinEntityHeader
-      domain="组织治理"
+      domain="组织权限"
       title="部门管理"
       description="管理系统部门组织结构"
       :summary="departmentHeaderSummary"

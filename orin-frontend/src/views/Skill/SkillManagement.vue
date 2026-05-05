@@ -3,7 +3,7 @@
     <PageHeader
       v-if="!embedded"
       title="技能绑定"
-      description="管理 Agent 的核心能力扩展，支持 API、知识库、Shell 和复合工作流"
+      description="管理 Agent 的扩展能力，支持 API、知识库、Shell 和复合工作流"
       icon="MagicStick"
     >
       <template #actions>
@@ -77,22 +77,16 @@
 
       <div class="embedded-control-row">
         <div class="embedded-stats">
-          <div class="skill-stat">
-            <span>全部</span>
-            <strong>{{ skillStats.total }}</strong>
-          </div>
-          <div class="skill-stat">
-            <span>活跃</span>
-            <strong>{{ skillStats.active }}</strong>
-          </div>
-          <div class="skill-stat">
-            <span>API</span>
-            <strong>{{ skillStats.api }}</strong>
-          </div>
-          <div class="skill-stat">
-            <span>Shell</span>
-            <strong>{{ skillStats.shell }}</strong>
-          </div>
+          <button
+            v-for="quickFilter in quickFilters"
+            :key="quickFilter.key"
+            type="button"
+            :class="['skill-stat', { active: isQuickFilterActive(quickFilter) }]"
+            @click="applyQuickFilter(quickFilter)"
+          >
+            <span>{{ quickFilter.label }}</span>
+            <strong>{{ quickFilter.count }}</strong>
+          </button>
         </div>
 
         <el-form :inline="true" class="skill-filter-form embedded-filters">
@@ -488,6 +482,7 @@ defineProps({
 })
 
 const skills = ref([])
+const allSkills = ref([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const mdDialogVisible = ref(false)
@@ -501,7 +496,7 @@ const mdLoading = ref(false)
 const loadError = ref('')
 
 const skillStats = computed(() => {
-  const rows = Array.isArray(skills.value) ? skills.value : []
+  const rows = allSkills.value.length ? allSkills.value : skills.value
   return {
     total: rows.length,
     active: rows.filter((item) => item.status === 'ACTIVE').length,
@@ -509,6 +504,13 @@ const skillStats = computed(() => {
     shell: rows.filter((item) => item.skillType === 'SHELL').length
   }
 })
+
+const quickFilters = computed(() => [
+  { key: 'all', label: '全部', count: skillStats.value.total, type: '', status: '' },
+  { key: 'active', label: '活跃', count: skillStats.value.active, type: '', status: 'ACTIVE' },
+  { key: 'api', label: 'API', count: skillStats.value.api, type: 'API', status: '' },
+  { key: 'shell', label: 'Shell', count: skillStats.value.shell, type: 'SHELL', status: '' }
+])
 
 // 导入相关
 const importForm = reactive({
@@ -540,6 +542,7 @@ const inputSchemaStr = ref('{}')
 const outputSchemaStr = ref('{}')
 
 onMounted(() => {
+  loadSkillStats()
   loadSkills()
   window.addEventListener('page-refresh', loadSkills)
 })
@@ -557,7 +560,13 @@ const loadSkills = async () => {
     if (filterStatus.value) params.status = filterStatus.value
 
     const data = await getSkillList(params)
-    skills.value = data
+    const rows = normalizeSkillRows(data)
+    skills.value = rows
+    if (!filterType.value && !filterStatus.value) {
+      allSkills.value = rows
+    } else if (!allSkills.value.length) {
+      loadSkillStats()
+    }
   } catch (error) {
     // Error is handled by request interceptor, but we can add secondary logging
     console.error('Failed to load skills:', error)
@@ -566,6 +575,29 @@ const loadSkills = async () => {
     loading.value = false
     window.dispatchEvent(new Event('page-refresh-done'))
   }
+}
+
+const loadSkillStats = async () => {
+  try {
+    const data = await getSkillList({})
+    allSkills.value = normalizeSkillRows(data)
+  } catch (error) {
+    console.warn('Failed to load skill stats:', error)
+  }
+}
+
+const normalizeSkillRows = (data) => {
+  return Array.isArray(data) ? data : []
+}
+
+const applyQuickFilter = (quickFilter) => {
+  filterType.value = quickFilter.type
+  filterStatus.value = quickFilter.status
+  loadSkills()
+}
+
+const isQuickFilterActive = (quickFilter) => {
+  return filterType.value === quickFilter.type && filterStatus.value === quickFilter.status
 }
 
 const formatTime = (time) => {
@@ -638,6 +670,7 @@ const submitForm = async () => {
       ElMessage.success('技能创建成功')
     }
     dialogVisible.value = false
+    loadSkillStats()
     loadSkills()
   } catch (error) {
     // Error notification handled by request utility
@@ -654,6 +687,7 @@ const deleteSkill = async (skill) => {
     })
     await apiDeleteSkill(skill.id)
     ElMessage.success('删除成功')
+    loadSkillStats()
     loadSkills()
   } catch (error) {
     if (error !== 'cancel') {
@@ -689,6 +723,7 @@ const submitImport = async () => {
     await importSkill(importForm)
     ElMessage.success('导入技能成功')
     importDialogVisible.value = false
+    loadSkillStats()
     loadSkills()
   } catch (error) {
     // Error notification handled by request utility
@@ -797,17 +832,30 @@ const getStatusLabel = (status) => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
 }
 
 .skill-stat {
-  min-width: auto;
+  min-width: 64px;
+  height: 38px;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: center;
   gap: 7px;
-  padding: 6px 10px;
+  padding: 0 12px;
   border: 1px solid rgba(15, 118, 110, 0.14);
   border-radius: 999px;
   background: #f8fafc;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.skill-stat:hover,
+.skill-stat.active {
+  border-color: rgba(15, 118, 110, 0.36);
+  background: rgba(240, 253, 250, 0.96);
+  box-shadow: 0 8px 18px -18px rgba(15, 23, 42, 0.42);
 }
 
 .skill-stat span {
@@ -832,6 +880,10 @@ const getStatusLabel = (status) => {
   margin-bottom: 0;
 }
 
+.embedded-filters.skill-filter-form {
+  margin-bottom: 0;
+}
+
 .embedded-filters :deep(.el-form-item) {
   margin: 0;
   display: inline-flex;
@@ -846,7 +898,15 @@ const getStatusLabel = (status) => {
 .embedded-filters :deep(.el-button) {
   width: auto;
   min-width: 88px;
-  height: 32px;
+  height: 38px;
+}
+
+.embedded-filters :deep(.el-select__wrapper) {
+  min-height: 38px;
+}
+
+.embedded-filters .filter-select {
+  width: 136px;
 }
 
 .skill-filter-form {
@@ -951,9 +1011,8 @@ const getStatusLabel = (status) => {
   font-size: 15px;
   line-height: 1.35;
   letter-spacing: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .skill-card-tags {
@@ -968,10 +1027,7 @@ const getStatusLabel = (status) => {
   color: #475569;
   font-size: 13px;
   line-height: 1.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .skill-card-meta {
@@ -1041,6 +1097,13 @@ html.dark .skill-stat span {
 html.dark .skill-stat {
   border-color: rgba(148, 163, 184, 0.16);
   background: rgba(15, 23, 42, 0.72);
+}
+
+html.dark .skill-stat:hover,
+html.dark .skill-stat.active {
+  border-color: rgba(45, 212, 191, 0.32);
+  background: rgba(15, 118, 110, 0.18);
+  box-shadow: none;
 }
 
 html.dark .skill-stat strong {

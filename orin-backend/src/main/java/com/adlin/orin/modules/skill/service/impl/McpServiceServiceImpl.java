@@ -8,10 +8,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * MCP 服务实现类
@@ -98,43 +109,19 @@ public class McpServiceServiceImpl implements McpServiceService {
             service.setStatus(McpService.McpStatus.TESTING);
             mcpServiceRepository.save(service);
 
-            boolean success = false;
-            String message = "";
-            String errorDetail = "";
-
             if (service.getType() == McpService.McpType.STDIO) {
-                // 测试 STDIO 类型服务
-                if (service.getCommand() == null || service.getCommand().isBlank()) {
-                    message = "命令不能为空";
-                    errorDetail = "STDIO 类型服务需要配置启动命令";
-                } else {
-                    // 简单验证命令格式
-                    String cmd = service.getCommand().trim();
-                    if (cmd.contains(" ")) {
-                        String[] parts = cmd.split(" ");
-                        message = "命令格式验证通过";
-                        success = true;
-                    } else {
-                        message = "命令格式可能有误";
-                        success = true; // 仍然标记成功，因为可能是有效的单命令
-                    }
-                }
+                result = testStdioService(service);
             } else if (service.getType() == McpService.McpType.SSE) {
-                // 测试 SSE 类型服务
-                if (service.getUrl() == null || service.getUrl().isBlank()) {
-                    message = "URL 不能为空";
-                    errorDetail = "SSE 类型服务需要配置 URL";
-                } else {
-                    // 简单验证 URL 格式
-                    if (service.getUrl().startsWith("http://") || service.getUrl().startsWith("https://")) {
-                        message = "URL 格式验证通过";
-                        success = true;
-                    } else {
-                        message = "URL 格式无效";
-                        errorDetail = "URL 必须以 http:// 或 https:// 开头";
-                    }
-                }
+                result = testSseService(service);
+            } else {
+                result.put("success", false);
+                result.put("message", "不支持的 MCP 服务类型");
+                result.put("reasonCode", "UNSUPPORTED_TYPE");
+                result.put("errorDetail", String.valueOf(service.getType()));
             }
+
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String errorDetail = (String) result.getOrDefault("errorDetail", "");
 
             // 更新服务状态
             if (success) {
@@ -150,12 +137,6 @@ public class McpServiceServiceImpl implements McpServiceService {
 
             mcpServiceRepository.save(service);
 
-            result.put("success", success);
-            result.put("message", message);
-            if (!success) {
-                result.put("errorDetail", errorDetail);
-            }
-
         } catch (Exception e) {
             log.error("测试连接失败: {}", e.getMessage(), e);
             service.setStatus(McpService.McpStatus.ERROR);
@@ -169,6 +150,245 @@ public class McpServiceServiceImpl implements McpServiceService {
         }
 
         return result;
+    }
+
+    private Map<String, Object> testStdioService(McpService service) throws IOException, InterruptedException {
+        Map<String, Object> result = new HashMap<>();
+        String command = service.getCommand();
+        if (command == null || command.isBlank()) {
+            result.put("success", false);
+            result.put("message", "命令不能为空");
+            result.put("reasonCode", "CONFIG_MISSING");
+            result.put("errorDetail", "STDIO 类型服务需要配置启动命令");
+            return result;
+        }
+
+        String executable = command.trim().split("\\s+")[0];
+        Process which = new ProcessBuilder("sh", "-lc", "command -v " + shellQuote(executable))
+                .redirectErrorStream(true)
+                .start();
+        if (!which.waitFor(2, TimeUnit.SECONDS) || which.exitValue() != 0) {
+            result.put("success", false);
+            result.put("message", "命令不存在");
+            result.put("reasonCode", "COMMAND_NOT_FOUND");
+            result.put("errorDetail", "找不到可执行命令: " + executable);
+            return result;
+        }
+
+        Process process = new ProcessBuilder("sh", "-lc", command).start();
+
+        try {
+            sendMcpRequest(process.getOutputStream(),
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"orin\",\"version\":\"1.0.0\"}}}");
+            String initializeResponse = readMcpMessage(process.getInputStream(), 5);
+            if (!initializeResponse.contains("\"result\"")) {
+                result.put("success", false);
+                result.put("message", "MCP 初始化失败");
+                result.put("reasonCode", "START_FAILED");
+                result.put("errorDetail", truncate(initializeResponse));
+                return result;
+            }
+
+            sendMcpNotification(process.getOutputStream(), "notifications/initialized");
+            sendMcpRequest(process.getOutputStream(),
+                    "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}");
+            String toolsResponse = readMcpMessage(process.getInputStream(), 5);
+            int toolCount = countToolNames(toolsResponse);
+            if (toolCount <= 0) {
+                result.put("success", false);
+                result.put("message", "工具列表为空");
+                result.put("reasonCode", "TOOL_LIST_EMPTY");
+                result.put("errorDetail", truncate(toolsResponse));
+                return result;
+            }
+
+            result.put("success", true);
+            result.put("message", "MCP 协议握手通过");
+            result.put("reasonCode", "CONNECTED");
+            result.put("toolCount", toolCount);
+            return result;
+        } catch (java.net.http.HttpTimeoutException e) {
+            result.put("success", false);
+            result.put("message", "MCP 响应超时");
+            result.put("reasonCode", "TIMEOUT");
+            result.put("errorDetail", e.getMessage());
+            return result;
+        } catch (IOException e) {
+            if (!process.isAlive()) {
+                int exitCode = process.exitValue();
+                result.put("success", false);
+                result.put("message", exitCode == 0 ? "服务启动后立即退出，工具列表为空" : "服务启动失败");
+                result.put("reasonCode", exitCode == 0 ? "TOOL_LIST_EMPTY" : "START_FAILED");
+                result.put("errorDetail", "进程退出码: " + exitCode);
+                return result;
+            }
+            result.put("success", false);
+            result.put("message", "MCP 协议握手失败");
+            result.put("reasonCode", "START_FAILED");
+            result.put("errorDetail", e.getMessage());
+            return result;
+        } finally {
+            process.destroyForcibly();
+        }
+    }
+
+    private Map<String, Object> testSseService(McpService service) {
+        Map<String, Object> result = new HashMap<>();
+        String url = service.getUrl();
+        if (url == null || url.isBlank()) {
+            result.put("success", false);
+            result.put("message", "URL 不能为空");
+            result.put("reasonCode", "CONFIG_MISSING");
+            result.put("errorDetail", "SSE 类型服务需要配置 URL");
+            return result;
+        }
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            result.put("success", false);
+            result.put("message", "URL 格式无效");
+            result.put("reasonCode", "CONFIG_INVALID");
+            result.put("errorDetail", "URL 必须以 http:// 或 https:// 开头");
+            return result;
+        }
+
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(3))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(java.time.Duration.ofSeconds(5))
+                    .header("Accept", "text/event-stream")
+                    .GET()
+                    .build();
+            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            Optional<String> contentType = response.headers().firstValue("content-type");
+            boolean success = response.statusCode() >= 200
+                    && response.statusCode() < 300
+                    && contentType.map(value -> value.toLowerCase().contains("text/event-stream")).orElse(false);
+            result.put("success", success);
+            result.put("message", success ? "SSE 地址可访问" : "SSE 地址不可用");
+            result.put("reasonCode", success ? "CONNECTED" : "START_FAILED");
+            result.put("httpStatus", response.statusCode());
+            result.put("contentType", contentType.orElse(null));
+            if (!success) {
+                result.put("errorDetail", "HTTP 状态码: " + response.statusCode()
+                        + ", Content-Type: " + contentType.orElse("unknown"));
+            }
+        } catch (java.net.http.HttpTimeoutException e) {
+            result.put("success", false);
+            result.put("message", "连接超时");
+            result.put("reasonCode", "TIMEOUT");
+            result.put("errorDetail", e.getMessage());
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "连接失败");
+            result.put("reasonCode", "START_FAILED");
+            result.put("errorDetail", e.getMessage());
+        }
+        return result;
+    }
+
+    private String shellQuote(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
+    }
+
+    private void sendMcpRequest(OutputStream outputStream, String payload) throws IOException {
+        writeMcpFrame(outputStream, payload);
+    }
+
+    private void sendMcpNotification(OutputStream outputStream, String method) throws IOException {
+        writeMcpFrame(outputStream, "{\"jsonrpc\":\"2.0\",\"method\":\"" + method + "\"}");
+    }
+
+    private void writeMcpFrame(OutputStream outputStream, String payload) throws IOException {
+        byte[] body = payload.getBytes(StandardCharsets.UTF_8);
+        String header = "Content-Length: " + body.length + "\r\n\r\n";
+        outputStream.write(header.getBytes(StandardCharsets.US_ASCII));
+        outputStream.write(body);
+        outputStream.flush();
+    }
+
+    private String readMcpMessage(InputStream inputStream, int timeoutSeconds) throws IOException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        int contentLength = -1;
+        while (System.nanoTime() < deadline) {
+            String headerLine = readLine(inputStream, deadline);
+            if (headerLine == null) {
+                continue;
+            }
+            if (headerLine.isBlank()) {
+                if (contentLength > 0) {
+                    return readBody(inputStream, contentLength, deadline);
+                }
+                continue;
+            }
+            String lower = headerLine.toLowerCase();
+            if (lower.startsWith("content-length:")) {
+                contentLength = Integer.parseInt(headerLine.substring(headerLine.indexOf(':') + 1).trim());
+            }
+        }
+        throw new java.net.http.HttpTimeoutException("Timed out waiting for MCP response");
+    }
+
+    private String readLine(InputStream inputStream, long deadline) throws IOException {
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        while (System.nanoTime() < deadline) {
+            if (inputStream.available() <= 0) {
+                sleepQuietly(25);
+                continue;
+            }
+            int next = inputStream.read();
+            if (next == -1) {
+                throw new IOException("MCP process closed stdout");
+            }
+            if (next == '\n') {
+                return line.toString(StandardCharsets.US_ASCII).replace("\r", "");
+            }
+            line.write(next);
+        }
+        return null;
+    }
+
+    private String readBody(InputStream inputStream, int contentLength, long deadline) throws IOException {
+        byte[] body = new byte[contentLength];
+        int offset = 0;
+        while (offset < contentLength && System.nanoTime() < deadline) {
+            if (inputStream.available() <= 0) {
+                sleepQuietly(25);
+                continue;
+            }
+            int read = inputStream.read(body, offset, contentLength - offset);
+            if (read == -1) {
+                throw new IOException("MCP process closed stdout");
+            }
+            offset += read;
+        }
+        if (offset < contentLength) {
+            throw new java.net.http.HttpTimeoutException("Timed out reading MCP response body");
+        }
+        return new String(body, StandardCharsets.UTF_8);
+    }
+
+    private int countToolNames(String toolsResponse) {
+        if (!toolsResponse.contains("\"tools\"")) {
+            return 0;
+        }
+        return Math.max(0, toolsResponse.split("\"name\"\\s*:").length - 1);
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
+    }
+
+    private void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override

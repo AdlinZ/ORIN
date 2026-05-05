@@ -46,6 +46,7 @@ public class SecurityConfig {
                                 "/api/v1/multimodal/files/*/download",
                                 "/api/v1/multimodal/files/*/thumbnail",
                                 "/api/v1/system/providers/**",
+                                "/api/v1/health",
                                 "/v1/health",
                                 "/v1/providers",
                                 "/swagger-ui/**",
@@ -53,7 +54,7 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/api/playground/**")
                         .permitAll()
-                        // 统一API网关端点 (/v1/**) - 需要API密钥认证
+                        // 统一网关端点 (/v1/**) - 需要API密钥认证
                         // 由 WebConfig 中的 ApiKeyAuthInterceptor 进行 API 密钥校验
                         .requestMatchers("/v1/**").permitAll()
                         // Agent 管理端点

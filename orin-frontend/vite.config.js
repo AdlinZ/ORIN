@@ -10,9 +10,22 @@ const buildDate = new Date().toISOString().split('T')[0]
 
 const toPackageChunk = (id) => {
   if (!id.includes('node_modules')) return null
-  if (id.includes('/node_modules/echarts/')) return 'echarts'
-  if (id.includes('/node_modules/@arco-design/')) return 'arco-design'
-  if (id.includes('/node_modules/element-plus/') || id.includes('/node_modules/@element-plus/')) return 'element-plus'
+  if (id.includes('/node_modules/echarts/')) {
+    if (id.includes('/node_modules/echarts/charts')) return 'echarts-charts'
+    if (id.includes('/node_modules/echarts/components')) return 'echarts-components'
+    if (id.includes('/node_modules/echarts/renderers')) return 'echarts-renderers'
+    return 'echarts-core'
+  }
+  if (id.includes('/node_modules/@arco-design/')) {
+    if (id.includes('/node_modules/@arco-design/web-vue/es/')) return 'arco-design-components'
+    if (id.includes('/node_modules/@arco-design/web-vue/dist/')) return 'arco-design-style'
+    return 'arco-design-core'
+  }
+  if (id.includes('/node_modules/@element-plus/icons-vue/')) return 'element-plus-icons'
+  if (id.includes('/node_modules/element-plus/') || id.includes('/node_modules/@element-plus/')) {
+    if (id.includes('/node_modules/element-plus/theme-chalk/')) return 'element-plus-style'
+    return 'element-plus'
+  }
   if (id.includes('/node_modules/@vue-flow/')) return 'vue-flow'
   if (
     id.includes('/node_modules/vue/') ||

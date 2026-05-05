@@ -78,7 +78,7 @@ const isNotificationChannelsRoute = computed(() => String($route.path || '') ===
   margin: 0 auto;
 }
 
-/* 全宽页面（运营总览、邮件客户端、工作流编辑器）不受比例限制 */
+/* 全宽页面（监控总览、邮件客户端、工作流编辑器）不受比例限制 */
 .content-inner:has(.command-center-root),
 .content-inner:has(.gmail-layout),
 .content-inner:has(.visual-workflow-editor),

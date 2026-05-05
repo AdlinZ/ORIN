@@ -7,6 +7,8 @@
 - 统一 API 入口：`http://localhost:8080/v1`
 - 统一 API 文档导航：`http://localhost:8080/v1/docs`
 - 统一能力清单：`http://localhost:8080/v1/capabilities`
+- 后端健康检查：`http://localhost:8080/v1/health`、`http://localhost:8080/api/v1/health`
+- AI 引擎健康检查：`http://localhost:8000/health`、`http://localhost:8000/v1/health`
 - Swagger UI：`http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON：`http://localhost:8080/v3/api-docs`
 - 后端控制器根目录：`orin-backend/src/main/java/com/adlin/orin/modules`
@@ -14,9 +16,10 @@
 ## 基础约定
 
 - Base URL：`http://localhost:8080`
-- 认证方式：JWT Bearer Token
+- 认证方式：内部管理接口通常使用 JWT Bearer Token；统一网关 `/v1/*` 的模型、聊天、Embedding 等接口使用 API Key
 - 内容类型：大多数接口使用 `application/json`
 - 文件上传：通常使用 `multipart/form-data`
+- `/v1/models` 缺少 API Key 时应返回 `401` 与 `AUTH_API_KEY_INVALID`，这是预期鉴权语义，不是服务不可用
 
 ## 当前主要接口分组
 
@@ -26,7 +29,7 @@
 | --- | --- | --- |
 | 认证 | `/api/v1/auth/*` | 登录、刷新、校验 |
 | 智能体 | `/api/v1/agents/*`, `/api/v1/agents/chat/*`, `/api/v1/admin/agents/*` | 智能体接入、管理、会话与少量管理端接口 |
-| API 网关 | `/v1/*` | OpenAI 兼容网关 |
+| 统一网关 | `/v1/*` | OpenAI 兼容网关 |
 | 知识库 | `/api/v1/knowledge/*`, `/api/v1/knowledge/sync/*` | 知识库、文档、检索、同步 |
 | 工作流 | `/api/workflows/*`, `/api/v1/workflow/*` | 工作流管理与代理执行 |
 | 协作 | `/api/v1/collaboration/*` | 协作任务、包、事件、检查点、回退 |
@@ -64,13 +67,16 @@
 - `GET /v1`（统一入口索引）
 - `GET /v1/docs`（统一文档导航）
 - `GET /v1/capabilities`（统一能力清单）
+- `GET /v1/health`（网关健康检查，无需 API Key）
 - `POST /v1/chat/completions`
 - `POST /v1/embeddings`
+- `GET /v1/models`（需要 API Key）
 
 说明：
 
 - 这部分由网关控制器统一适配不同 provider。
 - 第三方接入优先看这里，而不是直接调用内部业务接口。
+- 前端在线调试会明确提示哪些端点需要 API Key；未配置 key 时先验证 `/v1/health`、`/v1/providers`、`/v1/capabilities`。
 
 ### 4. 知识库
 

@@ -80,13 +80,14 @@ class WorkflowEngineTest {
         expectedOutputs.put("result", "ok");
         when(graphExecutor.executeGraph(any(), any(), any(), anyLong())).thenReturn(expectedOutputs);
 
-        workflowEngine.executeInstance(instanceId);
+        WorkflowInstanceEntity result = workflowEngine.executeInstance(instanceId);
 
         verify(graphExecutor).executeGraph(eq(graph), any(), eq(instanceId), eq(42L));
-        verify(instanceRepository, times(1)).save(any(WorkflowInstanceEntity.class));
+        verify(instanceRepository, times(2)).save(any(WorkflowInstanceEntity.class));
 
         assertEquals(WorkflowInstanceEntity.InstanceStatus.SUCCESS, instance.getStatus());
         assertEquals(expectedOutputs, instance.getOutputData());
+        assertEquals(instance, result);
     }
 
     @Test

@@ -974,17 +974,26 @@ public class CollaborationExecutor {
             // 异步触发工作流
             CompletableFuture.runAsync(() -> {
                 try {
-                    Long instanceId = workflowService.triggerWorkflow(workflowId, inputs, "collab:" + packageId);
+                    var submission = workflowService.triggerWorkflowWithPriority(
+                            workflowId, inputs,
+                            com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority.NORMAL,
+                            "collab:" + packageId);
+                    Long instanceId = submission.getWorkflowInstanceId();
 
                     long durationMs = System.currentTimeMillis() - startTime;
-                    String result = "Workflow triggered: instanceId=" + instanceId;
+                    String result = "Workflow triggered: taskId=" + submission.getTaskId()
+                            + ", workflowInstanceId=" + instanceId;
 
                     log.info("Workflow subtask {} triggered workflow {} with instance {}",
                             subTaskId, workflowId, instanceId);
 
                     metricsService.recordSubtask(packageId, subTaskId, expectedRole, durationMs, "COMPLETED");
                     eventBus.publishSubtaskCompleted(packageId, subTaskId, null,
-                            Map.of("result", result, "workflowId", workflowId, "instanceId", instanceId), traceId);
+                            Map.of("result", result,
+                                    "workflowId", workflowId,
+                                    "taskId", submission.getTaskId(),
+                                    "instanceId", instanceId,
+                                    "workflowInstanceId", instanceId), traceId);
 
                     future.complete(result);
 

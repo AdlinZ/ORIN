@@ -40,6 +40,7 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
         if (path.equals("/v1")
                 || path.equals("/v1/health")
+                || path.equals("/api/v1/health")
                 || path.equals("/v1/providers")
                 || path.equals("/v1/docs")
                 || path.equals("/v1/capabilities")) {

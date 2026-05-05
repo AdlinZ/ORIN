@@ -1,8 +1,8 @@
 <template>
   <div class="mail-workbench gmail-layout">
     <OrinEntityHeader
-      domain="系统配置"
-      title="通知渠道"
+      domain="系统设置"
+      title="通知设置"
       description="统一管理邮箱服务、收件箱、发送模板与通知投递记录"
       :summary="mailHeaderSummary"
     >

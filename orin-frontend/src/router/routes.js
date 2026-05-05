@@ -3,10 +3,11 @@
  * 集中管理所有路由路径，避免硬编码
  *
  * 菜单结构：
- * 1. 智能体 - 智能体管理、会话工作台、工作流编排与执行
- * 2. 知识中心 - 知识库、知识图谱、同步管理
- * 3. 监控运维 - 监控总览、链路与分析、告警与事件、运维操作
- * 4. 系统管理 - 组织与权限、平台配置、模型与资源、安全与运维、支持与维护
+ * 1. 智能体管理 - 智能体列表、智能体工作台、扩展管理
+ * 2. 工作流管理 - 工作流设计、执行记录、多智能体编排
+ * 3. 知识库管理 - 知识库、知识资产、同步管理
+ * 4. 运行监控 - 监控总览、链路与分析、告警与事件、运维操作
+ * 5. 系统设置 - 组织权限、平台设置、模型管理、统一网关、支持维护
  */
 
 const agentRoutes = {
@@ -95,6 +96,7 @@ const systemRoutes = {
     SETTINGS_MODEL_DEFAULTS: '/dashboard/control/system-env',
     SETTINGS_MONITOR: '/dashboard/control/system-env',
     SETTINGS_GATEWAY: '/dashboard/control/gateway',
+    UNIFIED_GATEWAY: '/dashboard/control/unified-gateway',
     SETTINGS_SYNC: '/dashboard/control/client-sync',
     SYNC: '/dashboard/control/sync',
     SETTINGS_MCP_SERVICE: '/dashboard/control/mcp-service',
@@ -103,6 +105,7 @@ const systemRoutes = {
     PRICING: '/dashboard/control/pricing',
     MONITOR_SETTINGS: '/dashboard/control/system-env',
     GATEWAY: '/dashboard/control/gateway',
+    UNIFIED_GATEWAY: '/dashboard/control/unified-gateway',
     UNIFIED_API_DOCS: '/dashboard/control/unified-api-docs',
     MCP_SERVICE: '/dashboard/control/mcp-service',
     HELP_CENTER: '/unified-docs',
@@ -187,6 +190,7 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/applications/workflows': ROUTES.AGENTS.WORKFLOWS,
 
     // 知识中心模块（旧路径）
+    '/dashboard/knowledge/center': ROUTES.KNOWLEDGE.CENTER,
     '/dashboard/knowledge/list': ROUTES.KNOWLEDGE.ASSETS,
     '/dashboard/knowledge/create': ROUTES.KNOWLEDGE.CREATE,
     '/dashboard/knowledge/detail/:id': ROUTES.KNOWLEDGE.DETAIL,
@@ -236,6 +240,7 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/control/departments': ROUTES.SYSTEM.DEPARTMENTS,
     '/dashboard/control/roles': ROUTES.SYSTEM.ROLES,
     '/dashboard/control/gateway': ROUTES.SYSTEM.GATEWAY,
+    '/dashboard/control/unified-gateway': ROUTES.SYSTEM.GATEWAY,
     '/dashboard/control/external-frameworks': ROUTES.SYSTEM.SETTINGS_BASE,
     '/dashboard/control/mcp-service': ROUTES.SYSTEM.MCP_SERVICE,
     '/dashboard/control/help-center': ROUTES.SYSTEM.HELP_CENTER,
@@ -292,10 +297,10 @@ export const LEGACY_ROUTE_REDIRECTS = buildLegacyRedirects(LEGACY_ROUTE_REDIRECT
 // ==================== 侧边栏菜单配置 ====================
 // 支持二级和三级菜单
 export const SIDEBAR_MENU_CONFIG = [
-    // ==================== 1. 智能体 ====================
+    // ==================== 1. 智能体管理 ====================
     {
         id: 'agents',
-        title: '智能体',
+        title: '智能体管理',
         icon: 'Robot',
         color: '#155eef',
         path: ROUTES.AGENTS.ROOT,
@@ -324,10 +329,10 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE },
                 ]
             },
-            // 能力扩展（三级）
+            // 扩展管理（三级）
             {
                 id: 'capability',
-                title: '能力扩展',
+                title: '扩展管理',
                 icon: 'MagicStick',
                 path: '/dashboard/agents/capability',
                 children: [
@@ -335,10 +340,10 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: 'MCP 服务', path: ROUTES.AGENTS.MCP },
                 ]
             },
-            // 工作流编排
+            // 工作流设计
             {
                 id: 'workflow',
-                title: '工作流编排',
+                title: '工作流设计',
                 icon: 'Connection',
                 path: ROUTES.AGENTS.WORKFLOWS,
             },
@@ -358,10 +363,10 @@ export const SIDEBAR_MENU_CONFIG = [
         ],
     },
 
-    // ==================== 2. 知识中心 ====================
+    // ==================== 2. 知识库管理 ====================
     {
         id: 'knowledge',
-        title: '知识中心',
+        title: '知识库管理',
         icon: 'Reading',
         color: '#8b5cf6',
         path: ROUTES.KNOWLEDGE.ROOT,
@@ -369,7 +374,7 @@ export const SIDEBAR_MENU_CONFIG = [
         children: [
             {
                 id: 'knowledge-center',
-                title: '知识中心',
+                title: '知识库',
                 icon: 'Reading',
                 path: ROUTES.KNOWLEDGE.CENTER,
             },
@@ -382,10 +387,10 @@ export const SIDEBAR_MENU_CONFIG = [
         ],
     },
 
-    // ==================== 3. 监控运维 ====================
+    // ==================== 3. 运行监控 ====================
     {
         id: 'monitor',
-        title: '监控运维',
+        title: '运行监控',
         icon: 'Monitor',
         color: '#f59e0b',
         path: ROUTES.MONITOR.ROOT,
@@ -433,20 +438,20 @@ export const SIDEBAR_MENU_CONFIG = [
         ],
     },
 
-    // ==================== 4. 系统管理 ====================
+    // ==================== 4. 系统设置 ====================
     {
         id: 'system',
-        title: '系统管理',
+        title: '系统设置',
         icon: 'Setting',
         color: '#64748b',
         path: ROUTES.SYSTEM.ROOT,
         redirect: ROUTES.SYSTEM.USERS,
         requiresAdmin: true,
         children: [
-            // 组织与权限（三级）
+            // 组织权限（三级）
             {
                 id: 'organization',
-                title: '组织与权限',
+                title: '组织权限',
                 icon: 'User',
                 path: '/dashboard/system/organization',
                 children: [
@@ -455,36 +460,36 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '角色管理', path: ROUTES.SYSTEM.ROLES },
                 ]
             },
-            // 平台配置（三级）
+            // 平台设置（三级）
             {
                 id: 'platform',
-                title: '平台配置',
+                title: '平台设置',
                 icon: 'Tools',
                 path: '/dashboard/system/platform',
                 children: [
-                    { title: '基础设置', path: ROUTES.SYSTEM.SETTINGS_BASE },
-                    { title: '通知中心', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
+                    { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE },
+                    { title: '通知设置', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
                     { title: '同步配置', path: ROUTES.SYSTEM.SETTINGS_SYNC },
                     { title: '数据同步', path: ROUTES.SYSTEM.SYNC },
                     { title: 'MCP 服务', path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE },
                 ]
             },
-            // 模型与资源（三级）
+            // 模型与文件（三级）
             {
                 id: 'resources',
-                title: '模型与资源',
+                title: '模型与文件',
                 icon: 'Cpu',
                 path: '/dashboard/system/resources',
                 children: [
-                    { title: '模型配置', path: ROUTES.SYSTEM.MODELS },
+                    { title: '模型管理', path: ROUTES.SYSTEM.MODELS },
                     { title: '定价配置', path: ROUTES.SYSTEM.PRICING },
                     { title: '文件管理', path: ROUTES.SYSTEM.FILES },
                 ]
             },
-            // 安全与运维（三级）
+            // 网关与审计（三级）
             {
                 id: 'security-ops',
-                title: '安全与运维',
+                title: '网关与审计',
                 icon: 'Shield',
                 path: '/dashboard/system/security-ops',
                 children: [
@@ -493,10 +498,10 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: '审计日志', path: ROUTES.SYSTEM.AUDIT_LOGS },
                 ]
             },
-            // 支持与维护（三级）
+            // 支持维护（三级）
             {
                 id: 'support',
-                title: '支持与维护',
+                title: '支持维护',
                 icon: 'QuestionFilled',
                 path: '/dashboard/system/support',
                 children: [

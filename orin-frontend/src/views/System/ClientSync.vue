@@ -1,7 +1,7 @@
 <template>
   <div class="sync-container">
     <OrinEntityHeader
-      domain="系统配置"
+      domain="系统设置"
       title="数据同步"
       description="管理知识库端侧同步、Webhook 回调与 Dify 上游同步"
       :summary="syncHeaderSummary"

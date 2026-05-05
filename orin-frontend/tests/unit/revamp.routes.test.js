@@ -15,10 +15,10 @@ describe('route cleanup contracts', () => {
 
   it('redirects collapsed duplicate paths to canonical routes', () => {
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/tasks']).toBe(
-      ROUTES.AGENTS.WORKFLOW_EXECUTION
+      ROUTES.AGENTS.COLLABORATION
     )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/config']).toBe(
-      ROUTES.AGENTS.WORKFLOW_EXECUTION
+      ROUTES.AGENTS.COLLABORATION
     )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/tools']).toBe(
       '/dashboard/applications/mcp'

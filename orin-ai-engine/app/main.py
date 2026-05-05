@@ -4,6 +4,7 @@ from app.api.collaboration import router as collaboration_router
 from app.api.collaboration import ensure_worker_started, ensure_worker_stopped
 from app.api.playground_runtime import router as playground_runtime_router
 from app.core.config import settings
+from app.engine.mq_worker import get_mq_dependency_status
 
 app = FastAPI(title="ORIN AI Engine", version="0.1.0")
 
@@ -22,6 +23,19 @@ async def startup_event():
 async def shutdown_event():
     await ensure_worker_stopped()
 
+def build_health_response():
+    rabbitmq = get_mq_dependency_status()
+    status = "ok" if rabbitmq["status"] in ("up", "disabled", "not_started", "stopped") else "degraded"
+    return {
+        "status": status,
+        "service": "orin-ai-engine",
+        "dependencies": {
+            "rabbitmq": rabbitmq,
+        },
+    }
+
+
 @app.get("/health")
+@app.get("/v1/health")
 async def health_check():
-    return {"status": "ok"}
+    return build_health_response()

@@ -1,7 +1,7 @@
 package com.adlin.orin.modules.gateway.scheduler;
 
-import com.adlin.orin.modules.gateway.entity.GatewayServiceInstance;
-import com.adlin.orin.modules.gateway.repository.GatewayServiceInstanceRepository;
+import com.adlin.orin.modules.gateway.entity.UnifiedGatewayServiceInstance;
+import com.adlin.orin.modules.gateway.repository.UnifiedGatewayServiceInstanceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -18,7 +18,7 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class ServiceHealthChecker {
 
-    private final GatewayServiceInstanceRepository instanceRepository;
+    private final UnifiedGatewayServiceInstanceRepository instanceRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final RestTemplate restTemplate;
 
@@ -27,9 +27,9 @@ public class ServiceHealthChecker {
 
     @Scheduled(fixedDelay = 30000)
     public void checkHealth() {
-        List<GatewayServiceInstance> instances = instanceRepository.findAll();
+        List<UnifiedGatewayServiceInstance> instances = instanceRepository.findAll();
 
-        for (GatewayServiceInstance instance : instances) {
+        for (UnifiedGatewayServiceInstance instance : instances) {
             if (!instance.getEnabled()) {
                 continue;
             }
@@ -49,7 +49,7 @@ public class ServiceHealthChecker {
         }
     }
 
-    private void performHealthCheck(GatewayServiceInstance instance) {
+    private void performHealthCheck(UnifiedGatewayServiceInstance instance) {
         String url = buildHealthCheckUrl(instance);
         long start = System.currentTimeMillis();
 
@@ -84,7 +84,7 @@ public class ServiceHealthChecker {
         }
     }
 
-    private String buildHealthCheckUrl(GatewayServiceInstance instance) {
+    private String buildHealthCheckUrl(UnifiedGatewayServiceInstance instance) {
         String host = instance.getHost() == null ? "" : instance.getHost().trim();
         if (!host.startsWith("http://") && !host.startsWith("https://")) {
             host = "http://" + host;

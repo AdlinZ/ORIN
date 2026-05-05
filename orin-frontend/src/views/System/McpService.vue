@@ -39,26 +39,6 @@
               <strong>{{ availableTools.length }}</strong>
             </div>
           </div>
-          <div class="embedded-mode-switch" role="tablist" aria-label="MCP 视图">
-            <button
-              type="button"
-              :class="{ active: activeTab === 'list' }"
-              role="tab"
-              :aria-selected="activeTab === 'list'"
-              @click="activeTab = 'list'"
-            >
-              服务列表
-            </button>
-            <button
-              type="button"
-              :class="{ active: activeTab === 'market' }"
-              role="tab"
-              :aria-selected="activeTab === 'market'"
-              @click="activeTab = 'market'"
-            >
-              工具市场
-            </button>
-          </div>
         </div>
       </div>
 
@@ -69,10 +49,32 @@
           <template #header>
             <div class="card-header">
               <span>MCP 服务</span>
-              <el-button v-if="!embedded" type="primary" @click="openAddDialog">
-                <el-icon><Plus /></el-icon>
-                添加服务
-              </el-button>
+              <div class="card-header-actions">
+                <div v-if="embedded" class="embedded-mode-switch" role="tablist" aria-label="MCP 视图">
+                  <button
+                    type="button"
+                    :class="{ active: activeTab === 'list' }"
+                    role="tab"
+                    :aria-selected="activeTab === 'list'"
+                    @click="activeTab = 'list'"
+                  >
+                    服务列表
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: activeTab === 'market' }"
+                    role="tab"
+                    :aria-selected="activeTab === 'market'"
+                    @click="activeTab = 'market'"
+                  >
+                    工具市场
+                  </button>
+                </div>
+                <el-button v-if="!embedded" type="primary" @click="openAddDialog">
+                  <el-icon><Plus /></el-icon>
+                  添加服务
+                </el-button>
+              </div>
             </div>
           </template>
 
@@ -251,10 +253,32 @@
           <template #header>
             <div class="card-header">
               <span>MCP 工具市场</span>
-              <el-button :loading="toolsLoading" @click="refreshTools">
-                <el-icon><Refresh /></el-icon>
-                刷新
-              </el-button>
+              <div class="card-header-actions">
+                <div v-if="embedded" class="embedded-mode-switch" role="tablist" aria-label="MCP 视图">
+                  <button
+                    type="button"
+                    :class="{ active: activeTab === 'list' }"
+                    role="tab"
+                    :aria-selected="activeTab === 'list'"
+                    @click="activeTab = 'list'"
+                  >
+                    服务列表
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: activeTab === 'market' }"
+                    role="tab"
+                    :aria-selected="activeTab === 'market'"
+                    @click="activeTab = 'market'"
+                  >
+                    工具市场
+                  </button>
+                </div>
+                <el-button :loading="toolsLoading" @click="refreshTools">
+                  <el-icon><Refresh /></el-icon>
+                  刷新
+                </el-button>
+              </div>
             </div>
           </template>
 
@@ -757,7 +781,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   gap: 14px;
-  align-items: flex-end;
+  align-items: stretch;
 }
 
 .embedded-title {
@@ -777,7 +801,7 @@ onMounted(() => {
 
 .embedded-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   flex: 1;
   min-width: 0;
@@ -809,15 +833,15 @@ onMounted(() => {
   display: inline-flex;
   flex: 0 0 auto;
   gap: 4px;
-  padding: 4px;
+  padding: 3px;
   border: 1px solid rgba(37, 99, 235, 0.14);
   border-radius: 8px;
   background: rgba(248, 250, 252, 0.8);
 }
 
 .embedded-mode-switch button {
-  height: 32px;
-  padding: 0 12px;
+  height: 30px;
+  padding: 0 11px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -826,7 +850,7 @@ onMounted(() => {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  line-height: 32px;
+  line-height: 30px;
   transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -841,6 +865,14 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .toolbar {
@@ -1056,13 +1088,19 @@ html.dark .embedded-mode-switch button.active {
   .embedded-toolbar-main,
   .embedded-toolbar-bottom,
   .card-header,
+  .card-header-actions,
   .toolbar,
   .service-card-head {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .search-input {
     width: 100%;
+  }
+
+  .embedded-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .embedded-mode-switch {

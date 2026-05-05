@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     COLLAB_QUEUE_TTL: int = 300000
     COLLAB_REPLY_EXCHANGE_NAME: str = "collaboration-reply-exchange"
     COLLAB_REPLY_ROUTING_KEY: str = "collaboration.task.result"
-    MQ_WORKER_AUTO_START: bool = True
+    MQ_WORKER_AUTO_START: bool = False
+    MQ_WORKER_DISABLED: bool = False
+    MQ_CONNECTION_TIMEOUT_SECONDS: float = 5.0
+    MQ_WORKER_LOG_THROTTLE_SECONDS: float = 60.0
 
     # Playground runtime tuning
     PLAYGROUND_SUBTASK_POLL_TIMEOUT_SECONDS: float = 420.0

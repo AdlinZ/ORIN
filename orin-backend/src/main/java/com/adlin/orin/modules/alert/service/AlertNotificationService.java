@@ -26,7 +26,7 @@ import java.util.Set;
 public class AlertNotificationService {
 
     private final AlertNotificationConfigRepository configRepository;
-    private final AlertChannelGateway alertChannelGateway;
+    private final AlertChannelGateway alertChannelUnifiedGateway;
     private final SystemNotificationService systemNotificationService;
 
     /**
@@ -64,7 +64,7 @@ public class AlertNotificationService {
         AlertNotificationConfig config = getConfig();
         String title = "[ORIN 告警系统] 测试通知";
         String content = "这是一条测试通知，如果您收到此消息，说明告警通道配置正常。";
-        return alertChannelGateway.send(channel, config, title, content, null);
+        return alertChannelUnifiedGateway.send(channel, config, title, content, null);
     }
 
     /**
@@ -125,7 +125,7 @@ public class AlertNotificationService {
         }
         Set<String> channels = new LinkedHashSet<>();
         Arrays.stream(rule.getNotificationChannels().split(","))
-                .map(alertChannelGateway::normalizeChannel)
+                .map(alertChannelUnifiedGateway::normalizeChannel)
                 .filter(channel -> !channel.isBlank())
                 .forEach(channels::add);
         return channels;
@@ -147,7 +147,7 @@ public class AlertNotificationService {
 
     private boolean sendExternalChannel(String channel, AlertNotificationConfig config, String title,
                                         String content, String receiverOverride) {
-        String normalized = alertChannelGateway.normalizeChannel(channel);
+        String normalized = alertChannelUnifiedGateway.normalizeChannel(channel);
         if ("email".equals(normalized) && (!Boolean.TRUE.equals(config.getNotifyEmail())
                 || !Boolean.TRUE.equals(config.getEmailEnabled()))) {
             return false;
@@ -158,7 +158,7 @@ public class AlertNotificationService {
         if ("wecom".equals(normalized) && !Boolean.TRUE.equals(config.getWecomEnabled())) {
             return false;
         }
-        return alertChannelGateway.send(normalized, config, title, content, receiverOverride);
+        return alertChannelUnifiedGateway.send(normalized, config, title, content, receiverOverride);
     }
 
     private void sendInAppIfEnabled(AlertNotificationConfig config, String severity, String title, String content) {

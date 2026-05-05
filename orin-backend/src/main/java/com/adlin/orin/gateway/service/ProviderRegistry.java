@@ -105,6 +105,20 @@ public class ProviderRegistry {
     }
 
     /**
+     * 获取指定类型且健康的Provider
+     *
+     * @param providerType Provider类型
+     * @return 健康Provider列表
+     */
+    public List<ProviderAdapter> getHealthyProvidersByType(String providerType) {
+        return providers.entrySet().stream()
+                .filter(entry -> Boolean.TRUE.equals(healthStatus.get(entry.getKey())))
+                .map(Map.Entry::getValue)
+                .filter(provider -> provider.getProviderType().equals(providerType))
+                .toList();
+    }
+
+    /**
      * 检查Provider健康状态
      * 
      * @param providerId Provider标识

@@ -1,10 +1,10 @@
 <template>
   <div class="page-container">
     <OrinPageShell
-      title="模型系统配置"
+      title="模型环境配置"
       description="维护模型调度中枢、认证策略、本地模型与训练工作空间"
       icon="Connection"
-      domain="系统配置"
+      domain="系统设置"
     />
 
     <OrinStatusSummary :items="systemStatusItems" class="system-status" />
@@ -213,7 +213,7 @@
                 <li>修改基础 URL 后建议务必通过"测试连接性"验证服务是否可达。</li>
                 <li>环境路径应为绝对路径，且系统账号需具备相应的读写权限。</li>
                 <li>超时时间设置过短可能导致大规模模型推理任务意外中断。</li>
-                <li>本区域仅保留调度中枢自身参数，模型能力与外部服务连接请在系统环境配置页维护。</li>
+                <li>本区域仅保留调度中枢自身参数，模型能力与外部服务连接请在环境配置页维护。</li>
               </ul>
             </div>
           </el-card>

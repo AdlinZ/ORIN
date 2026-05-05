@@ -4,6 +4,7 @@ import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.service.TaskService;
 import com.adlin.orin.modules.workflow.dto.WorkflowRequest;
+import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
 import com.adlin.orin.modules.workflow.dto.WorkflowResponse;
 import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
 import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
@@ -188,27 +189,16 @@ public class WorkflowService {
     }
 
     public Long triggerWorkflow(Long workflowId, Map<String, Object> inputs, String triggeredBy) {
-        return triggerWorkflowWithPriority(workflowId, inputs, TaskPriority.NORMAL, triggeredBy);
+        return triggerWorkflowWithPriority(workflowId, inputs, TaskPriority.NORMAL, triggeredBy).getWorkflowInstanceId();
     }
 
     /**
      * 带优先级的工作流触发
      */
-    public Long triggerWorkflowWithPriority(Long workflowId, Map<String, Object> inputs,
-                                            TaskPriority priority, String triggeredBy) {
+    public WorkflowExecutionSubmissionResponse triggerWorkflowWithPriority(Long workflowId, Map<String, Object> inputs,
+                                                                           TaskPriority priority, String triggeredBy) {
         log.info("Triggering workflow: {}, priority: {}", workflowId, priority);
-
-        // 验证工作流
-        if (!workflowEngine.validateWorkflow(workflowId)) {
-            throw new IllegalStateException("Workflow validation failed: " + workflowId);
-        }
-
-        // 创建任务并加入队列
-        TaskEntity task = taskService.createAndEnqueueTask(workflowId, inputs, priority, triggeredBy, "API");
-
-        log.info("Workflow task enqueued: taskId={}, workflowId={}", task.getTaskId(), workflowId);
-
-        return task.getWorkflowInstanceId() != null ? task.getWorkflowInstanceId() : Long.parseLong(task.getTaskId().replace("task-", ""));
+        return submitWorkflowExecution(workflowId, inputs, priority, triggeredBy, "API");
     }
 
     /**
@@ -218,22 +208,51 @@ public class WorkflowService {
                                                      TaskPriority priority, String triggeredBy) {
         log.info("Triggering workflow async: {}, priority: {}", workflowId, priority);
 
-        // 验证工作流存在
-        if (!workflowRepository.existsById(workflowId)) {
-            throw new IllegalArgumentException("Workflow not found: " + workflowId);
-        }
-
-        // 创建任务并入队
-        TaskEntity task = taskService.createAndEnqueueTask(workflowId, inputs, priority, triggeredBy, "API");
+        WorkflowExecutionSubmissionResponse submission =
+                submitWorkflowExecution(workflowId, inputs, priority, triggeredBy, "API_GATEWAY");
 
         Map<String, Object> result = new HashMap<>();
-        result.put("taskId", task.getTaskId());
-        result.put("workflowId", task.getWorkflowId());
-        result.put("priority", task.getPriority());
-        result.put("status", task.getStatus());
-        result.put("message", "Task enqueued successfully");
+        result.put("taskId", submission.getTaskId());
+        result.put("workflowId", submission.getWorkflowId());
+        result.put("workflowInstanceId", submission.getWorkflowInstanceId());
+        result.put("traceId", submission.getTraceId());
+        result.put("status", submission.getStatus());
+        result.put("statusUrl", submission.getStatusUrl());
+        result.put("instanceUrl", submission.getInstanceUrl());
+        result.put("message", submission.getMessage());
 
         return result;
+    }
+
+    @Transactional
+    public WorkflowExecutionSubmissionResponse submitWorkflowExecution(Long workflowId, Map<String, Object> inputs,
+                                                                       TaskPriority priority, String triggeredBy,
+                                                                       String triggerSource) {
+        WorkflowEntity workflow = workflowRepository.findById(workflowId)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowId));
+        if (workflow.getStatus() == WorkflowEntity.WorkflowStatus.ARCHIVED) {
+            throw new IllegalStateException("Workflow is archived and cannot be executed: " + workflowId);
+        }
+        if (!workflowEngine.validateWorkflow(workflowId)) {
+            throw new IllegalStateException("Workflow validation failed: " + workflowId);
+        }
+
+        WorkflowInstanceEntity instance = workflowEngine.createInstance(
+                workflowId,
+                inputs != null ? inputs : new HashMap<>(),
+                triggeredBy);
+        TaskEntity task = taskService.createAndEnqueueTask(
+                workflowId,
+                instance.getId(),
+                inputs != null ? inputs : new HashMap<>(),
+                priority,
+                triggeredBy,
+                triggerSource);
+
+        log.info("Workflow task enqueued: taskId={}, workflowId={}, instanceId={}",
+                task.getTaskId(), workflowId, instance.getId());
+
+        return WorkflowExecutionSubmissionResponse.from(task, instance);
     }
 
     public List<WorkflowResponse> getAllWorkflows() {

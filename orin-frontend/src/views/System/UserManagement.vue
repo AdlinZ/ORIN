@@ -1,7 +1,7 @@
 <template>
   <div class="user-management fade-in">
     <OrinEntityHeader
-      domain="组织治理"
+      domain="组织权限"
       title="用户管理"
       description="管理企业成员、权限角色、账号状态与组织范围"
       :summary="userHeaderSummary"

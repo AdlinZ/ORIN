@@ -252,11 +252,35 @@ public class PlaygroundService {
             throw new WorkflowExecutionException("Playground runtime execution failed: " + normalizedError, e);
         }
 
+        String runtimeStatus = text(result.get("status"), "success");
+        if ("error".equalsIgnoreCase(runtimeStatus)) {
+            String runtimeError = text(result.get("error"), text(result.get("error_message"), "Playground runtime returned error status."));
+            run.setStatus("FAILED");
+            run.setDurationMs(System.currentTimeMillis() - started);
+            run.setAssistantMessage("");
+            run.setTraceJson(toJson(result.get("trace")));
+            run.setGraphJson(toJson(result.get("graph")));
+            run.setArtifactsJson(toJson(Map.of(
+                    "execution_path", "langgraph_mq",
+                    "runtime_status", runtimeStatus,
+                    "error_message", runtimeError
+            )));
+            runRepository.save(run);
+            throw new WorkflowExecutionException("Playground runtime execution failed: " + runtimeError);
+        }
+
         String assistantMessage = text(result.get("assistant_message"), "No response generated.");
         Map<String, Object> artifacts = objectMap(result.get("artifacts"));
+        if ("partial".equalsIgnoreCase(runtimeStatus)) {
+            artifacts.put("runtime_status", runtimeStatus);
+            Object runtimeError = result.get("error") != null ? result.get("error") : result.get("error_message");
+            if (runtimeError != null) {
+                artifacts.put("error_message", runtimeError);
+            }
+        }
         saveMessage(conversationId, "assistant", assistantMessage, text(artifacts.get("route_agent_name"), "Assistant"));
 
-        run.setStatus("COMPLETED");
+        run.setStatus("partial".equalsIgnoreCase(runtimeStatus) ? "PARTIAL" : "COMPLETED");
         run.setAssistantMessage(assistantMessage);
         run.setDurationMs(System.currentTimeMillis() - started);
         run.setTraceJson(toJson(result.get("trace")));

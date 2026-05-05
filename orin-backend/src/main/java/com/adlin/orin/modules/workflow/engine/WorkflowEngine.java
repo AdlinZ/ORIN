@@ -64,11 +64,12 @@ public class WorkflowEngine {
     /**
      * 执行工作流实例核心逻辑
      */
-    public void executeInstance(Long instanceId) {
+    public WorkflowInstanceEntity executeInstance(Long instanceId) {
         WorkflowInstanceEntity instance = instanceRepository.findById(instanceId)
                 .orElseThrow(() -> new IllegalArgumentException("Instance not found: " + instanceId));
 
         Long workflowId = instance.getWorkflowId();
+        markInstanceRunning(instance);
 
         try {
             // 获取工作流定义
@@ -78,21 +79,7 @@ public class WorkflowEngine {
 
             Map<String, Object> workflowDefinition = workflow.getWorkflowDefinition();
 
-            // 检查 Dify DSL 结构 (workflow.graph)
-            Map<String, Object> graphDefinition = null;
-            if (workflowDefinition != null) {
-                if (workflowDefinition.containsKey("workflow")) {
-                    Map<String, Object> workflowObj = (Map<String, Object>) workflowDefinition.get("workflow");
-                    if (workflowObj != null && workflowObj.containsKey("graph")) {
-                        graphDefinition = (Map<String, Object>) workflowObj.get("graph");
-                    }
-                } else if (workflowDefinition.containsKey("graph")) {
-                    graphDefinition = (Map<String, Object>) workflowDefinition.get("graph");
-                } else if (workflowDefinition.containsKey("nodes")) {
-                    // 兼容旧的扁平结构
-                    graphDefinition = workflowDefinition;
-                }
-            }
+            Map<String, Object> graphDefinition = extractGraphDefinition(workflowDefinition);
 
             // 检查是否为图结构工作流
             boolean isGraphBased = graphDefinition != null &&
@@ -126,12 +113,31 @@ public class WorkflowEngine {
             // 更新实例状态为成功
             completeInstance(instance, outputs, null);
             log.info("Workflow execution completed successfully: instanceId={}", instance.getId());
+            return instance;
 
         } catch (Exception e) {
             log.error("Workflow execution failed: instanceId={}, error={}", instanceId, e.getMessage(), e);
             completeInstance(instance, null, e);
-            // Don't rethrow in async method, just log
+            return instance;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> extractGraphDefinition(Map<String, Object> workflowDefinition) {
+        if (workflowDefinition == null) {
+            return null;
+        }
+        if (workflowDefinition.containsKey("workflow")) {
+            Object workflowObj = workflowDefinition.get("workflow");
+            if (workflowObj instanceof Map<?, ?> workflowMap && workflowMap.containsKey("graph")) {
+                return (Map<String, Object>) workflowMap.get("graph");
+            }
+        } else if (workflowDefinition.containsKey("graph")) {
+            return (Map<String, Object>) workflowDefinition.get("graph");
+        } else if (workflowDefinition.containsKey("nodes")) {
+            return workflowDefinition;
+        }
+        return null;
     }
 
     /**
@@ -389,6 +395,17 @@ public class WorkflowEngine {
         instanceRepository.save(instance);
     }
 
+    private void markInstanceRunning(WorkflowInstanceEntity instance) {
+        instance.setStatus(WorkflowInstanceEntity.InstanceStatus.RUNNING);
+        instance.setStartedAt(LocalDateTime.now());
+        instance.setCompletedAt(null);
+        instance.setDurationMs(null);
+        instance.setErrorMessage(null);
+        instance.setErrorStack(null);
+        instance.setOutputData(null);
+        instanceRepository.save(instance);
+    }
+
     /**
      * 获取异常堆栈信息
      */
@@ -404,6 +421,16 @@ public class WorkflowEngine {
      * 验证工作流定义 (检测循环依赖)
      */
     public boolean validateWorkflow(Long workflowId) {
+        com.adlin.orin.modules.workflow.entity.WorkflowEntity workflow = this.workflowRepository
+                .findById(workflowId)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowId));
+
+        Map<String, Object> graphDefinition = extractGraphDefinition(workflow.getWorkflowDefinition());
+        if (graphDefinition != null && graphDefinition.get("nodes") != null) {
+            graphExecutor.validateGraphDefinition(graphDefinition);
+            return true;
+        }
+
         List<WorkflowStepEntity> steps = stepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId);
 
         // 构建依赖图

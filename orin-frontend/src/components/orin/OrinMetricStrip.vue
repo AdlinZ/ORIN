@@ -26,16 +26,18 @@ defineProps({
 .orin-metric-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1px;
+  gap: 0;
   overflow: hidden;
   border: 1px solid var(--orin-border-strong, #d8e0e8);
   border-radius: var(--radius-base, 8px);
-  background: var(--orin-border-strong, #d8e0e8);
+  background: var(--orin-surface, #ffffff);
 }
 
 .metric-item {
   min-width: 0;
   padding: 14px 16px;
+  border-right: 1px solid var(--orin-border-strong, #d8e0e8);
+  border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
   background: var(--orin-surface, #ffffff);
 }
 

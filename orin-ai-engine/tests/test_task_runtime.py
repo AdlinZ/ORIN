@@ -57,7 +57,7 @@ class TestTaskRuntimeWorkflow:
         runtime = TaskRuntime()
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {"instanceId": 123}
+        mock_response.json.return_value = {"taskId": "task-123", "workflowInstanceId": 123}
         mock_response.raise_for_status.return_value = None
 
         mock_client = AsyncMock()
@@ -79,7 +79,7 @@ class TestTaskRuntimeWorkflow:
                 context={},
             )
 
-        assert result == "Workflow executed: instanceId=123"
+        assert result == "Workflow enqueued: taskId=task-123, workflowInstanceId=123"
         post_call = mock_client.post.await_args
         assert post_call.args[0] == "http://backend.test/api/workflows/42/execute"
         assert post_call.kwargs["params"] == {"triggeredBy": "collab_mq_worker"}

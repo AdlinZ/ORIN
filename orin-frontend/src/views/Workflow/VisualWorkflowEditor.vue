@@ -1155,7 +1155,7 @@ const aiPrompt = ref('');
 const { fitView } = useVueFlow();
 
 const onFitView = () => {
-    fitView();
+    fitView({ padding: 0.2, includeHiddenNodes: false, duration: 250 });
 };
 
 const startEditName = () => {
@@ -1450,6 +1450,8 @@ onMounted(async () => {
   }
   await fetchAgents();
   await fetchModelsList();
+  await nextTick();
+  onFitView();
   
   // 真正的自动保存 - 每2分钟保存一次
   setInterval(async () => {

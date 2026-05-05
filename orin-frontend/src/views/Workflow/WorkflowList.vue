@@ -1,10 +1,10 @@
 <template>
   <div class="workflow-container">
     <OrinPageShell
-      title="工作流编排"
+      title="工作流设计"
       description="创建、编辑并维护可复用的业务工作流"
       icon="Connection"
-      domain="流程编排"
+      domain="工作流管理"
     >
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="handleCreate">

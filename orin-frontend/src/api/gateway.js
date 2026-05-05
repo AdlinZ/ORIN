@@ -1,12 +1,24 @@
 import request from '@/utils/request'
 
 // ==================== Overview ====================
-export const getGatewayOverview = () => {
+export const getUnifiedGatewayOverview = () => {
     return request.get('/system/gateway/overview')
 }
 
-export const getGatewayTrends = (hours = 1) => {
+export const getUnifiedGatewayTrends = (hours = 1) => {
     return request.get('/system/gateway/overview/trends', { params: { hours } })
+}
+
+export const getUnifiedGatewayWorkbench = () => {
+    return request.get('/system/gateway/workbench', { noRetry: true, silentError: true })
+}
+
+export const getUnifiedGatewayRecentFailures = () => {
+    return request.get('/system/gateway/diagnostics/recent-failures')
+}
+
+export const getUnifiedGatewayControlPlaneCoverage = () => {
+    return request.get('/system/gateway/control-plane/coverage')
 }
 
 // ==================== Routes ====================
@@ -16,6 +28,10 @@ export const getRoutes = () => {
 
 export const getRoute = (id) => {
     return request.get(`/system/gateway/routes/${id}`)
+}
+
+export const getRouteEffectiveConfig = (id) => {
+    return request.get(`/system/gateway/routes/${id}/effective-config`)
 }
 
 export const createRoute = (data) => {
@@ -39,8 +55,8 @@ export const testRoute = (data) => {
 }
 
 // ==================== Services ====================
-export const getServices = () => {
-    return request.get('/system/gateway/services')
+export const getServices = (params = {}) => {
+    return request.get('/system/gateway/services', { params })
 }
 
 export const getService = (id) => {
@@ -159,6 +175,6 @@ export const deleteRetryPolicy = (id) => {
 }
 
 // ==================== Audit Logs ====================
-export const getGatewayAuditLogs = (params) => {
+export const getUnifiedGatewayAuditLogs = (params) => {
     return request.get('/system/gateway/audit-logs', { params })
 }

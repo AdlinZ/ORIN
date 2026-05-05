@@ -5,7 +5,7 @@
       <div class="header-brand">
         <h1 class="logo-text">ORIN 企业 AI 中枢</h1>
         <span class="header-divider"></span>
-        <p class="header-subtitle">运营总览、服务健康、调用趋势与待处理异常</p>
+        <p class="header-subtitle">监控总览、服务健康、调用趋势与待处理异常</p>
       </div>
 
       <!-- 2. 状态区 -->

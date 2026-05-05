@@ -5,8 +5,10 @@ Consumes tasks from RabbitMQ and writes results back
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 
 import aio_pika
 from aio_pika import Message, DeliveryMode
@@ -17,6 +19,59 @@ from app.engine.task_runtime import TaskRuntime
 from app.core.shared_memory import shared_memory
 
 logger = logging.getLogger(__name__)
+
+_last_mq_log_at = 0.0
+_mq_dependency_state: Dict[str, Any] = {
+    "status": "disabled" if settings.MQ_WORKER_DISABLED else "not_started",
+    "service": "rabbitmq",
+    "queueDisabled": settings.MQ_WORKER_DISABLED,
+    "target": None,
+    "running": False,
+    "lastError": None,
+    "lastCheckedAt": None,
+}
+
+
+def _safe_mq_target(rabbitmq_url: Optional[str]) -> Optional[str]:
+    if not rabbitmq_url:
+        return None
+    try:
+        parsed = urlparse(rabbitmq_url)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 5672
+        vhost = parsed.path or "/"
+        return f"{host}:{port}{vhost}"
+    except Exception:
+        return "invalid-url"
+
+
+def _mark_mq_state(status: str, *, running: bool = False, error: Optional[str] = None):
+    _mq_dependency_state.update({
+        "status": status,
+        "queueDisabled": settings.MQ_WORKER_DISABLED or not bool(settings.RABBITMQ_URL),
+        "target": _safe_mq_target(settings.RABBITMQ_URL),
+        "running": running,
+        "lastError": error,
+        "lastCheckedAt": datetime.utcnow().isoformat() + "Z",
+    })
+
+
+def get_mq_dependency_status() -> Dict[str, Any]:
+    if settings.MQ_WORKER_DISABLED or not settings.RABBITMQ_URL:
+        _mark_mq_state("disabled", running=False, error=None)
+    else:
+        _mq_dependency_state["queueDisabled"] = False
+        _mq_dependency_state["target"] = _safe_mq_target(settings.RABBITMQ_URL)
+    return dict(_mq_dependency_state)
+
+
+def _log_mq_failure(message: str, exc: Exception):
+    global _last_mq_log_at
+    now = time.monotonic()
+    throttle_seconds = float(getattr(settings, "MQ_WORKER_LOG_THROTTLE_SECONDS", 60.0))
+    if now - _last_mq_log_at >= throttle_seconds:
+        logger.warning("%s: %s", message, exc)
+        _last_mq_log_at = now
 
 
 class CollabTaskMessage:
@@ -152,8 +207,17 @@ class CollabMQWorker:
 
     async def connect(self):
         """Establish RabbitMQ connection"""
+        if settings.MQ_WORKER_DISABLED or not self.rabbitmq_url:
+            _mark_mq_state("disabled", running=False, error=None)
+            raise RuntimeError("RabbitMQ worker is disabled by configuration")
+
+        _mark_mq_state("connecting", running=False, error=None)
         try:
-            self.connection = await aio_pika.connect_robust(self.rabbitmq_url)
+            connect_timeout = float(getattr(settings, "MQ_CONNECTION_TIMEOUT_SECONDS", 5.0))
+            self.connection = await asyncio.wait_for(
+                aio_pika.connect_robust(self.rabbitmq_url),
+                timeout=connect_timeout,
+            )
             self.channel = await self.connection.channel()
             await self.channel.set_qos(prefetch_count=10)
 
@@ -163,9 +227,11 @@ class CollabMQWorker:
             elif hasattr(shared_memory, 'redis') and shared_memory.redis:
                 self._redis = shared_memory.redis
 
-            logger.info("MQ Worker connected to RabbitMQ at %s", self.rabbitmq_url)
+            _mark_mq_state("up", running=True, error=None)
+            logger.info("MQ Worker connected to RabbitMQ at %s", _safe_mq_target(self.rabbitmq_url))
         except Exception as e:
-            logger.error("Failed to connect to RabbitMQ: %s", e)
+            _mark_mq_state("down", running=False, error=str(e))
+            _log_mq_failure("Failed to connect to RabbitMQ", e)
             raise
 
     async def start_consuming(self):
@@ -174,6 +240,7 @@ class CollabMQWorker:
             await self.connect()
 
         self._running = True
+        _mark_mq_state("up", running=True, error=None)
 
         # Declare queue (idempotent)
         queue = await self.channel.declare_queue(
@@ -200,6 +267,7 @@ class CollabMQWorker:
         if self.connection:
             await self.connection.close()
             logger.info("MQ Worker disconnected")
+        _mark_mq_state("stopped", running=False, error=None)
 
     async def _process_message(self, message: AbstractIncomingMessage):
         """Process a single message from the queue"""
@@ -415,10 +483,25 @@ async def get_rabbitmq_channel() -> aio_pika.Channel:
     """
     global _rabbitmq_channel, _rabbitmq_connection
 
+    if settings.MQ_WORKER_DISABLED or not settings.RABBITMQ_URL:
+        _mark_mq_state("disabled", running=False, error=None)
+        raise RuntimeError("RabbitMQ is disabled by configuration")
+
     if _rabbitmq_channel is None or _rabbitmq_connection is None or _rabbitmq_connection.is_closed:
         rabbitmq_url = getattr(settings, "RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
-        _rabbitmq_connection = await aio_pika.connect_robust(rabbitmq_url)
+        _mark_mq_state("connecting", running=False, error=None)
+        connect_timeout = float(getattr(settings, "MQ_CONNECTION_TIMEOUT_SECONDS", 5.0))
+        try:
+            _rabbitmq_connection = await asyncio.wait_for(
+                aio_pika.connect_robust(rabbitmq_url),
+                timeout=connect_timeout,
+            )
+        except Exception as e:
+            _mark_mq_state("down", running=False, error=str(e))
+            _log_mq_failure("Failed to initialize shared RabbitMQ channel", e)
+            raise
         _rabbitmq_channel = await _rabbitmq_connection.channel()
+        _mark_mq_state("up", running=True, error=None)
         logger.info("[MQ] 共享 channel 已初始化")
 
     return _rabbitmq_channel

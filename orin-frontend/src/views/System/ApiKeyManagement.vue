@@ -2,10 +2,11 @@
   <div class="page-container">
     <div class="tab-wrapper-card">
       <OrinPageShell
+        v-if="!embedded"
         title="API 密钥"
         description="管理平台访问密钥、供应商凭据、调用额度与限流策略"
         icon="Key"
-        domain="组织治理"
+        domain="组织权限"
       >
         <template #actions>
           <el-button
@@ -26,6 +27,32 @@
           </el-button>
         </template>
       </OrinPageShell>
+
+      <div v-else class="embedded-access-toolbar">
+        <div>
+          <span class="command-eyebrow">访问凭据</span>
+          <h3>API Key 与供应商凭据</h3>
+          <p>管理调用方访问密钥、上游供应商凭据和配额状态。</p>
+        </div>
+        <div class="embedded-access-actions">
+          <el-button
+            v-if="activeTab === 'platform'"
+            type="success"
+            :icon="Plus"
+            @click="showCreateDialog"
+          >
+            创建平台密钥
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            :icon="Plus"
+            @click="showExternalCreate"
+          >
+            添加供应商密钥
+          </el-button>
+        </div>
+      </div>
 
       <OrinStatusSummary :items="apiKeyStatusItems" class="governance-summary" />
 
@@ -433,6 +460,13 @@ import {
 } from '@/api/apiKey';
 import { View, Hide } from '@element-plus/icons-vue';
 
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false
+  }
+});
+
 const activeTab = ref('platform');
 const externalKeys = ref([]);
 const providerList = ref([]);
@@ -789,6 +823,43 @@ onUnmounted(() => {
 .tab-wrapper-card,
 .governance-summary {
   margin-bottom: 16px;
+}
+
+.embedded-access-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  background: #ffffff;
+  margin-bottom: 16px;
+}
+
+.embedded-access-toolbar h3 {
+  margin: 4px 0 6px;
+  color: #172033;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.embedded-access-toolbar p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.command-eyebrow {
+  display: block;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.embedded-access-actions {
+  flex: 0 0 auto;
 }
 
 .expand-content {

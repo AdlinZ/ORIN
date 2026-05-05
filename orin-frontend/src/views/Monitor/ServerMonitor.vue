@@ -897,7 +897,7 @@
         </div>
 
         <el-alert
-          title="原来系统环境配置里的硬件监控数据源，已经迁到当前多节点监控页面统一管理。"
+          title="原来环境配置里的硬件监控数据源，已经迁到当前多节点监控页面统一管理。"
           type="info"
           :closable="false"
           show-icon

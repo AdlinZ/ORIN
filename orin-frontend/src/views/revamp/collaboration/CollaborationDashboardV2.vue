@@ -4,7 +4,7 @@
       title="多智能体协作"
       description="任务包、子任务与事件流的统一协作控制台"
       icon="DataAnalysis"
-      domain="流程编排"
+      domain="工作流管理"
     >
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="showCreate = true">

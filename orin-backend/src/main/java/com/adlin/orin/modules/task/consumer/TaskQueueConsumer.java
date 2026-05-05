@@ -4,17 +4,14 @@ import com.adlin.orin.modules.task.dto.TaskMessage;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
-import com.adlin.orin.modules.task.producer.TaskQueueProducer;
 import com.adlin.orin.modules.task.repository.TaskRepository;
 import com.adlin.orin.modules.workflow.engine.WorkflowEngine;
 import com.adlin.orin.modules.workflow.entity.WorkflowInstanceEntity;
-import com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -29,8 +26,6 @@ public class TaskQueueConsumer {
 
     private final TaskRepository taskRepository;
     private final WorkflowEngine workflowEngine;
-    private final WorkflowInstanceRepository instanceRepository;
-    private final TaskQueueProducer taskQueueProducer;
     private final DeadLetterHandler deadLetterHandler;
 
     @Value("${orin.task.retry.max:3}")
@@ -49,7 +44,6 @@ public class TaskQueueConsumer {
      * 监听任务队列
      */
     @RabbitListener(queues = "${orin.task.queue.name:workflow-task-queue}")
-    @Transactional
     public void consumeTask(TaskMessage taskMessage) {
         log.info("Received task: taskId={}, priority={}, retryCount={}",
                 taskMessage.getTaskId(), taskMessage.getPriority(), taskMessage.getRetryCount());
@@ -75,11 +69,20 @@ public class TaskQueueConsumer {
 
         try {
             // 执行工作流
-            executeWorkflow(task, taskMessage);
+            WorkflowInstanceEntity instance = executeWorkflow(task, taskMessage);
+            if (instance.getStatus() != WorkflowInstanceEntity.InstanceStatus.SUCCESS) {
+                String message = instance.getErrorMessage() != null
+                        ? instance.getErrorMessage()
+                        : "Workflow instance finished with status: " + instance.getStatus();
+                throw new WorkflowTaskExecutionException(message, instance);
+            }
 
             // 执行成功，更新任务状态
             task.setStatus(TaskStatus.COMPLETED);
             task.setCompletedAt(LocalDateTime.now());
+            task.setOutputData(instance.getOutputData());
+            task.setErrorMessage(null);
+            task.setErrorStack(null);
             if (task.getStartedAt() != null) {
                 task.setDurationMs(java.time.Duration.between(task.getStartedAt(), task.getCompletedAt()).toMillis());
             }
@@ -95,12 +98,12 @@ public class TaskQueueConsumer {
     /**
      * 执行工作流
      */
-    private void executeWorkflow(TaskEntity task, TaskMessage taskMessage) {
+    private WorkflowInstanceEntity executeWorkflow(TaskEntity task, TaskMessage taskMessage) {
         Long instanceId = taskMessage.getWorkflowInstanceId();
 
         if (instanceId != null) {
             // 已有实例，直接执行
-            workflowEngine.executeInstanceAsync(instanceId);
+            return workflowEngine.executeInstance(instanceId);
         } else {
             // 创建新实例并执行
             WorkflowInstanceEntity instance = workflowEngine.createInstance(
@@ -110,7 +113,7 @@ public class TaskQueueConsumer {
             );
             task.setWorkflowInstanceId(instance.getId());
             taskRepository.save(task);
-            workflowEngine.executeInstanceAsync(instance.getId());
+            return workflowEngine.executeInstance(instance.getId());
         }
     }
 
@@ -161,6 +164,12 @@ public class TaskQueueConsumer {
     private long calculateExponentialBackoff(int retryCount) {
         long delay = (long) (initialInterval * Math.pow(multiplier, retryCount));
         return Math.min(delay, maxInterval);
+    }
+
+    private static final class WorkflowTaskExecutionException extends RuntimeException {
+        private WorkflowTaskExecutionException(String message, WorkflowInstanceEntity instance) {
+            super(message + " (instanceId=" + instance.getId() + ", status=" + instance.getStatus() + ")");
+        }
     }
 
     /**

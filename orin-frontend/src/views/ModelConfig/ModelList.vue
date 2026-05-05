@@ -1,14 +1,14 @@
 <template>
   <div class="page-container">
     <OrinEntityHeader
-      domain="模型资源"
-      title="模型资源"
-      description="统一管理模型资源、供应商能力、密钥入口与启用状态"
+      domain="模型管理"
+      title="模型管理"
+      description="统一管理模型、供应商能力、密钥入口与启用状态"
       :summary="modelHeaderSummary"
     >
       <template #actions>
         <a-button type="primary" class="orin-primary-action" @click="handleAdd">
-          添加模型资源
+          添加模型
         </a-button>
         <a-button class="orin-secondary-action" @click="openKeyManagement">
           API 密钥管理
@@ -149,8 +149,8 @@
 
       <template #empty>
         <OrinEmptyState
-          description="暂无模型资源，请先接入服务商模型"
-          action-label="添加模型资源"
+          description="暂无模型，请先接入服务商模型"
+          action-label="添加模型"
           @action="handleAdd"
         />
       </template>
@@ -1222,7 +1222,7 @@ const handleRowAction = (action, row) => {
 };
 
 const handleDelete = (row) => {
-  ElMessageBox.confirm(`确定删除模型资源 "${row.name}" 吗?`, '警告', { type: 'warning' }).then(async () => {
+  ElMessageBox.confirm(`确定删除模型 "${row.name}" 吗?`, '警告', { type: 'warning' }).then(async () => {
     await deleteModel(row.id);
     ElMessage.success('删除成功');
     fetchData();

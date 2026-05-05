@@ -39,7 +39,7 @@ class RouterServiceTest {
         ChatCompletionRequest request = ChatCompletionRequest.builder()
                 .model("gpt-4o-mini")
                 .build();
-        when(providerRegistry.getProvidersByType("openai")).thenReturn(List.of(openAiProvider));
+        when(providerRegistry.getHealthyProvidersByType("openai")).thenReturn(List.of(openAiProvider));
         when(openAiProvider.estimateCost(request)).thenReturn(0.01d);
 
         Optional<ProviderAdapter> selected = routerService.selectProviderByModel("gpt-4o-mini", request);
@@ -52,7 +52,7 @@ class RouterServiceTest {
         ChatCompletionRequest request = ChatCompletionRequest.builder()
                 .model("qwen2.5:7b")
                 .build();
-        when(providerRegistry.getProvidersByType("ollama")).thenReturn(List.of(ollamaProvider));
+        when(providerRegistry.getHealthyProvidersByType("ollama")).thenReturn(List.of(ollamaProvider));
         when(ollamaProvider.estimateCost(request)).thenReturn(0.0d);
 
         Optional<ProviderAdapter> selected = routerService.selectProviderByModel("qwen2.5:7b", request);
@@ -73,5 +73,17 @@ class RouterServiceTest {
         Optional<ProviderAdapter> selected = routerService.selectProvider(request, RouterService.RoutingStrategy.ROUND_ROBIN);
 
         assertThat(selected).contains(openAiProvider);
+    }
+
+    @Test
+    void selectProviderByType_shouldOnlyUseHealthyProviders() {
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model("gpt-4o-mini")
+                .build();
+        when(providerRegistry.getHealthyProvidersByType("openai")).thenReturn(List.of());
+
+        Optional<ProviderAdapter> selected = routerService.selectProviderByType("openai", request);
+
+        assertThat(selected).isEmpty();
     }
 }

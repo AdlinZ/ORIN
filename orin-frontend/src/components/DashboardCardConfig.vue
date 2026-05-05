@@ -15,7 +15,7 @@
         style="margin-bottom: 20px;"
       >
         <template #default>
-          选择您需要在运营总览显示的卡片模块，配置将自动保存。
+          选择您需要在监控总览显示的卡片模块，配置将自动保存。
         </template>
       </el-alert>
 

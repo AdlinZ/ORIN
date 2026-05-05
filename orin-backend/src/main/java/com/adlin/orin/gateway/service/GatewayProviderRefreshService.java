@@ -45,7 +45,7 @@ public class GatewayProviderRefreshService {
         registerSiliconFlow(config);
         registerDify(config);
 
-        log.info("Gateway providers refreshed, total={}", providerRegistry.getAllProviders().size());
+        log.info("UnifiedGateway providers refreshed, total={}", providerRegistry.getAllProviders().size());
     }
 
     private void registerOllama(ModelConfig config) {

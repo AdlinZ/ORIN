@@ -32,7 +32,7 @@ import { ROUTES } from '@/router/routes'
 
 const shortcuts = ref([
   {
-    title: '应用',
+    title: '智能体管理',
     description: '管理智能体应用',
     path: ROUTES.AGENTS.LIST,
     icon: Box,
@@ -40,7 +40,7 @@ const shortcuts = ref([
     bgColor: 'var(--primary-light)'
   },
   {
-    title: '运行',
+    title: '运行监控',
     description: '监控运行状态',
     path: ROUTES.MONITOR.SERVER,
     icon: Monitor,
@@ -48,15 +48,15 @@ const shortcuts = ref([
     bgColor: 'var(--success-light)'
   },
   {
-    title: '资源',
-    description: '知识库与素材',
+    title: '知识库管理',
+    description: '管理知识库与素材',
     path: ROUTES.RESOURCES.KNOWLEDGE,
     icon: Collection,
     color: 'var(--accent-500)',
     bgColor: 'var(--accent-light)'
   },
   {
-    title: '控制',
+    title: '系统设置',
     description: '系统设置管理',
     path: ROUTES.CONTROL.USERS,
     icon: Setting,

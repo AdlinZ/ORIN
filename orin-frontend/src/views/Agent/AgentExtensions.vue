@@ -216,7 +216,7 @@ onErrorCaptured((error) => {
 }
 
 .extensions-console {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--orin-border);
   border-radius: var(--orin-card-radius, 8px);
   background:
@@ -226,7 +226,7 @@ onErrorCaptured((error) => {
 }
 
 .extensions-hero {
-  padding: 18px 20px 0;
+  padding: 18px 20px 18px;
   border-bottom: 1px solid var(--orin-border);
   background:
     linear-gradient(135deg, rgba(240, 253, 250, 0.8), rgba(255, 255, 255, 0.96) 48%),
@@ -325,11 +325,9 @@ onErrorCaptured((error) => {
 }
 
 .content-panel {
-  max-height: calc(100vh - 246px);
-  overflow: auto;
   padding: 16px;
   background: transparent;
-  scrollbar-gutter: stable;
+  overflow: visible;
 }
 
 .tab-content {
@@ -346,7 +344,7 @@ onErrorCaptured((error) => {
 
 @media (max-width: 720px) {
   .extensions-hero {
-    padding: 14px 14px 0;
+    padding: 14px 14px 16px;
   }
 
   .extensions-summary {
@@ -355,7 +353,6 @@ onErrorCaptured((error) => {
 
   .content-panel {
     padding: 10px;
-    max-height: calc(100vh - 220px);
   }
 }
 

@@ -7,7 +7,7 @@ describe('revamp smoke report schema', () => {
       source: 'unit-test',
       rows: [
         { flag: 'revampAgentsHub', route: '/dashboard/applications/agents', passed: true, reason: '通过' },
-        { flag: 'revampSystemGateway', route: '/dashboard/control/gateway', passed: false, reason: 'route missing' }
+        { flag: 'revampSystemUnifiedGateway', route: '/dashboard/control/gateway', passed: false, reason: 'route missing' }
       ],
       stageMatrix: [{ stage: 1, flags: ['revampAgentsHub'] }]
     })

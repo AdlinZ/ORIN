@@ -1,5 +1,5 @@
 <template>
-  <div class="api-doc-page" :class="{ 'guide-mode': activeDoc === 'guide' }">
+  <div class="api-doc-page" :class="{ 'wide-mode': activeDoc !== 'api' }">
     <aside class="left-panel">
       <div class="logo">ORIN</div>
       <el-input v-model="search" placeholder="搜索..." :prefix-icon="Search" clearable class="search" />
@@ -17,6 +17,9 @@
               </el-dropdown-item>
               <el-dropdown-item command="api" :class="{ selected: activeDoc === 'api' }">
                 API 文档
+              </el-dropdown-item>
+              <el-dropdown-item command="test" :class="{ selected: activeDoc === 'test' }">
+                可视测试台
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -40,6 +43,23 @@
               <span>{{ article.title }}</span>
             </a>
           </template>
+        </template>
+
+        <template v-else-if="activeDoc === 'test'">
+          <div class="group-title">Visual Test</div>
+          <div class="sub-title">测试场景</div>
+          <a href="#visual-test" class="endpoint">
+            <span class="method post">RUN</span>
+            <span>路由链路检测</span>
+          </a>
+          <a href="#visual-test" class="endpoint">
+            <span class="method get">GET</span>
+            <span>模型列表入口</span>
+          </a>
+          <a href="#visual-test" class="endpoint">
+            <span class="method post">POST</span>
+            <span>聊天补全入口</span>
+          </a>
         </template>
 
         <template v-else>
@@ -208,6 +228,13 @@
         </div>
       </template>
 
+      <template v-else-if="activeDoc === 'test'">
+        <div class="head-tag">在线验证</div>
+        <h1 id="visual-test">可视测试台</h1>
+        <p class="lead">用内置样例观察请求进入、ACL 预检、路由命中与 LOCAL/PROXY 分发结果。</p>
+        <UnifiedGatewayPlaygroundTab />
+      </template>
+
       <template v-else>
 
       <!-- API 入口 -->
@@ -225,7 +252,7 @@
         <pre class="code-block">{
   "name": "ORIN Unified API",
   "version": "v1",
-  "description": "OpenAI兼容统一网关入口",
+  "description": "OpenAI 兼容 统一网关入口",
   "docs": {
     "swagger": "/swagger-ui/index.html",
     "openapi": "/v3/api-docs",
@@ -246,7 +273,7 @@
       <section id="capabilities" class="section">
         <div class="head-tag">基础信息</div>
         <h1>能力清单</h1>
-        <p class="lead">返回当前统一网关暴露的所有能力分组和 Provider 统计。</p>
+        <p class="lead">返回当前 统一网关暴露的所有能力分组和 Provider 统计。</p>
         <div class="op-bar">
           <div class="left">
             <span class="method-chip get">GET</span>
@@ -612,6 +639,14 @@ data: [DONE]</pre>
             <el-option label="GET /v1/routing/stats" value="/v1/routing/stats" />
             <el-option label="GET /v1" value="/v1" />
           </el-select>
+          <el-alert
+            v-if="endpointRequiresApiKey"
+            class="api-key-alert"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="该接口需要 API Key。未填写时会返回 AUTH_API_KEY_INVALID / Missing API key。"
+          />
           <div class="playground-label">API Key</div>
           <el-input
             v-model="apiKey"
@@ -660,6 +695,7 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Search, View } from '@element-plus/icons-vue'
 import { marked } from 'marked'
+import UnifiedGatewayPlaygroundTab from './components/gateway/UnifiedGatewayPlaygroundTab.vue'
 import {
   getHelpArticles,
   getHelpArticle,
@@ -723,7 +759,13 @@ const responseExample = `{
 
 const successTitle = computed(() => responseStatus.value ? String(responseStatus.value) : '200')
 const errorStatusText = computed(() => errorStatus.value ? String(errorStatus.value) : '')
-const activeDocLabel = computed(() => activeDoc.value === 'guide' ? '使用 ORIN' : 'API 文档')
+const publicEndpoints = new Set(['/v1', '/v1/health', '/v1/providers', '/v1/capabilities'])
+const endpointRequiresApiKey = computed(() => !publicEndpoints.has(selectedEndpoint.value))
+const activeDocLabel = computed(() => {
+  if (activeDoc.value === 'guide') return '使用 ORIN'
+  if (activeDoc.value === 'test') return '可视测试台'
+  return 'API 文档'
+})
 
 // Help Center / Guide Logic
 const categories = ref([])
@@ -731,18 +773,28 @@ const articlesGrouped = ref({})
 const isSearching = ref(false)
 const selectedArticle = ref(null)
 const articleContentHtml = ref('')
+const guideLoaded = ref(false)
 
 onMounted(async () => {
-  await fetchCategoriesAndArticles()
-  
   // Handle auto open from hash
   const hash = window.location.hash
+  if (hash === '#visual-test') {
+    activeDoc.value = 'test'
+    return
+  }
   if (hash && hash.startsWith('#guide-')) {
     const id = hash.replace('#guide-', '')
     activeDoc.value = 'guide'
+    await ensureGuideLoaded()
     await selectArticle({ id })
   }
 })
+
+const ensureGuideLoaded = async () => {
+  if (guideLoaded.value) return
+  await fetchCategoriesAndArticles()
+  guideLoaded.value = true
+}
 
 const fetchCategoriesAndArticles = async () => {
   try {
@@ -827,14 +879,19 @@ const formatDate = (date) => {
   return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
-const changeDocType = (docType) => {
+const changeDocType = async (docType) => {
   activeDoc.value = docType
   if (docType === 'guide') {
+    await ensureGuideLoaded()
     if (selectedArticle.value) {
       window.location.hash = `#guide-${selectedArticle.value.id}`
     } else {
       window.location.hash = '#orin-intro'
     }
+    return
+  }
+  if (docType === 'test') {
+    window.location.hash = '#visual-test'
     return
   }
   window.location.hash = '#api-index'
@@ -859,7 +916,7 @@ const resetRequestBody = () => {
 }
 
 const runTryRequest = async () => {
-  if (!apiKey.value.trim()) {
+  if (endpointRequiresApiKey.value && !apiKey.value.trim()) {
     ElMessage.warning('请先输入 API Key')
     return
   }
@@ -885,11 +942,14 @@ const runTryRequest = async () => {
 
   const startedAt = performance.now()
   try {
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    if (apiKey.value.trim()) {
+      headers.Authorization = `Bearer ${apiKey.value.trim()}`
+    }
     const config = {
-      headers: {
-        Authorization: `Bearer ${apiKey.value.trim()}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       timeout: 120000
     }
     const res = isGet
@@ -918,7 +978,7 @@ const runTryRequest = async () => {
   grid-template-columns: 320px minmax(0, 1fr) 480px;
   background: #f8fafc;
 }
-.api-doc-page.guide-mode {
+.api-doc-page.wide-mode {
   grid-template-columns: 320px minmax(0, 1fr);
 }
 .left-panel {
@@ -1235,5 +1295,9 @@ h2 {
   max-width: 100%;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
+}
+
+.api-key-alert {
+  margin-bottom: 12px;
 }
 </style>

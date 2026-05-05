@@ -16,7 +16,7 @@ echo -e "${YELLOW}=== ORIN Smoke Test ===${NC}"
 echo ""
 
 # 1. Java后端编译
-echo -e "${YELLOW}[1/4] Testing Java Backend Compile...${NC}"
+echo -e "${YELLOW}[1/5] Testing Java Backend Compile...${NC}"
 cd "$ORIN_ROOT/orin-backend"
 
 if mvn -q -DskipTests compile -o 2>/dev/null; then
@@ -31,7 +31,7 @@ else
 fi
 
 # 2. 前端构建
-echo -e "${YELLOW}[2/4] Testing Frontend Build...${NC}"
+echo -e "${YELLOW}[2/5] Testing Frontend Build...${NC}"
 cd "$ORIN_ROOT/orin-frontend"
 if npm run build --silent 2>/dev/null; then
     echo -e "${GREEN}✓ Frontend build OK${NC}"
@@ -45,16 +45,16 @@ else
 fi
 
 # 3. Python引擎依赖检查
-echo -e "${YELLOW}[3/4] Testing Python Engine Dependencies...${NC}"
+echo -e "${YELLOW}[3/5] Testing Python Engine Dependencies...${NC}"
 cd "$ORIN_ROOT/orin-ai-engine"
-if python3 -c "import fastapi; import httpx; import pika" 2>/dev/null; then
+if python3 -c "import fastapi; import httpx; import aio_pika" 2>/dev/null; then
     echo -e "${GREEN}✓ Python dependencies OK${NC}"
 else
     echo -e "${YELLOW}⚠ Some Python dependencies missing (install if needed)${NC}"
 fi
 
 # 4. 测试文件统计 + DifySync 单元测试
-echo -e "${YELLOW}[4/4] Test Coverage Summary + DifySync Unit Tests...${NC}"
+echo -e "${YELLOW}[4/5] Test Coverage Summary + DifySync Unit Tests...${NC}"
 AGENT_TESTS=$(find "$ORIN_ROOT/orin-backend/src/test" -name "*Agent*Test.java" | wc -l)
 KNOWLEDGE_TESTS=$(find "$ORIN_ROOT/orin-backend/src/test" -name "*Knowledge*Test.java" | wc -l)
 WORKFLOW_TESTS=$(find "$ORIN_ROOT/orin-backend/src/test" -name "*Workflow*Test.java" | wc -l)
@@ -88,6 +88,27 @@ else
     echo -e "${RED}  ✗ SideClientSyncService unit tests FAIL${NC}"
     echo "$SIDE_TEST_RESULT"
     FAILED=1
+fi
+
+# 5. 已启动服务的最小 HTTP smoke（如果服务未启动则提示跳过）
+echo -e "${YELLOW}[5/5] Runtime HTTP Smoke (optional)...${NC}"
+if curl -fsS http://127.0.0.1:8080/v1/health >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Backend /v1/health OK${NC}"
+else
+    echo -e "${YELLOW}⚠ Backend /v1/health unavailable, skipped live backend smoke${NC}"
+fi
+
+if curl -fsS http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Backend /api/v1/health OK${NC}"
+else
+    echo -e "${YELLOW}⚠ Backend /api/v1/health unavailable, skipped legacy health smoke${NC}"
+fi
+
+if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1 \
+    && curl -fsS http://127.0.0.1:8000/v1/health >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ AI Engine /health and /v1/health OK${NC}"
+else
+    echo -e "${YELLOW}⚠ AI Engine health endpoints unavailable, skipped live AI smoke${NC}"
 fi
 
 echo ""

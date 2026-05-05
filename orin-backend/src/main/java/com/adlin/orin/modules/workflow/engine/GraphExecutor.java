@@ -93,17 +93,9 @@ public class GraphExecutor {
         }
 
         // 1. Parsing and Initialization
-        List<Map<String, Object>> nodes = (List<Map<String, Object>>) graphDefinition.get("nodes");
-        List<Map<String, Object>> edges = (List<Map<String, Object>>) graphDefinition.get("edges");
-
-        if (nodes == null || nodes.isEmpty()) {
-            throw new IllegalArgumentException("Graph must contain at least one node");
-        }
-        if (edges == null) {
-            edges = Collections.emptyList();
-        }
-
-        validateGraph(nodes, edges);
+        GraphParts graphParts = parseAndValidateGraph(graphDefinition);
+        List<Map<String, Object>> nodes = graphParts.nodes();
+        List<Map<String, Object>> edges = graphParts.edges();
 
         // Shared Context (Thread-Safe)
         Map<String, Object> globalContext = new ConcurrentHashMap<>(initialContext);
@@ -411,6 +403,46 @@ public class GraphExecutor {
         return thisFuture;
     }
 
+    public void validateGraphDefinition(Map<String, Object> graphDefinition) {
+        parseAndValidateGraph(graphDefinition);
+    }
+
+    @SuppressWarnings("unchecked")
+    private GraphParts parseAndValidateGraph(Map<String, Object> graphDefinition) {
+        if (graphDefinition == null) {
+            throw new IllegalArgumentException("Graph definition is required");
+        }
+        Object rawNodes = graphDefinition.get("nodes");
+        if (!(rawNodes instanceof List<?> rawNodeList) || rawNodeList.isEmpty()) {
+            throw new IllegalArgumentException("Graph must contain at least one node");
+        }
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        for (Object rawNode : rawNodeList) {
+            if (!(rawNode instanceof Map<?, ?> rawMap)) {
+                throw new IllegalArgumentException("Graph node must be an object");
+            }
+            Map<String, Object> node = new HashMap<>();
+            rawMap.forEach((key, value) -> node.put(String.valueOf(key), value));
+            nodes.add(node);
+        }
+
+        Object rawEdges = graphDefinition.get("edges");
+        List<Map<String, Object>> edges = new ArrayList<>();
+        if (rawEdges instanceof List<?> rawEdgeList) {
+            for (Object rawEdge : rawEdgeList) {
+                if (!(rawEdge instanceof Map<?, ?> rawMap)) {
+                    throw new IllegalArgumentException("Graph edge must be an object");
+                }
+                Map<String, Object> edge = new HashMap<>();
+                rawMap.forEach((key, value) -> edge.put(String.valueOf(key), value));
+                edges.add(edge);
+            }
+        }
+
+        validateGraph(nodes, edges);
+        return new GraphParts(nodes, edges);
+    }
+
     private void validateGraph(List<Map<String, Object>> nodes, List<Map<String, Object>> edges) {
         Set<String> nodeIds = new HashSet<>();
         for (Map<String, Object> node : nodes) {
@@ -433,6 +465,12 @@ public class GraphExecutor {
         for (Map<String, Object> edge : edges) {
             String source = (String) edge.get("source");
             String target = (String) edge.get("target");
+            if (source == null || source.isBlank()) {
+                throw new IllegalArgumentException("Graph edge source is required");
+            }
+            if (target == null || target.isBlank()) {
+                throw new IllegalArgumentException("Graph edge target is required");
+            }
             if (!nodeIds.contains(source)) {
                 throw new IllegalArgumentException("Graph edge source not found: " + source);
             }
@@ -556,5 +594,8 @@ public class GraphExecutor {
     }
 
     private record GraphExecutionContext(Long instanceId, long timeoutSeconds, String traceId) {
+    }
+
+    private record GraphParts(List<Map<String, Object>> nodes, List<Map<String, Object>> edges) {
     }
 }

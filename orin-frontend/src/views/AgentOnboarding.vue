@@ -4,7 +4,7 @@
       title="智能体接入"
       description="按服务商、密钥治理、模型检测与启用确认纳管企业智能体"
       icon="CirclePlus"
-      domain="AI 中枢"
+      domain="智能体管理"
     />
 
 

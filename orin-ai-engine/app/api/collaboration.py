@@ -11,7 +11,12 @@ from app.engine.collaboration_langgraph import (
     run_collaboration,
     CollaborationStatus,
 )
-from app.engine.mq_worker import start_worker as start_mq_worker, stop_worker as stop_mq_worker
+from app.core.config import settings
+from app.engine.mq_worker import (
+    get_mq_dependency_status,
+    start_worker as start_mq_worker,
+    stop_worker as stop_mq_worker,
+)
 from app.core.collab_state import (
     read_status,
     set_paused,
@@ -204,8 +209,8 @@ async def _worker_loop():
         await start_mq_worker()
     except asyncio.CancelledError:
         raise
-    except Exception:
-        logger.exception("[API] MQ worker loop crashed")
+    except Exception as exc:
+        logger.warning("[API] MQ worker stopped: %s", exc)
     finally:
         global _worker_started, _worker_task
         _worker_started = False
@@ -214,6 +219,9 @@ async def _worker_loop():
 
 async def ensure_worker_started():
     global _worker_started, _worker_task
+    if settings.MQ_WORKER_DISABLED or not settings.RABBITMQ_URL:
+        logger.info("[API] MQ worker is disabled; skip background startup")
+        return
     if _worker_started and _worker_task and not _worker_task.done():
         return
     _worker_task = asyncio.create_task(_worker_loop())
@@ -239,11 +247,17 @@ async def ensure_worker_stopped():
 async def start_worker():
     """启动 MQ Worker"""
     await ensure_worker_started()
-    return {"status": "started", "running": True}
+    return get_mq_dependency_status()
 
 
 @router.post("/worker/stop")
 async def stop_worker():
     """停止 MQ Worker"""
     await ensure_worker_stopped()
-    return {"status": "stopped", "running": False}
+    return get_mq_dependency_status()
+
+
+@router.get("/worker/status")
+async def worker_status():
+    """获取 MQ Worker 与 RabbitMQ 依赖状态"""
+    return get_mq_dependency_status()
