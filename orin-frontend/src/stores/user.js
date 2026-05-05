@@ -4,6 +4,14 @@ import Cookies from 'js-cookie'
 import { isTokenExpired, getTokenRemainingTime, formatRemainingTime } from '@/utils/jwt'
 import { refreshToken as refreshTokenApi } from '@/api/auth'
 
+const getStoredToken = () => {
+    if (typeof window === 'undefined') return ''
+    return Cookies.get('orin_token')
+        || window.localStorage.getItem('orin_token')
+        || window.sessionStorage.getItem('orin_token')
+        || ''
+}
+
 /**
  * 用户状态管理Store
  * 管理用户信息、Token和角色权限
@@ -12,7 +20,7 @@ export const useUserStore = defineStore('user', () => {
     const adminRoles = ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ADMIN']
 
     // 状态
-    const token = ref(Cookies.get('orin_token') || '')
+    const token = ref(getStoredToken())
     const userInfo = ref(null)
     const roles = ref([]) // 用户角色列表: ['ROLE_ADMIN', 'ROLE_USER']
 
@@ -36,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
         Cookies.set('orin_token', loginToken, { expires: 7 }) // 7天过期
         Cookies.set('orin_userInfo', JSON.stringify(user), { expires: 7 })
         Cookies.set('orin_roles', JSON.stringify(userRoles), { expires: 7 })
+        window.localStorage.setItem('orin_token', loginToken)
     }
 
     /**
@@ -50,6 +59,8 @@ export const useUserStore = defineStore('user', () => {
         Cookies.remove('orin_token')
         Cookies.remove('orin_userInfo')
         Cookies.remove('orin_roles')
+        window.localStorage.removeItem('orin_token')
+        window.sessionStorage.removeItem('orin_token')
     }
 
     /**
@@ -93,7 +104,7 @@ export const useUserStore = defineStore('user', () => {
      * 从Cookie恢复状态
      */
     function restoreFromCookies() {
-        const savedToken = Cookies.get('orin_token')
+        const savedToken = getStoredToken()
         const savedUserInfo = Cookies.get('orin_userInfo')
         const savedRoles = Cookies.get('orin_roles')
 
@@ -167,6 +178,7 @@ export const useUserStore = defineStore('user', () => {
             if (newToken) {
                 token.value = newToken
                 Cookies.set('orin_token', newToken, { expires: 7 })
+                window.localStorage.setItem('orin_token', newToken)
                 return true
             }
             return false

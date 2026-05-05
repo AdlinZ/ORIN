@@ -87,7 +87,7 @@ export function markAllAsRead() {
 
 export function cleanupNotifications() {
   return request({
-    url: '/notifications/cleanup',
+    url: '/notifications/clear-all',
     method: 'delete'
   })
 }

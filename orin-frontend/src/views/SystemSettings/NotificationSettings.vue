@@ -197,12 +197,21 @@ const loadConfig = async () => {
   try {
     const res = await getNotificationConfig()
     if (res) {
-      if (res.channels) {
-        Object.assign(channels, res.channels)
-      }
-      if (res.preferences) {
-        Object.assign(preferences, res.preferences)
-      }
+      channels.email.enabled = res.emailEnabled ?? true
+      channels.email.recipients = res.emailRecipients || ''
+      channels.dingtalk.enabled = res.dingtalkEnabled ?? false
+      channels.dingtalk.webhook = res.dingtalkWebhook || ''
+      channels.wechat.enabled = res.wecomEnabled ?? false
+      channels.wechat.webhook = res.wecomWebhook || ''
+
+      preferences.criticalOnly = res.criticalOnly ?? false
+      preferences.immediateFailure = res.instantPush ?? true
+      preferences.mergeLowPriority = Number(res.mergeIntervalMinutes || 0) > 0
+      preferences.notificationTypes = [
+        ...(res.notifyInapp !== false ? ['站内'] : []),
+        ...(res.desktopNotification !== false ? ['桌面'] : []),
+        ...(res.notifyEmail !== false ? ['邮件'] : [])
+      ]
     }
   } catch (e) {
     console.error('加载通知配置失败:', e)
@@ -213,7 +222,7 @@ const loadConfig = async () => {
 const handleSave = async () => {
   saving.value = true
   try {
-    await saveNotificationConfig({ channels, preferences })
+    await saveNotificationConfig(toApiPayload())
     ElMessage.success('通知配置保存成功')
   } catch (e) {
     ElMessage.error('保存失败: ' + (e.message || '未知错误'))
@@ -236,6 +245,21 @@ const testChannel = async (channel) => {
 const handleReset = () => {
   loadConfig()
 }
+
+const toApiPayload = () => ({
+  emailEnabled: channels.email.enabled,
+  emailRecipients: channels.email.recipients,
+  dingtalkEnabled: channels.dingtalk.enabled,
+  dingtalkWebhook: channels.dingtalk.webhook,
+  wecomEnabled: channels.wechat.enabled,
+  wecomWebhook: channels.wechat.webhook,
+  criticalOnly: preferences.criticalOnly,
+  instantPush: preferences.immediateFailure,
+  mergeIntervalMinutes: preferences.mergeLowPriority ? 30 : 0,
+  desktopNotification: preferences.notificationTypes.includes('桌面'),
+  notifyEmail: preferences.notificationTypes.includes('邮件'),
+  notifyInapp: preferences.notificationTypes.includes('站内')
+})
 
 onMounted(() => {
   loadConfig()

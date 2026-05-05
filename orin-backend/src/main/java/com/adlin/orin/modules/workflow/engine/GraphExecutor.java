@@ -7,8 +7,9 @@ import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
 import com.adlin.orin.common.exception.WorkflowExecutionException;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -24,31 +25,71 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class GraphExecutor {
 
     private final Map<String, NodeHandler> nodeHandlers;
     private final WorkflowEventPublisher eventPublisher;
     private final TraceService traceService;
     private final LangfuseObservabilityService langfuseService;
+    private final Executor taskExecutor;
 
-    // Thread pool for async execution
-    private final ExecutorService executor = Executors.newCachedThreadPool(); // Use Spring's TaskExecutor in production
+    private static final long DEFAULT_TIMEOUT_SECONDS = 300L;
 
-    private Long currentInstanceId;
+    /**
+     * Compatibility only for older tests/callers. New production calls must pass
+     * instanceId into executeGraph so singleton executor state cannot leak across
+     * concurrent workflow instances.
+     */
+    @Deprecated
+    private volatile Long compatibilityInstanceId;
 
+    @Autowired
+    public GraphExecutor(
+            Map<String, NodeHandler> nodeHandlers,
+            WorkflowEventPublisher eventPublisher,
+            TraceService traceService,
+            LangfuseObservabilityService langfuseService,
+            @Qualifier("taskExecutor") Executor taskExecutor) {
+        this.nodeHandlers = nodeHandlers;
+        this.eventPublisher = eventPublisher;
+        this.traceService = traceService;
+        this.langfuseService = langfuseService;
+        this.taskExecutor = taskExecutor;
+    }
+
+    public GraphExecutor(
+            Map<String, NodeHandler> nodeHandlers,
+            WorkflowEventPublisher eventPublisher,
+            TraceService traceService,
+            LangfuseObservabilityService langfuseService) {
+        this(nodeHandlers, eventPublisher, traceService, langfuseService, ForkJoinPool.commonPool());
+    }
+
+    @Deprecated
     public void setInstanceId(Long instanceId) {
-        this.currentInstanceId = instanceId;
+        this.compatibilityInstanceId = instanceId;
     }
 
     /**
      * Executes the graph asynchronously.
      */
     public Map<String, Object> executeGraph(Map<String, Object> graphDefinition, Map<String, Object> initialContext) {
-        log.info("Starting Async Graph Execution for instanceId={}", currentInstanceId);
+        return executeGraph(graphDefinition, initialContext, compatibilityInstanceId, DEFAULT_TIMEOUT_SECONDS);
+    }
 
-        if (currentInstanceId != null) {
-            eventPublisher.publishWorkflowStarted(currentInstanceId);
+    public Map<String, Object> executeGraph(
+            Map<String, Object> graphDefinition,
+            Map<String, Object> initialContext,
+            Long instanceId,
+            long timeoutSeconds) {
+        GraphExecutionContext executionContext = new GraphExecutionContext(
+                instanceId,
+                timeoutSeconds > 0 ? timeoutSeconds : DEFAULT_TIMEOUT_SECONDS,
+                SkillTraceInterceptor.TraceContext.getTraceId());
+        log.info("Starting Async Graph Execution for instanceId={}", executionContext.instanceId());
+
+        if (executionContext.instanceId() != null) {
+            eventPublisher.publishWorkflowStarted(executionContext.instanceId());
         }
 
         // 1. Parsing and Initialization
@@ -58,6 +99,11 @@ public class GraphExecutor {
         if (nodes == null || nodes.isEmpty()) {
             throw new IllegalArgumentException("Graph must contain at least one node");
         }
+        if (edges == null) {
+            edges = Collections.emptyList();
+        }
+
+        validateGraph(nodes, edges);
 
         // Shared Context (Thread-Safe)
         Map<String, Object> globalContext = new ConcurrentHashMap<>(initialContext);
@@ -87,10 +133,6 @@ public class GraphExecutor {
 
         // Context propagation
 
-        // Capture initial Trace Context from current thread to propagate to async
-        // threads
-        String traceId = SkillTraceInterceptor.TraceContext.getTraceId();
-
         // 3. Build and Trigger Futures
         try {
             // We use a "Construction" approach: create futures for all nodes, linked by
@@ -100,7 +142,7 @@ public class GraphExecutor {
 
                 // Recursive creation with memoization (via nodeFutures check)
                 createNodeFuture(nodeId, nodeMap, reverseAdjacencyList, nodeFutures, nodeStates, globalContext,
-                        traceId);
+                        executionContext);
             }
 
             // Wait for all "Leaf" nodes or End nodes to complete?
@@ -113,12 +155,18 @@ public class GraphExecutor {
             // Block until done (or timeout)
             // In a real reactive system, we wouldn't block, but here the method signature
             // is sync.
-            allFutures.get(300, TimeUnit.SECONDS);
+            allFutures.get(executionContext.timeoutSeconds(), TimeUnit.SECONDS);
 
             log.info("Graph execution finished.");
+            if (executionContext.instanceId() != null) {
+                eventPublisher.publishWorkflowCompleted(executionContext.instanceId());
+            }
 
         } catch (Exception e) {
             log.error("Graph execution failed", e);
+            if (executionContext.instanceId() != null) {
+                eventPublisher.publishWorkflowFailed(executionContext.instanceId(), e.getMessage());
+            }
             throw new WorkflowExecutionException("Graph execution failed", e);
         }
 
@@ -152,7 +200,7 @@ public class GraphExecutor {
             Map<String, CompletableFuture<NodeExecutionResult>> nodeFutures,
             Map<String, NodeExecutionStatus> nodeStates,
             Map<String, Object> context,
-            String parentTraceId // passed for context propagation
+            GraphExecutionContext executionContext
     ) {
         if (nodeFutures.containsKey(nodeId)) {
             return nodeFutures.get(nodeId);
@@ -165,7 +213,7 @@ public class GraphExecutor {
         for (Map<String, Object> edge : incomingEdges) {
             String source = (String) edge.get("source");
             dependencyFutures.add(createNodeFuture(source, nodeMap, reverseAdjacencyList, nodeFutures, nodeStates,
-                    context, parentTraceId));
+                    context, executionContext));
         }
 
         // Define the task for THIS node
@@ -174,9 +222,9 @@ public class GraphExecutor {
                     // --- INSIDE WORKER THREAD ---
 
                     // 1. Restore Trace Context
-                    if (parentTraceId != null) {
-                        SkillTraceInterceptor.TraceContext.setTraceId(parentTraceId);
-                        SkillTraceInterceptor.TraceContext.setInstanceId(currentInstanceId);
+                    if (executionContext.traceId() != null) {
+                        SkillTraceInterceptor.TraceContext.setTraceId(executionContext.traceId());
+                        SkillTraceInterceptor.TraceContext.setInstanceId(executionContext.instanceId());
                         // StepId/Name set later
                     }
 
@@ -268,11 +316,11 @@ public class GraphExecutor {
 
                         // Record trace start to local workflow_traces table
                         com.adlin.orin.modules.trace.entity.WorkflowTraceEntity traceEntity = null;
-                        if (traceService != null && parentTraceId != null) {
+                        if (traceService != null && executionContext.traceId() != null) {
                             try {
                                 traceEntity = traceService.startTrace(
-                                        parentTraceId,
-                                        currentInstanceId,
+                                        executionContext.traceId(),
+                                        executionContext.instanceId(),
                                         getNumericId(nodeId),
                                         nodeTitle,
                                         null, // skillId not available at this level
@@ -283,7 +331,7 @@ public class GraphExecutor {
                                 log.warn("Failed to start trace for node {}: {}", nodeId, ex.getMessage());
                             }
                         }
-                        eventPublisher.publishNodeStarted(currentInstanceId, nodeId, nodeType);
+                        eventPublisher.publishNodeStarted(executionContext.instanceId(), nodeId, nodeType);
 
                         long nodeStartTime = System.currentTimeMillis();
                         NodeExecutionResult result = null;
@@ -311,7 +359,7 @@ public class GraphExecutor {
                         long nodeDurationMs = System.currentTimeMillis() - nodeStartTime;
 
                         // Record node execution to Langfuse as span
-                        recordNodeSpan(parentTraceId, nodeId, nodeType, nodeTitle, nodeStartTime, nodeDurationMs, result);
+                        recordNodeSpan(executionContext.traceId(), nodeId, nodeType, nodeTitle, nodeStartTime, nodeDurationMs, result);
 
                         // Complete local trace record
                         if (traceEntity != null) {
@@ -339,7 +387,7 @@ public class GraphExecutor {
                         }
 
                         nodeStates.put(nodeId, NodeExecutionStatus.COMPLETED);
-                        eventPublisher.publishNodeCompleted(currentInstanceId, nodeId,
+                        eventPublisher.publishNodeCompleted(executionContext.instanceId(), nodeId,
                                 (String) nodeDef.getOrDefault("title", ""), result.getOutputs());
 
                         return result;
@@ -347,14 +395,97 @@ public class GraphExecutor {
                     } catch (Exception e) {
                         log.error("Node execution failed: " + nodeId, e);
                         nodeStates.put(nodeId, NodeExecutionStatus.FAILED);
+                        Map<String, Object> nodeDef = nodeMap.getOrDefault(nodeId, Collections.emptyMap());
+                        eventPublisher.publishNodeFailed(
+                                executionContext.instanceId(),
+                                nodeId,
+                                (String) nodeDef.getOrDefault("title", nodeDef.getOrDefault("type", nodeId)),
+                                e.getMessage());
                         throw new CompletionException(e);
                     } finally {
                         SkillTraceInterceptor.TraceContext.clear();
                     }
-                }, executor);
+                }, taskExecutor);
 
         nodeFutures.put(nodeId, thisFuture);
         return thisFuture;
+    }
+
+    private void validateGraph(List<Map<String, Object>> nodes, List<Map<String, Object>> edges) {
+        Set<String> nodeIds = new HashSet<>();
+        for (Map<String, Object> node : nodes) {
+            Object rawId = node.get("id");
+            Object rawType = node.get("type");
+            if (!(rawId instanceof String id) || id.isBlank()) {
+                throw new IllegalArgumentException("Graph node id is required");
+            }
+            if (!nodeIds.add(id)) {
+                throw new IllegalArgumentException("Duplicate graph node id: " + id);
+            }
+            if (!(rawType instanceof String type) || type.isBlank()) {
+                throw new IllegalArgumentException("Graph node type is required: " + id);
+            }
+            getNodeHandler(node);
+        }
+
+        Map<String, List<String>> adjacency = new HashMap<>();
+        Set<String> targets = new HashSet<>();
+        for (Map<String, Object> edge : edges) {
+            String source = (String) edge.get("source");
+            String target = (String) edge.get("target");
+            if (!nodeIds.contains(source)) {
+                throw new IllegalArgumentException("Graph edge source not found: " + source);
+            }
+            if (!nodeIds.contains(target)) {
+                throw new IllegalArgumentException("Graph edge target not found: " + target);
+            }
+            adjacency.computeIfAbsent(source, ignored -> new ArrayList<>()).add(target);
+            targets.add(target);
+        }
+
+        boolean hasStartNode = nodes.stream().anyMatch(n -> "start".equalsIgnoreCase((String) n.get("type")));
+        boolean hasEntryNode = nodes.stream().map(n -> (String) n.get("id")).anyMatch(id -> !targets.contains(id));
+        if (!hasStartNode && !hasEntryNode) {
+            throw new IllegalArgumentException("Graph must contain a start node or at least one entry node");
+        }
+
+        boolean hasEndNode = nodes.stream().anyMatch(n -> "end".equalsIgnoreCase((String) n.get("type")));
+        boolean hasLeafNode = nodes.stream()
+                .map(n -> (String) n.get("id"))
+                .anyMatch(id -> !adjacency.containsKey(id) || adjacency.get(id).isEmpty());
+        if (!hasEndNode && !hasLeafNode) {
+            throw new IllegalArgumentException("Graph must contain an end node or at least one leaf node");
+        }
+
+        Set<String> visited = new HashSet<>();
+        Set<String> visiting = new HashSet<>();
+        for (String nodeId : nodeIds) {
+            if (hasCycle(nodeId, adjacency, visited, visiting)) {
+                throw new IllegalArgumentException("Graph contains a cycle involving node: " + nodeId);
+            }
+        }
+    }
+
+    private boolean hasCycle(
+            String nodeId,
+            Map<String, List<String>> adjacency,
+            Set<String> visited,
+            Set<String> visiting) {
+        if (visiting.contains(nodeId)) {
+            return true;
+        }
+        if (visited.contains(nodeId)) {
+            return false;
+        }
+        visiting.add(nodeId);
+        for (String next : adjacency.getOrDefault(nodeId, Collections.emptyList())) {
+            if (hasCycle(next, adjacency, visited, visiting)) {
+                return true;
+            }
+        }
+        visiting.remove(nodeId);
+        visited.add(nodeId);
+        return false;
     }
 
     private NodeHandler getNodeHandler(Map<String, Object> node) {
@@ -374,9 +505,7 @@ public class GraphExecutor {
 
         NodeHandler handler = nodeHandlers.get(beanName);
         if (handler == null) {
-            log.warn("No handler found for type: {}, using generic/mock", type);
-            // Fallback or throw
-            return (data, ctx) -> NodeExecutionResult.success(Collections.emptyMap());
+            throw new IllegalArgumentException("No node handler found for type: " + type);
         }
         return handler;
     }
@@ -424,5 +553,8 @@ public class GraphExecutor {
             // Langfuse 错误降级，不影响主流程
             log.warn("Failed to record Langfuse node span: {}", e.getMessage());
         }
+    }
+
+    private record GraphExecutionContext(Long instanceId, long timeoutSeconds, String traceId) {
     }
 }

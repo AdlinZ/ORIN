@@ -9,6 +9,17 @@ const service = axios.create({
     timeout: 60000 // Global Default Timeout (60s)
 });
 
+const getStoredToken = () => {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return Cookies.get('orin_token')
+        || window.localStorage.getItem('orin_token')
+        || window.sessionStorage.getItem('orin_token')
+        || '';
+};
+
 // 重试配置
 const MAX_RETRIES = 2; // 最大重试次数
 const RETRY_DELAY = 1000; // 重试延迟（毫秒）
@@ -69,9 +80,12 @@ service.interceptors.request.use(
     (config) => {
         // In real app, we get token from Store/Cookie
         const userStore = useUserStore();
-        const token = userStore.token;
+        const token = userStore.token || getStoredToken();
         if (token) {
             config.headers['Authorization'] = 'Bearer ' + token;
+            if (!userStore.token) {
+                userStore.token = token;
+            }
         }
 
         // Also inject User-Id if available (for legacy support)

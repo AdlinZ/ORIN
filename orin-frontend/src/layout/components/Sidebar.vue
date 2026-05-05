@@ -1,11 +1,10 @@
 <template>
   <div class="sidebar-container" :class="{ 'collapsed': appStore.isCollapse }">
     <!-- Logo Section -->
-    <div class="logo-container">
+    <div class="logo-container" @dblclick="handleLogoShortcut">
       <div class="logo-box">
         <BrandingLogo :height="appStore.isCollapse ? 28 : 32" class="logo" />
       </div>
-      <span v-if="!appStore.isCollapse" class="title">企业 AI 中枢</span>
     </div>
 
     <!-- Menu Section (scrollable) -->
@@ -100,6 +99,8 @@
             text
             :icon="Refresh"
             class="action-btn"
+            aria-label="刷新页面"
+            title="刷新页面"
             @click="handleRefresh"
           />
         </el-tooltip>
@@ -108,6 +109,8 @@
             text
             :icon="isDarkMode ? Sunny : Moon"
             class="action-btn"
+            :aria-label="isDarkMode ? '浅色模式' : '深色模式'"
+            :title="isDarkMode ? '浅色模式' : '深色模式'"
             @click="toggleTheme"
           />
         </el-tooltip>
@@ -116,32 +119,29 @@
             text
             :icon="Bell"
             class="action-btn"
+            aria-label="通知中心"
+            title="通知中心"
             @click="showNotifications"
-          />
-        </el-tooltip>
-        <el-tooltip content="切换到顶栏模式" placement="right">
-          <el-button
-            text
-            :icon="Expand"
-            class="action-btn"
-            @click="appStore.toggleMenuMode()"
           />
         </el-tooltip>
       </div>
     </div>
+
+    <NotificationCenter v-model="showNotificationCenter" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 import BrandingLogo from '@/components/BrandingLogo.vue'
+import NotificationCenter from './NotificationCenter.vue'
 import { ElMessage } from 'element-plus'
 import { ROUTES } from '@/router/routes'
 import { getVisibleMenus } from '@/router/topMenuConfig'
-import { DArrowLeft, DArrowRight, Refresh, Moon, Sunny, Bell, Expand, User, SwitchButton } from '@element-plus/icons-vue' // eslint-disable-line no-unused-vars
+import { Refresh, Moon, Sunny, Bell, User, SwitchButton } from '@element-plus/icons-vue'
 import { useUser } from '@/composables/useUser'
 import { useTheme } from '@/composables/useTheme'
 import { getIconComponent } from '@/utils/iconMap'
@@ -150,6 +150,9 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
+const showNotificationCenter = ref(false)
+let refreshDoneTimer = null
+let removeRefreshDoneListener = null
 
 // 共享 composable
 const { userInfo, checkLoginStatus, handleLogout } = useUser()
@@ -180,13 +183,48 @@ const groupMenuItems = (children) => {
   return groups
 }
 
+const cleanupRefreshDoneListener = () => {
+  if (refreshDoneTimer) {
+    window.clearTimeout(refreshDoneTimer)
+    refreshDoneTimer = null
+  }
+
+  if (removeRefreshDoneListener) {
+    removeRefreshDoneListener()
+    removeRefreshDoneListener = null
+  }
+}
+
 const handleRefresh = () => {
+  cleanupRefreshDoneListener()
+
+  const handleRefreshDone = () => {
+    cleanupRefreshDoneListener()
+    ElMessage({ message: '页面数据已刷新', type: 'success', duration: 1500 })
+  }
+
+  window.addEventListener('page-refresh-done', handleRefreshDone)
+  removeRefreshDoneListener = () => {
+    window.removeEventListener('page-refresh-done', handleRefreshDone)
+  }
+
   window.dispatchEvent(new Event('page-refresh'))
   ElMessage({ message: '正在刷新页面数据...', type: 'info', duration: 1500 })
+
+  refreshDoneTimer = window.setTimeout(() => {
+    cleanupRefreshDoneListener()
+    router.go(0)
+  }, 5000)
 }
 
 const showNotifications = () => {
-  ElMessage.info('通知中心已在系统配置中统一管理')
+  showNotificationCenter.value = true
+}
+
+const handleLogoShortcut = (event) => {
+  if (!event.altKey || !event.shiftKey) return
+  appStore.setMenuMode('topbar')
+  ElMessage.success('已切换到顶栏模式')
 }
 
 const handleCommand = (command) => {
@@ -196,9 +234,6 @@ const handleCommand = (command) => {
       break
     case 'profile':
       router.push(ROUTES.PROFILE)
-      break
-    case 'toggle_menu_mode':
-      appStore.toggleMenuMode()
       break
     case 'refresh_page':
       handleRefresh()
@@ -214,6 +249,10 @@ const handleCommand = (command) => {
 
 onMounted(() => {
   checkLoginStatus()
+})
+
+onBeforeUnmount(() => {
+  cleanupRefreshDoneListener()
 })
 
 router.afterEach(() => {
@@ -304,16 +343,6 @@ router.afterEach(() => {
 .sidebar-container.collapsed .logo {
   height: 28px;
   margin: 0 auto;
-}
-
-.title {
-  font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--neutral-gray-900);
-  letter-spacing: 0;
-  white-space: nowrap;
-  transition: opacity 0.3s;
 }
 
 /* Menu wrapper - scrollable area */

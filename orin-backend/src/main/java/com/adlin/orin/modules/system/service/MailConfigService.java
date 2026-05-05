@@ -80,20 +80,29 @@ public class MailConfigService {
                 config.getApiKey() != null && config.getApiKey().startsWith("••") ? "••••••••" : config.getApiKey(),
                 config.getFromEmail());
 
-        // 如果设置了新密码且不是掩码，则加密存储
-        if (config.getPassword() != null && !config.getPassword().startsWith("••")) {
-            // 这里可以添加密码加密逻辑，目前明文存储
+        Optional<MailConfigEntity> oldConfig = config.getId() != null
+                ? mailConfigRepository.findById(config.getId())
+                : mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc();
+
+        if (oldConfig.isPresent()) {
+            MailConfigEntity existing = oldConfig.get();
+            if (isMasked(config.getApiKey())) {
+                log.info("检测到API Key为掩码，从数据库获取旧值: mailerType={}", existing.getMailerType());
+                config.setApiKey(existing.getApiKey());
+            }
+            if (isMasked(config.getPassword())) {
+                log.info("检测到SMTP密码为掩码，从数据库获取旧值: mailerType={}", existing.getMailerType());
+                config.setPassword(existing.getPassword());
+            }
+            if (isMasked(config.getImapPassword())) {
+                log.info("检测到IMAP密码为掩码，从数据库获取旧值: mailerType={}", existing.getMailerType());
+                config.setImapPassword(existing.getImapPassword());
+            }
         }
 
-        // 如果 API Key 是掩码，则获取旧的配置
-        if (config.getApiKey() != null && config.getApiKey().startsWith("••")) {
-            mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().ifPresent(oldConfig -> {
-                log.info("检测到API Key为掩码，从数据库获取旧值: mailerType={}", oldConfig.getMailerType());
-                config.setApiKey(oldConfig.getApiKey());
-            });
+        if (config.getEnabled() == null) {
+            config.setEnabled(true);
         }
-
-        config.setEnabled(true);
         MailConfigEntity saved = mailConfigRepository.save(config);
 
         log.info("邮件配置已保存: mailerType={}, id={}", saved.getMailerType(), saved.getId());
@@ -111,12 +120,7 @@ public class MailConfigService {
      * 测试邮件配置
      */
     public boolean testConfig(MailConfigEntity config, String testEmail) {
-        // 如果 API Key 被掩码了，从数据库获取原始值
-        if (config.getApiKey() != null && config.getApiKey().startsWith("••")) {
-            mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().ifPresent(oldConfig -> {
-                config.setApiKey(oldConfig.getApiKey());
-            });
-        }
+        hydrateMaskedSecrets(config);
 
         // 如果是 MailerSend 模式
         if ("mailersend".equals(config.getMailerType())) {
@@ -534,6 +538,14 @@ public class MailConfigService {
             mailSenderImpl.setPort(config.getSmtpPort());
             mailSenderImpl.setUsername(config.getUsername());
             mailSenderImpl.setPassword(config.getPassword());
+            mailSenderImpl.setDefaultEncoding("UTF-8");
+            Properties props = new Properties();
+            props.put("mail.smtp.auth", true);
+            if (Boolean.TRUE.equals(config.getSslEnabled())) {
+                props.put("mail.smtp.starttls.enable", true);
+                props.put("mail.smtp.ssl.trust", config.getSmtpHost());
+            }
+            mailSenderImpl.setJavaMailProperties(props);
             log.info("JavaMailSender 配置已更新");
         }
     }
@@ -543,5 +555,29 @@ public class MailConfigService {
      */
     public boolean isConfigured() {
         return mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc().isPresent();
+    }
+
+    private void hydrateMaskedSecrets(MailConfigEntity config) {
+        if (!isMasked(config.getApiKey()) && !isMasked(config.getPassword()) && !isMasked(config.getImapPassword())) {
+            return;
+        }
+        Optional<MailConfigEntity> oldConfig = config.getId() != null
+                ? mailConfigRepository.findById(config.getId())
+                : mailConfigRepository.findFirstByEnabledTrueOrderByUpdatedAtDesc();
+        oldConfig.ifPresent(existing -> {
+            if (isMasked(config.getApiKey())) {
+                config.setApiKey(existing.getApiKey());
+            }
+            if (isMasked(config.getPassword())) {
+                config.setPassword(existing.getPassword());
+            }
+            if (isMasked(config.getImapPassword())) {
+                config.setImapPassword(existing.getImapPassword());
+            }
+        });
+    }
+
+    private boolean isMasked(String value) {
+        return value != null && value.startsWith("••");
     }
 }

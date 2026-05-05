@@ -195,6 +195,10 @@ public class CollaborationRedisService {
                 "  local ok, decoded = pcall(cjson.decode, ctxRaw) " +
                 "  if ok and type(decoded) == 'table' then ctx = decoded end " +
                 "end " +
+                "if ctx[ARGV[1]] ~= nil then " +
+                "  local current = redis.call('GET', KEYS[2]) " +
+                "  return tonumber(current or '0') " +
+                "end " +
                 "ctx[ARGV[1]] = cjson.decode(ARGV[2]) " +
                 "redis.call('SET', KEYS[1], cjson.encode(ctx), 'EX', ARGV[3]) " +
                 "local counter = redis.call('INCR', KEYS[2]) " +
@@ -219,6 +223,12 @@ public class CollaborationRedisService {
         String key = String.format(BRANCH_COUNTER_PREFIX, packageId);
         String value = redisTemplate.opsForValue().get(key);
         return value != null ? Long.parseLong(value) : 0;
+    }
+
+    public long countBranchResults(String packageId) {
+        return loadContext(packageId)
+                .map(ctx -> ctx.keySet().stream().filter(key -> key.startsWith("branch_result:")).count())
+                .orElse(0L);
     }
 
     /**
@@ -333,13 +343,14 @@ public class CollaborationRedisService {
     }
 
     /**
-     * 检查并标记（原子操作）- 返回是否重复
+     * 检查并标记（原子操作）。
+     *
+     * @return true 表示重复任务，false 表示本次成功首次标记。
      */
     public boolean checkAndMarkTask(String packageId, String subTaskId, int attempt) {
         String key = String.format(IDEMPOTENT_PREFIX, packageId, subTaskId, attempt);
-        Boolean existed = redisTemplate.opsForValue().setIfAbsent(key, "1", IDEMPOTENT_TTL);
-        // existed 为 true 表示已存在（重复），false 表示新设置（不是重复）
-        return existed == null || !existed;
+        Boolean marked = redisTemplate.opsForValue().setIfAbsent(key, "1", IDEMPOTENT_TTL);
+        return marked == null || !marked;
     }
 
     // ========== Dual-Write 支持（迁移期）==========
@@ -414,6 +425,7 @@ public class CollaborationRedisService {
 
         // 分支计数器
         stats.put("branchCounter", getBranchCounter(packageId));
+        stats.put("branchResultCount", countBranchResults(packageId));
 
         // 光标
         stats.put("hasCursor", redisTemplate.hasKey(String.format(CURSOR_PREFIX, packageId)));

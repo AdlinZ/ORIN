@@ -87,10 +87,6 @@
       <section v-if="activeWorkspace === 'creation'" class="creation-stage">
         <div class="creation-workspace">
           <header class="creation-workspace-head">
-            <div>
-              <h1>AI 创作</h1>
-              <p>{{ creationWorkspaceSubtitle }}</p>
-            </div>
             <div class="creation-mode-tabs">
               <button
                 v-for="mode in creationModes"
@@ -106,7 +102,18 @@
           </header>
 
           <div v-if="creationServiceHint" class="creation-service-hint">
-            {{ creationServiceHint }}
+            <div class="creation-service-hint-copy">
+              <strong>{{ creationServiceHint.title }}</strong>
+              <span>{{ creationServiceHint.description }}</span>
+            </div>
+            <div v-if="userStore.isAdmin" class="creation-service-actions">
+              <el-button type="primary" size="small" @click="goCreationSetup">
+                {{ creationServiceHint.primaryAction }}
+              </el-button>
+              <el-button size="small" @click="router.push(ROUTES.AGENTS.MODELS)">
+                模型管理
+              </el-button>
+            </div>
           </div>
 
           <div v-else class="creation-runner">
@@ -418,6 +425,7 @@ import {
 import { chatAgent } from '@/api/agent';
 import { uploadMultimodalFile } from '@/api/multimodal';
 import { useUserStore } from '@/stores/user';
+import { ROUTES } from '@/router/routes';
 import ImageGenerator from '@/views/Agent/components/ImageGenerator.vue';
 import VideoGenerator from '@/views/Agent/components/VideoGenerator.vue';
 import AudioGenerator from '@/views/Agent/components/AudioGenerator.vue';
@@ -642,12 +650,38 @@ const canGenerateCreation = computed(() => {
 });
 
 const creationServiceHint = computed(() => {
-  if (creationAgent.value) return '';
-  if (loadingAgents.value) return '正在加载创作服务...';
-  if (creatorMode.value === 'video') return '当前没有可用的视频生成服务，请先让管理员配置 TEXT_TO_VIDEO 智能体。';
-  if (creatorMode.value === 'audio') return '当前没有可用的语音合成服务，请先让管理员配置 TEXT_TO_SPEECH 智能体。';
-  return '当前没有可用的图像生成服务，请先让管理员配置 TEXT_TO_IMAGE 智能体。';
+  if (creationAgent.value) return null;
+  if (loadingAgents.value) {
+    return {
+      title: '正在加载创作服务...',
+      description: '正在检查当前账号可用的图像、视频和音频智能体。',
+      primaryAction: '智能体接入'
+    };
+  }
+  if (creatorMode.value === 'video') {
+    return {
+      title: '当前没有可用的视频生成服务',
+      description: '请在管理端接入一个 TEXT_TO_VIDEO 智能体；如果没有视频模型，先到模型管理添加或导入视频生成模型。',
+      primaryAction: '接入视频智能体'
+    };
+  }
+  if (creatorMode.value === 'audio') {
+    return {
+      title: '当前没有可用的语音合成服务',
+      description: '请在管理端接入一个 TEXT_TO_SPEECH 智能体；如果没有语音模型，先到模型管理添加或导入语音合成模型。',
+      primaryAction: '接入语音智能体'
+    };
+  }
+  return {
+    title: '当前没有可用的图像生成服务',
+    description: '请在管理端接入一个 TEXT_TO_IMAGE 智能体；如果没有图像模型，先到模型管理添加或导入图像生成模型。',
+    primaryAction: '接入图像智能体'
+  };
 });
+
+const goCreationSetup = () => {
+  router.push(ROUTES.AGENTS.ONBOARD);
+};
 
 const creationWorkspaceSubtitle = computed(() => {
   if (creatorMode.value === 'video') return '生成视频、首帧参考和动态视觉内容';
@@ -939,7 +973,7 @@ const generateCreation = async () => {
 
   const agent = creationAgent.value;
   if (!agent) {
-    ElMessage.warning(creationServiceHint.value || '当前没有可用的创作服务');
+    ElMessage.warning(creationServiceHint.value?.title || '当前没有可用的创作服务');
     return;
   }
 
@@ -1536,67 +1570,67 @@ onMounted(async () => {
 }
 
 .creation-stage {
+  height: 100vh;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 24px 28px;
+  box-sizing: border-box;
   background:
     radial-gradient(circle at 50% 12%, rgba(0, 191, 165, 0.1), transparent 26%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(248, 250, 252, 0.94));
 }
 
 .creation-workspace {
-  height: calc(100vh - 48px);
+  height: 100%;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
 }
 
 .creation-workspace-head {
-  min-height: 54px;
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 5;
+  width: auto;
+  min-height: 0;
+  margin: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.creation-workspace-head h1 {
-  margin: 0;
-  color: var(--portal-ink);
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: 0;
-}
-
-.creation-workspace-head p {
-  margin: 6px 0 0;
-  color: #7c8491;
-  font-size: 13px;
+  justify-content: flex-end;
+  padding: 0;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 .creation-mode-tabs {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid rgba(0, 191, 165, 0.14);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.82);
-  padding: 4px;
-  box-shadow: 0 12px 34px rgba(15, 118, 110, 0.08);
+  gap: 4px;
+  border: 1px solid rgba(0, 191, 165, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 3px;
+  box-shadow: 0 14px 36px rgba(15, 118, 110, 0.12);
+  pointer-events: auto;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
 .creation-mode-tabs button {
-  height: 36px;
+  height: 32px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 9px;
   background: transparent;
   color: #4b5563;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 14px;
+  gap: 6px;
+  padding: 0 12px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
@@ -1609,6 +1643,7 @@ onMounted(async () => {
 }
 
 .creation-runner {
+  flex: 1;
   min-height: 0;
   border: 1px solid rgba(0, 191, 165, 0.12);
   border-radius: 18px;
@@ -1789,15 +1824,44 @@ onMounted(async () => {
 }
 
 .creation-service-hint {
-  width: min(780px, 100%);
-  margin: -10px auto 20px;
-  border: 1px solid rgba(245, 158, 11, 0.18);
-  border-radius: 12px;
-  background: rgba(255, 251, 235, 0.74);
-  color: #92400e;
-  padding: 10px 12px;
+  width: min(720px, 100%);
+  margin: auto;
+  border: 1px solid rgba(0, 191, 165, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--portal-ink);
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  padding: 28px;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(15, 118, 110, 0.08);
+}
+
+.creation-service-hint-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.creation-service-hint-copy strong {
+  color: var(--portal-ink);
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.creation-service-hint-copy span {
+  max-width: 560px;
+  color: #667085;
   font-size: 13px;
-  font-weight: 700;
+  line-height: 1.6;
+}
+
+.creation-service-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .creation-result {
@@ -2518,6 +2582,10 @@ onMounted(async () => {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   }
 
+  .creation-workspace-head {
+    right: 14px;
+  }
+
   .composer-dock {
     right: 20px;
   }
@@ -2538,6 +2606,26 @@ onMounted(async () => {
 
   .portal-sidebar {
     display: none;
+  }
+
+  .creation-stage {
+    padding: 18px;
+  }
+
+  .creation-workspace-head {
+    position: static;
+    width: 100%;
+    margin: 0 0 12px;
+  }
+
+  .creation-mode-tabs {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .creation-mode-tabs button {
+    flex: 1;
+    justify-content: center;
   }
 
   .composer-dock {

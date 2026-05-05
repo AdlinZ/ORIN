@@ -415,10 +415,22 @@ const settingsForm = reactive({
   rerankModel: ''
 });
 const allModels = ref([]);
+
+const uniqueModelOptions = (rows) => {
+  const seen = new Set();
+  return (rows || [])
+    .map(m => ({ label: m.name || m.modelId, value: m.modelId || m.name }))
+    .filter((item) => {
+      if (!item.value || seen.has(item.value)) return false;
+      seen.add(item.value);
+      return true;
+    });
+};
+
 const embeddingModelOptions = computed(() => {
-  const options = (allModels.value || [])
-    .filter(m => String(m.type || '').toUpperCase() === 'EMBEDDING')
-    .map(m => ({ label: m.name || m.modelId, value: m.modelId || m.name }));
+  const options = uniqueModelOptions(
+    (allModels.value || []).filter(m => String(m.type || '').toUpperCase() === 'EMBEDDING')
+  );
   if (options.length === 0) {
     return [
       { label: 'BGE-M3', value: 'BAAI/bge-m3' },
@@ -428,9 +440,9 @@ const embeddingModelOptions = computed(() => {
   return options;
 });
 const rerankModelOptions = computed(() => {
-  const options = (allModels.value || [])
-    .filter(m => ['RERANK', 'RERANKER'].includes(String(m.type || '').toUpperCase()))
-    .map(m => ({ label: m.name || m.modelId, value: m.modelId || m.name }));
+  const options = uniqueModelOptions(
+    (allModels.value || []).filter(m => ['RERANK', 'RERANKER'].includes(String(m.type || '').toUpperCase()))
+  );
   if (options.length === 0) {
     return [{ label: 'BAAI/bge-reranker-v2-mini', value: 'BAAI/bge-reranker-v2-mini' }];
   }
@@ -755,12 +767,19 @@ const runRetrieval = async () => {
     const res = await request.post('/knowledge/retrieve/test', {
       ...payload
     });
-    retrievalResults.value = res || [];
+    retrievalResults.value = unwrapRetrievalResults(res);
   } catch (error) {
     ElMessage.error(`检索失败: ${error.message}`);
   } finally {
     retrievalLoading.value = false;
   }
+};
+
+const unwrapRetrievalResults = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.results)) return response.results;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
 };
 
 const buildMindTree = (docs) => {
@@ -1006,7 +1025,7 @@ onUnmounted(() => {
 <style scoped>
 .kb-workbench-page {
   min-height: 100vh;
-  padding: 18px;
+  padding: 16px;
   background:
     radial-gradient(circle at 0% -20%, rgba(15, 157, 138, 0.10) 0, rgba(15, 157, 138, 0) 55%),
     radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.07) 0, rgba(59, 130, 246, 0) 50%),
@@ -1014,13 +1033,14 @@ onUnmounted(() => {
 }
 
 .workbench-hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
+  align-items: stretch;
+  gap: 14px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdfd 100%);
   border: 1px solid #dce7e4;
-  border-radius: 16px;
-  padding: 16px 18px;
+  border-radius: 12px;
+  padding: 14px 16px;
   margin-bottom: 12px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 }
@@ -1046,9 +1066,13 @@ onUnmounted(() => {
 
 .hero-main h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: 28px;
   color: #111827;
   line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .title-meta-pills {
@@ -1072,15 +1096,14 @@ onUnmounted(() => {
   margin: 10px 0 0;
   color: #4b5563;
   line-height: 1.65;
-  max-width: 1040px;
+  max-width: 980px;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .hero-side {
-  width: 270px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
@@ -1110,9 +1133,10 @@ onUnmounted(() => {
 
 .workbench-body {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 14px;
-  min-height: calc(100vh - 190px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  grid-template-areas: "stage docs";
+  gap: 12px;
+  min-height: clamp(560px, calc(100vh - 198px), 760px);
 }
 
 .left-panel,
@@ -1121,6 +1145,7 @@ onUnmounted(() => {
 }
 
 .left-panel {
+  grid-area: docs;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1131,9 +1156,9 @@ onUnmounted(() => {
   gap: 14px;
   align-items: flex-start;
   background: var(--orin-bg-white);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid #dfe8e5;
-  padding: 14px;
+  padding: 12px;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
 }
 
@@ -1209,7 +1234,7 @@ onUnmounted(() => {
   min-height: 0;
   background: var(--orin-bg-white);
   border: 1px solid #dfe8e5;
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -1244,6 +1269,28 @@ onUnmounted(() => {
   margin: 10px 0;
 }
 
+.doc-search-row :deep(.el-input__wrapper),
+.graph-toolbar :deep(.el-input__wrapper) {
+  background: #ffffff !important;
+  border: 1px solid #dbe7e3;
+  box-shadow: none !important;
+}
+
+.doc-search-row :deep(.el-input__inner),
+.graph-toolbar :deep(.el-input__inner) {
+  color: #0f172a;
+}
+
+.doc-search-row :deep(.el-input__inner::placeholder),
+.graph-toolbar :deep(.el-input__inner::placeholder) {
+  color: #94a3b8;
+}
+
+.doc-search-row :deep(.el-input__wrapper.is-focus),
+.graph-toolbar :deep(.el-input__wrapper.is-focus) {
+  border-color: #0f9d8a;
+}
+
 .doc-tree-wrap {
   flex: 1;
   min-height: 0;
@@ -1266,7 +1313,7 @@ onUnmounted(() => {
 .folder-header {
   width: 100%;
   border: 0;
-  background: var(--neutral-gray-50);
+  background: #f7faf9;
   padding: 8px 10px;
   display: flex;
   align-items: center;
@@ -1308,11 +1355,11 @@ onUnmounted(() => {
 }
 
 .doc-row:hover {
-  background: var(--neutral-gray-50);
+  background: #f8fafc;
 }
 
 .doc-row.active {
-  background: var(--primary-50);
+  background: #ecfaf6;
 }
 
 .doc-main {
@@ -1363,14 +1410,15 @@ onUnmounted(() => {
 }
 
 .right-panel {
+  grid-area: stage;
   background: var(--orin-bg-white);
   border: 1px solid #dfe8e5;
-  border-radius: 14px;
-  padding: 10px 14px 14px;
+  border-radius: 12px;
+  padding: 12px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.03);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-height: 0;
 }
 
@@ -1378,12 +1426,11 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .summary-item {
   border: 1px solid #e6eeeb;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f8fcfb;
   padding: 8px 10px;
   display: flex;
@@ -1445,7 +1492,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 10px;
   border: 1px solid #e5efeb;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fbfdfd;
   padding: 12px;
 }
@@ -1566,7 +1613,7 @@ onUnmounted(() => {
 
 .mindmap-canvas {
   flex: 1;
-  min-height: 0;
+  min-height: 420px;
   border: 1px solid #ecedf1;
   border-radius: 10px;
   background: #fbfcff;
@@ -1653,15 +1700,11 @@ onUnmounted(() => {
 
 @media (max-width: 1380px) {
   .workbench-body {
-    grid-template-columns: 330px minmax(0, 1fr);
-  }
-
-  .hero-side {
-    width: 240px;
+    grid-template-columns: minmax(0, 1fr) 320px;
   }
 
   .hero-main h1 {
-    font-size: 28px;
+    font-size: 26px;
   }
 
   .workspace-nav {
@@ -1675,17 +1718,19 @@ onUnmounted(() => {
   }
 
   .workbench-hero {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
   }
 
   .hero-side {
-    width: 100%;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .workbench-body {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "stage"
+      "docs";
+    min-height: auto;
   }
 
   .hero-main h1 {
@@ -1705,11 +1750,38 @@ onUnmounted(() => {
   .metric-pane,
   .benchmark-pane,
   .settings-pane {
+    min-height: 440px;
+  }
+
+  .left-panel {
     min-height: 420px;
   }
 
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .workbench-hero {
+    padding: 12px;
+  }
+
+  .title-row {
+    flex-wrap: wrap;
+  }
+
+  .hero-side,
+  .workspace-summary,
+  .workspace-nav,
+  .metric-grid,
+  .graph-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .test-config {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

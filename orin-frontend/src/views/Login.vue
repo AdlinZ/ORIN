@@ -97,11 +97,13 @@ import { ElMessage } from 'element-plus';
 import Cookies from 'js-cookie';
 import BrandingLogo from '@/components/BrandingLogo.vue';
 import { useUserStore } from '@/stores/user';
-import { getDefaultHomeByRoles } from '@/router/topMenuConfig';
+import { useAppStore } from '@/stores/app';
+import { ADMIN_MENU_ROLES, getDefaultHomeByRoles } from '@/router/topMenuConfig';
 import { login } from '../api/auth';
 
 const router = useRouter();
 const userStore = useUserStore();
+const appStore = useAppStore();
 const loading = ref(false);
 const rememberMe = ref(false);
 const formRef = ref(null);
@@ -115,6 +117,8 @@ const loginRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 };
+
+const isAdminLike = (roles = []) => roles.some((role) => ADMIN_MENU_ROLES.includes(role));
 
 const handleLogin = async () => {
   if (!formRef.value) return;
@@ -147,15 +151,20 @@ const handleLogin = async () => {
           sessionStorage.setItem('orin_user', JSON.stringify(user));
         }
 
-        userStore.login(token, user, roles || ['ROLE_USER']);
+        const userRoles = roles || ['ROLE_USER'];
+        userStore.login(token, user, userRoles);
+
+        if (isAdminLike(userRoles)) {
+          appStore.setMenuMode('sidebar');
+        }
 
         // 设置 Cookie（用于跨页面恢复），记住我时过期时间更长
         const cookieExpires = rememberMe.value ? 7 : 1;
         Cookies.set('orin_token', token, { expires: cookieExpires });
         Cookies.set('orin_userInfo', JSON.stringify(user), { expires: cookieExpires });
-        Cookies.set('orin_roles', JSON.stringify(roles || ['ROLE_USER']), { expires: cookieExpires });
+        Cookies.set('orin_roles', JSON.stringify(userRoles), { expires: cookieExpires });
 
-        const targetRoute = getDefaultHomeByRoles(roles || ['ROLE_USER']);
+        const targetRoute = getDefaultHomeByRoles(userRoles);
         setTimeout(() => router.push(targetRoute), 500);
       } catch (error) {
         ElMessage.error('登录失败: ' + (error.response?.data?.message || '请检查账号密码'));
@@ -169,14 +178,16 @@ const handleLogin = async () => {
 
 <style scoped>
 .login-container {
-  height: 100vh;
-  width: 100vw;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
   background: #ffffff;
   display: flex;
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 32px;
 }
 
@@ -306,26 +317,52 @@ const handleLogin = async () => {
   .login-container {
     height: auto;
     min-height: 100vh;
-    padding: 24px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px;
   }
 
   .login-shell {
-    max-width: 720px;
+    width: min(100%, 720px);
+    max-width: none;
+    min-height: 0;
     grid-template-columns: 1fr;
   }
 
   .login-brand-panel {
-    padding: 36px;
+    padding: 28px 32px;
     border-right: none;
     border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
+    gap: 18px;
+    justify-content: flex-start;
+  }
+
+  .login-logo {
+    height: 48px;
+  }
+
+  .brand-kicker {
+    margin-bottom: 10px;
+    font-size: 11px;
+  }
+
+  .brand-copy h1 {
+    margin-bottom: 10px;
+    font-size: 28px;
+  }
+
+  .brand-copy p {
+    font-size: 14px;
+    line-height: 1.65;
   }
 
   .login-form-panel {
-    padding: 36px;
+    padding: 32px;
   }
 
   .trust-grid {
-    grid-template-columns: 1fr;
+    display: none;
   }
 
   .login-footer {
@@ -334,6 +371,56 @@ const handleLogin = async () => {
     margin-top: 18px;
     white-space: normal;
     text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-container {
+    padding: 12px;
+  }
+
+  .login-shell {
+    border-radius: 10px;
+  }
+
+  .login-brand-panel {
+    padding: 22px 20px;
+  }
+
+  .login-logo {
+    height: 40px;
+  }
+
+  .brand-copy h1 {
+    font-size: 24px;
+  }
+
+  .brand-copy p {
+    font-size: 13px;
+  }
+
+  .login-form-panel {
+    padding: 26px 20px 24px;
+  }
+
+  .form-title {
+    font-size: 24px;
+  }
+
+  .form-subtitle {
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+
+  .extra-actions,
+  .security-note {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .login-footer {
+    font-size: 12px;
   }
 }
 

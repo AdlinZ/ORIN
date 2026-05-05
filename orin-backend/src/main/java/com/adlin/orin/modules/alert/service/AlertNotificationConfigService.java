@@ -39,6 +39,7 @@ public class AlertNotificationConfigService {
             config.setId(existing.getId());
             config.setCreatedAt(existing.getCreatedAt());
         }
+        applyDefaults(config);
         return repository.save(config);
     }
 
@@ -49,12 +50,11 @@ public class AlertNotificationConfigService {
         AlertNotificationConfig config = getConfig();
         Map<String, Object> status = new HashMap<>();
 
-        // 邮件状态
-        status.put("email", Map.of(
-            "enabled", config.getEmailEnabled() != null && config.getEmailEnabled(),
-            "configured", config.getEmailRecipients() != null && !config.getEmailRecipients().isEmpty(),
-            "recipients", config.getEmailRecipients()
-        ));
+        Map<String, Object> email = new HashMap<>();
+        email.put("enabled", config.getEmailEnabled() != null && config.getEmailEnabled());
+        email.put("configured", config.getEmailRecipients() != null && !config.getEmailRecipients().isEmpty());
+        email.put("recipients", config.getEmailRecipients());
+        status.put("email", email);
 
         // 钉钉状态
         status.put("dingtalk", Map.of(
@@ -76,5 +76,17 @@ public class AlertNotificationConfigService {
      */
     public boolean testNotification(String channel) {
         return alertNotificationService.sendTestNotification(channel);
+    }
+
+    private void applyDefaults(AlertNotificationConfig config) {
+        if (config.getEmailEnabled() == null) config.setEmailEnabled(true);
+        if (config.getDingtalkEnabled() == null) config.setDingtalkEnabled(false);
+        if (config.getWecomEnabled() == null) config.setWecomEnabled(false);
+        if (config.getCriticalOnly() == null) config.setCriticalOnly(false);
+        if (config.getInstantPush() == null) config.setInstantPush(true);
+        if (config.getMergeIntervalMinutes() == null) config.setMergeIntervalMinutes(0);
+        if (config.getDesktopNotification() == null) config.setDesktopNotification(true);
+        if (config.getNotifyEmail() == null) config.setNotifyEmail(true);
+        if (config.getNotifyInapp() == null) config.setNotifyInapp(true);
     }
 }

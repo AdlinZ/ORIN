@@ -460,7 +460,9 @@ public class AgentManageServiceImpl implements AgentManageService {
                 metadata.setMaxTokens(request.getMaxTokens());
             if (request.getSystemPrompt() != null)
                 metadata.setSystemPrompt(request.getSystemPrompt());
-            metadata.setToolCallingOverride(request.getToolCallingOverride());
+            if (request.getToolCallingOverride() != null) {
+                metadata.setToolCallingOverride(request.getToolCallingOverride());
+            }
 
             // Update TTS & Image Parameters in the parameters JSON field
             try {
@@ -491,6 +493,22 @@ public class AgentManageServiceImpl implements AgentManageService {
                     params.put("videoSize", request.getVideoSize());
                 if (request.getVideoDuration() != null)
                     params.put("videoDuration", request.getVideoDuration());
+                if (hasRetrievalConfig(request)) {
+                    Map<String, Object> retrievalConfig = new HashMap<>();
+                    if (request.getRetrievalTopK() != null)
+                        retrievalConfig.put("topK", request.getRetrievalTopK());
+                    if (request.getRetrievalThreshold() != null)
+                        retrievalConfig.put("threshold", request.getRetrievalThreshold());
+                    if (request.getRetrievalAlpha() != null)
+                        retrievalConfig.put("alpha", request.getRetrievalAlpha());
+                    if (request.getRetrievalEmbeddingModel() != null)
+                        retrievalConfig.put("embeddingModel", request.getRetrievalEmbeddingModel());
+                    if (request.getRetrievalEnableRerank() != null)
+                        retrievalConfig.put("enableRerank", request.getRetrievalEnableRerank());
+                    if (request.getRetrievalRerankModel() != null)
+                        retrievalConfig.put("rerankModel", request.getRetrievalRerankModel());
+                    params.put("retrievalConfig", retrievalConfig);
+                }
 
                 metadata.setParameters(mapper.writeValueAsString(params));
             } catch (Exception e) {
@@ -542,6 +560,15 @@ public class AgentManageServiceImpl implements AgentManageService {
                 accessProfileRepository.save(profile);
             }
         });
+    }
+
+    private boolean hasRetrievalConfig(com.adlin.orin.modules.agent.dto.AgentOnboardRequest request) {
+        return request.getRetrievalTopK() != null
+                || request.getRetrievalThreshold() != null
+                || request.getRetrievalAlpha() != null
+                || request.getRetrievalEmbeddingModel() != null
+                || request.getRetrievalEnableRerank() != null
+                || request.getRetrievalRerankModel() != null;
     }
 
     @Transactional

@@ -95,6 +95,7 @@ class CollabTaskResult:
         latency_ms: Optional[int] = None,
         executed_by: Optional[str] = None,
         metadata: Optional[dict] = None,
+        correlation_id: Optional[str] = None,
     ):
         self.package_id = package_id
         self.sub_task_id = sub_task_id
@@ -108,6 +109,7 @@ class CollabTaskResult:
         self.latency_ms = latency_ms
         self.executed_by = executed_by
         self.metadata = metadata or {}
+        self.correlation_id = correlation_id
 
     def to_dict(self) -> dict:
         return {
@@ -123,6 +125,7 @@ class CollabTaskResult:
             "latencyMs": self.latency_ms,
             "executedBy": self.executed_by,
             "metadata": self.metadata,
+            "correlationId": self.correlation_id,
         }
 
 
@@ -270,11 +273,14 @@ class CollabMQWorker:
                 pass
 
         try:
-            # Execute based on strategy
-            if task.execution_strategy == "WORKFLOW":
-                result = await self._execute_workflow(task, context)
-            else:
-                result = await self._execute_agent(task, context)
+            timeout_seconds = max(0.001, (task.timeout_millis or 300000) / 1000.0)
+
+            async def run_task() -> str:
+                if task.execution_strategy == "WORKFLOW":
+                    return await self._execute_workflow(task, context)
+                return await self._execute_agent(task, context)
+
+            result = await asyncio.wait_for(run_task(), timeout=timeout_seconds)
 
             completed_at = datetime.utcnow()
             latency_ms = int((completed_at - started_at).total_seconds() * 1000)
@@ -290,7 +296,12 @@ class CollabMQWorker:
                 completed_at=int(completed_at.timestamp() * 1000),
                 latency_ms=latency_ms,
                 executed_by=f"mq_worker:{task.expected_role}",
-                metadata={"expectedRole": task.expected_role}
+                metadata={
+                    "expectedRole": task.expected_role,
+                    "maxRetries": task.max_retries,
+                    "timeoutMillis": task.timeout_millis,
+                },
+                correlation_id=task.correlation_id,
             )
 
         except asyncio.TimeoutError:
@@ -306,7 +317,12 @@ class CollabMQWorker:
                 started_at=int(started_at.timestamp() * 1000),
                 completed_at=int(completed_at.timestamp() * 1000),
                 latency_ms=latency_ms,
-                metadata={"expectedRole": task.expected_role}
+                metadata={
+                    "expectedRole": task.expected_role,
+                    "maxRetries": task.max_retries,
+                    "timeoutMillis": task.timeout_millis,
+                },
+                correlation_id=task.correlation_id,
             )
 
         except Exception as e:
@@ -322,7 +338,12 @@ class CollabMQWorker:
                 started_at=int(started_at.timestamp() * 1000),
                 completed_at=int(completed_at.timestamp() * 1000),
                 latency_ms=latency_ms,
-                metadata={"expectedRole": task.expected_role}
+                metadata={
+                    "expectedRole": task.expected_role,
+                    "maxRetries": task.max_retries,
+                    "timeoutMillis": task.timeout_millis,
+                },
+                correlation_id=task.correlation_id,
             )
 
     async def _execute_agent(self, task: CollabTaskMessage, context: Dict[str, Any]) -> str:
@@ -360,7 +381,7 @@ class CollabMQWorker:
             message = Message(
                 body=message_body.encode(),
                 delivery_mode=DeliveryMode.PERSISTENT,
-                correlation_id=result.correlation_id if hasattr(result, 'correlation_id') else None
+                correlation_id=result.correlation_id
             )
 
             reply_exchange = await self.channel.get_exchange(self.reply_exchange_name)

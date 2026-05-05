@@ -20,6 +20,12 @@ public class ToolExecutionContext {
     private List<Long> skillIds;
     private List<Long> mcpIds;
     private Map<String, List<String>> kbDocFilters;
+    private Integer retrievalTopK;
+    private Double retrievalThreshold;
+    private Double retrievalAlpha;
+    private String retrievalEmbeddingModel;
+    private Boolean retrievalEnableRerank;
+    private String retrievalRerankModel;
     private List<ToolTrace> traces;
     private Map<String, Object> sharedState;
     private List<Object> retrievedChunks;

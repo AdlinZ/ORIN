@@ -18,7 +18,7 @@
 
               <el-form :model="config" label-position="top" class="config-form">
                 <el-form-item label="Milvus Host">
-                  <el-input v-model="config.milvusHost" placeholder="例如: 192.168.1.107 或 localhost" />
+                  <el-input v-model="config.milvusHost" placeholder="例如: 192.168.1.164" />
                   <p class="form-tip">Milvus 服务器 IP 地址，不需要包含 http:// 前缀</p>
                 </el-form-item>
 
@@ -494,7 +494,7 @@ const embeddingProviders = [
 ];
 
 const config = reactive({
-  milvusHost: 'localhost',
+  milvusHost: '192.168.1.164',
   milvusPort: 19530,
   milvusToken: '',
   embeddingProvider: 'SiliconFlow',
@@ -557,7 +557,7 @@ const loadConfig = async () => {
     await loadApiKeys();
     const res = await request.get('/monitor/system/properties');
     if (res) {
-      config.milvusHost = res['milvus.host'] || 'localhost';
+      config.milvusHost = res['milvus.host'] || '192.168.1.164';
       config.milvusPort = parseInt(res['milvus.port']) || 19530;
       config.milvusToken = res['milvus.token'] || '';
       config.enableRerank = res['knowledge.rerank.enabled'] === 'true';

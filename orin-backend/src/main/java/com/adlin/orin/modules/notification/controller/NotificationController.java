@@ -59,10 +59,11 @@ public class NotificationController {
     public ResponseEntity<SystemMessage> getMessage(
             @PathVariable Long id,
             @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
-        return notificationService.getMessage(id)
+        return notificationService.getMessage(id, userId)
                 .map(message -> {
                     // 标记为已读
                     notificationService.markAsRead(id, userId);
+                    message.setRead(true);
                     return ResponseEntity.ok(message);
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -121,5 +122,13 @@ public class NotificationController {
     public ResponseEntity<Map<String, Integer>> cleanup() {
         int count = notificationService.cleanupExpiredMessages();
         return ResponseEntity.ok(Map.of("deleted", count));
+    }
+
+    @Operation(summary = "清空当前用户可见消息")
+    @DeleteMapping("/clear-all")
+    public ResponseEntity<Map<String, Integer>> clearAll(
+            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+        int count = notificationService.dismissAllVisibleMessages(userId);
+        return ResponseEntity.ok(Map.of("cleared", count));
     }
 }

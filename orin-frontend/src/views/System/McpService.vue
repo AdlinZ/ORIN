@@ -10,8 +10,56 @@
       />
 
       <div v-else class="embedded-toolbar">
-        <h2 class="embedded-title">MCP服务</h2>
-        <p class="embedded-description">管理 MCP（Model Context Protocol）服务配置、连接健康与工具安装</p>
+        <div class="embedded-toolbar-main">
+          <div>
+            <h2 class="embedded-title">MCP服务</h2>
+            <p class="embedded-description">管理 MCP（Model Context Protocol）服务配置、连接健康与工具安装</p>
+          </div>
+          <el-button type="primary" @click="openAddDialog">
+            <el-icon><Plus /></el-icon>
+            添加服务
+          </el-button>
+        </div>
+        <div class="embedded-toolbar-bottom">
+          <div class="embedded-stats">
+            <div class="mcp-stat">
+              <span>服务</span>
+              <strong>{{ mcpStats.total }}</strong>
+            </div>
+            <div class="mcp-stat">
+              <span>已启用</span>
+              <strong>{{ mcpStats.enabled }}</strong>
+            </div>
+            <div class="mcp-stat">
+              <span>已连接</span>
+              <strong>{{ mcpStats.connected }}</strong>
+            </div>
+            <div class="mcp-stat">
+              <span>工具</span>
+              <strong>{{ availableTools.length }}</strong>
+            </div>
+          </div>
+          <div class="embedded-mode-switch" role="tablist" aria-label="MCP 视图">
+            <button
+              type="button"
+              :class="{ active: activeTab === 'list' }"
+              role="tab"
+              :aria-selected="activeTab === 'list'"
+              @click="activeTab = 'list'"
+            >
+              服务列表
+            </button>
+            <button
+              type="button"
+              :class="{ active: activeTab === 'market' }"
+              role="tab"
+              :aria-selected="activeTab === 'market'"
+              @click="activeTab = 'market'"
+            >
+              工具市场
+            </button>
+          </div>
+        </div>
       </div>
 
       <el-tabs v-model="activeTab" class="mcp-tabs">
@@ -21,7 +69,7 @@
           <template #header>
             <div class="card-header">
               <span>MCP 服务</span>
-              <el-button type="primary" @click="openAddDialog">
+              <el-button v-if="!embedded" type="primary" @click="openAddDialog">
                 <el-icon><Plus /></el-icon>
                 添加服务
               </el-button>
@@ -58,7 +106,51 @@
             </template>
           </el-alert>
 
+          <div v-if="embedded && mcpServices.length" class="service-card-grid">
+            <article v-for="service in mcpServices" :key="service.id" class="service-card-item">
+              <div class="service-card-head">
+                <div class="service-title-wrap">
+                  <h3>{{ service.name }}</h3>
+                  <span>{{ service.type === 'STDIO' ? service.command : service.url }}</span>
+                </div>
+                <div class="service-tags">
+                  <el-tag>{{ getTypeText(service.type) }}</el-tag>
+                  <el-tag :type="getStatusType(service.status)">
+                    {{ getStatusText(service.status) }}
+                  </el-tag>
+                </div>
+              </div>
+              <div class="service-meta">
+                <span>启用：{{ service.enabled ? '是' : '否' }}</span>
+                <span>健康分：{{ service.healthScore ?? '-' }}</span>
+                <span>最后连接：{{ service.lastConnected ? formatDate(service.lastConnected) : '-' }}</span>
+              </div>
+              <div class="service-actions">
+                <el-button
+                  size="small"
+                  :loading="testingId === service.id"
+                  @click="testConnection(service)"
+                >
+                  测试
+                </el-button>
+                <el-button size="small" type="primary" @click="editService(service)">
+                  编辑
+                </el-button>
+                <el-button size="small" type="danger" @click="deleteService(service)">
+                  删除
+                </el-button>
+              </div>
+            </article>
+          </div>
+
+          <el-empty
+            v-else-if="embedded && !loading && !loadError"
+            :image-size="72"
+            description="暂无 MCP 服务，点击“添加服务”创建"
+          />
+
           <el-table
+            v-else-if="!embedded"
             v-loading="loading"
             :data="mcpServices"
             empty-text="暂无 MCP 服务，点击“添加服务”创建"
@@ -145,7 +237,7 @@
               :page-sizes="[10, 20, 50]"
               :total="totalServices"
               layout="total, ->, sizes, prev, pager, next"
-              small
+              size="small"
               @size-change="handleSizeChange"
               @current-change="handlePageChange"
             />
@@ -282,7 +374,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
@@ -322,6 +414,15 @@ const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const totalServices = ref(0)
+
+const mcpStats = computed(() => {
+  const rows = Array.isArray(mcpServices.value) ? mcpServices.value : []
+  return {
+    total: rows.length,
+    enabled: rows.filter((item) => item.enabled).length,
+    connected: rows.filter((item) => item.status === 'CONNECTED').length
+  }
+})
 
 const serviceForm = reactive({
   id: null,
@@ -629,25 +730,111 @@ onMounted(() => {
   background: transparent !important;
 }
 
+.mcp-service-container.is-embedded :deep(.tab-wrapper-card .el-card__body) {
+  padding: 0;
+}
+
 .embedded-toolbar {
   margin-bottom: 12px;
-  padding: 18px 20px;
+  padding: 18px;
   border: 1px solid var(--orin-border);
-  border-radius: 12px;
-  background: var(--neutral-white);
+  border-radius: var(--orin-card-radius, 8px);
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.74), rgba(255, 255, 255, 0.96) 54%),
+    var(--neutral-white);
+  box-shadow: 0 10px 26px -24px rgba(15, 23, 42, 0.42);
+}
+
+.embedded-toolbar-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.embedded-toolbar-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-end;
 }
 
 .embedded-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.2;
   color: #0f172a;
+  letter-spacing: 0;
 }
 
 .embedded-description {
-  margin: 8px 0 0;
+  margin: 7px 0 0;
   color: #64748b;
   font-size: 14px;
+  line-height: 1.6;
+}
+
+.embedded-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mcp-stat {
+  padding: 10px 12px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.mcp-stat span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.mcp-stat strong {
+  display: block;
+  margin-top: 4px;
+  color: #2563eb;
+  font-size: 19px;
+  line-height: 1.1;
+}
+
+.embedded-mode-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.embedded-mode-switch button {
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 32px;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.embedded-mode-switch button:hover,
+.embedded-mode-switch button.active {
+  background: #ffffff;
+  color: var(--orin-primary);
+  box-shadow: 0 5px 14px -12px rgba(15, 23, 42, 0.55);
 }
 
 .card-header {
@@ -698,7 +885,90 @@ onMounted(() => {
 
 .mcp-service-container :deep(.el-card) {
   border: 1px solid var(--orin-border);
-  border-radius: 12px;
+  border-radius: var(--orin-card-radius, 8px);
+}
+
+.mcp-service-container.is-embedded :deep(.el-tabs__content .el-card__body) {
+  padding: 14px;
+}
+
+.mcp-service-container.is-embedded :deep(.el-tabs__content .el-card) {
+  box-shadow: none;
+}
+
+.mcp-service-container.is-embedded :deep(.mcp-tabs > .el-tabs__header) {
+  display: none !important;
+}
+
+.service-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.service-card-item {
+  padding: 14px;
+  border: 1px solid var(--orin-border);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.service-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.service-title-wrap {
+  min-width: 0;
+}
+
+.service-title-wrap h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.service-title-wrap span {
+  display: block;
+  margin-top: 6px;
+  max-width: 100%;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.service-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.service-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.service-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .tool-header {
@@ -735,5 +1005,72 @@ onMounted(() => {
 
 .health-error {
   color: var(--error-500);
+}
+
+html.dark .embedded-toolbar {
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(15, 23, 42, 0.94) 56%),
+    var(--neutral-gray-900, #0f172a);
+  box-shadow: none;
+}
+
+html.dark .embedded-title,
+html.dark .service-title-wrap h3 {
+  color: #f8fafc;
+}
+
+html.dark .embedded-description,
+html.dark .mcp-stat span,
+html.dark .service-title-wrap span,
+html.dark .service-meta {
+  color: #94a3b8;
+}
+
+html.dark .mcp-stat,
+html.dark .service-card-item {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.72);
+}
+
+html.dark .mcp-stat strong {
+  color: #93c5fd;
+}
+
+html.dark .embedded-mode-switch {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.7);
+}
+
+html.dark .embedded-mode-switch button {
+  color: #94a3b8;
+}
+
+html.dark .embedded-mode-switch button:hover,
+html.dark .embedded-mode-switch button.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #93c5fd;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .embedded-toolbar-main,
+  .embedded-toolbar-bottom,
+  .card-header,
+  .toolbar,
+  .service-card-head {
+    flex-direction: column;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .embedded-mode-switch {
+    width: 100%;
+  }
+
+  .embedded-mode-switch button {
+    flex: 1;
+  }
 }
 </style>

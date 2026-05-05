@@ -309,26 +309,30 @@ onUnmounted(() => tipTimer.value && clearInterval(tipTimer.value));
 <style scoped>
 .playground-stage {
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
   background: #f9fafb;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .canvas-container {
-  flex: 1;
+  min-height: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px 40px 240px 40px;
+  padding: 28px clamp(18px, 4vw, 48px) 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .canvas-inner {
-  width: 100%;
-  max-width: 900px;
-  min-height: 500px;
-  aspect-ratio: 16 / 9;
+  width: min(100%, 1120px);
+  height: clamp(300px, 52vh, 560px);
+  min-height: 0;
   margin: 0 auto;
   background: #ffffff;
   border-radius: 24px;
@@ -372,12 +376,18 @@ onUnmounted(() => tipTimer.value && clearInterval(tipTimer.value));
 }
 .canvas-actions :deep(.el-button) { color: #fff; border: none; background: transparent; }
 
-.input-framer { position: absolute; bottom: 24px; left: 0; right: 0; padding: 0 24px; z-index: 100; }
+.input-framer {
+  position: relative;
+  padding: 0 clamp(18px, 4vw, 48px) 28px;
+  z-index: 100;
+  box-sizing: border-box;
+}
 .image-upload-row { 
-    max-width: 860px; margin: 0 auto 16px auto; 
+    max-width: 960px; margin: 0 auto 12px auto; 
     display: flex; align-items: center; gap: 16px; 
     padding: 12px; background: #fff; border: 1px solid #eef0f3; border-radius: 16px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+    box-sizing: border-box;
 }
 .upload-box { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
 .reference-uploader :deep(.el-upload) { width: 64px; height: 64px; border: 2px dashed #e2e8f0; border-radius: 12px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
@@ -388,15 +398,33 @@ onUnmounted(() => tipTimer.value && clearInterval(tipTimer.value));
 .upload-title { font-size: 13px; font-weight: 700; color: #1e293b; }
 .upload-desc { font-size: 11px; color: #64748b; }
 
-.prompt-tags { max-width: 860px; margin: 0 auto 12px auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.prompt-tags { max-width: 960px; margin: 0 auto 12px auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tag-title { font-size: 12px; font-weight: 700; color: #9ca3af; margin-right: 4px; }
 .clickable-tag { cursor: pointer; border-radius: 12px; transition: all 0.2s; }
 .clickable-tag:hover { background: #0d9488; color: #fff; border-color: #0d9488; }
 
-.input-card { max-width: 860px; margin: 0 auto; background: #ffffff; border: 1px solid #d1d5db; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
-.chat-textarea :deep(.el-textarea__inner) { border: none; box-shadow: none; padding: 20px; font-size: 15px; }
+.input-card { max-width: 960px; margin: 0 auto; background: #ffffff; border: 1px solid #d1d5db; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
+.chat-textarea :deep(.el-textarea__inner) { min-height: 86px !important; border: none; box-shadow: none; padding: 20px; font-size: 15px; line-height: 1.5; }
 .input-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #f3f4f6; }
-.generate-btn { padding: 10px 24px; border-radius: 12px; font-weight: 700; background: #0d9488 !important; border: none !important; }
+.generate-btn { min-width: 154px; padding: 10px 24px; border-radius: 12px; font-weight: 700; background: #0d9488 !important; border: none !important; }
 
 .error-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #ef4444; color: #fff; padding: 8px 20px; border-radius: 20px; font-size: 13px; z-index: 2000; }
+
+@media (max-width: 900px) {
+  .playground-stage { gap: 12px; }
+  .canvas-container { padding: 18px 16px 0; }
+  .canvas-inner { height: clamp(260px, 46vh, 440px); border-radius: 18px; }
+  .input-framer { padding: 0 16px 18px; }
+  .input-footer { gap: 12px; }
+}
+
+@media (max-width: 560px) {
+  .prompt-tags { display: none; }
+  .image-upload-row { align-items: flex-start; gap: 12px; }
+  .upload-desc { display: none; }
+  .input-footer { align-items: stretch; flex-direction: column; }
+  .footer-left,
+  .footer-right { display: flex; justify-content: space-between; }
+  .generate-btn { width: 100%; }
+}
 </style>

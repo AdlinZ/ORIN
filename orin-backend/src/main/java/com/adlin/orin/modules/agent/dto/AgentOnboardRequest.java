@@ -95,6 +95,14 @@ public class AgentOnboardRequest {
         this.toolCallingOverride = toolCallingOverride;
     }
 
+    // Knowledge retrieval runtime parameters
+    private Integer retrievalTopK;
+    private Double retrievalThreshold;
+    private Double retrievalAlpha;
+    private String retrievalEmbeddingModel;
+    private Boolean retrievalEnableRerank;
+    private String retrievalRerankModel;
+
     // TTS & Image Parameters
     private String voice;
     private Double speed;

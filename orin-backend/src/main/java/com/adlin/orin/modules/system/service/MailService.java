@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -180,7 +181,8 @@ public class MailService {
      */
     public boolean sendAlertEmail(String[] toArr, String subject, String content) {
         MailConfigEntity config = getRawMailConfig();
-        String recipients = String.join(",", toArr);
+        List<String> recipientList = parseRecipients(String.join(",", toArr));
+        String recipients = String.join(",", recipientList);
         String fullSubject = "[" + appName + " 告警] " + subject;
 
         // 创建日志记录
@@ -193,31 +195,23 @@ public class MailService {
         boolean success = false;
         String errorMessage = null;
 
-        if (config != null && config.getEnabled() != null && config.getEnabled()) {
-            if ("mailersend".equals(config.getMailerType())) {
-                // MailerSend 批量发送
-                success = sendAlertEmailViaMailerSend(toArr, subject, content, config);
-            }
-        }
-
-        // 默认 SMTP 发送
-        if (!success) {
+        if (recipientList.isEmpty()) {
+            errorMessage = "收件人为空";
+        } else if (config == null || !Boolean.TRUE.equals(config.getEnabled())) {
+            errorMessage = "邮件服务未配置";
+        } else {
             try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                String from = config != null && config.getFromEmail() != null
-                    ? config.getFromEmail() : fromEmail;
-                String fromName = config != null && config.getFromName() != null
-                    ? config.getFromName() : appName;
-
-                message.setFrom(fromName + " <" + from + ">");
-                message.setTo(toArr);
-                message.setSubject(fullSubject);
-                message.setText(content);
-                message.setSentDate(new java.util.Date());
-
-                mailSender.send(message);
-                success = true;
-                log.info("告警邮件发送成功: {}", recipients);
+                String mailerType = config.getMailerType() != null ? config.getMailerType() : "smtp";
+                if ("mailersend".equalsIgnoreCase(mailerType)) {
+                    success = sendAlertEmailViaMailerSend(recipientList.toArray(String[]::new), subject, content, config);
+                    if (!success) errorMessage = "MailerSend告警邮件发送失败";
+                } else if ("resend".equalsIgnoreCase(mailerType)) {
+                    success = sendAlertEmailViaResend(recipientList, fullSubject, content, config);
+                    if (!success) errorMessage = "Resend告警邮件发送失败";
+                } else {
+                    success = sendAlertEmailViaSmtp(recipientList, fullSubject, content, config);
+                    if (!success) errorMessage = "SMTP告警邮件发送失败";
+                }
             } catch (Exception e) {
                 errorMessage = e.getMessage();
                 log.error("告警邮件发送失败", e);
@@ -238,6 +232,36 @@ public class MailService {
                 success ? "批量告警邮件发送成功" : ("批量告警邮件发送失败: " + errorMessage), success);
 
         return success;
+    }
+
+    private boolean sendAlertEmailViaResend(List<String> recipients, String subject, String content, MailConfigEntity config) {
+        boolean success = true;
+        for (String recipient : recipients) {
+            success = sendEmailViaResend(recipient, subject, content, config) && success;
+        }
+        return success;
+    }
+
+    private boolean sendAlertEmailViaSmtp(List<String> recipients, String subject, String content, MailConfigEntity config) {
+        try {
+            JavaMailSender sender = createSmtpSender(config);
+            SimpleMailMessage message = new SimpleMailMessage();
+            String from = firstNonBlank(config.getFromEmail(), config.getUsername(), fromEmail);
+            String fromName = firstNonBlank(config.getFromName(), appName);
+
+            message.setFrom(fromName + " <" + from + ">");
+            message.setTo(recipients.toArray(String[]::new));
+            message.setSubject(subject);
+            message.setText(content);
+            message.setSentDate(new java.util.Date());
+
+            sender.send(message);
+            log.info("SMTP告警邮件发送成功: {}", String.join(",", recipients));
+            return true;
+        } catch (Exception e) {
+            log.error("SMTP告警邮件发送失败: {}", String.join(",", recipients), e);
+            return false;
+        }
     }
 
     /**
@@ -356,8 +380,9 @@ public class MailService {
     private boolean sendEmailViaSmtp(String to, String subject, String content, MailConfigEntity config) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            String from = config != null ? config.getFromEmail() : fromEmail;
-            String fromName = config != null ? config.getFromName() : appName;
+            JavaMailSender sender = config != null ? createSmtpSender(config) : mailSender;
+            String from = config != null ? firstNonBlank(config.getFromEmail(), config.getUsername(), fromEmail) : fromEmail;
+            String fromName = config != null ? firstNonBlank(config.getFromName(), appName) : appName;
 
             message.setFrom(fromName + " <" + from + ">");
             message.setTo(to);
@@ -365,7 +390,7 @@ public class MailService {
             message.setText(content);
             message.setSentDate(new java.util.Date());
 
-            mailSender.send(message);
+            sender.send(message);
             log.info("SMTP邮件发送成功: {}", to);
             return true;
         } catch (Exception e) {
@@ -529,7 +554,7 @@ public class MailService {
      * 重试发送邮件
      */
     public void retrySend(MailSendLog mailLog) {
-        String[] recipients = mailLog.getRecipients().split(",");
+        List<String> recipients = parseRecipients(mailLog.getRecipients());
         String subject = mailLog.getSubject();
         String content = mailLog.getContent();
 
@@ -538,27 +563,19 @@ public class MailService {
 
         try {
             MailConfigEntity config = getRawMailConfig();
-            if (config != null && config.getEnabled() != null && config.getEnabled()) {
-                if ("mailersend".equals(config.getMailerType())) {
-                    success = sendAlertEmailViaMailerSend(recipients, subject, content, config);
-                }
-            }
-
-            // 默认 SMTP 发送
-            if (!success) {
-                // SMTP 方法只接受单个收件人，需要循环发送
-                for (String recipient : recipients) {
-                    recipient = recipient.trim();
-                    if (!recipient.isEmpty()) {
-                        boolean sent = sendEmailViaSmtp(recipient, subject, content, config);
-                        if (!sent) {
-                            errorMessage = "SMTP 发送失败";
-                            success = false;
-                            break;
-                        }
-                        success = true;
-                    }
-                }
+            if (recipients.isEmpty()) {
+                errorMessage = "收件人为空";
+            } else if (config == null || !Boolean.TRUE.equals(config.getEnabled())) {
+                errorMessage = "邮件服务未配置";
+            } else if ("mailersend".equalsIgnoreCase(config.getMailerType())) {
+                success = sendAlertEmailViaMailerSend(recipients.toArray(String[]::new), stripAlertPrefix(subject), content, config);
+                if (!success) errorMessage = "MailerSend 重试发送失败";
+            } else if ("resend".equalsIgnoreCase(config.getMailerType())) {
+                success = sendAlertEmailViaResend(recipients, subject, content, config);
+                if (!success) errorMessage = "Resend 重试发送失败";
+            } else {
+                success = sendAlertEmailViaSmtp(recipients, subject, content, config);
+                if (!success) errorMessage = "SMTP 重试发送失败";
             }
         } catch (Exception e) {
             log.error("重试发送邮件失败", e);
@@ -571,5 +588,54 @@ public class MailService {
         mailSendLogRepository.save(mailLog);
 
         log.info("邮件重试发送完成: {}, status: {}", mailLog.getId(), mailLog.getStatus());
+    }
+
+    JavaMailSender createSmtpSender(MailConfigEntity config) {
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+        sender.setHost(config.getSmtpHost());
+        sender.setPort(config.getSmtpPort() != null ? config.getSmtpPort() : 587);
+        sender.setUsername(config.getUsername());
+        sender.setPassword(config.getPassword());
+        sender.setDefaultEncoding("UTF-8");
+
+        Properties props = new Properties();
+        props.put("mail.smtp.auth", true);
+        if (Boolean.TRUE.equals(config.getSslEnabled())) {
+            props.put("mail.smtp.starttls.enable", true);
+            props.put("mail.smtp.ssl.trust", config.getSmtpHost());
+        }
+        sender.setJavaMailProperties(props);
+        return sender;
+    }
+
+    private List<String> parseRecipients(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        String cleaned = raw
+                .replace("TO:", "")
+                .replace("CC:", ",")
+                .replace("BCC:", ",")
+                .replace("|", ",");
+        return Arrays.stream(cleaned.split("[,;\\n]"))
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .distinct()
+                .toList();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String stripAlertPrefix(String subject) {
+        String prefix = "[" + appName + " 告警] ";
+        if (subject != null && subject.startsWith(prefix)) {
+            return subject.substring(prefix.length());
+        }
+        return subject;
     }
 }

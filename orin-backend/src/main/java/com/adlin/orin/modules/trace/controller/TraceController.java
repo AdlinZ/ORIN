@@ -19,13 +19,21 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/traces")
+@RequestMapping({"/api/traces", "/api/v1/traces"})
 @RequiredArgsConstructor
 @Tag(name = "Trace Management", description = "追踪管理 API")
 public class TraceController {
 
     private final TraceService traceService;
     private final LangfuseObservabilityService langfuseService;
+
+    @GetMapping("/recent")
+    @Operation(summary = "获取最近调用链路摘要")
+    public ResponseEntity<List<Map<String, Object>>> getRecentTraces(
+            @RequestParam(required = false, defaultValue = "20") int size) {
+        log.info("REST request to get recent traces: size={}", size);
+        return ResponseEntity.ok(traceService.getRecentTraceSummaries(size));
+    }
 
     @GetMapping("/{traceId}")
     @Operation(summary = "获取完整调用链路")

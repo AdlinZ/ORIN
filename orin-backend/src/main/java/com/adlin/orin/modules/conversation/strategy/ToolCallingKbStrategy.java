@@ -51,6 +51,22 @@ public class ToolCallingKbStrategy {
     private final SkillService skillService;
     private final McpServiceRepository mcpServiceRepository;
     private final ObjectMapper objectMapper;
+    private Integer retrievalTopK;
+    private Double retrievalThreshold;
+    private Double retrievalAlpha;
+    private String retrievalEmbeddingModel;
+    private Boolean retrievalEnableRerank;
+    private String retrievalRerankModel;
+
+    public void configureRetrieval(Integer topK, Double threshold, Double alpha, String embeddingModel,
+            Boolean enableRerank, String rerankModel) {
+        this.retrievalTopK = topK;
+        this.retrievalThreshold = threshold;
+        this.retrievalAlpha = alpha;
+        this.retrievalEmbeddingModel = embeddingModel;
+        this.retrievalEnableRerank = enableRerank;
+        this.retrievalRerankModel = rerankModel;
+    }
 
     public Map<String, Object> execute(
             String endpoint, String apiKey, String model,
@@ -387,8 +403,17 @@ public class ToolCallingKbStrategy {
 
         StringBuilder sb = new StringBuilder();
         for (String kbId : allowedKbIds) {
+            int topK = retrievalTopK != null ? retrievalTopK : 5;
+            String rerankModel = Boolean.TRUE.equals(retrievalEnableRerank) ? retrievalRerankModel : null;
             List<VectorStoreProvider.SearchResult> results =
-                    retrievalService.hybridSearch(kbId, query, 5);
+                    retrievalService.hybridSearch(
+                            kbId,
+                            query,
+                            topK,
+                            retrievalEmbeddingModel,
+                            retrievalAlpha,
+                            retrievalThreshold,
+                            rerankModel);
             for (VectorStoreProvider.SearchResult r : results) {
                 Map<String, Object> meta = r.getMetadata();
                 String docId = meta != null ? String.valueOf(meta.getOrDefault("doc_id", "")) : "";

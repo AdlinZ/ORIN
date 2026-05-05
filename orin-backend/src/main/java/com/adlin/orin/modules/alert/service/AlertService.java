@@ -211,8 +211,11 @@ public class AlertService {
                     .build();
 
             historyRepository.save(history);
-            // We could optionally send a default notification here if a generic channel is
-            // configured
+            try {
+                notificationService.sendSystemNotification("系统默认告警", "WARNING", message);
+            } catch (Exception e) {
+                log.error("Failed to send generic system alert notification", e);
+            }
         }
     }
 

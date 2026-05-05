@@ -122,7 +122,7 @@ const handleSearch = async () => {
         query: query.value,
         topK: topK.value
     })
-    results.value = res || []
+    results.value = unwrapRetrievalResults(res)
   } catch (error) {
     console.error(error)
     ElMessage.error('检索失败')
@@ -133,6 +133,13 @@ const handleSearch = async () => {
 
 const formatScore = (score) => {
     return (score * 100).toFixed(1) + '%'
+}
+
+const unwrapRetrievalResults = (response) => {
+    if (Array.isArray(response)) return response
+    if (Array.isArray(response?.results)) return response.results
+    if (Array.isArray(response?.data)) return response.data
+    return []
 }
 
 const getScoreClass = (score) => {

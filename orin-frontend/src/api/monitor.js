@@ -278,7 +278,7 @@ export const testPrometheusConnection = (config = {}) => {
     return request.get('/monitor/prometheus/test', config);
 };
 
-export const testMilvusConnection = (host = 'localhost', port = 19530, token = '', config = {}) => {
+export const testMilvusConnection = (host = '192.168.1.164', port = 19530, token = '', config = {}) => {
     return request.get('/monitor/milvus/test', {
         params: { host, port, token },
         ...config

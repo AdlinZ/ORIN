@@ -2,6 +2,27 @@
   <div class="agent-workspace" ref="containerRef" :class="{ 'is-wide': isWide, 'is-medium': isMedium, 'is-narrow': isNarrow }">
     <div v-if="isLeftDrawer && !sessionPaneCollapsed" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
     <aside class="workspace-sidebar" :class="{ 'is-drawer': isLeftDrawer, 'is-collapsed': sessionPaneCollapsed }">
+      <div v-if="sessionPaneCollapsed" class="collapsed-restore-panel">
+        <el-tooltip content="展开会话记录" placement="right">
+          <button
+            type="button"
+            class="collapsed-rail-handle"
+            aria-label="展开会话记录"
+            title="展开会话记录"
+            @click="restoreSessionPane"
+          >
+            <el-icon class="collapsed-handle-icon">
+              <ChatRound />
+            </el-icon>
+            <span v-if="sessions.length" class="collapsed-session-dot">
+              {{ sessions.length > 9 ? '9+' : sessions.length }}
+            </span>
+            <el-icon class="collapsed-handle-arrow">
+              <ArrowRight />
+            </el-icon>
+          </button>
+        </el-tooltip>
+      </div>
       <div v-if="!sessionPaneCollapsed" class="sidebar-tabs">
         <div class="sidebar-tab" :class="{ active: sidebarTab === 'session' }" @click="sidebarTab = 'session'">会话记录</div>
         <div class="sidebar-tab" :class="{ active: sidebarTab === 'collaboration' }" @click="sidebarTab = 'collaboration'">
@@ -30,26 +51,7 @@
         </el-select>
       </div>
       <div v-show="sidebarTab === 'session'" class="workspace-session-pane">
-        <div class="session-collapse-handle">
-          <el-button
-            class="collapse-btn"
-            circle
-            :icon="sessionPaneCollapsed ? ArrowRight : ArrowLeft"
-            @click="sessionPaneCollapsed = !sessionPaneCollapsed"
-          />
-        </div>
-
-        <div v-if="sessionPaneCollapsed" class="collapsed-pane">
-          <el-button
-            class="collapsed-new-btn"
-            circle
-            :icon="Plus"
-            :disabled="!currentAgentId"
-            @click="newSession"
-          />
-        </div>
-
-        <template v-else>
+        <template v-if="!sessionPaneCollapsed">
           <div class="session-actions">
             <el-button
               class="new-session-btn"
@@ -698,6 +700,22 @@
         </div>
       </div>
     </aside>
+
+    <div v-if="!sessionPaneCollapsed && sidebarTab === 'session'" class="expanded-collapse-panel">
+      <el-tooltip content="收起会话记录" placement="right">
+        <button
+          type="button"
+          class="session-edge-handle"
+          aria-label="收起会话记录"
+          title="收起会话记录"
+          @click="sessionPaneCollapsed = true"
+        >
+          <el-icon>
+            <ArrowLeft />
+          </el-icon>
+        </button>
+      </el-tooltip>
+    </div>
 
     <main class="workspace-main">
       <div v-if="!currentAgent" class="state-panel">
@@ -3284,6 +3302,11 @@ const openSettings = () => {
   sessionPaneCollapsed.value = false;
 };
 
+const restoreSessionPane = () => {
+  sidebarTab.value = 'session';
+  sessionPaneCollapsed.value = false;
+};
+
 const triggerFilePicker = () => {
   if (!currentAgentId.value || uploadingFile.value) return;
   fileInputRef.value?.click();
@@ -3813,7 +3836,7 @@ const renderMarkdown = (text) => {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
   try {
-    return marked.parse(escaped);
+    return String(marked.parse(escaped)).trim();
   } catch (error) {
     return escaped.replace(/\n/g, '<br>');
   }
@@ -4283,7 +4306,13 @@ watch(
 }
 
 /* Collapsed Modes (Desktop only) */
-.workspace-sidebar.is-collapsed:not(.is-drawer),
+.workspace-sidebar.is-collapsed:not(.is-drawer) {
+  width: 0;
+  overflow: visible;
+  background: transparent;
+  border-right: 0;
+}
+
 .workspace-config-pane.is-collapsed:not(.is-drawer) {
   width: var(--collapsed-pane-width);
 }
@@ -4311,6 +4340,122 @@ watch(
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.collapsed-restore-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  padding: 0;
+  pointer-events: none;
+  background: transparent;
+}
+
+.expanded-collapse-panel {
+  position: absolute;
+  left: var(--left-pane-width);
+  top: 0;
+  bottom: 0;
+  width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+  z-index: 80;
+}
+
+.collapsed-rail-handle {
+  width: 24px;
+  min-height: 72px;
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 0;
+  border: 1px solid rgba(203, 213, 225, 0.86);
+  border-left: 0;
+  border-radius: 0 12px 12px 0;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  box-shadow: 8px 12px 24px -22px rgba(15, 23, 42, 0.55);
+  transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.collapsed-rail-handle {
+  position: absolute;
+  top: 50%;
+  right: -24px;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.session-edge-handle {
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 4px #f6f9fb, 0 10px 22px -16px rgba(15, 23, 42, 0.5);
+  transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.collapsed-rail-handle:hover,
+.collapsed-rail-handle:focus-visible,
+.session-edge-handle:hover,
+.session-edge-handle:focus-visible {
+  border-color: rgba(15, 118, 110, 0.36);
+  color: var(--sidebar-accent);
+  outline: none;
+  box-shadow: 10px 14px 28px -22px rgba(15, 118, 110, 0.5);
+}
+
+.collapsed-rail-handle:hover,
+.collapsed-rail-handle:focus-visible {
+  transform: translate(1px, -50%);
+}
+
+.session-edge-handle:hover,
+.session-edge-handle:focus-visible {
+  transform: translateX(1px);
+  box-shadow: 0 0 0 4px #f6f9fb, 0 12px 24px -16px rgba(15, 118, 110, 0.45);
+}
+
+.collapsed-handle-icon,
+.collapsed-handle-arrow {
+  font-size: 14px;
+}
+
+.collapsed-session-dot {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ecfdf5;
+  color: var(--sidebar-accent);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .workspace-collaboration-pane {
@@ -4479,7 +4624,7 @@ watch(
 
 .session-collapse-handle {
   position: absolute;
-  right: -16px;
+  right: -24px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 20;
@@ -4650,21 +4795,6 @@ watch(
   color: #ef4444;
 }
 
-.collapsed-pane {
-  display: flex;
-  justify-content: center;
-  padding-top: 24px;
-}
-.collapsed-new-btn {
-  width: 40px !important;
-  height: 40px !important;
-  font-size: 18px;
-  background: var(--sidebar-accent);
-  color: #fff;
-  border: none;
-  box-shadow: 0 2px 8px rgba(15, 159, 149, 0.25);
-}
-
 /* 4. Main Workspace (Chat Area)
 -------------------------------------------------- */
 .workspace-main {
@@ -4709,6 +4839,14 @@ watch(
   margin-top: 0;
   padding-bottom: 0;
   transform: translateY(-4%);
+}
+
+.messages-container:not(.is-empty) > .message-item:first-child {
+  margin-top: auto;
+}
+
+.messages-container:not(.is-empty) > .message-item:last-of-type {
+  margin-bottom: 0;
 }
 
 /* Content wrapper to center and limit width */
@@ -5159,15 +5297,17 @@ watch(
 
 /* Message Box */
 .message-text {
-  padding: 14px 18px;
+  display: inline-block;
+  max-width: 100%;
+  padding: 10px 16px;
   border-radius: 16px;
   background: #ffffff;
   color: #1e293b;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.5;
   box-shadow: 0 2px 10px rgba(0,0,0,0.02);
   border: 1px solid rgba(226, 232, 240, 0.4);
-  white-space: pre-wrap;
+  white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -5182,7 +5322,10 @@ watch(
   border-top-left-radius: 4px;
 }
 
-.message-text :deep(p) { margin: 0 0 10px; }
+.message-text :deep(p) {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+}
 .message-text :deep(p:last-child) { margin-bottom: 0; }
 .message-text :deep(pre) {
   margin: 12px 0;
@@ -5726,44 +5869,67 @@ watch(
 }
 
 .config-tabs {
-  padding: 12px 14px 0;
+  margin: 14px 14px 6px;
+  padding: 4px;
+  background: rgba(241, 245, 249, 0.9);
+  border: 1px solid var(--sidebar-line);
+  border-radius: 12px;
+}
+.config-tabs :deep(.el-tabs__header) {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0 !important;
+  border-radius: 0;
 }
 .config-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
+.config-tabs :deep(.el-tabs__header),
+.config-tabs :deep(.el-tabs__nav-wrap),
+.config-tabs :deep(.el-tabs__nav-scroll),
 .config-tabs :deep(.el-tabs__nav) {
   width: 100%;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%);
-  border: 1px solid #d7e4f3;
-  border-radius: 14px;
-  padding: 5px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+.config-tabs :deep(.el-tabs__nav) {
+  display: flex;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0 !important;
+  box-shadow: none;
 }
 .config-tabs :deep(.el-tabs__item) {
   width: 33.33%;
-  height: 38px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border: 0 !important;
+  border-radius: 8px;
   font-size: 13px;
-  color: #516579;
-  padding: 0;
-  line-height: 1;
+  color: var(--sidebar-text-muted);
+  padding: 0 !important;
+  line-height: 32px;
   transform: translateY(0);
   text-align: center;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   transition: all 0.2s ease;
+  background: transparent;
 }
 .config-tabs :deep(.el-tabs__item:hover) {
-  color: #0f766e;
-  background: rgba(15, 159, 149, 0.08);
+  background: rgba(226, 232, 240, 0.7);
+  color: var(--sidebar-text);
 }
 .config-tabs :deep(.el-tabs__item.is-active) {
-  background: linear-gradient(180deg, #e8faf6 0%, #ddf7f1 100%);
-  border: 1px solid rgba(15, 159, 149, 0.35);
-  color: #0f766e;
-  font-weight: 700;
-  box-shadow: 0 6px 12px -10px rgba(15, 159, 149, 0.45);
+  background: #ffffff;
+  color: var(--sidebar-text-strong) !important;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.config-tabs :deep(.el-tabs__item.is-active:hover) {
+  background: #ffffff;
 }
 .config-tabs :deep(.el-tabs__active-bar) { display: none; }
 
@@ -6430,6 +6596,41 @@ html.dark .session-meta {
   color: #64748b;
 }
 
+html.dark .collapsed-restore-panel {
+  background: transparent;
+}
+
+html.dark .collapsed-rail-handle,
+html.dark .session-edge-handle {
+  background: rgba(15, 28, 28, 0.96);
+  border-color: rgba(38, 255, 223, 0.16);
+  color: #8cd7cf;
+  box-shadow: 10px 14px 28px -22px rgba(0, 0, 0, 0.75);
+}
+
+html.dark .session-edge-handle {
+  box-shadow: 0 0 0 4px #050d12, 0 10px 22px -16px rgba(0, 0, 0, 0.78);
+}
+
+html.dark .collapsed-rail-handle:hover,
+html.dark .collapsed-rail-handle:focus-visible,
+html.dark .session-edge-handle:hover,
+html.dark .session-edge-handle:focus-visible {
+  border-color: rgba(38, 255, 223, 0.38);
+  color: #26ffdf;
+  box-shadow: 10px 14px 28px -22px rgba(38, 255, 223, 0.35);
+}
+
+html.dark .session-edge-handle:hover,
+html.dark .session-edge-handle:focus-visible {
+  box-shadow: 0 0 0 4px #050d12, 0 12px 24px -16px rgba(38, 255, 223, 0.35);
+}
+
+html.dark .collapsed-session-dot {
+  background: rgba(38, 255, 223, 0.12);
+  color: #26ffdf;
+}
+
 html.dark .session-delete {
   color: #475569;
 }
@@ -6450,12 +6651,6 @@ html.dark .collapse-btn:hover {
   border-color: rgba(38, 255, 223, 0.45);
   color: #26ffdf;
   box-shadow: 0 12px 22px -14px rgba(38, 255, 223, 0.35);
-}
-
-html.dark .collapsed-new-btn {
-  background: #26FFDF;
-  color: #041010;
-  box-shadow: 0 2px 8px rgba(38, 255, 223, 0.3);
 }
 
 html.dark .workspace-main {
@@ -6872,26 +7067,34 @@ html.dark .config-header :deep(.el-input__inner) {
   color: #f1f5f9;
 }
 
+html.dark .config-tabs {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 html.dark .config-tabs :deep(.el-tabs__nav) {
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.82) 0%, rgba(15, 23, 42, 0.86) 100%);
-  border-color: rgba(148, 163, 184, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 html.dark .config-tabs :deep(.el-tabs__item) {
-  color: #8ca3b8;
+  color: #94a3b8;
 }
 
 html.dark .config-tabs :deep(.el-tabs__item:hover) {
-  color: #5fffe5;
-  background: rgba(38, 255, 223, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
 }
 
 html.dark .config-tabs :deep(.el-tabs__item.is-active) {
-  background: linear-gradient(180deg, rgba(38, 255, 223, 0.22) 0%, rgba(16, 185, 129, 0.16) 100%);
-  border: 1px solid rgba(38, 255, 223, 0.42);
-  color: #26ffdf;
-  box-shadow: 0 8px 14px -10px rgba(38, 255, 223, 0.42);
+  background: #0f1c1c;
+  color: #f1f5f9 !important;
+  box-shadow: none;
+}
+
+html.dark .config-tabs :deep(.el-tabs__item.is-active:hover) {
+  background: #0f1c1c;
 }
 
 html.dark .config-card {

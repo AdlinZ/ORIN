@@ -2,6 +2,7 @@ package com.adlin.orin.modules.collaboration.controller;
 
 import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
+import com.adlin.orin.modules.collaboration.consumer.CollaborationResultListener;
 import com.adlin.orin.modules.collaboration.event.CollaborationEvent;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.collaboration.metrics.CollaborationMetricsService;
@@ -10,8 +11,8 @@ import com.adlin.orin.modules.collaboration.service.CollaborationMemoryService;
 import com.adlin.orin.modules.collaboration.service.CollaborationOrchestrator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/collaboration")
-@RequiredArgsConstructor
 @Tag(name = "Collaboration Orchestrator", description = "多智能体协作编排API")
 public class CollaborationOrchestratorController {
 
@@ -37,6 +37,32 @@ public class CollaborationOrchestratorController {
     private final CollaborationExecutor executor;
     private final CollaborationMemoryService memoryService;
     private final CollaborationMetricsService metricsService;
+    private final CollaborationResultListener resultListener;
+
+    @Autowired
+    public CollaborationOrchestratorController(
+            CollaborationOrchestrator orchestrator,
+            CollaborationEventBus eventBus,
+            CollaborationExecutor executor,
+            CollaborationMemoryService memoryService,
+            CollaborationMetricsService metricsService,
+            CollaborationResultListener resultListener) {
+        this.orchestrator = orchestrator;
+        this.eventBus = eventBus;
+        this.executor = executor;
+        this.memoryService = memoryService;
+        this.metricsService = metricsService;
+        this.resultListener = resultListener;
+    }
+
+    public CollaborationOrchestratorController(
+            CollaborationOrchestrator orchestrator,
+            CollaborationEventBus eventBus,
+            CollaborationExecutor executor,
+            CollaborationMemoryService memoryService,
+            CollaborationMetricsService metricsService) {
+        this(orchestrator, eventBus, executor, memoryService, metricsService, null);
+    }
 
     @Operation(summary = "创建协作任务包")
     @PostMapping("/packages")
@@ -307,7 +333,36 @@ public class CollaborationOrchestratorController {
     public ResponseEntity<Map<String, Object>> getRuntimeStatus(@PathVariable String packageId) {
         try {
             Map<String, Object> status = orchestrator.getRuntimeStatus(packageId);
+            status.put("pendingCallbacks", resultListener != null ? resultListener.getPendingCallbackCount() : 0);
             return ResponseEntity.ok(status);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(summary = "获取协作诊断状态")
+    @GetMapping("/packages/{packageId}/diagnostics")
+    public ResponseEntity<Map<String, Object>> getDiagnostics(@PathVariable String packageId) {
+        try {
+            Map<String, Object> runtime = orchestrator.getRuntimeStatus(packageId);
+            List<Map<String, Object>> failedSubtasks = orchestrator.getSubtasks(packageId).stream()
+                    .filter(subtask -> "FAILED".equals(subtask.getStatus()))
+                    .map(subtask -> {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("packageId", packageId);
+                        item.put("subTaskId", subtask.getSubTaskId());
+                        item.put("attempt", subtask.getRetryCount() != null ? subtask.getRetryCount() : 0);
+                        item.put("errorMessage", subtask.getErrorMessage() != null ? subtask.getErrorMessage() : "");
+                        runtime.getOrDefault("traceId", "");
+                        item.put("traceId", runtime.getOrDefault("traceId", ""));
+                        return item;
+                    })
+                    .toList();
+            Map<String, Object> diagnostics = new HashMap<>();
+            diagnostics.put("runtime", runtime);
+            diagnostics.put("pendingCallbacks", resultListener != null ? resultListener.getPendingCallbackCount() : 0);
+            diagnostics.put("failedSubtasks", failedSubtasks);
+            return ResponseEntity.ok(diagnostics);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -406,6 +461,7 @@ public class CollaborationOrchestratorController {
         return ResponseEntity.accepted().body(Map.of(
                 "status", "STARTED",
                 "subTaskId", subTaskId,
+                "correlationId", packageId + ":" + subTaskId,
                 "message", "Subtask execution started"
         ));
     }

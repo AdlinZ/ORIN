@@ -113,8 +113,10 @@ public class WorkflowEngine {
                     SkillTraceInterceptor.TraceContext.setTraceId(instance.getTraceId());
                     SkillTraceInterceptor.TraceContext.setInstanceId(instance.getId());
                 }
-                graphExecutor.setInstanceId(instance.getId());
-                outputs = graphExecutor.executeGraph(graphDefinition, context);
+                long timeoutSeconds = workflow.getTimeoutSeconds() != null && workflow.getTimeoutSeconds() > 0
+                        ? workflow.getTimeoutSeconds()
+                        : 300L;
+                outputs = graphExecutor.executeGraph(graphDefinition, context, instance.getId(), timeoutSeconds);
             } else {
                 // 使用传统步骤执行器
                 log.info("Executing step-based workflow");

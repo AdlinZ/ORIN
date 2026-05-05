@@ -111,6 +111,35 @@ class TestMqWorkerWorkflowSmoke:
         assert result.metadata["expectedRole"] == "WORKFLOW"
 
     @pytest.mark.asyncio
+    async def test_execute_task_enforces_timeout_millis(self):
+        worker = CollabMQWorker()
+        task = CollabTaskMessage(
+            package_id="pkg-timeout-001",
+            sub_task_id="sub-timeout-001",
+            trace_id="trace-timeout-001",
+            attempt=0,
+            collaboration_mode="PARALLEL",
+            expected_role="SPECIALIST",
+            description="slow task",
+            timeout_millis=10,
+            execution_strategy="AGENT",
+            correlation_id="pkg-timeout-001:sub-timeout-001",
+        )
+
+        async def slow_agent(*args, **kwargs):
+            import asyncio
+            await asyncio.sleep(0.05)
+            return "late result"
+
+        with patch.object(worker, "_execute_agent", side_effect=slow_agent):
+            result = await worker._execute_task(task)
+
+        assert result.status == "TIMEOUT"
+        assert result.error_message == "Task timed out after 10ms"
+        assert result.correlation_id == "pkg-timeout-001:sub-timeout-001"
+        assert result.metadata["maxRetries"] == 3
+
+    @pytest.mark.asyncio
     async def test_write_result_publishes_json_payload(self):
         worker = CollabMQWorker()
         exchange = AsyncMock()
@@ -140,4 +169,5 @@ class TestMqWorkerWorkflowSmoke:
         assert payload["subTaskId"] == "sub-workflow-004"
         assert payload["status"] == "COMPLETED"
         assert payload["result"] == "Workflow executed: instanceId=222"
+        assert "correlationId" in payload
         assert routing_key == worker.reply_routing_key

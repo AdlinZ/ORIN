@@ -182,27 +182,30 @@ const downloadImage = () => {
 <style scoped>
 .playground-stage {
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
   background: #f9fafb;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .canvas-container {
-  flex: 1;
+  min-height: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px 40px 240px 40px;
-  overflow-y: auto;
+  padding: 28px clamp(18px, 4vw, 48px) 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .canvas-inner {
-  width: 100%;
-  max-width: 900px;
-  min-height: 500px;
-  aspect-ratio: 16 / 9;
+  width: min(100%, 1120px);
+  height: clamp(300px, 52vh, 560px);
+  min-height: 0;
   margin: 0 auto;
   background: #ffffff;
   border-radius: 24px;
@@ -301,15 +304,13 @@ const downloadImage = () => {
 
 /* Floating Input */
 .input-framer {
-  position: absolute;
-  bottom: 24px;
-  left: 0;
-  right: 0;
-  padding: 0 24px;
+  position: relative;
+  padding: 0 clamp(18px, 4vw, 48px) 28px;
   z-index: 100;
+  box-sizing: border-box;
 }
 .prompt-tags {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 auto 12px auto;
   display: flex;
   gap: 8px;
@@ -321,7 +322,7 @@ const downloadImage = () => {
 .clickable-tag:hover { background: #0d9488; color: #fff; border-color: #0d9488; }
 
 .input-card {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 auto;
   background: #ffffff;
   border: 1px solid #d1d5db;
@@ -330,10 +331,12 @@ const downloadImage = () => {
   overflow: hidden;
 }
 .chat-textarea :deep(.el-textarea__inner) {
+  min-height: 86px !important;
   border: none;
   box-shadow: none;
   padding: 20px;
   font-size: 15px;
+  line-height: 1.5;
   background: transparent;
 }
 
@@ -346,6 +349,7 @@ const downloadImage = () => {
 }
 .tool-btn { color: #9ca3af; font-size: 18px; padding: 6px; }
 .generate-btn {
+  min-width: 138px;
   padding: 10px 24px;
   border-radius: 12px;
   font-weight: 700;
@@ -366,5 +370,48 @@ const downloadImage = () => {
   font-size: 13px;
   z-index: 2000;
 }
-</style>
 
+@media (max-width: 900px) {
+  .playground-stage {
+    gap: 12px;
+  }
+
+  .canvas-container {
+    padding: 18px 16px 0;
+  }
+
+  .canvas-inner {
+    height: clamp(260px, 46vh, 440px);
+    border-radius: 18px;
+  }
+
+  .input-framer {
+    padding: 0 16px 18px;
+  }
+
+  .input-footer {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .prompt-tags {
+    display: none;
+  }
+
+  .input-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .footer-left,
+  .footer-right {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .generate-btn {
+    width: 100%;
+  }
+}
+</style>

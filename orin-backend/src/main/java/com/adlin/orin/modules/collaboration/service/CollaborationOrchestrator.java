@@ -12,8 +12,8 @@ import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,16 +28,47 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class CollaborationOrchestrator {
 
     private final CollaborationPackageRepository packageRepository;
     private final CollabSubtaskRepository subtaskRepository;
     private final CollaborationMemoryService memoryService;
+    private final CollaborationRedisService redisService;
     private final CollaborationEventBus eventBus;
     private final AuditHelper auditHelper;
     private final AgentManageService agentManageService;
     private final ObjectMapper objectMapper;
+
+    @Autowired
+    public CollaborationOrchestrator(
+            CollaborationPackageRepository packageRepository,
+            CollabSubtaskRepository subtaskRepository,
+            CollaborationMemoryService memoryService,
+            CollaborationRedisService redisService,
+            CollaborationEventBus eventBus,
+            AuditHelper auditHelper,
+            AgentManageService agentManageService,
+            ObjectMapper objectMapper) {
+        this.packageRepository = packageRepository;
+        this.subtaskRepository = subtaskRepository;
+        this.memoryService = memoryService;
+        this.redisService = redisService;
+        this.eventBus = eventBus;
+        this.auditHelper = auditHelper;
+        this.agentManageService = agentManageService;
+        this.objectMapper = objectMapper;
+    }
+
+    public CollaborationOrchestrator(
+            CollaborationPackageRepository packageRepository,
+            CollabSubtaskRepository subtaskRepository,
+            CollaborationMemoryService memoryService,
+            CollaborationEventBus eventBus,
+            AuditHelper auditHelper,
+            AgentManageService agentManageService,
+            ObjectMapper objectMapper) {
+        this(packageRepository, subtaskRepository, memoryService, null, eventBus, auditHelper, agentManageService, objectMapper);
+    }
 
     // 角色类型常量
     public static final String ROLE_PLANNER = "PLANNER";
@@ -198,6 +229,7 @@ public class CollaborationOrchestrator {
         // 根据意图类型分解任务
         String category = entity.getIntentCategory();
         List<CollabSubtaskEntity> subtasks = generateSubtasks(packageId, category, capabilities);
+        persistSubtasksToRuntimeContext(packageId, subtasks);
 
         entity.setStatus(STATUS_EXECUTING);
         packageRepository.save(entity);
@@ -209,6 +241,27 @@ public class CollaborationOrchestrator {
         memoryService.saveCheckpoint(packageId, "decomposed", Map.of("subtasks", subtasks.size()));
 
         return toDto(entity, subtasks);
+    }
+
+    private void persistSubtasksToRuntimeContext(String packageId, List<CollabSubtaskEntity> subtasks) {
+        if (redisService == null || subtasks == null) {
+            return;
+        }
+        List<Map<String, Object>> runtimeSubtasks = subtasks.stream()
+                .map(subtask -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", subtask.getSubTaskId());
+                    item.put("subTaskId", subtask.getSubTaskId());
+                    item.put("description", subtask.getDescription());
+                    item.put("role", subtask.getExpectedRole());
+                    item.put("expectedRole", subtask.getExpectedRole());
+                    item.put("dependsOn", fromJsonList(subtask.getDependsOn()));
+                    item.put("inputData", subtask.getInputData());
+                    item.put("status", subtask.getStatus());
+                    return item;
+                })
+                .toList();
+        redisService.updateContextField(packageId, "sub_tasks", runtimeSubtasks);
     }
 
     /**

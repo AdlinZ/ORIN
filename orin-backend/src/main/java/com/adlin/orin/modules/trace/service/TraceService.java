@@ -11,9 +11,13 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 
 /**
  * 追踪服务
@@ -165,6 +169,85 @@ public class TraceService {
                 .orElse(0.0));
 
         return stats;
+    }
+
+    /**
+     * 查询最近调用链路摘要。
+     */
+    public List<Map<String, Object>> getRecentTraceSummaries(int size) {
+        int limit = Math.max(1, Math.min(size, 100));
+        List<WorkflowTraceEntity> recentTraces = traceRepository.findTop500ByOrderByStartedAtDesc();
+
+        Map<String, List<WorkflowTraceEntity>> tracesById = recentTraces.stream()
+                .filter(t -> t.getTraceId() != null && !t.getTraceId().isBlank())
+                .collect(Collectors.groupingBy(
+                        WorkflowTraceEntity::getTraceId,
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+
+        List<Map<String, Object>> summaries = new ArrayList<>();
+        for (Map.Entry<String, List<WorkflowTraceEntity>> entry : tracesById.entrySet()) {
+            if (summaries.size() >= limit) {
+                break;
+            }
+            summaries.add(buildTraceSummary(entry.getKey(), entry.getValue()));
+        }
+
+        return summaries;
+    }
+
+    private Map<String, Object> buildTraceSummary(String traceId, List<WorkflowTraceEntity> traces) {
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("traceId", traceId);
+        summary.put("instanceId", traces.stream()
+                .map(WorkflowTraceEntity::getInstanceId)
+                .filter(id -> id != null)
+                .findFirst()
+                .orElse(null));
+        summary.put("status", resolveTraceStatus(traces));
+        summary.put("totalSteps", traces.size());
+        summary.put("failedCount", traces.stream()
+                .filter(t -> t.getStatus() == WorkflowTraceEntity.TraceStatus.FAILED)
+                .count());
+        summary.put("totalDuration", traces.stream()
+                .mapToLong(t -> t.getDurationMs() != null ? t.getDurationMs() : 0L)
+                .sum());
+        summary.put("firstStartedAt", traces.stream()
+                .map(WorkflowTraceEntity::getStartedAt)
+                .filter(t -> t != null)
+                .min(LocalDateTime::compareTo)
+                .orElse(null));
+        summary.put("lastCompletedAt", traces.stream()
+                .map(t -> t.getCompletedAt() != null ? t.getCompletedAt() : t.getStartedAt())
+                .filter(t -> t != null)
+                .max(LocalDateTime::compareTo)
+                .orElse(null));
+        return summary;
+    }
+
+    private String resolveTraceStatus(List<WorkflowTraceEntity> traces) {
+        if (traces.stream().anyMatch(t -> t.getStatus() == WorkflowTraceEntity.TraceStatus.FAILED)) {
+            return WorkflowTraceEntity.TraceStatus.FAILED.name();
+        }
+        if (traces.stream().anyMatch(t -> t.getStatus() == WorkflowTraceEntity.TraceStatus.RUNNING)) {
+            return WorkflowTraceEntity.TraceStatus.RUNNING.name();
+        }
+        if (!traces.isEmpty()
+                && traces.stream().allMatch(t -> t.getStatus() == WorkflowTraceEntity.TraceStatus.SUCCESS)) {
+            return WorkflowTraceEntity.TraceStatus.SUCCESS.name();
+        }
+        if (!traces.isEmpty()
+                && traces.stream().allMatch(t -> t.getStatus() == WorkflowTraceEntity.TraceStatus.SKIPPED)) {
+            return WorkflowTraceEntity.TraceStatus.SKIPPED.name();
+        }
+
+        return traces.stream()
+                .filter(t -> t.getStartedAt() != null)
+                .max(Comparator.comparing(
+                        WorkflowTraceEntity::getStartedAt))
+                .map(WorkflowTraceEntity::getStatus)
+                .map(Enum::name)
+                .orElse(WorkflowTraceEntity.TraceStatus.PENDING.name());
     }
 
     /**

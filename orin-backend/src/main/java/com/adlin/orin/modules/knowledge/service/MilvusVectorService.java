@@ -67,6 +67,7 @@ public class MilvusVectorService implements VectorStoreProvider {
 
     // 全局唯一的 Collection 名称
     private static final String COLLECTION_NAME = "orin_knowledge_base";
+    private static final long VECTOR_STATS_QUERY_PAGE_SIZE = 16_384L;
 
     private final com.adlin.orin.gateway.service.ProviderRegistry providerRegistry;
     private final com.adlin.orin.modules.knowledge.component.EmbeddingService embeddingService;
@@ -108,6 +109,11 @@ public class MilvusVectorService implements VectorStoreProvider {
             R<Boolean> response = client.hasCollection(HasCollectionParam.newBuilder()
                     .withCollectionName(COLLECTION_NAME)
                     .build());
+
+            if (response.getStatus() != R.Status.Success.getCode()) {
+                throw new IllegalStateException("Milvus hasCollection failed: " + response.getMessage());
+            }
+
             if (response.getData() != null && response.getData()) {
                 log.info("Milvus collection '{}' already exists.", COLLECTION_NAME);
                 // 获取已存在的 collection 的 vector 字段维度
@@ -124,6 +130,7 @@ public class MilvusVectorService implements VectorStoreProvider {
                     }
                 } else {
                     log.info("Collection exists with matching dimension {}. Skipping recreation.", embeddingDimension);
+                    return;
                 }
             }
 
@@ -233,13 +240,7 @@ public class MilvusVectorService implements VectorStoreProvider {
                 .withKeepAliveTimeout(keepAliveTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                 .withRpcDeadline(rpcDeadlineMs, java.util.concurrent.TimeUnit.MILLISECONDS);
 
-        // 使用 token 或默认认证
-        if (token != null && !token.isEmpty()) {
-            builder.withToken(token);
-        } else {
-            // 使用默认用户名 root，无密码
-            builder.withAuthorization("root", "");
-        }
+        applyAuthorization(builder, token);
 
         MilvusServiceClient client = new MilvusServiceClient(builder.build());
         RetryParam retryParam = RetryParam.newBuilder()
@@ -248,6 +249,19 @@ public class MilvusVectorService implements VectorStoreProvider {
                 .withMaxBackOffMs(Math.max(1, retryIntervalMs))
                 .build();
         return (MilvusServiceClient) client.withRetry(retryParam);
+    }
+
+    private void applyAuthorization(ConnectParam.Builder builder, String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            return;
+        }
+
+        String normalizedToken = rawToken.trim();
+        if (normalizedToken.contains(":")) {
+            builder.withAuthorization(normalizedToken);
+        } else {
+            builder.withAuthorization("root", normalizedToken);
+        }
     }
 
     @Override
@@ -551,32 +565,10 @@ public class MilvusVectorService implements VectorStoreProvider {
             result.put("exists", partitionExists);
 
             if (partitionExists) {
-                // 尝试执行一次搜索来验证是否有实际数据
                 try {
-                    List<Float> dummyVector = new ArrayList<>();
-                    int dim = getEmbeddingDimension();
-                    for (int i = 0; i < dim; i++) {
-                        dummyVector.add(0f);
-                    }
-
-                    SearchParam searchParam = SearchParam.newBuilder()
-                            .withCollectionName(COLLECTION_NAME)
-                            .withPartitionNames(Collections.singletonList(partitionName))
-                            .withVectors(Collections.singletonList(dummyVector))
-                            .withTopK(1)
-                            .withVectorFieldName("vector")
-                            .withParams("{\"radius\": 1.0, \"range_filter\": 1.0}")
-                            .build();
-
-                    R<SearchResults> searchResponse = client.search(searchParam);
-                    if (searchResponse.getStatus() == R.Status.Success.getCode()) {
-                        SearchResults results = searchResponse.getData();
-                        result.put("vectorCount", results.getResults().getIds().getIntId().getDataCount());
-                    } else {
-                        result.put("vectorCount", 0L);
-                    }
+                    result.put("vectorCount", countPartitionRows(client, partitionName));
                 } catch (Exception e) {
-                    log.debug("Failed to query vector count: {}", e.getMessage());
+                    log.debug("Failed to count vectors: {}", e.getMessage());
                     result.put("vectorCount", 0L);
                 }
             } else {
@@ -594,6 +586,79 @@ public class MilvusVectorService implements VectorStoreProvider {
         }
 
         return result;
+    }
+
+    private long countPartitionRows(MilvusServiceClient client, String partitionName) {
+        R<io.milvus.grpc.GetPartitionStatisticsResponse> statsResponse = client.getPartitionStatistics(
+                io.milvus.param.partition.GetPartitionStatisticsParam.newBuilder()
+                        .withCollectionName(COLLECTION_NAME)
+                        .withPartitionName(partitionName)
+                        .withFlush(false)
+                        .build());
+
+        if (statsResponse.getStatus() == R.Status.Success.getCode() && statsResponse.getData() != null) {
+            OptionalLong rowCount = statsResponse.getData().getStatsList().stream()
+                    .filter(stat -> "row_count".equalsIgnoreCase(stat.getKey()))
+                    .map(io.milvus.grpc.KeyValuePair::getValue)
+                    .filter(value -> value != null && !value.isBlank())
+                    .mapToLong(Long::parseLong)
+                    .findFirst();
+            if (rowCount.isPresent()) {
+                return rowCount.getAsLong();
+            }
+        } else {
+            log.debug("Milvus partition statistics unavailable: {}",
+                    statsResponse.getMessage() != null ? statsResponse.getMessage() : statsResponse.getStatus());
+        }
+
+        return countPartitionRowsByQuery(client, partitionName);
+    }
+
+    private long countPartitionRowsByQuery(MilvusServiceClient client, String partitionName) {
+        long total = 0L;
+        long offset = 0L;
+
+        while (true) {
+            R<io.milvus.grpc.QueryResults> queryResponse = client.query(
+                    io.milvus.param.dml.QueryParam.newBuilder()
+                            .withCollectionName(COLLECTION_NAME)
+                            .withPartitionNames(Collections.singletonList(partitionName))
+                            .withExpr("chunk_id != \"\"")
+                            .addOutField("chunk_id")
+                            .withOffset(offset)
+                            .withLimit(VECTOR_STATS_QUERY_PAGE_SIZE)
+                            .build());
+
+            if (queryResponse.getStatus() != R.Status.Success.getCode()) {
+                log.debug("Milvus vector count page query failed: {}", queryResponse.getMessage());
+                return total;
+            }
+
+            long pageRows = countQueryRows(queryResponse.getData());
+            total += pageRows;
+            if (pageRows < VECTOR_STATS_QUERY_PAGE_SIZE) {
+                return total;
+            }
+            offset += VECTOR_STATS_QUERY_PAGE_SIZE;
+        }
+    }
+
+    private long countQueryRows(io.milvus.grpc.QueryResults queryResults) {
+        if (queryResults == null || queryResults.getFieldsDataCount() == 0) {
+            return 0L;
+        }
+
+        io.milvus.grpc.FieldData fieldData = queryResults.getFieldsData(0);
+        switch (fieldData.getType()) {
+            case VarChar:
+                return fieldData.getScalars().getStringData().getDataCount();
+            case Int64:
+                return fieldData.getScalars().getLongData().getDataCount();
+            case Int32:
+                return fieldData.getScalars().getIntData().getDataCount();
+            default:
+                return fieldData.getScalars().getStringData().getDataCount();
+        }
     }
 
     /**
@@ -940,15 +1005,14 @@ public class MilvusVectorService implements VectorStoreProvider {
 
         MilvusServiceClient client = null;
         try {
-            ConnectParam connectParam = ConnectParam.newBuilder()
+            ConnectParam.Builder builder = ConnectParam.newBuilder()
                     .withHost(host)
                     .withPort(port)
                     .withConnectTimeout(connectTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     .withKeepAliveTimeout(keepAliveTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
-                    .withRpcDeadline(rpcDeadlineMs, java.util.concurrent.TimeUnit.MILLISECONDS)
-                    .withAuthorization("root", token != null ? token : "Milvus")
-                    .build();
-            client = new MilvusServiceClient(connectParam);
+                    .withRpcDeadline(rpcDeadlineMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            applyAuthorization(builder, token);
+            client = new MilvusServiceClient(builder.build());
             RetryParam retryParam = RetryParam.newBuilder()
                     .withMaxRetryTimes(Math.max(0, maxRetryTimes))
                     .withInitialBackOffMs(Math.max(1, retryIntervalMs))

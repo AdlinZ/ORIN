@@ -851,7 +851,7 @@ const SYSTEM_PROPERTY_FALLBACKS = {
     'orin.collaboration.mq-for-sequential': 'true',
     'orin.collaboration.mq-for-consensus': 'true',
   },
-  milvus: { host: 'localhost', port: 19530, token: '' },
+  milvus: { host: '192.168.1.164', port: 19530, token: '' },
   ai: { jinaEnabled: false, jinaApiKey: '' },
   embedding: { enableRerank: false, rerankModel: '' },
   kb: {
@@ -973,7 +973,7 @@ const cancelCollabOrchestrationEdit = () => cancelCardEdit('collaboration-orches
 const saveCollabOrchestrationConfig = async () => { if (await saveDbKeys(COLLAB_ORCHESTRATION_KEYS, '协作编舞配置已保存，重启服务后生效')) finishCardEdit('collaboration-orchestration'); };
 
 // Milvus
-const milvusConfig = reactive({ host: 'localhost', port: 19530, token: '' });
+const milvusConfig = reactive({ host: '192.168.1.164', port: 19530, token: '' });
 const milvusStatus = ref({ online: false });
 const collectionInfo = ref({ exists: false });
 const milvusSaving = ref(false);

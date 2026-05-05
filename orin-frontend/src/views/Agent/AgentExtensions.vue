@@ -1,46 +1,34 @@
 <template>
   <div class="agent-extensions-page">
-    <OrinPageShell
-      title="智能体扩展中心"
-      description="管理 Skills、MCP 服务与模型工具（Tools）能力，统一在本页面完成配置。"
-      :icon="MagicStick"
-    >
-      <template #filters>
-        <div
-          class="extensions-tabs-sticky"
-          tabindex="0"
-          @keydown="handleTabKeydown"
-        >
-          <el-tabs v-model="activeTab" class="extensions-primary-tabs">
-          <el-tab-pane name="skills">
-            <template #label>
-              <span class="tab-label">
-                <el-icon><MagicStick /></el-icon>
-                技能
-              </span>
-            </template>
-          </el-tab-pane>
-
-          <el-tab-pane name="mcp">
-            <template #label>
-              <span class="tab-label">
-                <el-icon><Service /></el-icon>
-                MCP服务
-              </span>
-            </template>
-          </el-tab-pane>
-
-          <el-tab-pane name="bindings">
-            <template #label>
-              <span class="tab-label">
-                <el-icon><Setting /></el-icon>
-                模型工具
-              </span>
-            </template>
-          </el-tab-pane>
-          </el-tabs>
+    <section class="extensions-console">
+      <header class="extensions-hero">
+        <div class="extensions-hero-main">
+          <div class="extensions-icon">
+            <el-icon><MagicStick /></el-icon>
+          </div>
+          <div class="extensions-title-block">
+            <h1>智能体扩展中心</h1>
+            <p>统一管理 Skills、MCP 服务与模型工具能力，集中完成配置、启停和维护。</p>
+          </div>
         </div>
-      </template>
+
+        <div class="extensions-summary">
+          <button
+            v-for="item in tabSummaries"
+            :key="item.key"
+            type="button"
+            :class="['summary-card', { active: activeTab === item.key }]"
+            @click="activeTab = item.key"
+          >
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.description }}</small>
+            </span>
+          </button>
+        </div>
+
+      </header>
 
       <section
         ref="contentPanelRef"
@@ -73,7 +61,7 @@
           </keep-alive>
         </div>
       </section>
-    </OrinPageShell>
+    </section>
   </div>
 </template>
 
@@ -82,7 +70,6 @@ import { computed, nextTick, onErrorCaptured, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { MagicStick, Service, Setting } from '@element-plus/icons-vue'
-import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import SkillManagementPanel from '@/views/Skill/SkillManagement.vue'
 import McpServicePanel from '@/views/System/McpService.vue'
 import AgentToolsBindingPanel from '@/views/Agent/AgentToolsBindingPanel.vue'
@@ -112,6 +99,27 @@ const tabComponentMap = {
   bindings: AgentToolsBindingPanel
 }
 
+const tabSummaries = [
+  {
+    key: 'skills',
+    title: 'Skills',
+    description: '脚本、API 与知识检索能力',
+    icon: MagicStick
+  },
+  {
+    key: 'mcp',
+    title: 'MCP 服务',
+    description: '外部服务连接与工具安装',
+    icon: Service
+  },
+  {
+    key: 'bindings',
+    title: '模型工具',
+    description: 'Function calling 工具目录',
+    icon: Setting
+  }
+]
+
 const currentTabComponent = computed(() => tabComponentMap[activeTab.value] || tabComponentMap[TAB_DEFAULT])
 
 const getSanitizedTab = (value) => {
@@ -138,20 +146,6 @@ const updateRouteTab = (tab) => {
 const recoverFromTabError = () => {
   tabRenderError.value = ''
   activeTab.value = TAB_DEFAULT
-}
-
-const handleTabKeydown = (event) => {
-  const currentIndex = TAB_KEYS.indexOf(activeTab.value)
-  if (currentIndex < 0) return
-  if (event.key === 'ArrowRight') {
-    event.preventDefault()
-    activeTab.value = TAB_KEYS[(currentIndex + 1) % TAB_KEYS.length]
-    return
-  }
-  if (event.key === 'ArrowLeft') {
-    event.preventDefault()
-    activeTab.value = TAB_KEYS[(currentIndex - 1 + TAB_KEYS.length) % TAB_KEYS.length]
-  }
 }
 
 watch(
@@ -221,66 +215,124 @@ onErrorCaptured((error) => {
   gap: 16px;
 }
 
-.content-panel {
-  max-height: calc(100vh - 290px);
-  overflow: auto;
-  padding: 12px 18px 18px;
-  border-radius: 14px;
-  background: var(--neutral-white);
+.extensions-console {
+  overflow: hidden;
   border: 1px solid var(--orin-border);
-  box-shadow: 0 8px 30px -24px rgba(15, 23, 42, 0.45);
+  border-radius: var(--orin-card-radius, 8px);
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.98) 42%),
+    var(--neutral-white);
+  box-shadow: 0 18px 50px -42px rgba(15, 23, 42, 0.52);
 }
 
-.extensions-tabs-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 8;
-  outline: none;
-}
-
-.extensions-tabs-sticky:focus-visible {
-  border-radius: 10px;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
-}
-
-.extensions-primary-tabs :deep(.el-tabs__header) {
-  margin: 0;
+.extensions-hero {
+  padding: 18px 20px 0;
   border-bottom: 1px solid var(--orin-border);
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.8), rgba(255, 255, 255, 0.96) 48%),
+    var(--neutral-white);
 }
 
-.extensions-primary-tabs :deep(.el-tabs__nav-wrap)::after {
-  display: none;
+.extensions-hero-main {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
 }
 
-.extensions-primary-tabs :deep(.el-tabs__active-bar) {
-  height: 2px;
+.extensions-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(240, 253, 250, 0.78);
+  color: var(--orin-primary);
+  font-size: 18px;
 }
 
-.extensions-primary-tabs :deep(.el-tabs__item) {
-  height: 42px;
-  padding: 0 16px !important;
-  color: var(--text-secondary);
-  font-weight: 500;
+.extensions-title-block {
+  min-width: 0;
 }
 
-.extensions-primary-tabs :deep(.el-tabs__item:hover) {
+.extensions-title-block h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 23px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.extensions-title-block p {
+  margin: 7px 0 0;
+  max-width: 760px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.extensions-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.summary-card {
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(255, 255, 255, 0.66);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.summary-card:hover,
+.summary-card.active {
+  border-color: rgba(15, 118, 110, 0.36);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 30px -26px rgba(15, 23, 42, 0.55);
+}
+
+.summary-card .el-icon {
+  margin-top: 2px;
   color: var(--orin-primary);
 }
 
-.extensions-primary-tabs :deep(.el-tabs__item.is-active) {
-  color: var(--orin-primary) !important;
-  font-weight: 600;
+.summary-card span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
-.tab-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
+.summary-card strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.summary-card small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.content-panel {
+  max-height: calc(100vh - 246px);
+  overflow: auto;
+  padding: 16px;
+  background: transparent;
+  scrollbar-gutter: stable;
 }
 
 .tab-content {
-  padding-top: 4px;
   min-height: 460px;
 }
 
@@ -293,9 +345,52 @@ onErrorCaptured((error) => {
 }
 
 @media (max-width: 720px) {
-  .content-panel {
-    padding: 12px;
-    max-height: calc(100vh - 250px);
+  .extensions-hero {
+    padding: 14px 14px 0;
   }
+
+  .extensions-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .content-panel {
+    padding: 10px;
+    max-height: calc(100vh - 220px);
+  }
+}
+
+html.dark .extensions-console {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.94)),
+    var(--neutral-gray-900, #0f172a);
+  box-shadow: none;
+}
+
+html.dark .extensions-hero {
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(15, 23, 42, 0.94) 52%),
+    var(--neutral-gray-900, #0f172a);
+}
+
+html.dark .extensions-title-block h1,
+html.dark .summary-card strong {
+  color: #f8fafc;
+}
+
+html.dark .extensions-title-block p,
+html.dark .summary-card small {
+  color: #94a3b8;
+}
+
+html.dark .summary-card {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.66);
+}
+
+html.dark .summary-card:hover,
+html.dark .summary-card.active {
+  border-color: rgba(45, 212, 191, 0.32);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: none;
 }
 </style>

@@ -19,10 +19,10 @@
 
       <template #filters>
         <el-form :inline="true" class="skill-filter-form">
-          <el-form-item label="技能类型">
+          <el-form-item>
             <el-select
               v-model="filterType"
-              placeholder="全部类型"
+              placeholder="技能类型"
               clearable
               class="filter-select"
               @change="loadSkills"
@@ -34,10 +34,10 @@
               <el-option label="复合工作流" value="COMPOSITE" />
             </el-select>
           </el-form-item>
-          <el-form-item label="状态">
+          <el-form-item>
             <el-select
               v-model="filterStatus"
-              placeholder="全部状态"
+              placeholder="状态"
               clearable
               class="filter-select"
               @change="loadSkills"
@@ -64,56 +64,139 @@
           <p class="embedded-description">管理可供智能体使用的技能能力，支持 API、知识库、Shell 和复合工作流</p>
         </div>
         <div class="embedded-actions">
-        <el-button type="success" @click="showImportDialog">
-          <el-icon><Download /></el-icon>
-          导入技能
-        </el-button>
-        <el-button type="primary" @click="showCreateDialog">
-          <el-icon><Plus /></el-icon>
-          创建技能
-        </el-button>
+          <el-button type="success" @click="showImportDialog">
+            <el-icon><Download /></el-icon>
+            导入技能
+          </el-button>
+          <el-button type="primary" @click="showCreateDialog">
+            <el-icon><Plus /></el-icon>
+            创建技能
+          </el-button>
         </div>
       </div>
-      <el-form :inline="true" class="skill-filter-form embedded-filters">
-        <el-form-item label="技能类型">
-          <el-select
-            v-model="filterType"
-            placeholder="全部类型"
-            clearable
-            class="filter-select"
-            @change="loadSkills"
-          >
-            <el-option label="全部" value="" />
-            <el-option label="API 调用" value="API" />
-            <el-option label="知识库检索" value="KNOWLEDGE" />
-            <el-option label="Shell 命令" value="SHELL" />
-            <el-option label="复合工作流" value="COMPOSITE" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select
-            v-model="filterStatus"
-            placeholder="全部状态"
-            clearable
-            class="filter-select"
-            @change="loadSkills"
-          >
-            <el-option label="全部" value="" />
-            <el-option label="活跃" value="ACTIVE" />
-            <el-option label="未激活" value="INACTIVE" />
-            <el-option label="已废弃" value="DEPRECATED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadSkills">
-            查询
-          </el-button>
-        </el-form-item>
-      </el-form>
+
+      <div class="embedded-control-row">
+        <div class="embedded-stats">
+          <div class="skill-stat">
+            <span>全部</span>
+            <strong>{{ skillStats.total }}</strong>
+          </div>
+          <div class="skill-stat">
+            <span>活跃</span>
+            <strong>{{ skillStats.active }}</strong>
+          </div>
+          <div class="skill-stat">
+            <span>API</span>
+            <strong>{{ skillStats.api }}</strong>
+          </div>
+          <div class="skill-stat">
+            <span>Shell</span>
+            <strong>{{ skillStats.shell }}</strong>
+          </div>
+        </div>
+
+        <el-form :inline="true" class="skill-filter-form embedded-filters">
+          <el-form-item>
+            <el-select
+              v-model="filterType"
+              placeholder="技能类型"
+              clearable
+              class="filter-select"
+              @change="loadSkills"
+            >
+              <el-option label="全部" value="" />
+              <el-option label="API 调用" value="API" />
+              <el-option label="知识库检索" value="KNOWLEDGE" />
+              <el-option label="Shell 命令" value="SHELL" />
+              <el-option label="复合工作流" value="COMPOSITE" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-select
+              v-model="filterStatus"
+              placeholder="状态"
+              clearable
+              class="filter-select"
+              @change="loadSkills"
+            >
+              <el-option label="全部" value="" />
+              <el-option label="活跃" value="ACTIVE" />
+              <el-option label="未激活" value="INACTIVE" />
+              <el-option label="已废弃" value="DEPRECATED" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="loadSkills">
+              <el-icon><Search /></el-icon>
+              查询
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </div>
     </div>
 
     <!-- 技能列表 -->
-    <el-card class="table-card">
+    <div v-if="embedded" class="embedded-skill-list" v-loading="loading">
+      <el-alert
+        v-if="loadError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="load-error"
+        :title="loadError"
+      >
+        <template #default>
+          <el-button type="primary" text @click="loadSkills">重试</el-button>
+        </template>
+      </el-alert>
+
+      <div v-if="skills.length" class="skill-card-grid">
+        <article v-for="skill in skills" :key="skill.id" class="skill-card-item">
+          <div class="skill-card-main">
+            <div class="skill-card-head">
+              <div class="skill-card-title-wrap">
+                <span class="skill-card-id">#{{ skill.id }}</span>
+                <h3 class="skill-card-title">{{ skill.skillName }}</h3>
+              </div>
+              <div class="skill-card-tags">
+                <el-tag :type="getTypeTagType(skill.skillType)" effect="plain">
+                  {{ getTypeLabel(skill.skillType) }}
+                </el-tag>
+                <el-tag :type="getStatusTagType(skill.status)" effect="light">
+                  {{ getStatusLabel(skill.status) }}
+                </el-tag>
+              </div>
+            </div>
+            <p class="skill-card-description">
+              {{ skill.description || '暂无描述' }}
+            </p>
+            <div class="skill-card-meta">
+              <span>版本 {{ skill.version || '-' }}</span>
+              <span>{{ formatTime(skill.createdAt) }}</span>
+            </div>
+          </div>
+          <div class="row-actions skill-card-actions">
+            <el-button size="small" @click="viewSkillMd(skill)">
+              SKILL.md
+            </el-button>
+            <el-button size="small" type="primary" @click="editSkill(skill)">
+              编辑
+            </el-button>
+            <el-button size="small" type="danger" @click="deleteSkill(skill)">
+              删除
+            </el-button>
+          </div>
+        </article>
+      </div>
+
+      <el-empty
+        v-else-if="!loading && !loadError"
+        :image-size="72"
+        description="暂无技能，点击右上角“创建技能”开始添加"
+      />
+    </div>
+
+    <el-card v-else class="table-card">
       <el-alert
         v-if="loadError"
         type="error"
@@ -131,13 +214,15 @@
         :data="skills"
         empty-text="暂无技能，点击右上角“创建技能”开始添加"
         stripe
-        border
+        :border="!embedded"
+        class="skill-table"
       >
         <el-table-column
           prop="id"
           label="ID"
           width="70"
           align="center"
+          class-name="skill-id-column"
         />
         <el-table-column prop="skillName" label="技能名称" min-width="150" />
         <el-table-column prop="skillType" label="类型" width="120">
@@ -150,7 +235,7 @@
         <el-table-column
           prop="description"
           label="描述"
-          min-width="200"
+          min-width="190"
           show-overflow-tooltip
         />
         <el-table-column prop="status" label="状态" width="100">
@@ -165,23 +250,31 @@
           label="版本"
           width="90"
           align="center"
+          class-name="skill-version-column"
         />
-        <el-table-column prop="createdAt" label="创建时间" width="170">
+        <el-table-column prop="createdAt" label="创建时间" width="160" class-name="skill-time-column">
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column
+          label="操作"
+          :width="embedded ? 178 : 250"
+          :fixed="embedded ? false : 'right'"
+          class-name="skill-actions-column"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="viewSkillMd(row)">
-              查看文件(SKILL.md)
-            </el-button>
-            <el-button size="small" type="primary" @click="editSkill(row)">
-              编辑
-            </el-button>
-            <el-button size="small" type="danger" @click="deleteSkill(row)">
-              删除
-            </el-button>
+            <div class="row-actions">
+              <el-button size="small" @click="viewSkillMd(row)">
+                SKILL.md
+              </el-button>
+              <el-button size="small" type="primary" @click="editSkill(row)">
+                编辑
+              </el-button>
+              <el-button size="small" type="danger" @click="deleteSkill(row)">
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -372,9 +465,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive } from 'vue'
+import { computed, ref, onMounted, onUnmounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Download, Loading } from '@element-plus/icons-vue'
+import { Plus, Delete, Download, Loading, Search } from '@element-plus/icons-vue'
 import { 
   getSkillList, 
   createSkill, 
@@ -406,6 +499,16 @@ const filterStatus = ref('')
 const renderedMd = ref('')
 const mdLoading = ref(false)
 const loadError = ref('')
+
+const skillStats = computed(() => {
+  const rows = Array.isArray(skills.value) ? skills.value : []
+  return {
+    total: rows.length,
+    active: rows.filter((item) => item.status === 'ACTIVE').length,
+    api: rows.filter((item) => item.skillType === 'API').length,
+    shell: rows.filter((item) => item.skillType === 'SHELL').length
+  }
+})
 
 // 导入相关
 const importForm = reactive({
@@ -635,18 +738,18 @@ const getStatusLabel = (status) => {
 
 .embedded-toolbar {
   margin-bottom: 12px;
-  padding: 18px 20px 6px;
+  padding: 14px 16px;
   border: 1px solid var(--orin-border);
-  border-radius: 12px;
-  background: var(--neutral-white);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 22px -20px rgba(15, 23, 42, 0.35);
 }
 
 .embedded-toolbar-main {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 6px;
+  align-items: center;
 }
 
 .embedded-title-group {
@@ -655,25 +758,95 @@ const getStatusLabel = (status) => {
 
 .embedded-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.2;
   color: #0f172a;
+  letter-spacing: 0;
 }
 
 .embedded-description {
-  margin: 8px 0 0;
+  margin: 5px 0 0;
   color: #64748b;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .embedded-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.embedded-actions :deep(.el-button) {
+  height: 34px;
+  padding: 0 13px;
+}
+
+.embedded-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.78);
+}
+
+.embedded-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skill-stat {
+  min-width: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.skill-stat span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.skill-stat strong {
+  color: #0f766e;
+  font-size: 15px;
+  line-height: 1.1;
 }
 
 .embedded-filters {
-  margin-bottom: -18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+  margin-left: auto;
+  margin-bottom: 0;
+}
+
+.embedded-filters :deep(.el-form-item) {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.embedded-filters :deep(.el-form-item__content) {
+  display: inline-flex;
+  width: auto;
+}
+
+.embedded-filters :deep(.el-button) {
+  width: auto;
+  min-width: 88px;
+  height: 32px;
 }
 
 .skill-filter-form {
@@ -681,17 +854,139 @@ const getStatusLabel = (status) => {
 }
 
 .filter-select {
-  width: 180px;
+  width: 150px;
 }
 
 .table-card {
-  border-radius: 12px;
+  border-radius: var(--orin-card-radius, 8px);
   margin-top: 4px;
   border: 1px solid var(--orin-border);
+  overflow: hidden;
+}
+
+.table-card.is-embedded-table {
+  margin-top: 0;
+  box-shadow: none;
 }
 
 .table-card :deep(.el-card__body) {
   padding-top: 14px;
+}
+
+.table-card.is-embedded-table :deep(.el-card__body) {
+  padding: 0;
+}
+
+.skill-table {
+  width: 100%;
+}
+
+.skill-table :deep(.el-table__header th) {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.skill-table :deep(.el-table__cell) {
+  padding: 10px 0;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.row-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.embedded-skill-list {
+  min-height: 320px;
+}
+
+.skill-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.skill-card-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--orin-border);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 12px 30px -28px rgba(15, 23, 42, 0.5);
+}
+
+.skill-card-main {
+  min-width: 0;
+}
+
+.skill-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.skill-card-title-wrap {
+  min-width: 0;
+}
+
+.skill-card-id {
+  display: block;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.skill-card-title {
+  margin: 3px 0 0;
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.35;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.skill-card-description {
+  margin: 10px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.skill-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.skill-card-actions {
+  justify-content: flex-end;
+  align-content: flex-start;
+  max-width: 150px;
 }
 
 .load-error {
@@ -727,6 +1022,53 @@ const getStatusLabel = (status) => {
 html.dark .markdown-preview {
   background: var(--neutral-gray-800);
   color: #e2e8f0;
+}
+
+html.dark .embedded-toolbar {
+  background: rgba(15, 23, 42, 0.86);
+  box-shadow: none;
+}
+
+html.dark .embedded-title {
+  color: #f8fafc;
+}
+
+html.dark .embedded-description,
+html.dark .skill-stat span {
+  color: #94a3b8;
+}
+
+html.dark .skill-stat {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.72);
+}
+
+html.dark .skill-stat strong {
+  color: #5eead4;
+}
+
+html.dark .embedded-control-row {
+  border-top-color: rgba(148, 163, 184, 0.16);
+}
+
+html.dark .skill-table :deep(.el-table__header th) {
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+}
+
+html.dark .skill-card-item {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(148, 163, 184, 0.16);
+  box-shadow: none;
+}
+
+html.dark .skill-card-title {
+  color: #f8fafc;
+}
+
+html.dark .skill-card-description,
+html.dark .skill-card-meta {
+  color: #94a3b8;
 }
 
 .markdown-preview :deep(h1) {
@@ -779,6 +1121,40 @@ html.dark .markdown-preview :deep(code) {
 @media (max-width: 1024px) {
   .embedded-toolbar-main {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .embedded-actions {
+    justify-content: flex-start;
+  }
+
+  .embedded-filters {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .embedded-toolbar {
+    padding: 14px;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  .embedded-filters,
+  .embedded-filters :deep(.el-form-item),
+  .embedded-filters :deep(.el-form-item__content) {
+    width: 100%;
+  }
+
+  .skill-card-item {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-card-actions {
+    justify-content: flex-start;
+    max-width: none;
   }
 }
 </style>

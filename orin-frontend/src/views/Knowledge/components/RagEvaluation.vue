@@ -182,7 +182,7 @@ const runTest = async () => {
       query: testQuery.value,
       topK: 5
     })
-    testResults.value = res || []
+    testResults.value = unwrapRetrievalResults(res)
     calculateMetrics()
   } catch (error) {
     console.error('Test failed:', error)
@@ -211,6 +211,13 @@ const calculateMetrics = () => {
   metrics.recallAtK = Math.min(avgScore * 1.2, 1.0)
   metrics.mrr = avgScore * 0.9
   metrics.ndcgAtK = avgScore * 0.95
+}
+
+const unwrapRetrievalResults = (response) => {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.results)) return response.results
+  if (Array.isArray(response?.data)) return response.data
+  return []
 }
 
 const formatScore = (score) => {

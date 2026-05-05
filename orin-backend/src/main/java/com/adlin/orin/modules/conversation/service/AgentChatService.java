@@ -265,6 +265,7 @@ public class AgentChatService {
         ToolCallingCapabilityDetector.ToolCallingDecision toolCallingDecision =
                 toolCallingDetector.detect(session.getAgentId(), agentMetadata, agentProfile);
         boolean useToolCalling = toolCallingDecision.isSupported();
+        RetrievalRuntimeConfig retrievalConfig = parseAgentRetrievalConfig(agentMetadata);
 
         // 解析历史
         List<Map<String, Object>> messages;
@@ -297,6 +298,12 @@ public class AgentChatService {
                 .skillIds(effectiveBinding.getSkillIds())
                 .mcpIds(effectiveBinding.getMcpIds())
                 .kbDocFilters(request.getKbDocFilters())
+                .retrievalTopK(retrievalConfig.topK())
+                .retrievalThreshold(retrievalConfig.threshold())
+                .retrievalAlpha(retrievalConfig.alpha())
+                .retrievalEmbeddingModel(retrievalConfig.embeddingModel())
+                .retrievalEnableRerank(retrievalConfig.enableRerank())
+                .retrievalRerankModel(retrievalConfig.rerankModel())
                 .traces(new ArrayList<>())
                 .sharedState(new HashMap<>())
                 .retrievedChunks(new ArrayList<>())
@@ -700,6 +707,13 @@ public class AgentChatService {
                         knowledgeBaseRepository, knowledgeGraphRepository, graphEntityRepository,
                         graphRelationRepository,
                         knowledgeManageService, knowledgeGraphService, skillService, mcpServiceRepository, objectMapper);
+                strategy.configureRetrieval(
+                        ctx.getRetrievalTopK(),
+                        ctx.getRetrievalThreshold(),
+                        ctx.getRetrievalAlpha(),
+                        ctx.getRetrievalEmbeddingModel(),
+                        ctx.getRetrievalEnableRerank(),
+                        ctx.getRetrievalRerankModel());
 
                 List<String> kbIdsForStrategy = hasKbs ? ctx.getKbIds() : Collections.emptyList();
                 List<ToolCatalogItemDto> boundForStrategy = hasFnCallTools
@@ -1172,6 +1186,80 @@ public class AgentChatService {
         }
 
         return "";
+    }
+
+    @SuppressWarnings("unchecked")
+    private RetrievalRuntimeConfig parseAgentRetrievalConfig(AgentMetadata metadata) {
+        if (metadata == null || metadata.getParameters() == null || metadata.getParameters().isBlank()) {
+            return RetrievalRuntimeConfig.empty();
+        }
+        try {
+            Map<String, Object> params = objectMapper.readValue(metadata.getParameters(), Map.class);
+            Object rawConfig = params.get("retrievalConfig");
+            if (!(rawConfig instanceof Map<?, ?> rawMap)) {
+                return RetrievalRuntimeConfig.empty();
+            }
+            Map<String, Object> config = (Map<String, Object>) rawMap;
+            return new RetrievalRuntimeConfig(
+                    asInteger(config.get("topK")),
+                    asDouble(config.get("threshold")),
+                    asDouble(config.get("alpha")),
+                    asString(config.get("embeddingModel")),
+                    asBoolean(config.get("enableRerank")),
+                    asString(config.get("rerankModel")));
+        } catch (Exception e) {
+            log.warn("Failed to parse retrievalConfig for agent {}: {}",
+                    metadata.getAgentId(), e.getMessage());
+            return RetrievalRuntimeConfig.empty();
+        }
+    }
+
+    private Integer asInteger(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Double asDouble(Object value) {
+        if (value instanceof Number number) return number.doubleValue();
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Boolean asBoolean(Object value) {
+        if (value instanceof Boolean bool) return bool;
+        if (value instanceof String text && !text.isBlank()) return Boolean.parseBoolean(text);
+        return null;
+    }
+
+    private String asString(Object value) {
+        if (value == null) return null;
+        String text = String.valueOf(value).trim();
+        return text.isEmpty() || "none".equalsIgnoreCase(text) ? null : text;
+    }
+
+    private record RetrievalRuntimeConfig(
+            Integer topK,
+            Double threshold,
+            Double alpha,
+            String embeddingModel,
+            Boolean enableRerank,
+            String rerankModel) {
+        static RetrievalRuntimeConfig empty() {
+            return new RetrievalRuntimeConfig(null, null, null, null, null, null);
+        }
     }
 
     /**

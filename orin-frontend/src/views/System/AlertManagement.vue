@@ -9,15 +9,15 @@
     <el-tabs v-model="activeTab" class="config-tabs" :class="{ 'single-tab': singleTabMode }">
       <!-- 告警规则 Tab -->
       <el-tab-pane v-if="showRulesTab" label="告警规则" name="rules">
-        <el-card class="premium-card">
+        <el-card class="premium-card alert-work-panel">
           <template #header>
-            <div class="card-header">
-              <div>
-                <el-icon><Bell /></el-icon>
-                <span>告警规则配置</span>
-                <el-tag size="small" type="info" class="ml-2">
-                  {{ rules.length }} 条规则
-                </el-tag>
+            <div class="alert-panel-head">
+              <div class="alert-panel-title">
+                <span class="panel-icon"><el-icon><Bell /></el-icon></span>
+                <div>
+                  <h2>告警规则配置</h2>
+                  <p>维护触发条件、通知渠道和冷却策略</p>
+                </div>
               </div>
               <el-button type="primary" :icon="Plus" @click="showCreateDialog">
                 创建规则
@@ -25,8 +25,28 @@
             </div>
           </template>
 
+          <div class="alert-summary-grid">
+            <div class="alert-summary-item">
+              <span>规则总数</span>
+              <strong>{{ rules.length }}</strong>
+            </div>
+            <div class="alert-summary-item">
+              <span>已启用</span>
+              <strong>{{ enabledRuleCount }}</strong>
+            </div>
+            <div class="alert-summary-item">
+              <span>已停用</span>
+              <strong>{{ disabledRuleCount }}</strong>
+            </div>
+            <div class="alert-summary-item">
+              <span>通知渠道</span>
+              <strong>{{ channelCount }}</strong>
+            </div>
+          </div>
+
           <el-table
             v-loading="loading"
+            class="alert-table"
             border
             :data="rules"
             stripe
@@ -90,25 +110,41 @@
 
       <!-- 告警历史 Tab -->
       <el-tab-pane v-if="showHistoryTab" label="告警历史" name="history">
-        <el-card class="premium-card">
+        <el-card class="premium-card alert-work-panel">
           <template #header>
-            <div class="card-header">
-              <div>
-                <el-icon><Clock /></el-icon>
-                <span>告警历史记录</span>
-              </div>
-              <div class="stats">
-                <el-statistic title="活跃告警" :value="stats.activeAlerts" />
-                <el-statistic title="总告警数" :value="stats.totalAlerts" class="ml-4" />
+            <div class="alert-panel-head">
+              <div class="alert-panel-title">
+                <span class="panel-icon"><el-icon><Clock /></el-icon></span>
+                <div>
+                  <h2>告警历史记录</h2>
+                  <p>跟踪触发、抑制和解决状态</p>
+                </div>
               </div>
             </div>
           </template>
+
+          <div class="alert-summary-grid history-summary">
+            <div class="alert-summary-item danger">
+              <span>活跃告警</span>
+              <strong>{{ stats.activeAlerts }}</strong>
+            </div>
+            <div class="alert-summary-item">
+              <span>总告警数</span>
+              <strong>{{ stats.totalAlerts }}</strong>
+            </div>
+            <div class="alert-summary-item">
+              <span>当前页</span>
+              <strong>{{ history.length }}</strong>
+            </div>
+          </div>
+
           <div class="history-tip">
             说明：历史会包含“规则触发告警”和“系统健康告警”；规则名称为空时按系统健康告警展示。
           </div>
 
           <el-table
             v-loading="loadingHistory"
+            class="alert-table"
             border
             :data="history"
             stripe
@@ -314,6 +350,20 @@ const ruleForm = ref({
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalHistory = ref(0)
+
+const enabledRuleCount = computed(() => rules.value.filter(rule => rule.enabled).length)
+const disabledRuleCount = computed(() => Math.max(rules.value.length - enabledRuleCount.value, 0))
+const channelCount = computed(() => {
+  const channels = new Set()
+  rules.value.forEach(rule => {
+    rule.notificationChannels
+      ?.split(',')
+      .map(channel => channel.trim())
+      .filter(Boolean)
+      .forEach(channel => channels.add(channel))
+  })
+  return channels.size
+})
 
 const loadRules = async () => {
   loading.value = true
@@ -539,8 +589,20 @@ onUnmounted(() => {
 }
 
 .premium-card {
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--neutral-gray-100);
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.alert-work-panel :deep(.el-card__header) {
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.alert-work-panel :deep(.el-card__body) {
+  padding: 16px 18px 18px;
 }
 
 .card-header {
@@ -556,9 +618,92 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.stats {
+.alert-panel-head {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.alert-panel-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--orin-primary, #0d9488);
+}
+
+.alert-panel-title h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--text-primary, #0f172a);
+}
+
+.alert-panel-title p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+}
+
+.alert-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.alert-summary-grid.history-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.alert-summary-item {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.86);
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.alert-summary-item span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+}
+
+.alert-summary-item strong {
+  display: block;
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--text-primary, #0f172a);
+}
+
+.alert-summary-item.danger strong {
+  color: #dc2626;
+}
+
+.alert-table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.alert-table :deep(th.el-table__cell) {
+  background: rgba(248, 250, 252, 0.92);
+  color: var(--text-secondary, #64748b);
+  font-weight: 700;
 }
 
 .ml-2 {
@@ -589,5 +734,56 @@ onUnmounted(() => {
   color: #64748b;
   background: rgba(241, 245, 249, 0.75);
   border: 1px dashed #cbd5e1;
+}
+
+html.dark .premium-card {
+  border-color: rgba(100, 116, 139, 0.46);
+  background: rgba(30, 41, 59, 0.82);
+  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.32);
+}
+
+html.dark .alert-work-panel :deep(.el-card__header) {
+  border-bottom-color: rgba(100, 116, 139, 0.42);
+  background: rgba(15, 23, 42, 0.32);
+}
+
+html.dark .alert-panel-title h2,
+html.dark .alert-summary-item strong {
+  color: #f1f5f9;
+}
+
+html.dark .alert-panel-title p,
+html.dark .alert-summary-item span {
+  color: #cbd5e1;
+}
+
+html.dark .alert-summary-item,
+html.dark .history-tip {
+  border-color: rgba(100, 116, 139, 0.46);
+  background: rgba(15, 23, 42, 0.38);
+}
+
+html.dark .alert-table :deep(th.el-table__cell) {
+  background: rgba(15, 23, 42, 0.58);
+  color: #cbd5e1;
+}
+
+@media (max-width: 900px) {
+  .alert-summary-grid,
+  .alert-summary-grid.history-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .alert-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .alert-summary-grid,
+  .alert-summary-grid.history-summary {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -3,10 +3,13 @@ import { ref, watch } from 'vue';
 
 const MENU_MODE_KEY = 'orin_menu_mode';
 const MENU_COLLAPSE_KEY = 'orin_menu_collapse';
+const DEFAULT_MENU_MODE = 'sidebar';
+const VALID_MENU_MODES = new Set(['topbar', 'sidebar']);
 
 // 获取本地存储的菜单模式
 const getStoredMenuMode = () => {
-    return localStorage.getItem(MENU_MODE_KEY) || 'topbar';
+    const stored = localStorage.getItem(MENU_MODE_KEY);
+    return VALID_MENU_MODES.has(stored) ? stored : DEFAULT_MENU_MODE;
 };
 
 // 获取本地存储的折叠状态
@@ -22,6 +25,11 @@ export const useAppStore = defineStore('app', () => {
     // 切换菜单模式
     const toggleMenuMode = () => {
         menuMode.value = menuMode.value === 'topbar' ? 'sidebar' : 'topbar';
+    };
+
+    const setMenuMode = (mode) => {
+        if (!VALID_MENU_MODES.has(mode)) return;
+        menuMode.value = mode;
     };
 
     const toggleSidebar = () => {
@@ -40,6 +48,7 @@ export const useAppStore = defineStore('app', () => {
     return {
         menuMode,
         isCollapse,
+        setMenuMode,
         toggleMenuMode,
         toggleSidebar
     };

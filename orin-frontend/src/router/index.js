@@ -8,6 +8,13 @@ import { ADMIN_MENU_ROLES, getDefaultHomeByRoles } from './topMenuConfig'
 
 const ADMIN_ROUTE_ROLES = [...ADMIN_MENU_ROLES]
 
+const getStoredToken = () => {
+    return Cookies.get('orin_token')
+        || window.localStorage.getItem('orin_token')
+        || window.sessionStorage.getItem('orin_token')
+        || ''
+}
+
 // ==================== 路由配置 ====================
 const routes = [
     // 欢迎页
@@ -679,7 +686,7 @@ router.beforeEach((to, from, next) => {
     }
 
     // 检查是否需要登录
-    const token = Cookies.get('orin_token')
+    const token = getStoredToken()
 
     // 公开页面列表
     const publicPages = ['/', '/login', '/datawall', '/unified-docs']

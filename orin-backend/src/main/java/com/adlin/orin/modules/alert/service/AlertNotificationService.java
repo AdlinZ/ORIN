@@ -4,13 +4,17 @@ import com.adlin.orin.modules.alert.entity.AlertNotificationConfig;
 import com.adlin.orin.modules.alert.entity.AlertRecord;
 import com.adlin.orin.modules.alert.entity.AlertRule;
 import com.adlin.orin.modules.alert.repository.AlertNotificationConfigRepository;
+import com.adlin.orin.modules.notification.service.SystemNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 告警通知服务
@@ -23,31 +27,24 @@ public class AlertNotificationService {
 
     private final AlertNotificationConfigRepository configRepository;
     private final AlertChannelGateway alertChannelGateway;
+    private final SystemNotificationService systemNotificationService;
 
     /**
      * 发送告警通知
      */
     public void sendAlertNotification(AlertRecord alert, Map<String, Object> details) {
         AlertNotificationConfig config = getConfig();
+        String severity = alert.getSeverity() != null ? alert.getSeverity() : "INFO";
+        if (shouldSkipBySeverity(config, severity)) {
+            log.info("Alert notification skipped by criticalOnly setting: severity={}", severity);
+            return;
+        }
         String title = buildAlertTitle(alert);
         String content = buildAlertContent(alert, details);
 
-        // 邮件通知
-        if (config.getEmailEnabled() != null && config.getEmailEnabled()
-            && config.getEmailRecipients() != null && !config.getEmailRecipients().isEmpty()) {
-            alertChannelGateway.send("email", config, title, content, null);
-        }
-
-        // 钉钉通知
-        if (config.getDingtalkEnabled() != null && config.getDingtalkEnabled()
-            && config.getDingtalkWebhook() != null && !config.getDingtalkWebhook().isEmpty()) {
-            alertChannelGateway.send("dingtalk", config, title, content, null);
-        }
-
-        // 企业微信通知
-        if (config.getWecomEnabled() != null && config.getWecomEnabled()
-            && config.getWecomWebhook() != null && !config.getWecomWebhook().isEmpty()) {
-            alertChannelGateway.send("wecom", config, title, content, null);
+        sendInAppIfEnabled(config, severity, title, content);
+        for (String channel : enabledConfigChannels(config)) {
+            sendExternalChannel(channel, config, title, content, null);
         }
     }
 
@@ -74,21 +71,40 @@ public class AlertNotificationService {
      * 发送规则通知（兼容历史规则配置）。
      */
     public void sendRuleNotification(AlertRule rule, String message) {
-        if (rule.getNotificationChannels() == null || rule.getNotificationChannels().isBlank()) {
-            log.warn("规则未配置通知渠道: {}", rule.getRuleName());
+        AlertNotificationConfig config = getConfig();
+        String severity = rule.getSeverity() != null ? rule.getSeverity() : "INFO";
+        if (shouldSkipBySeverity(config, severity)) {
+            log.info("Rule notification skipped by criticalOnly setting: rule={}, severity={}", rule.getRuleName(), severity);
             return;
         }
-        AlertNotificationConfig config = getConfig();
-        String title = String.format("[ORIN Alert] %s - %s", rule.getSeverity(), rule.getRuleName());
+
+        String title = String.format("[ORIN Alert] %s - %s", severity, rule.getRuleName());
         String content = String.format(
             "Alert Rule: %s\nSeverity: %s\nTime: %s\n\nMessage:\n%s",
-            rule.getRuleName(), rule.getSeverity(), java.time.LocalDateTime.now(), message
+            rule.getRuleName(), severity, java.time.LocalDateTime.now(), message
         );
 
-        Arrays.stream(rule.getNotificationChannels().split(","))
-            .map(alertChannelGateway::normalizeChannel)
-            .filter(channel -> !channel.isBlank())
-            .forEach(channel -> alertChannelGateway.send(channel, config, title, content, rule.getRecipientList()));
+        sendInAppIfEnabled(config, severity, title, content);
+        for (String channel : resolveChannels(rule, config)) {
+            sendExternalChannel(channel, config, title, content, rule.getRecipientList());
+        }
+    }
+
+    public void sendSystemNotification(String title, String severity, String message) {
+        AlertNotificationConfig config = getConfig();
+        String normalizedSeverity = severity != null ? severity : "WARNING";
+        if (shouldSkipBySeverity(config, normalizedSeverity)) {
+            log.info("System alert notification skipped by criticalOnly setting: severity={}", normalizedSeverity);
+            return;
+        }
+        String content = String.format(
+                "Alert Rule: %s\nSeverity: %s\nTime: %s\n\nMessage:\n%s",
+                title, normalizedSeverity, java.time.LocalDateTime.now(), message
+        );
+        sendInAppIfEnabled(config, normalizedSeverity, title, content);
+        for (String channel : enabledConfigChannels(config)) {
+            sendExternalChannel(channel, config, title, content, null);
+        }
     }
 
     private AlertNotificationConfig getConfig() {
@@ -97,8 +113,77 @@ public class AlertNotificationService {
             config.setEmailEnabled(true);
             config.setDingtalkEnabled(false);
             config.setWecomEnabled(false);
+            config.setNotifyEmail(true);
+            config.setNotifyInapp(true);
             return config;
         });
+    }
+
+    private Set<String> resolveChannels(AlertRule rule, AlertNotificationConfig config) {
+        if (rule.getNotificationChannels() == null || rule.getNotificationChannels().isBlank()) {
+            return enabledConfigChannels(config);
+        }
+        Set<String> channels = new LinkedHashSet<>();
+        Arrays.stream(rule.getNotificationChannels().split(","))
+                .map(alertChannelGateway::normalizeChannel)
+                .filter(channel -> !channel.isBlank())
+                .forEach(channels::add);
+        return channels;
+    }
+
+    private Set<String> enabledConfigChannels(AlertNotificationConfig config) {
+        Set<String> channels = new LinkedHashSet<>();
+        if (Boolean.TRUE.equals(config.getEmailEnabled())) {
+            channels.add("email");
+        }
+        if (Boolean.TRUE.equals(config.getDingtalkEnabled())) {
+            channels.add("dingtalk");
+        }
+        if (Boolean.TRUE.equals(config.getWecomEnabled())) {
+            channels.add("wecom");
+        }
+        return channels;
+    }
+
+    private boolean sendExternalChannel(String channel, AlertNotificationConfig config, String title,
+                                        String content, String receiverOverride) {
+        String normalized = alertChannelGateway.normalizeChannel(channel);
+        if ("email".equals(normalized) && (!Boolean.TRUE.equals(config.getNotifyEmail())
+                || !Boolean.TRUE.equals(config.getEmailEnabled()))) {
+            return false;
+        }
+        if ("dingtalk".equals(normalized) && !Boolean.TRUE.equals(config.getDingtalkEnabled())) {
+            return false;
+        }
+        if ("wecom".equals(normalized) && !Boolean.TRUE.equals(config.getWecomEnabled())) {
+            return false;
+        }
+        return alertChannelGateway.send(normalized, config, title, content, receiverOverride);
+    }
+
+    private void sendInAppIfEnabled(AlertNotificationConfig config, String severity, String title, String content) {
+        if (!Boolean.TRUE.equals(config.getNotifyInapp())) {
+            return;
+        }
+        systemNotificationService.sendMessage(title, content, toMessageType(severity), null, "ALERT", "BROADCAST");
+    }
+
+    private boolean shouldSkipBySeverity(AlertNotificationConfig config, String severity) {
+        return Boolean.TRUE.equals(config.getCriticalOnly()) && !isCriticalSeverity(severity);
+    }
+
+    private boolean isCriticalSeverity(String severity) {
+        String normalized = severity == null ? "" : severity.toUpperCase(Locale.ROOT);
+        return "CRITICAL".equals(normalized) || "ERROR".equals(normalized);
+    }
+
+    private String toMessageType(String severity) {
+        String normalized = severity == null ? "INFO" : severity.toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "CRITICAL", "ERROR" -> "ERROR";
+            case "WARNING", "WARN" -> "WARNING";
+            default -> "INFO";
+        };
     }
 
     private String buildAlertTitle(AlertRecord alert) {

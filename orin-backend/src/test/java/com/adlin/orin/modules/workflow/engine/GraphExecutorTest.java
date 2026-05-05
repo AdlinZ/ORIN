@@ -15,6 +15,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 
 class GraphExecutorTest {
 
@@ -158,6 +160,37 @@ class GraphExecutorTest {
         assertThrows(WorkflowExecutionException.class, () -> {
             graphExecutor.executeGraph(graph, new ConcurrentHashMap<>());
         });
+        verify(eventPublisher).publishNodeFailed(eq(1L), eq("failNode"), anyString(), anyString());
+        verify(eventPublisher).publishWorkflowFailed(eq(1L), anyString());
+    }
+
+    @Test
+    void testUnknownNodeTypeFailsValidation() {
+        Map<String, Object> graph = new HashMap<>();
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        nodes.add(createNode("start", "start", Collections.emptyMap()));
+        nodes.add(createNode("unknown", "unknown-type", Collections.emptyMap()));
+        graph.put("nodes", nodes);
+        graph.put("edges", List.of(createEdge("start", "unknown", null)));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                graphExecutor.executeGraph(graph, new ConcurrentHashMap<>()));
+    }
+
+    @Test
+    void testCycleFailsValidation() {
+        Map<String, Object> graph = new HashMap<>();
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        nodes.add(createNode("start", "start", Collections.emptyMap()));
+        nodes.add(createNode("action", "action", Collections.emptyMap()));
+        graph.put("nodes", nodes);
+        graph.put("edges", List.of(
+                createEdge("start", "action", null),
+                createEdge("action", "start", null)
+        ));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                graphExecutor.executeGraph(graph, new ConcurrentHashMap<>()));
     }
 
     private Map<String, Object> createNode(String id, String type, Map<String, Object> data) {

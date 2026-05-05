@@ -51,15 +51,15 @@ export const triggerAlert = (data) => {
 // ==================== 告警通知配置 ====================
 
 export const testNotificationChannel = (channel) => {
-    return request.post('/alerts/notification/test', { channel });
+    return request.post('/alerts/notification-config/test', { channel });
 };
 
 export const getNotificationConfig = () => {
-    return request.get('/alerts/notification/config');
+    return request.get('/alerts/notification-config');
 };
 
 export const saveNotificationConfig = (data) => {
-    return request.post('/alerts/notification/config', data);
+    return request.post('/alerts/notification-config', data);
 };
 
 export const getNotificationStatus = () => {

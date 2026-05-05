@@ -37,9 +37,19 @@ async def planner_node(state: CollaborationState) -> Dict[str, Any]:
     sub_tasks_data = read_sub_tasks_from_ctx(package_id)
 
     if sub_tasks_data is None:
-        logger.warning(f"[Planner] ctx 中无 sub_tasks，package={package_id}")
+        logger.error(f"[Planner] ctx 中无 sub_tasks，package={package_id}")
         return {
-            "status": CollaborationStatus.EXECUTING.value,
+            "status": CollaborationStatus.FAILED.value,
+            "error_message": "planner_node: missing sub_tasks in collab runtime context",
+            "sub_tasks": [],
+            "completed_subtasks": [],
+            "current_task_index": 0,
+        }
+    if not isinstance(sub_tasks_data, list) or len(sub_tasks_data) == 0:
+        logger.error(f"[Planner] sub_tasks 为空或格式错误，package={package_id}")
+        return {
+            "status": CollaborationStatus.FAILED.value,
+            "error_message": "planner_node: empty or invalid sub_tasks in collab runtime context",
             "sub_tasks": [],
             "completed_subtasks": [],
             "current_task_index": 0,
@@ -192,30 +202,22 @@ async def delegate_node(state: CollaborationState) -> Dict[str, Any]:
 
 async def parallel_fork_node(state: CollaborationState) -> Dict[str, Any]:
     """
-    并行分叉节点 - 批量发 MQ 消息，并行等待所有结果
+    并行分叉节点 - 按依赖分层触发任务，并行等待每一层结果
     """
     sub_tasks = state.get("sub_tasks", [])
     package_id = state.get("package_id", "")
 
     logger.info(f"[ParallelFork] 开始并行执行，共 {len(sub_tasks)} 个任务")
 
-    # 获取没有依赖的子任务（可以并行执行）
-    ready_tasks = [st for st in sub_tasks if not st.get("dependsOn")]
+    if not await wait_if_paused(package_id):
+        return {**state, "status": CollaborationStatus.FAILED.value,
+                "error_message": "parallel_fork_node: paused timeout"}
 
-    if not ready_tasks:
-        return {
-            "status": CollaborationStatus.CONSENSUS.value,
-            "error_message": "没有可并行执行的任务"
-        }
-
-    logger.info(f"[ParallelFork] 准备并发执行 {len(ready_tasks)} 个任务")
-
-    # ── 批量 HTTP 触发子任务 ─────────────────────────────────────────────────
     from app.core.config import settings
     import httpx
+    from app.core.collab_state import poll_branch_result
 
     backend_url = settings.ORIN_BACKEND_URL or "http://localhost:8080"
-    sent_tasks = []
 
     async def trigger_one(st: Dict) -> Optional[str]:
         task_id = st.get("id", "")
@@ -257,16 +259,7 @@ async def parallel_fork_node(state: CollaborationState) -> Dict[str, Any]:
             logger.warning(f"[ParallelFork] HTTP 触发失败 {task_id}: {e}")
             return None
 
-    # 并发触发所有任务
-    trigger_tasks = [trigger_one(st) for st in ready_tasks]
-    trigger_results = await asyncio.gather(*trigger_tasks, return_exceptions=True)
-    for r in trigger_results:
-        if isinstance(r, str):
-            sent_tasks.append(r)
-
-    # ── 并发轮询所有任务结果 ─────────────────────────────────────────────────
     async def poll_one(task_id: str) -> tuple:
-        from app.core.collab_state import poll_branch_result
         result = await poll_branch_result(
             package_id=package_id,
             sub_task_id=task_id,
@@ -275,42 +268,90 @@ async def parallel_fork_node(state: CollaborationState) -> Dict[str, Any]:
         )
         return task_id, result
 
-    poll_tasks = [poll_one(tid) for tid in sent_tasks]
-    poll_results = await asyncio.gather(*poll_tasks, return_exceptions=True)
-
     branch_results = {}
-    completed_subtasks = []
-    for r in poll_results:
-        if isinstance(r, Exception):
-            continue
-        task_id, result = r
-        if result is not None:
-            branch_results[task_id] = result
-            completed_subtasks.append(task_id)
+    completed_subtasks = set(state.get("completed_subtasks", []))
+    remaining = {st.get("id", f"task_{idx}"): st for idx, st in enumerate(sub_tasks)}
+
+    while remaining:
+        if not await wait_if_paused(package_id):
+            return {
+                "branch_results": branch_results,
+                "completed_subtasks": list(completed_subtasks),
+                "status": CollaborationStatus.FAILED.value,
+                "error_message": "parallel_fork_node: paused timeout"
+            }
+
+        ready_tasks = [
+            st for task_id, st in remaining.items()
+            if all(dep_id in completed_subtasks for dep_id in st.get("dependsOn", []))
+        ]
+
+        if not ready_tasks:
+            blocked_ids = ", ".join(remaining.keys())
+            logger.error("[ParallelFork] 依赖无法满足或存在环: %s", blocked_ids)
+            return {
+                "branch_results": branch_results,
+                "completed_subtasks": list(completed_subtasks),
+                "status": CollaborationStatus.FAILED.value,
+                "error_message": f"并行任务依赖无法满足: {blocked_ids}"
+            }
+
+        logger.info(f"[ParallelFork] 准备并发执行本层 {len(ready_tasks)} 个任务")
+        trigger_results = await asyncio.gather(
+            *[trigger_one(st) for st in ready_tasks],
+            return_exceptions=True,
+        )
+        sent_tasks = [r for r in trigger_results if isinstance(r, str)]
+        if len(sent_tasks) < len(ready_tasks):
+            failed_count = len(ready_tasks) - len(sent_tasks)
+            return {
+                "branch_results": branch_results,
+                "completed_subtasks": list(completed_subtasks),
+                "status": CollaborationStatus.FAILED.value,
+                "error_message": f"{failed_count} 个并行任务触发失败"
+            }
+
+        poll_results = await asyncio.gather(
+            *[poll_one(tid) for tid in sent_tasks],
+            return_exceptions=True,
+        )
+
+        poll_errors = [r for r in poll_results if isinstance(r, Exception)]
+        if poll_errors:
+            logger.warning("[ParallelFork] 本层任务轮询异常: %s", poll_errors[0])
+            return {
+                "branch_results": branch_results,
+                "completed_subtasks": list(completed_subtasks),
+                "status": CollaborationStatus.FAILED.value,
+                "error_message": f"{len(poll_errors)} 个并行任务结果轮询异常"
+            }
+
+        for r in poll_results:
+            task_id, result = r
+            if result is not None:
+                branch_results[task_id] = result
+                completed_subtasks.add(task_id)
+                remaining.pop(task_id, None)
+
+        if any((not isinstance(r, Exception)) and r[1] is None for r in poll_results) or len(completed_subtasks) == 0:
+            missing = [tid for tid in sent_tasks if tid not in branch_results]
+            logger.warning("[ParallelFork] 本层任务未拿到结果: %s", missing)
+            return {
+                "branch_results": branch_results,
+                "completed_subtasks": list(completed_subtasks),
+                "status": CollaborationStatus.FAILED.value,
+                "error_message": f"{len(missing)} 个并行任务执行失败或超时"
+            }
 
     shared_context = state.get("shared_context", {})
     shared_context["__parallel_results"] = branch_results
 
-    logger.info(f"[ParallelFork] 并行执行完成，{len(branch_results)}/{len(sent_tasks)} 个结果")
-
-    # ── 部分失败：没有拿到全部结果，不进 consensus，直接标记失败 ─────────────
-    if len(branch_results) < len(sent_tasks):
-        failed_count = len(sent_tasks) - len(branch_results)
-        logger.warning(
-            f"[ParallelFork] {failed_count} 个任务未拿到结果，不进 consensus"
-        )
-        return {
-            "branch_results": branch_results,
-            "shared_context": shared_context,
-            "completed_subtasks": completed_subtasks,
-            "status": CollaborationStatus.FAILED.value,
-            "error_message": f"{failed_count} 个并行任务执行失败或超时"
-        }
+    logger.info(f"[ParallelFork] 并行执行完成，{len(branch_results)}/{len(sub_tasks)} 个结果")
 
     return {
         "branch_results": branch_results,
         "shared_context": shared_context,
-        "completed_subtasks": completed_subtasks,
+        "completed_subtasks": list(completed_subtasks),
         "status": CollaborationStatus.CONSENSUS.value
     }
 

@@ -49,8 +49,20 @@ public class KbSearchTool implements AgentTool {
 
             for (String kbId : kbIds) {
                 List<String> docIds = docFilters != null ? docFilters.get(kbId) : null;
+                int topK = ctx.getRetrievalTopK() != null ? ctx.getRetrievalTopK() : 5;
+                String rerankModel = Boolean.TRUE.equals(ctx.getRetrievalEnableRerank())
+                        ? ctx.getRetrievalRerankModel()
+                        : null;
                 List<VectorStoreProvider.SearchResult> results =
-                        retrievalService.hybridSearch(kbId, query, 5, docIds);
+                        retrievalService.hybridSearch(
+                                kbId,
+                                query,
+                                topK,
+                                ctx.getRetrievalEmbeddingModel(),
+                                ctx.getRetrievalAlpha(),
+                                ctx.getRetrievalThreshold(),
+                                rerankModel,
+                                docIds);
 
                 // Build structured results for KbRetrieveTool
                 List<Map<String, Object>> structuredResults = new ArrayList<>();
@@ -70,6 +82,11 @@ public class KbSearchTool implements AgentTool {
                 kbResult.put("kbId", kbId);
                 kbResult.put("resultCount", results.size());
                 kbResult.put("documentIds", docIds);
+                kbResult.put("topK", topK);
+                kbResult.put("threshold", ctx.getRetrievalThreshold());
+                kbResult.put("alpha", ctx.getRetrievalAlpha());
+                kbResult.put("embeddingModel", ctx.getRetrievalEmbeddingModel());
+                kbResult.put("rerankModel", rerankModel);
                 kbResult.put("results", structuredResults);
 
                 totalResults += results.size();

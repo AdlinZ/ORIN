@@ -181,10 +181,15 @@ public class MonitorServiceImpl implements MonitorService {
 
                 // Calculate average latency
                 double avgLatency = todayLogs.stream()
-                                .mapToLong(log -> log.getResponseTime() != null ? log.getResponseTime() : 0L)
+                                .map(com.adlin.orin.modules.audit.entity.AuditLog::getResponseTime)
+                                .filter(Objects::nonNull)
+                                .mapToLong(Long::longValue)
                                 .average()
                                 .orElse(0.0);
-                summary.put("avg_latency", Math.round(avgLatency) + "ms");
+                long avgLatencyMs = Math.round(avgLatency);
+                summary.put("avg_latency", avgLatencyMs + "ms");
+                summary.put("avg_latency_ms", avgLatencyMs);
+                summary.put("avgLatencyMs", avgLatencyMs);
 
                 double totalCostToday = orZero(auditLogRepository.sumTotalCostBetween(startOfDay, LocalDateTime.now()));
                 summary.put("todayCost", Math.round(totalCostToday * 100.0) / 100.0);
@@ -791,11 +796,17 @@ public class MonitorServiceImpl implements MonitorService {
                         io.milvus.param.ConnectParam.Builder builder = io.milvus.param.ConnectParam.newBuilder()
                                         .withHost(host)
                                         .withPort(port)
-                                        .withConnectTimeout(5, java.util.concurrent.TimeUnit.SECONDS);
+                                        .withConnectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                                        .withRpcDeadline(5, java.util.concurrent.TimeUnit.SECONDS);
 
                         // 只有在 token 不为空时才设置认证
-                        if (token != null && !token.isEmpty()) {
-                                builder.withAuthorization("root", token);
+                        if (token != null && !token.isBlank()) {
+                                String normalizedToken = token.trim();
+                                if (normalizedToken.contains(":")) {
+                                        builder.withAuthorization(normalizedToken);
+                                } else {
+                                        builder.withAuthorization("root", normalizedToken);
+                                }
                         }
 
                         io.milvus.param.ConnectParam connectParam = builder.build();
@@ -806,10 +817,17 @@ public class MonitorServiceImpl implements MonitorService {
                                                 .withCollectionName("test_connection")
                                                 .build());
 
-                        status.put("online", true);
                         status.put("host", host);
                         status.put("port", port);
-                        status.put("message", "Connection Successful");
+                        status.put("statusCode", response.getStatus());
+                        status.put("collectionExists", response.getData());
+                        if (response.getStatus() == io.milvus.param.R.Status.Success.getCode()) {
+                                status.put("online", true);
+                                status.put("message", "Connection Successful");
+                        } else {
+                                status.put("online", false);
+                                status.put("error", response.getMessage());
+                        }
                 } catch (Exception e) {
                         status.put("online", false);
                         String errorMsg = e.getMessage();

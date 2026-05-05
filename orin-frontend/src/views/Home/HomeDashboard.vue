@@ -888,6 +888,35 @@ const safeNumber = (value, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback
 }
 
+const readLatencyValue = (item = {}) => {
+  return safeNumber(
+    item.latencyMs,
+    safeNumber(
+      item.durationMs,
+      safeNumber(
+        item.responseMs,
+        safeNumber(item.responseTime)
+      )
+    )
+  )
+}
+
+const readLatencyStatValue = (summary = {}, latencyData = {}) => {
+  return safeNumber(
+    summary.avgLatencyMs,
+    safeNumber(
+      summary.avg_latency_ms,
+      safeNumber(
+        latencyData.avgLatency,
+        safeNumber(
+          latencyData.avg,
+          safeNumber(String(summary.avg_latency || '').replace(/[^\d.-]/g, ''))
+        )
+      )
+    )
+  )
+}
+
 const readCostValue = (item) => {
   return safeNumber(
     item?.cost,
@@ -982,7 +1011,7 @@ const buildLatencyTrendData = (historyList) => {
     if (!time) return
     const dayKey = dayjs(time).format('YYYY-MM-DD')
     if (!(dayKey in latencyMap)) return
-    const latency = safeNumber(item.latencyMs, safeNumber(item.durationMs, safeNumber(item.responseMs)))
+    const latency = readLatencyValue(item)
     if (latency <= 0) return
     latencyMap[dayKey].total += latency
     latencyMap[dayKey].count += 1
@@ -1007,7 +1036,7 @@ const buildTopLists = (historyList) => {
       errorMap.set(code, (errorMap.get(code) || 0) + 1)
     }
 
-    const latency = safeNumber(item.latencyMs, safeNumber(item.durationMs, safeNumber(item.responseMs)))
+    const latency = readLatencyValue(item)
     if (latency > 0) {
       slowList.push({
         name: item.endpoint?.split('/').pop() || item.agentName || item.providerId || '请求',
@@ -1127,7 +1156,7 @@ const loadDashboardData = async () => {
 
     const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length
     const todayCalls = safeNumber(summary.daily_requests, historyList.filter((item) => dayjs(item.createdAt || item.timestamp).isSame(dayjs(), 'day')).length)
-    const avgLatencyValue = safeNumber(summary.avgLatencyMs, safeNumber(summary.avg_latency_ms, safeNumber(latencyData.avgLatency, safeNumber(summary.avg_latency))))
+    const avgLatencyValue = readLatencyStatValue(summary, latencyData)
     const alertCount = safeNumber(summary.alertCount, safeNumber(summary.highLoadAgents))
 
     summaryData.value = summary

@@ -66,6 +66,7 @@ class WorkflowEngineTest {
                 .build();
 
         WorkflowEntity workflow = new WorkflowEntity();
+        workflow.setTimeoutSeconds(42);
         Map<String, Object> definition = new HashMap<>();
         Map<String, Object> graph = new HashMap<>();
         graph.put("nodes", Collections.singletonList(new HashMap<>()));
@@ -77,12 +78,11 @@ class WorkflowEngineTest {
 
         Map<String, Object> expectedOutputs = new HashMap<>();
         expectedOutputs.put("result", "ok");
-        when(graphExecutor.executeGraph(any(), any())).thenReturn(expectedOutputs);
+        when(graphExecutor.executeGraph(any(), any(), any(), anyLong())).thenReturn(expectedOutputs);
 
         workflowEngine.executeInstance(instanceId);
 
-        verify(graphExecutor).setInstanceId(instanceId);
-        verify(graphExecutor).executeGraph(eq(graph), any());
+        verify(graphExecutor).executeGraph(eq(graph), any(), eq(instanceId), eq(42L));
         verify(instanceRepository, times(1)).save(any(WorkflowInstanceEntity.class));
 
         assertEquals(WorkflowInstanceEntity.InstanceStatus.SUCCESS, instance.getStatus());

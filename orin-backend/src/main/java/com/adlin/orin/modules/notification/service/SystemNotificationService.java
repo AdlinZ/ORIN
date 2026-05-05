@@ -1,7 +1,9 @@
 package com.adlin.orin.modules.notification.service;
 
 import com.adlin.orin.modules.notification.entity.SystemMessage;
+import com.adlin.orin.modules.notification.entity.SystemMessageUserState;
 import com.adlin.orin.modules.notification.repository.SystemMessageRepository;
+import com.adlin.orin.modules.notification.repository.SystemMessageUserStateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -11,8 +13,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 系统消息服务
@@ -23,6 +28,7 @@ import java.util.Optional;
 public class SystemNotificationService {
 
     private final SystemMessageRepository messageRepository;
+    private final SystemMessageUserStateRepository stateRepository;
 
     /**
      * 发送消息
@@ -90,14 +96,14 @@ public class SystemNotificationService {
      * 获取用户消息列表（支持按范围过滤）
      */
     public Page<SystemMessage> getUserMessages(String userId, int page, int size, String scope) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<SystemMessage> messages;
         if (scope != null && "USER".equals(scope)) {
-            // 只返回用户消息
-            return messageRepository.findByReceiverIdAndScope(userId, "USER",
-                    PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+            messages = messageRepository.findUserScopedVisible(userId, pageRequest);
+        } else {
+            messages = messageRepository.findVisibleByUser(userId, pageRequest);
         }
-        // 返回所有消息（用户消息 + 广播）
-        return messageRepository.findByUserMessages(userId,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return withUserReadState(messages, userId);
     }
 
     /**
@@ -120,7 +126,16 @@ public class SystemNotificationService {
      */
     @Transactional
     public boolean markAsRead(Long messageId, String userId) {
-        return messageRepository.markAsRead(messageId, userId) > 0;
+        Optional<SystemMessage> message = messageRepository.findById(messageId)
+                .filter(m -> isVisibleToUser(m, userId));
+        if (message.isEmpty()) {
+            return false;
+        }
+        markState(messageId, userId, LocalDateTime.now(), null);
+        if (userId.equals(message.get().getReceiverId())) {
+            messageRepository.markAsRead(messageId, userId);
+        }
+        return true;
     }
 
     /**
@@ -128,7 +143,11 @@ public class SystemNotificationService {
      */
     @Transactional
     public int markAllAsRead(String userId) {
-        return messageRepository.markAllAsRead(userId);
+        List<Long> ids = messageRepository.findUnreadVisibleMessageIds(userId);
+        LocalDateTime now = LocalDateTime.now();
+        ids.forEach(id -> markState(id, userId, now, null));
+        messageRepository.markAllAsRead(userId);
+        return ids.size();
     }
 
     /**
@@ -136,6 +155,13 @@ public class SystemNotificationService {
      */
     public Optional<SystemMessage> getMessage(Long messageId) {
         return messageRepository.findById(messageId);
+    }
+
+    public Optional<SystemMessage> getMessage(Long messageId, String userId) {
+        return messageRepository.findById(messageId)
+                .filter(message -> isVisibleToUser(message, userId))
+                .filter(message -> !isDismissed(message.getId(), userId))
+                .map(message -> withUserReadState(message, userId));
     }
 
     /**
@@ -146,6 +172,14 @@ public class SystemNotificationService {
         return messageRepository.deleteExpiredMessages();
     }
 
+    @Transactional
+    public int dismissAllVisibleMessages(String userId) {
+        List<Long> ids = messageRepository.findVisibleMessageIds(userId);
+        LocalDateTime now = LocalDateTime.now();
+        ids.forEach(id -> markState(id, userId, null, now));
+        return ids.size();
+    }
+
     /**
      * 获取消息统计
      */
@@ -153,5 +187,69 @@ public class SystemNotificationService {
         return Map.of(
                 "unread", messageRepository.countUnreadByUser(userId)
         );
+    }
+
+    private Page<SystemMessage> withUserReadState(Page<SystemMessage> page, String userId) {
+        List<Long> ids = page.getContent().stream()
+                .map(SystemMessage::getId)
+                .toList();
+        Map<Long, SystemMessageUserState> stateMap = stateRepository.findByUserIdAndMessageIdIn(userId, ids).stream()
+                .collect(Collectors.toMap(SystemMessageUserState::getMessageId, Function.identity()));
+
+        return page.map(message -> {
+            SystemMessage copy = copyMessage(message);
+            SystemMessageUserState state = stateMap.get(message.getId());
+            copy.setRead(Boolean.TRUE.equals(message.getRead()) || (state != null && state.getReadAt() != null));
+            return copy;
+        });
+    }
+
+    private SystemMessage withUserReadState(SystemMessage message, String userId) {
+        SystemMessage copy = copyMessage(message);
+        stateRepository.findByMessageIdAndUserId(message.getId(), userId)
+                .ifPresent(state -> copy.setRead(Boolean.TRUE.equals(message.getRead()) || state.getReadAt() != null));
+        return copy;
+    }
+
+    private void markState(Long messageId, String userId, LocalDateTime readAt, LocalDateTime dismissedAt) {
+        SystemMessageUserState state = stateRepository.findByMessageIdAndUserId(messageId, userId)
+                .orElseGet(() -> SystemMessageUserState.builder()
+                        .messageId(messageId)
+                        .userId(userId)
+                        .build());
+        if (readAt != null) {
+            state.setReadAt(readAt);
+        }
+        if (dismissedAt != null) {
+            state.setDismissedAt(dismissedAt);
+        }
+        stateRepository.save(state);
+    }
+
+    private boolean isVisibleToUser(SystemMessage message, String userId) {
+        return userId.equals(message.getReceiverId())
+                || message.getReceiverId() == null
+                || "BROADCAST".equalsIgnoreCase(message.getScope());
+    }
+
+    private boolean isDismissed(Long messageId, String userId) {
+        return stateRepository.findByMessageIdAndUserId(messageId, userId)
+                .map(SystemMessageUserState::getDismissedAt)
+                .isPresent();
+    }
+
+    private SystemMessage copyMessage(SystemMessage message) {
+        return SystemMessage.builder()
+                .id(message.getId())
+                .title(message.getTitle())
+                .content(message.getContent())
+                .type(message.getType())
+                .scope(message.getScope())
+                .receiverId(message.getReceiverId())
+                .senderId(message.getSenderId())
+                .read(message.getRead())
+                .expireAt(message.getExpireAt())
+                .createdAt(message.getCreatedAt())
+                .build();
     }
 }

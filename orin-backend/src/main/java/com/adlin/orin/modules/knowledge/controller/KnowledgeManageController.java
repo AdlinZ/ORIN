@@ -4,6 +4,7 @@ import com.adlin.orin.common.enums.TaskStatus;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeType;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeTaskRepository;
 import com.adlin.orin.modules.knowledge.service.DocumentManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
@@ -14,14 +15,17 @@ import com.adlin.orin.modules.audit.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
@@ -47,6 +51,12 @@ public class KnowledgeManageController {
     private final AuditLogService auditLogService;
     private final com.adlin.orin.modules.knowledge.service.KeywordExtractService keywordExtractService;
     private final KnowledgeTaskRepository knowledgeTaskRepository;
+
+    @Value("${milvus.host}")
+    private String milvusHost;
+
+    @Value("${milvus.port}")
+    private int milvusPort;
 
     // ==================== Milvus Collection 管理 API ====================
 
@@ -563,12 +573,32 @@ public class KnowledgeManageController {
         String imageUrl = (String) payload.get("imageUrl");
         String vlmModel = (String) payload.get("vlmModel");
 
+        String vectorConnection = milvusVectorService.getConnectionStatus();
+        boolean vectorHealthy = "CONNECTED".equals(vectorConnection);
+        Map<String, Object> kbVectorStats = buildKbVectorStats(kbId, vectorHealthy, vectorConnection);
+
         Object result;
         if (imageUrl != null && !imageUrl.isEmpty()) {
             result = retrievalService.multimodalSearch(kbId, imageUrl, vlmModel, embeddingModel, topK);
         } else {
             result = retrievalService.hybridSearch(kbId, query, topK, embeddingModel, alpha, threshold, rerankModel);
         }
+        List<?> resultList = extractRetrievalResults(result);
+        String retrievalMode = resolveRetrievalMode(resultList);
+        String fallbackReason = resolveFallbackReason(retrievalMode, vectorHealthy, kbVectorStats);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("results", resultList);
+        response.put("retrievalMode", retrievalMode);
+        response.put("vectorHealthy", vectorHealthy);
+        response.put("vectorConnection", vectorConnection);
+        response.put("kbVectorStats", kbVectorStats);
+        response.put("fallback", retrievalMode.contains("FALLBACK") || !vectorHealthy);
+        response.put("fallbackReason", fallbackReason);
+        response.put("topK", topK);
+        response.put("threshold", threshold);
+        response.put("alpha", alpha);
+        response.put("rerankModel", rerankModel);
 
         // 审计日志 - RAG 检索
         auditLogService.logApiCall(
@@ -580,7 +610,147 @@ public class KnowledgeManageController {
                 null, 200, null,
                 null, null, null, true, null, null, null);
 
-        return result;
+        return response;
+    }
+
+    private List<?> extractRetrievalResults(Object result) {
+        if (result instanceof List<?> list) {
+            return list;
+        }
+        if (result instanceof Map<?, ?> map) {
+            Object nested = map.get("results");
+            if (nested instanceof List<?> list) {
+                return list;
+            }
+        }
+        return List.of();
+    }
+
+    private String resolveRetrievalMode(List<?> results) {
+        if (results == null || results.isEmpty()) {
+            return "EMPTY";
+        }
+        boolean hasVector = false;
+        boolean hasKeyword = false;
+        boolean hasTextIndex = false;
+        boolean hasOther = false;
+        for (Object item : results) {
+            String matchType = null;
+            if (item instanceof com.adlin.orin.modules.knowledge.component.VectorStoreProvider.SearchResult searchResult) {
+                matchType = searchResult.getMatchType();
+            } else if (item instanceof Map<?, ?> map && map.get("matchType") != null) {
+                matchType = String.valueOf(map.get("matchType"));
+            }
+            String normalized = matchType != null ? matchType.toUpperCase() : "";
+            if ("VECTOR".equals(normalized)) {
+                hasVector = true;
+            } else if ("KEYWORD".equals(normalized)) {
+                hasKeyword = true;
+            } else if ("TEXT_INDEX".equals(normalized)) {
+                hasTextIndex = true;
+            } else {
+                hasOther = true;
+            }
+        }
+        if (hasVector && (hasKeyword || hasTextIndex || hasOther)) {
+            return "HYBRID";
+        }
+        if (hasVector) {
+            return "VECTOR";
+        }
+        if (hasTextIndex) {
+            return hasKeyword ? "TEXT_INDEX_KEYWORD_FALLBACK" : "TEXT_INDEX_FALLBACK";
+        }
+        if (hasKeyword) {
+            return "KEYWORD_FALLBACK";
+        }
+        return "UNKNOWN";
+    }
+
+    private String resolveFallbackReason(String retrievalMode, boolean vectorHealthy, Map<String, Object> kbVectorStats) {
+        if (!vectorHealthy) {
+            return "Milvus 向量服务不可用，当前已降级为文本索引/关键词检索。";
+        }
+        if (retrievalMode != null && retrievalMode.contains("FALLBACK")) {
+            if (hasMissingVectorData(kbVectorStats)) {
+                return "当前知识库缺少可用向量数据，当前结果可能来自文本索引/关键词兜底。";
+            }
+            return "本次未命中向量召回，结果来自文本索引/关键词兜底。";
+        }
+        if ("EMPTY".equals(retrievalMode)) {
+            if (hasMissingVectorData(kbVectorStats)) {
+                return "当前知识库缺少可用向量数据，当前结果可能来自文本索引/关键词兜底。";
+            }
+            return "本次没有达到参数要求的召回结果。";
+        }
+        return "";
+    }
+
+    private boolean hasMissingVectorData(Map<String, Object> kbVectorStats) {
+        if (kbVectorStats == null || kbVectorStats.isEmpty()) {
+            return false;
+        }
+        return kbVectorStats.values().stream().filter(Objects::nonNull).anyMatch(value -> {
+            if (value instanceof Map<?, ?> stat) {
+                Object exists = stat.get("exists");
+                Object vectorCount = stat.get("vectorCount");
+                boolean noPartition = Boolean.FALSE.equals(exists);
+                boolean noVectors = vectorCount instanceof Number number && number.longValue() == 0L;
+                return noPartition || noVectors;
+            }
+            return false;
+        });
+    }
+
+    private Map<String, Object> buildKbVectorStats(String kbId, boolean vectorHealthy, String vectorConnection) {
+        Map<String, Object> stats = new LinkedHashMap<>();
+        if (kbId == null || kbId.isBlank()) {
+            return stats;
+        }
+        if ("all".equalsIgnoreCase(kbId)) {
+            List<UnifiedKnowledgeDTO> bases = knowledgeManageService.getAllKnowledgeBases();
+            for (UnifiedKnowledgeDTO kb : bases) {
+                if (kb.getId() == null) {
+                    continue;
+                }
+                if (kb.getType() != KnowledgeType.UNSTRUCTURED) {
+                    continue;
+                }
+                stats.put(kb.getId(), vectorHealthy
+                        ? getVectorStatsSafely(kb.getId(), kb.getName())
+                        : getUnavailableVectorStats(kb.getName(), vectorConnection));
+            }
+            return stats;
+        }
+        stats.put(kbId, vectorHealthy ? getVectorStatsSafely(kbId, null)
+                : getUnavailableVectorStats(null, vectorConnection));
+        return stats;
+    }
+
+    private Map<String, Object> getUnavailableVectorStats(String kbName, String vectorConnection) {
+        Map<String, Object> stat = new LinkedHashMap<>();
+        if (kbName != null) {
+            stat.put("name", kbName);
+        }
+        stat.put("exists", false);
+        stat.put("vectorCount", -1L);
+        stat.put("error", vectorConnection);
+        return stat;
+    }
+
+    private Map<String, Object> getVectorStatsSafely(String kbId, String kbName) {
+        Map<String, Object> stat = new LinkedHashMap<>();
+        if (kbName != null) {
+            stat.put("name", kbName);
+        }
+        try {
+            stat.putAll(milvusVectorService.getVectorStats(kbId));
+        } catch (Exception e) {
+            stat.put("exists", false);
+            stat.put("vectorCount", -1L);
+            stat.put("error", e.getMessage());
+        }
+        return stat;
     }
 
     private Integer asInteger(Object value) {
@@ -711,17 +881,18 @@ public class KnowledgeManageController {
     public Map<String, Object> getVectorServiceStatus() {
         Map<String, Object> result = new HashMap<>();
 
-        // 健康检查
-        boolean healthy = milvusVectorService.isHealthy();
+        String connection = milvusVectorService.getConnectionStatus();
+        boolean healthy = "CONNECTED".equals(connection);
         result.put("healthy", healthy);
-        result.put("connection", milvusVectorService.getConnectionStatus());
+        result.put("connection", connection);
 
-        // 获取统计信息
-        try {
-            Map<String, Object> collectionInfo = milvusVectorService.getCollectionInfo();
-            result.put("collection", collectionInfo);
-        } catch (Exception e) {
-            result.put("collectionError", e.getMessage());
+        if (healthy) {
+            try {
+                Map<String, Object> collectionInfo = milvusVectorService.getCollectionInfo();
+                result.put("collection", collectionInfo);
+            } catch (Exception e) {
+                result.put("collectionError", e.getMessage());
+            }
         }
 
         return result;
@@ -738,8 +909,8 @@ public class KnowledgeManageController {
 
         // 先返回配置信息（不连接 Milvus）
         result.put("config", Map.of(
-                "host", "192.168.1.107",
-                "port", 19530,
+                "host", milvusHost,
+                "port", milvusPort,
                 "collection", "orin_knowledge_base"));
 
         // 添加 Embedding 服务诊断

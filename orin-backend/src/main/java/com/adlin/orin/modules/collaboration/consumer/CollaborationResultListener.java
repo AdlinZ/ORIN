@@ -46,6 +46,10 @@ public class CollaborationResultListener {
         log.debug("Unregistered callback for: {}", correlationKey);
     }
 
+    public int getPendingCallbackCount() {
+        return callbacks.size();
+    }
+
     /**
      * 监听结果队列，处理 AI Engine 回写的执行结果
      */
@@ -159,16 +163,72 @@ public class CollaborationResultListener {
      */
     private void processResult(CollabTaskResult result) {
         try {
+            if ("COMPLETED".equals(result.getStatus())) {
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("result", result.getResult());
+                payload.put("status", result.getStatus());
+                payload.put("attempt", result.getAttempt() != null ? result.getAttempt() : 0);
+                payload.put("duplicateCallback", true);
+                redisService.writeBranchResultAndIncrement(
+                        result.getPackageId(),
+                        result.getSubTaskId(),
+                        payload
+                );
+            } else {
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("status", result.getStatus() != null ? result.getStatus() : "FAILED");
+                payload.put("errorMessage", result.getErrorMessage() != null ? result.getErrorMessage() : "Task failed");
+                payload.put("attempt", result.getAttempt() != null ? result.getAttempt() : 0);
+                payload.put("duplicateCallback", true);
+                redisService.writeBranchResultAndIncrement(
+                        result.getPackageId(),
+                        result.getSubTaskId(),
+                        payload
+                );
+            }
             safeUpdateSubtaskStatus(
                     result.getPackageId(),
                     result.getSubTaskId(),
-                    result.getStatus(),
+                    normalizeSubtaskStatus(result.getStatus()),
                     result.getResult(),
                     result.getErrorMessage()
             );
         } catch (Exception e) {
             log.error("Failed to process result without callback: {}", result.getPackageId(), e);
         }
+    }
+
+    @RabbitListener(
+            queues = "${orin.collaboration.dlq.name:collaboration-task-dlq}",
+            containerFactory = "collabRabbitListenerContainerFactory"
+    )
+    public void handleDeadLetter(CollabTaskMessage message) {
+        String packageId = message.getPackageId();
+        String subTaskId = message.getSubTaskId();
+        String errorMessage = "Message moved to collaboration DLQ";
+        log.error("Collaboration task dead-lettered: packageId={}, subTaskId={}, attempt={}",
+                packageId, subTaskId, message.getAttempt());
+
+        redisService.writeBranchResultAndIncrement(
+                packageId,
+                subTaskId,
+                Map.of(
+                        "status", "DEAD_LETTER",
+                        "errorMessage", errorMessage,
+                        "attempt", message.getAttempt() != null ? message.getAttempt() : 0,
+                        "traceId", message.getTraceId() != null ? message.getTraceId() : ""
+                )
+        );
+        safeUpdateSubtaskStatus(packageId, subTaskId, "FAILED", null, errorMessage);
+        recordMetrics(CollabTaskResult.builder()
+                .packageId(packageId)
+                .subTaskId(subTaskId)
+                .traceId(message.getTraceId())
+                .attempt(message.getAttempt())
+                .status("DEAD_LETTER")
+                .errorMessage(errorMessage)
+                .metadata(Map.of("expectedRole", message.getExpectedRole() != null ? message.getExpectedRole() : "AGENT"))
+                .build());
     }
 
     private void safeUpdateSubtaskStatus(String packageId,
@@ -197,6 +257,12 @@ public class CollaborationResultListener {
             Object maxRetries = result.getMetadata().get("maxRetries");
             if (maxRetries instanceof Number) {
                 return ((Number) maxRetries).intValue();
+            }
+            if (maxRetries instanceof String value) {
+                try {
+                    return Integer.parseInt(value);
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
         return 3; // 默认最大重试次数
@@ -282,5 +348,12 @@ public class CollaborationResultListener {
 
     private String buildPendingTaskField(String subTaskId) {
         return "pending_task:" + subTaskId;
+    }
+
+    private String normalizeSubtaskStatus(String status) {
+        if ("COMPLETED".equals(status)) {
+            return "COMPLETED";
+        }
+        return "FAILED";
     }
 }

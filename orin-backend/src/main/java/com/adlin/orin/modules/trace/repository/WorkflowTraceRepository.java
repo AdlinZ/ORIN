@@ -36,4 +36,9 @@ public interface WorkflowTraceRepository extends JpaRepository<WorkflowTraceEnti
      * 根据状态查找追踪记录
      */
     List<WorkflowTraceEntity> findByStatus(WorkflowTraceEntity.TraceStatus status);
+
+    /**
+     * 查询最近的追踪记录，用于调用链路入口页聚合摘要
+     */
+    List<WorkflowTraceEntity> findTop500ByOrderByStartedAtDesc();
 }

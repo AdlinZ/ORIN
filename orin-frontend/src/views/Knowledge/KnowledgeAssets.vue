@@ -652,7 +652,7 @@ onMounted(loadData)
 
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .workbench-overview {
@@ -666,10 +666,10 @@ onMounted(loadData)
   flex-direction: column;
   gap: 4px;
   border: 1px solid var(--ka-border-soft);
-  border-radius: 14px;
+  border-radius: 10px;
   background: #fff;
-  padding: 12px 14px;
-  min-height: 84px;
+  padding: 10px 14px;
+  min-height: 78px;
 }
 
 .overview-card.primary {
@@ -709,20 +709,20 @@ onMounted(loadData)
 
 .split-workbench {
   display: grid;
-  grid-template-columns: minmax(330px, 37%) minmax(0, 63%);
-  gap: 14px;
-  min-height: calc(100vh - 286px);
+  grid-template-columns: minmax(300px, 34%) minmax(0, 1fr);
+  gap: 12px;
+  min-height: clamp(520px, calc(100vh - 360px), 640px);
   align-items: stretch;
 }
 
 .asset-list {
   border: 1px solid var(--ka-border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fff;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 560px;
+  min-height: 0;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
@@ -765,8 +765,8 @@ onMounted(loadData)
   gap: 10px;
   width: 100%;
   box-sizing: border-box;
-  padding: 12px 10px 12px 8px;
-  border-radius: 12px;
+  padding: 11px 10px 11px 8px;
+  border-radius: 10px;
   border: 1px solid transparent;
   cursor: pointer;
   position: relative;
@@ -889,7 +889,7 @@ onMounted(loadData)
 
 .asset-detail {
   border: 1px solid var(--ka-border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #ffffff;
   padding: 18px;
   display: flex;
@@ -897,7 +897,7 @@ onMounted(loadData)
   gap: 14px;
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 560px;
+  min-height: 0;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
@@ -928,7 +928,7 @@ onMounted(loadData)
 
 .detail-hero {
   border: 1px solid var(--ka-border-soft);
-  border-radius: 14px;
+  border-radius: 12px;
   background: #ffffff;
   padding: 14px;
   display: flex;
@@ -952,14 +952,15 @@ onMounted(loadData)
 
 .detail-title {
   font-size: 24px;
-  line-height: 1.15;
+  line-height: 1.18;
   font-weight: 700;
   color: var(--ka-text-main);
   min-width: 0;
   flex: 1;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .detail-subtitle {
@@ -972,6 +973,12 @@ onMounted(loadData)
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  flex-shrink: 0;
+  max-width: 252px;
+}
+
+.detail-toolbar-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .hero-metrics {
@@ -1037,9 +1044,9 @@ onMounted(loadData)
 
 .binding-block {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 76px minmax(0, 1fr);
   align-items: stretch;
-  gap: 12px;
+  gap: 8px;
 }
 
 .binding-card {
@@ -1111,15 +1118,13 @@ onMounted(loadData)
 .binding-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 4px;
+  justify-content: center;
+  gap: 0;
+  pointer-events: none;
 }
 
 .link-line {
-  width: 16px;
-  height: 2px;
-  background: #cbd5e1;
-  border-radius: 2px;
+  display: none;
 }
 
 .binding-link.linked .link-line {
@@ -1128,7 +1133,7 @@ onMounted(loadData)
 
 .link-chip {
   font-size: 11px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: #ffffff;
   border: 1px solid var(--ka-border-soft);
@@ -1275,11 +1280,19 @@ onMounted(loadData)
 
   .binding-block {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .binding-link {
+    position: static;
+    transform: none;
     flex-direction: row;
     justify-content: center;
+  }
+
+  .binding-link .link-line {
+    display: block;
+    width: 48px;
   }
 
   .detail-toolbar {
