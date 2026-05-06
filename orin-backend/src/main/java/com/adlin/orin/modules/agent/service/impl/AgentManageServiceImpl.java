@@ -1737,16 +1737,18 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         // 2. Add History
         try {
-            java.util.List<AuditLog> historyLogs = (conversationId != null && !conversationId.isEmpty())
-                    ? auditLogService.getRecentConversationLogs(conversationId, 10)
-                    : auditLogService.getRecentAgentLogs(metadata.getAgentId(), 10);
-
-            for (AuditLog logItem : historyLogs) {
-                if (logItem.getRequestParams() != null && !logItem.getRequestParams().isEmpty()) {
-                    messages.add(java.util.Map.of("role", "user", "content", logItem.getRequestParams()));
-                }
-                if (logItem.getResponseContent() != null && !logItem.getResponseContent().isEmpty()) {
-                    messages.add(java.util.Map.of("role", "assistant", "content", logItem.getResponseContent()));
+            if (conversationId != null && !conversationId.isEmpty()) {
+                java.util.List<ConversationLog> historyLogs = conversationLogService.getConversationHistory(conversationId);
+                int start = Math.max(0, historyLogs.size() - 10);
+                for (ConversationLog logItem : historyLogs.subList(start, historyLogs.size())) {
+                    String query = logItem.getQuery();
+                    String answer = logItem.getResponse();
+                    if (query != null && !query.isBlank()) {
+                        messages.add(java.util.Map.of("role", "user", "content", query));
+                    }
+                    if (isUsableAssistantHistory(answer)) {
+                        messages.add(java.util.Map.of("role", "assistant", "content", answer));
+                    }
                 }
             }
         } catch (Exception e) {
@@ -1767,7 +1769,18 @@ public class AgentManageServiceImpl implements AgentManageService {
                 messages,
                 temperature,
                 topP,
-                maxTokens);
+                maxTokens,
+                enableThinking);
+    }
+
+    private boolean isUsableAssistantHistory(String answer) {
+        return answer != null
+                && !answer.isBlank()
+                && !answer.startsWith("模型未返回正文")
+                && !answer.startsWith("检索流程已完成，但模型未返回正文")
+                && !answer.startsWith("智能体返回为空")
+                && !answer.startsWith("智能体调用失败")
+                && !answer.startsWith("模型调用失败");
     }
 
     @Override

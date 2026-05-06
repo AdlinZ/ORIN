@@ -47,6 +47,53 @@ public class SystemMessage {
     private String scope = "USER";
 
     /**
+     * 聚合去重键，用于同一告警实例更新同一条通知
+     */
+    @Column(name = "dedupe_key", length = 160)
+    private String dedupeKey;
+
+    /**
+     * 告警指纹，便于前端按告警实例展示
+     */
+    @Column(name = "fingerprint", length = 160)
+    private String fingerprint;
+
+    /**
+     * 消息来源: SYSTEM, ALERT 等
+     */
+    @Column(name = "source_type", length = 40)
+    private String sourceType;
+
+    /**
+     * 聚合状态: TRIGGERED, RESOLVED
+     */
+    @Column(name = "status", length = 20)
+    private String status;
+
+    /**
+     * 同一聚合键重复发生次数
+     */
+    @Builder.Default
+    @Column(name = "repeat_count")
+    private Integer repeatCount = 1;
+
+    /**
+     * 最近发生时间
+     */
+    private LocalDateTime lastOccurredAt;
+
+    /**
+     * 恢复时间
+     */
+    private LocalDateTime resolvedAt;
+
+    /**
+     * 聚合摘要
+     */
+    @Column(columnDefinition = "TEXT")
+    private String summary;
+
+    /**
      * 接收者 ID（为空表示广播给所有人）
      */
     private String receiverId;
@@ -75,6 +122,15 @@ public class SystemMessage {
 
     @PrePersist
     public void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = now;
+        }
+        if (this.lastOccurredAt == null) {
+            this.lastOccurredAt = this.createdAt;
+        }
+        if (this.repeatCount == null || this.repeatCount < 1) {
+            this.repeatCount = 1;
+        }
     }
 }

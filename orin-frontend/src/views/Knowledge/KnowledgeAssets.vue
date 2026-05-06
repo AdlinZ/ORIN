@@ -47,25 +47,26 @@
     </OrinPageShell>
 
     <section class="workbench-overview">
-      <article class="overview-card primary">
-        <span class="overview-label">资产总量</span>
-        <strong class="overview-value">{{ rows.length }}</strong>
-        <span class="overview-note">知识库与图谱 1:1 映射资产数</span>
+      <article class="asset-overview-hero">
+        <div class="overview-copy">
+          <span class="overview-eyebrow">ASSET MAP</span>
+          <h3>知识资产关系总览</h3>
+          <p>把知识库、文档规模与图谱构建状态放在同一张资产视图里，快速定位未绑定和待处理项。</p>
+        </div>
+        <div class="overview-total">
+          <span>资产总量</span>
+          <strong>{{ rows.length }}</strong>
+        </div>
       </article>
-      <article class="overview-card success">
-        <span class="overview-label">已绑定 1:1</span>
-        <strong class="overview-value">{{ linkedCount }}</strong>
-        <span class="overview-note">已建立知识库与图谱对应关系</span>
-      </article>
-      <article class="overview-card neutral">
-        <span class="overview-label">图谱就绪</span>
-        <strong class="overview-value">{{ readyCount }}</strong>
-        <span class="overview-note">图谱构建完成，可直接查询</span>
-      </article>
-      <article class="overview-card warning">
-        <span class="overview-label">待处理</span>
-        <strong class="overview-value">{{ issueCount }}</strong>
-        <span class="overview-note">未绑定、构建中或失败资产</span>
+      <article
+        v-for="card in overviewCards"
+        :key="card.key"
+        class="overview-card"
+        :class="card.tone"
+      >
+        <span class="overview-label">{{ card.label }}</span>
+        <strong class="overview-value">{{ card.value }}</strong>
+        <span class="overview-note">{{ card.note }}</span>
       </article>
     </section>
 
@@ -346,6 +347,29 @@ const graphCountOverrides = ref({})
 const linkedCount = computed(() => rows.value.filter((row) => row.graph).length)
 const readyCount = computed(() => rows.value.filter((row) => row.graph?.buildStatus === 'SUCCESS').length)
 const issueCount = computed(() => rows.value.length - readyCount.value)
+const overviewCards = computed(() => [
+  {
+    key: 'linked',
+    label: '已绑定 1:1',
+    value: linkedCount.value,
+    note: '知识库与图谱已建立对应关系',
+    tone: 'success'
+  },
+  {
+    key: 'ready',
+    label: '图谱就绪',
+    value: readyCount.value,
+    note: '图谱构建完成，可直接查询',
+    tone: 'neutral'
+  },
+  {
+    key: 'issue',
+    label: '待处理',
+    value: issueCount.value,
+    note: '未绑定、构建中或失败资产',
+    tone: 'warning'
+  }
+])
 
 const rowId = (row) => String(row?.kb?.id ?? row?.kb?.kbId ?? '')
 
@@ -657,35 +681,132 @@ onMounted(loadData)
 
 .workbench-overview {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(340px, 1.35fr) repeat(3, minmax(150px, 0.55fr));
+  gap: 12px;
+}
+
+.asset-overview-hero,
+.overview-card,
+.asset-list,
+.asset-detail {
+  border: 1px solid var(--ka-border);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.asset-overview-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 116px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(15, 157, 138, 0.16), transparent 34%),
+    linear-gradient(135deg, #ffffff 0%, #f0fbf8 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.asset-overview-hero::after {
+  content: '';
+  position: absolute;
+  right: -42px;
+  top: -52px;
+  width: 150px;
+  height: 150px;
+  border: 26px solid rgba(15, 157, 138, 0.08);
+  border-radius: 999px;
+}
+
+.overview-copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.overview-eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--ka-accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.overview-copy h3 {
+  margin: 0;
+  color: var(--ka-text-main);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.overview-copy p {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: var(--ka-text-faint);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.overview-total {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  min-width: 100px;
+  padding: 12px 14px;
+  border: 1px solid rgba(15, 157, 138, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  text-align: right;
+}
+
+.overview-total span {
+  display: block;
+  color: var(--ka-text-faint);
+  font-size: 12px;
+}
+
+.overview-total strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ka-accent-strong);
+  font-size: 36px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .overview-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  border: 1px solid var(--ka-border-soft);
-  border-radius: 10px;
+  justify-content: space-between;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
   background: #fff;
-  padding: 10px 14px;
-  min-height: 78px;
+  padding: 16px;
+  min-height: 116px;
 }
 
-.overview-card.primary {
-  background: #ffffff;
+.overview-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--card-accent, var(--ka-accent));
 }
 
 .overview-card.success {
-  background: #ffffff;
+  --card-accent: #16a34a;
 }
 
 .overview-card.neutral {
-  background: #ffffff;
+  --card-accent: #0891b2;
 }
 
 .overview-card.warning {
-  background: #ffffff;
+  --card-accent: #f59e0b;
 }
 
 .overview-label {
@@ -694,9 +815,9 @@ onMounted(loadData)
 }
 
 .overview-value {
-  font-size: 28px;
+  font-size: 30px;
   line-height: 1.1;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--ka-text-main);
   font-variant-numeric: tabular-nums;
 }
@@ -709,21 +830,19 @@ onMounted(loadData)
 
 .split-workbench {
   display: grid;
-  grid-template-columns: minmax(300px, 34%) minmax(0, 1fr);
-  gap: 12px;
-  min-height: clamp(520px, calc(100vh - 360px), 640px);
+  grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: clamp(560px, calc(100vh - 344px), 720px);
   align-items: stretch;
 }
 
 .asset-list {
-  border: 1px solid var(--ka-border);
-  border-radius: 12px;
+  border-radius: 16px;
   background: #fff;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
 .list-head {
@@ -888,17 +1007,15 @@ onMounted(loadData)
 }
 
 .asset-detail {
-  border: 1px solid var(--ka-border);
-  border-radius: 12px;
+  border-radius: 16px;
   background: #ffffff;
-  padding: 18px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
 .detail-empty {
@@ -1260,6 +1377,10 @@ onMounted(loadData)
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .asset-overview-hero {
+    grid-column: 1 / -1;
+  }
+
   .split-workbench {
     grid-template-columns: 1fr;
     min-height: auto;
@@ -1309,6 +1430,15 @@ onMounted(loadData)
 @media (max-width: 720px) {
   .workbench-overview {
     grid-template-columns: 1fr;
+  }
+
+  .asset-overview-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .overview-total {
+    text-align: left;
   }
 
   .hero-metrics {

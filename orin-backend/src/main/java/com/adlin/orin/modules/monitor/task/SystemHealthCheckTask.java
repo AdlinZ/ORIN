@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -53,6 +54,7 @@ public class SystemHealthCheckTask {
             jdbcTemplate.execute("SELECT 1");
             if (!mysqlHealthy) {
                 log.info("MySQL health recovered.");
+                alertService.resolveSystemAlert("SYSTEM_HEALTH", "MYSQL", "MySQL 关系型数据库连接已恢复");
             } else if (!logStateChangeOnly) {
                 log.debug("MySQL health check passed.");
             }
@@ -62,7 +64,9 @@ public class SystemHealthCheckTask {
                 log.warn("MySQL health check failed: {}", e.getMessage());
             }
             if (mysqlHealthy) {
-                alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_DB", "MySQL 关系型数据库连接失败: " + e.getMessage());
+                alertService.triggerSystemAlert("SYSTEM_HEALTH", "MYSQL",
+                        "MySQL 关系型数据库连接失败: " + e.getMessage(), null,
+                        systemHealthContext("MYSQL", e.getMessage()));
             }
             mysqlHealthy = false;
         }
@@ -75,6 +79,7 @@ public class SystemHealthCheckTask {
             }
             if (!redisHealthy) {
                 log.info("Redis health recovered.");
+                alertService.resolveSystemAlert("SYSTEM_HEALTH", "REDIS", "Redis 分布式缓存连接已恢复");
             } else if (!logStateChangeOnly) {
                 log.debug("Redis health check passed.");
             }
@@ -84,7 +89,9 @@ public class SystemHealthCheckTask {
                 log.warn("Redis health check failed: {}", e.getMessage());
             }
             if (redisHealthy) {
-                alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_REDIS", "Redis 分布式缓存连接失败: " + e.getMessage());
+                alertService.triggerSystemAlert("SYSTEM_HEALTH", "REDIS",
+                        "Redis 分布式缓存连接失败: " + e.getMessage(), null,
+                        systemHealthContext("REDIS", e.getMessage()));
             }
             redisHealthy = false;
         }
@@ -97,6 +104,7 @@ public class SystemHealthCheckTask {
             }
             if (!milvusHealthy) {
                 log.info("Milvus health recovered ({}:{})", milvusHost, milvusPort);
+                alertService.resolveSystemAlert("SYSTEM_HEALTH", "MILVUS", "Milvus 向量数据库连接已恢复");
             } else if (!logStateChangeOnly) {
                 log.debug("Milvus health check passed.");
             }
@@ -106,7 +114,9 @@ public class SystemHealthCheckTask {
                 log.warn("Milvus health check failed ({}:{}): {}", milvusHost, milvusPort, e.getMessage());
             }
             if (milvusHealthy) {
-                alertService.triggerSystemAlert("SYSTEM_HEALTH", "EXTERNAL_MILVUS", "Milvus 向量数据库连接失败: " + e.getMessage());
+                alertService.triggerSystemAlert("SYSTEM_HEALTH", "MILVUS",
+                        "Milvus 向量数据库连接失败: " + e.getMessage(), null,
+                        systemHealthContext("MILVUS", e.getMessage()));
             }
             milvusHealthy = false;
         }
@@ -114,5 +124,13 @@ public class SystemHealthCheckTask {
         if (!logStateChangeOnly) {
             log.info("System health check completed.");
         }
+    }
+
+    private Map<String, Object> systemHealthContext(String dependency, String errorMessage) {
+        return Map.of(
+                "dependency", dependency,
+                "status", "DOWN",
+                "errorMessage", errorMessage != null ? errorMessage : ""
+        );
     }
 }

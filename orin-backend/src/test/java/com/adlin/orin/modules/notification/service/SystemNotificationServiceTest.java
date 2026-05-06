@@ -40,6 +40,10 @@ class SystemNotificationServiceTest {
                 .title("Alert")
                 .content("content")
                 .scope("BROADCAST")
+                .dedupeKey("COLLAB_HEALTH:COLLAB_ORCHESTRATOR")
+                .fingerprint("COLLAB_HEALTH:COLLAB_ORCHESTRATOR")
+                .status("TRIGGERED")
+                .repeatCount(3)
                 .read(false)
                 .build();
         SystemMessageUserState state = SystemMessageUserState.builder()
@@ -56,6 +60,8 @@ class SystemNotificationServiceTest {
         SystemMessage result = service.getUserMessages("user-a", 0, 20, null).getContent().get(0);
 
         assertTrue(result.getRead());
+        assertEquals("COLLAB_HEALTH:COLLAB_ORCHESTRATOR", result.getFingerprint());
+        assertEquals(3, result.getRepeatCount());
         assertFalse(broadcast.getRead());
     }
 
@@ -100,5 +106,40 @@ class SystemNotificationServiceTest {
         assertEquals(3, cleared);
         verify(stateRepository, times(3)).save(argThat(state -> state.getDismissedAt() != null
                 && "user-a".equals(state.getUserId())));
+    }
+
+    @Test
+    void aggregatedAlertUpdatesActiveMessage() {
+        SystemMessage active = SystemMessage.builder()
+                .id(10L)
+                .dedupeKey("COLLAB_HEALTH:COLLAB_ORCHESTRATOR")
+                .status("TRIGGERED")
+                .repeatCount(1)
+                .build();
+        when(messageRepository.findFirstByDedupeKeyAndStatusOrderByLastOccurredAtDesc(
+                "COLLAB_HEALTH:COLLAB_ORCHESTRATOR", "TRIGGERED"))
+                .thenReturn(Optional.of(active));
+        when(messageRepository.save(any(SystemMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SystemMessage result = service.sendAggregatedAlert(
+                "协作健康告警",
+                "content",
+                "ERROR",
+                null,
+                "ALERT",
+                "BROADCAST",
+                "COLLAB_HEALTH:COLLAB_ORCHESTRATOR",
+                "COLLAB_HEALTH:COLLAB_ORCHESTRATOR",
+                "TRIGGERED",
+                5,
+                "summary"
+        );
+
+        assertEquals(10L, result.getId());
+        assertEquals(5, result.getRepeatCount());
+        assertEquals("summary", result.getSummary());
+        assertEquals("TRIGGERED", result.getStatus());
+        assertNotNull(result.getLastOccurredAt());
+        verify(messageRepository).save(active);
     }
 }

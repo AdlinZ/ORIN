@@ -1,166 +1,206 @@
 <template>
-  <div class="page-container">
-    <OrinEntityHeader
-      domain="系统设置"
-      title="文件管理"
-      description="管理多模态生成文件、文件类型、存储占用与下载入口"
-      :summary="fileHeaderSummary"
-    >
-      <template #actions>
-        <a-button class="quiet-action" :loading="loading" @click="fetchFiles">
-          刷新
-        </a-button>
-      </template>
+  <div class="file-management page-container fade-in">
+    <section class="file-shell">
+      <header class="file-topbar">
+        <div class="topbar-copy">
+          <span class="topbar-eyebrow">系统设置</span>
+          <h1>文件管理</h1>
+          <p>管理多模态生成文件、文件类型、存储占用与下载入口。</p>
+        </div>
+        <div class="topbar-actions">
+          <el-button :icon="Refresh" :loading="loading" @click="fetchFiles">
+            刷新
+          </el-button>
+        </div>
+      </header>
 
-      <template #filters>
-        <OrinArcoFilterGrid>
-          <a-select
+      <section class="summary-grid">
+        <article class="summary-card primary">
+          <span>文件总数</span>
+          <strong>{{ stats.totalFiles || 0 }}</strong>
+          <p>当前存储中的全部资源</p>
+        </article>
+        <article class="summary-card">
+          <span>图片</span>
+          <strong>{{ stats.imageCount || 0 }}</strong>
+          <p>图像生成和上传资源</p>
+        </article>
+        <article class="summary-card">
+          <span>视频</span>
+          <strong>{{ stats.videoCount || 0 }}</strong>
+          <p>视频生成与转码产物</p>
+        </article>
+        <article class="summary-card">
+          <span>音频 / 文档</span>
+          <strong>{{ (stats.audioCount || 0) + (stats.documentCount || 0) }}</strong>
+          <p>音频 {{ stats.audioCount || 0 }} · 文档 {{ stats.documentCount || 0 }}</p>
+        </article>
+      </section>
+
+      <section class="file-workspace">
+        <div class="workspace-head">
+          <div>
+            <h2>文件清单</h2>
+            <p>按文件类型、名称和上传时间维护生成资源。</p>
+          </div>
+          <div class="workspace-actions">
+            <span>{{ totalFiles }} 个文件</span>
+          </div>
+        </div>
+
+        <div class="filter-panel">
+          <el-select
             v-model="fileTypeFilter"
             placeholder="文件类型"
-            allow-clear
+            class="filter-control"
             @change="handleTypeChange"
           >
-            <a-option
+            <el-option
               v-for="option in fileTypeOptions"
               :key="option.value || 'all'"
               :label="`${option.label} ${getTypeCount(option.value)}`"
               :value="option.value"
             />
-          </a-select>
-          <template #search>
-            <a-input-search
-              v-model="searchKeyword"
-              placeholder="搜索文件名..."
-              allow-clear
-              @input="handleSearch"
-            />
-          </template>
-          <template #reset>
-            <a-button class="quiet-action" @click="resetFilters">
-              重置
-            </a-button>
-          </template>
-        </OrinArcoFilterGrid>
-      </template>
-    </OrinEntityHeader>
-
-    <OrinArcoDataTable
-      class="table-card"
-      :columns="fileColumns"
-      :data="filteredFiles"
-      :loading="loading"
-      row-key="id"
-    >
-      <template #header>
-        <div class="table-title">
-          <strong>文件清单</strong>
-          <span>按文件类型、名称和上传时间维护生成资源</span>
+          </el-select>
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索文件名"
+            clearable
+            class="filter-search"
+            @input="handleSearch"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <el-button @click="resetFilters">
+            重置
+          </el-button>
         </div>
-      </template>
 
-      <template #preview="{ record }">
-            <div class="file-preview">
-              <el-image
-                v-if="record.fileType === 'IMAGE' && record.thumbnailPath"
-                :src="`/api/v1/multimodal/files/${record.id}/thumbnail`"
-                :preview-src-list="[`/api/v1/multimodal/files/${record.id}/download`]"
-                fit="cover"
-                class="preview-img"
-              />
-              <el-icon v-else-if="record.fileType === 'IMAGE'" :size="24" class="file-icon">
-                <Picture />
-              </el-icon>
-              <el-icon v-else-if="record.fileType === 'VIDEO'" :size="24" class="file-icon">
-                <VideoCamera />
-              </el-icon>
-              <el-icon v-else-if="record.fileType === 'AUDIO'" :size="24" class="file-icon">
-                <Microphone />
-              </el-icon>
-              <el-icon v-else :size="24" class="file-icon">
-                <Document />
-              </el-icon>
-            </div>
-      </template>
+        <el-table
+          v-loading="loading"
+          :data="filteredFiles"
+          row-key="id"
+          class="file-table"
+          empty-text="暂无文件资源，请调整筛选或等待生成任务产出"
+        >
+          <el-table-column label="预览" width="86" align="center">
+            <template #default="{ row }">
+              <div class="file-preview">
+                <el-image
+                  v-if="row.fileType === 'IMAGE' && row.thumbnailPath"
+                  :src="`/api/v1/multimodal/files/${row.id}/thumbnail`"
+                  :preview-src-list="[`/api/v1/multimodal/files/${row.id}/download`]"
+                  fit="cover"
+                  class="preview-img"
+                />
+                <div v-else class="file-icon-card" :class="getFileTypeClass(row.fileType)">
+                  <el-icon :size="22">
+                    <component :is="getFileIcon(row.fileType)" />
+                  </el-icon>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
 
-      <template #fileName="{ record }">
-        <span class="file-name">{{ record.fileName }}</span>
-      </template>
+          <el-table-column label="文件" min-width="300">
+            <template #default="{ row }">
+              <div class="file-copy">
+                <strong>{{ row.fileName }}</strong>
+                <span>{{ row.id }}</span>
+              </div>
+            </template>
+          </el-table-column>
 
-      <template #fileType="{ record }">
-        <OrinArcoSemanticTag family="file" :value="record.fileType">
-          {{ getFileTypeLabel(record.fileType) }}
-        </OrinArcoSemanticTag>
-      </template>
+          <el-table-column label="类型" width="120">
+            <template #default="{ row }">
+              <el-tag size="small" effect="light" :type="getFileTypeTag(row.fileType)">
+                {{ getFileTypeLabel(row.fileType) }}
+              </el-tag>
+            </template>
+          </el-table-column>
 
-      <template #fileSize="{ record }">
-        <span>{{ formatFileSize(record.fileSize) }}</span>
-      </template>
+          <el-table-column label="大小" width="120">
+            <template #default="{ row }">
+              <span class="muted-text">{{ formatFileSize(row.fileSize) }}</span>
+            </template>
+          </el-table-column>
 
-      <template #uploadedBy="{ record }">
-        <span>{{ record.uploadedBy || 'system' }}</span>
-      </template>
+          <el-table-column label="上传者" width="140">
+            <template #default="{ row }">
+              <span class="muted-text">{{ row.uploadedBy || 'system' }}</span>
+            </template>
+          </el-table-column>
 
-      <template #uploadedAt="{ record }">
-        <span class="time-text">{{ formatDateTime(record.uploadedAt) }}</span>
-      </template>
+          <el-table-column label="上传时间" width="180">
+            <template #default="{ row }">
+              <span class="time-text">{{ formatDateTime(row.uploadedAt) }}</span>
+            </template>
+          </el-table-column>
 
-      <template #actions="{ record }">
-        <OrinArcoRowActions
-          :actions="fileRowActions"
-          @select="action => handleRowAction(action, record)"
-        />
-      </template>
+          <el-table-column
+            label="操作"
+            width="130"
+            align="right"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <div class="action-buttons">
+                <el-tooltip content="下载文件" placement="top">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="Download"
+                    @click="downloadFile(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="删除文件" placement="top">
+                  <el-button
+                    link
+                    type="danger"
+                    :icon="Delete"
+                    :loading="deleting && currentFile?.id === row.id"
+                    @click="confirmDelete(row)"
+                  />
+                </el-tooltip>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <template #empty>
-        <OrinEmptyState
-          description="暂无文件资源，请调整筛选或等待生成任务产出"
-          action-label="刷新文件"
-          @action="fetchFiles"
-        />
-      </template>
-
-      <template #footer>
-        <a-pagination
-          v-if="totalFiles > pageSize"
-          v-model:current="currentPage"
-          :page-size="pageSize"
-          :total="totalFiles"
-          show-total
-          size="small"
-          @change="handlePageChange"
-        />
-      </template>
-    </OrinArcoDataTable>
-
-    <OrinArcoConfirmDialog
-      v-model="deleteDialogVisible"
-      title="确认删除"
-      ok-text="删除"
-      status="danger"
-      @confirm="deleteFile"
-    >
-      <p>确定要删除文件 <strong>{{ currentFile?.fileName }}</strong> 吗？</p>
-      <p class="text-danger">
-        此操作不可恢复
-      </p>
-    </OrinArcoConfirmDialog>
+        <div class="table-footer">
+          <span>第 {{ currentPage }} 页 · 每页 {{ pageSize }} 条</span>
+          <el-pagination
+            v-if="totalFiles > pageSize"
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="totalFiles"
+            layout="prev, pager, next"
+            small
+            @current-change="handlePageChange"
+          />
+        </div>
+      </section>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Picture, VideoCamera, Microphone, Document } from '@element-plus/icons-vue'
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
-import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
-import OrinArcoConfirmDialog from '@/ui/arco/OrinArcoConfirmDialog.vue'
-import OrinArcoDataTable from '@/ui/arco/OrinArcoDataTable.vue'
-import OrinArcoFilterGrid from '@/ui/arco/OrinArcoFilterGrid.vue'
-import OrinArcoRowActions from '@/ui/arco/OrinArcoRowActions.vue'
-import OrinArcoSemanticTag from '@/ui/arco/OrinArcoSemanticTag.vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  Delete,
+  Document,
+  Download,
+  Microphone,
+  Picture,
+  Refresh,
+  Search,
+  VideoCamera
+} from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
-// 文件类型过滤选项
 const fileTypeOptions = [
   { label: '全部', value: '' },
   { label: '图片', value: 'IMAGE' },
@@ -169,7 +209,6 @@ const fileTypeOptions = [
   { label: '文档', value: 'DOCUMENT' }
 ]
 
-// 状态
 const loading = ref(false)
 const deleting = ref(false)
 const files = ref([])
@@ -179,33 +218,8 @@ const searchKeyword = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalFiles = ref(0)
-const deleteDialogVisible = ref(false)
 const currentFile = ref(null)
 
-const fileColumns = [
-  { title: '预览', dataIndex: 'preview', width: 76, align: 'center', slotName: 'preview' },
-  { title: '文件名', dataIndex: 'fileName', width: 280, ellipsis: true, tooltip: true, slotName: 'fileName' },
-  { title: '类型', dataIndex: 'fileType', width: 110, slotName: 'fileType' },
-  { title: '大小', dataIndex: 'fileSize', width: 110, slotName: 'fileSize' },
-  { title: '上传者', dataIndex: 'uploadedBy', width: 120, slotName: 'uploadedBy' },
-  { title: '上传时间', dataIndex: 'uploadedAt', width: 180, slotName: 'uploadedAt' },
-  { title: '操作', dataIndex: 'actions', width: 120, fixed: 'right', slotName: 'actions' }
-]
-
-const fileRowActions = [
-  { key: 'download', label: '下载' },
-  { key: 'delete', label: '删除', danger: true }
-]
-
-const fileHeaderSummary = computed(() => [
-  { label: '文件总数', value: stats.value.totalFiles || 0 },
-  { label: '图片', value: stats.value.imageCount || 0 },
-  { label: '视频', value: stats.value.videoCount || 0 },
-  { label: '音频', value: stats.value.audioCount || 0 },
-  { label: '文档', value: stats.value.documentCount || 0 }
-])
-
-// 获取文件列表
 const fetchFiles = async () => {
   loading.value = true
   try {
@@ -216,7 +230,6 @@ const fetchFiles = async () => {
     files.value = Array.isArray(data) ? data : []
     totalFiles.value = files.value.length
 
-    // 获取统计信息
     await fetchStats()
   } catch (error) {
     ElMessage.error('获取文件列表失败')
@@ -226,7 +239,6 @@ const fetchFiles = async () => {
   }
 }
 
-// 获取统计信息
 const fetchStats = async () => {
   try {
     const data = await request.get('/multimodal/stats')
@@ -236,26 +248,22 @@ const fetchStats = async () => {
   }
 }
 
-// 筛选文件
 const filteredFiles = computed(() => {
   let result = files.value
 
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(f => f.fileName?.toLowerCase().includes(keyword))
+    result = result.filter(file => file.fileName?.toLowerCase().includes(keyword))
   }
 
-  // 分页
   const start = (currentPage.value - 1) * pageSize.value
   return result.slice(start, start + pageSize.value)
 })
 
-// 搜索
 const handleSearch = () => {
   currentPage.value = 1
 }
 
-// 分页
 const handlePageChange = (page) => {
   currentPage.value = page
 }
@@ -273,26 +281,30 @@ const resetFilters = () => {
   fetchFiles()
 }
 
-const handleRowAction = (action, row) => {
-  const handlers = {
-    download: downloadFile,
-    delete: confirmDelete
-  }
-  handlers[action]?.(row)
-}
-
-// 下载文件
 const downloadFile = (row) => {
   window.open(`/api/v1/multimodal/files/${row.id}/download`, '_blank')
 }
 
-// 确认删除
-const confirmDelete = (row) => {
+const confirmDelete = async (row) => {
   currentFile.value = row
-  deleteDialogVisible.value = true
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除文件 "${row.fileName}" 吗？此操作不可恢复。`,
+      '确认删除',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await deleteFile()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error(error)
+    }
+  }
 }
 
-// 删除文件
 const deleteFile = async () => {
   if (!currentFile.value) return
 
@@ -300,7 +312,7 @@ const deleteFile = async () => {
   try {
     await request.delete(`/multimodal/files/${currentFile.value.id}`)
     ElMessage.success('文件删除成功')
-    deleteDialogVisible.value = false
+    currentFile.value = null
     await fetchFiles()
   } catch (error) {
     ElMessage.error('删除文件失败')
@@ -310,7 +322,6 @@ const deleteFile = async () => {
   }
 }
 
-// 工具函数
 const getFileTypeLabel = (type) => {
   const map = {
     IMAGE: '图片',
@@ -319,6 +330,30 @@ const getFileTypeLabel = (type) => {
     DOCUMENT: '文档'
   }
   return map[type] || type
+}
+
+const getFileIcon = (type) => {
+  const map = {
+    IMAGE: Picture,
+    VIDEO: VideoCamera,
+    AUDIO: Microphone,
+    DOCUMENT: Document
+  }
+  return map[type] || Document
+}
+
+const getFileTypeTag = (type) => {
+  const map = {
+    IMAGE: 'success',
+    VIDEO: 'danger',
+    AUDIO: 'warning',
+    DOCUMENT: 'primary'
+  }
+  return map[type] || 'info'
+}
+
+const getFileTypeClass = (type) => {
+  return `type-${String(type || 'document').toLowerCase()}`
 }
 
 const formatFileSize = (bytes) => {
@@ -356,43 +391,188 @@ const getTypeCount = (type) => {
   return map[type] ?? 0
 }
 
-// 初始化
 onMounted(() => {
   fetchFiles()
 })
 </script>
 
 <style scoped>
-.page-container {
-  padding: 0;
-  color: #243244;
+.file-management {
+  min-height: 100vh;
+  padding: 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+  color: var(--el-text-color-primary);
 }
 
-.table-card {
-  border-radius: 8px;
+.fade-in {
+  animation: fadeIn 0.35s ease-out;
 }
 
-.table-title {
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.file-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.file-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.topbar-copy {
+  min-width: 0;
+}
+
+.topbar-eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--el-color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.topbar-copy h1 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 26px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.topbar-copy p {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.topbar-actions,
+.workspace-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.table-title strong {
-  color: #243244;
-  font-weight: 680;
+.workspace-actions {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 
-.table-title span {
-  color: #6b7a90;
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summary-card {
+  padding: 18px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+}
+
+.summary-card.primary {
+  border-color: var(--el-color-primary-light-7);
+  background: linear-gradient(180deg, var(--el-color-primary-light-9), var(--el-bg-color));
+}
+
+.summary-card span {
+  color: var(--el-text-color-secondary);
   font-size: 12px;
+  font-weight: 700;
 }
 
-.quiet-action {
-  border-color: #e3e9ef;
-  color: #3f4d63;
-  background: #ffffff;
+.summary-card strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--el-text-color-primary);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.summary-card p {
+  margin: 10px 0 0;
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-workspace {
+  overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
+}
+
+.workspace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.workspace-head h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 16px;
+  font-weight: 720;
+}
+
+.workspace-head p {
+  margin: 6px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--el-fill-color-extra-light);
+}
+
+.filter-control {
+  width: 180px;
+}
+
+.filter-search {
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+.file-table {
+  width: 100%;
+}
+
+:deep(.file-table .el-table__header th) {
+  background: var(--el-fill-color-extra-light);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .file-preview {
@@ -401,25 +581,115 @@ onMounted(() => {
   justify-content: center;
 }
 
+.preview-img,
+.file-icon-card {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+}
+
 .preview-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
   object-fit: cover;
   cursor: pointer;
 }
 
-.file-icon {
-  color: var(--neutral-gray-400);
+.file-icon-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-fill-color-extra-light);
+  color: var(--el-text-color-secondary);
 }
 
-.file-name {
-  color: #243244;
-  font-weight: 560;
+.file-icon-card.type-image {
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
 }
 
-.text-danger {
-  color: var(--error-500);
+.file-icon-card.type-video {
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+}
+
+.file-icon-card.type-audio {
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning);
+}
+
+.file-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.file-copy strong {
+  overflow: hidden;
+  color: var(--el-text-color-primary);
   font-size: 14px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-copy span,
+.muted-text,
+.time-text {
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+html.dark .summary-card,
+html.dark .file-workspace {
+  box-shadow: none;
+}
+
+@media (max-width: 1100px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .file-management {
+    padding: 20px;
+  }
+
+  .file-topbar,
+  .workspace-head,
+  .table-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-control,
+  .filter-search {
+    width: 100%;
+  }
 }
 </style>

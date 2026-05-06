@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SystemMessageRepository extends JpaRepository<SystemMessage, Long> {
@@ -24,7 +25,7 @@ public interface SystemMessageRepository extends JpaRepository<SystemMessage, Lo
                 SELECT s FROM SystemMessageUserState s
                 WHERE s.messageId = m.id AND s.userId = :userId AND s.dismissedAt IS NOT NULL
               )
-            ORDER BY m.createdAt DESC
+            ORDER BY COALESCE(m.lastOccurredAt, m.createdAt) DESC
             """)
     Page<SystemMessage> findVisibleByUser(String userId, Pageable pageable);
 
@@ -40,7 +41,7 @@ public interface SystemMessageRepository extends JpaRepository<SystemMessage, Lo
                 SELECT s FROM SystemMessageUserState s
                 WHERE s.messageId = m.id AND s.userId = :userId AND s.dismissedAt IS NOT NULL
               )
-            ORDER BY m.createdAt DESC
+            ORDER BY COALESCE(m.lastOccurredAt, m.createdAt) DESC
             """)
     Page<SystemMessage> findUserScopedVisible(String userId, Pageable pageable);
 
@@ -109,4 +110,6 @@ public interface SystemMessageRepository extends JpaRepository<SystemMessage, Lo
      * 按范围查询消息（广播）
      */
     Page<SystemMessage> findByScope(String scope, Pageable pageable);
+
+    Optional<SystemMessage> findFirstByDedupeKeyAndStatusOrderByLastOccurredAtDesc(String dedupeKey, String status);
 }

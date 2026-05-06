@@ -59,6 +59,16 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column
+              prop="conditionExpr"
+              label="触发条件"
+              min-width="180"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ getRuleConditionSummary(row) }}
+              </template>
+            </el-table-column>
             <el-table-column prop="severity" label="严重程度" width="100">
               <template #default="{ row }">
                 <el-tag :type="getSeverityType(row.severity)" size="small">
@@ -89,7 +99,7 @@
             <el-table-column label="操作" width="200" fixed="right">
               <template #default="{ row }">
                 <el-button size="small" :icon="View" @click="viewRule(row)">
-                  查看
+                  编辑
                 </el-button>
                 <el-button size="small" :icon="Notification" @click="testRule(row)">
                   测试
@@ -218,81 +228,12 @@
         </el-card>
       </el-tab-pane>
     </el-tabs>
-
-    <!-- 创建/编辑规则对话框 -->
-    <el-dialog
-      v-model="ruleDialog"
-      :title="editingRule ? '编辑规则' : '创建规则'"
-      width="600px"
-    >
-      <el-form :model="ruleForm" label-width="120px">
-        <el-form-item label="规则名称">
-          <el-input v-model="ruleForm.ruleName" placeholder="例如: CPU 使用率过高" />
-        </el-form-item>
-        <el-form-item label="规则类型">
-          <el-select v-model="ruleForm.ruleType" placeholder="选择类型">
-            <el-option label="健康检查" value="HEALTH_CHECK" />
-            <el-option label="性能监控" value="PERFORMANCE" />
-            <el-option label="错误率" value="ERROR_RATE" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="条件表达式">
-          <el-input
-            v-model="ruleForm.conditionExpr"
-            placeholder="例如: cpu_usage > 80"
-          />
-        </el-form-item>
-        <el-form-item label="阈值">
-          <el-input-number v-model="ruleForm.thresholdValue" :min="0" :max="100" />
-        </el-form-item>
-        <el-form-item label="严重程度">
-          <el-select v-model="ruleForm.severity">
-            <el-option label="信息" value="INFO" />
-            <el-option label="警告" value="WARNING" />
-            <el-option label="错误" value="ERROR" />
-            <el-option label="严重" value="CRITICAL" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="通知渠道">
-          <el-checkbox-group v-model="selectedChannels">
-            <el-checkbox label="EMAIL">
-              邮件
-            </el-checkbox>
-            <el-checkbox label="DINGTALK">
-              钉钉
-            </el-checkbox>
-            <el-checkbox label="WECHAT">
-              企业微信
-            </el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="接收人列表">
-          <el-input
-            v-model="ruleForm.recipientList"
-            type="textarea"
-            :rows="2"
-            placeholder="多个接收人用逗号分隔"
-          />
-        </el-form-item>
-        <el-form-item label="冷却时间">
-          <el-input-number v-model="ruleForm.cooldownMinutes" :min="1" :max="60" />
-          <span class="ml-2">分钟</span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="ruleDialog = false">
-          取消
-        </el-button>
-        <el-button type="primary" :loading="saving" @click="saveRule">
-          保存
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import dayjs from 'dayjs'
@@ -316,13 +257,13 @@ const props = defineProps({
   }
 })
 
+const router = useRouter()
 const showRulesTab = computed(() => props.mode === 'all' || props.mode === 'rules')
 const showHistoryTab = computed(() => props.mode === 'all' || props.mode === 'history')
 const singleTabMode = computed(() => Number(showRulesTab.value) + Number(showHistoryTab.value) <= 1)
 const activeTab = ref(props.initialTab)
 const loading = ref(false)
 const loadingHistory = ref(false)
-const saving = ref(false)
 const rules = ref([])
 const history = ref([])
 const stats = ref({
@@ -332,20 +273,213 @@ const stats = ref({
   totalAlerts: 0
 })
 
-const ruleDialog = ref(false)
-const editingRule = ref(null)
-const selectedChannels = ref([])
-const ruleForm = ref({
-  ruleName: '',
-  ruleType: 'PERFORMANCE',
-  conditionExpr: '',
-  thresholdValue: 80,
-  severity: 'WARNING',
-  notificationChannels: '',
-  recipientList: '',
-  cooldownMinutes: 5,
-  enabled: true
-})
+const formatRatio = value => Number(value || 0).toFixed(2)
+const formatNumber = value => Number(value || 0).toString()
+const percentText = value => `${Math.round(Number(value || 0) * 100)}%`
+const normalizeTarget = value => String(value || '').trim().toUpperCase()
+
+const dependencyOptions = [
+  { label: '全部依赖', value: '' },
+  { label: 'MySQL', value: 'MYSQL' },
+  { label: 'Redis', value: 'REDIS' },
+  { label: 'Milvus', value: 'MILVUS' }
+]
+
+const dependencyText = value => {
+  const option = dependencyOptions.find(item => item.value === normalizeTarget(value))
+  return option?.label || value || '全部依赖'
+}
+
+const providerText = value => value?.trim() || '全部 Provider'
+
+const rulePresets = [
+  {
+    key: 'collab-overall-red',
+    ruleType: 'COLLAB_HEALTH',
+    name: '协作整体变红',
+    description: '当协作健康总状态进入 RED 时触发。',
+    sentence: '当协作整体状态为红色时触发。',
+    defaultName: '多智能体协作健康告警',
+    defaultSeverity: 'CRITICAL',
+    defaultCooldown: 15,
+    fields: [],
+    conditionBuilder: () => 'overallLevel == RED',
+    thresholdValueBuilder: () => 1,
+    summaryBuilder: () => '协作整体状态为红色'
+  },
+  {
+    key: 'collab-success-critical',
+    ruleType: 'COLLAB_HEALTH',
+    name: '成功率低于阈值',
+    description: '适合发现协作任务连续失败或空转。',
+    sentence: '当协作成功率低于设置阈值时触发。',
+    defaultName: '协作成功率过低',
+    defaultSeverity: 'CRITICAL',
+    defaultCooldown: 15,
+    fields: [
+      {
+        key: 'threshold',
+        label: '成功率低于',
+        type: 'number',
+        unit: '比例',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        precision: 2,
+        defaultValue: 0.7,
+        help: '0.80 表示 80%。空样本窗口不会按 0% 触发。'
+      }
+    ],
+    conditionBuilder: params => `successRate <= ${formatRatio(params.threshold)}`,
+    thresholdValueBuilder: params => Number(params.threshold || 0),
+    summaryBuilder: params => `协作成功率 <= ${percentText(params.threshold)}`
+  },
+  {
+    key: 'collab-p95-critical',
+    ruleType: 'COLLAB_HEALTH',
+    name: 'P95 延迟过高',
+    description: '适合监控协作链路是否明显变慢。',
+    sentence: '当协作 P95 延迟超过设置秒数时触发。',
+    defaultName: '协作延迟过高',
+    defaultSeverity: 'ERROR',
+    defaultCooldown: 15,
+    fields: [
+      {
+        key: 'seconds',
+        label: 'P95 延迟超过',
+        type: 'number',
+        unit: '秒',
+        min: 1,
+        max: 600,
+        step: 5,
+        precision: 0,
+        defaultValue: 60
+      }
+    ],
+    conditionBuilder: params => `p95LatencyMs >= ${formatNumber(Number(params.seconds || 0) * 1000)}`,
+    thresholdValueBuilder: params => Number(params.seconds || 0) * 1000,
+    summaryBuilder: params => `协作 P95 延迟 >= ${formatNumber(params.seconds)} 秒`
+  },
+  {
+    key: 'collab-dlq-critical',
+    ruleType: 'COLLAB_HEALTH',
+    name: '死信队列积压',
+    description: '适合发现协作消息无法被正常消费。',
+    sentence: '当协作死信队列积压达到设置数量时触发。',
+    defaultName: '协作队列积压',
+    defaultSeverity: 'CRITICAL',
+    defaultCooldown: 15,
+    fields: [
+      {
+        key: 'count',
+        label: '积压达到',
+        type: 'number',
+        unit: '条',
+        min: 1,
+        max: 1000,
+        step: 1,
+        precision: 0,
+        defaultValue: 20
+      }
+    ],
+    conditionBuilder: params => `dlqBacklog >= ${formatNumber(params.count)}`,
+    thresholdValueBuilder: params => Number(params.count || 0),
+    summaryBuilder: params => `死信队列积压 >= ${formatNumber(params.count)} 条`
+  },
+  {
+    key: 'collab-critique-high',
+    ruleType: 'COLLAB_HEALTH',
+    name: '反复修正过多',
+    description: '适合发现多智能体协作质量下降。',
+    sentence: '当平均 Critique 轮次超过设置阈值时触发。',
+    defaultName: '协作反复修正过多',
+    defaultSeverity: 'WARNING',
+    defaultCooldown: 15,
+    fields: [
+      {
+        key: 'rounds',
+        label: '平均轮次超过',
+        type: 'number',
+        unit: '轮',
+        min: 0,
+        max: 20,
+        step: 0.5,
+        precision: 1,
+        defaultValue: 3.5
+      }
+    ],
+    conditionBuilder: params => `avgCritiqueRounds >= ${formatNumber(params.rounds)}`,
+    thresholdValueBuilder: params => Number(params.rounds || 0),
+    summaryBuilder: params => `平均 Critique 轮次 >= ${formatNumber(params.rounds)}`
+  },
+  {
+    key: 'collab-bidding-success-critical',
+    ruleType: 'COLLAB_HEALTH',
+    name: '竞标后成功率过低',
+    description: '适合检查调度竞标后的实际完成质量。',
+    sentence: '当竞标后协作成功率低于设置阈值时触发。',
+    defaultName: '竞标后协作成功率过低',
+    defaultSeverity: 'WARNING',
+    defaultCooldown: 15,
+    fields: [
+      {
+        key: 'threshold',
+        label: '成功率低于',
+        type: 'number',
+        unit: '比例',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        precision: 2,
+        defaultValue: 0.75,
+        help: '没有触发竞标的窗口不会参与异常判定。'
+      }
+    ],
+    conditionBuilder: params => `biddingPostSuccessRate <= ${formatRatio(params.threshold)}`,
+    thresholdValueBuilder: params => Number(params.threshold || 0),
+    summaryBuilder: params => `竞标后成功率 <= ${percentText(params.threshold)}`
+  },
+  {
+    key: 'system-health-down',
+    ruleType: 'SYSTEM_HEALTH',
+    name: '系统依赖异常',
+    description: '兼容系统健康类告警入口。',
+    sentence: '当系统健康检查返回 DOWN 时触发。',
+    defaultName: '系统依赖健康告警',
+    defaultSeverity: 'ERROR',
+    defaultCooldown: 5,
+    fields: [],
+    conditionBuilder: () => 'health == DOWN',
+    thresholdValueBuilder: () => 1,
+    summaryBuilder: () => '系统健康状态为 DOWN'
+  },
+  {
+    key: 'api-failure',
+    ruleType: 'ERROR_RATE',
+    name: 'API 调用失败',
+    description: '兼容 API 失败类告警入口。',
+    sentence: '当 API 错误次数达到设置数量时触发。',
+    defaultName: 'API 调用失败告警',
+    defaultSeverity: 'ERROR',
+    defaultCooldown: 5,
+    fields: [
+      {
+        key: 'count',
+        label: '错误次数达到',
+        type: 'number',
+        unit: '次',
+        min: 1,
+        max: 1000,
+        step: 1,
+        precision: 0,
+        defaultValue: 1
+      }
+    ],
+    conditionBuilder: params => `errorCount >= ${formatNumber(params.count)}`,
+    thresholdValueBuilder: params => Number(params.count || 0),
+    summaryBuilder: params => `API 错误次数 >= ${formatNumber(params.count)}`
+  }
+]
 
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -404,50 +538,97 @@ const loadStats = async () => {
   }
 }
 
+const createPresetParams = (preset) => {
+  return (preset?.fields || []).reduce((params, field) => {
+    params[field.key] = field.defaultValue
+    return params
+  }, {})
+}
+
 const showCreateDialog = () => {
-  editingRule.value = null
-  ruleForm.value = {
-    ruleName: '',
-    ruleType: 'PERFORMANCE',
-    conditionExpr: '',
-    thresholdValue: 80,
-    severity: 'WARNING',
-    notificationChannels: '',
-    recipientList: '',
-    cooldownMinutes: 5,
-    enabled: true
-  }
-  selectedChannels.value = []
-  ruleDialog.value = true
+  router.push('/dashboard/runtime/alerts/rules/create')
 }
 
 const viewRule = (rule) => {
-  editingRule.value = rule
-  ruleForm.value = { ...rule }
-  selectedChannels.value = rule.notificationChannels?.split(',') || []
-  ruleDialog.value = true
+  router.push(`/dashboard/runtime/alerts/rules/${rule.id}/edit`)
 }
 
-const saveRule = async () => {
-  ruleForm.value.notificationChannels = selectedChannels.value.join(',')
-  
-  saving.value = true
-  try {
-    if (editingRule.value) {
-      await request.put(`/alerts/rules/${editingRule.value.id}`, ruleForm.value)
-      ElMessage.success('规则更新成功')
-    } else {
-      await request.post('/alerts/rules', ruleForm.value)
-      ElMessage.success('规则创建成功')
-    }
-    ruleDialog.value = false
-    await loadRules()
-    await loadStats()
-  } catch (error) {
-    ElMessage.error('保存规则失败')
-  } finally {
-    saving.value = false
+const matchesPresetExpression = (rule, preset) => {
+  const params = inferPresetParams(rule, preset)
+  return compareConditionExpr(rule.conditionExpr, preset.conditionBuilder(params))
+}
+
+const inferPresetParams = (rule, preset) => {
+  const params = createPresetParams(preset)
+  const expr = rule?.conditionExpr || ''
+  const numericMatch = expr.match(/(-?\d+(?:\.\d+)?)\s*$/)
+  const value = numericMatch ? Number(numericMatch[1]) : Number(rule?.thresholdValue)
+
+  if (preset.key === 'collab-success-critical' || preset.key === 'collab-bidding-success-critical') {
+    params.threshold = Number.isFinite(value) ? value : params.threshold
+  } else if (preset.key === 'collab-p95-critical') {
+    params.seconds = Number.isFinite(value) ? value / 1000 : params.seconds
+  } else if (preset.key === 'collab-dlq-critical' || preset.key === 'api-failure') {
+    params.count = Number.isFinite(value) ? value : params.count
+  } else if (preset.key === 'collab-critique-high') {
+    params.rounds = Number.isFinite(value) ? value : params.rounds
   }
+
+  return params
+}
+
+const parseConditionExpr = (expr) => {
+  const match = String(expr || '').trim().match(/^([A-Za-z][\w]*)\s*(==|!=|>=|<=|>|<)\s*([A-Za-z0-9_.-]+)$/)
+  if (!match) return null
+  return {
+    field: match[1],
+    operator: match[2],
+    value: match[3]
+  }
+}
+
+const compareConditionExpr = (left, right) => {
+  const leftExpr = parseConditionExpr(left)
+  const rightExpr = parseConditionExpr(right)
+  if (!leftExpr || !rightExpr) {
+    return String(left || '').trim() === String(right || '').trim()
+  }
+  if (leftExpr.field !== rightExpr.field || leftExpr.operator !== rightExpr.operator) {
+    return false
+  }
+
+  const leftNumber = Number(leftExpr.value)
+  const rightNumber = Number(rightExpr.value)
+  if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+    return Math.abs(leftNumber - rightNumber) < 0.000001
+  }
+  return leftExpr.value === rightExpr.value
+}
+
+const getRuleConditionSummary = (rule) => {
+  if (rule.ruleType === 'SYSTEM_HEALTH' && compareConditionExpr(rule.conditionExpr, 'status == DOWN')) {
+    const target = rule.targetScope === 'DEPENDENCY' ? dependencyText(rule.targetId) : '全部依赖'
+    return `${target} 状态为 DOWN`
+  }
+  if (rule.ruleType === 'ERROR_RATE') {
+    const target = rule.targetScope === 'PROVIDER' ? providerText(rule.targetId) : '全部 Provider'
+    const window = rule.metricWindowMinutes || 5
+    const condition = parseConditionExpr(rule.conditionExpr)
+    if (condition?.field === 'lastFailure') {
+      return `${target} 出现单次 API 失败`
+    }
+    if (condition?.field === 'errorCount') {
+      return `${target} ${window} 分钟内 API 错误次数 >= ${condition.value}`
+    }
+    if (condition?.field === 'errorRate') {
+      return `${target} ${window} 分钟内 API 失败率 >= ${percentText(condition.value)}，样本 >= ${rule.minSampleCount || 1}`
+    }
+  }
+  const preset = rulePresets.find(item => item.ruleType === rule.ruleType && matchesPresetExpression(rule, item))
+  if (preset) {
+    return preset.summaryBuilder(inferPresetParams(rule, preset))
+  }
+  return rule.conditionExpr ? `自定义条件：${rule.conditionExpr}` : '按类型默认触发'
 }
 
 const toggleRule = async (rule) => {
@@ -505,9 +686,8 @@ const resolveAlert = async (alert) => {
 
 const getRuleTypeText = (type) => {
   const map = {
-    'HEALTH_CHECK': '健康检查',
-    'PERFORMANCE': '性能监控',
     'ERROR_RATE': '错误率',
+    'SYSTEM_HEALTH': '系统健康',
     'COLLAB_HEALTH': '协作健康'
   }
   return map[type] || type

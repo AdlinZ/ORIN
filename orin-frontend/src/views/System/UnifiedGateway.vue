@@ -1,302 +1,417 @@
 <template>
-  <div class="unified-gateway-workbench">
-      <OrinPageShell
-        title="统一网关"
-        description="模型 API、后台控制面、服务代理、访问凭据与流量保护的统一网关控制台"
-        icon="Router"
-        domain="系统设置"
-    >
-      <template #actions>
-        <el-button :icon="Refresh" :loading="workbenchState.status === 'loading'" @click="refreshCurrentWorkspace">
-          刷新
-        </el-button>
-        <el-button type="primary" :icon="Connection" @click="openRouteTest">
-          入口测试
-        </el-button>
-      </template>
-      <template #filters>
-        <div class="workspace-tabs" data-testid="gateway-workspaces">
+  <div class="unified-gateway-workbench page-container fade-in">
+    <section class="gateway-console">
+      <header class="gateway-hero">
+        <div class="gateway-hero-row">
+          <div class="gateway-hero-main">
+            <div class="gateway-icon">
+              <el-icon><Connection /></el-icon>
+            </div>
+            <div class="gateway-title-block">
+              <h1>统一网关</h1>
+              <p>模型 API、后台控制面、服务代理、访问凭据与流量保护的统一网关控制台。</p>
+            </div>
+          </div>
+
+          <div class="gateway-hero-actions">
+            <el-button
+              :icon="Refresh"
+              :loading="workbenchState.status === 'loading'"
+              @click="refreshCurrentWorkspace"
+            >
+              刷新
+            </el-button>
+            <el-button type="primary" :icon="Connection" @click="openRouteTest">
+              入口测试
+            </el-button>
+          </div>
+        </div>
+
+        <div class="gateway-summary" data-testid="gateway-workspaces">
           <button
             v-for="item in workspaces"
             :key="item.key"
-            class="workspace-tab"
-            :class="{ active: activeWorkspace === item.key }"
+            type="button"
+            :class="['gateway-summary-card', { active: activeWorkspace === item.key }]"
             @click="activeWorkspace = item.key"
           >
             <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.label }}</span>
+            <span>
+              <strong>{{ item.label }}</strong>
+              <small>{{ workspaceSummaryMap[item.key] }}</small>
+            </span>
           </button>
         </div>
-      </template>
-    </OrinPageShell>
+      </header>
 
-    <section v-show="activeWorkspace === 'overview'" class="workspace-panel">
-      <OrinAsyncState
-        :status="workbenchState.status"
-        empty-text="暂无统一网关运行数据，请先创建入口或验证入口流量"
-        empty-action-label="刷新"
-        @retry="loadWorkbench"
-        @empty-action="loadWorkbench"
-      >
-        <section class="runtime-hero">
-          <div class="runtime-hero-main">
-            <div class="runtime-hero-head">
-              <div>
-                <span class="command-eyebrow">运行总览</span>
-                <h2>统一网关运行态</h2>
+      <section class="gateway-content-panel">
+        <section v-show="activeWorkspace === 'overview'" class="workspace-panel">
+          <OrinAsyncState
+            :status="workbenchState.status"
+            empty-text="暂无统一网关运行数据，请先创建入口或验证入口流量"
+            empty-action-label="刷新"
+            @retry="loadWorkbench"
+            @empty-action="loadWorkbench"
+          >
+            <section class="runtime-hero">
+              <div class="runtime-hero-main">
+                <div class="runtime-hero-head">
+                  <div>
+                    <span class="command-eyebrow">运行总览</span>
+                    <h2>统一网关运行态</h2>
+                  </div>
+                  <span class="hero-updated">实时工作台数据</span>
+                </div>
+
+                <div class="hero-metric-grid" aria-label="统一网关核心运行指标">
+                  <article
+                    v-for="metric in heroMetrics"
+                    :key="metric.key"
+                    class="hero-metric-card"
+                    :class="metric.intent ? `intent-${metric.intent}` : ''"
+                  >
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value }}</strong>
+                    <small>{{ metric.meta }}</small>
+                  </article>
+                </div>
               </div>
-              <span class="hero-updated">实时工作台数据</span>
+
+              <aside class="operations-card" :class="`intent-${operationsSummary.intent}`">
+                <span class="command-eyebrow">运行结论</span>
+                <h3>{{ operationsSummary.title }}</h3>
+                <p>{{ operationsSummary.description }}</p>
+                <div class="operation-facts">
+                  <span>{{ operationsSummary.badge }}</span>
+                  <strong>{{ operationsSummary.summary }}</strong>
+                </div>
+                <div class="command-actions">
+                  <el-button
+                    v-for="action in primaryActions"
+                    :key="action.key"
+                    size="small"
+                    :type="action.type"
+                    @click="action.handler"
+                  >
+                    {{ action.label }}
+                  </el-button>
+                </div>
+              </aside>
+            </section>
+
+            <div class="overview-secondary-grid block-gap">
+              <OrinDetailPanel title="入口状态" eyebrow="链路分布">
+                <div class="entry-map compact" aria-label="统一网关入口状态">
+                  <article
+                    v-for="lane in entryLanes"
+                    :key="lane.key"
+                    class="entry-lane"
+                    :class="`lane-${lane.intent}`"
+                  >
+                    <div class="lane-head">
+                      <span>{{ lane.label }}</span>
+                      <strong>{{ lane.value }}</strong>
+                    </div>
+                    <p>{{ lane.meta }}</p>
+                  </article>
+                </div>
+              </OrinDetailPanel>
+
+              <OrinDetailPanel title="快速操作" eyebrow="入口动作">
+                <div class="quick-action-grid">
+                  <button
+                    v-for="action in quickActions"
+                    :key="action.key"
+                    type="button"
+                    @click="action.handler"
+                  >
+                    <span>{{ action.label }}</span>
+                    <small>{{ action.description }}</small>
+                  </button>
+                </div>
+              </OrinDetailPanel>
             </div>
 
-            <div class="hero-metric-grid" aria-label="统一网关核心运行指标">
-              <article
-                v-for="metric in heroMetrics"
-                :key="metric.key"
-                class="hero-metric-card"
-                :class="metric.intent ? `intent-${metric.intent}` : ''"
-              >
-                <span>{{ metric.label }}</span>
-                <strong>{{ metric.value }}</strong>
-                <small>{{ metric.meta }}</small>
-              </article>
-            </div>
-          </div>
+            <div class="overview-grid block-gap">
+              <OrinDataTable>
+                <template #header>
+                  <div class="table-head">
+                    <span>最近失败</span>
+                    <el-button
+                      size="small"
+                      text
+                      type="primary"
+                      @click="activeWorkspace = 'api'"
+                    >
+                      定位入口
+                    </el-button>
+                  </div>
+                </template>
+                <el-table :data="workbench.recentFailures || []" stripe>
+                  <el-table-column prop="method" label="方法" width="82" />
+                  <el-table-column
+                    prop="path"
+                    label="路径"
+                    min-width="180"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column prop="statusCode" label="状态码" width="90" />
+                  <el-table-column
+                    prop="errorMessage"
+                    label="错误"
+                    min-width="180"
+                    show-overflow-tooltip
+                  />
+                  <template #empty>
+                    <OrinEmptyState description="暂无失败请求，当前网关没有需要优先处理的异常" />
+                  </template>
+                </el-table>
+              </OrinDataTable>
 
-          <aside class="operations-card" :class="`intent-${operationsSummary.intent}`">
-            <span class="command-eyebrow">运行结论</span>
-            <h3>{{ operationsSummary.title }}</h3>
-            <p>{{ operationsSummary.description }}</p>
-            <div class="operation-facts">
-              <span>{{ operationsSummary.badge }}</span>
-              <strong>{{ operationsSummary.summary }}</strong>
+              <OrinDataTable>
+                <template #header>
+                  <div class="table-head">
+                    <span>需要处理的入口</span>
+                    <span>{{ attentionEndpointCount }} 个入口需要处理</span>
+                  </div>
+                </template>
+                <el-table :data="controlPlaneEndpointPreview" stripe>
+                  <el-table-column label="状态" width="130">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="coverageStatusType(row.status)">
+                        {{ coverageStatusLabel(row.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column
+                    prop="pathPattern"
+                    label="入口路径"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column label="方法" width="120">
+                    <template #default="{ row }">
+                      {{ formatMethods(row.methods) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column
+                    prop="reason"
+                    label="说明"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <template #empty>
+                    <OrinEmptyState description="当前没有需要处理的入口异常" />
+                  </template>
+                </el-table>
+              </OrinDataTable>
             </div>
-            <div class="command-actions">
-              <el-button
-                v-for="action in primaryActions"
-                :key="action.key"
-                size="small"
-                :type="action.type"
-                @click="action.handler"
-              >
-                {{ action.label }}
-              </el-button>
-            </div>
-          </aside>
+
+            <section class="runtime-section block-gap">
+              <div class="section-title">
+                <span>巡检指标</span>
+                <small>用于补充判断，不抢占首屏核心指标</small>
+              </div>
+              <OrinMetricStrip :metrics="secondaryRuntimeMetrics" />
+              <OrinStatusSummary :items="statusItems" class="block-gap" />
+            </section>
+
+            <OrinDataTable class="block-gap">
+              <template #header>
+                <div class="table-head">
+                  <span>热门入口 TOP 5</span>
+                  <span>{{ workbench.overview?.activeRoutes || 0 }} 个活跃入口</span>
+                </div>
+              </template>
+              <el-table :data="workbench.overview?.topRoutes || []" stripe>
+                <el-table-column prop="routeName" label="入口" min-width="180" />
+                <el-table-column
+                  prop="requestCount"
+                  label="请求数"
+                  width="120"
+                  align="right"
+                />
+                <el-table-column label="平均延迟" width="140" align="right">
+                  <template #default="{ row }">
+                    {{ row.avgLatencyMs || 0 }}ms
+                  </template>
+                </el-table-column>
+                <template #empty>
+                  <OrinEmptyState description="暂无入口流量，请先通过入口测试或客户端发起请求" />
+                </template>
+              </el-table>
+            </OrinDataTable>
+          </OrinAsyncState>
         </section>
 
-        <div class="overview-secondary-grid block-gap">
-          <OrinDetailPanel title="入口状态" eyebrow="链路分布">
-            <div class="entry-map compact" aria-label="统一网关入口状态">
-              <article v-for="lane in entryLanes" :key="lane.key" class="entry-lane" :class="`lane-${lane.intent}`">
-                <div class="lane-head">
-                  <span>{{ lane.label }}</span>
-                  <strong>{{ lane.value }}</strong>
-                </div>
-                <p>{{ lane.meta }}</p>
-              </article>
-            </div>
-          </OrinDetailPanel>
-
-          <OrinDetailPanel title="快速操作" eyebrow="入口动作">
-            <div class="quick-action-grid">
-              <button v-for="action in quickActions" :key="action.key" type="button" @click="action.handler">
-                <span>{{ action.label }}</span>
-                <small>{{ action.description }}</small>
-              </button>
-            </div>
-          </OrinDetailPanel>
-        </div>
-
-        <div class="overview-grid block-gap">
+        <section v-if="activeWorkspace === 'api'" class="workspace-panel">
           <OrinDataTable>
             <template #header>
               <div class="table-head">
-                <span>最近失败</span>
-                <el-button size="small" text type="primary" @click="activeWorkspace = 'api'">定位入口</el-button>
+                <span>统一入口</span>
+                <div class="head-actions">
+                  <el-button size="small" :icon="Refresh" @click="loadRoutes">
+                    刷新
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :icon="Connection"
+                    @click="openRouteTest"
+                  >
+                    测试入口
+                  </el-button>
+                </div>
               </div>
             </template>
-            <el-table :data="workbench.recentFailures || []" stripe>
-              <el-table-column prop="method" label="方法" width="82" />
-              <el-table-column prop="path" label="路径" min-width="180" show-overflow-tooltip />
-              <el-table-column prop="statusCode" label="状态码" width="90" />
-              <el-table-column prop="errorMessage" label="错误" min-width="180" show-overflow-tooltip />
-              <template #empty>
-                <OrinEmptyState description="暂无失败请求，当前网关没有需要优先处理的异常" />
-              </template>
-            </el-table>
+            <OrinAsyncState
+              :status="routesState.status"
+              empty-text="暂无入口配置，请添加模型 API、服务代理或后台入口策略"
+              @retry="loadRoutes"
+            >
+              <el-table :data="routes" stripe>
+                <el-table-column prop="name" label="入口名称" min-width="140" />
+                <el-table-column label="路径/方法" min-width="220" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <el-tag size="small" effect="plain">
+                      {{ row.method || 'ALL' }}
+                    </el-tag>
+                    <span class="path-text">{{ row.pathPattern }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="入口类型" width="130">
+                  <template #default="{ row }">
+                    <el-tag size="small" :type="entryType(row).tag">
+                      {{ entryType(row).label }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="目标" min-width="200" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="target-text">{{ routeTarget(row) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="策略" width="150">
+                  <template #default="{ row }">
+                    <el-space wrap>
+                      <el-tag v-if="row.authRequired" size="small" effect="plain">
+                        认证
+                      </el-tag>
+                      <el-tag
+                        v-if="row.rateLimitPolicyId"
+                        size="small"
+                        type="warning"
+                        effect="plain"
+                      >
+                        限流
+                      </el-tag>
+                      <el-tag
+                        v-if="row.circuitBreakerPolicyId"
+                        size="small"
+                        type="danger"
+                        effect="plain"
+                      >
+                        熔断
+                      </el-tag>
+                      <el-tag
+                        v-if="row.retryPolicyId"
+                        size="small"
+                        type="success"
+                        effect="plain"
+                      >
+                        重试
+                      </el-tag>
+                    </el-space>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="92">
+                  <template #default="{ row }">
+                    <el-switch v-model="row.enabled" @change="toggleRoute(row)" />
+                  </template>
+                </el-table-column>
+                <el-table-column label="诊断" width="120" fixed="right">
+                  <template #default="{ row }">
+                    <el-button text type="primary" @click="openRouteDetail(row)">
+                      生效链路
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinAsyncState>
           </OrinDataTable>
 
-          <OrinDataTable>
+          <OrinDataTable class="block-gap">
             <template #header>
               <div class="table-head">
-                <span>需要处理的入口</span>
-                <span>{{ attentionEndpointCount }} 个入口需要处理</span>
+                <span>后台入口配置</span>
+                <span>{{ attentionControlPlaneEndpoints.length }} 个入口需要处理</span>
               </div>
             </template>
-            <el-table :data="controlPlaneEndpointPreview" stripe>
-              <el-table-column label="状态" width="130">
+            <el-table :data="attentionControlPlaneEndpoints" stripe>
+              <el-table-column
+                prop="pathPattern"
+                label="入口路径"
+                min-width="240"
+                show-overflow-tooltip
+              />
+              <el-table-column label="方法" width="120">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="coverageStatusType(row.status)">
-                    {{ coverageStatusLabel(row.status) }}
-                  </el-tag>
+                  {{ formatMethods(row.methods) }}
                 </template>
               </el-table-column>
-              <el-table-column prop="pathPattern" label="入口路径" min-width="220" show-overflow-tooltip />
-              <el-table-column label="方法" width="120">
-                <template #default="{ row }">{{ formatMethods(row.methods) }}</template>
+              <el-table-column
+                prop="reason"
+                label="需要处理"
+                min-width="220"
+                show-overflow-tooltip
+              />
+              <el-table-column label="操作" width="130" fixed="right">
+                <template #default="{ row }">
+                  <el-button text type="primary" @click="createLocalControlPlaneRoute(row)">
+                    添加单独配置
+                  </el-button>
+                </template>
               </el-table-column>
-              <el-table-column prop="reason" label="说明" min-width="220" show-overflow-tooltip />
               <template #empty>
-                <OrinEmptyState description="当前没有需要处理的入口异常" />
+                <OrinEmptyState description="当前没有需要处理的后台入口" />
               </template>
             </el-table>
           </OrinDataTable>
-        </div>
 
-        <section class="runtime-section block-gap">
-          <div class="section-title">
-            <span>巡检指标</span>
-            <small>用于补充判断，不抢占首屏核心指标</small>
+          <div class="api-entry-grid block-gap">
+            <UnifiedGatewayRoutesTab mode="actions" />
+            <UnifiedGatewayServicesTab />
           </div>
-          <OrinMetricStrip :metrics="secondaryRuntimeMetrics" />
-          <OrinStatusSummary :items="statusItems" class="block-gap" />
         </section>
 
-        <OrinDataTable class="block-gap">
-          <template #header>
-            <div class="table-head">
-              <span>热门入口 TOP 5</span>
-              <span>{{ workbench.overview?.activeRoutes || 0 }} 个活跃入口</span>
+        <section v-if="activeWorkspace === 'access'" class="workspace-panel access-workspace">
+          <ApiKeyManagement embedded />
+          <div class="access-list-section block-gap">
+            <div class="workspace-section-head">
+              <span class="command-eyebrow">访问名单</span>
+              <h3>ACL 与 API Key 要求</h3>
+              <p>按 IP、路径和凭据要求控制哪些调用方可以进入统一网关。</p>
             </div>
-          </template>
-          <el-table :data="workbench.overview?.topRoutes || []" stripe>
-            <el-table-column prop="routeName" label="入口" min-width="180" />
-            <el-table-column prop="requestCount" label="请求数" width="120" align="right" />
-            <el-table-column label="平均延迟" width="140" align="right">
-              <template #default="{ row }">{{ row.avgLatencyMs || 0 }}ms</template>
-            </el-table-column>
-            <template #empty>
-              <OrinEmptyState description="暂无入口流量，请先通过入口测试或客户端发起请求" />
-            </template>
-          </el-table>
-        </OrinDataTable>
-      </OrinAsyncState>
-    </section>
-
-    <section v-if="activeWorkspace === 'api'" class="workspace-panel">
-      <OrinDataTable>
-        <template #header>
-          <div class="table-head">
-            <span>统一入口</span>
-            <div class="head-actions">
-              <el-button size="small" :icon="Refresh" @click="loadRoutes">刷新</el-button>
-              <el-button size="small" type="primary" :icon="Connection" @click="openRouteTest">测试入口</el-button>
-            </div>
+            <UnifiedGatewayAclTab />
           </div>
-        </template>
-        <OrinAsyncState
-          :status="routesState.status"
-          empty-text="暂无入口配置，请添加模型 API、服务代理或后台入口策略"
-          @retry="loadRoutes"
-        >
-          <el-table :data="routes" stripe>
-            <el-table-column prop="name" label="入口名称" min-width="140" />
-            <el-table-column label="路径/方法" min-width="220" show-overflow-tooltip>
-              <template #default="{ row }">
-                <el-tag size="small" effect="plain">{{ row.method || 'ALL' }}</el-tag>
-                <span class="path-text">{{ row.pathPattern }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="入口类型" width="130">
-              <template #default="{ row }">
-                <el-tag size="small" :type="entryType(row).tag">{{ entryType(row).label }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="目标" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="target-text">{{ routeTarget(row) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="策略" width="150">
-              <template #default="{ row }">
-                <el-space wrap>
-                  <el-tag v-if="row.authRequired" size="small" effect="plain">认证</el-tag>
-                  <el-tag v-if="row.rateLimitPolicyId" size="small" type="warning" effect="plain">限流</el-tag>
-                  <el-tag v-if="row.circuitBreakerPolicyId" size="small" type="danger" effect="plain">熔断</el-tag>
-                  <el-tag v-if="row.retryPolicyId" size="small" type="success" effect="plain">重试</el-tag>
-                </el-space>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="92">
-              <template #default="{ row }">
-                <el-switch v-model="row.enabled" @change="toggleRoute(row)" />
-              </template>
-            </el-table-column>
-            <el-table-column label="诊断" width="120" fixed="right">
-              <template #default="{ row }">
-                <el-button text type="primary" @click="openRouteDetail(row)">生效链路</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </OrinAsyncState>
-      </OrinDataTable>
+        </section>
 
-      <OrinDataTable class="block-gap">
-        <template #header>
-          <div class="table-head">
-            <span>后台入口配置</span>
-            <span>{{ attentionControlPlaneEndpoints.length }} 个入口需要处理</span>
+        <section v-if="activeWorkspace === 'traffic'" class="workspace-panel traffic-workspace">
+          <div class="workspace-section-head">
+            <span class="command-eyebrow">入口策略</span>
+            <h3>限流、熔断与重试</h3>
+            <p>维护可复用的入口级策略，并在统一入口中绑定到具体路径。</p>
           </div>
-        </template>
-        <el-table :data="attentionControlPlaneEndpoints" stripe>
-          <el-table-column prop="pathPattern" label="入口路径" min-width="240" show-overflow-tooltip />
-          <el-table-column label="方法" width="120">
-            <template #default="{ row }">{{ formatMethods(row.methods) }}</template>
-          </el-table-column>
-          <el-table-column prop="reason" label="需要处理" min-width="220" show-overflow-tooltip />
-          <el-table-column label="操作" width="130" fixed="right">
-            <template #default="{ row }">
-              <el-button text type="primary" @click="createLocalControlPlaneRoute(row)">添加单独配置</el-button>
-            </template>
-          </el-table-column>
-          <template #empty>
-            <OrinEmptyState description="当前没有需要处理的后台入口" />
-          </template>
-        </el-table>
-      </OrinDataTable>
+          <UnifiedGatewayPoliciesTab />
 
-      <div class="api-entry-grid block-gap">
-        <UnifiedGatewayRoutesTab mode="actions" />
-        <UnifiedGatewayServicesTab />
-      </div>
-    </section>
-
-    <section v-if="activeWorkspace === 'access'" class="workspace-panel access-workspace">
-      <ApiKeyManagement embedded />
-      <div class="access-list-section block-gap">
-        <div class="workspace-section-head">
-          <span class="command-eyebrow">访问名单</span>
-          <h3>ACL 与 API Key 要求</h3>
-          <p>按 IP、路径和凭据要求控制哪些调用方可以进入统一网关。</p>
-        </div>
-        <UnifiedGatewayAclTab />
-      </div>
-    </section>
-
-    <section v-if="activeWorkspace === 'traffic'" class="workspace-panel traffic-workspace">
-      <div class="workspace-section-head">
-        <span class="command-eyebrow">入口策略</span>
-        <h3>限流、熔断与重试</h3>
-        <p>维护可复用的入口级策略，并在统一入口中绑定到具体路径。</p>
-      </div>
-      <UnifiedGatewayPoliciesTab />
-
-      <div class="workspace-section-head block-gap">
-        <span class="command-eyebrow">平台底线</span>
-        <h3>系统级默认限流</h3>
-        <p>配置统一网关的全局保护阈值，作为入口策略之外的默认防线。</p>
-      </div>
-      <UnifiedGatewayRateLimitTab />
+          <div class="workspace-section-head block-gap">
+            <span class="command-eyebrow">平台底线</span>
+            <h3>系统级默认限流</h3>
+            <p>配置统一网关的全局保护阈值，作为入口策略之外的默认防线。</p>
+          </div>
+          <UnifiedGatewayRateLimitTab />
+        </section>
+      </section>
     </section>
 
     <el-drawer v-model="routeDrawerVisible" title="入口生效链路" size="520px">
@@ -320,7 +435,9 @@
           <ol class="chain-list">
             <li v-for="step in effectiveConfig.chain || []" :key="step.key">
               <span class="chain-label">{{ step.label }}</span>
-              <el-tag size="small" effect="plain">{{ step.status }}</el-tag>
+              <el-tag size="small" effect="plain">
+                {{ step.status }}
+              </el-tag>
               <p>{{ step.detail }}</p>
             </li>
           </ol>
@@ -368,8 +485,12 @@
         </template>
       </el-alert>
       <template #footer>
-        <el-button @click="testDialogVisible = false">关闭</el-button>
-        <el-button type="primary" :loading="testing" @click="runTest">测试</el-button>
+        <el-button @click="testDialogVisible = false">
+          关闭
+        </el-button>
+        <el-button type="primary" :loading="testing" @click="runTest">
+          测试
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -386,7 +507,6 @@ import {
   Share,
   TrendCharts
 } from '@element-plus/icons-vue'
-import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
@@ -459,6 +579,18 @@ const workbenchAttentionEndpoints = computed(() =>
 const coverageSummary = computed(() => workbench.value.controlPlaneCoverage?.summary || {})
 
 const attentionEndpointCount = computed(() => coverageSummary.value.attentionRequiredEndpoints || 0)
+
+const workspaceSummaryMap = computed(() => {
+  const overview = workbench.value.overview || {}
+  const activeRoutes = overview.activeRoutes || 0
+  const attention = attentionEndpointCount.value
+  return {
+    overview: `${formatNumber(overview.totalRequests)} 请求 · ${overview.avgLatencyMs ?? 0}ms`,
+    api: `${activeRoutes} 个活跃入口 · ${attention} 个待处理`,
+    access: 'API Key、ACL 与凭据要求',
+    traffic: '限流、熔断、重试与默认防线'
+  }
+})
 
 const heroMetrics = computed(() => {
   const overview = workbench.value.overview || {}
@@ -703,35 +835,143 @@ const coverageStatusType = (status) => {
   color: #243244;
 }
 
-.workspace-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.gateway-console {
+  overflow: visible;
+  border: 1px solid var(--orin-border, #e2e8f0);
+  border-radius: var(--orin-card-radius, 8px);
+  background: var(--neutral-white, #ffffff);
+  box-shadow: 0 14px 36px -34px rgba(15, 23, 42, 0.5);
 }
 
-.workspace-tab {
+.gateway-hero {
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--orin-border, #e2e8f0);
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.8), rgba(255, 255, 255, 0.96) 48%),
+    var(--neutral-white, #ffffff);
+}
+
+.gateway-hero-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.gateway-hero-main {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.gateway-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(240, 253, 250, 0.78);
+  color: var(--orin-primary, #0d9488);
+  font-size: 18px;
+}
+
+.gateway-title-block {
+  min-width: 0;
+}
+
+.gateway-title-block h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 23px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.gateway-title-block p {
+  margin: 7px 0 0;
+  max-width: 780px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.gateway-hero-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid #dbe4ee;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #64748b;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
-.workspace-tab.active {
-  border-color: #0d9488;
-  background: #ecfdf9;
-  color: #0d9488;
+.gateway-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+  padding: 4px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.gateway-summary-card {
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.gateway-summary-card:hover,
+.gateway-summary-card.active {
+  border-color: rgba(15, 118, 110, 0.22);
+  background: #ffffff;
+  box-shadow: 0 8px 18px -16px rgba(15, 23, 42, 0.45);
+}
+
+.gateway-summary-card .el-icon {
+  margin-top: 2px;
+  color: var(--orin-primary, #0d9488);
+}
+
+.gateway-summary-card span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.gateway-summary-card strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.gateway-summary-card small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gateway-content-panel {
+  padding: 14px;
+  background: transparent;
+  overflow: visible;
 }
 
 .workspace-panel {
-  margin-top: 16px;
+  margin-top: 0;
 }
 
 .command-eyebrow {
@@ -1328,6 +1568,18 @@ const coverageStatusType = (status) => {
 }
 
 @media (max-width: 960px) {
+  .gateway-hero-row {
+    flex-direction: column;
+  }
+
+  .gateway-hero-actions {
+    justify-content: flex-start;
+  }
+
+  .gateway-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .runtime-hero,
   .overview-secondary-grid,
   .overview-grid,
@@ -1350,6 +1602,18 @@ const coverageStatusType = (status) => {
 }
 
 @media (max-width: 640px) {
+  .gateway-hero {
+    padding: 14px 14px 16px;
+  }
+
+  .gateway-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .gateway-content-panel {
+    padding: 10px;
+  }
+
   .runtime-hero-head,
   .table-head,
   .head-actions,
@@ -1383,5 +1647,28 @@ const coverageStatusType = (status) => {
     max-width: none;
     text-align: left;
   }
+}
+
+html.dark .gateway-console {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.94)),
+    var(--neutral-gray-900, #0f172a);
+  box-shadow: none;
+}
+
+html.dark .gateway-hero {
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(15, 23, 42, 0.94) 52%),
+    var(--neutral-gray-900, #0f172a);
+}
+
+html.dark .gateway-title-block h1,
+html.dark .gateway-summary-card strong {
+  color: #f8fafc;
+}
+
+html.dark .gateway-title-block p,
+html.dark .gateway-summary-card small {
+  color: #94a3b8;
 }
 </style>

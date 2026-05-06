@@ -3,7 +3,6 @@ package com.adlin.orin.modules.collaboration.task;
 import com.adlin.orin.modules.alert.service.AlertService;
 import com.adlin.orin.modules.collaboration.dto.CollabSessionDtos;
 import com.adlin.orin.modules.collaboration.service.CollaborationSessionService;
-import com.adlin.orin.modules.notification.service.SystemNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 协作会话指标自动告警巡检器
@@ -30,9 +30,10 @@ public class CollaborationMetricsAlertScheduler {
 
     private static final String RED_STREAK_KEY = "collab:metrics:alert:red_streak";
     private static final String LAST_ALERT_TS_KEY = "collab:metrics:alert:last_sent_ts";
+    private static final String RULE_TYPE = "COLLAB_HEALTH";
+    private static final String TARGET_ID = "COLLAB_ORCHESTRATOR";
 
     private final CollaborationSessionService sessionService;
-    private final SystemNotificationService systemNotificationService;
     private final AlertService alertService;
     private final StringRedisTemplate redisTemplate;
 
@@ -60,9 +61,13 @@ public class CollaborationMetricsAlertScheduler {
         try {
             CollabSessionDtos.SessionMetricsView metrics = sessionService.getSessionMetrics(windowHours);
             String overallLevel = metrics.getOverallLevel() != null ? metrics.getOverallLevel() : "GREEN";
+            Map<String, Object> ruleContext = buildRuleContext(metrics);
 
-            if (!"RED".equalsIgnoreCase(overallLevel)) {
+            if (!alertService.matchesSystemAlertRule(RULE_TYPE, ruleContext)) {
                 resetRedStreak();
+                redisTemplate.delete(LAST_ALERT_TS_KEY);
+                alertService.resolveSystemAlert(RULE_TYPE, TARGET_ID,
+                        "协作健康指标已恢复，当前状态=" + overallLevel);
                 return;
             }
 
@@ -79,14 +84,11 @@ public class CollaborationMetricsAlertScheduler {
                 return;
             }
 
-            String title = "多智能体协作健康告警";
             String content = buildAlertContent(metrics, streak);
-
-            // 1) 消息中心广播
-            systemNotificationService.sendWarning(title, content, null);
-
-            // 2) 统一告警中心（支持规则渠道）
-            alertService.triggerSystemAlert("COLLAB_HEALTH", "COLLAB_ORCHESTRATOR", content);
+            int triggered = alertService.triggerSystemAlert(RULE_TYPE, TARGET_ID, content, null, ruleContext);
+            if (triggered == 0) {
+                return;
+            }
 
             redisTemplate.opsForValue().set(LAST_ALERT_TS_KEY, String.valueOf(now), Duration.ofDays(2));
             log.error("Collaboration RED alert sent. streak={}, metrics={}", streak, summarize(metrics));
@@ -131,6 +133,18 @@ public class CollaborationMetricsAlertScheduler {
                 percent(metrics.getBiddingPostSuccessRate()),
                 metrics.getAvgCritiqueRounds() != null ? metrics.getAvgCritiqueRounds() : 0.0,
                 reasons
+        );
+    }
+
+    private Map<String, Object> buildRuleContext(CollabSessionDtos.SessionMetricsView metrics) {
+        return Map.of(
+                "overallLevel", metrics.getOverallLevel() != null ? metrics.getOverallLevel() : "GREEN",
+                "totalTurns", metrics.getTotalTurns() != null ? metrics.getTotalTurns() : 0L,
+                "successRate", metrics.getSuccessRate() != null ? metrics.getSuccessRate() : 0.0,
+                "p95LatencyMs", metrics.getP95LatencyMs() != null ? metrics.getP95LatencyMs() : 0.0,
+                "dlqBacklog", metrics.getDlqBacklog() != null ? metrics.getDlqBacklog() : 0L,
+                "biddingPostSuccessRate", metrics.getBiddingPostSuccessRate() != null ? metrics.getBiddingPostSuccessRate() : 0.0,
+                "avgCritiqueRounds", metrics.getAvgCritiqueRounds() != null ? metrics.getAvgCritiqueRounds() : 0.0
         );
     }
 

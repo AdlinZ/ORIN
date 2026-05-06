@@ -71,6 +71,10 @@ public class AlertNotificationService {
      * 发送规则通知（兼容历史规则配置）。
      */
     public void sendRuleNotification(AlertRule rule, String message) {
+        sendRuleNotification(rule, message, null, 1);
+    }
+
+    public void sendRuleNotification(AlertRule rule, String message, String fingerprint, Integer repeatCount) {
         AlertNotificationConfig config = getConfig();
         String severity = rule.getSeverity() != null ? rule.getSeverity() : "INFO";
         if (shouldSkipBySeverity(config, severity)) {
@@ -84,13 +88,42 @@ public class AlertNotificationService {
             rule.getRuleName(), severity, java.time.LocalDateTime.now(), message
         );
 
-        sendInAppIfEnabled(config, severity, title, content);
+        sendInAppIfEnabled(config, severity, title, content, fingerprint, "TRIGGERED", repeatCount, message);
         for (String channel : resolveChannels(rule, config)) {
             sendExternalChannel(channel, config, title, content, rule.getRecipientList());
         }
     }
 
+    public void updateRuleNotification(AlertRule rule, String message, String fingerprint, Integer repeatCount) {
+        AlertNotificationConfig config = getConfig();
+        String severity = rule.getSeverity() != null ? rule.getSeverity() : "INFO";
+        if (shouldSkipBySeverity(config, severity)) {
+            return;
+        }
+        String title = String.format("[ORIN Alert] %s - %s", severity, rule.getRuleName());
+        String content = String.format(
+                "Alert Rule: %s\nSeverity: %s\nTime: %s\n\nMessage:\n%s",
+                rule.getRuleName(), severity, java.time.LocalDateTime.now(), message
+        );
+        sendInAppIfEnabled(config, severity, title, content, fingerprint, "TRIGGERED", repeatCount, message);
+    }
+
+    public void resolveRuleNotification(AlertRule rule, String message, String fingerprint, Integer repeatCount) {
+        AlertNotificationConfig config = getConfig();
+        String severity = rule.getSeverity() != null ? rule.getSeverity() : "INFO";
+        String title = String.format("[ORIN Alert] RESOLVED - %s", rule.getRuleName());
+        String content = String.format(
+                "Alert Rule: %s\nSeverity: %s\nTime: %s\n\nMessage:\n%s",
+                rule.getRuleName(), severity, java.time.LocalDateTime.now(), message
+        );
+        sendInAppIfEnabled(config, "SUCCESS", title, content, fingerprint, "RESOLVED", repeatCount, message);
+    }
+
     public void sendSystemNotification(String title, String severity, String message) {
+        sendSystemNotification(title, severity, message, null, 1);
+    }
+
+    public void sendSystemNotification(String title, String severity, String message, String fingerprint, Integer repeatCount) {
         AlertNotificationConfig config = getConfig();
         String normalizedSeverity = severity != null ? severity : "WARNING";
         if (shouldSkipBySeverity(config, normalizedSeverity)) {
@@ -101,10 +134,33 @@ public class AlertNotificationService {
                 "Alert Rule: %s\nSeverity: %s\nTime: %s\n\nMessage:\n%s",
                 title, normalizedSeverity, java.time.LocalDateTime.now(), message
         );
-        sendInAppIfEnabled(config, normalizedSeverity, title, content);
+        sendInAppIfEnabled(config, normalizedSeverity, title, content, fingerprint, "TRIGGERED", repeatCount, message);
         for (String channel : enabledConfigChannels(config)) {
             sendExternalChannel(channel, config, title, content, null);
         }
+    }
+
+    public void updateSystemNotification(String title, String severity, String message, String fingerprint, Integer repeatCount) {
+        AlertNotificationConfig config = getConfig();
+        String normalizedSeverity = severity != null ? severity : "WARNING";
+        if (shouldSkipBySeverity(config, normalizedSeverity)) {
+            return;
+        }
+        String content = String.format(
+                "Alert Rule: %s\nSeverity: %s\nTime: %s\n\nMessage:\n%s",
+                title, normalizedSeverity, java.time.LocalDateTime.now(), message
+        );
+        sendInAppIfEnabled(config, normalizedSeverity, title, content, fingerprint, "TRIGGERED", repeatCount, message);
+    }
+
+    public void resolveSystemNotification(String title, String message, String fingerprint, Integer repeatCount) {
+        AlertNotificationConfig config = getConfig();
+        String content = String.format(
+                "Alert Rule: %s\nSeverity: RESOLVED\nTime: %s\n\nMessage:\n%s",
+                title, java.time.LocalDateTime.now(), message
+        );
+        sendInAppIfEnabled(config, "SUCCESS", "[ORIN Alert] RESOLVED - " + title,
+                content, fingerprint, "RESOLVED", repeatCount, message);
     }
 
     private AlertNotificationConfig getConfig() {
@@ -162,10 +218,20 @@ public class AlertNotificationService {
     }
 
     private void sendInAppIfEnabled(AlertNotificationConfig config, String severity, String title, String content) {
+        sendInAppIfEnabled(config, severity, title, content, null, "TRIGGERED", 1, content);
+    }
+
+    private void sendInAppIfEnabled(AlertNotificationConfig config, String severity, String title, String content,
+                                    String fingerprint, String status, Integer repeatCount, String summary) {
         if (!Boolean.TRUE.equals(config.getNotifyInapp())) {
             return;
         }
-        systemNotificationService.sendMessage(title, content, toMessageType(severity), null, "ALERT", "BROADCAST");
+        if (fingerprint == null || fingerprint.isBlank()) {
+            systemNotificationService.sendMessage(title, content, toMessageType(severity), null, "ALERT", "BROADCAST");
+            return;
+        }
+        systemNotificationService.sendAggregatedAlert(title, content, toMessageType(severity), null, "ALERT", "BROADCAST",
+                fingerprint, fingerprint, status, repeatCount, summary);
     }
 
     private boolean shouldSkipBySeverity(AlertNotificationConfig config, String severity) {
@@ -182,6 +248,7 @@ public class AlertNotificationService {
         return switch (normalized) {
             case "CRITICAL", "ERROR" -> "ERROR";
             case "WARNING", "WARN" -> "WARNING";
+            case "SUCCESS", "RESOLVED" -> "SUCCESS";
             default -> "INFO";
         };
     }

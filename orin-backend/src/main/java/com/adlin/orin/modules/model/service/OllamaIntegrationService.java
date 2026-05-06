@@ -115,6 +115,21 @@ public class OllamaIntegrationService {
             double temperature,
             double topP,
             int maxTokens) {
+        return sendMessageWithFullParams(endpoint, apiKey, model, messages, temperature, topP, maxTokens, false);
+    }
+
+    /**
+     * 使用完整参数发送消息到 Ollama
+     */
+    public Optional<Object> sendMessageWithFullParams(
+            String endpoint,
+            String apiKey,
+            String model,
+            List<Map<String, Object>> messages,
+            double temperature,
+            double topP,
+            int maxTokens,
+            Boolean enableThinking) {
         try {
             String baseUrl = endpoint;
             if (baseUrl == null)
@@ -133,6 +148,7 @@ public class OllamaIntegrationService {
             requestBody.put("top_p", topP);
             requestBody.put("max_tokens", maxTokens);
             requestBody.put("stream", false);
+            applyThinkingOptions(requestBody, enableThinking);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
@@ -145,7 +161,22 @@ public class OllamaIntegrationService {
                             url, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
                             });
                     if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                        return Optional.of(response.getBody());
+                        Map<String, Object> body = response.getBody();
+                        if (hasReasoningOnlyResponse(body) && maxTokens < 8192) {
+                            int retryMaxTokens = Math.min(8192, Math.max(4096, maxTokens * 2));
+                            log.warn("Ollama returned reasoning-only response; retrying with max_tokens={} (model={})",
+                                    retryMaxTokens, model);
+                            requestBody.put("max_tokens", retryMaxTokens);
+                            HttpEntity<Map<String, Object>> retryRequest = new HttpEntity<>(requestBody, headers);
+                            ResponseEntity<Map<String, Object>> retryResponse = restTemplate.exchange(
+                                    url, HttpMethod.POST, retryRequest,
+                                    new ParameterizedTypeReference<Map<String, Object>>() {
+                                    });
+                            if (retryResponse.getStatusCode().is2xxSuccessful() && retryResponse.getBody() != null) {
+                                return Optional.of(retryResponse.getBody());
+                            }
+                        }
+                        return Optional.of(body);
                     }
                 } catch (Exception e) {
                     lastError = "URL=" + url + ", ERR=" + e.getMessage();
@@ -191,6 +222,7 @@ public class OllamaIntegrationService {
             requestBody.put("temperature", temperature);
             requestBody.put("max_tokens", maxTokens);
             requestBody.put("stream", false);
+            applyThinkingOptions(requestBody, false);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
@@ -224,6 +256,33 @@ public class OllamaIntegrationService {
             err.put("errorMessage", e.getMessage());
             return Optional.of(err);
         }
+    }
+
+    private void applyThinkingOptions(Map<String, Object> requestBody, Boolean enableThinking) {
+        boolean thinkingEnabled = Boolean.TRUE.equals(enableThinking);
+        String effort = thinkingEnabled ? "medium" : "none";
+        requestBody.put("reasoning_effort", effort);
+        requestBody.put("reasoning", Map.of("effort", effort));
+        requestBody.put("think", thinkingEnabled);
+    }
+
+    private boolean hasReasoningOnlyResponse(Map<String, Object> body) {
+        if (body == null) {
+            return false;
+        }
+        Object choicesObj = body.get("choices");
+        if (!(choicesObj instanceof List<?> choices) || choices.isEmpty() || !(choices.get(0) instanceof Map<?, ?> choice)) {
+            return false;
+        }
+        Object messageObj = choice.get("message");
+        if (!(messageObj instanceof Map<?, ?> message)) {
+            return false;
+        }
+        Object contentObj = message.get("content");
+        boolean contentBlank = contentObj == null || String.valueOf(contentObj).isBlank();
+        boolean hasReasoning = (message.get("reasoning") != null && !String.valueOf(message.get("reasoning")).isBlank())
+                || (message.get("reasoning_content") != null && !String.valueOf(message.get("reasoning_content")).isBlank());
+        return contentBlank && hasReasoning;
     }
 
     /**

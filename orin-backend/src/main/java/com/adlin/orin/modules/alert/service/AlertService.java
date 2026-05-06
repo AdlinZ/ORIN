@@ -13,8 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 告警服务
@@ -24,19 +28,19 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class AlertService {
 
+    private static final Pattern SIMPLE_CONDITION = Pattern.compile(
+            "^\\s*([A-Za-z][A-Za-z0-9_]*)\\s*(==|!=|>=|<=|>|<)\\s*(.+?)\\s*$");
+
     private final AlertRuleRepository ruleRepository;
     private final AlertHistoryRepository historyRepository;
     private final AlertNotificationService notificationService;
-
-    // Cooldown cache: key = ruleType + ":" + agentId, value = last trigger
-    // timestamp
-    private final Map<String, Long> alertCooldownCache = new ConcurrentHashMap<>();
 
     /**
      * 创建告警规则
      */
     @Transactional
     public AlertRule createRule(AlertRule rule) {
+        normalizeRuleDefaults(rule);
         rule = ruleRepository.save(rule);
         log.info("Created alert rule: {}", rule.getRuleName());
         return rule;
@@ -68,12 +72,17 @@ public class AlertService {
         rule.setRuleType(updatedRule.getRuleType());
         rule.setConditionExpr(updatedRule.getConditionExpr());
         rule.setThresholdValue(updatedRule.getThresholdValue());
+        rule.setTargetScope(updatedRule.getTargetScope());
+        rule.setTargetId(updatedRule.getTargetId());
+        rule.setMetricWindowMinutes(updatedRule.getMetricWindowMinutes());
+        rule.setMinSampleCount(updatedRule.getMinSampleCount());
         rule.setSeverity(updatedRule.getSeverity());
         rule.setEnabled(updatedRule.getEnabled());
         rule.setNotificationChannels(updatedRule.getNotificationChannels());
         rule.setRecipientList(updatedRule.getRecipientList());
         rule.setCooldownMinutes(updatedRule.getCooldownMinutes());
 
+        normalizeRuleDefaults(rule);
         return ruleRepository.save(rule);
     }
 
@@ -88,7 +97,7 @@ public class AlertService {
 
     /**
      * 触发告警
-     * 加入防爆冷却机制，避免同一规则对同一智能体重复发送通知
+     * 同一规则类型和目标只保留一个活跃告警实例
      */
     @Transactional
     public AlertHistory triggerAlert(String ruleId, String agentId, String message) {
@@ -97,39 +106,28 @@ public class AlertService {
 
     /**
      * 触发告警（带 traceId）
-     * 加入防爆冷却机制，避免同一规则对同一智能体重复发送通知
+     * 同一规则类型和目标只保留一个活跃告警实例
      */
     @Transactional
     public AlertHistory triggerAlert(String ruleId, String agentId, String message, String traceId) {
         AlertRule rule = ruleRepository.findById(ruleId)
                 .orElseThrow(() -> new RuntimeException("Rule not found: " + ruleId));
 
-        // 检查冷却时间
-        String cacheKey = ruleId + ":" + (agentId != null ? agentId : "null");
-        long currentTime = System.currentTimeMillis();
-        int cooldownMinutes = rule.getCooldownMinutes() != null ? rule.getCooldownMinutes() : 5;
-        long cooldownPeriod = cooldownMinutes * 60 * 1000;
-
-        if (alertCooldownCache.containsKey(cacheKey)) {
-            long lastTriggerTime = alertCooldownCache.get(cacheKey);
-            if (currentTime - lastTriggerTime < cooldownPeriod) {
-                log.debug("Alert cooldown active for {}. Skipping notification.", cacheKey);
-                // 仍然创建告警历史，但不发送通知
-                AlertHistory history = AlertHistory.builder()
-                        .ruleId(ruleId)
-                        .ruleName(rule.getRuleName())
-                        .agentId(agentId)
-                        .traceId(traceId)
-                        .alertMessage(message)
-                        .severity(rule.getSeverity())
-                        .status("SUPPRESSED")
-                        .build();
-                return historyRepository.save(history);
-            }
+        String fingerprint = buildFingerprint(rule.getRuleType(), agentId);
+        LocalDateTime now = LocalDateTime.now();
+        Optional<AlertHistory> active = historyRepository.findFirstByFingerprintAndStatusOrderByTriggeredAtDesc(
+                fingerprint, "TRIGGERED");
+        if (active.isPresent()) {
+            AlertHistory history = active.get();
+            history.setAlertMessage(message);
+            history.setTraceId(traceId);
+            history.setLastTriggeredAt(now);
+            history.setRepeatCount(safeRepeatCount(history.getRepeatCount()) + 1);
+            history = historyRepository.save(history);
+            notificationService.updateRuleNotification(rule, message, fingerprint, history.getRepeatCount());
+            log.info("Alert instance updated: fingerprint={}, repeats={}", fingerprint, history.getRepeatCount());
+            return history;
         }
-
-        // 更新冷却缓存
-        alertCooldownCache.put(cacheKey, currentTime);
 
         // 创建告警历史
         AlertHistory history = AlertHistory.builder()
@@ -137,16 +135,19 @@ public class AlertService {
                 .ruleName(rule.getRuleName())
                 .agentId(agentId)
                 .traceId(traceId)
+                .fingerprint(fingerprint)
                 .alertMessage(message)
                 .severity(rule.getSeverity())
                 .status("TRIGGERED")
+                .repeatCount(1)
+                .lastTriggeredAt(now)
                 .build();
 
         history = historyRepository.save(history);
 
         // 发送通知
         try {
-            notificationService.sendRuleNotification(rule, message);
+            notificationService.sendRuleNotification(rule, message, fingerprint, history.getRepeatCount());
             log.info("Alert triggered and notification sent: {}", message);
         } catch (Exception e) {
             log.error("Failed to send alert notification", e);
@@ -157,7 +158,7 @@ public class AlertService {
 
     /**
      * 触发系统级告警 (无具体规则ID，依据类型兜底匹配)
-     * 加入防爆冷却机制 (5分钟内同类型同智能体不重复通知)
+     * 依据规则类型和目标聚合为同一个活跃告警实例
      */
     @Transactional
     public void triggerSystemAlert(String ruleType, String agentId, String message) {
@@ -166,30 +167,22 @@ public class AlertService {
 
     /**
      * 触发系统级告警（带 traceId）
-     * 加入防爆冷却机制 (5分钟内同类型同智能体不重复通知)
+     * 依据规则类型和目标聚合为同一个活跃告警实例
      */
     @Transactional
     public void triggerSystemAlert(String ruleType, String agentId, String message, String traceId) {
-        String cacheKey = ruleType + ":" + agentId;
-        long currentTime = System.currentTimeMillis();
+        triggerSystemAlert(ruleType, agentId, message, traceId, null);
+    }
 
-        // 5 minute cooldown (300,000 ms)
-        long cooldownPeriod = 5 * 60 * 1000;
-
-        if (alertCooldownCache.containsKey(cacheKey)) {
-            long lastTriggerTime = alertCooldownCache.get(cacheKey);
-            if (currentTime - lastTriggerTime < cooldownPeriod) {
-                log.debug("Alert cooldown active for {}. Skipping notification.", cacheKey);
-                return; // Suppress alert during cooldown
-            }
-        }
-
-        // Update cache
-        alertCooldownCache.put(cacheKey, currentTime);
-
-        // Find active rules matching the type
-        List<AlertRule> rules = ruleRepository.findByEnabledTrue().stream()
+    @Transactional
+    public int triggerSystemAlert(String ruleType, String agentId, String message, String traceId,
+                                  Map<String, Object> context) {
+        List<AlertRule> candidateRules = ruleRepository.findByEnabledTrue().stream()
                 .filter(r -> ruleType.equals(r.getRuleType()))
+                .filter(r -> matchesRuleTarget(r, agentId, context))
+                .toList();
+        List<AlertRule> rules = candidateRules.stream()
+                .filter(r -> matchesRuleCondition(r, context))
                 .toList();
 
         if (!rules.isEmpty()) {
@@ -197,26 +190,115 @@ public class AlertService {
             for (AlertRule rule : rules) {
                 triggerAlert(rule.getId(), agentId, message, traceId);
             }
-        } else {
-            // Fallback: create a generic alert history if no rule is configured
-            log.warn("No active rule found for type {}. Generating generic alert.", ruleType);
-            AlertHistory history = AlertHistory.builder()
-                    .ruleId("SYSTEM_DEFAULT")
-                    .ruleName("系统默认告警")
-                    .agentId(agentId)
-                    .traceId(traceId)
-                    .alertMessage(message)
-                    .severity("WARNING") // Default severity
-                    .status("TRIGGERED")
-                    .build();
+            return rules.size();
+        }
 
+        if (!candidateRules.isEmpty()) {
+            log.debug("System alert skipped because no enabled {} rule matched context={}", ruleType, context);
+            return 0;
+        }
+
+        // Fallback: create a generic alert history if no rule is configured
+        log.warn("No active rule found for type {}. Generating generic alert.", ruleType);
+        String fingerprint = buildFingerprint(ruleType, agentId);
+        LocalDateTime now = LocalDateTime.now();
+        Optional<AlertHistory> active = historyRepository.findFirstByFingerprintAndStatusOrderByTriggeredAtDesc(
+                fingerprint, "TRIGGERED");
+        if (active.isPresent()) {
+            AlertHistory history = active.get();
+            history.setAlertMessage(message);
+            history.setTraceId(traceId);
+            history.setLastTriggeredAt(now);
+            history.setRepeatCount(safeRepeatCount(history.getRepeatCount()) + 1);
             historyRepository.save(history);
-            try {
-                notificationService.sendSystemNotification("系统默认告警", "WARNING", message);
-            } catch (Exception e) {
-                log.error("Failed to send generic system alert notification", e);
+            notificationService.updateSystemNotification("系统默认告警", "WARNING", message,
+                    fingerprint, history.getRepeatCount());
+            return 1;
+        }
+        AlertHistory history = AlertHistory.builder()
+                .ruleId("SYSTEM_DEFAULT")
+                .ruleName("系统默认告警")
+                .agentId(agentId)
+                .traceId(traceId)
+                .fingerprint(fingerprint)
+                .alertMessage(message)
+                .severity("WARNING") // Default severity
+                .status("TRIGGERED")
+                .repeatCount(1)
+                .lastTriggeredAt(now)
+                .build();
+
+        historyRepository.save(history);
+        try {
+            notificationService.sendSystemNotification("系统默认告警", "WARNING", message,
+                    fingerprint, history.getRepeatCount());
+        } catch (Exception e) {
+            log.error("Failed to send generic system alert notification", e);
+        }
+        return 1;
+    }
+
+    public boolean matchesSystemAlertRule(String ruleType, Map<String, Object> context) {
+        return ruleRepository.findByEnabledTrue().stream()
+                .filter(rule -> ruleType.equals(rule.getRuleType()))
+                .filter(rule -> matchesRuleTarget(rule, null, context))
+                .anyMatch(rule -> matchesRuleCondition(rule, context));
+    }
+
+    @Transactional
+    public int triggerErrorRateAlert(String providerId, String message, String traceId,
+                                     Function<Integer, Map<String, Object>> contextFactory) {
+        List<AlertRule> candidateRules = ruleRepository.findByEnabledTrue().stream()
+                .filter(rule -> "ERROR_RATE".equals(rule.getRuleType()))
+                .filter(rule -> matchesRuleTarget(rule, providerId, Map.of("providerId", providerId)))
+                .toList();
+        int triggered = 0;
+        for (AlertRule rule : candidateRules) {
+            int windowMinutes = rule.getMetricWindowMinutes() != null && rule.getMetricWindowMinutes() > 0
+                    ? rule.getMetricWindowMinutes()
+                    : 5;
+            Map<String, Object> context = contextFactory.apply(windowMinutes);
+            if (matchesRuleCondition(rule, context)) {
+                triggerAlert(rule.getId(), providerId, message, traceId);
+                triggered++;
             }
         }
+        if (triggered == 0 && candidateRules.isEmpty()) {
+            triggerSystemAlert("ERROR_RATE", providerId, message, traceId, Map.of(
+                    "providerId", providerId,
+                    "lastFailure", true
+            ));
+            return 1;
+        }
+        return triggered;
+    }
+
+    @Transactional
+    public void resolveSystemAlert(String ruleType, String agentId, String message) {
+        String fingerprint = buildFingerprint(ruleType, agentId);
+        LocalDateTime now = LocalDateTime.now();
+        Optional<AlertHistory> active = historyRepository.findFirstByFingerprintAndStatusOrderByTriggeredAtDesc(
+                fingerprint, "TRIGGERED");
+        if (active.isEmpty()) {
+            return;
+        }
+
+        AlertHistory history = active.get();
+        history.setStatus("RESOLVED");
+        history.setResolvedAt(now);
+        history.setLastTriggeredAt(now);
+        history.setAlertMessage(message);
+        historyRepository.save(history);
+
+        ruleRepository.findByEnabledTrue().stream()
+                .filter(r -> ruleType.equals(r.getRuleType()))
+                .filter(r -> matchesRuleTarget(r, agentId, null))
+                .findFirst()
+                .ifPresentOrElse(
+                        rule -> notificationService.resolveRuleNotification(rule, message, fingerprint, history.getRepeatCount()),
+                        () -> notificationService.resolveSystemNotification("系统默认告警", message, fingerprint, history.getRepeatCount())
+                );
+        log.info("Alert instance resolved: fingerprint={}", fingerprint);
     }
 
     /**
@@ -309,5 +391,157 @@ public class AlertService {
             long enabledRules,
             long activeAlerts,
             long totalAlerts) {
+    }
+
+    private String buildFingerprint(String ruleType, String agentId) {
+        String normalizedRuleType = ruleType != null && !ruleType.isBlank() ? ruleType : "UNKNOWN";
+        String normalizedAgentId = agentId != null && !agentId.isBlank() ? agentId : "GLOBAL";
+        return normalizedRuleType + ":" + normalizedAgentId;
+    }
+
+    boolean matchesRuleCondition(AlertRule rule, Map<String, Object> context) {
+        if (rule == null || !Boolean.TRUE.equals(rule.getEnabled())) {
+            return false;
+        }
+        if (!matchesMinimumSample(rule, context)) {
+            return false;
+        }
+        String expr = rule.getConditionExpr();
+        if (expr == null || expr.isBlank() || context == null || context.isEmpty()) {
+            return true;
+        }
+
+        Matcher matcher = SIMPLE_CONDITION.matcher(expr);
+        if (!matcher.matches()) {
+            log.warn("Unsupported alert condition expression: rule={}, expr={}", rule.getRuleName(), expr);
+            return false;
+        }
+
+        Object actual = context.get(matcher.group(1));
+        if (actual == null) {
+            return false;
+        }
+
+        String operator = matcher.group(2);
+        String expectedRaw = stripQuotes(matcher.group(3));
+        Optional<Double> actualNumber = toDouble(actual);
+        Optional<Double> expectedNumber = toDouble(expectedRaw);
+        if (actualNumber.isPresent() && expectedNumber.isPresent()) {
+            return compareNumbers(actualNumber.get(), expectedNumber.get(), operator);
+        }
+
+        int textCompare = String.valueOf(actual).trim().compareToIgnoreCase(expectedRaw);
+        return switch (operator) {
+            case "==" -> textCompare == 0;
+            case "!=" -> textCompare != 0;
+            default -> false;
+        };
+    }
+
+    private boolean matchesMinimumSample(AlertRule rule, Map<String, Object> context) {
+        if (!"ERROR_RATE".equals(rule.getRuleType())
+                || rule.getConditionExpr() == null
+                || !rule.getConditionExpr().contains("errorRate")) {
+            return true;
+        }
+        int minSampleCount = rule.getMinSampleCount() != null && rule.getMinSampleCount() > 0
+                ? rule.getMinSampleCount()
+                : 1;
+        double totalCount = toDouble(context != null ? context.get("totalCount") : null).orElse(0.0);
+        return totalCount >= minSampleCount;
+    }
+
+    private boolean matchesRuleTarget(AlertRule rule, String agentId, Map<String, Object> context) {
+        String scope = normalizeTargetScope(rule != null ? rule.getTargetScope() : null);
+        String targetId = normalizeTargetId(rule != null ? rule.getTargetId() : null);
+        if ("ALL".equals(scope) || targetId == null) {
+            return true;
+        }
+
+        String actual = switch (scope) {
+            case "DEPENDENCY" -> firstNonBlank(contextValue(context, "dependency"), agentId);
+            case "PROVIDER" -> firstNonBlank(contextValue(context, "providerId"), agentId);
+            default -> null;
+        };
+        return actual != null && targetId.equals(normalizeTargetId(actual));
+    }
+
+    private void normalizeRuleDefaults(AlertRule rule) {
+        if (rule == null) {
+            return;
+        }
+        rule.setTargetScope(normalizeTargetScope(rule.getTargetScope()));
+        rule.setTargetId(blankToNull(rule.getTargetId()));
+        if (rule.getMetricWindowMinutes() == null || rule.getMetricWindowMinutes() < 1) {
+            rule.setMetricWindowMinutes(5);
+        }
+        if (rule.getMinSampleCount() == null || rule.getMinSampleCount() < 1) {
+            rule.setMinSampleCount(1);
+        }
+    }
+
+    private String normalizeTargetScope(String scope) {
+        if (scope == null || scope.isBlank()) {
+            return "ALL";
+        }
+        return scope.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeTargetId(String value) {
+        String normalized = blankToNull(value);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        String normalizedFirst = blankToNull(first);
+        return normalizedFirst != null ? normalizedFirst : blankToNull(second);
+    }
+
+    private String contextValue(Map<String, Object> context, String key) {
+        if (context == null || !context.containsKey(key)) {
+            return null;
+        }
+        Object value = context.get(key);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private boolean compareNumbers(double actual, double expected, String operator) {
+        return switch (operator) {
+            case ">" -> actual > expected;
+            case ">=" -> actual >= expected;
+            case "<" -> actual < expected;
+            case "<=" -> actual <= expected;
+            case "==" -> Double.compare(actual, expected) == 0;
+            case "!=" -> Double.compare(actual, expected) != 0;
+            default -> false;
+        };
+    }
+
+    private Optional<Double> toDouble(Object value) {
+        if (value instanceof Number number) {
+            return Optional.of(number.doubleValue());
+        }
+        try {
+            return Optional.of(Double.parseDouble(String.valueOf(value).trim()));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private String stripQuotes(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
+                || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            return trimmed.substring(1, trimmed.length() - 1);
+        }
+        return trimmed.toUpperCase(Locale.ROOT);
+    }
+
+    private int safeRepeatCount(Integer repeatCount) {
+        return repeatCount != null && repeatCount > 0 ? repeatCount : 1;
     }
 }

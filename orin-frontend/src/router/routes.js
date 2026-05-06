@@ -70,6 +70,8 @@ const monitorRoutes = {
     ALERTS: '/dashboard/runtime/alerts',
     AUDIT_LOGS: '/dashboard/runtime/audit-logs',
     ALERT_RULES: '/dashboard/runtime/alerts',
+    ALERT_RULE_CREATE: '/dashboard/runtime/alerts/rules/create',
+    ALERT_RULE_EDIT: '/dashboard/runtime/alerts/rules/:id/edit',
     NOTIFICATIONS: '/dashboard/runtime/alerts',
     TASKS: '/dashboard/runtime/tasks',
     SERVER: '/dashboard/runtime/server',
@@ -105,7 +107,6 @@ const systemRoutes = {
     PRICING: '/dashboard/control/pricing',
     MONITOR_SETTINGS: '/dashboard/control/system-env',
     GATEWAY: '/dashboard/control/gateway',
-    UNIFIED_GATEWAY: '/dashboard/control/unified-gateway',
     UNIFIED_API_DOCS: '/dashboard/control/unified-api-docs',
     MCP_SERVICE: '/dashboard/control/mcp-service',
     HELP_CENTER: '/unified-docs',
@@ -374,7 +375,7 @@ export const SIDEBAR_MENU_CONFIG = [
         children: [
             {
                 id: 'knowledge-center',
-                title: '知识库',
+                title: '知识检索',
                 icon: 'Reading',
                 path: ROUTES.KNOWLEDGE.CENTER,
             },

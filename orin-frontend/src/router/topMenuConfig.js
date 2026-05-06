@@ -81,7 +81,7 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.KNOWLEDGE.CENTER,
     requiresAdmin: false,
     children: [
-      { title: '知识库', path: ROUTES.KNOWLEDGE.CENTER, icon: 'Reading' },
+      { title: '知识检索', path: ROUTES.KNOWLEDGE.CENTER, icon: 'Reading' },
       { title: '知识资产', path: ROUTES.KNOWLEDGE.ASSETS, icon: 'Collection' },
     ],
   },

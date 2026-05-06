@@ -1,142 +1,215 @@
 <template>
-  <div class="user-management fade-in">
-    <OrinEntityHeader
-      domain="组织权限"
-      title="用户管理"
-      description="管理企业成员、权限角色、账号状态与组织范围"
-      :summary="userHeaderSummary"
-    >
-      <template #actions>
-        <a-button type="primary" class="create-btn" @click="handleCreate">
-          创建用户
-        </a-button>
-      </template>
-
-      <template #filters>
-        <div class="user-header-filters">
-          <a-input-search
-            v-model="searchQuery"
-            placeholder="搜索用户名 / 邮箱..."
-            class="search-input"
-            allow-clear
-            @input="handleSearch"
-          />
-          <a-button class="icon-btn" @click="loadUsers">
+  <div class="user-management page-container fade-in">
+    <section class="user-shell">
+      <header class="user-topbar">
+        <div class="topbar-copy">
+          <span class="topbar-eyebrow">组织权限</span>
+          <h1>用户管理</h1>
+          <p>维护企业成员、账号状态、部门归属和系统访问角色。</p>
+        </div>
+        <div class="topbar-actions">
+          <el-button :icon="Refresh" @click="loadUsers">
             刷新
-          </a-button>
+          </el-button>
+          <el-button type="primary" :icon="Plus" @click="handleCreate">
+            创建用户
+          </el-button>
         </div>
-      </template>
-    </OrinEntityHeader>
+      </header>
 
-    <OrinArcoDataTable
-      :columns="userColumns"
-      :data="filteredUsers"
-      :loading="loading"
-      row-key="id"
-      @row-click="openUserDetail"
-    >
-      <template #header>
-        <div class="table-title">
-          <strong>组织用户清单</strong>
-          <span>以权限和账号状态为核心维护口径</span>
+      <section class="summary-grid">
+        <article class="summary-card primary">
+          <span>用户总数</span>
+          <strong>{{ userStats.total }}</strong>
+          <p>当前组织中的全部账号</p>
+        </article>
+        <article class="summary-card">
+          <span>已启用</span>
+          <strong>{{ userStats.active }}</strong>
+          <p>可正常登录和访问系统</p>
+        </article>
+        <article class="summary-card">
+          <span>已禁用</span>
+          <strong>{{ userStats.inactive }}</strong>
+          <p>暂时阻止访问的账号</p>
+        </article>
+        <article class="summary-card">
+          <span>权限角色</span>
+          <strong>{{ userStats.roles }}</strong>
+          <p>当前账号覆盖的角色类型</p>
+        </article>
+      </section>
+
+      <section class="user-workspace">
+        <div class="workspace-head">
+          <div>
+            <h2>组织用户清单</h2>
+            <p>以部门归属、权限角色和账号状态为维护口径。</p>
+          </div>
+          <div class="workspace-tools">
+            <el-input
+              v-model="searchQuery"
+              placeholder="搜索用户名 / 邮箱"
+              clearable
+              @input="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+          </div>
         </div>
-      </template>
 
-      <template #username="{ record }">
-        <div class="user-info">
-          <a-avatar :size="32" class="user-avatar">
-            {{ record.username.charAt(0).toUpperCase() }}
-          </a-avatar>
-          <span class="username">{{ record.username }}</span>
-        </div>
-      </template>
+        <el-table
+          v-loading="loading"
+          :data="filteredUsers"
+          row-key="id"
+          class="user-table"
+          empty-text="暂无组织用户"
+          @row-click="openUserDetail"
+        >
+          <el-table-column label="用户" min-width="220" fixed>
+            <template #default="{ row }">
+              <div class="user-cell">
+                <div class="user-avatar">
+                  {{ getUserInitial(row) }}
+                </div>
+                <div class="user-copy">
+                  <strong>{{ row.username }}</strong>
+                  <span>{{ row.email || '未设置邮箱' }}</span>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
 
-      <template #role="{ record }">
-        <span :class="['role-badge', getRoleBadgeClass(record.role)]">
-          {{ getRoleName(record.role) }}
-        </span>
-      </template>
+          <el-table-column label="角色" width="160">
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                effect="light"
+                :type="isAdminRole(row.role) ? 'danger' : 'primary'"
+              >
+                {{ getRoleName(row.role) }}
+              </el-tag>
+            </template>
+          </el-table-column>
 
-      <template #department="{ record }">
-        <span class="department-text">{{ getDepartmentName(record.departmentId) }}</span>
-      </template>
+          <el-table-column label="部门" min-width="150">
+            <template #default="{ row }">
+              <span class="muted-text">{{ getDepartmentName(row.departmentId) }}</span>
+            </template>
+          </el-table-column>
 
-      <template #status="{ record }">
-        <div class="status-indicator">
-          <span :class="['status-dot', record.status === 'active' ? 'active' : 'inactive']" />
-          {{ record.status === 'active' ? '激活' : '禁用' }}
-        </div>
-      </template>
+          <el-table-column label="状态" width="130">
+            <template #default="{ row }">
+              <span class="status-pill" :class="row.status === 'active' ? 'active' : 'inactive'">
+                <span class="status-dot" />
+                {{ row.status === 'active' ? '启用中' : '已禁用' }}
+              </span>
+            </template>
+          </el-table-column>
 
-      <template #createdAt="{ record }">
-        <span class="time-text">{{ formatDate(record.createdAt) }}</span>
-      </template>
+          <el-table-column label="创建时间" width="180">
+            <template #default="{ row }">
+              <span class="time-text">{{ formatDate(row.createdAt) }}</span>
+            </template>
+          </el-table-column>
 
-      <template #lastLogin="{ record }">
-        <span class="time-text">{{ formatDate(record.lastLogin) }}</span>
-      </template>
+          <el-table-column label="最后登录" width="180">
+            <template #default="{ row }">
+              <span class="time-text">{{ formatDate(row.lastLogin) }}</span>
+            </template>
+          </el-table-column>
 
-      <template #actions="{ record }">
-        <div class="action-buttons" @click.stop>
-          <a-button type="text" size="mini" @click="openUserDetail(record)">详情</a-button>
-          <a-button type="text" size="mini" @click="handleEdit(record)">编辑</a-button>
-          <a-button
-            type="text"
-            size="mini"
-            :status="record.status === 'active' ? 'warning' : 'success'"
-            @click="handleToggleStatus(record)"
+          <el-table-column
+            label="操作"
+            width="210"
+            align="right"
+            fixed="right"
           >
-            {{ record.status === 'active' ? '禁用' : '启用' }}
-          </a-button>
-          <a-button type="text" size="mini" status="danger" @click="handleDelete(record)">删除</a-button>
+            <template #default="{ row }">
+              <div class="action-buttons" @click.stop>
+                <el-tooltip content="查看详情" placement="top">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="View"
+                    @click="openUserDetail(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="编辑用户" placement="top">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="Edit"
+                    @click="handleEdit(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip :content="row.status === 'active' ? '禁用用户' : '启用用户'" placement="top">
+                  <el-button
+                    link
+                    :type="row.status === 'active' ? 'warning' : 'success'"
+                    :icon="row.status === 'active' ? Lock : Unlock"
+                    @click="handleToggleStatus(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="删除用户" placement="top">
+                  <el-button
+                    link
+                    type="danger"
+                    :icon="Delete"
+                    @click="handleDelete(row)"
+                  />
+                </el-tooltip>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="table-footer">
+          <span>共 {{ totalUsers || filteredUsers.length }} 个用户</span>
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[10, 20, 50]"
+            :total="totalUsers || filteredUsers.length"
+            layout="sizes, prev, pager, next"
+            small
+            @size-change="handleSizeChange"
+            @current-change="handlePageChange"
+          />
         </div>
-      </template>
+      </section>
+    </section>
 
-      <template #empty>
-        <OrinEmptyState
-          description="暂无组织用户，请创建用户或调整搜索条件"
-          action-label="创建用户"
-          @action="handleCreate"
-        />
-      </template>
-
-      <template #footer>
-        <a-pagination
-          v-model:current="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50]"
-          :total="totalUsers"
-          show-total
-          show-page-size
-          size="small"
-          @page-size-change="handleSizeChange"
-          @change="handlePageChange"
-        />
-      </template>
-    </OrinArcoDataTable>
-
-    <OrinArcoDetailDrawer
+    <el-drawer
       v-model="detailVisible"
       title="用户详情"
-      :width="420"
+      size="420px"
+      class="user-drawer"
     >
-      <OrinDetailPanel
-        v-if="selectedUser"
-        :title="selectedUser.username"
-        :eyebrow="getRoleName(selectedUser.role)"
-      >
-        <dl class="user-detail-list">
-          <div>
-            <dt>邮箱</dt>
-            <dd>{{ selectedUser.email || '-' }}</dd>
+      <template v-if="selectedUser">
+        <section class="drawer-profile">
+          <div class="drawer-avatar">
+            {{ getUserInitial(selectedUser) }}
           </div>
+          <div>
+            <el-tag size="small" :type="isAdminRole(selectedUser.role) ? 'danger' : 'primary'">
+              {{ getRoleName(selectedUser.role) }}
+            </el-tag>
+            <h2>{{ selectedUser.username }}</h2>
+            <p>{{ selectedUser.email || '未设置邮箱' }}</p>
+          </div>
+        </section>
+
+        <dl class="user-detail-list">
           <div>
             <dt>部门</dt>
             <dd>{{ getDepartmentName(selectedUser.departmentId) }}</dd>
           </div>
           <div>
             <dt>账号状态</dt>
-            <dd>{{ selectedUser.status === 'active' ? '已激活' : '已禁用' }}</dd>
+            <dd>{{ selectedUser.status === 'active' ? '已启用' : '已禁用' }}</dd>
           </div>
           <div>
             <dt>创建时间</dt>
@@ -147,95 +220,111 @@
             <dd>{{ formatDate(selectedUser.lastLogin) }}</dd>
           </div>
         </dl>
-        <div class="drawer-actions">
-          <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button type="primary" @click="handleEdit(selectedUser)">编辑用户</a-button>
-        </div>
-      </OrinDetailPanel>
-    </OrinArcoDetailDrawer>
 
-    <!-- 创建/编辑用户对话框 -->
-    <OrinArcoFormDialog
-      ref="formRef"
+        <div class="drawer-actions">
+          <el-button @click="detailVisible = false">
+            关闭
+          </el-button>
+          <el-button type="primary" :icon="Edit" @click="handleEdit(selectedUser)">
+            编辑用户
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
+
+    <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑用户' : '创建用户'"
-      :width="480"
-      :model="formData"
-      :rules="formRules"
+      width="520px"
+      class="custom-dialog"
+      align-center
     >
-      <a-form-item label="用户名" field="username">
-        <a-input v-model="formData.username" placeholder="请输入用户名" />
-      </a-form-item>
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        label-position="top"
+        class="custom-form"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input v-model="formData.username" placeholder="请输入用户名" />
+        </el-form-item>
 
-      <a-form-item label="邮箱" field="email">
-        <a-input v-model="formData.email" placeholder="请输入邮箱" />
-      </a-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="formData.email" placeholder="请输入邮箱" />
+        </el-form-item>
 
-      <a-form-item v-if="!isEdit" label="密码" field="password">
-        <a-input-password v-model="formData.password" placeholder="设置初始密码" />
-      </a-form-item>
-
-      <div class="form-row">
-        <a-form-item label="角色" field="role" class="half-width">
-          <a-select v-model="formData.role" placeholder="选择角色">
-            <a-option label="超级管理员" value="ROLE_SUPER_ADMIN" />
-            <a-option label="平台管理员" value="ROLE_PLATFORM_ADMIN" />
-            <a-option label="业务运营" value="ROLE_OPERATOR" />
-            <a-option label="管理员" value="ROLE_ADMIN" />
-            <a-option label="普通用户" value="ROLE_USER" />
-          </a-select>
-        </a-form-item>
-
-        <a-form-item label="部门" field="departmentId" class="half-width">
-          <a-select v-model="formData.departmentId" placeholder="选择部门" allow-clear>
-            <a-option
-              v-for="dept in departments"
-              :key="dept.departmentId"
-              :label="dept.departmentName"
-              :value="dept.departmentId"
-            />
-          </a-select>
-        </a-form-item>
-      </div>
-
-      <a-form-item label="状态" field="status">
-        <div class="status-switch-wrapper">
-          <a-switch
-            v-model="formData.status"
-            checked-value="active"
-            unchecked-value="inactive"
+        <el-form-item v-if="!isEdit" label="密码" prop="password">
+          <el-input
+            v-model="formData.password"
+            type="password"
+            placeholder="设置初始密码"
+            show-password
           />
-          <span class="status-text">{{ formData.status === 'active' ? '已激活' : '已禁用' }}</span>
+        </el-form-item>
+
+        <div class="form-row">
+          <el-form-item label="角色" prop="role" class="half-width">
+            <el-select v-model="formData.role" placeholder="选择角色" class="full-width">
+              <el-option
+                v-for="role in roleOptions"
+                :key="role.value"
+                :label="role.label"
+                :value="role.value"
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="部门" prop="departmentId" class="half-width">
+            <el-select
+              v-model="formData.departmentId"
+              placeholder="选择部门"
+              clearable
+              class="full-width"
+            >
+              <el-option
+                v-for="dept in departments"
+                :key="dept.departmentId"
+                :label="dept.departmentName"
+                :value="dept.departmentId"
+              />
+            </el-select>
+          </el-form-item>
         </div>
-      </a-form-item>
+
+        <el-form-item label="状态" prop="status">
+          <div class="status-switch-wrapper">
+            <el-switch
+              v-model="formData.status"
+              active-value="active"
+              inactive-value="inactive"
+            />
+            <span>{{ formData.status === 'active' ? '已启用' : '已禁用' }}</span>
+          </div>
+        </el-form-item>
+      </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <a-button @click="dialogVisible = false">
+          <el-button @click="dialogVisible = false">
             取消
-          </a-button>
-          <a-button type="primary" :loading="submitting" @click="handleSubmit">
+          </el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">
             确认{{ isEdit ? '更新' : '创建' }}
-          </a-button>
+          </el-button>
         </div>
       </template>
-    </OrinArcoFormDialog>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus, getRoles } from '@/api/userManage'
+import { Delete, Edit, Lock, Plus, Refresh, Search, Unlock, View } from '@element-plus/icons-vue'
+import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus } from '@/api/userManage'
 import { getDepartmentList } from '@/api/department'
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
-import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
-import OrinDetailPanel from '@/components/orin/OrinDetailPanel.vue'
-import OrinArcoDataTable from '@/ui/arco/OrinArcoDataTable.vue'
-import OrinArcoDetailDrawer from '@/ui/arco/OrinArcoDetailDrawer.vue'
-import OrinArcoFormDialog from '@/ui/arco/OrinArcoFormDialog.vue'
 
-// 数据状态
 const loading = ref(false)
 const submitting = ref(false)
 const users = ref([])
@@ -245,7 +334,6 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const totalUsers = ref(0)
 
-// 对话框状态
 const dialogVisible = ref(false)
 const detailVisible = ref(false)
 const selectedUser = ref(null)
@@ -261,7 +349,14 @@ const formData = reactive({
   departmentId: null
 })
 
-// 表单验证规则
+const roleOptions = [
+  { label: '超级管理员', value: 'ROLE_SUPER_ADMIN' },
+  { label: '平台管理员', value: 'ROLE_PLATFORM_ADMIN' },
+  { label: '业务运营', value: 'ROLE_OPERATOR' },
+  { label: '管理员', value: 'ROLE_ADMIN' },
+  { label: '普通用户', value: 'ROLE_USER' }
+]
+
 const formRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -280,79 +375,54 @@ const formRules = {
   ]
 }
 
-const userColumns = [
-  { title: '用户名', dataIndex: 'username', minWidth: 170, slotName: 'username', fixed: 'left' },
-  { title: '邮箱', dataIndex: 'email', minWidth: 220 },
-  { title: '角色', dataIndex: 'role', width: 150, slotName: 'role' },
-  { title: '部门', dataIndex: 'departmentId', width: 160, slotName: 'department' },
-  { title: '状态', dataIndex: 'status', width: 120, slotName: 'status' },
-  { title: '创建时间', dataIndex: 'createdAt', width: 180, slotName: 'createdAt' },
-  { title: '最后登录', dataIndex: 'lastLogin', width: 180, slotName: 'lastLogin' },
-  { title: '操作', dataIndex: 'actions', width: 220, align: 'center', fixed: 'right', slotName: 'actions' }
-]
-
-// 过滤后的用户列表
 const filteredUsers = computed(() => {
   if (!searchQuery.value) return users.value
 
   const query = searchQuery.value.toLowerCase()
   return users.value.filter(user =>
-    user.username.toLowerCase().includes(query) ||
-    user.email.toLowerCase().includes(query)
+    (user.username || '').toLowerCase().includes(query) ||
+    (user.email || '').toLowerCase().includes(query)
   )
 })
 
-const userHeaderSummary = computed(() => [
-  {
-    label: '用户总数',
-    value: totalUsers.value || users.value.length
-  },
-  {
-    label: '已启用',
-    value: users.value.filter(user => user.status === 'active').length
-  },
-  {
-    label: '禁用',
-    value: users.value.filter(user => user.status !== 'active').length
-  },
-  {
-    label: '权限角色',
-    value: new Set(users.value.map(user => user.role).filter(Boolean)).size
-  }
-])
+const userStats = computed(() => ({
+  total: totalUsers.value || users.value.length,
+  active: users.value.filter(user => user.status === 'active').length,
+  inactive: users.value.filter(user => user.status !== 'active').length,
+  roles: new Set(users.value.map(user => user.role).filter(Boolean)).size
+}))
 
 const openUserDetail = (row) => {
   selectedUser.value = row
   detailVisible.value = true
 }
 
-// 获取角色名称
 const getRoleName = (role) => {
   const roleMap = {
-    'ROLE_SUPER_ADMIN': '超级管理员',
-    'ROLE_PLATFORM_ADMIN': '平台管理员',
-    'ROLE_OPERATOR': '业务运营',
-    'ROLE_ADMIN': '管理员',
-    'ROLE_USER': '普通用户'
+    ROLE_SUPER_ADMIN: '超级管理员',
+    ROLE_PLATFORM_ADMIN: '平台管理员',
+    ROLE_OPERATOR: '业务运营',
+    ROLE_ADMIN: '管理员',
+    ROLE_USER: '普通用户'
   }
-  return roleMap[role] || role
+  return roleMap[role] || role || '-'
 }
 
-const getRoleBadgeClass = (role) => {
-  if (['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_ADMIN'].includes(role)) {
-    return 'role-admin'
-  }
-  return 'role-user'
+const isAdminRole = (role) => {
+  return ['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_ADMIN'].includes(role)
 }
 
-// 获取部门名称
+const getUserInitial = (user) => {
+  const source = user?.username || user?.email || '?'
+  return source.charAt(0).toUpperCase()
+}
+
 const getDepartmentName = (departmentId) => {
   if (!departmentId) return '-'
   const dept = departments.value.find(d => d.departmentId === departmentId)
   return dept ? dept.departmentName : '-'
 }
 
-// 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
@@ -365,11 +435,9 @@ const formatDate = (dateString) => {
   })
 }
 
-// 加载用户列表
 const loadUsers = async () => {
   loading.value = true
   try {
-    // 加载用户列表和部门列表
     const [userRes, deptRes] = await Promise.all([
       getUserList({
         page: currentPage.value - 1,
@@ -379,10 +447,7 @@ const loadUsers = async () => {
       getDepartmentList()
     ])
 
-    // 设置部门列表
     departments.value = deptRes.data || []
-
-    // 映射后端字段到前端字段
     users.value = (userRes.data || []).map(user => ({
       ...user,
       createdAt: user.createTime,
@@ -399,12 +464,10 @@ const loadUsers = async () => {
   }
 }
 
-// 搜索处理
 const handleSearch = () => {
   currentPage.value = 1
 }
 
-// 分页处理
 const handleSizeChange = (size) => {
   pageSize.value = size
   loadUsers()
@@ -415,7 +478,6 @@ const handlePageChange = (page) => {
   loadUsers()
 }
 
-// 创建用户
 const handleCreate = () => {
   isEdit.value = false
   Object.assign(formData, {
@@ -430,14 +492,13 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-// 编辑用户
 const handleEdit = (row) => {
   isEdit.value = true
   Object.assign(formData, {
     id: row.id,
     username: row.username,
     email: row.email,
-    password: '', // 编辑时不显示密码
+    password: '',
     role: row.role,
     status: row.status,
     departmentId: row.departmentId
@@ -445,12 +506,14 @@ const handleEdit = (row) => {
   dialogVisible.value = true
 }
 
-// 提交表单
 const handleSubmit = async () => {
   if (!formRef.value) return
 
-  const errors = await formRef.value.validate()
-  if (errors) return
+  try {
+    await formRef.value.validate()
+  } catch (error) {
+    return
+  }
 
   submitting.value = true
   try {
@@ -480,7 +543,6 @@ const handleSubmit = async () => {
   }
 }
 
-// 切换用户状态
 const handleToggleStatus = async (row) => {
   const newStatus = row.status === 'active' ? 'inactive' : 'active'
   const action = newStatus === 'active' ? '启用' : '禁用'
@@ -498,6 +560,9 @@ const handleToggleStatus = async (row) => {
 
     await toggleUserStatus(row.id, newStatus === 'active')
     row.status = newStatus
+    if (selectedUser.value?.id === row.id) {
+      selectedUser.value = row
+    }
     ElMessage.success(`${action}成功`)
   } catch (error) {
     if (error !== 'cancel') {
@@ -506,7 +571,6 @@ const handleToggleStatus = async (row) => {
   }
 }
 
-// 删除用户
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm(
@@ -521,6 +585,10 @@ const handleDelete = async (row) => {
 
     await deleteUser(row.id)
     ElMessage.success('删除成功')
+    if (selectedUser.value?.id === row.id) {
+      detailVisible.value = false
+      selectedUser.value = null
+    }
     loadUsers()
   } catch (error) {
     if (error !== 'cancel') {
@@ -541,381 +609,357 @@ onUnmounted(() => {
 
 <style scoped>
 .user-management {
-  padding: 32px;
-  max-width: 1600px;
-  margin: 0 auto;
-  background: #ffffff;
   min-height: 100vh;
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeIn 0.35s ease-out;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.user-header-filters {
+.user-shell {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.create-btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 5px;
-  font-weight: 600;
-  transition: transform 0.15s;
-}
-
-.create-btn:active {
-  transform: scale(0.98);
-}
-
-.search-input {
-  width: 260px;
-}
-
-.table-title {
+.user-topbar {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
 
-.table-title strong {
-  color: #111827;
-  font-size: 14px;
+.topbar-copy {
+  min-width: 0;
+}
+
+.topbar-eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--el-color-primary);
+  font-size: 12px;
   font-weight: 700;
 }
 
-.table-title span {
-  color: #64748b;
+.topbar-copy h1 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 26px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.topbar-copy p {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summary-card {
+  padding: 18px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+}
+
+.summary-card.primary {
+  border-color: var(--el-color-primary-light-7);
+  background: linear-gradient(180deg, var(--el-color-primary-light-9), var(--el-bg-color));
+}
+
+.summary-card span {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.summary-card strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--el-text-color-primary);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.summary-card p {
+  margin: 10px 0 0;
+  color: var(--el-text-color-secondary);
   font-size: 12px;
 }
 
-:deep(.search-input .el-input__wrapper) {
-  border-radius: 8px;
-  box-shadow: 0 0 0 1px var(--el-border-color-lighter) inset;
-}
-
-:deep(.search-input .el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
-}
-
-.icon-btn {
-  border: 1px solid var(--border-color, var(--el-border-color-lighter));
-  background: var(--card-bg, transparent);
-}
-
-.icon-btn:hover {
-  background: var(--el-fill-color-light);
-  color: var(--el-color-primary);
-  border-color: var(--el-color-primary-light-5);
-}
-
-/* Table Styles */
-.premium-table {
-  border-radius: 8px;
+.user-workspace {
   overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
 }
 
-:deep(.el-table th.el-table__cell) {
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 12px;
+.workspace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
-:deep(.el-table tr) {
-  transition: background-color 0.2s;
+.workspace-head h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 16px;
+  font-weight: 720;
 }
 
-.user-info {
+.workspace-head p {
+  margin: 6px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.workspace-tools {
+  width: min(340px, 100%);
+}
+
+.user-table {
+  width: 100%;
+}
+
+:deep(.user-table .el-table__header th) {
+  background: var(--el-fill-color-extra-light);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+:deep(.user-table .el-table__row) {
+  cursor: pointer;
+}
+
+.user-cell {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
-.user-avatar {
-  background: var(--el-color-primary-light-8);
+.user-avatar,
+.drawer-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--el-color-primary-light-6);
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
-  font-weight: 600;
-  border: 1px solid var(--el-color-primary-light-5);
+  font-size: 14px;
+  font-weight: 760;
+  flex-shrink: 0;
 }
 
-.username {
-  font-weight: 500;
+.user-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-copy strong {
+  overflow: hidden;
   color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.role-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.role-admin {
-  background: var(--el-color-danger-light-9);
-  color: var(--el-color-danger);
-  border: 1px solid var(--el-color-danger-light-8);
-}
-
-.role-user {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  border: 1px solid var(--el-color-primary-light-8);
-}
-
-.department-text {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.status-dot.active {
-  background-color: var(--success-500);
-  box-shadow: 0 0 0 2px var(--success-light);
-}
-
-html.dark .status-dot.active {
-  box-shadow: 0 0 0 2px rgba(19, 206, 102, 0.3);
-}
-
-.status-dot.inactive {
-  background-color: var(--neutral-gray-400);
-  opacity: 0.6;
-}
-
+.user-copy span,
+.muted-text,
 .time-text {
-  font-size: 13px;
   color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 
-.action-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-
-.action-btn {
-  min-width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  padding: 0 6px;
-  display: flex;
+.status-pill {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
+  gap: 7px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 680;
 }
 
-.action-btn.edit:hover {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-}
-
-.action-btn.warning:hover {
-  background: var(--el-color-warning-light-9);
-  color: var(--el-color-warning);
-}
-
-.action-btn.success:hover {
+.status-pill.active {
   background: var(--el-color-success-light-9);
   color: var(--el-color-success);
 }
 
-.action-btn.delete:hover {
-  background: var(--el-color-danger-light-9);
-  color: var(--el-color-danger);
+.status-pill.inactive {
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.action-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.drawer-profile {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.drawer-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 20px;
+}
+
+.drawer-profile h2 {
+  margin: 10px 0 4px;
+  color: var(--el-text-color-primary);
+  font-size: 20px;
+}
+
+.drawer-profile p {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 
 .user-detail-list {
-  margin: 0;
-  padding: 16px;
+  margin: 18px 0 0;
 }
 
 .user-detail-list div {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
+  padding: 13px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .user-detail-list dt {
-  color: var(--text-secondary, #64748b);
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   font-weight: 700;
 }
 
 .user-detail-list dd {
   margin: 0;
-  color: var(--text-primary, #1e293b);
+  color: var(--el-text-color-primary);
   text-align: right;
 }
 
-.drawer-actions {
+.drawer-actions,
+.dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 16px;
-  border-top: 1px solid var(--orin-border-strong, #d8e0e8);
+  gap: 10px;
 }
 
-/* Dialog Styles */
+.drawer-actions {
+  margin-top: 20px;
+}
+
 .form-row {
-  display: flex;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
-.half-width {
-  flex: 1;
+.full-width {
+  width: 100%;
 }
 
 .status-switch-wrapper {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 32px;
-}
-
-.status-text {
-  font-size: 13px;
+  min-height: 32px;
   color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+html.dark .summary-card,
+html.dark .user-workspace {
+  box-shadow: none;
 }
 
-/* Dark Mode Overrides */
-html.dark .user-management {
-  background: var(--bg-color);
+@media (max-width: 1100px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-html.dark .search-input :deep(.el-input__wrapper) {
-  background: var(--neutral-gray-100);
-  box-shadow: 0 0 0 1px var(--border-color) inset;
-}
+@media (max-width: 760px) {
+  .user-topbar,
+  .workspace-head,
+  .table-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
 
-html.dark .icon-btn {
-  background: var(--card-bg);
-  border-color: var(--border-color);
-}
+  .topbar-actions {
+    justify-content: flex-start;
+  }
 
-html.dark .icon-btn:hover {
-  background: var(--neutral-gray-200);
-}
+  .summary-grid,
+  .form-row {
+    grid-template-columns: 1fr;
+  }
 
-html.dark .role-admin {
-  background: var(--error-light);
-  border-color: var(--error-100);
-  color: var(--error-500);
-}
-
-html.dark .role-user {
-  background: var(--primary-light);
-  border-color: var(--primary-100);
-  color: var(--orin-primary);
-}
-
-html.dark .status-text {
-  color: var(--text-secondary);
-}
-
-html.dark .time-text {
-  color: var(--text-secondary);
-}
-
-html.dark .username {
-  color: var(--text-primary);
-}
-
-/* Dialog dark mode */
-html.dark .custom-dialog :deep(.el-dialog) {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-}
-
-html.dark .custom-dialog :deep(.el-dialog__header) {
-  border-bottom: 1px solid var(--border-color);
-}
-
-html.dark .custom-dialog :deep(.el-dialog__title) {
-  color: var(--text-primary);
-}
-
-html.dark .custom-dialog :deep(.el-dialog__footer) {
-  border-top: 1px solid var(--border-color);
-}
-
-html.dark .custom-form :deep(.el-form-item__label) {
-  color: var(--text-secondary);
-}
-
-html.dark .custom-form :deep(.el-input__wrapper) {
-  background: var(--neutral-gray-100);
-}
-
-html.dark .custom-form :deep(.el-select .el-input__wrapper) {
-  background: var(--neutral-gray-100);
-}
-
-/* Pagination dark mode */
-html.dark .el-pagination {
-  --el-pagination-bg-color: var(--card-bg);
-  --el-pagination-text-color: var(--text-secondary);
-  --el-pagination-button-bg-color: var(--card-bg);
-  --el-pagination-button-color: var(--text-secondary);
-  --el-pagination-hover-color: var(--orin-primary);
-}
-
-html.dark .el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
-  background-color: var(--orin-primary);
-  color: #041010;
-}
-
-html.dark .el-pagination.is-background .el-pager li:not(.is-disabled):hover {
-  color: var(--orin-primary);
-}
-
-html.dark .el-pagination.is-background .btn-prev,
-html.dark .el-pagination.is-background .btn-next {
-  background-color: var(--card-bg);
-  color: var(--text-secondary);
-}
-
-html.dark .el-pagination.is-background .btn-prev:hover,
-html.dark .el-pagination.is-background .btn-next:hover {
-  color: var(--orin-primary);
-}
-
-html.dark .el-pagination__total {
-  color: var(--text-secondary);
-}
-
-html.dark .el-pagination .el-select__wrapper {
-  background: var(--card-bg);
+  .workspace-tools {
+    width: 100%;
+  }
 }
 </style>

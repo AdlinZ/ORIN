@@ -82,8 +82,6 @@ export const buildWorkspaceChipSets = (context = {}) => {
       })
     );
   }
-  composer.push(...modelParamChips);
-
   const input = [
     createQuickChip({
       key: 'input-mode',
@@ -105,8 +103,6 @@ export const buildWorkspaceChipSets = (context = {}) => {
       })
     );
   }
-  input.push(...modelParamChips);
-
   return { top, composer, input };
 };
 

@@ -289,6 +289,10 @@
                     controls-position="right"
                   />
                 </div>
+                <div class="config-row">
+                  <span>深度思考</span>
+                  <el-switch v-model="workspaceDeepThinking" active-text="开" inactive-text="关" />
+                </div>
                 <div class="prompt-editor">
                   <div class="prompt-editor-header">
                     <el-icon class="prompt-editor-icon"><ChatRound /></el-icon>
@@ -476,14 +480,6 @@
               <div class="config-row">
                 <span>消息数</span>
                 <strong>{{ messages.length }}</strong>
-              </div>
-              <div class="config-row">
-                <span>快捷建议</span>
-                <el-switch v-model="currentConfig.enableSuggestions" />
-              </div>
-              <div class="config-row">
-                <span>显示检索上下文</span>
-                <el-switch v-model="currentConfig.showRetrievedContext" />
               </div>
             </section>
           </template>
@@ -815,15 +811,6 @@
                   <button type="button" class="plus-trigger" :disabled="uploadingFile" @click="triggerFilePicker">
                     +
                   </button>
-                  <button
-                    type="button"
-                    class="collaboration-toggle-chip"
-                    :class="{ active: collaborationRequested }"
-                    :disabled="loading"
-                    @click="collaborationRequested = !collaborationRequested"
-                  >
-                    协作
-                  </button>
                 </div>
                 <div class="composer-right-tools">
                   <el-button
@@ -912,16 +899,20 @@
                             {{ formatTraceStatus(trace.status) }}
                           </span>
                           <span v-if="trace.durationMs != null" class="reasoning-duration">{{ trace.durationMs }}ms</span>
-                          <button type="button" class="reasoning-expand-btn">
+                          <button
+                            v-if="shouldShowTraceDetail(trace)"
+                            type="button"
+                            class="reasoning-expand-btn"
+                          >
                             {{ isTraceDetailExpanded(msg, index, traceIdx) ? '收起' : '详情' }}
                           </button>
                         </div>
                         <div class="reasoning-msg">{{ trace.message }}</div>
                         <div
-                          v-if="trace.detail && isTraceDetailExpanded(msg, index, traceIdx)"
+                          v-if="shouldShowTraceDetail(trace) && isTraceDetailExpanded(msg, index, traceIdx)"
                           class="reasoning-detail"
                         >
-                          <pre>{{ typeof trace.detail === 'object' ? JSON.stringify(trace.detail, null, 2) : trace.detail }}</pre>
+                          <pre>{{ formatTraceDetail(trace) }}</pre>
                         </div>
                       </div>
                     </div>
@@ -1349,6 +1340,7 @@ const selectedProviderKeyId = ref(null);
 const expandedRetrievedContext = ref({});
 const expandedTraceDetails = ref({});
 const expandedCollaborationDetails = ref({});
+const workspaceDeepThinking = ref(false);
 const collaborationRequested = ref(false);
 const collaborationInspectorVisible = ref(false);
 const collaborationInspectorTab = ref('graph');
@@ -3573,7 +3565,10 @@ const sendMessage = async () => {
         skillIds: currentConfig.skillIds || [],
         mcpIds: currentConfig.mcpIds || [],
         kbDocFilters: normalizeKbDocFilters(kbDocFilters),
-        conversationContextMessages
+        conversationContextMessages,
+        enableThinking: workspaceDeepThinking.value,
+        thinkingBudget: workspaceDeepThinking.value ? Math.max(1024, Math.min(8192, Number(agentRuntimeForm.maxTokens || 2000))) : null,
+        maxTokens: Number(agentRuntimeForm.maxTokens || 2000)
       };
       const assistantMessage = normalizeWorkspaceMessage({
         role: 'assistant',
@@ -3769,6 +3764,7 @@ const formatTraceType = (type) => {
     KB_PIPELINE: '检索链路',
     KB_MODEL_TOOL_CALL: '模型工具调用',
     KB_MODEL_TOOL_FINAL: '模型工具调用总结',
+    MODEL_REASONING: '模型思考',
     STREAM_FALLBACK: '流式回退'
   };
   return labelMap[type] || type || '处理步骤';
@@ -3781,6 +3777,44 @@ const formatTraceStatus = (status) => {
   if (s === 'warning') return '提醒';
   if (s === 'error') return '失败';
   return '处理中';
+};
+
+const shouldShowTraceDetail = (trace = {}) => {
+  if (!trace?.detail) return false;
+  return true;
+};
+
+const formatTraceDetail = (trace = {}) => {
+  const detail = trace?.detail;
+  if (!detail) return '';
+  if (trace.type !== 'MODEL_REASONING') {
+    return typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
+  }
+
+  const getReasonContext = (payload = {}) => {
+    const candidates = [
+      payload.reasonContext,
+      payload.reason_context,
+      payload['reason-context'],
+      payload.reasoningContext,
+      payload.reasoning_context,
+      payload['reasoning-context']
+    ];
+    for (const candidate of candidates) {
+      if (candidate == null) continue;
+      if (typeof candidate === 'string') {
+        if (candidate.trim()) return candidate;
+        continue;
+      }
+      if (typeof candidate === 'object') {
+        return JSON.stringify(candidate, null, 2);
+      }
+      return String(candidate);
+    }
+    return '';
+  };
+  const reasonContext = getReasonContext(detail);
+  return reasonContext || '未返回 reason-context';
 };
 
 const upsertAssistantTrace = (existing, incoming) => {

@@ -16,6 +16,9 @@ public class ChatMessageRequest {
     private List<Long> skillIds;
     private List<Long> mcpIds;
     private List<Map<String, Object>> conversationContextMessages;
+    private Boolean enableThinking;
+    private Integer thinkingBudget;
+    private Integer maxTokens;
 
     /** kbId -> documentIds mapping for filtering retrieval scope */
     private Map<String, List<String>> kbDocFilters;

@@ -209,4 +209,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          * 根据 traceId 查询审计日志 (分页)
          */
         Page<AuditLog> findByTraceIdOrderByCreatedAtDesc(String traceId, Pageable pageable);
+
+        long countByProviderIdAndCreatedAtGreaterThanEqual(String providerId, LocalDateTime createdAt);
+
+        long countByProviderIdAndSuccessFalseAndCreatedAtGreaterThanEqual(String providerId, LocalDateTime createdAt);
 }

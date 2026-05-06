@@ -1,311 +1,416 @@
 <template>
-  <div class="sync-container">
-    <OrinEntityHeader
-      domain="系统设置"
-      title="数据同步"
-      description="管理知识库端侧同步、Webhook 回调与 Dify 上游同步"
-      :summary="syncHeaderSummary"
-    >
-      <template #actions>
-        <el-button
-          :icon="Refresh"
-          :loading="statusLoading"
-          :disabled="syncPolling"
-          @click="loadStatus"
-        >
-          刷新状态
-        </el-button>
-      </template>
-      <template #filters>
-        <div class="sync-nav">
+  <div class="sync-container page-container fade-in">
+    <section class="sync-console">
+      <header class="sync-hero">
+        <div class="sync-hero-row">
+          <div class="sync-hero-main">
+            <div class="sync-icon">
+              <el-icon><Refresh /></el-icon>
+            </div>
+            <div class="sync-title-block">
+              <h1>数据同步</h1>
+              <p>管理知识库端侧同步、Webhook 回调与 Dify 上游同步。</p>
+            </div>
+          </div>
+
+          <div class="sync-hero-actions">
+            <el-button
+              :icon="Refresh"
+              :loading="statusLoading"
+              :disabled="syncPolling"
+              @click="loadStatus"
+            >
+              刷新状态
+            </el-button>
+          </div>
+        </div>
+
+        <div class="sync-summary" data-testid="sync-workspaces">
           <button
             v-for="tab in tabs"
             :key="tab.name"
-            class="sync-nav-item"
-            :class="{ active: activeTab === tab.name }"
+            type="button"
+            :class="['sync-summary-card', { active: activeTab === tab.name }]"
             @click="switchTab(tab.name)"
           >
             <el-icon><component :is="tab.icon" /></el-icon>
-            <span>{{ tab.label }}</span>
+            <span>
+              <strong>{{ tab.label }}</strong>
+              <small>{{ tabSummaryMap[tab.name] }}</small>
+            </span>
           </button>
         </div>
-      </template>
-    </OrinEntityHeader>
+      </header>
 
-    <!-- 主内容 -->
-    <!-- 状态栏 -->
-      <div v-if="activeTab !== 'dify'" class="status-bar">
-        <div class="status-item">
-          <span class="status-label">最新检查点</span>
-          <el-tag :type="checkpointData?.checkpoint ? 'success' : 'info'" size="small">
-            {{ checkpointData?.checkpoint ? formatDateTime(checkpointData.checkpoint) : '暂无' }}
-          </el-tag>
-        </div>
-        <div class="status-item">
-          <span class="status-label">待同步变更</span>
-          <el-tag :type="pendingCount > 0 ? 'warning' : 'success'" size="small">
-            {{ pendingCount }}
-          </el-tag>
-        </div>
-      </div>
-
-      <el-alert
-        v-if="syncPolling && activeTab !== 'dify'"
-        class="sync-polling-alert"
-        type="info"
-        :closable="false"
-        show-icon
-        title="同步进行中，正在自动刷新状态..."
-      />
-
-      <!-- 变更记录 -->
-      <div v-show="activeTab === 'changes'" class="tab-content">
-        <div class="content-toolbar">
-          <div class="toolbar-left">
-            <el-button size="small" :icon="Refresh" :loading="changesLoading" @click="loadChanges">
-              刷新
-            </el-button>
+      <section class="sync-content-panel">
+        <!-- 状态栏 -->
+        <div v-if="activeTab !== 'dify'" class="status-bar">
+          <div class="status-item">
+            <span class="status-label">最新检查点</span>
+            <el-tag :type="checkpointData?.checkpoint ? 'success' : 'info'" size="small">
+              {{ checkpointData?.checkpoint ? formatDateTime(checkpointData.checkpoint) : '暂无' }}
+            </el-tag>
           </div>
-          <div class="toolbar-right">
-            <el-button type="primary" size="small" :loading="syncing" :disabled="syncPolling || !agentList.length" @click="handleFullSync">
-              全量同步
-            </el-button>
-            <el-button type="success" size="small" :loading="syncing" :disabled="syncPolling || !agentList.length" @click="handleIncrementalSync">
-              增量同步
-            </el-button>
+          <div class="status-item">
+            <span class="status-label">待同步变更</span>
+            <el-tag :type="pendingCount > 0 ? 'warning' : 'success'" size="small">
+              {{ pendingCount }}
+            </el-tag>
           </div>
         </div>
 
-        <el-table v-loading="changesLoading" :data="changes" stripe>
-          <template #empty>
-            <el-empty description="暂无变更记录" :image-size="80" />
-          </template>
-          <el-table-column prop="agentId" label="Agent" width="170" show-overflow-tooltip />
-          <el-table-column prop="documentId" label="文档ID" width="200" show-overflow-tooltip />
-          <el-table-column prop="knowledgeBaseId" label="知识库ID" width="150" show-overflow-tooltip />
-          <el-table-column prop="changeType" label="变更类型" width="100">
-            <template #default="{ row }">
-              <el-tag :type="getChangeTypeTag(row.changeType)" size="small">{{ row.changeType }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="version" label="版本" width="80" />
-          <el-table-column prop="contentHash" label="Hash" width="150" show-overflow-tooltip />
-          <el-table-column prop="changedAt" label="变更时间" width="180">
-            <template #default="{ row }">{{ formatDateTime(row.changedAt) }}</template>
-          </el-table-column>
-          <el-table-column prop="synced" label="已同步" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.synced ? 'success' : 'warning'" size="small">
-                {{ row.synced ? '是' : '否' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
+        <el-alert
+          v-if="syncPolling && activeTab !== 'dify'"
+          class="sync-polling-alert"
+          type="info"
+          :closable="false"
+          show-icon
+          title="同步进行中，正在自动刷新状态..."
+        />
 
-        <div class="pagination-wrapper">
-          <el-pagination
-            v-model:current-page="changesPage"
-            v-model:page-size="changesSize"
-            :total="changesTotal"
-            :page-sizes="[10, 20, 50]"
-            layout="total, sizes, prev, pager, next"
-            @size-change="loadChanges"
-            @current-change="loadChanges"
-          />
-        </div>
-      </div>
-
-      <!-- Webhook -->
-      <div v-show="activeTab === 'webhooks'" class="tab-content">
-        <div class="content-toolbar">
-          <div class="toolbar-left" />
-          <div class="toolbar-right">
-            <el-button type="primary" size="small" @click="openWebhookDialog">
-              添加 Webhook
-            </el-button>
-          </div>
-        </div>
-
-        <el-table v-loading="webhooksLoading" :data="webhooks">
-          <template #empty>
-            <el-empty description="暂无 Webhook 配置" :image-size="80" />
-          </template>
-          <el-table-column prop="agentId" label="Agent" width="170" show-overflow-tooltip />
-          <el-table-column prop="webhookUrl" label="URL" show-overflow-tooltip />
-          <el-table-column prop="eventTypes" label="事件类型" width="220">
-            <template #default="{ row }">
-              <el-tag
-                v-for="event in (row.eventTypes || '').split(',').filter(Boolean)"
-                :key="event"
+        <!-- 变更记录 -->
+        <div v-show="activeTab === 'changes'" class="tab-content">
+          <div class="content-toolbar">
+            <div class="toolbar-left">
+              <el-button
                 size="small"
-                class="event-tag"
+                :icon="Refresh"
+                :loading="changesLoading"
+                @click="loadChanges"
               >
-                {{ event }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="enabled" label="状态" width="90">
-            <template #default="{ row }">
-              <el-tag :type="row.disabled ? 'danger' : row.enabled ? 'success' : 'info'" size="small">
-                {{ row.disabled ? '已失效' : row.enabled ? '启用' : '禁用' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="failureCount" label="失败次数" width="90">
-            <template #default="{ row }">
-              <span :class="{ 'text-danger': row.failureCount > 0 }">{{ row.failureCount || 0 }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="lastFailureTime" label="最后失败" width="160">
-            <template #default="{ row }">
-              {{ row.lastFailureTime ? formatDateTime(row.lastFailureTime) : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="160">
-            <template #default="{ row }">
-              <el-button v-if="row.disabled" type="primary" size="small" text @click="handleReenableWebhook(row.id)">
-                重新启用
+                刷新
               </el-button>
-              <el-button type="danger" size="small" text @click="handleDeleteWebhook(row.id)">
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-      <!-- Dify 同步 -->
-      <div v-show="activeTab === 'dify'" class="tab-content">
-        <div class="dify-layout">
-          <!-- 左：配置 -->
-          <div class="dify-config-card">
-            <div class="section-title">Dify 连接配置</div>
-            <el-form :model="difyConfig" label-width="90px" size="default">
-              <el-form-item label="API 地址">
-                <el-input v-model="difyConfig.apiUrl" placeholder="http://localhost:3000/v1" />
-              </el-form-item>
-              <el-form-item label="API Key">
-                <el-input v-model="difyConfig.apiKey" type="password" show-password placeholder="dataset-*** 或 app-***" />
-              </el-form-item>
-              <el-form-item label="Key 类型">
-                <el-tag v-if="difyKeyType === 'dataset'" type="success">Dataset API Key</el-tag>
-                <el-tag v-else-if="difyKeyType === 'app'" type="warning">App API Key</el-tag>
-                <el-tag v-else type="info">未识别</el-tag>
-              </el-form-item>
-              <el-form-item label="启用">
-                <el-switch v-model="difyConfig.enabled" />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" :loading="difySaving" @click="handleSaveDifyConfig">保存</el-button>
-                <el-button :loading="difyTesting" @click="handleTestDifyConnection">测试连接</el-button>
-              </el-form-item>
-            </el-form>
-            <el-alert
-              v-if="difyKeyType === 'dataset'"
-              title="当前是 Dataset API Key：支持知识库同步，不支持应用/工作流同步与平台概览。"
-              type="info"
-              :closable="false"
-              show-icon
-            />
-          </div>
-
-          <!-- 右：同步动作 + 概览 -->
-          <div class="dify-action-card">
-            <div class="section-title">同步动作</div>
-            <div class="dify-actions">
-              <el-button type="primary" :loading="difySyncing" style="width: 100%" @click="handleDifyFullSync">
-                {{ difyKeyType === 'dataset' ? '仅同步知识库（Dataset API）' : '完整同步（知识库 + 工作流 + 应用）' }}
+            </div>
+            <div class="toolbar-right">
+              <el-button
+                type="primary"
+                size="small"
+                :loading="syncing"
+                :disabled="syncPolling || !agentList.length"
+                @click="handleFullSync"
+              >
+                全量同步
               </el-button>
               <el-button
-                type="default"
-                :loading="difyWorkflowSyncing"
-                :disabled="difyKeyType === 'dataset'"
-                style="width: 100%"
-                @click="handleDifyWorkflowSync"
+                type="success"
+                size="small"
+                :loading="syncing"
+                :disabled="syncPolling || !agentList.length"
+                @click="handleIncrementalSync"
               >
-                仅同步工作流
+                增量同步
               </el-button>
             </div>
+          </div>
 
-            <el-alert
-              v-if="difySyncResult"
-              :title="difySyncResult.success ? '同步成功' : `同步失败: ${difySyncResult.message || '未知错误'}`"
-              :type="difySyncResult.success ? 'success' : 'error'"
-              show-icon
-              closable
-              class="sync-result"
-              @close="difySyncResult = null"
-            />
-
-            <template v-if="difyOverview && difyKeyType !== 'dataset'">
-              <div class="section-title" style="margin-top: 24px">同步概览</div>
-              <div class="overview-stats">
-                <div class="overview-stat">
-                  <span class="overview-num">{{ difyOverview.appsCount || 0 }}</span>
-                  <span class="overview-label">应用</span>
-                </div>
-                <div class="overview-stat">
-                  <span class="overview-num">{{ difyOverview.workflowsCount || 0 }}</span>
-                  <span class="overview-label">工作流</span>
-                </div>
-                <div class="overview-stat">
-                  <span class="overview-num">{{ difyOverview.datasetsCount || 0 }}</span>
-                  <span class="overview-label">知识库</span>
-                </div>
-                <div class="overview-stat">
-                  <span class="overview-num">{{ difyOverview.apiKeysCount || 0 }}</span>
-                  <span class="overview-label">API Keys</span>
-                </div>
-              </div>
+          <el-table v-loading="changesLoading" :data="changes" stripe>
+            <template #empty>
+              <el-empty description="暂无变更记录" :image-size="80" />
             </template>
-            <div v-else class="overview-empty">
-              <el-empty :description="difyKeyType === 'dataset' ? 'Dataset Key 不支持平台概览' : '完整同步后可查看概览'" :image-size="60" />
+            <el-table-column
+              prop="agentId"
+              label="Agent"
+              width="170"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="documentId"
+              label="文档ID"
+              width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="knowledgeBaseId"
+              label="知识库ID"
+              width="150"
+              show-overflow-tooltip
+            />
+            <el-table-column prop="changeType" label="变更类型" width="100">
+              <template #default="{ row }">
+                <el-tag :type="getChangeTypeTag(row.changeType)" size="small">
+                  {{ row.changeType }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="version" label="版本" width="80" />
+            <el-table-column
+              prop="contentHash"
+              label="Hash"
+              width="150"
+              show-overflow-tooltip
+            />
+            <el-table-column prop="changedAt" label="变更时间" width="180">
+              <template #default="{ row }">
+                {{ formatDateTime(row.changedAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="synced" label="已同步" width="80">
+              <template #default="{ row }">
+                <el-tag :type="row.synced ? 'success' : 'warning'" size="small">
+                  {{ row.synced ? '是' : '否' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div class="pagination-wrapper">
+            <el-pagination
+              v-model:current-page="changesPage"
+              v-model:page-size="changesSize"
+              :total="changesTotal"
+              :page-sizes="[10, 20, 50]"
+              layout="total, sizes, prev, pager, next"
+              @size-change="loadChanges"
+              @current-change="loadChanges"
+            />
+          </div>
+        </div>
+
+        <!-- Webhook -->
+        <div v-show="activeTab === 'webhooks'" class="tab-content">
+          <div class="content-toolbar">
+            <div class="toolbar-left" />
+            <div class="toolbar-right">
+              <el-button type="primary" size="small" @click="openWebhookDialog">
+                添加 Webhook
+              </el-button>
+            </div>
+          </div>
+
+          <el-table v-loading="webhooksLoading" :data="webhooks">
+            <template #empty>
+              <el-empty description="暂无 Webhook 配置" :image-size="80" />
+            </template>
+            <el-table-column
+              prop="agentId"
+              label="Agent"
+              width="170"
+              show-overflow-tooltip
+            />
+            <el-table-column prop="webhookUrl" label="URL" show-overflow-tooltip />
+            <el-table-column prop="eventTypes" label="事件类型" width="220">
+              <template #default="{ row }">
+                <el-tag
+                  v-for="event in (row.eventTypes || '').split(',').filter(Boolean)"
+                  :key="event"
+                  size="small"
+                  class="event-tag"
+                >
+                  {{ event }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="enabled" label="状态" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.disabled ? 'danger' : row.enabled ? 'success' : 'info'" size="small">
+                  {{ row.disabled ? '已失效' : row.enabled ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="failureCount" label="失败次数" width="90">
+              <template #default="{ row }">
+                <span :class="{ 'text-danger': row.failureCount > 0 }">{{ row.failureCount || 0 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="lastFailureTime" label="最后失败" width="160">
+              <template #default="{ row }">
+                {{ row.lastFailureTime ? formatDateTime(row.lastFailureTime) : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="160">
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.disabled"
+                  type="primary"
+                  size="small"
+                  text
+                  @click="handleReenableWebhook(row.id)"
+                >
+                  重新启用
+                </el-button>
+                <el-button
+                  type="danger"
+                  size="small"
+                  text
+                  @click="handleDeleteWebhook(row.id)"
+                >
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- Dify 同步 -->
+        <div v-show="activeTab === 'dify'" class="tab-content">
+          <div class="dify-layout">
+            <!-- 左：配置 -->
+            <div class="dify-config-card">
+              <div class="section-title">
+                Dify 连接配置
+              </div>
+              <el-form :model="difyConfig" label-width="90px" size="default">
+                <el-form-item label="API 地址">
+                  <el-input v-model="difyConfig.apiUrl" placeholder="http://localhost:3000/v1" />
+                </el-form-item>
+                <el-form-item label="API Key">
+                  <el-input
+                    v-model="difyConfig.apiKey"
+                    type="password"
+                    show-password
+                    placeholder="dataset-*** 或 app-***"
+                  />
+                </el-form-item>
+                <el-form-item label="Key 类型">
+                  <el-tag v-if="difyKeyType === 'dataset'" type="success">
+                    Dataset API Key
+                  </el-tag>
+                  <el-tag v-else-if="difyKeyType === 'app'" type="warning">
+                    App API Key
+                  </el-tag>
+                  <el-tag v-else type="info">
+                    未识别
+                  </el-tag>
+                </el-form-item>
+                <el-form-item label="启用">
+                  <el-switch v-model="difyConfig.enabled" />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" :loading="difySaving" @click="handleSaveDifyConfig">
+                    保存
+                  </el-button>
+                  <el-button :loading="difyTesting" @click="handleTestDifyConnection">
+                    测试连接
+                  </el-button>
+                </el-form-item>
+              </el-form>
+              <el-alert
+                v-if="difyKeyType === 'dataset'"
+                title="当前是 Dataset API Key：支持知识库同步，不支持应用/工作流同步与平台概览。"
+                type="info"
+                :closable="false"
+                show-icon
+              />
+            </div>
+
+            <!-- 右：同步动作 + 概览 -->
+            <div class="dify-action-card">
+              <div class="section-title">
+                同步动作
+              </div>
+              <div class="dify-actions">
+                <el-button
+                  type="primary"
+                  :loading="difySyncing"
+                  style="width: 100%"
+                  @click="handleDifyFullSync"
+                >
+                  {{ difyKeyType === 'dataset' ? '仅同步知识库（Dataset API）' : '完整同步（知识库 + 工作流 + 应用）' }}
+                </el-button>
+                <el-button
+                  type="default"
+                  :loading="difyWorkflowSyncing"
+                  :disabled="difyKeyType === 'dataset'"
+                  style="width: 100%"
+                  @click="handleDifyWorkflowSync"
+                >
+                  仅同步工作流
+                </el-button>
+              </div>
+
+              <el-alert
+                v-if="difySyncResult"
+                :title="difySyncResult.success ? '同步成功' : `同步失败: ${difySyncResult.message || '未知错误'}`"
+                :type="difySyncResult.success ? 'success' : 'error'"
+                show-icon
+                closable
+                class="sync-result"
+                @close="difySyncResult = null"
+              />
+
+              <template v-if="difyOverview && difyKeyType !== 'dataset'">
+                <div class="section-title" style="margin-top: 24px">
+                  同步概览
+                </div>
+                <div class="overview-stats">
+                  <div class="overview-stat">
+                    <span class="overview-num">{{ difyOverview.appsCount || 0 }}</span>
+                    <span class="overview-label">应用</span>
+                  </div>
+                  <div class="overview-stat">
+                    <span class="overview-num">{{ difyOverview.workflowsCount || 0 }}</span>
+                    <span class="overview-label">工作流</span>
+                  </div>
+                  <div class="overview-stat">
+                    <span class="overview-num">{{ difyOverview.datasetsCount || 0 }}</span>
+                    <span class="overview-label">知识库</span>
+                  </div>
+                  <div class="overview-stat">
+                    <span class="overview-num">{{ difyOverview.apiKeysCount || 0 }}</span>
+                    <span class="overview-label">API Keys</span>
+                  </div>
+                </div>
+              </template>
+              <div v-else class="overview-empty">
+                <el-empty :description="difyKeyType === 'dataset' ? 'Dataset Key 不支持平台概览' : '完整同步后可查看概览'" :image-size="60" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-    <!-- Webhook 对话框 -->
-    <el-dialog v-model="showWebhookDialog" title="添加 Webhook" width="480px">
-    <el-form :model="webhookForm" label-position="top">
-      <el-form-item label="关联 Agent">
-        <el-select
-          v-model="webhookForm.agentId"
-          placeholder="请选择 Agent"
-          filterable
-          style="width: 100%"
-          :loading="agentsLoading"
-        >
-          <el-option
-            v-for="a in agentList"
-            :key="getAgentIdentifier(a)"
-            :label="a.name || getAgentIdentifier(a)"
-            :value="getAgentIdentifier(a)"
-          >
-            <span>{{ a.name || getAgentIdentifier(a) }}</span>
-            <span class="agent-option-id">{{ getAgentIdentifier(a) }}</span>
-          </el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="Webhook URL">
-        <el-input v-model="webhookForm.webhookUrl" placeholder="https://example.com/webhook" />
-      </el-form-item>
-      <el-form-item label="密钥（可选）">
-        <el-input v-model="webhookForm.webhookSecret" type="password" placeholder="用于签名验证" />
-      </el-form-item>
-      <el-form-item label="事件类型">
-        <el-checkbox-group v-model="webhookForm.eventTypes">
-          <el-checkbox label="document_added">文档新增</el-checkbox>
-          <el-checkbox label="document_updated">文档更新</el-checkbox>
-          <el-checkbox label="document_deleted">文档删除</el-checkbox>
-        </el-checkbox-group>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="showWebhookDialog = false">取消</el-button>
-      <el-button type="primary" @click="handleSaveWebhook">保存</el-button>
-    </template>
-    </el-dialog>
+      <!-- Webhook 对话框 -->
+      <el-dialog v-model="showWebhookDialog" title="添加 Webhook" width="480px">
+        <el-form :model="webhookForm" label-position="top">
+          <el-form-item label="关联 Agent">
+            <el-select
+              v-model="webhookForm.agentId"
+              placeholder="请选择 Agent"
+              filterable
+              style="width: 100%"
+              :loading="agentsLoading"
+            >
+              <el-option
+                v-for="a in agentList"
+                :key="getAgentIdentifier(a)"
+                :label="a.name || getAgentIdentifier(a)"
+                :value="getAgentIdentifier(a)"
+              >
+                <span>{{ a.name || getAgentIdentifier(a) }}</span>
+                <span class="agent-option-id">{{ getAgentIdentifier(a) }}</span>
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Webhook URL">
+            <el-input v-model="webhookForm.webhookUrl" placeholder="https://example.com/webhook" />
+          </el-form-item>
+          <el-form-item label="密钥（可选）">
+            <el-input v-model="webhookForm.webhookSecret" type="password" placeholder="用于签名验证" />
+          </el-form-item>
+          <el-form-item label="事件类型">
+            <el-checkbox-group v-model="webhookForm.eventTypes">
+              <el-checkbox label="document_added">
+                文档新增
+              </el-checkbox>
+              <el-checkbox label="document_updated">
+                文档更新
+              </el-checkbox>
+              <el-checkbox label="document_deleted">
+                文档删除
+              </el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="showWebhookDialog = false">
+            取消
+          </el-button>
+          <el-button type="primary" @click="handleSaveWebhook">
+            保存
+          </el-button>
+        </template>
+      </el-dialog>
+    </section>
   </div>
 </template>
 
@@ -314,7 +419,6 @@ import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, List, Promotion, Link } from '@element-plus/icons-vue'
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
 import {
   getClientChanges,
   getClientCheckpoint,
@@ -391,12 +495,15 @@ const difyKeyType = computed(() => {
   return 'unknown'
 })
 
-const syncHeaderSummary = computed(() => [
-  { label: '当前模块', value: tabs.find(tab => tab.name === activeTab.value)?.label || '-' },
-  { label: '待同步变更', value: pendingCount.value },
-  { label: '同步状态', value: syncPolling.value ? '进行中' : '空闲' },
-  { label: 'Agent', value: agentList.value.length || 0 }
-])
+const tabSummaryMap = computed(() => ({
+  changes: `${pendingCount.value} 待同步 · ${syncPolling.value ? '同步中' : '空闲'}`,
+  webhooks: `${webhooks.value.length} 个回调 · ${agentList.value.length || 0} 个 Agent`,
+  dify: difyKeyType.value === 'dataset'
+    ? 'Dataset Key · 知识库同步'
+    : difyKeyType.value === 'app'
+      ? 'App Key · 完整同步'
+      : '配置连接与上游同步'
+}))
 
 const unwrapResponse = (res) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
 const getErrorMessage = (error) => {
@@ -837,8 +944,142 @@ onUnmounted(() => {
 
 <style scoped>
 .sync-container {
-  padding: 0;
   color: #243244;
+}
+
+.sync-console {
+  overflow: visible;
+  border: 1px solid var(--orin-border, #e2e8f0);
+  border-radius: var(--orin-card-radius, 8px);
+  background: var(--neutral-white, #ffffff);
+  box-shadow: 0 14px 36px -34px rgba(15, 23, 42, 0.5);
+}
+
+.sync-hero {
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--orin-border, #e2e8f0);
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.82), rgba(255, 255, 255, 0.96) 48%),
+    var(--neutral-white, #ffffff);
+}
+
+.sync-hero-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.sync-hero-main {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.sync-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: var(--orin-card-radius, 8px);
+  background: rgba(240, 253, 250, 0.78);
+  color: var(--orin-primary, #0d9488);
+  font-size: 18px;
+}
+
+.sync-title-block {
+  min-width: 0;
+}
+
+.sync-title-block h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 23px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.sync-title-block p {
+  margin: 7px 0 0;
+  max-width: 760px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.sync-hero-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.sync-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+  padding: 4px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.sync-summary-card {
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.sync-summary-card:hover,
+.sync-summary-card.active {
+  border-color: rgba(15, 118, 110, 0.22);
+  background: #ffffff;
+  box-shadow: 0 8px 18px -16px rgba(15, 23, 42, 0.45);
+}
+
+.sync-summary-card .el-icon {
+  margin-top: 2px;
+  color: var(--orin-primary, #0d9488);
+}
+
+.sync-summary-card span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.sync-summary-card strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.sync-summary-card small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-content-panel {
+  padding: 14px;
+  background: transparent;
+  overflow: visible;
 }
 
 .agent-option-id {
@@ -886,41 +1127,6 @@ onUnmounted(() => {
 
 .sync-polling-alert {
   margin-bottom: 12px;
-}
-
-/* Tab 导航 */
-.sync-nav {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-}
-
-.sync-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid #dbe4ee;
-  background: #ffffff;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  border-radius: 6px;
-  transition: color 0.2s, border-color 0.2s;
-  white-space: nowrap;
-}
-
-.sync-nav-item:hover {
-  color: #0d9488;
-  border-color: #9edbd4;
-}
-
-.sync-nav-item.active {
-  color: #0d9488;
-  border-color: #0d9488;
-  background: #ecfdf9;
-  font-weight: 600;
 }
 
 /* 内容区 */
@@ -1025,13 +1231,20 @@ onUnmounted(() => {
 }
 
 @media (max-width: 900px) {
-  .dify-layout {
+  .sync-hero-row {
+    flex-direction: column;
+  }
+
+  .sync-hero-actions {
+    width: 100%;
+  }
+
+  .sync-summary {
     grid-template-columns: 1fr;
   }
 
-  .sync-header {
-    flex-direction: column;
-    align-items: flex-start;
+  .dify-layout {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -93,6 +93,45 @@ public class SystemNotificationService {
     }
 
     /**
+     * 发送或更新聚合告警通知。
+     */
+    @Transactional
+    public SystemMessage sendAggregatedAlert(String title, String content, String type, String receiverId,
+                                             String senderId, String scope, String dedupeKey, String fingerprint,
+                                             String status, Integer repeatCount, String summary) {
+        if (dedupeKey == null || dedupeKey.isBlank()) {
+            return sendMessage(title, content, type, receiverId, senderId, scope);
+        }
+
+        String normalizedStatus = normalizeStatus(status);
+        Optional<SystemMessage> existing = "RESOLVED".equals(normalizedStatus)
+                ? messageRepository.findFirstByDedupeKeyAndStatusOrderByLastOccurredAtDesc(dedupeKey, "TRIGGERED")
+                : messageRepository.findFirstByDedupeKeyAndStatusOrderByLastOccurredAtDesc(dedupeKey, normalizedStatus);
+
+        SystemMessage message = existing.orElseGet(SystemMessage::new);
+        message.setTitle(title);
+        message.setContent(content);
+        message.setType(type);
+        message.setReceiverId(receiverId);
+        message.setSenderId(senderId);
+        message.setScope(scope);
+        message.setRead(false);
+        message.setDedupeKey(dedupeKey);
+        message.setFingerprint(fingerprint);
+        message.setSourceType("ALERT");
+        message.setStatus(normalizedStatus);
+        message.setRepeatCount(Math.max(repeatCount != null ? repeatCount : 1, 1));
+        message.setLastOccurredAt(LocalDateTime.now());
+        message.setResolvedAt("RESOLVED".equals(normalizedStatus) ? LocalDateTime.now() : null);
+        message.setSummary(summary);
+
+        SystemMessage saved = messageRepository.save(message);
+        log.info("Aggregated alert notification {}: key={}, status={}, repeats={}",
+                existing.isPresent() ? "updated" : "sent", dedupeKey, normalizedStatus, message.getRepeatCount());
+        return saved;
+    }
+
+    /**
      * 获取用户消息列表（支持按范围过滤）
      */
     public Page<SystemMessage> getUserMessages(String userId, int page, int size, String scope) {
@@ -245,11 +284,26 @@ public class SystemNotificationService {
                 .content(message.getContent())
                 .type(message.getType())
                 .scope(message.getScope())
+                .dedupeKey(message.getDedupeKey())
+                .fingerprint(message.getFingerprint())
+                .sourceType(message.getSourceType())
+                .status(message.getStatus())
+                .repeatCount(message.getRepeatCount())
+                .lastOccurredAt(message.getLastOccurredAt())
+                .resolvedAt(message.getResolvedAt())
+                .summary(message.getSummary())
                 .receiverId(message.getReceiverId())
                 .senderId(message.getSenderId())
                 .read(message.getRead())
                 .expireAt(message.getExpireAt())
                 .createdAt(message.getCreatedAt())
                 .build();
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "TRIGGERED";
+        }
+        return status.trim().toUpperCase();
     }
 }

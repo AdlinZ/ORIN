@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * 审计日志服务
@@ -176,13 +177,30 @@ public class AuditLogService {
                     auditLog.getId(),
                     providerId, conversationId, endpoint);
 
-            if (Boolean.FALSE.equals(success) && !"SYSTEM".equals(providerId)) {
+            if (Boolean.FALSE.equals(success) && providerId != null && !"SYSTEM".equals(providerId)) {
                 String errorMsg = errorMessage != null ? errorMessage : "未知API调用错误";
-                alertService.triggerSystemAlert("ERROR_RATE", providerId, "API调用失败: " + errorMsg);
+                alertService.triggerErrorRateAlert(providerId, "API调用失败: " + errorMsg, traceId,
+                        windowMinutes -> buildErrorRateContext(providerId, windowMinutes));
             }
         } catch (Exception e) {
             log.error("Failed to save audit log: {}", e.getMessage(), e);
         }
+    }
+
+    private Map<String, Object> buildErrorRateContext(String providerId, Integer windowMinutes) {
+        int minutes = windowMinutes != null && windowMinutes > 0 ? windowMinutes : 5;
+        LocalDateTime windowStart = LocalDateTime.now().minusMinutes(minutes);
+        long totalCount = auditLogRepository.countByProviderIdAndCreatedAtGreaterThanEqual(providerId, windowStart);
+        long errorCount = auditLogRepository.countByProviderIdAndSuccessFalseAndCreatedAtGreaterThanEqual(providerId, windowStart);
+        double errorRate = totalCount > 0 ? (double) errorCount / totalCount : 0.0;
+        return Map.of(
+                "providerId", providerId,
+                "metricWindowMinutes", minutes,
+                "lastFailure", true,
+                "totalCount", totalCount,
+                "errorCount", errorCount,
+                "errorRate", errorRate
+        );
     }
 
     /**

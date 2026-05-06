@@ -257,7 +257,9 @@ public class CollaborationSessionService {
         Map<String, String> metricLevels = new HashMap<>();
         List<String> alerts = new ArrayList<>();
 
-        String successLevel = levelForInverse(successRate, successRateWarn, successRateCritical);
+        String successLevel = totalTurns > 0
+                ? levelForInverse(successRate, successRateWarn, successRateCritical)
+                : "GREEN";
         metricLevels.put("successRate", successLevel);
         if (!"GREEN".equals(successLevel)) {
             alerts.add("会话成功率偏低: " + formatPercent(successRate));

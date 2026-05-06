@@ -6,29 +6,34 @@
       </button>
 
       <template v-if="!sidebarCollapsed">
-        <div class="sidebar-head">
-          <div>
-            <h2>检索工作台</h2>
-            <p>选择知识库、调整召回策略并复盘历史查询。</p>
+        <div class="sidebar-hero">
+          <div class="sidebar-head">
+            <div class="sidebar-title-group">
+              <span class="sidebar-eyebrow">RETRIEVAL</span>
+              <h2>检索工作台</h2>
+              <p>选择知识库、调整召回策略并复盘历史查询。</p>
+            </div>
+            <el-button class="sidebar-new-button" :icon="Plus" type="primary" @click="newRetrieval">
+              新建
+            </el-button>
           </div>
-          <el-button :icon="Plus" type="primary" @click="newRetrieval">新建</el-button>
-        </div>
 
-        <div class="sidebar-tabs">
-          <button
-            type="button"
-            :class="{ active: sidebarTab === 'history' }"
-            @click="sidebarTab = 'history'"
-          >
-            历史
-          </button>
-          <button
-            type="button"
-            :class="{ active: sidebarTab === 'params' }"
-            @click="sidebarTab = 'params'"
-          >
-            参数
-          </button>
+          <div class="sidebar-tabs">
+            <button
+              type="button"
+              :class="{ active: sidebarTab === 'history' }"
+              @click="sidebarTab = 'history'"
+            >
+              历史
+            </button>
+            <button
+              type="button"
+              :class="{ active: sidebarTab === 'params' }"
+              @click="sidebarTab = 'params'"
+            >
+              参数
+            </button>
+          </div>
         </div>
 
         <section class="kb-panel">
@@ -1024,11 +1029,57 @@ const matchLabel = (type) => {
   cursor: pointer;
 }
 
+.sidebar-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid rgba(15, 159, 149, 0.18);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(15, 159, 149, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(230, 247, 245, 0.96), rgba(255, 255, 255, 0.92) 58%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.sidebar-hero::after {
+  content: '';
+  position: absolute;
+  right: -26px;
+  top: -30px;
+  width: 96px;
+  height: 96px;
+  border: 18px solid rgba(15, 159, 149, 0.08);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
 .sidebar-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar-title-group {
+  min-width: 0;
+}
+
+.sidebar-eyebrow {
+  display: inline-flex;
+  margin-bottom: 5px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.sidebar-new-button {
+  flex-shrink: 0;
+  min-width: 74px;
+  border: 0;
+  box-shadow: 0 8px 18px rgba(15, 159, 149, 0.24);
 }
 
 .sidebar-head h2,
@@ -1039,7 +1090,8 @@ const matchLabel = (type) => {
 }
 
 .sidebar-head h2 {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1.2;
 }
 
 .sidebar-head p,
@@ -1054,13 +1106,17 @@ const matchLabel = (type) => {
 }
 
 .sidebar-tabs {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
+  margin-top: 14px;
   padding: 4px;
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  background: rgba(241, 245, 249, 0.82);
+  border: 1px solid rgba(15, 159, 149, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(6px);
 }
 
 .sidebar-tabs button,
@@ -1072,8 +1128,8 @@ const matchLabel = (type) => {
 }
 
 .sidebar-tabs button {
-  height: 32px;
-  border-radius: 6px;
+  height: 34px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   font-weight: 700;
@@ -1081,8 +1137,8 @@ const matchLabel = (type) => {
 
 .sidebar-tabs button.active {
   background: #fff;
-  color: var(--strong);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  color: var(--primary);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
 }
 
 .kb-panel,
@@ -1756,6 +1812,24 @@ html.dark .example-row button,
 html.dark .sidebar-toggle,
 html.dark .gauge-ring {
   background: rgba(15, 23, 42, 0.9);
+}
+
+html.dark .sidebar-hero {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(20, 184, 166, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.78) 62%);
+  border-color: rgba(45, 212, 191, 0.22);
+  box-shadow: none;
+}
+
+html.dark .sidebar-tabs {
+  background: rgba(15, 23, 42, 0.58);
+  border-color: rgba(45, 212, 191, 0.18);
+}
+
+html.dark .sidebar-tabs button.active {
+  background: rgba(15, 23, 42, 0.92);
+  color: #5eead4;
 }
 
 html.dark .result-body p,

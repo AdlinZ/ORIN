@@ -299,6 +299,18 @@ const routes = [
                         meta: { title: '告警与日志', icon: 'Bell', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
+                        path: 'alerts/rules/create',
+                        name: 'RuntimeAlertRuleCreate',
+                        component: () => import('@/views/Monitor/AlertRuleBuilder.vue'),
+                        meta: { title: '创建告警规则', hidden: true, roles: ADMIN_ROUTE_ROLES }
+                    },
+                    {
+                        path: 'alerts/rules/:id/edit',
+                        name: 'RuntimeAlertRuleEdit',
+                        component: () => import('@/views/Monitor/AlertRuleBuilder.vue'),
+                        meta: { title: '编辑告警规则', hidden: true, roles: ADMIN_ROUTE_ROLES }
+                    },
+                    {
                         path: 'audit-logs',
                         name: 'RuntimeAuditLogs',
                         component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
@@ -366,7 +378,7 @@ const routes = [
                         path: 'center',
                         name: 'ResourcesKnowledgeCenter',
                         redirect: '/dashboard/resources/retrieval',
-                        meta: { title: '知识库', icon: 'Reading' }
+                        meta: { title: '知识检索', icon: 'Reading' }
                     },
                     {
                         path: 'assets',
@@ -405,7 +417,7 @@ const routes = [
                         path: 'retrieval',
                         name: 'ResourcesRetrieval',
                         component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
-                        meta: { title: '知识库检索', icon: 'Search' }
+                        meta: { title: '知识检索', icon: 'Search' }
                     },
 
                     // 旧路径兼容重定向

@@ -237,12 +237,19 @@ public class SiliconFlowIntegrationService {
                             Map<?, ?> choiceMap = (Map<?, ?>) choice;
                             Object msgObj = choiceMap.get("message");
                             if (msgObj instanceof Map) {
-                                Map<?, ?> messageMap = (Map<?, ?>) msgObj;
-                                Object content = messageMap.get("content");
-                                if (content != null) {
-                                    return Optional.of(content.toString());
+                            Map<?, ?> messageMap = (Map<?, ?>) msgObj;
+                            Object content = messageMap.get("content");
+                            if (content != null) {
+                                Object reasoning = messageMap.get("reasoning");
+                                Object reasoningContent = messageMap.get("reasoning_content");
+                                boolean hasReasoning = (reasoning != null && !String.valueOf(reasoning).isBlank())
+                                        || (reasoningContent != null && !String.valueOf(reasoningContent).isBlank());
+                                if (hasReasoning) {
+                                    return Optional.of(body);
                                 }
+                                return Optional.of(content.toString());
                             }
+                        }
                         }
                     }
                 }
@@ -333,6 +340,7 @@ public class SiliconFlowIntegrationService {
                 if (thinkingBudget != null && thinkingBudget > 0) {
                     requestBody.put("thinking_budget", thinkingBudget);
                 }
+                log.info("SiliconFlow deep thinking requested: model={}, thinkingBudget={}", model, thinkingBudget);
             }
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
@@ -355,6 +363,9 @@ public class SiliconFlowIntegrationService {
                             if (msgObj instanceof Map) {
                                 Map<?, ?> messageMap = (Map<?, ?>) msgObj;
                                 Object content = messageMap.get("content");
+                                if (hasReasoningPayload(messageMap)) {
+                                    return Optional.of(body);
+                                }
                                 if (content != null) {
                                     return Optional.of(content.toString());
                                 }
@@ -374,6 +385,16 @@ public class SiliconFlowIntegrationService {
             return Optional.of(buildErrorPayload(e));
         }
         return Optional.empty();
+    }
+
+    private boolean hasReasoningPayload(Map<?, ?> messageMap) {
+        if (messageMap == null || messageMap.isEmpty()) {
+            return false;
+        }
+        Object reasoning = messageMap.get("reasoning");
+        Object reasoningContent = messageMap.get("reasoning_content");
+        return (reasoning != null && !String.valueOf(reasoning).isBlank())
+                || (reasoningContent != null && !String.valueOf(reasoningContent).isBlank());
     }
 
     private Map<String, Object> buildErrorPayload(Exception e) {

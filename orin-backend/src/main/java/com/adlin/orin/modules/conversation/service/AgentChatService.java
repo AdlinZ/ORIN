@@ -462,6 +462,7 @@ public class AgentChatService {
         emitEvent(eventPublisher, "progress", Map.of(
                 "step", "MODEL_CALL",
                 "message", "正在生成回复..."));
+        startModelReasoningTrace(toolCtx, eventPublisher, request.getEnableThinking());
         Map<String, Object> agentResult = callAgent(
                 session.getAgentId(),
                 request.getMessage(),
@@ -469,7 +470,11 @@ public class AgentChatService {
                 context,
                 toolCtx,
                 eventPublisher,
-                useToolCalling);
+                useToolCalling,
+                request.getEnableThinking(),
+                request.getThinkingBudget(),
+                request.getMaxTokens());
+        completeModelReasoningTrace(agentResult, toolCtx, eventPublisher);
         String aiResponse = (String) agentResult.get("content");
 
         // 添加 AI 响应
@@ -664,13 +669,17 @@ public class AgentChatService {
     private Map<String, Object> callAgent(String agentId, String userMessage, String fileId, String context,
                              ToolExecutionContext toolCtx,
                              BiConsumer<String, Object> eventPublisher,
-                             boolean useToolCalling) {
+                             boolean useToolCalling,
+                             Boolean enableThinking,
+                             Integer thinkingBudget,
+                             Integer maxTokensOverride) {
         Map<String, Object> result = new HashMap<>();
         result.put("content", "");
         result.put("promptTokens", 0);
         result.put("completionTokens", 0);
         result.put("model", "");
         result.put("provider", "");
+        result.put("modelThinkingRequested", Boolean.TRUE.equals(enableThinking));
 
         try {
             AgentMetadata metadata = agentManageService.getAgentMetadata(agentId);
@@ -769,8 +778,10 @@ public class AgentChatService {
 
             // 调用 AgentManageService 的 chat 方法；有知识库/MCP 上下文时通过 overrideSystemPrompt 注入
             Optional<Object> response = extendedSystemPrompt != null
-                    ? agentManageService.chat(agentId, userMessage, fileId, extendedSystemPrompt, toolCtx.getSessionId())
-                    : agentManageService.chat(agentId, userMessage, fileId, null, toolCtx.getSessionId());
+                    ? agentManageService.chat(agentId, userMessage, fileId, extendedSystemPrompt, toolCtx.getSessionId(),
+                            enableThinking, thinkingBudget, maxTokensOverride)
+                    : agentManageService.chat(agentId, userMessage, fileId, null, toolCtx.getSessionId(),
+                            enableThinking, thinkingBudget, maxTokensOverride);
 
             if (response.isPresent()) {
                 Object resp = response.get();
@@ -827,12 +838,17 @@ public class AgentChatService {
                     }
 
                     Map<String, Integer> usage = extractUsageFromAgentResponse(respMap);
+                    String reasoning = extractReasoningText(respMap);
                     result.put("content", content);
                     result.put("promptTokens", usage.get("prompt"));
                     result.put("completionTokens", usage.get("completion"));
                     result.put("totalTokens", usage.get("total"));
                     result.put("model", respMap.getOrDefault("model", ""));
                     result.put("provider", respMap.getOrDefault("provider", ""));
+                    result.put("modelReasoningPresent", reasoning != null && !reasoning.isBlank());
+                    result.put("modelReasoningChars", reasoning != null ? reasoning.length() : 0);
+                    result.put("modelReasoningRaw", reasoning != null ? reasoning : "");
+                    result.put("visibleReasoningSummary", buildVisibleReasoningSummary(content, reasoning));
                 } else if (resp instanceof String) {
                     result.put("content", (String) resp);
                 } else {
@@ -848,6 +864,226 @@ public class AgentChatService {
         }
 
         return result;
+    }
+
+    private void startModelReasoningTrace(ToolExecutionContext toolCtx, BiConsumer<String, Object> eventPublisher,
+                                          Boolean enableThinking) {
+        if (toolCtx == null) {
+            return;
+        }
+
+        boolean thinkingRequested = Boolean.TRUE.equals(enableThinking);
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("startedAt", System.currentTimeMillis());
+        detail.put("rawReasoningVisible", false);
+        detail.put("thinkingRequested", thinkingRequested);
+
+        ChatMessageResponse.ToolTrace trace = ChatMessageResponse.ToolTrace.builder()
+                .type("MODEL_REASONING")
+                .kbId("model")
+                .message(thinkingRequested ? "深度思考已开启，模型正在推理并生成回复..." : "模型正在生成回复...")
+                .status("running")
+                .durationMs(0L)
+                .detail(detail)
+                .build();
+        upsertModelReasoningTrace(toolCtx, trace);
+        emitEvent(eventPublisher, "trace", trace);
+    }
+
+    private void completeModelReasoningTrace(Map<String, Object> agentResult, ToolExecutionContext toolCtx,
+                                             BiConsumer<String, Object> eventPublisher) {
+        if (toolCtx == null) {
+            return;
+        }
+
+        boolean reasoningPresent = Boolean.TRUE.equals(agentResult.get("modelReasoningPresent"));
+        boolean thinkingRequested = Boolean.TRUE.equals(agentResult.get("modelThinkingRequested"));
+        int reasoningChars = toInt(agentResult.get("modelReasoningChars"));
+        String rawReasoning = String.valueOf(agentResult.getOrDefault("modelReasoningRaw", ""));
+        String visibleSummary = String.valueOf(agentResult.getOrDefault("visibleReasoningSummary", ""));
+        long startedAt = extractModelReasoningStartedAt(toolCtx);
+        long durationMs = startedAt > 0 ? Math.max(0L, System.currentTimeMillis() - startedAt) : 0L;
+        boolean rawReasoningVisible = reasoningPresent && !rawReasoning.isBlank();
+
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("reasoningPresent", reasoningPresent);
+        detail.put("reasoningChars", reasoningChars);
+        detail.put("rawReasoningVisible", rawReasoningVisible);
+        detail.put("thinkingRequested", thinkingRequested);
+        detail.put("modelReasoningOccurred", reasoningPresent);
+        if (!visibleSummary.isBlank()) {
+            detail.put("visibleSummary", visibleSummary);
+        }
+        if (rawReasoningVisible) {
+            detail.put("reason-context", rawReasoning);
+        }
+        detail.put("note", reasoningPresent
+                ? (rawReasoningVisible
+                        ? "已透传 provider 原始思考全文（reason-context）。"
+                        : "内部推理已折叠为可见摘要，不直接展示原始思考全文。")
+                : (thinkingRequested
+                        ? "已请求深度思考，但当前模型或提供方未返回可展示的思考字段。"
+                        : "当前模型或提供方未返回可展示的思考字段。"));
+
+        ChatMessageResponse.ToolTrace trace = ChatMessageResponse.ToolTrace.builder()
+                .type("MODEL_REASONING")
+                .kbId("model")
+                .message(rawReasoningVisible
+                        ? "模型完成了内部思考，已返回 provider 原始思考全文。"
+                        : (reasoningPresent
+                        ? "模型完成了内部思考，已生成可见思路摘要。"
+                        : (thinkingRequested
+                                ? "已请求深度思考，但提供方未返回思考字段；模型回复已完成。"
+                                : "模型已完成生成；当前提供方未返回可展示的思考字段。")))
+                .status(reasoningPresent ? "success" : (thinkingRequested ? "warning" : "success"))
+                .durationMs(durationMs)
+                .detail(detail)
+                .build();
+        upsertModelReasoningTrace(toolCtx, trace);
+        emitEvent(eventPublisher, "trace", trace);
+    }
+
+    private long extractModelReasoningStartedAt(ToolExecutionContext toolCtx) {
+        if (toolCtx == null || toolCtx.getTraces() == null) {
+            return 0L;
+        }
+        for (ChatMessageResponse.ToolTrace trace : toolCtx.getTraces()) {
+            if (!"MODEL_REASONING".equals(trace.getType()) || !(trace.getDetail() instanceof Map<?, ?> detail)) {
+                continue;
+            }
+            Object startedAt = detail.get("startedAt");
+            if (startedAt instanceof Number number) {
+                return number.longValue();
+            }
+        }
+        return 0L;
+    }
+
+    private void upsertModelReasoningTrace(ToolExecutionContext toolCtx, ChatMessageResponse.ToolTrace trace) {
+        if (toolCtx.getTraces() == null) {
+            toolCtx.setTraces(new ArrayList<>());
+        }
+        List<ChatMessageResponse.ToolTrace> traces = toolCtx.getTraces();
+        for (int i = 0; i < traces.size(); i++) {
+            if ("MODEL_REASONING".equals(traces.get(i).getType())) {
+                traces.set(i, trace);
+                return;
+            }
+        }
+        traces.add(trace);
+    }
+
+    private String extractReasoningText(Map<String, Object> respMap) {
+        if (respMap == null || respMap.isEmpty()) {
+            return "";
+        }
+
+        Object topReasoning = respMap.get("reasoning");
+        if (topReasoning instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        Object topReasoningContent = respMap.get("reasoning_content");
+        if (topReasoningContent instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        Object choicesObj = respMap.get("choices");
+        if (choicesObj instanceof List<?> choices && !choices.isEmpty() && choices.get(0) instanceof Map<?, ?> choiceMap) {
+            String fromMessage = extractReasoningFromMessageObject(choiceMap.get("message"));
+            if (!fromMessage.isBlank()) {
+                return fromMessage;
+            }
+            String fromDelta = extractReasoningFromMessageObject(choiceMap.get("delta"));
+            if (!fromDelta.isBlank()) {
+                return fromDelta;
+            }
+        }
+
+        Object dataObj = respMap.get("data");
+        if (dataObj instanceof Map<?, ?> dataMap) {
+            Object dataReasoning = dataMap.get("reasoning");
+            if (dataReasoning instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            Object dataReasoningContent = dataMap.get("reasoning_content");
+            if (dataReasoningContent instanceof String s && !s.isBlank()) {
+                return s;
+            }
+        }
+
+        return "";
+    }
+
+    private String buildVisibleReasoningSummary(String content, String rawReasoning) {
+        boolean reasoningPresent = rawReasoning != null && !rawReasoning.isBlank();
+        String answer = content != null ? content.trim() : "";
+        if (!reasoningPresent && answer.isBlank()) {
+            return "";
+        }
+
+        List<String> bullets = new ArrayList<>();
+        if (reasoningPresent) {
+            bullets.add("模型返回了内部推理字段，ORIN 已确认本轮发生过模型内部推理。");
+        } else {
+            bullets.add("模型未返回可识别的内部推理字段，以下仅基于最终回答整理。");
+        }
+
+        List<String> answerSignals = summarizeAnswerShape(answer);
+        if (!answerSignals.isEmpty()) {
+            bullets.addAll(answerSignals);
+        } else {
+            bullets.add("模型完成问题理解、信息组织和答案生成，原始内部推理未直接展示。");
+        }
+        return String.join("\n", bullets);
+    }
+
+    private List<String> summarizeAnswerShape(String content) {
+        if (content == null || content.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        String normalized = content
+                .replace("\\r\\n", "\n")
+                .replace("\\n", "\n")
+                .replaceAll("(?m)^#{1,6}\\s*", "")
+                .trim();
+        List<String> lines = Arrays.stream(normalized.split("\\R+"))
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .filter(line -> line.length() >= 8)
+                .limit(3)
+                .toList();
+        if (lines.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> bullets = new ArrayList<>();
+        bullets.add("可见思路摘要基于最终回答整理，不逐字暴露内部推理。");
+        for (String line : lines) {
+            String cleaned = line
+                    .replaceAll("^[-*\\d.、\\s]+", "")
+                    .replaceAll("\\s+", " ");
+            if (cleaned.length() > 80) {
+                cleaned = cleaned.substring(0, 80) + "...";
+            }
+            bullets.add("回答围绕：" + cleaned);
+        }
+        return bullets;
+    }
+
+    private String extractReasoningFromMessageObject(Object messageObj) {
+        if (!(messageObj instanceof Map<?, ?> messageMap)) {
+            return "";
+        }
+        Object reasoning = messageMap.get("reasoning");
+        if (reasoning instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        Object reasoningContent = messageMap.get("reasoning_content");
+        if (reasoningContent instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        return "";
     }
 
     @SuppressWarnings("unchecked")

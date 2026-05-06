@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AlertHistoryRepository extends JpaRepository<AlertHistory, String> {
@@ -46,4 +47,6 @@ public interface AlertHistoryRepository extends JpaRepository<AlertHistory, Stri
      * 统计未读的告警数量（TRIGGERED 状态）
      */
     long countByStatusIn(List<String> statuses);
+
+    Optional<AlertHistory> findFirstByFingerprintAndStatusOrderByTriggeredAtDesc(String fingerprint, String status);
 }

@@ -3,36 +3,36 @@
     <el-card class="header-card">
       <div class="header-main">
         <div>
-          <h2 class="title">模型工具（Tools）</h2>
+          <h2 class="title">模型工具</h2>
           <p class="desc">管理可被模型通过 function/tool calling 调用的工具能力，不做智能体绑定。</p>
         </div>
         <el-button :loading="loading" type="primary" @click="loadCatalog">
           刷新
         </el-button>
       </div>
-      <div class="tool-stats">
-        <div class="tool-stat">
-          <span>可用工具</span>
-          <strong>{{ filteredTools.length }}</strong>
+      <div class="tool-control-row">
+        <div class="tool-stats">
+          <button
+            v-for="stat in toolQuickStats"
+            :key="stat.key"
+            type="button"
+            class="tool-stat"
+            @click="applyToolPreset(stat.key)"
+          >
+            <span>{{ stat.label }}</span>
+            <strong>{{ stat.value }}</strong>
+          </button>
         </div>
-        <div class="tool-stat">
-          <span>已启用</span>
-          <strong>{{ toolStats.enabled }}</strong>
+        <div class="toolbar">
+          <el-input v-model="keyword" placeholder="搜索工具 ID / 名称" clearable class="search" />
         </div>
-        <div class="tool-stat">
-          <span>函数调用</span>
-          <strong>{{ toolStats.functionCall }}</strong>
-        </div>
-      </div>
-      <div class="toolbar">
-        <el-input v-model="keyword" placeholder="搜索工具 ID / 名称..." clearable class="search" />
       </div>
     </el-card>
 
     <el-card class="list-card">
       <template #header>
         <div class="list-head">
-          <span>工具目录（Tools）</span>
+          <span>工具目录</span>
           <el-tag effect="plain">{{ filteredTools.length }}</el-tag>
         </div>
       </template>
@@ -138,6 +138,16 @@ const toolStats = computed(() => ({
   functionCall: filteredTools.value.filter((tool) => tool.runtimeMode === 'function_call').length
 }))
 
+const toolQuickStats = computed(() => [
+  { key: 'all', label: '全部', value: filteredTools.value.length },
+  { key: 'enabled', label: '已启用', value: toolStats.value.enabled },
+  { key: 'function', label: '函数调用', value: toolStats.value.functionCall }
+])
+
+const applyToolPreset = (key) => {
+  if (key === 'all') keyword.value = ''
+}
+
 const loadCatalog = async () => {
   loading.value = true
   try {
@@ -213,44 +223,65 @@ onMounted(loadCatalog)
   line-height: 1.6;
 }
 
-.tool-stats {
+.tool-control-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(226, 232, 240, 0.76);
+}
+
+.tool-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
 }
 
 .tool-stat {
-  padding: 10px 12px;
-  border: 1px solid rgba(124, 58, 237, 0.14);
-  border-radius: var(--orin-card-radius, 8px);
+  min-width: 104px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid rgba(13, 148, 136, 0.14);
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.tool-stat:hover {
+  border-color: rgba(13, 148, 136, 0.34);
+  background: rgba(240, 253, 250, 0.92);
 }
 
 .tool-stat span {
-  display: block;
   color: #64748b;
   font-size: 12px;
   line-height: 1.2;
 }
 
 .tool-stat strong {
-  display: block;
-  margin-top: 4px;
-  color: #7c3aed;
+  color: var(--orin-primary, #0d9488);
   font-size: 19px;
   line-height: 1.1;
 }
 
 .toolbar {
-  margin-top: 14px;
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .search {
-  max-width: 360px;
+  width: min(420px, 34vw);
 }
 
 .list-card :deep(.el-card__body) {
@@ -345,17 +376,23 @@ html.dark .tool-card-item {
 }
 
 html.dark .tool-stat strong {
-  color: #c4b5fd;
+  color: #5eead4;
+}
+
+html.dark .tool-control-row {
+  border-top-color: rgba(148, 163, 184, 0.16);
 }
 
 @media (max-width: 720px) {
   .header-main,
-  .toolbar {
+  .toolbar,
+  .tool-control-row {
+    display: flex;
     flex-direction: column;
+    align-items: stretch;
   }
 
   .search {
-    max-width: none;
     width: 100%;
   }
 }

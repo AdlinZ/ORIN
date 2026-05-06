@@ -1,172 +1,249 @@
 <template>
-  <div class="page-container">
-    <OrinEntityHeader
-      domain="模型管理"
-      title="模型管理"
-      description="统一管理模型、供应商能力、密钥入口与启用状态"
-      :summary="modelHeaderSummary"
-    >
-      <template #actions>
-        <a-button type="primary" class="orin-primary-action" @click="handleAdd">
-          添加模型
-        </a-button>
-        <a-button class="orin-secondary-action" @click="openKeyManagement">
-          API 密钥管理
-        </a-button>
-      </template>
+  <div class="model-management page-container fade-in">
+    <section class="model-shell">
+      <header class="model-topbar">
+        <div class="topbar-copy">
+          <span class="topbar-eyebrow">模型管理</span>
+          <h1>模型管理</h1>
+          <p>统一维护模型资源、供应商能力、密钥入口与启用状态。</p>
+        </div>
+        <div class="topbar-actions">
+          <el-button :icon="Key" @click="openKeyManagement">
+            API 密钥管理
+          </el-button>
+          <el-button type="primary" :icon="Plus" @click="handleAdd">
+            添加模型
+          </el-button>
+        </div>
+      </header>
 
-      <template #filters>
-        <OrinArcoFilterGrid>
-          <a-select
-            v-model="providerFilter"
-            placeholder="供应商"
-            allow-clear
-            style="width: 180px"
-          >
-            <a-option label="全部供应商" value="ALL" />
-            <a-option
+      <section class="summary-grid">
+        <article class="summary-card primary">
+          <span>当前结果</span>
+          <strong>{{ modelStats.filtered }}/{{ modelStats.total }}</strong>
+          <p>筛选后的模型资源数量</p>
+        </article>
+        <article class="summary-card">
+          <span>启用率</span>
+          <strong>{{ modelStats.enabledRate }}</strong>
+          <p>{{ modelStats.enabled }} 个模型可被调用</p>
+        </article>
+        <article class="summary-card">
+          <span>供应商</span>
+          <strong>{{ modelStats.providers }}</strong>
+          <p>{{ modelStats.topProvider }}</p>
+        </article>
+        <article class="summary-card">
+          <span>主类型</span>
+          <strong>{{ modelStats.topTypeCount }}</strong>
+          <p>{{ modelStats.topType }}</p>
+        </article>
+      </section>
+
+      <section class="model-workspace">
+        <div class="workspace-head">
+          <div>
+            <h2>模型资源清单</h2>
+            <p>按供应商、类型和启用状态维护生产可用模型。</p>
+          </div>
+          <div class="workspace-actions">
+            <el-button
+              v-if="selectedIds.length > 0"
+              type="danger"
+              plain
+              :icon="Delete"
+              @click="handleBatchDelete"
+            >
+              批量删除 {{ selectedIds.length }}
+            </el-button>
+            <el-button :icon="Refresh" @click="fetchData">
+              刷新
+            </el-button>
+          </div>
+        </div>
+
+        <div class="filter-panel">
+          <el-select v-model="providerFilter" placeholder="供应商" class="filter-control">
+            <el-option label="全部供应商" value="ALL" />
+            <el-option
               v-for="provider in providerFilterOptions"
               :key="provider"
               :label="provider"
               :value="provider"
             />
-          </a-select>
-          <a-select
-            v-model="typeFilter"
-            placeholder="模型类型"
-            allow-clear
-            style="width: 180px"
+          </el-select>
+          <el-select v-model="typeFilter" placeholder="模型类型" class="filter-control">
+            <el-option label="全部类型" value="ALL" />
+            <el-option label="对话 (Chat)" value="CHAT" />
+            <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
+            <el-option label="结果重排 (Reranker)" value="RERANKER" />
+            <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
+            <el-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
+            <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
+            <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
+          </el-select>
+          <el-select v-model="statusFilter" placeholder="运行状态" class="filter-control status-filter">
+            <el-option label="全部状态" value="ALL" />
+            <el-option label="已启用" value="ENABLED" />
+            <el-option label="已禁用" value="DISABLED" />
+          </el-select>
+          <el-select v-model="sortMode" placeholder="排序方式" class="filter-control">
+            <el-option label="最近创建优先" value="created_desc" />
+            <el-option label="最早创建优先" value="created_asc" />
+            <el-option label="模型名称 A-Z" value="name_asc" />
+            <el-option label="模型名称 Z-A" value="name_desc" />
+            <el-option label="供应商 A-Z" value="provider_asc" />
+            <el-option label="模型类型 A-Z" value="type_asc" />
+          </el-select>
+          <el-input
+            v-model="searchQuery"
+            placeholder="搜索名称 / Model ID"
+            clearable
+            class="filter-search"
           >
-            <a-option label="全部类型" value="ALL" />
-            <a-option label="对话 (Chat)" value="CHAT" />
-            <a-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
-            <a-option label="结果重排 (Reranker)" value="RERANKER" />
-            <a-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
-            <a-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
-            <a-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
-            <a-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
-          </a-select>
-          <a-select
-            v-model="statusFilter"
-            placeholder="运行状态"
-            allow-clear
-            style="width: 150px"
-          >
-            <a-option label="全部状态" value="ALL" />
-            <a-option label="已启用" value="ENABLED" />
-            <a-option label="已禁用" value="DISABLED" />
-          </a-select>
-          <a-select
-            v-model="sortMode"
-            placeholder="排序方式"
-            style="width: 180px"
-          >
-            <a-option label="最近创建优先" value="created_desc" />
-            <a-option label="最早创建优先" value="created_asc" />
-            <a-option label="模型名称 A-Z" value="name_asc" />
-            <a-option label="模型名称 Z-A" value="name_desc" />
-            <a-option label="供应商 A-Z" value="provider_asc" />
-            <a-option label="模型类型 A-Z" value="type_asc" />
-          </a-select>
-          <template #search>
-            <a-input-search
-              v-model="searchQuery"
-              placeholder="搜索名称 / Model ID..."
-              allow-clear
-              class="search-input"
-            />
-          </template>
-          <template #reset>
-            <a-button class="quiet-action reset-action" @click="resetFilters">
-              重置
-            </a-button>
-          </template>
-        </OrinArcoFilterGrid>
-        <div class="filter-actions">
-          <a-button
-            v-if="selectedIds.length > 0"
-            status="danger"
-            @click="handleBatchDelete"
-          >
-            批量删除 ({{ selectedIds.length }})
-          </a-button>
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <el-button @click="resetFilters">
+            重置
+          </el-button>
         </div>
-      </template>
-    </OrinEntityHeader>
 
-    <OrinArcoDataTable
-      v-model:selected-keys="selectedIds"
-      class="table-card"
-      :columns="modelColumns"
-      :data="displayedList"
-      :loading="loading"
-      selectable
-      row-key="id"
-    >
-      <template #header>
-        <div class="table-title">
-          <strong>资源清单</strong>
-          <span>按供应商、类型和启用状态维护生产可用模型</span>
-        </div>
-      </template>
-
-      <template #name="{ record }">
-        <div class="model-info">
-          <OrinArcoSemanticTag family="provider" :value="record.provider">
-            {{ record.provider }}
-          </OrinArcoSemanticTag>
-          <span class="name">{{ record.name }}</span>
-        </div>
-      </template>
-
-      <template #type="{ record }">
-        <OrinArcoSemanticTag family="type" :value="record.type">
-          {{ formatModelType(record.type) }}
-        </OrinArcoSemanticTag>
-      </template>
-
-      <template #status="{ record }">
-        <button
-          class="status-toggle"
-          :class="{ 'is-enabled': record.status === 'ENABLED' }"
-          @click="handleToggleStatus(record)"
+        <el-table
+          v-loading="loading"
+          :data="displayedList"
+          row-key="id"
+          class="model-table"
+          empty-text="暂无模型，请先接入服务商模型"
+          @selection-change="handleSelectionChange"
+          @row-click="openModelDetail"
         >
-          <span class="status-dot" />
-          {{ record.status === 'ENABLED' ? '已启用' : '已禁用' }}
-        </button>
-      </template>
+          <el-table-column type="selection" width="46" />
+          <el-table-column label="模型" min-width="300" fixed>
+            <template #default="{ row }">
+              <div class="model-cell">
+                <div class="model-avatar">
+                  {{ getProviderInitial(row.provider) }}
+                </div>
+                <div class="model-copy">
+                  <strong>{{ row.name || row.modelId }}</strong>
+                  <span>{{ row.modelId }}</span>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="供应商" width="150">
+            <template #default="{ row }">
+              <el-tag size="small" effect="plain">
+                {{ row.provider || '-' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="150">
+            <template #default="{ row }">
+              <el-tag size="small" effect="light" :type="getModelTypeTag(row.type)">
+                {{ formatModelType(row.type) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="运行状态" width="130">
+            <template #default="{ row }">
+              <button
+                class="status-pill"
+                :class="row.status === 'ENABLED' ? 'active' : 'inactive'"
+                type="button"
+                @click.stop="handleToggleStatus(row)"
+              >
+                <span class="status-dot" />
+                {{ row.status === 'ENABLED' ? '已启用' : '已禁用' }}
+              </button>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="180">
+            <template #default="{ row }">
+              <span class="time-compact">{{ formatTime(row.createTime) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="190"
+            align="right"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <div class="action-buttons" @click.stop>
+                <el-tooltip content="查看详情" placement="top">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="View"
+                    @click="openModelDetail(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="连通测试" placement="top">
+                  <el-button
+                    link
+                    type="success"
+                    :icon="Connection"
+                    @click="handleTestModel(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="编辑配置" placement="top">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="Edit"
+                    @click="handleEdit(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="删除模型" placement="top">
+                  <el-button
+                    link
+                    type="danger"
+                    :icon="Delete"
+                    @click="handleDelete(row)"
+                  />
+                </el-tooltip>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <template #createTime="{ record }">
-        <span class="time-compact">{{ formatTime(record.createTime) }}</span>
-      </template>
+        <div class="table-footer">
+          <span>共 {{ displayedList.length }} 个模型</span>
+          <el-button
+            v-if="displayedList.length === 0"
+            type="primary"
+            :icon="Plus"
+            @click="handleAdd"
+          >
+            添加模型
+          </el-button>
+        </div>
+      </section>
+    </section>
 
-      <template #actions="{ record }">
-        <OrinArcoRowActions
-          :actions="modelRowActions"
-          @select="action => handleRowAction(action, record)"
-        />
-      </template>
-
-      <template #empty>
-        <OrinEmptyState
-          description="暂无模型，请先接入服务商模型"
-          action-label="添加模型"
-          @action="handleAdd"
-        />
-      </template>
-    </OrinArcoDataTable>
-
-    <OrinArcoDetailDrawer
+    <el-drawer
       v-model="modelDetailVisible"
       title="模型详情"
-      :width="460"
+      size="460px"
+      class="model-drawer"
     >
-      <div v-if="selectedModel" class="model-detail-drawer">
-        <div class="detail-heading">
-          <span class="detail-provider">{{ selectedModel.provider }}</span>
-          <h3>{{ selectedModel.name }}</h3>
-          <p>{{ selectedModel.modelId }}</p>
-        </div>
+      <template v-if="selectedModel">
+        <section class="drawer-profile">
+          <div class="model-avatar large">
+            {{ getProviderInitial(selectedModel.provider) }}
+          </div>
+          <div>
+            <el-tag size="small" effect="plain">
+              {{ selectedModel.provider || '-' }}
+            </el-tag>
+            <h2>{{ selectedModel.name || selectedModel.modelId }}</h2>
+            <p>{{ selectedModel.modelId }}</p>
+          </div>
+        </section>
+
         <dl class="detail-list">
           <div>
             <dt>模型类型</dt>
@@ -185,12 +262,20 @@
             <dd>{{ selectedModel.description || '-' }}</dd>
           </div>
         </dl>
+
         <div class="drawer-actions">
-          <a-button @click="modelDetailVisible = false">关闭</a-button>
-          <a-button type="primary" @click="handleEdit(selectedModel)">编辑模型</a-button>
+          <el-button @click="modelDetailVisible = false">
+            关闭
+          </el-button>
+          <el-button :icon="Connection" @click="handleTestModel(selectedModel)">
+            连通测试
+          </el-button>
+          <el-button type="primary" :icon="Edit" @click="handleEdit(selectedModel)">
+            编辑模型
+          </el-button>
         </div>
-      </div>
-    </OrinArcoDetailDrawer>
+      </template>
+    </el-drawer>
 
     <!-- Form Dialog - 向导式新增模型 -->
     <OrinArcoFormDialog
@@ -423,8 +508,12 @@
               <a-col :span="12">
                 <a-form-item label="计费模式">
                   <a-radio-group v-model="pricingForm.billingMode">
-                    <a-radio label="PER_TOKEN">Token计费</a-radio>
-                    <a-radio label="PER_REQUEST">按次计费</a-radio>
+                    <a-radio label="PER_TOKEN">
+                      Token计费
+                    </a-radio>
+                    <a-radio label="PER_REQUEST">
+                      按次计费
+                    </a-radio>
                   </a-radio-group>
                 </a-form-item>
               </a-col>
@@ -603,44 +692,44 @@
       width="500px"
       :model="keyFormData"
     >
-        <a-form-item label="密钥名称" field="name">
-          <a-input v-model="keyFormData.name" placeholder="例如: 我的 OpenAI 主密钥" />
-        </a-form-item>
-        <a-row :gutter="20">
-          <a-col :span="12">
-            <a-form-item label="供应商" field="provider">
-              <a-select v-model="keyFormData.provider" style="width: 100%">
-                <a-option label="OpenAI" value="OpenAI" />
-                <a-option label="DeepSeek" value="DeepSeek" />
-                <a-option label="SiliconFlow" value="SiliconFlow" />
-                <a-option label="Anthropic" value="Anthropic" />
-                <a-option label="Groq" value="Groq" />
-                <a-option label="Ollama (本地)" value="Ollama" />
-                <a-option label="Dify" value="Dify" />
-                <a-option label="智谱 AI" value="Zhipu" />
-                <a-option label="阿里云" value="Aliyun" />
-                <a-option label="百度" value="Baidu" />
-                <a-option label="腾讯云" value="Tencent" />
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="Base URL (可选)">
-              <a-input v-model="keyFormData.baseUrl" placeholder="默认官方地址" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="API Key" field="apiKey">
-          <a-input
-            v-model="keyFormData.apiKey"
-            type="password"
-            allow-clear
-            placeholder="sk-..."
-          />
-        </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea v-model="keyFormData.description" :rows="2" />
-        </a-form-item>
+      <a-form-item label="密钥名称" field="name">
+        <a-input v-model="keyFormData.name" placeholder="例如: 我的 OpenAI 主密钥" />
+      </a-form-item>
+      <a-row :gutter="20">
+        <a-col :span="12">
+          <a-form-item label="供应商" field="provider">
+            <a-select v-model="keyFormData.provider" style="width: 100%">
+              <a-option label="OpenAI" value="OpenAI" />
+              <a-option label="DeepSeek" value="DeepSeek" />
+              <a-option label="SiliconFlow" value="SiliconFlow" />
+              <a-option label="Anthropic" value="Anthropic" />
+              <a-option label="Groq" value="Groq" />
+              <a-option label="Ollama (本地)" value="Ollama" />
+              <a-option label="Dify" value="Dify" />
+              <a-option label="智谱 AI" value="Zhipu" />
+              <a-option label="阿里云" value="Aliyun" />
+              <a-option label="百度" value="Baidu" />
+              <a-option label="腾讯云" value="Tencent" />
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="Base URL (可选)">
+            <a-input v-model="keyFormData.baseUrl" placeholder="默认官方地址" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-form-item label="API Key" field="apiKey">
+        <a-input
+          v-model="keyFormData.apiKey"
+          type="password"
+          allow-clear
+          placeholder="sk-..."
+        />
+      </a-form-item>
+      <a-form-item label="备注">
+        <a-textarea v-model="keyFormData.description" :rows="2" />
+      </a-form-item>
       <template #footer>
         <a-button @click="keyFormVisible = false">
           取消
@@ -656,18 +745,30 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Link, Key, Connection, Cpu, Moon, Star, Platform, Monitor, Opportunity, Sunrise } from '@element-plus/icons-vue';
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue';
-import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';
+import {
+  Connection,
+  Cpu,
+  Delete,
+  Edit,
+  Key,
+  Link,
+  Monitor,
+  Moon,
+  Opportunity,
+  Platform,
+  Plus,
+  Refresh,
+  Search,
+  Star,
+  Sunrise,
+  View
+} from '@element-plus/icons-vue';
 import OrinArcoDataTable from '@/ui/arco/OrinArcoDataTable.vue';
-import OrinArcoDetailDrawer from '@/ui/arco/OrinArcoDetailDrawer.vue';
-import OrinArcoFilterGrid from '@/ui/arco/OrinArcoFilterGrid.vue';
 import OrinArcoFormDialog from '@/ui/arco/OrinArcoFormDialog.vue';
 import OrinArcoRowActions from '@/ui/arco/OrinArcoRowActions.vue';
 import OrinArcoSemanticTag from '@/ui/arco/OrinArcoSemanticTag.vue';
 import { getModelList, saveModel, deleteModel, toggleModelStatus, fetchModels } from '@/api/model';
 import { getPricingConfig, savePricingConfig } from '@/api/monitor';
-import { getModelConfig } from '@/api/modelConfig';
 import { getExternalKeys, saveExternalKey, deleteExternalKey, toggleExternalKeyStatus } from '@/api/apiKey';
 import { getProviderList } from '@/api/system';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -764,15 +865,6 @@ const rules = {
   modelId: [{ required: true, message: '请输入 Model ID', trigger: 'blur' }]
 };
 
-const modelColumns = [
-  { title: '模型名称', dataIndex: 'name', width: 300, slotName: 'name' },
-  { title: '模型标识 (Model ID)', dataIndex: 'modelId', width: 320, ellipsis: true, tooltip: true },
-  { title: '类型', dataIndex: 'type', width: 124, slotName: 'type' },
-  { title: '运行状态', dataIndex: 'status', width: 120, slotName: 'status' },
-  { title: '创建时间', dataIndex: 'createTime', width: 168, slotName: 'createTime' },
-  { title: '操作', dataIndex: 'actions', width: 168, align: 'left', fixed: 'right', slotName: 'actions' }
-];
-
 const keyColumns = [
   { title: '密钥名称', dataIndex: 'name', minWidth: 150 },
   { title: '供应商', dataIndex: 'provider', width: 120, slotName: 'provider' },
@@ -780,13 +872,6 @@ const keyColumns = [
   { title: '端点地址', dataIndex: 'baseUrl', minWidth: 180, ellipsis: true, tooltip: true },
   { title: '状态', dataIndex: 'enabled', width: 90, align: 'center', slotName: 'enabled' },
   { title: '操作', dataIndex: 'actions', width: 130, align: 'center', fixed: 'right', slotName: 'actions' }
-];
-
-const modelRowActions = [
-  { key: 'detail', label: '查看详情' },
-  { key: 'test', label: '连通测试' },
-  { key: 'edit', label: '编辑配置' },
-  { key: 'delete', label: '删除', danger: true }
 ];
 
 const keyRowActions = [
@@ -867,7 +952,7 @@ const displayedList = computed(() => {
   return list.sort(sorters[sortMode.value] || sorters.created_desc);
 });
 
-const modelHeaderSummary = computed(() => {
+const modelStats = computed(() => {
   const enabled = filteredList.value.filter(item => item.status === 'ENABLED').length;
   const disabled = filteredList.value.length - enabled;
   const providers = new Set(filteredList.value.map(item => item.provider).filter(Boolean)).size;
@@ -884,15 +969,22 @@ const modelHeaderSummary = computed(() => {
   }, new Map());
   const topProvider = [...providerCounts.entries()].sort((a, b) => b[1] - a[1])[0];
   const topType = [...typeCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-  return [
-    { label: '当前结果', value: `${filteredList.value.length}/${modelList.value.length}` },
-    { label: '启用率', value: enabledRate },
-    { label: '已禁用', value: disabled },
-    { label: '供应商', value: providers },
-    { label: '主供应商', value: topProvider ? `${topProvider[0]} ${topProvider[1]}` : '-' },
-    { label: '主类型', value: topType ? `${formatModelType(topType[0])} ${topType[1]}` : '-' }
-  ];
+  return {
+    total: modelList.value.length,
+    filtered: filteredList.value.length,
+    enabled,
+    disabled,
+    enabledRate,
+    providers,
+    topProvider: topProvider ? `${topProvider[0]} ${topProvider[1]} 个` : '暂无供应商分布',
+    topType: topType ? formatModelType(topType[0]) : '暂无类型分布',
+    topTypeCount: topType ? topType[1] : 0
+  };
 });
+
+const handleSelectionChange = (rows) => {
+  selectedIds.value = rows.map(row => row.id);
+};
 
 const handleAdd = async () => {
   // 跳转到全屏向导页面
@@ -1154,6 +1246,25 @@ const openModelDetail = (row) => {
   modelDetailVisible.value = true;
 };
 
+const getProviderInitial = (provider) => {
+  const source = provider || 'M';
+  return source.charAt(0).toUpperCase();
+};
+
+const getModelTypeTag = (type) => {
+  const map = {
+    CHAT: 'success',
+    LLM: 'success',
+    EMBEDDING: 'primary',
+    RERANKER: 'warning',
+    TEXT_TO_IMAGE: 'danger',
+    TEXT_TO_VIDEO: 'danger',
+    SPEECH_TO_TEXT: 'info',
+    TEXT_TO_SPEECH: 'info'
+  };
+  return map[type] || 'info';
+};
+
 const handleSubmit = async () => {
   if (!formRef.value) return;
 
@@ -1194,7 +1305,7 @@ const handleToggleStatus = async (row) => {
   }
 };
 
-const handleTestModel = async (row) => {
+const handleTestModel = async (_row) => {
   loading.value = true;
   try {
     const startTime = Date.now();
@@ -1209,16 +1320,6 @@ const handleTestModel = async (row) => {
   } finally {
     loading.value = false;
   }
-};
-
-const handleRowAction = (action, row) => {
-  const handlers = {
-    detail: openModelDetail,
-    test: handleTestModel,
-    edit: handleEdit,
-    delete: handleDelete
-  };
-  handlers[action]?.(row);
 };
 
 const handleDelete = (row) => {
@@ -1309,6 +1410,309 @@ onUnmounted(() => {
   --orin-arco-text-subtle: #6b7a90;
   --orin-arco-primary: #0d9488;
   color: #243244;
+}
+
+.model-management {
+  min-height: 100vh;
+  padding: 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.fade-in {
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.model-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.model-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.topbar-copy {
+  min-width: 0;
+}
+
+.topbar-eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--el-color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.topbar-copy h1 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 26px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.topbar-copy p {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.topbar-actions,
+.workspace-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summary-card {
+  padding: 18px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+}
+
+.summary-card.primary {
+  border-color: var(--el-color-primary-light-7);
+  background: linear-gradient(180deg, var(--el-color-primary-light-9), var(--el-bg-color));
+}
+
+.summary-card span {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.summary-card strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--el-text-color-primary);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.summary-card p {
+  margin: 10px 0 0;
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-workspace {
+  overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
+}
+
+.workspace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.workspace-head h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 16px;
+  font-weight: 720;
+}
+
+.workspace-head p {
+  margin: 6px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--el-fill-color-extra-light);
+}
+
+.filter-control {
+  width: 180px;
+}
+
+.status-filter {
+  width: 150px;
+}
+
+.filter-search {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.model-table {
+  width: 100%;
+}
+
+:deep(.model-table .el-table__header th) {
+  background: var(--el-fill-color-extra-light);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+:deep(.model-table .el-table__row) {
+  cursor: pointer;
+}
+
+.model-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.model-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--el-color-primary-light-6);
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  font-size: 14px;
+  font-weight: 760;
+  flex-shrink: 0;
+}
+
+.model-avatar.large {
+  width: 54px;
+  height: 54px;
+  font-size: 20px;
+}
+
+.model-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.model-copy strong {
+  overflow: hidden;
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-copy span,
+.time-compact {
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.status-pill.active {
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
+}
+
+.status-pill.inactive {
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.action-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.drawer-profile {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.drawer-profile h2 {
+  margin: 10px 0 4px;
+  color: var(--el-text-color-primary);
+  font-size: 20px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.drawer-profile p {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
 }
 
 .filter-actions {

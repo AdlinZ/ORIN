@@ -15,7 +15,8 @@ import java.time.LocalDateTime;
 @Table(name = "alert_history", indexes = {
         @Index(name = "idx_rule_id", columnList = "rule_id"),
         @Index(name = "idx_agent_id", columnList = "agent_id"),
-        @Index(name = "idx_triggered_at", columnList = "triggered_at")
+        @Index(name = "idx_triggered_at", columnList = "triggered_at"),
+        @Index(name = "idx_alert_fingerprint_status", columnList = "fingerprint,status")
 })
 @Data
 @Builder
@@ -52,6 +53,12 @@ public class AlertHistory {
     private String traceId;
 
     /**
+     * 稳定告警指纹，同一故障实例共用一个指纹
+     */
+    @Column(name = "fingerprint", length = 160)
+    private String fingerprint;
+
+    /**
      * 告警消息
      */
     @Column(name = "alert_message", columnDefinition = "TEXT")
@@ -76,6 +83,19 @@ public class AlertHistory {
     private LocalDateTime resolvedAt;
 
     /**
+     * 同一告警实例重复触发次数
+     */
+    @Builder.Default
+    @Column(name = "repeat_count")
+    private Integer repeatCount = 1;
+
+    /**
+     * 最近触发时间
+     */
+    @Column(name = "last_triggered_at")
+    private LocalDateTime lastTriggeredAt;
+
+    /**
      * 状态: TRIGGERED, RESOLVED, SUPPRESSED
      */
     @Column(name = "status", length = 20)
@@ -86,6 +106,12 @@ public class AlertHistory {
     protected void onCreate() {
         if (triggeredAt == null) {
             triggeredAt = LocalDateTime.now();
+        }
+        if (lastTriggeredAt == null) {
+            lastTriggeredAt = triggeredAt;
+        }
+        if (repeatCount == null || repeatCount < 1) {
+            repeatCount = 1;
         }
     }
 }

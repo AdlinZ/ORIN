@@ -91,39 +91,69 @@
 
         <el-form :inline="true" class="skill-filter-form embedded-filters">
           <el-form-item>
-            <el-select
-              v-model="filterType"
-              placeholder="技能类型"
+            <el-input
+              v-model="skillKeyword"
+              class="skill-search-input"
+              placeholder="搜索技能名称 / 描述"
               clearable
-              class="filter-select"
-              @change="loadSkills"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="API 调用" value="API" />
-              <el-option label="知识库检索" value="KNOWLEDGE" />
-              <el-option label="Shell 命令" value="SHELL" />
-              <el-option label="复合工作流" value="COMPOSITE" />
-            </el-select>
+              :prefix-icon="Search"
+            />
           </el-form-item>
           <el-form-item>
-            <el-select
-              v-model="filterStatus"
-              placeholder="状态"
-              clearable
-              class="filter-select"
-              @change="loadSkills"
+            <el-popover
+              placement="bottom-end"
+              trigger="click"
+              width="280"
+              popper-class="skill-filter-popover"
             >
-              <el-option label="全部" value="" />
-              <el-option label="活跃" value="ACTIVE" />
-              <el-option label="未激活" value="INACTIVE" />
-              <el-option label="已废弃" value="DEPRECATED" />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="loadSkills">
-              <el-icon><Search /></el-icon>
-              查询
-            </el-button>
+              <template #reference>
+                <el-button plain>
+                  高级筛选
+                  <span v-if="activeAdvancedFilterCount" class="filter-count">
+                    {{ activeAdvancedFilterCount }}
+                  </span>
+                </el-button>
+              </template>
+              <div class="advanced-filter-panel">
+                <label>
+                  <span>技能类型</span>
+                  <el-select
+                    v-model="filterType"
+                    placeholder="全部类型"
+                    clearable
+                    @change="loadSkills"
+                  >
+                    <el-option label="全部" value="" />
+                    <el-option label="API 调用" value="API" />
+                    <el-option label="知识库检索" value="KNOWLEDGE" />
+                    <el-option label="Shell 命令" value="SHELL" />
+                    <el-option label="复合工作流" value="COMPOSITE" />
+                  </el-select>
+                </label>
+                <label>
+                  <span>状态</span>
+                  <el-select
+                    v-model="filterStatus"
+                    placeholder="全部状态"
+                    clearable
+                    @change="loadSkills"
+                  >
+                    <el-option label="全部" value="" />
+                    <el-option label="活跃" value="ACTIVE" />
+                    <el-option label="未激活" value="INACTIVE" />
+                    <el-option label="已废弃" value="DEPRECATED" />
+                  </el-select>
+                </label>
+                <div class="advanced-filter-actions">
+                  <el-button size="small" @click="resetAdvancedFilters">
+                    重置
+                  </el-button>
+                  <el-button size="small" type="primary" @click="loadSkills">
+                    应用
+                  </el-button>
+                </div>
+              </div>
+            </el-popover>
           </el-form-item>
         </el-form>
       </div>
@@ -144,8 +174,8 @@
         </template>
       </el-alert>
 
-      <div v-if="skills.length" class="skill-card-grid">
-        <article v-for="skill in skills" :key="skill.id" class="skill-card-item">
+      <div v-if="displayedSkills.length" class="skill-card-grid">
+        <article v-for="skill in displayedSkills" :key="skill.id" class="skill-card-item">
           <div class="skill-card-main">
             <div class="skill-card-head">
               <div class="skill-card-title-wrap">
@@ -186,7 +216,7 @@
       <el-empty
         v-else-if="!loading && !loadError"
         :image-size="72"
-        description="暂无技能，点击右上角“创建技能”开始添加"
+        :description="skillKeyword ? '没有匹配的技能' : '暂无技能，点击右上角“创建技能”开始添加'"
       />
     </div>
 
@@ -205,7 +235,7 @@
       </el-alert>
       <el-table
         v-loading="loading"
-        :data="skills"
+        :data="displayedSkills"
         empty-text="暂无技能，点击右上角“创建技能”开始添加"
         stripe
         :border="!embedded"
@@ -491,12 +521,16 @@ const isEdit = ref(false)
 const activeTab = ref('basic')
 const filterType = ref('')
 const filterStatus = ref('')
+const skillKeyword = ref('')
 const renderedMd = ref('')
 const mdLoading = ref(false)
 const loadError = ref('')
 
+const skillRows = computed(() => Array.isArray(skills.value) ? skills.value : [])
+const allSkillRows = computed(() => Array.isArray(allSkills.value) ? allSkills.value : [])
+
 const skillStats = computed(() => {
-  const rows = allSkills.value.length ? allSkills.value : skills.value
+  const rows = allSkillRows.value.length ? allSkillRows.value : skillRows.value
   return {
     total: rows.length,
     active: rows.filter((item) => item.status === 'ACTIVE').length,
@@ -511,6 +545,24 @@ const quickFilters = computed(() => [
   { key: 'api', label: 'API', count: skillStats.value.api, type: 'API', status: '' },
   { key: 'shell', label: 'Shell', count: skillStats.value.shell, type: 'SHELL', status: '' }
 ])
+
+const activeAdvancedFilterCount = computed(() => [filterType.value, filterStatus.value].filter(Boolean).length)
+
+const displayedSkills = computed(() => {
+  const keyword = String(skillKeyword.value || '').trim().toLowerCase()
+  const rows = skillRows.value
+  if (!keyword) return rows
+  return rows.filter((skill) => {
+    const searchable = [
+      skill.skillName,
+      skill.description,
+      skill.skillType,
+      skill.status,
+      skill.version
+    ].filter(Boolean).join(' ').toLowerCase()
+    return searchable.includes(keyword)
+  })
+})
 
 // 导入相关
 const importForm = reactive({
@@ -598,6 +650,12 @@ const applyQuickFilter = (quickFilter) => {
 
 const isQuickFilterActive = (quickFilter) => {
   return filterType.value === quickFilter.type && filterStatus.value === quickFilter.status
+}
+
+const resetAdvancedFilters = () => {
+  filterType.value = ''
+  filterStatus.value = ''
+  loadSkills()
 }
 
 const formatTime = (time) => {
@@ -907,6 +965,53 @@ const getStatusLabel = (status) => {
 
 .embedded-filters .filter-select {
   width: 136px;
+}
+
+.skill-search-input {
+  width: 280px;
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--orin-primary, #0d9488);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.advanced-filter-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.advanced-filter-panel label {
+  display: grid;
+  gap: 6px;
+}
+
+.advanced-filter-panel label > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.advanced-filter-panel :deep(.el-select) {
+  width: 100%;
+}
+
+.advanced-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 .skill-filter-form {

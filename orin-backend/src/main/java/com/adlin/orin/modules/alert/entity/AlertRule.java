@@ -48,6 +48,33 @@ public class AlertRule {
     private Double thresholdValue;
 
     /**
+     * 目标范围: ALL, DEPENDENCY, PROVIDER
+     */
+    @Column(name = "target_scope", length = 30)
+    @Builder.Default
+    private String targetScope = "ALL";
+
+    /**
+     * 目标 ID。DEPENDENCY 使用 MYSQL/REDIS/MILVUS，PROVIDER 使用 providerId。
+     */
+    @Column(name = "target_id", length = 100)
+    private String targetId;
+
+    /**
+     * 指标统计窗口（分钟）
+     */
+    @Column(name = "metric_window_minutes")
+    @Builder.Default
+    private Integer metricWindowMinutes = 5;
+
+    /**
+     * 失败率规则最小样本数
+     */
+    @Column(name = "min_sample_count")
+    @Builder.Default
+    private Integer minSampleCount = 1;
+
+    /**
      * 严重程度: INFO, WARNING, ERROR, CRITICAL
      */
     @Column(name = "severity", length = 20)
