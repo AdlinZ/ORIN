@@ -65,6 +65,12 @@ public class WorkflowController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping("/capabilities")
+    @Operation(summary = "获取工作流执行能力")
+    public ResponseEntity<Map<String, Object>> getCapabilities() {
+        return ResponseEntity.ok(workflowService.getWorkflowCapabilities());
+    }
+
     @PostMapping(value = "/import/dify", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "导入 Dify 工作流 DSL")
     public ResponseEntity<WorkflowResponse> importDifyWorkflow(
@@ -97,6 +103,20 @@ public class WorkflowController {
         WorkflowExecutionSubmissionResponse response =
                 workflowService.triggerWorkflowWithPriority(id, inputs, null, triggeredBy);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/publish")
+    @Operation(summary = "发布工作流")
+    public ResponseEntity<WorkflowResponse> publishWorkflow(@PathVariable Long id) {
+        log.info("REST request to publish workflow: {}", id);
+        return ResponseEntity.ok(workflowService.publishWorkflow(id));
+    }
+
+    @PostMapping("/{id}/archive")
+    @Operation(summary = "归档工作流")
+    public ResponseEntity<WorkflowResponse> archiveWorkflow(@PathVariable Long id) {
+        log.info("REST request to archive workflow: {}", id);
+        return ResponseEntity.ok(workflowService.archiveWorkflow(id));
     }
 
     @GetMapping

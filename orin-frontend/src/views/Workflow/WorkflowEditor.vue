@@ -270,14 +270,15 @@ const handleSubmit = async () => {
       submitting.value = true;
       try {
         // 1. Validate Legality & Serialize to JSON (DSL)
-        const dsl = serializeWorkflow(form);
-        console.log('Generated DSL:', dsl);
+        const { graphDefinition, steps } = serializeWorkflow(form);
+        console.log('Generated workflow graph:', graphDefinition);
 
         // 2. Save to Procedural Knowledge Base
         const payload = {
           ...form,
-          steps: dsl.steps, // Use the serialized steps
-          workflowDefinition: dsl // Complete definition
+          workflowType: 'DAG',
+          steps,
+          workflowDefinition: graphDefinition
         };
 
         if (isEdit.value) {
@@ -299,19 +300,12 @@ const handleSubmit = async () => {
 };
 
 const serializeWorkflow = (formData) => {
-    // 1. Basic Structure
-    const dsl = {
-        meta: {
-            name: formData.workflowName,
-            description: formData.description,
-            timeout: formData.timeoutSeconds,
-            version: '1.0.0'
-        },
-        steps: []
-    };
-
-    // 2. Step Validator & Serializer
-    dsl.steps = formData.steps.map((step, index) => {
+    const nodes = [
+        { id: 'start_1', type: 'start', position: { x: 80, y: 160 }, data: { id: 'start_1', label: '开始' } },
+        { id: 'end_1', type: 'end', position: { x: 420 + (formData.steps.length * 260), y: 160 }, data: { id: 'end_1', label: '结束' } }
+    ];
+    const edges = [];
+    const steps = formData.steps.map((step, index) => {
         // Validation: Verify Input Mapping JSON
         let inputMapping = {};
         try {
@@ -320,19 +314,67 @@ const serializeWorkflow = (formData) => {
             throw new Error(`Step ${index + 1} (${step.stepName}): Invalid Input Mapping JSON`);
         }
 
-        // Return pure DSL node
+        const nodeType = step.stepType === 'AGENT'
+            ? 'agent'
+            : step.stepType === 'SKILL'
+              ? 'skill'
+              : 'code';
+        const nodeId = `step_${index + 1}`;
+        nodes.splice(nodes.length - 1, 0, {
+            id: nodeId,
+            type: nodeType,
+            position: { x: 340 + (index * 260), y: 160 },
+            data: {
+                id: nodeId,
+                label: step.stepName,
+                agentId: step.agentId,
+                skillId: step.skillId,
+                inputs: inputMapping
+            }
+        });
+        edges.push({
+            id: `e-${index === 0 ? 'start_1' : `step_${index}`}-${nodeId}`,
+            source: index === 0 ? 'start_1' : `step_${index}`,
+            target: nodeId,
+            type: 'smoothstep'
+        });
+
         return {
-            id: `step_${index + 1}`,
-            name: step.stepName,
-            type: step.stepType,
+            stepName: step.stepName,
+            stepOrder: index + 1,
+            stepType: step.stepType,
             agentId: step.stepType === 'AGENT' ? step.agentId : undefined,
             skillId: step.stepType === 'SKILL' ? step.skillId : undefined,
-            inputs: inputMapping,
-            next: index < formData.steps.length - 1 ? `step_${index + 2}` : null
+            inputMapping
         };
     });
+    edges.push({
+        id: `e-${formData.steps.length ? `step_${formData.steps.length}` : 'start_1'}-end_1`,
+        source: formData.steps.length ? `step_${formData.steps.length}` : 'start_1',
+        target: 'end_1',
+        type: 'smoothstep'
+    });
 
-    return dsl;
+    return {
+        steps,
+        graphDefinition: {
+            kind: 'app',
+            version: '0.1.0',
+            app: {
+                name: formData.workflowName,
+                mode: 'advanced-chat',
+                description: formData.description || ''
+            },
+            workflow: {
+                version: '0.1.0',
+                graph: {
+                    viewport: { x: 0, y: 0, zoom: 1 },
+                    nodes,
+                    edges
+                }
+            }
+        }
+    };
 };
 
 const goBack = () => {

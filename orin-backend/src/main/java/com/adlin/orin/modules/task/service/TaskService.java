@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,7 +81,19 @@ public class TaskService {
                 .maxRetries(task.getMaxRetries())
                 .build();
 
-        taskQueueProducer.sendTask(message);
+        try {
+            taskQueueProducer.sendTask(message);
+        } catch (RuntimeException e) {
+            log.error("Failed to enqueue task: taskId={}, workflowId={}", taskId, workflowId, e);
+            task.setStatus(TaskStatus.FAILED);
+            task.setErrorMessage("任务队列不可用，工作流未能入队，请确认 RabbitMQ 正在运行后重试");
+            task.setErrorStack(e.getMessage());
+            task.setCompletedAt(LocalDateTime.now());
+            if (task.getQueuedAt() != null) {
+                task.setDurationMs(java.time.Duration.between(task.getQueuedAt(), task.getCompletedAt()).toMillis());
+            }
+            return taskRepository.save(task);
+        }
 
         log.info("Task created and enqueued: taskId={}, workflowId={}, priority={}",
                 taskId, workflowId, priority);

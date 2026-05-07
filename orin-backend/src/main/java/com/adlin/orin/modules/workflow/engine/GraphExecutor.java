@@ -34,6 +34,21 @@ public class GraphExecutor {
     private final Executor taskExecutor;
 
     private static final long DEFAULT_TIMEOUT_SECONDS = 300L;
+    private static final Map<String, String> NODE_HANDLER_BY_TYPE = Map.ofEntries(
+            Map.entry("start", "startNodeHandler"),
+            Map.entry("end", "endNodeHandler"),
+            Map.entry("llm", "llmNodeHandler"),
+            Map.entry("agent", "agentNodeHandler"),
+            Map.entry("code", "codeNodeHandler"),
+            Map.entry("if-else", "ifElseNodeHandler"),
+            Map.entry("if_else", "ifElseNodeHandler"),
+            Map.entry("knowledge-retrieval", "knowledgeNodeHandler"),
+            Map.entry("knowledge_retrieval", "knowledgeNodeHandler"),
+            Map.entry("iteration", "iterationNodeHandler"),
+            Map.entry("loop", "loopNodeHandler"),
+            Map.entry("variable_assigner", "variableAssignerNodeHandler"),
+            Map.entry("variable-assigner", "variableAssignerNodeHandler"),
+            Map.entry("skill", "skillNodeHandler"));
 
     /**
      * Compatibility only for older tests/callers. New production calls must pass
@@ -528,24 +543,20 @@ public class GraphExecutor {
 
     private NodeHandler getNodeHandler(Map<String, Object> node) {
         String type = (String) node.get("type");
-        String beanName = type.toLowerCase() + "NodeHandler";
-        // Convert camelCase or snake_case if needed.
-        // Dify types: "llm", "agent", "if-else" -> "ifElse"?
-        if ("if-else".equals(type) || "if_else".equals(type)) {
-            beanName = "ifElseNodeHandler";
-        } else if ("knowledge-retrieval".equals(type) || "knowledge_retrieval".equals(type)) {
-            beanName = "knowledgeNodeHandler";
-        } else if ("iteration".equals(type)) {
-            beanName = "iterationNodeHandler";
-        } else if ("loop".equals(type)) {
-            beanName = "loopNodeHandler";
-        }
+        String beanName = NODE_HANDLER_BY_TYPE.getOrDefault(type, type.toLowerCase() + "NodeHandler");
 
         NodeHandler handler = nodeHandlers.get(beanName);
         if (handler == null) {
             throw new IllegalArgumentException("No node handler found for type: " + type);
         }
         return handler;
+    }
+
+    public Set<String> getSupportedNodeTypes() {
+        return NODE_HANDLER_BY_TYPE.entrySet().stream()
+                .filter(entry -> nodeHandlers.containsKey(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     private Long getNumericId(String nodeId) {

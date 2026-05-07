@@ -25,7 +25,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/v1/tasks")
+@RequestMapping({"/v1/tasks", "/api/v1/workflow-tasks"})
 @Tag(name = "Task Management", description = "任务队列管理接口")
 @RequiredArgsConstructor
 public class TaskController {

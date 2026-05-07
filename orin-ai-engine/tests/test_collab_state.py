@@ -28,8 +28,22 @@ from app.core.collab_state import (
 class TestPauseResume:
     """pause/resume 功能测试"""
 
+    TEST_PACKAGE_IDS = [
+        "test_pause_001",
+        "test_resume_001",
+        "test_sync_001",
+        "test_not_paused_001",
+        "test_resume_wait_001",
+        "test_timeout_001",
+        "test_multi_a",
+        "test_multi_b",
+    ]
+
     def setup_method(self):
-        """每个测试前清理 pause events"""
+        """每个测试前清理 pause events 和持久化控制标志"""
+        _pause_events.clear()
+        for package_id in self.TEST_PACKAGE_IDS:
+            set_resumed(package_id)
         _pause_events.clear()
 
     def test_set_paused_and_is_paused(self):

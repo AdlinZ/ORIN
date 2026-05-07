@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class GraphExecutorValidationTest {
 
@@ -61,5 +62,12 @@ class GraphExecutorValidationTest {
         assertThatThrownBy(() -> graphExecutor.validateGraphDefinition(graph))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate");
+    }
+
+    @Test
+    void getSupportedNodeTypes_ShouldReturnExecutableNodeTypes() {
+        assertThat(graphExecutor.getSupportedNodeTypes())
+                .contains("start", "end", "llm")
+                .doesNotContain("answer", "http_request");
     }
 }

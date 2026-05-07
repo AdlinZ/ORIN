@@ -95,6 +95,30 @@
             <el-form-item label="Virtual Host">
               <el-input v-model="dbConfig['spring.rabbitmq.virtual-host']" :disabled="!cardEditState['storage-rabbitmq']" />
             </el-form-item>
+            <el-form-item label="工作流消费者">
+              <el-switch
+                v-model="dbConfig['orin.rabbitmq.listeners.auto-startup']"
+                :disabled="!cardEditState['storage-rabbitmq']"
+                active-value="true"
+                inactive-value="false"
+              />
+            </el-form-item>
+            <el-form-item label="Spring Simple Listener">
+              <el-switch
+                v-model="dbConfig['spring.rabbitmq.listener.simple.auto-startup']"
+                :disabled="!cardEditState['storage-rabbitmq']"
+                active-value="true"
+                inactive-value="false"
+              />
+            </el-form-item>
+            <el-form-item label="Spring Direct Listener">
+              <el-switch
+                v-model="dbConfig['spring.rabbitmq.listener.direct.auto-startup']"
+                :disabled="!cardEditState['storage-rabbitmq']"
+                active-value="true"
+                inactive-value="false"
+              />
+            </el-form-item>
           </el-form>
         </OrinArcoConfigSection>
 
@@ -846,6 +870,9 @@ const SYSTEM_PROPERTY_FALLBACKS = {
     'spring.rabbitmq.username': 'guest',
     'spring.rabbitmq.password': 'guest',
     'spring.rabbitmq.virtual-host': '/',
+    'orin.rabbitmq.listeners.auto-startup': 'true',
+    'spring.rabbitmq.listener.simple.auto-startup': 'true',
+    'spring.rabbitmq.listener.direct.auto-startup': 'true',
     'orin.collaboration.mode': 'LANGGRAPH_MQ',
     'orin.collaboration.mq-for-parallel': 'true',
     'orin.collaboration.mq-for-sequential': 'true',
@@ -945,6 +972,9 @@ const RABBITMQ_DB_KEYS = [
   'spring.rabbitmq.username',
   'spring.rabbitmq.password',
   'spring.rabbitmq.virtual-host',
+  'orin.rabbitmq.listeners.auto-startup',
+  'spring.rabbitmq.listener.simple.auto-startup',
+  'spring.rabbitmq.listener.direct.auto-startup',
 ];
 const COLLAB_ORCHESTRATION_KEYS = [
   'orin.collaboration.mode',

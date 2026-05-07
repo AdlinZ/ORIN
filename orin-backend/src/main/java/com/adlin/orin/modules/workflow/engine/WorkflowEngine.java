@@ -453,6 +453,10 @@ public class WorkflowEngine {
         return true;
     }
 
+    public Set<String> getSupportedNodeTypes() {
+        return graphExecutor.getSupportedNodeTypes();
+    }
+
     /**
      * 检测循环依赖 (DFS)
      */

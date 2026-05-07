@@ -54,7 +54,7 @@ class TestMqWorkerWorkflowSmoke:
              patch("app.engine.task_runtime.httpx.AsyncClient", return_value=mock_async_client):
             result = await worker._execute_workflow(task, {})
 
-        assert result == "Workflow executed: instanceId=98765"
+        assert result == "Workflow enqueued: workflowInstanceId=98765"
         mock_client.post.assert_awaited_once()
 
         call_args = mock_client.post.await_args

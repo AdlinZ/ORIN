@@ -16,17 +16,20 @@ public class WorkflowExecutionSubmissionResponse {
     private String statusUrl;
     private String instanceUrl;
     private String message;
+    private String errorMessage;
 
     public static WorkflowExecutionSubmissionResponse from(TaskEntity task, WorkflowInstanceEntity instance) {
+        boolean failed = task.getStatus() == TaskEntity.TaskStatus.FAILED;
         return WorkflowExecutionSubmissionResponse.builder()
                 .taskId(task.getTaskId())
                 .workflowId(task.getWorkflowId())
                 .workflowInstanceId(instance.getId())
                 .traceId(instance.getTraceId())
                 .status(task.getStatus())
-                .statusUrl("/v1/tasks/" + task.getTaskId())
+                .statusUrl("/api/v1/workflow-tasks/" + task.getTaskId())
                 .instanceUrl("/api/workflows/instances/" + instance.getId())
-                .message("Task enqueued successfully")
+                .message(failed ? task.getErrorMessage() : "Task enqueued successfully")
+                .errorMessage(task.getErrorMessage())
                 .build();
     }
 }

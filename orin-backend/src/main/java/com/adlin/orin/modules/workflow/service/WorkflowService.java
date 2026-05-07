@@ -20,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +55,17 @@ public class WorkflowService {
         } catch (IllegalArgumentException e) {
             log.warn("Invalid workflow type: {}, defaulting to DAG", type);
             return WorkflowEntity.WorkflowType.DAG;
+        }
+    }
+
+    private WorkflowEntity.WorkflowStatus parseWorkflowStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return WorkflowEntity.WorkflowStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid workflow status: " + status);
         }
     }
 
@@ -97,6 +110,10 @@ public class WorkflowService {
             counter++;
         }
 
+        WorkflowEntity.WorkflowStatus requestedStatus = parseWorkflowStatus(request.getStatus());
+        if (requestedStatus == WorkflowEntity.WorkflowStatus.ACTIVE) {
+            throw new IllegalArgumentException("Use publish endpoint to activate workflow");
+        }
         WorkflowEntity entity = WorkflowEntity.builder()
                 .workflowName(finalName)
                 .description(request.getDescription())
@@ -105,6 +122,7 @@ public class WorkflowService {
                         request.getWorkflowDefinition() != null ? request.getWorkflowDefinition() : new HashMap<>())
                 .timeoutSeconds(request.getTimeoutSeconds())
                 .retryPolicy(request.getRetryPolicy())
+                .status(requestedStatus != null ? requestedStatus : WorkflowEntity.WorkflowStatus.DRAFT)
                 .createdBy(request.getCreatedBy())
                 .build();
 
@@ -147,11 +165,49 @@ public class WorkflowService {
         if (request.getRetryPolicy() != null) {
             entity.setRetryPolicy(request.getRetryPolicy());
         }
+        WorkflowEntity.WorkflowStatus requestedStatus = parseWorkflowStatus(request.getStatus());
+        if (requestedStatus != null) {
+            if (requestedStatus == WorkflowEntity.WorkflowStatus.ACTIVE) {
+                ensureWorkflowCanPublish(id);
+            }
+            entity.setStatus(requestedStatus);
+        }
 
         WorkflowEntity saved = workflowRepository.save(entity);
         log.info("Workflow updated with ID: {}", saved.getId());
 
         return WorkflowResponse.fromEntity(saved);
+    }
+
+    @Transactional
+    public WorkflowResponse publishWorkflow(Long id) {
+        log.info("Publishing workflow: {}", id);
+        WorkflowEntity entity = workflowRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        ensureWorkflowCanPublish(id);
+        entity.setStatus(WorkflowEntity.WorkflowStatus.ACTIVE);
+        return WorkflowResponse.fromEntity(workflowRepository.save(entity));
+    }
+
+    @Transactional
+    public WorkflowResponse archiveWorkflow(Long id) {
+        log.info("Archiving workflow: {}", id);
+        WorkflowEntity entity = workflowRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        entity.setStatus(WorkflowEntity.WorkflowStatus.ARCHIVED);
+        return WorkflowResponse.fromEntity(workflowRepository.save(entity));
+    }
+
+    public Map<String, Object> getWorkflowCapabilities() {
+        return Map.of(
+                "supportedNodeTypes", workflowEngine.getSupportedNodeTypes(),
+                "publishRequiredStatus", WorkflowEntity.WorkflowStatus.ACTIVE.name());
+    }
+
+    private void ensureWorkflowCanPublish(Long id) {
+        if (!workflowEngine.validateWorkflow(id)) {
+            throw new IllegalStateException("Workflow validation failed: " + id);
+        }
     }
 
     @Transactional
@@ -233,6 +289,9 @@ public class WorkflowService {
         if (workflow.getStatus() == WorkflowEntity.WorkflowStatus.ARCHIVED) {
             throw new IllegalStateException("Workflow is archived and cannot be executed: " + workflowId);
         }
+        if (workflow.getStatus() != WorkflowEntity.WorkflowStatus.ACTIVE) {
+            throw new IllegalStateException("Workflow must be published before execution: " + workflowId);
+        }
         if (!workflowEngine.validateWorkflow(workflowId)) {
             throw new IllegalStateException("Workflow validation failed: " + workflowId);
         }
@@ -248,6 +307,16 @@ public class WorkflowService {
                 priority,
                 triggeredBy,
                 triggerSource);
+        if (task.getStatus() == TaskEntity.TaskStatus.FAILED) {
+            instance.setStatus(WorkflowInstanceEntity.InstanceStatus.FAILED);
+            instance.setErrorMessage(task.getErrorMessage());
+            instance.setErrorStack(task.getErrorStack());
+            instance.setCompletedAt(LocalDateTime.now());
+            if (instance.getStartedAt() != null) {
+                instance.setDurationMs(Duration.between(instance.getStartedAt(), instance.getCompletedAt()).toMillis());
+            }
+            instanceRepository.save(instance);
+        }
 
         log.info("Workflow task enqueued: taskId={}, workflowId={}, instanceId={}",
                 task.getTaskId(), workflowId, instance.getId());

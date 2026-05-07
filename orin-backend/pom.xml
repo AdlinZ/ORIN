@@ -285,12 +285,6 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
-        <!-- HTTP Client for Langfuse API -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-
         <!-- OpenTelemetry for Distributed Tracing -->
         <dependency>
             <groupId>io.opentelemetry</groupId>

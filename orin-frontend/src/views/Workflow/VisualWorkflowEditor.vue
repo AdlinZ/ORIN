@@ -79,7 +79,7 @@
             功能
           </button>
           
-          <button class="dify-publish-btn" :disabled="saving" @click="handleSave()">
+          <button class="dify-publish-btn" :disabled="saving" @click="handlePublish">
             发布
             <svg
               viewBox="0 0 24 24"
@@ -271,6 +271,7 @@
                   :key="node.type" 
                   class="palette-node-card"
                   draggable="true" 
+                  @click="addNodeFromPalette(node.type)"
                   @dragstart="onDragStart($event, node.type)"
                 >
                   <div class="node-icon-wrapper" :style="{ backgroundColor: node.color }">
@@ -286,6 +287,7 @@
 
       <!-- Center: Canvas Area -->
       <div
+        ref="canvasAreaRef"
         class="canvas-area"
         :class="interactionMode"
         @drop="onDrop"
@@ -1080,12 +1082,17 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getAgentList } from '@/api/agent';
-import { createWorkflow, getWorkflow, executeWorkflow, runWorkflowPreview, generateAIWorkflow } from '@/api/workflow';
+import { createWorkflow, getWorkflow, runWorkflowPreview, generateAIWorkflow, publishWorkflow, getWorkflowCapabilities } from '@/api/workflow';
 import { getModelList } from '@/api/model';
 import WorkflowApiAccess from './WorkflowApiAccess.vue';
 import JsonViewer from '@/components/JsonViewer.vue';
 import { dump } from 'js-yaml';
 import { useDark } from '@vueuse/core';
+import {
+  DEFAULT_SUPPORTED_WORKFLOW_NODE_TYPES,
+  findUnsupportedWorkflowNodes,
+  normalizeWorkflowNodeType
+} from '@/utils/workflowCapabilities';
 
 // Dark mode support
 const isDark = useDark();
@@ -1106,10 +1113,12 @@ const elements = ref([]);
 const selectedNode = ref(null);
 const showPalette = ref(false); // 默认隐藏节点库
 const showMiniMap = ref(false);
+const canvasAreaRef = ref(null);
 const interactionMode = ref('pointer'); // 'pointer' or 'hand'
 const agentList = ref([]);
 const availableModels = ref([]);
 const lastSavedTime = ref('未保存');
+const supportedNodeTypes = ref([...DEFAULT_SUPPORTED_WORKFLOW_NODE_TYPES]);
 let nodeIdCounter = Date.now();
 
 // Preview/Run state
@@ -1152,7 +1161,7 @@ const showAIDialog = ref(false);
 const aiGenerating = ref(false);
 const aiPrompt = ref('');
 
-const { fitView } = useVueFlow();
+const { fitView, project } = useVueFlow();
 
 const onFitView = () => {
     fitView({ padding: 0.2, includeHiddenNodes: false, duration: 250 });
@@ -1393,7 +1402,7 @@ const onExportWorkflow = () => {
     }
 };
 
-const nodeGroups = [
+const allNodeGroups = [
   {
     title: '基础节点 (Basic)',
     items: [
@@ -1435,6 +1444,15 @@ const nodeGroups = [
   }
 ];
 
+const nodeGroups = computed(() => allNodeGroups
+    .map(group => ({
+        ...group,
+        items: group.items.filter(node => supportedNodeTypes.value
+            .map(normalizeWorkflowNodeType)
+            .includes(normalizeWorkflowNodeType(node.type)))
+    }))
+    .filter(group => group.items.length > 0));
+
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeyDown);
 
@@ -1450,6 +1468,7 @@ onMounted(async () => {
   }
   await fetchAgents();
   await fetchModelsList();
+  await fetchWorkflowCapabilities();
   await nextTick();
   onFitView();
   
@@ -1490,6 +1509,18 @@ const fetchModelsList = async () => {
     } catch (e) {
         console.error('Failed to fetch models', e);
         // Fallback or empty
+    }
+};
+
+const fetchWorkflowCapabilities = async () => {
+    try {
+        const res = await getWorkflowCapabilities();
+        const rawTypes = res?.supportedNodeTypes || res?.data?.supportedNodeTypes;
+        if (Array.isArray(rawTypes) && rawTypes.length > 0) {
+            supportedNodeTypes.value = rawTypes.map(normalizeWorkflowNodeType);
+        }
+    } catch (e) {
+        console.warn('Failed to fetch workflow capabilities, using local fallback:', e);
     }
 };
 
@@ -1577,16 +1608,10 @@ const loadWorkflow = async (id) => {
 
 const onDragStart = (event, type) => {
   event.dataTransfer.setData('application/vueflow', type);
+  event.dataTransfer.effectAllowed = 'move';
 };
 
-const onDrop = (event) => {
-  const type = event.dataTransfer.getData('application/vueflow');
-  const { left, top } = event.currentTarget.getBoundingClientRect();
-  const position = {
-    x: event.clientX - left,
-    y: event.clientY - top
-  };
-
+const addWorkflowNode = (type, position) => {
   const newNode = {
     id: `node_${++nodeIdCounter}`,
     type,
@@ -1598,6 +1623,40 @@ const onDrop = (event) => {
   };
 
   elements.value.push(newNode);
+  selectedNode.value = newNode;
+  return newNode;
+};
+
+const getCanvasPoint = (clientX, clientY) => {
+  const canvasBounds = canvasAreaRef.value?.getBoundingClientRect();
+  const rendererPoint = canvasBounds
+    ? { x: clientX - canvasBounds.left, y: clientY - canvasBounds.top }
+    : { x: clientX, y: clientY };
+  return project(rendererPoint);
+};
+
+const getCanvasCenterPoint = () => {
+  const canvasBounds = canvasAreaRef.value?.getBoundingClientRect();
+  const nodeCount = elements.value.filter(el => !el.source).length;
+  const offset = Math.max(0, nodeCount - 2) * 48;
+  if (!canvasBounds) {
+    return project({ x: 400 + offset, y: 300 + offset });
+  }
+  return project({
+    x: canvasBounds.width / 2 + offset,
+    y: canvasBounds.height / 2 + offset
+  });
+};
+
+const addNodeFromPalette = (type) => {
+  addWorkflowNode(type, getCanvasCenterPoint());
+  showPalette.value = false;
+};
+
+const onDrop = (event) => {
+  const type = event.dataTransfer.getData('application/vueflow');
+  if (!type) return;
+  addWorkflowNode(type, getCanvasPoint(event.clientX, event.clientY));
 };
 
 const getDefaultLabel = (type) => {
@@ -1694,12 +1753,66 @@ const handleSave = async (isAuto = false) => {
     } else {
         if (!isAuto) ElMessage.success('保存成功');
     }
+    return res;
   } catch (e) {
     console.error('保存失败:', e);
     if (!isAuto) ElMessage.error('保存失败: ' + (e.response?.data?.message || e.message || '未知错误'));
+    throw e;
   } finally {
     if (!isAuto) saving.value = false;
   }
+};
+
+const validateExecutableGraph = () => {
+    const unsupported = findUnsupportedWorkflowNodes(elements.value, supportedNodeTypes.value);
+    if (unsupported.length > 0) {
+        const labels = unsupported.map(node => `${node.label}(${node.type})`).join('、');
+        const error = new Error(`包含暂不支持执行的节点：${labels}`);
+        error.localValidation = true;
+        throw error;
+    }
+
+    const nodes = elements.value.filter(el => !el.source);
+    const edges = elements.value.filter(el => el.source);
+    if (!nodes.some(node => normalizeWorkflowNodeType(node.type) === 'start')) {
+        const error = new Error('发布前必须包含开始节点');
+        error.localValidation = true;
+        throw error;
+    }
+    if (!nodes.some(node => normalizeWorkflowNodeType(node.type) === 'end')) {
+        const error = new Error('发布前必须包含结束节点');
+        error.localValidation = true;
+        throw error;
+    }
+    if (nodes.length > 1 && edges.length === 0) {
+        const error = new Error('发布前请至少连接一条节点边');
+        error.localValidation = true;
+        throw error;
+    }
+};
+
+const handlePublish = async () => {
+    saving.value = true;
+    try {
+        validateExecutableGraph();
+        const saved = await handleSave(true);
+        const workflowId = route.params.id || saved?.id;
+        if (!workflowId) {
+            throw new Error('保存后未获得工作流 ID，无法发布');
+        }
+        await publishWorkflow(workflowId);
+        ElMessage.success('发布成功，工作流现在可正式执行');
+        if (!route.params.id && saved?.id) {
+            router.push(`${ROUTES.AGENTS.WORKFLOWS}/${saved.id}`);
+        }
+    } catch (e) {
+        if (!e.localValidation) {
+            console.error('发布失败:', e);
+        }
+        ElMessage.error('发布失败: ' + (e.response?.data?.message || e.message || '未知错误'));
+    } finally {
+        saving.value = false;
+    }
 };
 
 const getNodeIcon = (type) => {

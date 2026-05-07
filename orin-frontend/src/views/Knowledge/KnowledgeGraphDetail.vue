@@ -211,7 +211,11 @@ const getColor = (idx) => COLOR_PALETTE[idx % COLOR_PALETTE.length]
 
 // ── 数据加载 ──
 const fetchGraph = async () => {
-  try { graph.value = await getGraph(graphId.value) } catch {}
+  try {
+    graph.value = await getGraph(graphId.value)
+  } catch (error) {
+    console.warn('Failed to load graph metadata:', error)
+  }
 }
 
 const fetchVizData = async () => {
@@ -405,7 +409,9 @@ const showNodeDetail = async (node) => {
         targetName: entityMap[r.targetEntityId] || r.targetEntityId,
       }))
     }
-  } catch {}
+  } catch (error) {
+    console.warn('Failed to load graph entity details:', error)
+  }
   finally { relationsLoading.value = false }
 }
 

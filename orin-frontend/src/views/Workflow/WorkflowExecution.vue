@@ -137,6 +137,15 @@
                   查询任务状态
                 </el-button>
                 <el-button
+                  v-if="canReplayLatestTask"
+                  size="small"
+                  type="warning"
+                  :loading="taskStatusLoading"
+                  @click="replayLatestTask"
+                >
+                  重试失败任务
+                </el-button>
+                <el-button
                   v-if="latestExecutionObject?.statusUrl"
                   size="small"
                   text
@@ -161,7 +170,24 @@
                   错误：{{ taskStatusResult.errorMessage || taskStatusResult.data?.errorMessage }}
                 </div>
               </el-alert>
-              <pre class="result-pre">{{ latestExecution }}</pre>
+              <el-alert
+                v-if="latestInstanceDetail?.errorMessage"
+                type="error"
+                :closable="false"
+                class="execution-alert"
+              >
+                <template #title>
+                  实例失败：{{ latestInstanceDetail.errorMessage }}
+                </template>
+                <pre v-if="latestInstanceDetail.errorStack" class="error-stack">{{ latestInstanceDetail.errorStack }}</pre>
+              </el-alert>
+              <div v-if="latestInstanceOutput" class="instance-output">
+                <div class="result-header">
+                  <strong>实例输出</strong>
+                  <span>{{ latestInstanceDetail?.status || 'UNKNOWN' }}</span>
+                </div>
+                <pre class="result-pre">{{ latestInstanceOutput }}</pre>
+              </div>
             </div>
           </div>
 
@@ -208,7 +234,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { useRoute, useRouter } from 'vue-router'
 import { CaretRight, Edit, Refresh, Search, VideoPlay } from '@element-plus/icons-vue'
@@ -252,6 +278,9 @@ const latestExecutionAt = ref('')
 const executionError = ref('')
 const taskStatusLoading = ref(false)
 const taskStatusResult = ref(null)
+const latestInstanceDetail = ref(null)
+let executionPollTimer = null
+let executionPollAttempts = 0
 
 const filteredWorkflows = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -285,6 +314,16 @@ const executionIdentifiers = computed(() => {
     { label: 'workflowInstanceId', value: payload.workflowInstanceId || payload.instanceId },
     { label: 'traceId', value: payload.traceId }
   ].filter((item) => item.value !== undefined && item.value !== null && String(item.value).length > 0)
+})
+
+const latestInstanceOutput = computed(() => {
+  const output = latestInstanceDetail.value?.outputData || taskStatusResult.value?.outputData
+  return output ? JSON.stringify(output, null, 2) : ''
+})
+
+const canReplayLatestTask = computed(() => {
+  const status = String(taskStatusResult.value?.status || taskStatusResult.value?.data?.status || '').toUpperCase()
+  return ['FAILED', 'DEAD'].includes(status)
 })
 
 const normalizeInstances = (payload) => {
@@ -396,9 +435,17 @@ const runSelectedWorkflow = async () => {
     latestExecution.value = JSON.stringify(payload, null, 2)
     latestExecutionAt.value = new Date().toISOString()
     taskStatusResult.value = null
+    latestInstanceDetail.value = null
     const taskLabel = latestExecutionObject.value?.taskId ? `，任务 ${latestExecutionObject.value.taskId}` : ''
-    ElMessage.success(`工作流已入队：${selectedWorkflow.value.workflowName}${taskLabel}`)
+    const failedImmediately = latestExecutionObject.value?.status === 'FAILED'
+    if (failedImmediately) {
+      const failureMessage = latestExecutionObject.value?.errorMessage || latestExecutionObject.value?.message || '工作流未能入队'
+      ElMessage.error(failureMessage)
+    } else {
+      ElMessage.success(`工作流已入队：${selectedWorkflow.value.workflowName}${taskLabel}`)
+    }
     await loadInstances()
+    startExecutionPolling(latestExecutionObject.value?.taskId, latestExecutionObject.value?.workflowInstanceId)
   } catch (error) {
     executionError.value = error?.response?.data?.message || error?.message || '工作流执行失败'
   } finally {
@@ -408,13 +455,80 @@ const runSelectedWorkflow = async () => {
 
 const queryLatestTask = async () => {
   const taskId = latestExecutionObject.value?.taskId
+  if (!taskId) return null
+  taskStatusLoading.value = true
+  try {
+    const response = await request.get(`/api/v1/workflow-tasks/${taskId}`, { baseURL: '' })
+    taskStatusResult.value = response?.data ?? response
+    const instanceId = taskStatusResult.value?.workflowInstanceId || latestExecutionObject.value?.workflowInstanceId
+    if (instanceId) {
+      await loadInstanceDetail(instanceId)
+    }
+    return taskStatusResult.value
+  } catch (error) {
+    ElMessage.error(error?.response?.data?.message || error?.message || '任务状态查询失败')
+    return null
+  } finally {
+    taskStatusLoading.value = false
+  }
+}
+
+const loadInstanceDetail = async (instanceId) => {
+  try {
+    const response = await request.get(`/api/workflows/instances/${instanceId}`, { baseURL: '' })
+    latestInstanceDetail.value = response?.data ?? response
+  } catch (error) {
+    console.warn('Failed to load workflow instance detail:', error)
+  }
+}
+
+const isTerminalTaskStatus = (status) => {
+  const normalized = String(status || '').toUpperCase()
+  return ['COMPLETED', 'FAILED', 'DEAD', 'CANCELLED'].includes(normalized)
+}
+
+const clearExecutionPolling = () => {
+  if (executionPollTimer) {
+    window.clearInterval(executionPollTimer)
+    executionPollTimer = null
+  }
+}
+
+const startExecutionPolling = (taskId, instanceId) => {
+  clearExecutionPolling()
+  if (!taskId) return
+  executionPollAttempts = 0
+  if (instanceId) {
+    loadInstanceDetail(instanceId)
+  }
+  executionPollTimer = window.setInterval(async () => {
+    executionPollAttempts += 1
+    const result = await queryLatestTask()
+    const status = result?.status || result?.data?.status
+    if (isTerminalTaskStatus(status) || executionPollAttempts >= 90) {
+      clearExecutionPolling()
+      await loadInstances()
+    }
+  }, 2000)
+}
+
+const replayLatestTask = async () => {
+  const taskId = latestExecutionObject.value?.taskId
   if (!taskId) return
   taskStatusLoading.value = true
   try {
-    const response = await request.get(`/v1/tasks/${taskId}`, { baseURL: '' })
-    taskStatusResult.value = response?.data ?? response
+    const response = await request.post(`/api/v1/workflow-tasks/${taskId}/replay`, null, { baseURL: '' })
+    const payload = response?.data ?? response
+    latestExecutionObject.value = {
+      ...latestExecutionObject.value,
+      taskId: payload.newTaskId || latestExecutionObject.value.taskId
+    }
+    latestExecution.value = JSON.stringify(payload, null, 2)
+    taskStatusResult.value = payload
+    ElMessage.success('失败任务已重新入队')
+    startExecutionPolling(latestExecutionObject.value.taskId, latestExecutionObject.value.workflowInstanceId)
   } catch (error) {
-    ElMessage.error(error?.response?.data?.message || error?.message || '任务状态查询失败')
+    ElMessage.error(error?.response?.data?.message || error?.message || '任务重试失败')
   } finally {
     taskStatusLoading.value = false
   }
@@ -425,9 +539,18 @@ const openStatusUrl = (url) => {
   window.open(url, '_blank', 'noopener')
 }
 
+const hasVisualWorkflowGraph = (workflow) => {
+  const definition = workflow?.workflowDefinition || workflow?.raw?.workflowDefinition
+  const graph = definition?.workflow?.graph || definition?.graph || definition
+  return Array.isArray(graph?.nodes)
+}
+
 const editWorkflow = (workflow) => {
   if (!workflow?.id) return
-  router.push(ROUTES.AGENTS.WORKFLOW_EDIT.replace(':id', workflow.id))
+  const routePattern = hasVisualWorkflowGraph(workflow)
+    ? ROUTES.AGENTS.WORKFLOW_VISUAL_EDIT
+    : ROUTES.AGENTS.WORKFLOW_EDIT
+  router.push(routePattern.replace(':id', workflow.id))
 }
 
 const goToWorkflowList = () => {
@@ -457,6 +580,10 @@ onMounted(async () => {
   if (selectedWorkflow.value?.id) {
     await loadInstances()
   }
+})
+
+onUnmounted(() => {
+  clearExecutionPolling()
 })
 </script>
 
@@ -646,6 +773,18 @@ onMounted(async () => {
   word-break: break-word;
   max-height: 320px;
   overflow: auto;
+}
+
+.error-stack {
+  max-height: 180px;
+  margin: 8px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.instance-output {
+  margin-top: 12px;
 }
 
 @media (max-width: 1200px) {

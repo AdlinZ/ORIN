@@ -17,6 +17,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,5 +60,23 @@ class TaskServiceTest {
         ArgumentCaptor<TaskMessage> messageCaptor = ArgumentCaptor.forClass(TaskMessage.class);
         verify(taskQueueProducer).sendTask(messageCaptor.capture());
         assertThat(messageCaptor.getValue().getWorkflowInstanceId()).isNull();
+    }
+
+    @Test
+    void createAndEnqueueTask_WhenQueueUnavailable_ShouldReturnFailedTask() {
+        when(taskRepository.save(any(TaskEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new RuntimeException("Connection refused")).when(taskQueueProducer).sendTask(any(TaskMessage.class));
+
+        TaskEntity task = taskService.createAndEnqueueTask(
+                42L,
+                99L,
+                Map.of("query", "hello"),
+                TaskEntity.TaskPriority.NORMAL,
+                "tester",
+                "API");
+
+        assertThat(task.getStatus()).isEqualTo(TaskEntity.TaskStatus.FAILED);
+        assertThat(task.getWorkflowInstanceId()).isEqualTo(99L);
+        assertThat(task.getErrorMessage()).contains("任务队列不可用");
     }
 }

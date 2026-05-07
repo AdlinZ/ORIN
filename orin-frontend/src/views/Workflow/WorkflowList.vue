@@ -301,7 +301,7 @@ onUnmounted(() => {
 });
 
 const handleCreate = () => {
-    router.push(ROUTES.AGENTS.WORKFLOW_CREATE);
+    router.push(ROUTES.AGENTS.WORKFLOW_VISUAL);
 };
 
 const handleCreateVisual = () => {

@@ -47,7 +47,32 @@ export function executeWorkflow(id, inputs) {
         baseURL: '',
         url: `/api/workflows/${id}/execute`,
         method: 'post',
-        data: inputs
+        data: inputs,
+        noRetry: true
+    })
+}
+
+export function publishWorkflow(id) {
+    return request({
+        baseURL: '',
+        url: `/api/workflows/${id}/publish`,
+        method: 'post'
+    })
+}
+
+export function archiveWorkflow(id) {
+    return request({
+        baseURL: '',
+        url: `/api/workflows/${id}/archive`,
+        method: 'post'
+    })
+}
+
+export function getWorkflowCapabilities() {
+    return request({
+        baseURL: '',
+        url: '/api/workflows/capabilities',
+        method: 'get'
     })
 }
 

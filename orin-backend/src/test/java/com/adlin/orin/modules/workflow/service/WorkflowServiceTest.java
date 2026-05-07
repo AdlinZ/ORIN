@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -188,7 +189,48 @@ class WorkflowServiceTest {
                 assertThat(response.getWorkflowId()).isEqualTo(workflowId);
                 assertThat(response.getWorkflowInstanceId()).isEqualTo(88L);
                 assertThat(response.getTraceId()).isEqualTo("trace-88");
-                assertThat(response.getStatusUrl()).isEqualTo("/v1/tasks/task-88");
+                assertThat(response.getStatusUrl()).isEqualTo("/api/v1/workflow-tasks/task-88");
                 assertThat(response.getInstanceUrl()).isEqualTo("/api/workflows/instances/88");
+        }
+
+        @Test
+        void triggerWorkflowWithPriority_ShouldRejectDraftWorkflow() {
+                Long workflowId = 9L;
+                WorkflowEntity workflow = WorkflowEntity.builder()
+                                .id(workflowId)
+                                .workflowName("Draft Workflow")
+                                .status(WorkflowEntity.WorkflowStatus.DRAFT)
+                                .build();
+
+                when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
+
+                assertThatThrownBy(() -> workflowService.triggerWorkflowWithPriority(
+                                workflowId,
+                                Map.of("query", "hello"),
+                                TaskEntity.TaskPriority.NORMAL,
+                                "tester"))
+                                .isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("must be published");
+
+                verifyNoInteractions(taskService);
+        }
+
+        @Test
+        void publishWorkflow_ShouldValidateAndActivateWorkflow() {
+                Long workflowId = 10L;
+                WorkflowEntity workflow = WorkflowEntity.builder()
+                                .id(workflowId)
+                                .workflowName("Ready Workflow")
+                                .status(WorkflowEntity.WorkflowStatus.DRAFT)
+                                .build();
+
+                when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
+                when(workflowEngine.validateWorkflow(workflowId)).thenReturn(true);
+                when(workflowRepository.save(any(WorkflowEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+                WorkflowEntity.WorkflowStatus status = workflowService.publishWorkflow(workflowId).getStatus();
+
+                assertThat(status).isEqualTo(WorkflowEntity.WorkflowStatus.ACTIVE);
+                verify(workflowEngine).validateWorkflow(workflowId);
         }
 }

@@ -208,9 +208,11 @@ export async function runWorkflowStream(payload, { onTrace, onFinal, onError, on
   const decoder = new TextDecoder("utf-8")
   let buffer = ""
 
-  while (true) {
+  let streamDone = false
+  while (!streamDone) {
     const { value, done } = await reader.read()
-    if (done) break
+    streamDone = done
+    if (streamDone) break
     buffer += decoder.decode(value, { stream: true })
     buffer = buffer.replace(/\r\n/g, "\n")
 
