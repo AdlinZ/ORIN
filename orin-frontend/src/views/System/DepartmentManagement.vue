@@ -1,44 +1,46 @@
 <template>
   <div class="department-management fade-in">
     <section class="department-shell">
-      <header class="department-topbar">
-        <div class="topbar-copy">
-          <span class="topbar-eyebrow">组织权限</span>
-          <h1>部门管理</h1>
-          <p>维护组织架构、部门负责人和上下级关系。</p>
-        </div>
-        <div class="topbar-actions">
+      <OrinEntityHeader
+        domain="组织权限"
+        title="部门管理"
+        description="维护组织架构、部门负责人和上下级关系。"
+      >
+        <template #actions>
           <el-button :icon="Refresh" @click="loadDepartments">
             刷新
           </el-button>
           <el-button type="primary" :icon="Plus" @click="handleCreateRoot">
             创建顶级部门
           </el-button>
-        </div>
-      </header>
+        </template>
+        <template #filters>
+          <div class="governance-filterbar">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索部门名称/编码"
+              clearable
+              @input="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-button-group>
+              <el-button title="展开全部" @click="expandAll">
+                <el-icon><ArrowDown /></el-icon>
+                展开
+              </el-button>
+              <el-button title="收起全部" @click="collapseAll">
+                <el-icon><ArrowUp /></el-icon>
+                收起
+              </el-button>
+            </el-button-group>
+          </div>
+        </template>
+      </OrinEntityHeader>
 
-      <section class="summary-grid">
-        <article class="summary-card primary">
-          <span>部门总数</span>
-          <strong>{{ stats.total }}</strong>
-          <p>组织架构中的全部节点</p>
-        </article>
-        <article class="summary-card">
-          <span>启用部门</span>
-          <strong>{{ stats.enabled }}</strong>
-          <p>可参与权限和业务归属</p>
-        </article>
-        <article class="summary-card">
-          <span>禁用部门</span>
-          <strong>{{ stats.disabled }}</strong>
-          <p>暂不参与日常业务流转</p>
-        </article>
-        <article class="summary-card">
-          <span>顶级部门</span>
-          <strong>{{ stats.root }}</strong>
-          <p>组织架构第一层节点</p>
-        </article>
-      </section>
+      <OrinStatusSummary :items="departmentStatusItems" class="governance-summary" />
 
       <section class="department-workspace">
         <aside class="directory-panel">
@@ -53,27 +55,6 @@
               type="primary"
               @click="handleCreateRoot"
             />
-          </div>
-
-          <div class="directory-tools">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索部门名称/编码"
-              clearable
-              @input="handleSearch"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-            <el-button-group>
-              <el-button title="展开全部" @click="expandAll">
-                <el-icon><ArrowDown /></el-icon>
-              </el-button>
-              <el-button title="收起全部" @click="collapseAll">
-                <el-icon><ArrowUp /></el-icon>
-              </el-button>
-            </el-button-group>
           </div>
 
           <div v-loading="loading" class="directory-tree">
@@ -357,6 +338,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown, ArrowUp, OfficeBuilding } from '@element-plus/icons-vue'
 import { getDepartmentList, getAllDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/department'
 import { getUserList } from '@/api/userManage'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 // 数据状态
 const loading = ref(false)
@@ -386,6 +369,13 @@ const stats = computed(() => {
     root: all.filter(d => !d.parentId || d.parentId === 0).length
   }
 })
+
+const departmentStatusItems = computed(() => [
+  { label: '部门总数', value: String(stats.value.total), meta: '组织架构中的全部节点' },
+  { label: '启用部门', value: String(stats.value.enabled), meta: '可参与权限和业务归属', intent: 'success' },
+  { label: '禁用部门', value: String(stats.value.disabled), meta: '暂不参与日常业务流转', intent: stats.value.disabled > 0 ? 'warning' : '' },
+  { label: '顶级部门', value: String(stats.value.root), meta: '组织架构第一层节点' }
+])
 
 const selectedDepartmentPath = computed(() => {
   if (!selectedDepartment.value) return ''
@@ -712,9 +702,21 @@ onUnmounted(() => {
 
 .department-shell {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   max-width: 1600px;
   margin: 0 auto;
+}
+
+.governance-filterbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+}
+
+.governance-summary {
+  margin-bottom: 2px;
 }
 
 .department-topbar {
@@ -1207,7 +1209,8 @@ onUnmounted(() => {
 
   .summary-grid,
   .department-workspace,
-  .field-grid {
+  .field-grid,
+  .governance-filterbar {
     grid-template-columns: 1fr;
   }
 

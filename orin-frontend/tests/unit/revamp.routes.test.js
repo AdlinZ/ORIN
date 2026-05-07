@@ -10,7 +10,7 @@ describe('route cleanup contracts', () => {
 
   it('keeps required historical paths', () => {
     expect(LEGACY_ROUTE_REDIRECTS['/workflow']).toBe('/dashboard/applications/workflows')
-    expect(LEGACY_ROUTE_REDIRECTS['/system/api-keys']).toBe('/dashboard/control/api-keys')
+    expect(LEGACY_ROUTE_REDIRECTS['/system/api-keys']).toBe('/dashboard/control/gateway?workspace=access')
   })
 
   it('redirects collapsed duplicate paths to canonical routes', () => {

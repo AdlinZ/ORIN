@@ -3,8 +3,7 @@
     <OrinEntityHeader
       domain="组织权限"
       title="角色管理"
-      description="配置系统角色及其菜单与操作权限"
-      :summary="roleHeaderSummary"
+      description="配置系统角色及其菜单与操作权限，区分系统保护角色与自定义治理角色。"
     >
       <template #actions>
         <el-button type="primary" class="create-btn" @click="handleCreate">
@@ -34,8 +33,20 @@
       </template>
     </OrinEntityHeader>
 
-    <div class="premium-card">
-      <!-- 角色列表 -->
+    <OrinStatusSummary :items="roleStatusItems" class="governance-summary" />
+
+    <div class="premium-card governance-card">
+      <div class="card-heading">
+        <div>
+          <span class="card-eyebrow">Role Matrix</span>
+          <h2>角色治理矩阵</h2>
+          <p>系统角色用于平台基础权限，自定义角色用于组织内的细分授权。</p>
+        </div>
+        <el-tag effect="plain" type="info">
+          {{ filteredRoles.length }} 个角色
+        </el-tag>
+      </div>
+
       <el-table
         v-loading="loading"
         border
@@ -54,6 +65,20 @@
 
         <el-table-column prop="roleName" label="角色名称" min-width="150" />
 
+        <el-table-column label="角色类型" width="130">
+          <template #default="{ row }">
+            <el-tag :type="isSystemRole(row.roleCode) ? 'success' : 'info'" effect="plain" size="small">
+              {{ isSystemRole(row.roleCode) ? '系统角色' : '自定义角色' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="权限范围" min-width="180">
+          <template #default="{ row }">
+            <span class="scope-text">{{ getRoleScope(row.roleCode) }}</span>
+          </template>
+        </el-table-column>
+
         <el-table-column prop="description" label="描述" min-width="250">
           <template #default="{ row }">
             <span class="description-text">{{ row.description || '-' }}</span>
@@ -63,6 +88,14 @@
         <el-table-column prop="createTime" label="创建时间" width="180">
           <template #default="{ row }">
             <span class="time-text">{{ formatDate(row.createTime) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="保护状态" width="120" align="center">
+          <template #default="{ row }">
+            <span class="protection-pill" :class="{ locked: isSystemRole(row.roleCode) }">
+              {{ isSystemRole(row.roleCode) ? '受保护' : '可维护' }}
+            </span>
           </template>
         </el-table-column>
 
@@ -172,6 +205,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Refresh } from '@element-plus/icons-vue'
 import { getRoleList, createRole, updateRole, deleteRole } from '@/api/role'
 import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 // 数据状态
 const loading = ref(false)
@@ -222,17 +256,31 @@ const isSystemRole = (roleCode) => {
   return ['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_OPERATOR', 'ROLE_ADMIN', 'ROLE_USER'].includes(roleCode)
 }
 
-const roleHeaderSummary = computed(() => {
+const roleStats = computed(() => {
   const allRoles = roles.value || []
   const total = totalRoles.value || allRoles.length
   const system = allRoles.filter(role => isSystemRole(role.roleCode)).length
   const custom = Math.max(total - system, 0)
-  return [
-    { label: '角色总数', value: String(total) },
-    { label: '系统角色', value: String(system) },
-    { label: '自定义角色', value: String(custom) }
-  ]
+  return { total, system, custom }
 })
+
+const roleStatusItems = computed(() => [
+  { label: '角色总数', value: String(roleStats.value.total), meta: '当前权限体系中的全部角色' },
+  { label: '系统角色', value: String(roleStats.value.system), meta: '平台预置，删除操作受保护', intent: 'success' },
+  { label: '自定义角色', value: String(roleStats.value.custom), meta: '可按组织治理需求维护' },
+  { label: '筛选结果', value: String(filteredRoles.value.length), meta: '当前搜索命中的角色数量' }
+])
+
+const getRoleScope = (roleCode) => {
+  const scopeMap = {
+    ROLE_SUPER_ADMIN: '全平台与最高权限',
+    ROLE_PLATFORM_ADMIN: '平台配置与组织治理',
+    ROLE_OPERATOR: '业务运营与运行监控',
+    ROLE_ADMIN: '系统管理与基础配置',
+    ROLE_USER: '普通业务访问'
+  }
+  return scopeMap[roleCode] || '自定义权限范围'
+}
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -384,6 +432,10 @@ onUnmounted(() => {
   min-height: 100vh;
 }
 
+.governance-summary {
+  margin-bottom: 14px;
+}
+
 .fade-in {
   animation: fadeIn 0.5s ease-out;
 }
@@ -400,6 +452,41 @@ onUnmounted(() => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   padding: 24px;
   transition: all 0.3s ease;
+}
+
+.governance-card {
+  display: grid;
+  gap: 18px;
+}
+
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.card-eyebrow {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: var(--orin-primary, #0f766e);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-heading h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.card-heading p {
+  margin: 6px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 
 .premium-card:hover {
@@ -482,6 +569,30 @@ onUnmounted(() => {
 .description-text {
   font-size: 13px;
   color: var(--el-text-color-secondary);
+}
+
+.scope-text {
+  color: var(--el-text-color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.protection-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.protection-pill.locked {
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
 }
 
 .time-text {

@@ -1,17 +1,22 @@
 <template>
-  <div class="metrics-dashboard">
-    <PageHeader
-      title="实时指标"
-      description="运行时令牌、延迟与成本的综合监控看板"
-      icon="TrendCharts"
-    >
-      <template #actions>
-        <el-button :icon="RefreshRight" @click="handleGlobalRefresh">
-          刷新数据
-        </el-button>
-      </template>
-      <template #filters>
-        <div class="metrics-filter-row">
+  <div class="metrics-dashboard server-workspace">
+    <section class="runtime-command-panel metrics-command-panel">
+      <div class="runtime-command-head">
+        <div class="header-main">
+          <div class="header-icon">
+            <el-icon><TrendCharts /></el-icon>
+          </div>
+          <div>
+            <h2 class="header-title">
+              实时指标
+            </h2>
+            <div class="header-subtitle">
+              运行时令牌、延迟与成本的综合监控看板
+            </div>
+          </div>
+        </div>
+
+        <div class="header-actions">
           <div class="status-badge" :style="healthStatusStyle">
             <span class="dot" /> {{ healthStatus }}
           </div>
@@ -36,9 +41,12 @@
               @change="handleAutoRefreshChange"
             />
           </div>
+          <el-button :icon="RefreshRight" type="primary" size="small" @click="handleGlobalRefresh">
+            刷新数据
+          </el-button>
         </div>
-      </template>
-    </PageHeader>
+      </div>
+    </section>
 
     <!-- Quick Stats Cards -->
     <div class="quick-stats-grid">
@@ -339,11 +347,10 @@
 
 <script setup>
 import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue';
-import { Cpu, Monitor, RefreshRight, Download, Coin, Timer, Money, ChatDotRound } from '@element-plus/icons-vue';
+import { Cpu, Monitor, RefreshRight, Download, Coin, Timer, Money, ChatDotRound, TrendCharts } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
 import { getTokenByDayOfWeek, getTokenByHour, getTokenByType, getSessions, getTokenStats, getDailyTokenTrend, getLatencyStats, getCostDistribution, getAgentList } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
-import PageHeader from '@/components/PageHeader.vue';
 
 // Auto refresh
 const autoRefresh = ref(false);
@@ -797,22 +804,54 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.metrics-dashboard {
-  padding: 24px;
-  background-color: var(--bg-color, #f8fafc);
-  min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
+@import './server-monitor-shared.css';
 
-.metrics-filter-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+.metrics-dashboard {
+  padding: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
+  min-height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .metrics-date-range {
   width: 260px;
+}
+
+.metrics-command-panel .runtime-command-head {
+  align-items: flex-start;
+}
+
+.metrics-command-panel .header-main {
+  flex: 1 1 260px;
+}
+
+.metrics-command-panel .header-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--monitor-accent);
+  font-size: 18px;
+}
+
+.metrics-command-panel .header-main > div:last-child {
+  min-width: 0;
+}
+
+.metrics-command-panel .header-title,
+.metrics-command-panel .header-subtitle {
+  word-break: keep-all;
+}
+
+.metrics-command-panel .header-actions {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
 }
 
 .metrics-auto-refresh {
@@ -820,7 +859,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 4px 10px;
-  border-radius: 16px;
+  border-radius: 999px;
   border: 1px solid var(--border-color, #e2e8f0);
   color: var(--text-secondary, #64748b);
   font-size: 13px;
@@ -830,14 +869,16 @@ onUnmounted(() => {
 .quick-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e2e8f0);
+  overflow: hidden;
+  border-radius: var(--monitor-radius) !important;
+  border: 1px solid var(--monitor-border, #e2e8f0) !important;
   background: var(--card-bg, #fff);
+  box-shadow: var(--monitor-shadow-soft);
 }
 
 .stat-card :deep(.el-card__body) {
@@ -848,8 +889,8 @@ onUnmounted(() => {
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -898,7 +939,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  border-radius: 16px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
 }
@@ -912,9 +953,10 @@ onUnmounted(() => {
 
 /* Cards General */
 .el-card {
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--monitor-radius) !important;
+  border: 1px solid var(--monitor-border, #e2e8f0) !important;
   background: var(--card-bg, #fff);
+  box-shadow: var(--monitor-shadow-soft);
 }
 
 .card-header-flex {
@@ -945,7 +987,7 @@ onUnmounted(() => {
 
 /* Top Activity Section */
 .activity-card {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .total-tokens {
@@ -1047,7 +1089,7 @@ onUnmounted(() => {
 .bottom-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
-  gap: 24px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -1229,7 +1271,9 @@ onUnmounted(() => {
 
 /* 黑夜模式适配 */
 html.dark .metrics-dashboard {
-  background-color: var(--bg-color);
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.1), transparent 32%),
+    #0f172a;
 }
 
 html.dark .stat-card {
@@ -1297,9 +1341,41 @@ html.dark .el-button:not(.el-button--primary):hover {
 }
 
 @media (max-width: 768px) {
+  .metrics-dashboard {
+    padding: 12px;
+  }
+
   .metrics-date-range {
     width: 100%;
     min-width: 220px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .metrics-command-panel .runtime-command-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .metrics-command-panel .header-main {
+    flex: 0 1 auto;
+  }
+
+  .metrics-command-panel .header-actions {
+    width: 100%;
+    flex: 0 1 auto;
+    justify-content: flex-start;
+  }
+
+  .quick-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .quick-stats-grid,
+  .activity-grid {
+    grid-template-columns: 1fr;
   }
 }
 

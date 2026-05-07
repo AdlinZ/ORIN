@@ -87,10 +87,11 @@ const systemRoutes = {
     USERS: '/dashboard/control/users',
     DEPARTMENTS: '/dashboard/control/departments',
     ROLES: '/dashboard/control/roles',
-    API_KEYS: '/dashboard/control/api-keys',
+    API_KEYS: '/dashboard/control/gateway?workspace=access',
     RATE_LIMIT: '/dashboard/control/rate-limit',
     MESSAGES: '/dashboard/control/notification-channels?tab=overview',
-    FILES: '/dashboard/control/file-management',
+    DATA_ASSETS: '/dashboard/control/data-assets',
+    FILES: '/dashboard/control/data-assets?assetTab=files',
     SETTINGS: '/dashboard/control/system-env',
     SETTINGS_BASE: '/dashboard/control/system-env',
     SETTINGS_MAIL: '/dashboard/control/notification-channels?tab=service',
@@ -99,8 +100,8 @@ const systemRoutes = {
     SETTINGS_MONITOR: '/dashboard/control/system-env',
     SETTINGS_GATEWAY: '/dashboard/control/gateway',
     UNIFIED_GATEWAY: '/dashboard/control/unified-gateway',
-    SETTINGS_SYNC: '/dashboard/control/client-sync',
-    SYNC: '/dashboard/control/sync',
+    SETTINGS_SYNC: '/dashboard/control/data-assets?assetTab=sync&tab=changes',
+    SYNC: '/dashboard/control/data-assets?assetTab=sync&tab=changes',
     SETTINGS_MCP_SERVICE: '/dashboard/control/mcp-service',
     AUDIT_LOGS: '/dashboard/control/audit-logs',
     MODELS: '/dashboard/applications/models',
@@ -117,6 +118,7 @@ const controlRoutes = {
     USERS: systemRoutes.USERS,
     API_KEYS: systemRoutes.API_KEYS,
     FILE_MANAGEMENT: systemRoutes.FILES,
+    DATA_ASSETS: systemRoutes.DATA_ASSETS,
     SYSTEM_ENV: systemRoutes.SETTINGS_MONITOR,
     NOTIFICATION_CHANNELS: systemRoutes.SETTINGS_NOTIFICATIONS,
     CLIENT_SYNC: systemRoutes.SETTINGS_SYNC,
@@ -470,8 +472,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 children: [
                     { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE },
                     { title: '通知设置', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
-                    { title: '同步配置', path: ROUTES.SYSTEM.SETTINGS_SYNC },
-                    { title: '数据同步', path: ROUTES.SYSTEM.SYNC },
+                    { title: '数据资产', path: ROUTES.SYSTEM.DATA_ASSETS },
                     { title: 'MCP 服务', path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE },
                 ]
             },
@@ -484,7 +485,6 @@ export const SIDEBAR_MENU_CONFIG = [
                 children: [
                     { title: '模型管理', path: ROUTES.SYSTEM.MODELS },
                     { title: '定价配置', path: ROUTES.SYSTEM.PRICING },
-                    { title: '文件管理', path: ROUTES.SYSTEM.FILES },
                 ]
             },
             // 网关与审计（三级）

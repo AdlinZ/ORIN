@@ -1,12 +1,24 @@
 <template>
-  <div class="trace-viewer">
-    <PageHeader
-      title="调用链路"
-      description="查看执行链路、步骤耗时与运行指标"
-      icon="Share"
-    />
+  <div class="trace-viewer server-workspace">
+    <section class="runtime-command-panel trace-command-panel">
+      <div class="runtime-command-head">
+        <div class="header-main">
+          <div class="header-icon">
+            <el-icon><Share /></el-icon>
+          </div>
+          <div>
+            <h2 class="header-title">
+              调用链路
+            </h2>
+            <div class="header-subtitle">
+              查看执行链路、步骤耗时与运行指标
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <el-card class="search-card">
+    <el-card class="search-card" shadow="never">
       <div class="search-row">
         <el-input
           v-model="searchTraceId"
@@ -14,10 +26,10 @@
           placeholder="输入 traceId 搜索调用链路"
           @keyup.enter="handleSearch"
         />
-        <el-button type="primary" :loading="searching" @click="handleSearch">
+        <el-button type="primary" :icon="Search" :loading="searching" @click="handleSearch">
           搜索
         </el-button>
-        <el-button :loading="recentLoading" @click="loadRecentTraces">
+        <el-button :icon="RefreshRight" :loading="recentLoading" @click="loadRecentTraces">
           刷新
         </el-button>
       </div>
@@ -225,7 +237,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getRecentTraces, getTrace, getTraceLink, getTraceStats, searchTraces } from '@/api/trace'
 import * as echarts from 'echarts'
-import PageHeader from '@/components/PageHeader.vue'
+import { RefreshRight, Search, Share } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -518,8 +530,14 @@ watch(
 </script>
 
 <style scoped>
+@import '../Monitor/server-monitor-shared.css';
+
 .trace-viewer {
   padding: 20px;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
 }
 
 .search-card,
@@ -527,7 +545,40 @@ watch(
 .stats-row,
 .chart-card,
 .chart-row {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.search-card,
+.trace-meta-card,
+.chart-card,
+.table-card,
+.stat-card {
+  overflow: hidden;
+  border-radius: var(--monitor-radius) !important;
+  border: 1px solid var(--monitor-border, #e2e8f0) !important;
+  background: var(--monitor-surface, #ffffff);
+  box-shadow: var(--monitor-shadow-soft);
+}
+
+.search-card :deep(.el-card__body),
+.trace-meta-card :deep(.el-card__body),
+.chart-card :deep(.el-card__body),
+.table-card :deep(.el-card__body),
+.stat-card :deep(.el-card__body) {
+  padding: 18px 20px;
+}
+
+.trace-command-panel .header-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--monitor-accent);
+  font-size: 18px;
 }
 
 .search-row {
@@ -582,7 +633,7 @@ watch(
 }
 
 .stat-content {
-  padding: 10px;
+  padding: 6px;
 }
 
 .stat-label {
@@ -592,8 +643,8 @@ watch(
 }
 
 .stat-value {
-  font-size: 32px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 750;
   color: var(--neutral-gray-900);
 }
 
@@ -640,6 +691,10 @@ watch(
 }
 
 @media (max-width: 768px) {
+  .trace-viewer {
+    padding: 12px;
+  }
+
   .search-row,
   .trace-meta-row,
   .trace-meta-actions {

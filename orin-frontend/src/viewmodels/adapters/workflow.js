@@ -1,3 +1,21 @@
+export function isWorkflowPublished(status) {
+  return ['ACTIVE', 'PUBLISHED'].includes(String(status || '').toUpperCase())
+}
+
+export function workflowStatusLabel(status) {
+  const normalized = String(status || '').toUpperCase()
+  if (isWorkflowPublished(normalized)) return '已发布'
+  if (normalized === 'ARCHIVED') return '已归档'
+  return '草稿'
+}
+
+export function workflowStatusTagType(status) {
+  const normalized = String(status || '').toUpperCase()
+  if (isWorkflowPublished(normalized)) return 'success'
+  if (normalized === 'ARCHIVED') return 'warning'
+  return 'info'
+}
+
 export function toWorkflowListViewModel(payload) {
   const rows = Array.isArray(payload) ? payload : []
   return rows.map((item) => ({
@@ -16,7 +34,7 @@ export function toWorkflowStatsViewModel(rows) {
   const list = Array.isArray(rows) ? rows : []
   return list.reduce((acc, row) => {
     acc.total += 1
-    if (row.status === 'PUBLISHED') {
+    if (isWorkflowPublished(row.status)) {
       acc.published += 1
     } else {
       acc.draft += 1

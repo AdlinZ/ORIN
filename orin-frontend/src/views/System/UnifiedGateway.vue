@@ -32,8 +32,8 @@
             v-for="item in workspaces"
             :key="item.key"
             type="button"
-            :class="['gateway-summary-card', { active: activeWorkspace === item.key }]"
-            @click="activeWorkspace = item.key"
+            :class="['gateway-summary-card', 'workspace-tab', { active: activeWorkspace === item.key }]"
+            @click="setActiveWorkspace(item.key)"
           >
             <el-icon><component :is="item.icon" /></el-icon>
             <span>
@@ -498,6 +498,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Connection,
@@ -530,12 +531,34 @@ const workspaces = [
   { key: 'traffic', label: '流量策略', icon: Operation }
 ]
 
-const activeWorkspace = ref('overview')
+const route = useRoute()
+const router = useRouter()
+const workspaceKeys = new Set(workspaces.map((item) => item.key))
+const normalizeWorkspace = (workspace) => {
+  const key = String(workspace || '')
+  return workspaceKeys.has(key) ? key : 'overview'
+}
+
+const activeWorkspace = ref(normalizeWorkspace(route.query.workspace))
 const routeDrawerVisible = ref(false)
 const selectedRouteId = ref(null)
 const testDialogVisible = ref(false)
 const testing = ref(false)
 const testForm = reactive({ path: '', method: 'GET' })
+
+const setActiveWorkspace = (workspace) => {
+  const nextWorkspace = normalizeWorkspace(workspace)
+  activeWorkspace.value = nextWorkspace
+
+  const nextQuery = { ...route.query }
+  if (nextWorkspace === 'overview') {
+    delete nextQuery.workspace
+  } else {
+    nextQuery.workspace = nextWorkspace
+  }
+
+  router.replace({ query: nextQuery }).catch(() => {})
+}
 
 const {
   state: workbenchState,
@@ -684,12 +707,12 @@ const primaryActions = computed(() => {
   if ((workbench.value.recentFailures?.length || 0) > 0) {
     return [
       { key: 'test', label: '测试入口', type: 'primary', handler: openRouteTest },
-      { key: 'api', label: '查看统一入口', type: 'default', handler: () => { activeWorkspace.value = 'api' } }
+      { key: 'api', label: '查看统一入口', type: 'default', handler: () => setActiveWorkspace('api') }
     ]
   }
   return [
     { key: 'test', label: '测试入口', type: 'primary', handler: openRouteTest },
-    { key: 'traffic', label: '查看流量策略', type: 'default', handler: () => { activeWorkspace.value = 'traffic' } }
+    { key: 'traffic', label: '查看流量策略', type: 'default', handler: () => setActiveWorkspace('traffic') }
   ]
 })
 
@@ -704,24 +727,31 @@ const quickActions = computed(() => [
     key: 'open-api',
     label: '配置统一入口',
     description: '维护 /v1、后台控制面或服务代理入口。',
-    handler: () => { activeWorkspace.value = 'api' }
+    handler: () => setActiveWorkspace('api')
   },
   {
     key: 'proxy',
     label: '配置上游服务',
     description: '把上游服务、实例和健康检查接入统一入口。',
-    handler: () => { activeWorkspace.value = 'api' }
+    handler: () => setActiveWorkspace('api')
   },
   {
     key: 'traffic',
     label: '流量策略',
     description: '维护限流、熔断、重试和平台底线。',
-    handler: () => { activeWorkspace.value = 'traffic' }
+    handler: () => setActiveWorkspace('traffic')
   }
 ])
 
 const secondaryRuntimeMetrics = computed(() =>
   metrics.value.filter((metric) => metric.key === 'coverage')
+)
+
+watch(
+  () => route.query.workspace,
+  (workspace) => {
+    activeWorkspace.value = normalizeWorkspace(workspace)
+  }
 )
 
 watch(activeWorkspace, (workspace) => {
@@ -732,6 +762,8 @@ watch(activeWorkspace, (workspace) => {
 
 onMounted(() => {
   loadWorkbench()
+  if (activeWorkspace.value === 'api') loadRoutes()
+  if (activeWorkspace.value === 'traffic') loadPolicies()
 })
 
 const refreshCurrentWorkspace = () => {
@@ -774,11 +806,11 @@ async function handlePrimaryEntryAction() {
   if (firstAttention) {
     await createLocalControlPlaneRoute(firstAttention)
     await loadWorkbench()
-    activeWorkspace.value = 'api'
+    setActiveWorkspace('api')
     return
   }
   if (workbench.value.recentFailures?.length) {
-    activeWorkspace.value = 'api'
+    setActiveWorkspace('api')
     return
   }
   openRouteTest()

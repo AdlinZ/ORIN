@@ -1,7 +1,7 @@
 <template>
-  <div class="file-management page-container fade-in">
+  <div class="file-management page-container fade-in" :class="{ embedded }">
     <section class="file-shell">
-      <header class="file-topbar">
+      <header v-if="!embedded" class="file-topbar">
         <div class="topbar-copy">
           <span class="topbar-eyebrow">系统设置</span>
           <h1>文件管理</h1>
@@ -200,6 +200,13 @@ import {
   VideoCamera
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const fileTypeOptions = [
   { label: '全部', value: '' },
@@ -403,6 +410,12 @@ onMounted(() => {
   max-width: 1600px;
   margin: 0 auto;
   color: var(--el-text-color-primary);
+}
+
+.file-management.embedded {
+  min-height: auto;
+  max-width: none;
+  padding: 0;
 }
 
 .fade-in {

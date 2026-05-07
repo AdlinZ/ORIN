@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   toKnowledgeListViewModel,
   toKnowledgeSummaryViewModel,
+  workflowStatusLabel,
   toWorkflowListViewModel,
   toWorkflowStatsViewModel
 } from '@/viewmodels'
@@ -42,5 +43,15 @@ describe('revamp viewmodel adapters', () => {
     expect(stats.total).toBe(2)
     expect(stats.published).toBe(1)
     expect(stats.draft).toBe(1)
+  })
+
+  it('treats backend ACTIVE workflows as published', () => {
+    const stats = toWorkflowStatsViewModel([
+      { status: 'ACTIVE' },
+      { status: 'DRAFT' }
+    ])
+    expect(stats.published).toBe(1)
+    expect(stats.draft).toBe(1)
+    expect(workflowStatusLabel('ACTIVE')).toBe('已发布')
   })
 })

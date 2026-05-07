@@ -20,7 +20,7 @@
                 </el-icon>
                 <div>
                   <h3>Dify</h3>
-                  <p>配置入口已迁移至“数据同步”模块</p>
+                  <p>配置入口已迁移至“数据资产”模块</p>
                 </div>
               </div>
               <el-tag type="warning">
@@ -36,11 +36,11 @@
             show-icon
             class="预留提示"
           >
-            Dify 的 API 地址、API Key、连接测试与同步动作统一迁移到「控制台 > 数据同步 > Dify 同步」中管理。
+            Dify 的 API 地址、API Key、连接测试与同步动作统一迁移到「控制台 > 数据资产 > 同步管理 > Dify 同步」中管理。
           </el-alert>
 
           <el-button type="primary" @click="goToDifySync">
-            前往数据同步
+            前往数据资产
           </el-button>
         </el-card>
       </el-tab-pane>
@@ -368,7 +368,7 @@ const neo4jConfig = reactive({
 const neo4jLoading = ref(false)
 
 const goToDifySync = () => {
-  router.push('/dashboard/control/client-sync?tab=dify')
+  router.push('/dashboard/control/data-assets?assetTab=sync&tab=dify')
 }
 
 // 加载 RAGFlow 配置

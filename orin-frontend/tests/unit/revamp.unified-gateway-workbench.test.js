@@ -11,6 +11,12 @@ const patchMock = vi.fn()
 const putMock = vi.fn()
 const errorMock = vi.fn()
 const successMock = vi.fn()
+const replaceMock = vi.fn(() => Promise.resolve())
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: replaceMock })
+}))
 
 vi.mock('@/utils/request', () => ({
   default: {
@@ -76,6 +82,7 @@ describe('gateway workbench revamp', () => {
     putMock.mockReset()
     errorMock.mockReset()
     successMock.mockReset()
+    replaceMock.mockClear()
     getMock.mockImplementation((url) => {
       if (url === '/system/gateway/workbench') {
         return Promise.resolve({
@@ -128,7 +135,7 @@ describe('gateway workbench revamp', () => {
     expect(text).toContain('错误率')
     expect(text).toContain('运行结论')
 
-    const tabLabels = wrapper.findAll('.workspace-tab').map((button) => button.text())
+    const tabLabels = wrapper.findAll('.workspace-tab strong').map((label) => label.text())
     expect(tabLabels).toEqual(['运行态', '统一入口', '访问控制', '流量策略'])
     expect(tabLabels).not.toContain('上游服务')
     expect(tabLabels).not.toContain('密钥中心')

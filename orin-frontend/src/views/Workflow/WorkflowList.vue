@@ -62,8 +62,8 @@
         
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'PUBLISHED' ? 'success' : 'info'" effect="light" round>
-              {{ row.status === 'PUBLISHED' ? '已发布' : '草稿' }}
+            <el-tag :type="workflowStatusTagType(row.status)" effect="light" round>
+              {{ workflowStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -231,6 +231,7 @@ import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
 import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
 import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';
+import { isWorkflowPublished, workflowStatusLabel, workflowStatusTagType } from '@/viewmodels';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -240,8 +241,8 @@ const workflows = ref([]);
 // 计算统计数据
 const stats = computed(() => {
   const list = workflows.value;
-  const published = list.filter(w => w.status === 'PUBLISHED').length;
-  const draft = list.filter(w => w.status !== 'PUBLISHED').length;
+  const published = list.filter(w => isWorkflowPublished(w.status)).length;
+  const draft = list.length - published;
   return {
     total: list.length,
     published,
@@ -300,7 +301,7 @@ onUnmounted(() => {
 });
 
 const handleCreate = () => {
-    router.push(ROUTES.AGENTS.WORKFLOWS);
+    router.push(ROUTES.AGENTS.WORKFLOW_CREATE);
 };
 
 const handleCreateVisual = () => {

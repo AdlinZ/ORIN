@@ -441,7 +441,7 @@
                   </el-select>
                   <p class="form-tip">
                     已在 API 密钥管理中配置的密钥
-                    <el-button type="primary" link size="small" @click="$router.push('/dashboard/control/api-keys')">去配置</el-button>
+                    <el-button type="primary" link size="small" @click="$router.push('/dashboard/control/gateway?workspace=access')">去配置</el-button>
                   </p>
                 </el-form-item>
               </el-col>

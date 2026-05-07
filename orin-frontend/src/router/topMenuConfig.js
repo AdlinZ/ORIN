@@ -112,7 +112,6 @@ export const TOP_MENU_CONFIG = [
       { title: '用户管理', path: ROUTES.SYSTEM.USERS, icon: 'User' },
       { title: '部门管理', path: ROUTES.SYSTEM.DEPARTMENTS, icon: 'OfficeBuilding' },
       { title: '角色管理', path: ROUTES.SYSTEM.ROLES, icon: 'UserFilled' },
-      { title: '定价配置', path: ROUTES.SYSTEM.PRICING, icon: 'PriceTag' },
     ],
   },
   {
@@ -124,11 +123,11 @@ export const TOP_MENU_CONFIG = [
     requiresAdmin: true,
     children: [
       { title: '模型管理', path: ROUTES.SYSTEM.MODELS, icon: 'SetUp' },
+      { title: '定价配置', path: ROUTES.SYSTEM.PRICING, icon: 'PriceTag' },
       { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE, icon: 'Setting' },
       { title: '通知设置', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS, icon: 'Bell' },
-      { title: '文件管理', path: ROUTES.SYSTEM.FILES, icon: 'Folder' },
+      { title: '数据资产', path: ROUTES.SYSTEM.DATA_ASSETS, icon: 'Folder' },
       { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY, icon: 'Router' },
-      { title: '数据同步', path: ROUTES.SYSTEM.SYNC, icon: 'Refresh' },
     ],
   },
 ]

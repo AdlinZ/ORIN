@@ -41,6 +41,19 @@ public class DifyWorkflowSyncController {
     public ResponseEntity<Map<String, Object>> listDifyWorkflows(
             @RequestParam(required = false) String endpoint,
             @RequestParam(required = false) String apiKey) {
+        return listDifyWorkflowsInternal(endpoint, apiKey);
+    }
+
+    @Operation(summary = "获取 Dify 工作流列表")
+    @PostMapping("/dify/workflows")
+    public ResponseEntity<Map<String, Object>> listDifyWorkflows(
+            @RequestBody(required = false) Map<String, String> request) {
+        String endpoint = request != null ? request.get("endpoint") : null;
+        String apiKey = request != null ? request.get("apiKey") : null;
+        return listDifyWorkflowsInternal(endpoint, apiKey);
+    }
+
+    private ResponseEntity<Map<String, Object>> listDifyWorkflowsInternal(String endpoint, String apiKey) {
 
         String finalEndpoint = endpoint != null ? endpoint : defaultEndpoint;
         String finalApiKey = apiKey != null ? apiKey : defaultApiKey;
@@ -237,11 +250,13 @@ public class DifyWorkflowSyncController {
             base += "/";
         }
 
+        String normalizedPath = path == null ? "" : path.replaceFirst("^/+", "");
+
         // Ensure path starts with console/api
-        if (!path.startsWith("console/api/")) {
-            path = "console/api/" + path.replaceFirst("^/?", "");
+        if (!normalizedPath.startsWith("console/api/")) {
+            normalizedPath = "console/api/" + normalizedPath;
         }
 
-        return base + path;
+        return base + normalizedPath;
     }
 }

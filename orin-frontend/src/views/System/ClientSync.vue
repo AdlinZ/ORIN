@@ -1,8 +1,8 @@
 <template>
-  <div class="sync-container page-container fade-in">
+  <div class="sync-container page-container fade-in" :class="{ embedded }">
     <section class="sync-console">
       <header class="sync-hero">
-        <div class="sync-hero-row">
+        <div v-if="!embedded" class="sync-hero-row">
           <div class="sync-hero-main">
             <div class="sync-icon">
               <el-icon><Refresh /></el-icon>
@@ -440,6 +440,13 @@ import {
   testDifyConnection as testSystemDifyConnection
 } from '@/api/integrations'
 import { getAgentList } from '@/api/agent'
+
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -945,6 +952,10 @@ onUnmounted(() => {
 <style scoped>
 .sync-container {
   color: #243244;
+}
+
+.sync-container.embedded {
+  min-height: auto;
 }
 
 .sync-console {

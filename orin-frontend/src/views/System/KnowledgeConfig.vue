@@ -325,7 +325,7 @@ docker-compose -f milvus-docker-compose.yml up -d</pre>
                   </el-select>
                   <p class="form-tip">
                     选择已在"API密钥管理"中配置的密钥
-                    <el-button type="primary" link @click="router.push('/dashboard/control/api-keys')">
+                    <el-button type="primary" link @click="router.push('/dashboard/control/gateway?workspace=access')">
                       去配置
                     </el-button>
                   </p>

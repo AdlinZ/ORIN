@@ -1,52 +1,21 @@
 <template>
   <div class="user-management page-container fade-in">
     <section class="user-shell">
-      <header class="user-topbar">
-        <div class="topbar-copy">
-          <span class="topbar-eyebrow">组织权限</span>
-          <h1>用户管理</h1>
-          <p>维护企业成员、账号状态、部门归属和系统访问角色。</p>
-        </div>
-        <div class="topbar-actions">
+      <OrinEntityHeader
+        domain="组织权限"
+        title="用户管理"
+        description="维护企业成员、账号状态、部门归属和系统访问角色。"
+      >
+        <template #actions>
           <el-button :icon="Refresh" @click="loadUsers">
             刷新
           </el-button>
           <el-button type="primary" :icon="Plus" @click="handleCreate">
             创建用户
           </el-button>
-        </div>
-      </header>
-
-      <section class="summary-grid">
-        <article class="summary-card primary">
-          <span>用户总数</span>
-          <strong>{{ userStats.total }}</strong>
-          <p>当前组织中的全部账号</p>
-        </article>
-        <article class="summary-card">
-          <span>已启用</span>
-          <strong>{{ userStats.active }}</strong>
-          <p>可正常登录和访问系统</p>
-        </article>
-        <article class="summary-card">
-          <span>已禁用</span>
-          <strong>{{ userStats.inactive }}</strong>
-          <p>暂时阻止访问的账号</p>
-        </article>
-        <article class="summary-card">
-          <span>权限角色</span>
-          <strong>{{ userStats.roles }}</strong>
-          <p>当前账号覆盖的角色类型</p>
-        </article>
-      </section>
-
-      <section class="user-workspace">
-        <div class="workspace-head">
-          <div>
-            <h2>组织用户清单</h2>
-            <p>以部门归属、权限角色和账号状态为维护口径。</p>
-          </div>
-          <div class="workspace-tools">
+        </template>
+        <template #filters>
+          <div class="governance-filterbar">
             <el-input
               v-model="searchQuery"
               placeholder="搜索用户名 / 邮箱"
@@ -57,7 +26,41 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
+            <el-select v-model="roleFilter" placeholder="角色" clearable>
+              <el-option
+                v-for="role in roleOptions"
+                :key="role.value"
+                :label="role.label"
+                :value="role.value"
+              />
+            </el-select>
+            <el-select
+              v-model="departmentFilter"
+              placeholder="部门"
+              clearable
+              filterable
+            >
+              <el-option
+                v-for="dept in departments"
+                :key="dept.departmentId"
+                :label="dept.departmentName"
+                :value="dept.departmentId"
+              />
+            </el-select>
+            <el-segmented v-model="statusFilter" :options="statusFilterOptions" />
           </div>
+        </template>
+      </OrinEntityHeader>
+
+      <OrinStatusSummary :items="userStatusItems" class="governance-summary" />
+
+      <section class="user-workspace">
+        <div class="workspace-head">
+          <div>
+            <h2>组织用户清单</h2>
+            <p>以部门归属、权限角色和账号状态为维护口径。</p>
+          </div>
+          <span class="workspace-count">当前筛选 {{ filteredUsers.length }} 个</span>
         </div>
 
         <el-table
@@ -324,12 +327,17 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Edit, Lock, Plus, Refresh, Search, Unlock, View } from '@element-plus/icons-vue'
 import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus } from '@/api/userManage'
 import { getDepartmentList } from '@/api/department'
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 const loading = ref(false)
 const submitting = ref(false)
 const users = ref([])
 const departments = ref([])
 const searchQuery = ref('')
+const roleFilter = ref('')
+const departmentFilter = ref(null)
+const statusFilter = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalUsers = ref(0)
@@ -357,6 +365,12 @@ const roleOptions = [
   { label: '普通用户', value: 'ROLE_USER' }
 ]
 
+const statusFilterOptions = [
+  { label: '全部', value: 'all' },
+  { label: '启用', value: 'active' },
+  { label: '禁用', value: 'inactive' }
+]
+
 const formRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -376,12 +390,12 @@ const formRules = {
 }
 
 const filteredUsers = computed(() => {
-  if (!searchQuery.value) return users.value
-
   const query = searchQuery.value.toLowerCase()
   return users.value.filter(user =>
-    (user.username || '').toLowerCase().includes(query) ||
-    (user.email || '').toLowerCase().includes(query)
+    (!query || (user.username || '').toLowerCase().includes(query) || (user.email || '').toLowerCase().includes(query)) &&
+    (!roleFilter.value || user.role === roleFilter.value) &&
+    (!departmentFilter.value || user.departmentId === departmentFilter.value) &&
+    (statusFilter.value === 'all' || user.status === statusFilter.value)
   )
 })
 
@@ -391,6 +405,13 @@ const userStats = computed(() => ({
   inactive: users.value.filter(user => user.status !== 'active').length,
   roles: new Set(users.value.map(user => user.role).filter(Boolean)).size
 }))
+
+const userStatusItems = computed(() => [
+  { label: '用户总数', value: String(userStats.value.total), meta: '当前组织中的全部账号' },
+  { label: '已启用', value: String(userStats.value.active), meta: '可正常登录和访问系统', intent: 'success' },
+  { label: '已禁用', value: String(userStats.value.inactive), meta: '暂时阻止访问的账号', intent: userStats.value.inactive > 0 ? 'warning' : '' },
+  { label: '权限角色', value: String(userStats.value.roles), meta: '当前账号覆盖的角色类型' }
+])
 
 const openUserDetail = (row) => {
   selectedUser.value = row
@@ -630,7 +651,19 @@ onUnmounted(() => {
 .user-shell {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
+}
+
+.governance-filterbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.2fr) minmax(150px, 0.7fr) minmax(170px, 0.8fr) auto;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+}
+
+.governance-summary {
+  margin-bottom: 2px;
 }
 
 .user-topbar {
@@ -741,6 +774,13 @@ onUnmounted(() => {
   margin: 6px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 13px;
+}
+
+.workspace-count {
+  flex: none;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .workspace-tools {
@@ -960,6 +1000,10 @@ html.dark .user-workspace {
 
   .workspace-tools {
     width: 100%;
+  }
+
+  .governance-filterbar {
+    grid-template-columns: 1fr;
   }
 }
 </style>

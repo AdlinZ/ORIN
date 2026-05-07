@@ -1,11 +1,10 @@
 <template>
   <div class="page-container">
     <div class="tab-wrapper-card">
-      <OrinPageShell
+      <OrinEntityHeader
         v-if="!embedded"
         title="API 密钥"
         description="管理平台访问密钥、供应商凭据、调用额度与限流策略"
-        icon="Key"
         domain="组织权限"
       >
         <template #actions>
@@ -26,7 +25,7 @@
             添加供应商密钥
           </el-button>
         </template>
-      </OrinPageShell>
+      </OrinEntityHeader>
 
       <div v-else class="embedded-access-toolbar">
         <div>
@@ -57,228 +56,228 @@
       <OrinStatusSummary :items="apiKeyStatusItems" class="governance-summary" />
 
       <el-tabs v-model="activeTab" class="api-key-tabs">
-      <el-tab-pane label="平台访问密钥" name="platform">
-        <OrinDataTable class="table-card">
-          <el-table
-            v-loading="loading"
-            border
-            :data="apiKeys"
-            style="width: 100%"
-            stripe
-          >
-            <!-- ... existing platform table columns (truncated for brevity in ReplacementContent but will be kept in full file) ... -->
-            <el-table-column type="expand">
-              <template #default="{ row }">
-                <div class="expand-content">
-                  <el-descriptions title="密钥详情" :column="2" border>
-                    <el-descriptions-item label="密钥ID">
-                      {{ row.id }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="密钥前缀">
-                      {{ row.keyPrefix }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="创建时间">
-                      {{ formatDateTime(row.createdAt) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="最后使用">
-                      {{ formatDateTime(row.lastUsedAt) || '从未使用' }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="过期时间">
-                      {{ formatDateTime(row.expiresAt) || '永不过期' }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="状态">
-                      <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-                        {{ row.enabled ? '启用' : '禁用' }}
-                      </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="速率限制">
-                      {{ row.rateLimitPerMinute }}/分钟, {{ row.rateLimitPerDay }}/天
-                    </el-descriptions-item>
-                    <el-descriptions-item label="Token配额">
-                      {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
-                      ({{ row.quotaPercentage.toFixed(1) }}%)
-                    </el-descriptions-item>
-                    <el-descriptions-item label="描述" :span="2">
-                      {{ row.description || '无描述' }}
-                    </el-descriptions-item>
-                  </el-descriptions>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column
-              prop="name"
-              label="名称"
-              width="140"
-              show-overflow-tooltip
-            />
-
-            <el-table-column prop="keyPrefix" label="密钥前缀" width="160">
-              <template #default="{ row }">
-                <code class="key-prefix">{{ row.keyPrefix }}...</code>
-              </template>
-            </el-table-column>
-
-            <el-table-column
-              prop="enabled"
-              label="状态"
-              width="80"
-              align="center"
+        <el-tab-pane label="平台访问密钥" name="platform">
+          <OrinDataTable class="table-card">
+            <el-table
+              v-loading="loading"
+              border
+              :data="apiKeys"
+              style="width: 100%"
+              stripe
             >
-              <template #default="{ row }">
-                <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-                  {{ row.enabled ? '启用' : '禁用' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="配额使用" min-width="180">
-              <template #default="{ row }">
-                <div class="quota-bar">
-                  <el-progress 
-                    :percentage="row.quotaPercentage" 
-                    :color="getQuotaColor(row.quotaPercentage)"
-                    :stroke-width="8"
-                  />
-                  <div class="quota-text">
-                    {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
+              <!-- ... existing platform table columns (truncated for brevity in ReplacementContent but will be kept in full file) ... -->
+              <el-table-column type="expand">
+                <template #default="{ row }">
+                  <div class="expand-content">
+                    <el-descriptions title="密钥详情" :column="2" border>
+                      <el-descriptions-item label="密钥ID">
+                        {{ row.id }}
+                      </el-descriptions-item>
+                      <el-descriptions-item label="密钥前缀">
+                        {{ row.keyPrefix }}
+                      </el-descriptions-item>
+                      <el-descriptions-item label="创建时间">
+                        {{ formatDateTime(row.createdAt) }}
+                      </el-descriptions-item>
+                      <el-descriptions-item label="最后使用">
+                        {{ formatDateTime(row.lastUsedAt) || '从未使用' }}
+                      </el-descriptions-item>
+                      <el-descriptions-item label="过期时间">
+                        {{ formatDateTime(row.expiresAt) || '永不过期' }}
+                      </el-descriptions-item>
+                      <el-descriptions-item label="状态">
+                        <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+                          {{ row.enabled ? '启用' : '禁用' }}
+                        </el-tag>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="速率限制">
+                        {{ row.rateLimitPerMinute }}/分钟, {{ row.rateLimitPerDay }}/天
+                      </el-descriptions-item>
+                      <el-descriptions-item label="Token配额">
+                        {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
+                        ({{ row.quotaPercentage.toFixed(1) }}%)
+                      </el-descriptions-item>
+                      <el-descriptions-item label="描述" :span="2">
+                        {{ row.description || '无描述' }}
+                      </el-descriptions-item>
+                    </el-descriptions>
                   </div>
-                </div>
-              </template>
-            </el-table-column>
+                </template>
+              </el-table-column>
 
-            <el-table-column
-              prop="rateLimitPerMinute"
-              label="限流"
-              width="90"
-              align="center"
-            >
-              <template #default="{ row }">
-                {{ row.rateLimitPerMinute }}/分
-              </template>
-            </el-table-column>
-
-            <el-table-column label="操作" width="270" fixed="right">
-              <template #default="{ row }">
-                <el-button 
-                  size="small" 
-                  :type="row.enabled ? 'warning' : 'success'" 
-                  link
-                  @click="toggleApiKey(row)"
-                >
-                  {{ row.enabled ? '禁用' : '启用' }}
-                </el-button>
-                <el-button
-                  v-if="row.canRevealSecret"
-                  size="small"
-                  type="info"
-                  link
-                  :loading="revealLoadingKeys.has(row.id)"
-                  @click="handleRevealSecret(row)"
-                >
-                  查看明文
-                </el-button>
-                <el-button
-                  size="small"
-                  type="primary"
-                  link
-                  @click="handleResetQuota(row)"
-                >
-                  重置配额
-                </el-button>
-                <el-button
-                  size="small"
-                  type="danger"
-                  link
-                  @click="handleDelete(row)"
-                >
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-            <template #empty>
-              <OrinEmptyState
-                description="暂无平台访问密钥，请先创建受控调用凭据"
-                action-label="创建平台密钥"
-                @action="showCreateDialog"
+              <el-table-column
+                prop="name"
+                label="名称"
+                width="140"
+                show-overflow-tooltip
               />
-            </template>
-          </el-table>
-        </OrinDataTable>
-      </el-tab-pane>
 
-      <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
-        <OrinDataTable class="table-card">
-          <el-table
-            v-loading="loading"
-            border
-            :data="externalKeys"
-            style="width: 100%"
-            stripe
-          >
-            <el-table-column prop="name" label="密钥名称" min-width="150" />
-            <el-table-column prop="provider" label="供应商" width="150">
-              <template #default="{ row }">
-                <el-tag size="small" effect="plain">
-                  {{ row.provider }}
-                </el-tag>
+              <el-table-column prop="keyPrefix" label="密钥前缀" width="160">
+                <template #default="{ row }">
+                  <code class="key-prefix">{{ row.keyPrefix }}...</code>
+                </template>
+              </el-table-column>
+
+              <el-table-column
+                prop="enabled"
+                label="状态"
+                width="80"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+                    {{ row.enabled ? '启用' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="配额使用" min-width="180">
+                <template #default="{ row }">
+                  <div class="quota-bar">
+                    <el-progress 
+                      :percentage="row.quotaPercentage" 
+                      :color="getQuotaColor(row.quotaPercentage)"
+                      :stroke-width="8"
+                    />
+                    <div class="quota-text">
+                      {{ formatNumber(row.usedTokens) }} / {{ formatNumber(row.monthlyTokenQuota) }}
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column
+                prop="rateLimitPerMinute"
+                label="限流"
+                width="90"
+                align="center"
+              >
+                <template #default="{ row }">
+                  {{ row.rateLimitPerMinute }}/分
+                </template>
+              </el-table-column>
+
+              <el-table-column label="操作" width="270" fixed="right">
+                <template #default="{ row }">
+                  <el-button 
+                    size="small" 
+                    :type="row.enabled ? 'warning' : 'success'" 
+                    link
+                    @click="toggleApiKey(row)"
+                  >
+                    {{ row.enabled ? '禁用' : '启用' }}
+                  </el-button>
+                  <el-button
+                    v-if="row.canRevealSecret"
+                    size="small"
+                    type="info"
+                    link
+                    :loading="revealLoadingKeys.has(row.id)"
+                    @click="handleRevealSecret(row)"
+                  >
+                    查看明文
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    link
+                    @click="handleResetQuota(row)"
+                  >
+                    重置配额
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    link
+                    @click="handleDelete(row)"
+                  >
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+              <template #empty>
+                <OrinEmptyState
+                  description="暂无平台访问密钥，请先创建受控调用凭据"
+                  action-label="创建平台密钥"
+                  @action="showCreateDialog"
+                />
               </template>
-            </el-table-column>
-            <el-table-column label="API密钥" min-width="200">
-              <template #default="{ row }">
-                <code class="key-prefix">
-                  {{ isKeyVisible(row.id) ? row.apiKey : maskKey(row.apiKey) }}
-                </code>
-                <el-button link :icon="isKeyVisible(row.id) ? Hide : View" @click="toggleKeyVisibility(row.id)" />
-              </template>
-            </el-table-column>
-            <el-table-column
-              prop="baseUrl"
-              label="端点地址"
-              min-width="180"
-              show-overflow-tooltip
-            />
-            <el-table-column
-              prop="enabled"
-              label="状态"
-              width="100"
-              align="center"
+            </el-table>
+          </OrinDataTable>
+        </el-tab-pane>
+
+        <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
+          <OrinDataTable class="table-card">
+            <el-table
+              v-loading="loading"
+              border
+              :data="externalKeys"
+              style="width: 100%"
+              stripe
             >
-              <template #default="{ row }">
-                <el-switch v-model="row.enabled" @change="handleToggleExternal(row)" />
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="150" fixed="right">
-              <template #default="{ row }">
-                <el-button
-                  size="small"
-                  type="primary"
-                  link
-                  @click="handleEditExternal(row)"
-                >
-                  编辑
-                </el-button>
-                <el-button
-                  size="small"
-                  type="danger"
-                  link
-                  @click="handleDeleteExternal(row)"
-                >
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-            <template #empty>
-              <OrinEmptyState
-                description="暂无供应商密钥，请添加上游模型服务凭据"
-                action-label="添加供应商密钥"
-                @action="showExternalCreate"
+              <el-table-column prop="name" label="密钥名称" min-width="150" />
+              <el-table-column prop="provider" label="供应商" width="150">
+                <template #default="{ row }">
+                  <el-tag size="small" effect="plain">
+                    {{ row.provider }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="API密钥" min-width="200">
+                <template #default="{ row }">
+                  <code class="key-prefix">
+                    {{ isKeyVisible(row.id) ? row.apiKey : maskKey(row.apiKey) }}
+                  </code>
+                  <el-button link :icon="isKeyVisible(row.id) ? Hide : View" @click="toggleKeyVisibility(row.id)" />
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="baseUrl"
+                label="端点地址"
+                min-width="180"
+                show-overflow-tooltip
               />
-            </template>
-          </el-table>
-        </OrinDataTable>
-      </el-tab-pane>
-    </el-tabs>
+              <el-table-column
+                prop="enabled"
+                label="状态"
+                width="100"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <el-switch v-model="row.enabled" @change="handleToggleExternal(row)" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="150" fixed="right">
+                <template #default="{ row }">
+                  <el-button
+                    size="small"
+                    type="primary"
+                    link
+                    @click="handleEditExternal(row)"
+                  >
+                    编辑
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    link
+                    @click="handleDeleteExternal(row)"
+                  >
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+              <template #empty>
+                <OrinEmptyState
+                  description="暂无供应商密钥，请添加上游模型服务凭据"
+                  action-label="添加供应商密钥"
+                  @action="showExternalCreate"
+                />
+              </template>
+            </el-table>
+          </OrinDataTable>
+        </el-tab-pane>
+      </el-tabs>
     </div>
 
     <!-- 已存在的创建密钥对话框 (平台) - Truncated for diff but preserved in file -->
@@ -439,7 +438,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Plus, CopyDocument } from '@element-plus/icons-vue';
-import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue';
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue';
 import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';

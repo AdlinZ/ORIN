@@ -1284,6 +1284,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .command-center-root {
+  --monitor-accent: #0f766e;
+  --monitor-accent-soft: rgba(15, 118, 110, 0.08);
+  --monitor-border: #e2e8f0;
+  --monitor-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+  --monitor-shadow-soft: 0 2px 10px rgba(15, 23, 42, 0.04);
+  --monitor-radius: 16px;
+  --monitor-radius-sm: 12px;
   --bg-page: #ffffff;
   --bg-card: #ffffff;
   --bg-card-soft: #ffffff;
@@ -1320,23 +1327,27 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
+  padding: 20px;
   min-height: calc(100vh - 76px);
-  background: var(--bg-page);
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
 }
 
 .cc-header-glass {
   display: grid;
-  grid-template-columns: minmax(220px, auto) minmax(460px, 1fr) auto;
+  grid-template-columns: minmax(260px, auto) minmax(280px, 1fr) auto;
   align-items: center;
   gap: 16px;
-  padding: 16px 24px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 16px 18px;
+  border-radius: var(--monitor-radius);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9)),
+    linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(59, 130, 246, 0.06));
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  border: 1px solid var(--border-soft);
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  box-shadow: var(--monitor-shadow);
 }
 
 .header-brand {
@@ -1407,14 +1418,14 @@ onBeforeUnmount(() => {
 .kpi-card {
   position: relative;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--monitor-radius);
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--monitor-border);
   background: color-mix(in srgb, var(--bg-card) 90%, transparent);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--monitor-shadow-soft);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -1506,10 +1517,10 @@ onBeforeUnmount(() => {
 :deep(.panel-card.el-card) {
   position: relative;
   overflow: hidden;
-  border-radius: 14px;
-  border: 1px solid var(--border-soft);
+  border-radius: var(--monitor-radius);
+  border: 1px solid var(--monitor-border);
   background: color-mix(in srgb, var(--bg-card) 88%, transparent);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--monitor-shadow-soft);
 }
 
 :deep(.panel-card .el-card__header) {
@@ -2293,13 +2304,17 @@ onBeforeUnmount(() => {
 
 /* Dark mode */
 html.dark .command-center-root {
-  background: #0f172a;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.1), transparent 32%),
+    #0f172a;
 }
 
 html.dark .cc-header-glass {
-  background: rgba(15, 23, 42, 0.85);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  background:
+    linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.88)),
+    linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(59, 130, 246, 0.08));
+  border-color: rgba(100, 116, 139, 0.46);
+  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.32);
 }
 
 html.dark .logo-text,

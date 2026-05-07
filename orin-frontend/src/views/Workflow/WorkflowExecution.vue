@@ -56,8 +56,8 @@
               >
                 <div class="workflow-item-head">
                   <span class="workflow-item-title">{{ workflow.workflowName }}</span>
-                  <el-tag size="small" :type="workflow.status === 'PUBLISHED' ? 'success' : 'info'" effect="plain">
-                    {{ workflow.status === 'PUBLISHED' ? '已发布' : '草稿' }}
+                  <el-tag size="small" :type="workflowStatusTagType(workflow.status)" effect="plain">
+                    {{ workflowStatusLabel(workflow.status) }}
                   </el-tag>
                 </div>
                 <div class="workflow-item-desc">
@@ -78,7 +78,7 @@
           <template #header>
             <div class="panel-header">
               <strong>{{ selectedWorkflow?.workflowName || '选择一个工作流开始执行' }}</strong>
-              <span v-if="selectedWorkflow">{{ selectedWorkflow.status === 'PUBLISHED' ? '已发布' : '草稿' }}</span>
+              <span v-if="selectedWorkflow">{{ workflowStatusLabel(selectedWorkflow.status) }}</span>
             </div>
           </template>
 
@@ -221,7 +221,17 @@ import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { ROUTES } from '@/router/routes'
 import request from '@/utils/request'
-import { createAsyncState, markEmpty, markError, markLoading, markSuccess, toWorkflowListViewModel, toWorkflowStatsViewModel } from '@/viewmodels'
+import {
+  createAsyncState,
+  markEmpty,
+  markError,
+  markLoading,
+  markSuccess,
+  toWorkflowListViewModel,
+  toWorkflowStatsViewModel,
+  workflowStatusLabel,
+  workflowStatusTagType
+} from '@/viewmodels'
 import { executeWorkflow, getWorkflowInstances, getWorkflows } from '@/api/workflow'
 
 const router = useRouter()

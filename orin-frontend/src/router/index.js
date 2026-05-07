@@ -509,16 +509,28 @@ const routes = [
                     {
                         path: 'api-keys',
                         name: 'ApiKeyManagement',
-                        component: () => import('@/views/System/UnifiedGateway.vue'),
-                        meta: { title: 'API 密钥管理（已合并至 统一网关）', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
+                        redirect: (to) => ({
+                            path: '/dashboard/control/gateway',
+                            query: { ...to.query, workspace: to.query.workspace || 'access' }
+                        }),
+                        meta: { title: 'API 密钥', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 文件管理
                     {
                         path: 'file-management',
-                        name: 'FileManagement',
-                        component: () => import('@/views/System/FileManagement.vue'),
-                        meta: { title: '文件管理', icon: 'Folder', roles: ADMIN_ROUTE_ROLES }
+                        redirect: (to) => ({
+                            path: '/dashboard/control/data-assets',
+                            query: { ...to.query, assetTab: 'files' }
+                        })
+                    },
+
+                    // 数据资产
+                    {
+                        path: 'data-assets',
+                        name: 'ControlDataAssets',
+                        component: () => import('@/views/System/DataAssets.vue'),
+                        meta: { title: '数据资产', icon: 'Folder', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 环境配置
@@ -571,13 +583,17 @@ const routes = [
                     // 数据同步
                     {
                         path: 'sync',
-                        name: 'ControlSync',
-                        component: () => import('@/views/System/ClientSync.vue'),
-                        meta: { title: '数据同步', icon: 'Refresh', roles: ADMIN_ROUTE_ROLES }
+                        redirect: (to) => ({
+                            path: '/dashboard/control/data-assets',
+                            query: { ...to.query, assetTab: 'sync', tab: to.query.tab || 'changes' }
+                        })
                     },
                     {
                         path: 'client-sync',
-                        redirect: '/dashboard/control/sync'
+                        redirect: (to) => ({
+                            path: '/dashboard/control/data-assets',
+                            query: { ...to.query, assetTab: 'sync', tab: to.query.tab || 'changes' }
+                        })
                     },
 
                     // 邮件中心（新版 - 任务导向）

@@ -118,8 +118,8 @@ export function listDifyWorkflows(endpoint, apiKey) {
     return request({
         baseURL: '',
         url: '/api/workflows/sync/dify/workflows',
-        method: 'get',
-        params: { endpoint, apiKey }
+        method: 'post',
+        data: { endpoint, apiKey }
     })
 }
 
@@ -140,4 +140,3 @@ export function testDifyConnection(endpoint, apiKey) {
         data: { endpoint, apiKey }
     })
 }
-
