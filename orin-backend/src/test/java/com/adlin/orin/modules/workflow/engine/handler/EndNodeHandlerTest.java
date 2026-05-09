@@ -10,18 +10,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EndNodeHandlerTest {
 
     @Test
-    void execute_ShouldReturnContextSnapshot() {
+    void execute_ShouldResolveOutputMappings() {
         EndNodeHandler handler = new EndNodeHandler();
         Map<String, Object> context = new HashMap<>();
-        context.put("query", "hello");
+        context.put("llm_1", Map.of("output", "hello"));
 
-        NodeExecutionResult result = handler.execute(Map.of(), context);
+        NodeExecutionResult result = handler.execute(Map.of(
+                "outputs", java.util.List.of(Map.of("name", "answer", "value", "{{ llm_1.output }}"))), context);
 
-        assertThat(result.getOutputs()).isEqualTo(context);
-        assertThat(result.getOutputs()).isNotSameAs(context);
+        assertThat(result.getOutputs()).containsEntry("answer", "hello");
+        assertThat(result.getOutputs()).doesNotContainKey("llm_1");
+    }
 
-        context.put("end_1", result.getOutputs());
+    @Test
+    void answerNode_ShouldReturnAnswerOutput() {
+        AnswerNodeHandler handler = new AnswerNodeHandler();
+        Map<String, Object> context = new HashMap<>();
+        context.put("llm_1", Map.of("text", "chat answer"));
 
-        assertThat(result.getOutputs()).doesNotContainKey("end_1");
+        NodeExecutionResult result = handler.execute(Map.of("answer", "{{ llm_1.text }}"), context);
+
+        assertThat(result.getOutputs()).containsEntry("answer", "chat answer");
     }
 }

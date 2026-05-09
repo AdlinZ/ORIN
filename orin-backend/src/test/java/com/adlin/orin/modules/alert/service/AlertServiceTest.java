@@ -217,6 +217,19 @@ class AlertServiceTest {
     }
 
     @Test
+    void systemAlertDoesNotCreateHistoryWithoutConfiguredRule() {
+        when(ruleRepository.findByEnabledTrue()).thenReturn(List.of());
+
+        int triggered = alertService.triggerSystemAlert("SYSTEM_HEALTH", "REDIS", "Redis down", null,
+                Map.of("dependency", "REDIS", "status", "DOWN"));
+
+        assertEquals(0, triggered);
+        verify(historyRepository, never()).save(any(AlertHistory.class));
+        verify(notificationService, never()).sendSystemNotification(anyString(), anyString(), anyString(), anyString(), anyInt());
+        verify(notificationService, never()).updateSystemNotification(anyString(), anyString(), anyString(), anyString(), anyInt());
+    }
+
+    @Test
     void errorRateRuleRequiresMinimumSampleCount() {
         AlertRule rateRule = AlertRule.builder()
                 .ruleName("Provider Error Rate")
@@ -285,5 +298,34 @@ class AlertServiceTest {
         assertEquals(3, triggered);
         verify(notificationService, times(3)).sendRuleNotification(any(AlertRule.class), eq("failed"),
                 eq("ERROR_RATE:provider-a"), eq(1));
+    }
+
+    @Test
+    void errorRateAlertDoesNotFallbackWithoutConfiguredRule() {
+        when(ruleRepository.findByEnabledTrue()).thenReturn(List.of());
+
+        int triggered = alertService.triggerErrorRateAlert("provider-a", "failed", "trace-1", window -> Map.of(
+                "providerId", "provider-a",
+                "lastFailure", true
+        ));
+
+        assertEquals(0, triggered);
+        verify(historyRepository, never()).save(any(AlertHistory.class));
+        verify(notificationService, never()).sendSystemNotification(anyString(), anyString(), anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    void statsCountsActiveAlertInstancesByFingerprint() {
+        when(ruleRepository.count()).thenReturn(3L);
+        when(ruleRepository.findByEnabledTrue()).thenReturn(List.of(testRule));
+        when(historyRepository.countConfiguredFingerprintsByStatus("TRIGGERED")).thenReturn(1L);
+        when(historyRepository.countConfigured()).thenReturn(1333L);
+
+        AlertService.AlertStats stats = alertService.getStats();
+
+        assertEquals(3, stats.totalRules());
+        assertEquals(1, stats.enabledRules());
+        assertEquals(1, stats.activeAlerts());
+        assertEquals(1333, stats.totalAlerts());
     }
 }

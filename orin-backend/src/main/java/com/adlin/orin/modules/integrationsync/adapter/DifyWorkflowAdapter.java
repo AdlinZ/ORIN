@@ -1,69 +1,54 @@
 package com.adlin.orin.modules.integrationsync.adapter;
 
 import com.adlin.orin.modules.workflow.converter.DifyDslConverter;
+import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.Yaml;
 
 import java.util.*;
 
 @Component
-@RequiredArgsConstructor
 public class DifyWorkflowAdapter {
 
-    private static final Set<String> SUPPORTED_NODE_TYPES = Set.of(
-            "start",
-            "end",
-            "answer",
-            "llm",
-            "knowledge_retrieval",
-            "question_classifier",
-            "if_else",
-            "code",
-            "template_transform",
-            "http_request",
-            "tool",
-            "variable_aggregator",
-            "iteration",
-            "parameter_extractor",
-            "document_extractor",
-            "note"
-    );
-
     private final DifyDslConverter difyDslConverter;
+    private final OrinWorkflowDslNormalizer workflowDslNormalizer;
     private final ObjectMapper objectMapper;
+
+    @Autowired
+    public DifyWorkflowAdapter(
+            DifyDslConverter difyDslConverter,
+            OrinWorkflowDslNormalizer workflowDslNormalizer,
+            ObjectMapper objectMapper) {
+        this.difyDslConverter = difyDslConverter;
+        this.workflowDslNormalizer = workflowDslNormalizer;
+        this.objectMapper = objectMapper;
+    }
+
+    public DifyWorkflowAdapter(DifyDslConverter difyDslConverter, ObjectMapper objectMapper) {
+        this(difyDslConverter, new OrinWorkflowDslNormalizer(), objectMapper);
+    }
 
     public Map<String, Object> toWorkflowDefinition(Map<String, Object> rawDsl, Map<String, Object> appMetadata) {
         String yamlContent = new Yaml().dump(rawDsl == null ? Map.of() : rawDsl);
         Map<String, Object> definition = new LinkedHashMap<>(difyDslConverter.convert(yamlContent));
-        definition.put("metadata", Map.of(
-                "source", "DIFY",
-                "externalAppId", value(appMetadata, "id"),
-                "mode", value(appMetadata, "mode"),
-                "name", value(appMetadata, "name")
-        ));
-        definition.put("compatibilityReport", compatibilityReport(definition));
+        Map<String, Object> metadata = definition.get("metadata") instanceof Map<?, ?> rawMetadata
+                ? new LinkedHashMap<>((Map<String, Object>) rawMetadata)
+                : new LinkedHashMap<>();
+        metadata.put("source", "DIFY");
+        metadata.put("externalAppId", value(appMetadata, "id"));
+        metadata.put("mode", value(appMetadata, "mode"));
+        metadata.put("name", value(appMetadata, "name"));
+        definition.put("metadata", metadata);
         return definition;
     }
 
     public Map<String, Object> toDifyExportSnapshot(Map<String, Object> workflowDefinition, String workflowName) {
-        Map<String, Object> definition = workflowDefinition == null ? Map.of() : workflowDefinition;
-        Map<String, Object> graph = new LinkedHashMap<>();
-        graph.put("nodes", definition.getOrDefault("nodes", List.of()));
-        graph.put("edges", definition.getOrDefault("edges", List.of()));
-
-        Map<String, Object> workflow = new LinkedHashMap<>();
-        workflow.put("graph", graph);
-        workflow.put("features", Map.of());
-
-        Map<String, Object> app = new LinkedHashMap<>();
-        app.put("name", workflowName == null || workflowName.isBlank() ? "ORIN Workflow" : workflowName);
-        app.put("mode", "workflow");
-        app.put("workflow", workflow);
+        Map<String, Object> definition = workflowDslNormalizer.normalize(workflowDefinition, "ORIN");
 
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("app", app);
+        snapshot.put("difyYaml", difyDslConverter.export(definition, workflowName, "", "1.0"));
         snapshot.put("kind", "dify-compatible-export");
         snapshot.put("compatibilityReport", compatibilityReport(definition));
         return snapshot;
@@ -71,27 +56,13 @@ public class DifyWorkflowAdapter {
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> compatibilityReport(Map<String, Object> workflowDefinition) {
-        List<Map<String, Object>> unsupported = new ArrayList<>();
-        Object nodesObject = workflowDefinition == null ? null : workflowDefinition.get("nodes");
-        if (nodesObject instanceof List<?> nodes) {
-            for (Object nodeObject : nodes) {
-                if (nodeObject instanceof Map<?, ?> node) {
-                    Object typeValue = node.get("type");
-                    String type = String.valueOf(typeValue == null ? "unknown" : typeValue);
-                    if (!SUPPORTED_NODE_TYPES.contains(type)) {
-                        Map<String, Object> unsupportedNode = new LinkedHashMap<>();
-                        unsupportedNode.put("id", String.valueOf(node.get("id")));
-                        unsupportedNode.put("type", type);
-                        unsupportedNode.put("data", node.get("data"));
-                        unsupported.add(unsupportedNode);
-                    }
-                }
-            }
+        Map<String, Object> definition = workflowDslNormalizer.normalize(workflowDefinition, "ORIN");
+        Object metadata = definition.get("metadata");
+        if (metadata instanceof Map<?, ?> metadataMap
+                && metadataMap.get("compatibility") instanceof Map<?, ?> compatibilityMap) {
+            return new LinkedHashMap<>((Map<String, Object>) compatibilityMap);
         }
-        return Map.of(
-                "partial", !unsupported.isEmpty(),
-                "unsupportedNodes", unsupported
-        );
+        return Map.of("level", "FULL", "unsupportedNodes", List.of());
     }
 
     public String compatibilityMessage(Map<String, Object> workflowDefinition) {

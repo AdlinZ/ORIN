@@ -182,26 +182,28 @@
       <div class="left-column">
         <el-card shadow="never" class="chart-card">
           <div class="card-header-flex">
-            <div class="header-left-tabs">
-              <el-button
-                size="small"
-                :type="chartType === 'total' ? 'primary' : ''"
-                :plain="chartType === 'total'"
+            <div class="segmented-control" aria-label="Token 图表视图">
+              <button
+                type="button"
+                class="segment-button"
+                :class="{ active: chartType === 'total' }"
+                :aria-pressed="chartType === 'total'"
                 @click="chartType = 'total'"
               >
                 总计
-              </el-button>
-              <el-button
-                size="small"
-                :type="chartType === 'type' ? 'primary' : ''"
-                :plain="chartType === 'type'"
+              </button>
+              <button
+                type="button"
+                class="segment-button"
+                :class="{ active: chartType === 'type' }"
+                :aria-pressed="chartType === 'type'"
                 @click="chartType = 'type'"
               >
                 按类型
-              </el-button>
+              </button>
             </div>
             <h3 class="card-title centered-title">
-              每日 Token 消耗
+              {{ chartType === 'total' ? '每日 Token 消耗' : 'Token 类型占比' }}
             </h3>
           </div>
           <div class="chart-container" style="height: 250px;">
@@ -253,22 +255,26 @@
               <span style="margin-left: 12px; color: #64748b;">{{ sessionStats.errorCount }} 个错误</span>
             </div>
             <div class="toolbar-filters">
-              <el-button-group size="small">
-                <el-button
-                  :type="sessionFilter === 'all' ? 'primary' : ''"
-                  :plain="sessionFilter === 'all'"
+              <div class="segmented-control compact" aria-label="会话筛选">
+                <button
+                  type="button"
+                  class="segment-button"
+                  :class="{ active: sessionFilter === 'all' }"
+                  :aria-pressed="sessionFilter === 'all'"
                   @click="sessionFilter = 'all'"
                 >
                   全部
-                </el-button>
-                <el-button
-                  :type="sessionFilter === 'viewed' ? 'primary' : ''"
-                  :plain="sessionFilter === 'viewed'"
+                </button>
+                <button
+                  type="button"
+                  class="segment-button"
+                  :class="{ active: sessionFilter === 'viewed' }"
+                  :aria-pressed="sessionFilter === 'viewed'"
                   @click="sessionFilter = 'viewed'"
                 >
                   最近查看
-                </el-button>
-              </el-button-group>
+                </button>
+              </div>
               <div class="sort-dropdown">
                 排序 <el-select
                   v-model="sessionSort"
@@ -650,41 +656,107 @@ const updateDailyChart = () => {
   // Detect dark mode
   const isDark = document.documentElement.classList.contains('dark');
   const labelColor = isDark ? '#94a3b8' : '#64748b';
+  const gridColor = isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(148, 163, 184, 0.18)';
+  const barColor = isDark ? '#2dd4bf' : '#0d9488';
+  const typeSeries = [
+    { name: '输出', value: tokenTypes.value.output || 0, itemStyle: { color: '#0d9488' } },
+    { name: '输入', value: tokenTypes.value.input || 0, itemStyle: { color: 'rgba(13, 148, 136, 0.72)' } },
+    { name: '缓存写入', value: tokenTypes.value.cacheWrite || 0, itemStyle: { color: 'rgba(13, 148, 136, 0.54)' } },
+    { name: '缓存读取', value: tokenTypes.value.cacheRead || 0, itemStyle: { color: 'rgba(13, 148, 136, 0.34)' } }
+  ].filter(item => item.value > 0);
+
+  if (chartType.value === 'type') {
+    dailyChartInstance.setOption({
+      tooltip: {
+        trigger: 'item',
+        formatter: ({ name, value, percent }) => `${name}<br/>${formatToken(value)} (${percent}%)`
+      },
+      legend: {
+        bottom: 0,
+        left: 'center',
+        itemWidth: 8,
+        itemHeight: 8,
+        textStyle: { color: labelColor, fontSize: 12 }
+      },
+      grid: undefined,
+      xAxis: undefined,
+      yAxis: undefined,
+      series: [
+        {
+          name: 'Token 类型',
+          type: 'pie',
+          radius: ['48%', '70%'],
+          center: ['50%', '45%'],
+          avoidLabelOverlap: true,
+          label: {
+            color: labelColor,
+            formatter: ({ name, value }) => `${name} ${formatToken(value)}`
+          },
+          labelLine: {
+            lineStyle: { color: gridColor }
+          },
+          data: typeSeries.length ? typeSeries : [{ name: '暂无数据', value: 1, itemStyle: { color: gridColor } }]
+        }
+      ]
+    }, true);
+    return;
+  }
 
   const option = {
-    grid: { left: '3%', right: '3%', bottom: '5%', top: '10%', containLabel: true },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (items) => {
+        const item = items?.[0];
+        if (!item) return '';
+        return `${item.axisValue}<br/>${formatToken(item.value)} tokens`;
+      }
+    },
+    grid: { left: 12, right: 12, bottom: 28, top: 30, containLabel: true },
     xAxis: {
       type: 'category',
-      data: chartData.map((_, i) => i % 2 === 0 ? `${i + 1}日` : ''),
-      axisLine: { show: false },
+      data: chartData.map((_, i) => `${i + 1}日`),
+      axisLine: { show: true, lineStyle: { color: gridColor } },
       axisTick: { show: false },
-      axisLabel: { color: labelColor, fontSize: 12, rotate: 45 }
+      axisLabel: {
+        color: labelColor,
+        fontSize: 12,
+        interval: chartData.length > 16 ? 1 : 0,
+        rotate: 0,
+        margin: 12
+      }
     },
     yAxis: {
       type: 'value',
-      show: false,
-      max: maxValue * 1.1
+      max: maxValue * 1.15,
+      axisLabel: {
+        color: labelColor,
+        fontSize: 11,
+        formatter: value => value === 0 ? '0' : formatToken(value)
+      },
+      splitLine: { lineStyle: { color: gridColor, type: 'dashed' } }
     },
     series: [
       {
         data: chartData,
         type: 'bar',
-        barWidth: '15%',
-        itemStyle: { color: 'var(--orin-primary)', borderRadius: [2, 2, 0, 0] },
+        barMaxWidth: 24,
+        barMinWidth: 8,
+        itemStyle: { color: barColor, borderRadius: [4, 4, 0, 0] },
         label: {
           show: true,
           position: 'top',
           formatter: (params) => {
-            if(params.value === 0) return '';
+            if (params.value === 0) return '';
             return formatToken(params.value);
           },
           color: labelColor,
-          fontSize: 10
+          fontSize: 11
         }
       }
     ]
   };
-  dailyChartInstance.setOption(option);
+  dailyChartInstance.setOption(option, true);
 };
 
 const handleGlobalRefresh = () => {
@@ -1085,12 +1157,90 @@ onUnmounted(() => {
   background: linear-gradient(to right, var(--orin-primary-soft), var(--orin-primary));
 }
 
+.chart-card .card-header-flex {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-card .centered-title {
+  margin-right: 0;
+  text-align: center;
+}
+
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--monitor-border, #e2e8f0);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.84);
+}
+
+.segment-button {
+  min-width: 56px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 28px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.segment-button:hover {
+  color: var(--orin-primary, #0d9488);
+  background: rgba(13, 148, 136, 0.08);
+}
+
+.segment-button.active {
+  background: var(--orin-primary, #0d9488);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.18);
+}
+
+.segmented-control.compact .segment-button {
+  min-width: 48px;
+  height: 26px;
+  line-height: 26px;
+  padding: 0 10px;
+}
+
 /* Bottom Grid */
 .bottom-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+}
+
+.left-column,
+.right-column {
+  min-width: 0;
+  align-self: stretch;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.left-column {
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.sessions-card {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 /* Tokens By Type Bar */
@@ -1304,6 +1454,20 @@ html.dark .session-item.selected {
 
 html.dark .sessions-toolbar {
   border-color: var(--border-light);
+}
+
+html.dark .segmented-control {
+  border-color: var(--border-color);
+  background: rgba(15, 23, 42, 0.48);
+}
+
+html.dark .segment-button {
+  color: var(--text-secondary);
+}
+
+html.dark .segment-button:hover {
+  background: rgba(13, 148, 136, 0.16);
+  color: var(--orin-primary);
 }
 
 html.dark .sessions-card :deep(.el-card__body) {

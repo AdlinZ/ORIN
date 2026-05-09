@@ -67,9 +67,16 @@ public class WorkflowProxyController {
 
         ResponseEntity<JsonNode> response;
         try {
-            response = aiEngineWebClient.post()
+            WebClient.RequestBodySpec requestSpec = aiEngineWebClient.post()
                     .uri("/api/v1/run")
-                    .header("X-Trace-Id", traceId != null ? traceId : "")
+                    .header("X-Trace-Id", traceId != null ? traceId : "");
+
+            String authorization = request.getHeader("Authorization");
+            if (authorization != null && !authorization.isBlank()) {
+                requestSpec.header("X-ORIN-Authorization", authorization);
+            }
+
+            response = requestSpec
                     .bodyValue(workflowRequest)
                     .retrieve()
                     .toEntity(JsonNode.class)
@@ -83,7 +90,7 @@ public class WorkflowProxyController {
                         duration, request, traceId);
             }
 
-            return response;
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (WebClientResponseException e) {
             long duration = System.currentTimeMillis() - startTime;
             log.error("AI Engine returned error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
@@ -155,6 +162,7 @@ public class WorkflowProxyController {
     }
 
     private static final String CURRENT_DSL_VERSION = "1.0";
+    private static final String DEFAULT_SILICONFLOW_BASE_URL = "https://api.siliconflow.cn/v1";
 
     /**
      * Iterates through the DSL nodes and injects API keys/Base URLs from the Java
@@ -223,9 +231,13 @@ public class WorkflowProxyController {
                         continue;
                     }
                     data.put("api_key", credentialOpt.get().getApiKey());
-                    data.put("base_url", credentialOpt.get().getBaseUrl() != null
-                            ? credentialOpt.get().getBaseUrl()
-                            : config.getSiliconFlowEndpoint());
+                    String baseUrl = credentialOpt.get().getBaseUrl();
+                    String configuredBaseUrl = config != null ? config.getSiliconFlowEndpoint() : null;
+                    data.put("base_url", baseUrl != null && !baseUrl.isBlank()
+                            ? baseUrl
+                            : configuredBaseUrl != null && !configuredBaseUrl.isBlank()
+                                    ? configuredBaseUrl
+                                    : DEFAULT_SILICONFLOW_BASE_URL);
                     log.info("Injected SiliconFlow credentials for node {}", node.get("id").asText());
 
                 } else if ("Dify".equalsIgnoreCase(provider)) {
@@ -236,8 +248,9 @@ public class WorkflowProxyController {
                         continue;
                     }
                     data.put("api_key", credentialOpt.get().getApiKey());
-                    data.put("base_url", credentialOpt.get().getBaseUrl() != null
-                            ? credentialOpt.get().getBaseUrl()
+                    String baseUrl = credentialOpt.get().getBaseUrl();
+                    data.put("base_url", baseUrl != null && !baseUrl.isBlank()
+                            ? baseUrl
                             : config.getDifyEndpoint());
                     log.info("Injected Dify credentials for node {}", node.get("id").asText());
 

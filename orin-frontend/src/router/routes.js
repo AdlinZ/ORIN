@@ -3,8 +3,8 @@
  * 集中管理所有路由路径，避免硬编码
  *
  * 菜单结构：
- * 1. 智能体管理 - 智能体列表、智能体工作台、扩展管理
- * 2. 工作流管理 - 工作流设计、执行记录、多智能体编排
+ * 1. 智能体管理 - 智能体列表、智能体工作台、多智能体协同、扩展管理
+ * 2. 工作流管理 - 工作流中心
  * 3. 知识库管理 - 知识库、知识资产、同步管理
  * 4. 运行监控 - 监控总览、链路与分析、告警与事件、运维操作
  * 5. 系统设置 - 组织权限、平台设置、模型管理、统一网关、支持维护
@@ -20,6 +20,7 @@ const agentRoutes = {
     SKILLS: '/dashboard/applications/skills',
     MCP: '/dashboard/applications/mcp',
     EXTENSIONS: '/dashboard/applications/extensions',
+    COLLABORATION_WORKFLOWS: '/dashboard/applications/collaboration/workflows',
     WORKFLOWS: '/dashboard/applications/workflows',
     WORKFLOW_EXECUTION: '/dashboard/applications/workflows/execution',
     WORKFLOW_CREATE: '/dashboard/applications/workflows/create',
@@ -33,7 +34,6 @@ const agentRoutes = {
     COLLABORATION: '/dashboard/applications/collaboration',
     PLAYGROUND: '/dashboard/applications/playground',
     PLAYGROUND_OVERVIEW: '/dashboard/applications/playground/overview',
-    PLAYGROUND_WORKFLOWS: '/dashboard/applications/playground/workflows',
     PLAYGROUND_RUN: '/dashboard/applications/playground/run',
     VERSION_MANAGE: '/dashboard/applications/workflows/execution',
     TEST_DEBUG: '/dashboard/applications/workflows/execution',
@@ -172,6 +172,7 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/applications/collaboration/tasks': ROUTES.AGENTS.COLLABORATION,
     '/dashboard/applications/collaboration/config': ROUTES.AGENTS.COLLABORATION,
     '/dashboard/applications/collaboration/dashboard': ROUTES.AGENTS.COLLABORATION_DASHBOARD,
+    '/dashboard/applications/playground/workflows': ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
     '/dashboard/applications/version': ROUTES.AGENTS.WORKFLOW_EXECUTION,
     '/dashboard/applications/test': ROUTES.AGENTS.WORKFLOW_EXECUTION,
     '/dashboard/applications/tools': ROUTES.AGENTS.MCP,
@@ -191,6 +192,10 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/workflow/visual': ROUTES.AGENTS.WORKFLOWS,
     '/dashboard/workflow/visual/:id': ROUTES.AGENTS.WORKFLOWS,
     '/dashboard/applications/workflows': ROUTES.AGENTS.WORKFLOWS,
+    '/dashboard/applications/workflows-v2': ROUTES.AGENTS.WORKFLOWS,
+    '/dashboard/applications/workflows-v2/canvas': ROUTES.AGENTS.WORKFLOW_VISUAL,
+    '/dashboard/applications/workflows-v2/runs': ROUTES.AGENTS.WORKFLOW_EXECUTION,
+    '/dashboard/applications/workflows-v2/:id': ROUTES.AGENTS.WORKFLOWS,
 
     // 知识中心模块（旧路径）
     '/dashboard/knowledge/center': ROUTES.KNOWLEDGE.CENTER,
@@ -330,6 +335,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 children: [
                     { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS },
                     { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE },
+                    { title: '多智能体协同', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS },
                 ]
             },
             // 扩展管理（三级）
@@ -343,25 +349,12 @@ export const SIDEBAR_MENU_CONFIG = [
                     { title: 'MCP 服务', path: ROUTES.AGENTS.MCP },
                 ]
             },
-            // 工作流设计
+            // 工作流管理
             {
                 id: 'workflow',
-                title: '工作流设计',
+                title: '工作流中心',
                 icon: 'Connection',
                 path: ROUTES.AGENTS.WORKFLOWS,
-            },
-            {
-                id: 'workflow-execution',
-                title: '工作流执行',
-                icon: 'VideoPlay',
-                path: ROUTES.AGENTS.WORKFLOW_EXECUTION,
-            },
-            // Agent Playground
-            {
-                id: 'playground-workflows',
-                title: '多智能体编排',
-                icon: 'Connection',
-                path: ROUTES.AGENTS.PLAYGROUND_WORKFLOWS,
             },
         ],
     },

@@ -76,16 +76,23 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="notificationChannels" label="通知渠道" width="150">
+            <el-table-column prop="notificationChannels" label="通知渠道" min-width="150">
               <template #default="{ row }">
-                <el-tag
-                  v-for="channel in row.notificationChannels?.split(',')"
-                  :key="channel"
-                  size="small"
-                  class="mr-1"
-                >
-                  {{ channel }}
-                </el-tag>
+                <div class="channel-list">
+                  <template v-if="getRuleChannels(row).length">
+                    <el-tag
+                      v-for="channel in getRuleChannels(row)"
+                      :key="channel"
+                      size="small"
+                      effect="plain"
+                    >
+                      {{ getChannelText(channel) }}
+                    </el-tag>
+                  </template>
+                  <el-tag v-else size="small" type="info" effect="plain">
+                    未配置
+                  </el-tag>
+                </div>
               </template>
             </el-table-column>
             <el-table-column prop="enabled" label="状态" width="80">
@@ -96,22 +103,24 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column label="操作" width="250" fixed="right">
               <template #default="{ row }">
-                <el-button size="small" :icon="View" @click="viewRule(row)">
-                  编辑
-                </el-button>
-                <el-button size="small" :icon="Notification" @click="testRule(row)">
-                  测试
-                </el-button>
-                <el-button
-                  size="small"
-                  type="danger"
-                  :icon="Delete"
-                  @click="deleteRule(row)"
-                >
-                  删除
-                </el-button>
+                <div class="rule-actions">
+                  <el-button size="small" :icon="View" @click="viewRule(row)">
+                    编辑
+                  </el-button>
+                  <el-button size="small" :icon="Notification" @click="testRule(row)">
+                    测试
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    :icon="Delete"
+                    @click="deleteRule(row)"
+                  >
+                    删除
+                  </el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -149,7 +158,7 @@
           </div>
 
           <div class="history-tip">
-            说明：历史会包含“规则触发告警”和“系统健康告警”；规则名称为空时按系统健康告警展示。
+            说明：这里只展示由当前告警规则触发的记录；未配置规则时不会生成新的告警历史。
           </div>
 
           <el-table
@@ -490,14 +499,27 @@ const disabledRuleCount = computed(() => Math.max(rules.value.length - enabledRu
 const channelCount = computed(() => {
   const channels = new Set()
   rules.value.forEach(rule => {
-    rule.notificationChannels
-      ?.split(',')
-      .map(channel => channel.trim())
-      .filter(Boolean)
-      .forEach(channel => channels.add(channel))
+    getRuleChannels(rule).forEach(channel => channels.add(channel))
   })
   return channels.size
 })
+
+const getRuleChannels = (rule) => {
+  return String(rule?.notificationChannels || '')
+    .split(',')
+    .map(channel => channel.trim())
+    .filter(Boolean)
+}
+
+const getChannelText = (channel) => {
+  const map = {
+    EMAIL: '邮件',
+    DINGTALK: '钉钉',
+    WECHAT: '企业微信',
+    WECOM: '企业微信'
+  }
+  return map[channel] || channel
+}
 
 const loadRules = async () => {
   loading.value = true
@@ -884,6 +906,29 @@ onUnmounted(() => {
   background: rgba(248, 250, 252, 0.92);
   color: var(--text-secondary, #64748b);
   font-weight: 700;
+}
+
+.channel-list {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rule-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.rule-actions :deep(.el-button) {
+  margin-left: 0;
+}
+
+.rule-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .ml-2 {

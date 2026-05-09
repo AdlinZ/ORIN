@@ -92,7 +92,7 @@ class RealLLMNodeHandler(BaseNodeHandler):
             prompt = prompt_template
             
             # Support {query} and {{query}}
-            pattern = re.compile(r'\{+([a-zA-Z0-9_.\-]+)\}+')
+            pattern = re.compile(r'\{+\s*([a-zA-Z0-9_.\-]+)\s*\}+')
             
             def replace_var(match):
                 var_path = match.group(1)

@@ -198,44 +198,8 @@ public class AlertService {
             return 0;
         }
 
-        // Fallback: create a generic alert history if no rule is configured
-        log.warn("No active rule found for type {}. Generating generic alert.", ruleType);
-        String fingerprint = buildFingerprint(ruleType, agentId);
-        LocalDateTime now = LocalDateTime.now();
-        Optional<AlertHistory> active = historyRepository.findFirstByFingerprintAndStatusOrderByTriggeredAtDesc(
-                fingerprint, "TRIGGERED");
-        if (active.isPresent()) {
-            AlertHistory history = active.get();
-            history.setAlertMessage(message);
-            history.setTraceId(traceId);
-            history.setLastTriggeredAt(now);
-            history.setRepeatCount(safeRepeatCount(history.getRepeatCount()) + 1);
-            historyRepository.save(history);
-            notificationService.updateSystemNotification("系统默认告警", "WARNING", message,
-                    fingerprint, history.getRepeatCount());
-            return 1;
-        }
-        AlertHistory history = AlertHistory.builder()
-                .ruleId("SYSTEM_DEFAULT")
-                .ruleName("系统默认告警")
-                .agentId(agentId)
-                .traceId(traceId)
-                .fingerprint(fingerprint)
-                .alertMessage(message)
-                .severity("WARNING") // Default severity
-                .status("TRIGGERED")
-                .repeatCount(1)
-                .lastTriggeredAt(now)
-                .build();
-
-        historyRepository.save(history);
-        try {
-            notificationService.sendSystemNotification("系统默认告警", "WARNING", message,
-                    fingerprint, history.getRepeatCount());
-        } catch (Exception e) {
-            log.error("Failed to send generic system alert notification", e);
-        }
-        return 1;
+        log.debug("System alert skipped because no enabled {} rule is configured.", ruleType);
+        return 0;
     }
 
     public boolean matchesSystemAlertRule(String ruleType, Map<String, Object> context) {
@@ -262,13 +226,6 @@ public class AlertService {
                 triggerAlert(rule.getId(), providerId, message, traceId);
                 triggered++;
             }
-        }
-        if (triggered == 0 && candidateRules.isEmpty()) {
-            triggerSystemAlert("ERROR_RATE", providerId, message, traceId, Map.of(
-                    "providerId", providerId,
-                    "lastFailure", true
-            ));
-            return 1;
         }
         return triggered;
     }
@@ -320,7 +277,7 @@ public class AlertService {
      */
     @Transactional
     public int resolveAllAlerts() {
-        List<AlertHistory> unresolvedAlerts = historyRepository.findByStatusOrderByTriggeredAtDesc("TRIGGERED");
+        List<AlertHistory> unresolvedAlerts = historyRepository.findConfiguredByStatusOrderByTriggeredAtDesc("TRIGGERED");
         LocalDateTime now = LocalDateTime.now();
 
         for (AlertHistory alert : unresolvedAlerts) {
@@ -346,21 +303,21 @@ public class AlertService {
      * 获取未读告警数量
      */
     public long getUnreadCount() {
-        return historyRepository.countByStatusIn(List.of("TRIGGERED"));
+        return historyRepository.countConfiguredFingerprintsByStatusIn(List.of("TRIGGERED"));
     }
 
     /**
      * 获取告警历史
      */
     public Page<AlertHistory> getAlertHistory(Pageable pageable) {
-        return historyRepository.findAllByOrderByTriggeredAtDesc(pageable);
+        return historyRepository.findConfiguredByOrderByTriggeredAtDesc(pageable);
     }
 
     /**
      * 按智能体获取告警历史
      */
     public List<AlertHistory> getAlertHistoryByAgent(String agentId) {
-        return historyRepository.findByAgentIdOrderByTriggeredAtDesc(agentId);
+        return historyRepository.findConfiguredByAgentIdOrderByTriggeredAtDesc(agentId);
     }
 
     /**
@@ -377,8 +334,8 @@ public class AlertService {
     public AlertStats getStats() {
         long totalRules = ruleRepository.count();
         long enabledRules = ruleRepository.findByEnabledTrue().size();
-        long activeAlerts = historyRepository.countByStatus("TRIGGERED");
-        long totalAlerts = historyRepository.count();
+        long activeAlerts = historyRepository.countConfiguredFingerprintsByStatus("TRIGGERED");
+        long totalAlerts = historyRepository.countConfigured();
 
         return new AlertStats(totalRules, enabledRules, activeAlerts, totalAlerts);
     }

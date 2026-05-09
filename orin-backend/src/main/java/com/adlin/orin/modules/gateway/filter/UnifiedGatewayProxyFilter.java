@@ -79,6 +79,7 @@ public class UnifiedGatewayProxyFilter implements Filter {
     private static final List<String> RESCUE_PATTERNS = List.of(
             "/api/v1/auth/**",
             "/api/v1/health",
+            "/api/v1/workflow/**",
             "/api/v1/system/gateway/**");
     private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
             "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",

@@ -30,9 +30,11 @@ class DifyWorkflowAdapterTest {
 
         Map<String, Object> definition = adapter.toWorkflowDefinition(rawDsl, Map.of("id", "app-1", "name", "Demo", "mode", "workflow"));
 
-        assertTrue(definition.containsKey("nodes"));
-        Map<String, Object> report = (Map<String, Object>) definition.get("compatibilityReport");
-        assertEquals(true, report.get("partial"));
+        assertEquals("orin.workflow.v1", definition.get("version"));
+        Map<String, Object> metadata = (Map<String, Object>) definition.get("metadata");
+        Map<String, Object> report = (Map<String, Object>) metadata.get("compatibility");
+        assertEquals("PARTIAL", report.get("level"));
+        assertEquals("BLOCKED", report.get("publishability"));
         List<Map<String, Object>> unsupported = (List<Map<String, Object>>) report.get("unsupportedNodes");
         assertEquals(1, unsupported.size());
         assertEquals("vendor_special", unsupported.get(0).get("type"));

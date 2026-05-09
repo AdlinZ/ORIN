@@ -20,6 +20,9 @@ describe('route cleanup contracts', () => {
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/config']).toBe(
       ROUTES.AGENTS.COLLABORATION
     )
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/playground/workflows']).toBe(
+      ROUTES.AGENTS.COLLABORATION_WORKFLOWS
+    )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/tools']).toBe(
       '/dashboard/applications/mcp'
     )
@@ -34,8 +37,35 @@ describe('route cleanup contracts', () => {
     )
   })
 
+  it('uses collaboration as the canonical route for multi-agent coordination', () => {
+    expect(ROUTES.AGENTS.COLLABORATION_WORKFLOWS).toBe(
+      '/dashboard/applications/collaboration/workflows'
+    )
+    expect(ROUTES.AGENTS.PLAYGROUND_WORKFLOWS).toBeUndefined()
+  })
+
   it('removes rollout constants and keeps alert alias compatible', () => {
     expect(ROUTES.SYSTEM.REVAMP_ROLLOUT).toBeUndefined()
     expect(ROUTES.MONITOR.ALERT_RULES).toBe(ROUTES.MONITOR.ALERTS)
+  })
+
+  it('keeps legacy workflow routes and redirects removed V2 entries to V1 fallback', () => {
+    expect(ROUTES.AGENTS.WORKFLOWS).toBe('/dashboard/applications/workflows')
+    expect(ROUTES.AGENTS.WORKFLOWS_V2).toBeUndefined()
+    expect(ROUTES.AGENTS.WORKFLOWS_V2_CANVAS).toBeUndefined()
+    expect(ROUTES.AGENTS.WORKFLOWS_V2_RUNS).toBeUndefined()
+    expect(ROUTES.AGENTS.WORKFLOW_V2_DETAIL).toBeUndefined()
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/workflows-v2']).toBe(
+      ROUTES.AGENTS.WORKFLOWS
+    )
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/workflows-v2/canvas']).toBe(
+      ROUTES.AGENTS.WORKFLOW_VISUAL
+    )
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/workflows-v2/runs']).toBe(
+      ROUTES.AGENTS.WORKFLOW_EXECUTION
+    )
+    expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/workflows-v2/:id']).toBe(
+      ROUTES.AGENTS.WORKFLOWS
+    )
   })
 })

@@ -1,6 +1,7 @@
 export const DEFAULT_SUPPORTED_WORKFLOW_NODE_TYPES = [
   'start',
   'end',
+  'answer',
   'llm',
   'agent',
   'code',
@@ -13,7 +14,9 @@ export const DEFAULT_SUPPORTED_WORKFLOW_NODE_TYPES = [
 ]
 
 export function normalizeWorkflowNodeType(type) {
-  return String(type || '').replace(/-/g, '_').toLowerCase()
+  const normalized = String(type || '').replace(/-/g, '_').toLowerCase()
+  if (normalized === 'input') return 'start'
+  return normalized
 }
 
 export function isSupportedWorkflowNodeType(type, supportedTypes = DEFAULT_SUPPORTED_WORKFLOW_NODE_TYPES) {

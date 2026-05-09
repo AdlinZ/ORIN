@@ -21,8 +21,17 @@ public class KnowledgeNodeHandler implements NodeHandler {
 
     @Override
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) {
-        String query = (String) context.get("query");
-        Object datasetIdsObj = context.get("dataset_ids");
+        String query = firstNonBlankString(
+                context.get("query"),
+                context.get(String.valueOf(nodeData.getOrDefault("query_variable", ""))),
+                nodeData.get("query"));
+        Object datasetIdsObj = firstPresent(
+                nodeData.get("knowledge_id"),
+                nodeData.get("dataset_id"),
+                nodeData.get("dataset_ids"),
+                context.get("knowledge_id"),
+                context.get("dataset_id"),
+                context.get("dataset_ids"));
         String kbId = "";
 
         if (datasetIdsObj instanceof List) {
@@ -33,7 +42,7 @@ public class KnowledgeNodeHandler implements NodeHandler {
             kbId = (String) datasetIdsObj;
         }
 
-        if (query == null || kbId.isEmpty()) {
+        if (query == null || query.isBlank() || kbId.isEmpty()) {
             throw new IllegalArgumentException("Knowledge node requires 'query' and 'dataset_ids'");
         }
 
@@ -43,7 +52,7 @@ public class KnowledgeNodeHandler implements NodeHandler {
         Map<String, Object> kbConfig = knowledgeManageService.getRetrievalConfig(kbId);
 
         // 使用知识库的 topK 配置，如果没有则默认 4
-        int topK = 4;
+        int topK = asInteger(nodeData.get("top_k"), 4);
         Double alpha = null;
         Double threshold = null;
         Boolean enableRerank = null;
@@ -90,8 +99,37 @@ public class KnowledgeNodeHandler implements NodeHandler {
         Map<String, Object> output = new HashMap<>();
         output.put("result", docList);
         output.put("output", contextBuilder.toString());
+        output.put("text", contextBuilder.toString());
+        output.put("count", docList.size());
+        output.put("query", query);
+        output.put("knowledge_id", kbId);
 
         return NodeExecutionResult.success(output);
+    }
+
+    private Object firstPresent(Object... values) {
+        for (Object value : values) {
+            if (value instanceof String str && str.isBlank()) {
+                continue;
+            }
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String firstNonBlankString(Object... values) {
+        for (Object value : values) {
+            if (value == null) {
+                continue;
+            }
+            String text = String.valueOf(value);
+            if (!text.isBlank()) {
+                return text;
+            }
+        }
+        return null;
     }
 
     private int asInteger(Object value, int defaultValue) {

@@ -225,7 +225,13 @@ class GraphExecutor:
     SUPPORTED_VERSIONS = ["1.0", "1.1"]
     CURRENT_VERSION = "1.0"
 
-    async def execute(self, dsl: WorkflowDSL, initial_inputs: Dict[str, Any], trace_id: Optional[str] = None) -> ExecutionResult:
+    async def execute(
+        self,
+        dsl: WorkflowDSL,
+        initial_inputs: Dict[str, Any],
+        trace_id: Optional[str] = None,
+        runtime_context: Optional[Dict[str, Any]] = None
+    ) -> ExecutionResult:
         """
         Executes the workflow graph using robust parallel implementation with branching support.
 
@@ -261,6 +267,8 @@ class GraphExecutor:
         # State:
         # Context stores outputs: NodeID -> OutputDict
         context = {"inputs": initial_inputs.copy(), "_trace_id": trace_id}
+        if runtime_context:
+            context.update(runtime_context)
         node_outputs = {}
         node_selected_handles = {}
         node_status: Dict[str, NodeStatus] = {node.id: NodeStatus.PENDING for node in dsl.nodes}
@@ -473,9 +481,22 @@ class GraphExecutor:
                     error="Partial failure" if final_status == WorkflowStatus.PARTIAL else None
                 )
 
+        final_outputs = self._collect_terminal_outputs(dsl, node_outputs)
+
         return ExecutionResult(
             status=final_status,
-            outputs=node_outputs,
+            outputs=final_outputs,
             trace=traces,
             trace_summary=trace_summary
         )
+
+    def _collect_terminal_outputs(self, dsl: WorkflowDSL, node_outputs: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        final_outputs: Dict[str, Any] = {}
+        terminal_types = {"end", "answer"}
+        for node in dsl.nodes:
+            if (node.type or "").lower() not in terminal_types:
+                continue
+            outputs = node_outputs.get(node.id)
+            if isinstance(outputs, dict):
+                final_outputs.update(outputs)
+        return final_outputs

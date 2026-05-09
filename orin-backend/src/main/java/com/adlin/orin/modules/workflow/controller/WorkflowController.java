@@ -65,6 +65,15 @@ public class WorkflowController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PutMapping("/{id}")
+    @Operation(summary = "更新工作流")
+    public ResponseEntity<WorkflowResponse> updateWorkflow(
+            @PathVariable Long id,
+            @RequestBody WorkflowRequest request) {
+        log.info("REST request to update workflow: {}", id);
+        return ResponseEntity.ok(workflowService.updateWorkflow(id, request));
+    }
+
     @GetMapping("/capabilities")
     @Operation(summary = "获取工作流执行能力")
     public ResponseEntity<Map<String, Object>> getCapabilities() {

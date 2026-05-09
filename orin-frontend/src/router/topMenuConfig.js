@@ -57,6 +57,7 @@ export const TOP_MENU_CONFIG = [
       { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound' },
       { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'List' },
       { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS, icon: 'ChatDotRound' },
+      { title: '多智能体协同', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS, icon: 'Connection' },
       { title: '扩展管理', path: ROUTES.AGENTS.EXTENSIONS, icon: 'Star' },
     ],
   },
@@ -68,9 +69,9 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.AGENTS.WORKFLOWS,
     requiresAdmin: false,
     children: [
-      { title: '工作流设计', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Edit' },
+      { title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Connection' },
+      { title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL, icon: 'Edit' },
       { title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay' },
-      { title: '多智能体编排', path: ROUTES.AGENTS.PLAYGROUND_WORKFLOWS, icon: 'Connection' },
     ],
   },
   {

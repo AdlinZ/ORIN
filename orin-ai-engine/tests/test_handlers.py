@@ -27,6 +27,8 @@ from app.engine.handlers.logic import (
     IterationNodeHandler,
     LoopNodeHandler,
 )
+from app.engine.handlers.tools import HTTPRequestNodeHandler
+from app.engine.handlers.data_processing import KnowledgeRetrievalNodeHandler
 
 
 # =============================================================================
@@ -77,6 +79,116 @@ class TestVariableAssignerNodeHandler:
 
         assert result.outputs["status"] == "skipped"
         assert "No target variable" in result.outputs["reason"]
+
+
+# =============================================================================
+# HTTPRequestNodeHandler Tests
+# =============================================================================
+
+class TestHTTPRequestNodeHandler:
+    """HTTPRequestNodeHandler request construction tests"""
+
+    @pytest.mark.asyncio
+    async def test_get_with_url_query_does_not_send_empty_params(self, monkeypatch):
+        captured = {}
+
+        class FakeResponse:
+            status_code = 200
+            text = '{"ok": true}'
+            headers = {"content-type": "application/json"}
+            is_success = True
+
+            def json(self):
+                return {"ok": True}
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def request(self, **kwargs):
+                captured.update(kwargs)
+                return FakeResponse()
+
+        monkeypatch.setattr("app.engine.handlers.tools.httpx.AsyncClient", FakeClient)
+
+        handler = HTTPRequestNodeHandler()
+        node = Node(
+            id="http-1",
+            type="http_request",
+            data={
+                "method": "GET",
+                "url": "https://example.com/search?q={{ query }}",
+                "headers": {"Accept": "application/json"},
+                "params": {},
+            },
+        )
+
+        result = await handler.run(node, {"query": "hello world"})
+
+        assert captured["url"] == "https://example.com/search?q=hello world"
+        assert "params" not in captured
+        assert "content" not in captured
+        assert "json" not in captured
+        assert result.outputs["json"] == {"ok": True}
+
+
+# =============================================================================
+# KnowledgeRetrievalNodeHandler Tests
+# =============================================================================
+
+class TestKnowledgeRetrievalNodeHandler:
+    """KnowledgeRetrievalNodeHandler response parsing tests"""
+
+    @pytest.mark.asyncio
+    async def test_parses_backend_results_field(self, monkeypatch):
+        class FakeResponse:
+            status_code = 200
+            text = '{"results":[]}'
+
+            def json(self):
+                return {
+                    "results": [
+                        {"content": "Dify 提供工作流和应用 API。", "score": 0.92, "id": "chunk-1"}
+                    ]
+                }
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def post(self, *args, **kwargs):
+                return FakeResponse()
+
+        monkeypatch.setattr("app.engine.handlers.data_processing.httpx.AsyncClient", FakeClient)
+
+        handler = KnowledgeRetrievalNodeHandler()
+        node = Node(
+            id="knowledge-1",
+            type="knowledge_retrieval",
+            data={
+                "knowledge_id": "kb-1",
+                "query_variable": "inputs.query",
+                "top_k": 3,
+            },
+        )
+
+        result = await handler.run(node, {"inputs": {"query": "Dify 怎么接入"}})
+
+        assert result.outputs["count"] == 1
+        assert result.outputs["text"] == "Dify 提供工作流和应用 API。"
+        assert result.outputs["result"][0]["doc_id"] == "chunk-1"
 
 
 # =============================================================================

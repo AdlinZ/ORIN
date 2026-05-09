@@ -134,6 +134,11 @@ class KnowledgeRetrievalNodeHandler(BaseNodeHandler):
         retrieve_url = f"{backend_url}/api/v1/knowledge/retrieve/test"
 
         try:
+            headers = {}
+            authorization = context.get("_authorization")
+            if authorization:
+                headers["Authorization"] = authorization
+
             async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
                 response = await client.post(
                     retrieve_url,
@@ -142,7 +147,8 @@ class KnowledgeRetrievalNodeHandler(BaseNodeHandler):
                         "kbId": knowledge_id,
                         "topK": top_k,
                         "alpha": alpha
-                    }
+                    },
+                    headers=headers
                 )
 
                 if response.status_code != 200:
@@ -155,7 +161,7 @@ class KnowledgeRetrievalNodeHandler(BaseNodeHandler):
                 retrieved_docs = []
                 if isinstance(result, dict):
                     # Try common response structures
-                    data = result.get("data", result.get("records", result.get("result", [])))
+                    data = result.get("data", result.get("records", result.get("result", result.get("results", []))))
                     if isinstance(data, list):
                         retrieved_docs = data
                     elif isinstance(result, list):

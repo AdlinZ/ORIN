@@ -119,9 +119,35 @@ const routes = [
                         meta: { title: '工作流执行', icon: 'VideoPlay' }
                     },
                     {
+                        path: 'workflows-v2',
+                        redirect: ROUTES.AGENTS.WORKFLOWS,
+                        meta: { hidden: true }
+                    },
+                    {
+                        path: 'workflows-v2/canvas',
+                        redirect: ROUTES.AGENTS.WORKFLOW_VISUAL,
+                        meta: { hidden: true }
+                    },
+                    {
+                        path: 'workflows-v2/runs',
+                        redirect: ROUTES.AGENTS.WORKFLOW_EXECUTION,
+                        meta: { hidden: true }
+                    },
+                    {
+                        path: 'workflows-v2/:id',
+                        redirect: ROUTES.AGENTS.WORKFLOWS,
+                        meta: { hidden: true }
+                    },
+                    {
                         path: 'collaboration/dashboard',
                         component: () => import('@/views/revamp/collaboration/CollaborationDashboardV2.vue'),
                         meta: { title: '协作任务包看板', icon: 'DataAnalysis' }
+                    },
+                    {
+                        path: 'collaboration/workflows',
+                        name: 'MultiAgentCollaborationWorkflows',
+                        component: () => import('@/views/Playground/PlaygroundWorkflows.vue'),
+                        meta: { title: '多智能体协同', icon: 'Connection' }
                     },
 
                     // 模型管理
@@ -164,7 +190,7 @@ const routes = [
                         meta: { title: '智能体扩展', icon: 'MagicStick' }
                     },
 
-                    // Multi-Agent Playground
+                    // Multi-Agent legacy playground routes
                     {
                         path: 'playground',
                         name: 'AgentPlayground',
@@ -179,9 +205,12 @@ const routes = [
                     },
                     {
                         path: 'playground/workflows',
-                        name: 'PlaygroundWorkflows',
-                        component: () => import('@/views/Playground/PlaygroundWorkflows.vue'),
-                        meta: { title: '多智能体编排', icon: 'Connection' }
+                        name: 'LegacyPlaygroundWorkflows',
+                        redirect: (to) => ({
+                            path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
+                            query: to.query
+                        }),
+                        meta: { title: '多智能体协同', icon: 'Connection', hidden: true }
                     },
                     {
                         path: 'playground/run',
@@ -195,7 +224,7 @@ const routes = [
                         path: 'workflows',
                         name: 'ApplicationWorkflows',
                         component: () => import('@/views/Workflow/WorkflowList.vue'),
-                        meta: { title: '工作流设计', icon: 'Connection' }
+                        meta: { title: '工作流中心', icon: 'Connection' }
                     },
                     {
                         path: 'workflows/:id',

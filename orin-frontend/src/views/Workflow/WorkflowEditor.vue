@@ -44,7 +44,7 @@
         </el-card>
 
         <!-- Steps -->
-        <el-card class="box-card" header="工作流设计">
+        <el-card class="box-card" header="工作流中心">
           <template #header>
             <div class="card-header">
               <span>步骤列表</span>

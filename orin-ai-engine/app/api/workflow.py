@@ -9,7 +9,8 @@ executor = GraphExecutor()
 @router.post("/run", response_model=ExecutionResult)
 async def run_workflow(
     request: RunWorkflowRequest,
-    x_trace_id: str = Header(None, alias="X-Trace-Id")
+    x_trace_id: str = Header(None, alias="X-Trace-Id"),
+    x_orin_authorization: str = Header(None, alias="X-ORIN-Authorization")
 ):
     """
     Execute a workflow DSL.
@@ -24,7 +25,10 @@ async def run_workflow(
     try:
         # For now, we run synchronously (waiting for result)
         # In production, this might be offloaded to background tasks if long-running
-        result = await executor.execute(request.dsl, context.inputs, trace_id)
+        runtime_context = {}
+        if x_orin_authorization:
+            runtime_context["_authorization"] = x_orin_authorization
+        result = await executor.execute(request.dsl, context.inputs, trace_id, runtime_context)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

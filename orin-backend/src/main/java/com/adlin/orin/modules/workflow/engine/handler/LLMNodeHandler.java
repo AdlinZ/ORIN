@@ -26,10 +26,11 @@ public class LLMNodeHandler implements NodeHandler {
     @Override
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) { // input context
         String modelName = (String) context.getOrDefault("model", "deepseek-chat");
-        String prompt = (String) context.getOrDefault("prompt_template", ""); // Dify style
-        if (prompt.isEmpty()) {
-            prompt = (String) context.get("prompt");
-        }
+        String prompt = firstNonBlankString(
+                promptTemplateToText(nodeData.get("prompt_template")),
+                nodeData.get("prompt"),
+                context.get("prompt_template"),
+                context.get("prompt"));
 
         // Also check if model is configured in nodeData directly
         if (nodeData.containsKey("model")) {
@@ -82,8 +83,46 @@ public class LLMNodeHandler implements NodeHandler {
         Map<String, Object> result = new HashMap<>();
         result.put("text", responseText);
         result.put("output", responseText);
+        result.put("model", modelName);
 
         return NodeExecutionResult.success(result);
+    }
+
+    private String firstNonBlankString(Object... values) {
+        for (Object value : values) {
+            if (value == null) {
+                continue;
+            }
+            String text = String.valueOf(value);
+            if (!text.isBlank()) {
+                return text;
+            }
+        }
+        return "";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String promptTemplateToText(Object promptTemplate) {
+        if (promptTemplate instanceof String text) {
+            return text;
+        }
+        if (promptTemplate instanceof List<?> messages) {
+            StringBuilder builder = new StringBuilder();
+            for (Object message : messages) {
+                if (message instanceof Map<?, ?> map) {
+                    Object role = map.get("role");
+                    Object text = map.get("text");
+                    if (text != null) {
+                        if (role != null) {
+                            builder.append('[').append(role).append("] ");
+                        }
+                        builder.append(text).append('\n');
+                    }
+                }
+            }
+            return builder.toString().trim();
+        }
+        return "";
     }
 
     @SuppressWarnings("unchecked")

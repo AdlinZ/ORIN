@@ -83,7 +83,7 @@ async function submit() {
 function editCurrentWorkflow() {
   if (!props.selectedWorkflowId) return;
   router.push({
-    path: "/dashboard/applications/playground/workflows",
+    path: "/dashboard/applications/collaboration/workflows",
     query: { workflowId: props.selectedWorkflowId },
   });
 }

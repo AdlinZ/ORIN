@@ -54,17 +54,22 @@ class HTTPRequestNodeHandler(BaseNodeHandler):
             data = self._resolve_template(body_content, context)
 
         # 3. Execute Request
+        request_kwargs = {
+            "method": method,
+            "url": url,
+            "headers": resolved_headers,
+            "timeout": node.data.get("timeout", 30.0),
+        }
+        if resolved_params:
+            request_kwargs["params"] = resolved_params
+        if data is not None:
+            request_kwargs["content"] = data
+        if json_data is not None:
+            request_kwargs["json"] = json_data
+
         async with httpx.AsyncClient(follow_redirects=True) as client:
             try:
-                response = await client.request(
-                    method=method,
-                    url=url,
-                    headers=resolved_headers,
-                    params=resolved_params,
-                    content=data,
-                    json=json_data,
-                    timeout=node.data.get("timeout", 30.0)
-                )
+                response = await client.request(**request_kwargs)
                 
                 # Attempt to parse as JSON if possible
                 try:
@@ -87,7 +92,7 @@ class HTTPRequestNodeHandler(BaseNodeHandler):
             return template
             
         # Support both {{var}} and {var}
-        pattern = re.compile(r'\{+([a-zA-Z0-9_.\-]+)\}+')
+        pattern = re.compile(r'\{+\s*([a-zA-Z0-9_.\-]+)\s*\}+')
         
         def replace_var(match):
             var_path = match.group(1)

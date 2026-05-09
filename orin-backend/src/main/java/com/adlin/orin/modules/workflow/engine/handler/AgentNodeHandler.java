@@ -4,6 +4,7 @@ import com.adlin.orin.modules.agent.service.AgentExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -18,7 +19,12 @@ public class AgentNodeHandler implements NodeHandler {
                                                                                                     // here
         Long agentId = getLongValue(nodeData, "agentId");
         if (agentId == null) {
-            throw new IllegalArgumentException("Agent ID required for Agent Node");
+            Map<String, Object> outputs = new HashMap<>();
+            outputs.put("status", "skipped");
+            outputs.put("reason", "Agent node uses a non-numeric ORIN agentId; legacy Java executor did not invoke it.");
+            outputs.put("agentId", nodeData.get("agentId"));
+            outputs.put("agentName", nodeData.get("agentName"));
+            return NodeExecutionResult.success(outputs);
         }
 
         log.info("AgentNode executing agentId={}", agentId);

@@ -127,15 +127,8 @@ public class WorkflowEngine {
         if (workflowDefinition == null) {
             return null;
         }
-        if (workflowDefinition.containsKey("workflow")) {
-            Object workflowObj = workflowDefinition.get("workflow");
-            if (workflowObj instanceof Map<?, ?> workflowMap && workflowMap.containsKey("graph")) {
-                return (Map<String, Object>) workflowMap.get("graph");
-            }
-        } else if (workflowDefinition.containsKey("graph")) {
+        if (workflowDefinition.containsKey("graph")) {
             return (Map<String, Object>) workflowDefinition.get("graph");
-        } else if (workflowDefinition.containsKey("nodes")) {
-            return workflowDefinition;
         }
         return null;
     }

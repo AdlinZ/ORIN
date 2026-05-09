@@ -37,6 +37,7 @@ public class GraphExecutor {
     private static final Map<String, String> NODE_HANDLER_BY_TYPE = Map.ofEntries(
             Map.entry("start", "startNodeHandler"),
             Map.entry("end", "endNodeHandler"),
+            Map.entry("answer", "answerNodeHandler"),
             Map.entry("llm", "llmNodeHandler"),
             Map.entry("agent", "agentNodeHandler"),
             Map.entry("code", "codeNodeHandler"),
@@ -44,6 +45,8 @@ public class GraphExecutor {
             Map.entry("if_else", "ifElseNodeHandler"),
             Map.entry("knowledge-retrieval", "knowledgeNodeHandler"),
             Map.entry("knowledge_retrieval", "knowledgeNodeHandler"),
+            Map.entry("tool", "skillNodeHandler"),
+            Map.entry("http_request", "httpRequestNodeHandler"),
             Map.entry("iteration", "iterationNodeHandler"),
             Map.entry("loop", "loopNodeHandler"),
             Map.entry("variable_assigner", "variableAssignerNodeHandler"),
@@ -177,22 +180,22 @@ public class GraphExecutor {
             throw new WorkflowExecutionException("Graph execution failed", e);
         }
 
-        Map<String, Object> finalResult = new HashMap<>();
+        Map<String, Object> finalResult = new LinkedHashMap<>();
         finalResult.put("success", true);
-        finalResult.put("context", new HashMap<>(globalContext)); // Snapshot
-
-        // Find output from 'End' node if exists
-        Optional<String> endNodeId = nodes.stream()
-                .filter(n -> "end".equalsIgnoreCase((String) n.get("type")))
-                .map(n -> (String) n.get("id"))
-                .findFirst();
-
-        if (endNodeId.isPresent()) {
-            NodeExecutionResult endResult = nodeFutures.get(endNodeId.get()).getNow(null);
-            if (endResult != null && endResult.getOutputs() != null) {
-                finalResult.putAll(endResult.getOutputs());
+        Map<String, Object> outputs = new LinkedHashMap<>();
+        for (Map<String, Object> node : nodes) {
+            String type = String.valueOf(node.get("type")).toLowerCase(Locale.ROOT);
+            if (!"end".equals(type) && !"answer".equals(type)) {
+                continue;
+            }
+            String nodeId = (String) node.get("id");
+            NodeExecutionResult terminalResult = nodeFutures.get(nodeId).getNow(null);
+            if (terminalResult != null && terminalResult.getOutputs() != null) {
+                outputs.putAll(terminalResult.getOutputs());
             }
         }
+        finalResult.put("outputs", outputs);
+        finalResult.put("context", new HashMap<>(globalContext)); // Snapshot
 
         return finalResult;
     }

@@ -43,6 +43,8 @@ class GraphExecutorTest {
                 (data, ctx) -> NodeExecutionResult.success(Collections.emptyMap()));
         nodeHandlers.put("endNodeHandler",
                 (data, ctx) -> NodeExecutionResult.success(Collections.emptyMap()));
+        nodeHandlers.put("answerNodeHandler",
+                (data, ctx) -> NodeExecutionResult.success(Map.of("answer", "done")));
 
         // Generic Action Handler
         nodeHandlers.put("actionNodeHandler", (data, ctx) -> {
@@ -175,6 +177,30 @@ class GraphExecutorTest {
 
         assertThrows(IllegalArgumentException.class, () ->
                 graphExecutor.executeGraph(graph, new ConcurrentHashMap<>()));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testTerminalOutputsAreReturnedUnderOutputs() {
+        nodeHandlers.put("llmNodeHandler", (data, ctx) -> NodeExecutionResult.success(Map.of("text", "hello")));
+        nodeHandlers.put("endNodeHandler", (data, ctx) -> NodeExecutionResult.success(Map.of("answer", "hello")));
+
+        Map<String, Object> graph = new HashMap<>();
+        graph.put("nodes", List.of(
+                createNode("start", "start", Collections.emptyMap()),
+                createNode("llm", "llm", Collections.emptyMap()),
+                createNode("end", "end", Map.of(
+                        "outputs", List.of(Map.of("name", "answer", "value", "{{ llm.text }}"))))));
+        graph.put("edges", List.of(
+                createEdge("start", "llm", null),
+                createEdge("llm", "end", null)));
+
+        Map<String, Object> result = graphExecutor.executeGraph(graph, new ConcurrentHashMap<>());
+
+        assertTrue((Boolean) result.get("success"));
+        assertFalse(result.containsKey("answer"));
+        assertEquals("hello", ((Map<String, Object>) result.get("outputs")).get("answer"));
+        assertTrue(((Map<String, Object>) result.get("context")).containsKey("llm"));
     }
 
     @Test

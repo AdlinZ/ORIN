@@ -40,7 +40,12 @@ public class IfElseNodeHandler implements NodeHandler {
             // Fallback: evaluate 'condition' string from nodeData
             // This is a naive implementation; complex SpEL should be in a utility
             String condition = (String) nodeData.get("condition"); // e.g. "true"
-            conditionMet = "true".equalsIgnoreCase(condition);
+            if (condition != null && !condition.isBlank()) {
+                conditionMet = "true".equalsIgnoreCase(condition);
+            } else {
+                String query = String.valueOf(context.getOrDefault("query", ""));
+                conditionMet = query.contains("查询");
+            }
         }
 
         Map<String, Object> output = new HashMap<>();

@@ -51,7 +51,18 @@
 
           <!-- Main Actions (Preview, etc) -->
           <div class="dify-action-bar">
-            <!-- Preview Button -->
+            <div class="dify-bar-item save-btn" :class="{ disabled: saving }" @click="!saving && handleSave()">
+              <svg
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+              ><path d="M5 3H17.5858L21 6.41421V21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3ZM5 5V19H19V7.24264L16.7574 5H16V10H7V5H5ZM9 5V8H14V5H9ZM7 13H17V17H7V13Z" /></svg>
+              <span>保存</span>
+            </div>
+
+            <!-- Debug Button -->
             <div class="dify-bar-item preview-btn" @click="handlePreview">
               <svg
                 viewBox="0 0 24 24"
@@ -60,14 +71,14 @@
                 height="16"
                 fill="currentColor"
               ><path d="M8 18.3915V5.60846L18.2264 12L8 18.3915ZM6 3.80421V20.1957C6 20.9812 6.86395 21.46 7.53 21.0437L20.6432 12.848C21.2699 12.4563 21.2699 11.5436 20.6432 11.152L7.53 2.95621C6.86395 2.53993 6 3.01878 6 3.80421Z" /></svg>
-              <span>预览</span>
+              <span>调试</span>
             </div>
           </div>
 
 
 
           <!-- Feature & Publish -->
-          <button class="dify-features-btn" @click="showAIDialog = true">
+          <button class="dify-features-btn" @click="openFeaturePanel">
             <svg
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
@@ -162,8 +173,8 @@
               width="20"
               height="20"
               viewBox="0 0 24 24"
-              :fill="interactionMode === 'pointer' ? '#155eef' : 'none'"
-              :stroke="interactionMode === 'pointer' ? '#155eef' : '#64748b'"
+              :fill="interactionMode === 'pointer' ? '#009688' : 'none'"
+              :stroke="interactionMode === 'pointer' ? '#009688' : '#64748b'"
               stroke-width="2"
             >
               <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
@@ -194,7 +205,7 @@
 
         <!-- Organize Nodes -->
         <el-tooltip content="整理节点" placement="right" effect="light">
-          <div class="tool-item">
+          <div class="tool-item" @click="organizeWorkflowLayout">
             <svg
               width="22"
               height="22"
@@ -298,10 +309,14 @@
           :default-zoom="1"
           :min-zoom="0.1"
           :max-zoom="4"
+          :fit-view-on-init="false"
           :pan-on-drag="interactionMode === 'hand'"
           :selection-key="interactionMode === 'pointer' ? null : 'Shift'"
           tabindex="0"
+          @pane-ready="onPaneReady"
+          @nodes-initialized="onNodesInitialized"
           @node-click="onNodeClick"
+          @node-drag-stop="markDirty"
           @pane-click="onPaneClick"
           @connect="onConnect"
           @keydown="onKeyDown"
@@ -328,6 +343,8 @@
           <!-- Real MiniMap (Dynamic) -->
           <MiniMap 
             v-if="showMiniMap" 
+            :width="176"
+            :height="96"
             :node-color="n => getNodeColor(n.type)" 
             :mask-color="isDark ? 'rgba(15, 23, 42, 0.7)' : 'rgba(248, 250, 252, 0.7)'"
           />
@@ -339,11 +356,11 @@
                 <el-icon class="header-icon">
                   <VideoPlay />
                 </el-icon>
-                <span class="title">开始</span>
+                <span class="title">{{ data.label || '开始 / 输入' }}</span>
               </div>
               <div class="node-body">
                 <div class="body-text">
-                  输入变量与触发条件
+                  接收用户输入与触发条件
                 </div>
               </div>
               <Handle type="source" position="right" />
@@ -459,7 +476,7 @@
               </div>
               <div class="node-body">
                 <div class="body-text">
-                  向用户输出最终答案
+                  {{ getAnswerSourceText(data) }}
                 </div>
               </div>
               <Handle type="target" position="left" />
@@ -654,11 +671,20 @@
             </div>
           </template>
         </VueFlow>
+
+        <!-- Mini Map Toggle Button -->
+        <div
+          class="mini-map-container"
+          :class="{ active: showMiniMap }"
+          @click="toggleMiniMap"
+        >
+          <el-icon><MapLocation /></el-icon>
+        </div>
       </div>
 
       <!-- Right Sidebar: Properties Panel (Dify Style) -->
       <transition name="slide-left">
-        <div v-if="selectedNode" class="properties-panel">
+        <div v-if="selectedNode && !activeSidePanel" class="properties-panel">
           <div class="panel-header">
             <div class="title-with-icon">
               <el-icon :style="{ color: getNodeColor(selectedNode.type) }">
@@ -689,12 +715,18 @@
               <!-- Specific LLM Form -->
               <template v-if="selectedNode.type === 'llm'">
                 <el-form-item label="模型设置">
-                  <el-select v-model="selectedNode.data.model" style="width: 100%">
+                  <el-select
+                    :model-value="getSelectedModelKey(selectedNode.data)"
+                    filterable
+                    placeholder="选择运行模型"
+                    style="width: 100%"
+                    @change="onModelChange"
+                  >
                     <el-option 
                       v-for="m in availableModels" 
-                      :key="m.value" 
+                      :key="m.key" 
                       :label="m.label" 
-                      :value="m.value" 
+                      :value="m.key" 
                     />
                   </el-select>
                 </el-form-item>
@@ -799,6 +831,42 @@
                 </el-form-item>
               </template>
 
+              <!-- Specific Knowledge Retrieval Form -->
+              <template v-if="selectedNode.type === 'knowledge_retrieval'">
+                <el-form-item label="选择知识库">
+                  <el-select
+                    v-model="selectedNode.data.knowledge_id"
+                    filterable
+                    placeholder="选择用于检索的知识库"
+                    style="width: 100%"
+                    @change="updateNode"
+                  >
+                    <el-option
+                      v-for="kb in knowledgeBases"
+                      :key="kb.id"
+                      :label="kb.name"
+                      :value="kb.id"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="查询变量">
+                  <el-input
+                    v-model="selectedNode.data.query_variable"
+                    placeholder="默认 inputs.query"
+                    @change="updateNode"
+                  />
+                </el-form-item>
+                <el-form-item label="召回数量">
+                  <el-input-number
+                    v-model="selectedNode.data.top_k"
+                    :min="1"
+                    :max="20"
+                    style="width: 100%"
+                    @change="updateNode"
+                  />
+                </el-form-item>
+              </template>
+
               <!-- Specific Code Form -->
               <template v-if="selectedNode.type === 'code'">
                 <el-form-item label="代码语言">
@@ -832,6 +900,52 @@
                 </el-form-item>
                 <el-form-item label="目标变量">
                   <el-input v-model="selectedNode.data.target_variable" placeholder="例如: conversation.memory" />
+                </el-form-item>
+              </template>
+
+              <!-- Terminal End Output Mapping -->
+              <template v-if="selectedNode.type === 'end'">
+                <el-form-item label="最终输出映射">
+                  <div class="terminal-output-list">
+                    <div
+                      v-for="(output, index) in selectedNode.data.outputs"
+                      :key="index"
+                      class="terminal-output-row"
+                    >
+                      <el-input
+                        v-model="output.name"
+                        placeholder="输出名，如 answer"
+                        class="terminal-output-name"
+                        @change="updateNode"
+                      />
+                      <el-input
+                        v-model="output.value"
+                        placeholder="{{ llm_1.text }}"
+                        class="terminal-output-value"
+                        @change="updateNode"
+                      />
+                      <el-button
+                        :icon="Delete"
+                        circle
+                        plain
+                        @click="removeOutputMapping(index)"
+                      />
+                    </div>
+                    <el-button link type="primary" :icon="Plus" @click="addOutputMapping">
+                      添加输出字段
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </template>
+
+              <!-- Terminal Answer Output -->
+              <template v-if="selectedNode.type === 'answer'">
+                <el-form-item label="回复内容来源">
+                  <el-input
+                    v-model="selectedNode.data.answer"
+                    placeholder="{{ llm_1.text }}"
+                    @change="updateNode"
+                  />
                 </el-form-item>
               </template>
 
@@ -884,155 +998,290 @@
           </div>
         </div>
       </transition>
-    </div>
 
-    <!-- Mini Map Toggle Button -->
-    <div
-      v-show="activeTab === 'orchestrate'"
-      class="mini-map-container"
-      :class="{ active: showMiniMap }"
-      @click="toggleMiniMap"
-    >
-      <el-icon><MapLocation /></el-icon>
-    </div>
-    
-
-
-    <!-- Preview/Run Drawer (Chat UI) -->
-    <el-drawer
-      v-model="showPreviewDialog"
-      title="预览"
-      size="500px"
-      append-to-body
-      class="preview-drawer"
-      :with-header="true"
-    >
-      <div class="chat-preview-container">
-        <!-- Main Chat/Result Area -->
-        <div class="chat-messages-area">
-          <div v-if="executionLoading" class="loading-state">
-            <el-icon class="is-loading">
-              <Loading />
-            </el-icon> 正在思考中...
-          </div>
-          
-          <div v-else-if="executionResult" class="result-display">
-            <!-- 最终结果 (Final Output) -->
-            <div v-if="finalOutputs && (typeof finalOutputs === 'string' || Object.keys(finalOutputs).length > 0)" class="final-output-section">
-              <div class="message-bubble bot" style="white-space: pre-wrap;">
-                {{ finalOutputText || '执行完成 (无主要文本输出)' }}
-              </div>
-              <el-collapse class="parsed-raw-collapse" style="margin-bottom: 20px;">
-                <el-collapse-item title="原始输出 (Raw Data)" name="raw_outputs">
-                  <JsonViewer :data="finalOutputs" :expand-all="true" :dark="isDark" />
-                </el-collapse-item>
-              </el-collapse>
+      <transition name="slide-left">
+        <div v-if="activeSidePanel" class="workflow-side-panel">
+          <div class="panel-header">
+            <div class="title-with-icon">
+              <el-icon :style="{ color: sidePanelMeta.color }">
+                <component :is="sidePanelMeta.icon" />
+              </el-icon>
+              <h3>{{ sidePanelMeta.title }}</h3>
             </div>
+            <el-icon class="close-btn" @click="closeSidePanel">
+              <Close />
+            </el-icon>
+          </div>
 
-            <el-collapse v-if="executionResult" class="trace-collapse">
-              <el-collapse-item title="运行详情 (Trace)" name="trace">
-                <!-- Trace Timeline -->
-                <div v-if="executionResult.trace" class="trace-list">
+          <template v-if="activeSidePanel === 'preview'">
+            <div class="chat-preview-container">
+              <div class="chat-messages-area">
+                <div v-if="previewMessages.length" class="preview-message-list">
                   <div
-                    v-for="item in executionResult.trace"
-                    :key="item.node_id"
-                    class="trace-item"
-                    :class="item.status"
+                    v-for="message in previewMessages"
+                    :key="message.id"
+                    class="preview-message"
+                    :class="message.role"
                   >
-                    <div class="trace-item-header">
-                      <div class="node-info">
-                        <span class="node-id-badge">{{ item.node_id }}</span>
-                        <span class="node-type-label">{{ getNodeLabelById(item.node_id) }}</span>
-                      </div>
-                      <div class="node-status-badge">
-                        <el-icon v-if="item.status === 'completed'">
-                          <CircleCheck />
-                        </el-icon>
-                        <el-icon v-else-if="item.status === 'failed'">
-                          <CircleClose />
-                        </el-icon>
-                        <el-icon v-else-if="item.status === 'skipped'">
-                          <Remove />
-                        </el-icon>
-                        {{ formatStatus(item.status) }}
-                      </div>
+                    <div class="preview-message-meta">
+                      {{ message.role === 'user' ? '你' : '工作流' }}
+                      <span>{{ message.time }}</span>
                     </div>
-                      
-                    <div v-if="item.outputs || item.error" class="trace-item-content">
-                      <div v-if="getNodeTypeById(item.node_id) === 'code'" class="code-execution-section">
-                        <div class="sub-section-title">
-                          执行代码
-                        </div>
-                        <pre class="code-preview">{{ getCodePayload(item.node_id) }}</pre>
-                      </div>
-                      <div v-if="item.outputs" class="outputs-section">
-                        <div class="sub-section-title">
-                          节点输出
-                        </div>
-                        <JsonViewer :data="item.outputs" :dark="isDark" />
-                      </div>
-                      <div v-if="item.error" class="error-msg">
-                        {{ item.error }}
-                      </div>
-                    </div>
-                      
-                    <div class="trace-item-footer">
-                      <span class="duration">{{ (item.duration || 0).toFixed(3) }}s</span>
-                      <span v-if="item.outputs?.tokens_used" class="usage">
-                        {{ item.outputs.tokens_used }} tokens
-                      </span>
+                    <div
+                      v-if="message.role === 'assistant'"
+                      class="message-bubble bot markdown-body"
+                      v-html="renderPreviewMarkdown(message.content)"
+                    />
+                    <div v-else class="message-bubble user">
+                      {{ message.content }}
                     </div>
                   </div>
                 </div>
-                <div class="raw-response-section" style="margin-top: 10px;">
-                  <JsonViewer :data="lastExecutionDsl" title="Workflow DSL" :dark="isDark" />
+
+                <div v-if="executionLoading" class="loading-state">
+                  <el-icon class="is-loading">
+                    <Loading />
+                  </el-icon>
+                  正在运行工作流...
                 </div>
-              </el-collapse-item>
-            </el-collapse>
-          </div>
+                
+                <div v-else-if="executionResult" class="result-display">
+                  <div class="result-header">
+                    <div class="result-status" :class="executionResult.error || executionResult.status === 'error' ? 'error' : 'success'">
+                      <el-icon>
+                        <component :is="executionResult.error || executionResult.status === 'error' ? CircleClose : CircleCheck" />
+                      </el-icon>
+                      {{ executionResult.error || executionResult.status === 'error' ? '运行失败' : '运行完成' }}
+                    </div>
+                    <span class="result-meta">{{ new Date().toLocaleTimeString() }}</span>
+                  </div>
 
-          <div v-else class="empty-chat-state">
-            <el-icon size="48" color="#dcdfe6">
-              <ChatDotSquare />
-            </el-icon>
-            <p>在下面的查询框中输入内容开始调试工作流</p>
-          </div>
-        </div>
+                  <div v-if="executionResult.error && shouldShowInlineResultOutput" class="error-msg runtime-error">
+                    {{ executionResult.details || executionResult.error }}
+                  </div>
 
-        <!-- Chat Input Area (查询框) -->
-        <div class="chat-input-area">
-          <!-- Extra Inputs if there are other variables besides query -->
-          <div v-if="previewInputs.length > 1" class="extra-inputs">
-            <el-form label-position="left" inline size="small">
-              <el-form-item v-for="input in previewInputs.filter(i => i.name !== 'query')" :key="input.name" :label="input.label || input.name">
-                <el-input v-model="input.value" :placeholder="`输入 ${input.name}`" />
-              </el-form-item>
-            </el-form>
-          </div>
-          
-          <div class="query-box-wrapper">
-            <el-input 
-              v-model="(previewInputs.find(i => i.name === 'query') || {value: ''}).value" 
-              type="textarea"
-              :rows="2"
-              resize="none"
-              placeholder="查询框 (Type your query here...)" 
-              class="query-input"
-              :disabled="executionLoading"
-              @keydown.enter.prevent="runWorkflow"
-            />
-            <el-button 
-              type="primary" 
-              :icon="Promotion" 
-              class="send-btn" 
-              circle 
-              :loading="executionLoading" 
-              @click="runWorkflow"
-            />
-          </div>
+                  <div v-if="!executionResult.error && shouldShowInlineResultOutput" class="final-output-section">
+                    <div class="section-title">
+                      最终输出
+                    </div>
+                    <div
+                      v-if="previewFinalText"
+                      class="message-bubble bot markdown-body"
+                      v-html="renderPreviewMarkdown(previewFinalText)"
+                    />
+                    <div v-else class="empty-final-output">
+                      本次运行没有返回可识别的最终文本输出。请展开“节点运行详情”查看各节点输出。
+                    </div>
+                    <el-collapse v-if="finalOutputs" class="parsed-raw-collapse">
+                      <el-collapse-item title="原始输出" name="raw_outputs">
+                        <JsonViewer :data="finalOutputs" :expand-all="true" :dark="isDark" />
+                      </el-collapse-item>
+                    </el-collapse>
+                  </div>
+
+                  <el-collapse class="trace-collapse">
+                    <el-collapse-item title="节点运行详情" name="trace">
+                      <div v-if="executionResult.trace" class="trace-list">
+                        <div
+                          v-for="item in executionResult.trace"
+                          :key="item.node_id"
+                          class="trace-item"
+                          :class="item.status"
+                        >
+                          <div class="trace-item-header">
+                            <div class="node-info">
+                              <span class="node-id-badge">{{ item.node_id }}</span>
+                              <span class="node-type-label">{{ getNodeLabelById(item.node_id) }}</span>
+                            </div>
+                            <div class="node-status-badge">
+                              <el-icon v-if="item.status === 'completed'">
+                                <CircleCheck />
+                              </el-icon>
+                              <el-icon v-else-if="item.status === 'failed'">
+                                <CircleClose />
+                              </el-icon>
+                              <el-icon v-else-if="item.status === 'skipped'">
+                                <Remove />
+                              </el-icon>
+                              {{ formatStatus(item.status) }}
+                            </div>
+                          </div>
+                            
+                          <div v-if="item.outputs || item.error" class="trace-item-content">
+                            <div v-if="getNodeTypeById(item.node_id) === 'code'" class="code-execution-section">
+                              <div class="sub-section-title">
+                                执行代码
+                              </div>
+                              <pre class="code-preview">{{ getCodePayload(item.node_id) }}</pre>
+                            </div>
+                            <div v-if="item.outputs" class="outputs-section">
+                              <div class="sub-section-title">
+                                节点输出
+                              </div>
+                              <JsonViewer :data="item.outputs" :dark="isDark" />
+                            </div>
+                            <div v-if="item.error" class="error-msg">
+                              {{ item.error }}
+                            </div>
+                          </div>
+                            
+                          <div class="trace-item-footer">
+                            <span class="duration">{{ (item.duration || 0).toFixed(3) }}s</span>
+                            <span v-if="item.outputs?.tokens_used" class="usage">
+                              {{ item.outputs.tokens_used }} tokens
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="raw-response-section">
+                        <JsonViewer :data="lastExecutionDsl" title="Workflow DSL" :dark="isDark" />
+                      </div>
+                    </el-collapse-item>
+                  </el-collapse>
+                </div>
+
+                <div v-else class="empty-chat-state">
+                  <el-icon size="48" color="#dcdfe6">
+                    <ChatDotSquare />
+                  </el-icon>
+                  <p>输入问题后运行调试，结果会显示在这里</p>
+                </div>
+              </div>
+
+              <div class="chat-input-area">
+                <div v-if="previewInputs.length > 1" class="extra-inputs">
+                  <el-form label-position="top" size="small">
+                    <el-form-item v-for="input in previewInputs.filter(i => i.name !== 'query')" :key="input.name" :label="input.label || input.name">
+                      <el-input v-model="input.value" :placeholder="`输入 ${input.name}`" />
+                    </el-form-item>
+                  </el-form>
+                </div>
+                
+                <div class="query-box-wrapper">
+                  <el-input 
+                    v-model="primaryPreviewInput.value" 
+                    type="textarea"
+                    :rows="3"
+                    resize="none"
+                    :placeholder="primaryPreviewPlaceholder" 
+                    class="query-input"
+                    :disabled="executionLoading"
+                    @keydown.enter.prevent="runWorkflow"
+                  />
+                  <el-button 
+                    type="primary" 
+                    :icon="Promotion" 
+                    class="send-btn" 
+                    circle 
+                    :loading="executionLoading" 
+                    @click="runWorkflow"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="activeSidePanel === 'features'">
+            <div class="panel-content feature-panel-content">
+              <div class="feature-summary-grid">
+                <div class="feature-card">
+                  <span class="feature-label">节点</span>
+                  <strong>{{ graphDiagnostics.nodeCount }}</strong>
+                </div>
+                <div class="feature-card">
+                  <span class="feature-label">连线</span>
+                  <strong>{{ graphDiagnostics.edgeCount }}</strong>
+                </div>
+                <div class="feature-card">
+                  <span class="feature-label">输入</span>
+                  <strong>{{ previewInputs.length || 1 }}</strong>
+                </div>
+              </div>
+
+              <div class="feature-section">
+                <div class="section-title">
+                  发布校验
+                </div>
+                <div v-if="graphDiagnostics.issues.length === 0" class="feature-ok">
+                  <el-icon><CircleCheck /></el-icon>
+                  当前工作流满足基础发布条件
+                </div>
+                <div v-else class="issue-list">
+                  <div v-for="issue in graphDiagnostics.issues" :key="issue" class="issue-item">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>{{ issue }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="feature-section">
+                <div class="section-title">
+                  支持的节点能力
+                </div>
+                <div class="capability-tags">
+                  <el-tag v-for="type in supportedNodeTypes" :key="type" size="small" effect="plain">
+                    {{ type }}
+                  </el-tag>
+                </div>
+              </div>
+
+              <div class="feature-actions">
+                <el-button @click="organizeWorkflowLayout">
+                  整理节点
+                </el-button>
+                <el-button type="primary" @click="handlePreview">
+                  打开调试运行
+                </el-button>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="activeSidePanel === 'publish'">
+            <div class="panel-content publish-panel-content">
+              <div class="publish-status-card" :class="publishPanelResult?.status || 'idle'">
+                <el-icon v-if="publishPanelResult?.status === 'running'" class="is-loading">
+                  <Loading />
+                </el-icon>
+                <el-icon v-else-if="publishPanelResult?.status === 'success'">
+                  <CircleCheck />
+                </el-icon>
+                <el-icon v-else-if="publishPanelResult?.status === 'error'">
+                  <CircleClose />
+                </el-icon>
+                <el-icon v-else>
+                  <InfoFilled />
+                </el-icon>
+                <div>
+                  <strong>{{ publishPanelResult?.title || '发布状态' }}</strong>
+                  <p>{{ publishPanelResult?.message || '点击发布后，这里会显示校验与发布结果。' }}</p>
+                </div>
+              </div>
+
+              <div v-if="graphDiagnostics.issues.length > 0" class="feature-section">
+                <div class="section-title">
+                  当前阻塞项
+                </div>
+                <div class="issue-list">
+                  <div v-for="issue in graphDiagnostics.issues" :key="issue" class="issue-item">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>{{ issue }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="feature-actions">
+                <el-button @click="openFeaturePanel">
+                  查看功能校验
+                </el-button>
+                <el-button type="primary" :loading="saving" @click="handlePublish">
+                  重新发布
+                </el-button>
+              </div>
+            </div>
+          </template>
         </div>
-      </div>
-    </el-drawer>
+      </transition>
+    </div>
 
     <!-- AI Generation Dialog -->
     <el-dialog v-model="showAIDialog" title="AI 辅助生成工作流" width="500px">
@@ -1084,9 +1333,11 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { getAgentList } from '@/api/agent';
 import { createWorkflow, getWorkflow, runWorkflowPreview, generateAIWorkflow, publishWorkflow, getWorkflowCapabilities } from '@/api/workflow';
 import { getModelList } from '@/api/model';
+import { getKnowledgeList } from '@/api/knowledge';
 import WorkflowApiAccess from './WorkflowApiAccess.vue';
 import JsonViewer from '@/components/JsonViewer.vue';
 import { dump } from 'js-yaml';
+import { marked } from 'marked';
 import { useDark } from '@vueuse/core';
 import {
   DEFAULT_SUPPORTED_WORKFLOW_NODE_TYPES,
@@ -1109,6 +1360,7 @@ const nameInput = ref(null);
 const activeTab = ref('orchestrate');
 const isEdit = ref(false);
 const saving = ref(false);
+const hasUnsavedChanges = ref(false);
 const elements = ref([]);
 const selectedNode = ref(null);
 const showPalette = ref(false); // 默认隐藏节点库
@@ -1117,6 +1369,7 @@ const canvasAreaRef = ref(null);
 const interactionMode = ref('pointer'); // 'pointer' or 'hand'
 const agentList = ref([]);
 const availableModels = ref([]);
+const knowledgeBases = ref([]);
 const lastSavedTime = ref('未保存');
 const supportedNodeTypes = ref([...DEFAULT_SUPPORTED_WORKFLOW_NODE_TYPES]);
 let nodeIdCounter = Date.now();
@@ -1128,33 +1381,372 @@ const previewInputs = ref([]);
 const executionResult = ref(null);
 const lastExecutionDsl = ref(null);
 const executionLoading = ref(false);
+const previewFinalText = ref('');
+const previewMessages = ref([]);
+const activeSidePanel = ref(null);
+const publishPanelResult = ref(null);
+
+const isNonEmptyOutputSource = (value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.replace(/\\n/g, '\n').trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    return true;
+};
+
+const getOutputCandidates = (result) => [
+    result?.outputs,
+    result?.output,
+    result?.result,
+    result?.data?.outputs,
+    result?.data?.output
+];
 
 const finalOutputs = computed(() => {
     if (!executionResult.value) return null;
-    return executionResult.value.outputs || (executionResult.value.data && executionResult.value.data.outputs) || executionResult.value;
+    const outputCandidates = getOutputCandidates(executionResult.value);
+    const directOutputs = outputCandidates.find(isNonEmptyOutputSource);
+    if (directOutputs) return directOutputs;
+
+    if (Array.isArray(executionResult.value.trace)) {
+        const traceOutputs = {};
+        executionResult.value.trace.forEach(item => {
+            if (item?.node_id && item.outputs) {
+                traceOutputs[item.node_id] = item.outputs;
+            }
+        });
+        return Object.keys(traceOutputs).length > 0 ? traceOutputs : null;
+    }
+
+    return null;
 });
 
 const finalOutputText = computed(() => {
-    if (!finalOutputs.value) return '';
-    if (typeof finalOutputs.value === 'string') return finalOutputs.value;
-    
-    // Direct matches
-    if (finalOutputs.value.text) return finalOutputs.value.text;
-    if (finalOutputs.value.output) return finalOutputs.value.output;
-    if (finalOutputs.value.result) return finalOutputs.value.result;
-    
-    // If it's an object with node IDs as keys, try to find the text in the values (usually the LLM or Answer node)
-    const values = Object.values(finalOutputs.value);
-    for (const val of values.reverse()) { // Reverse to prefer later nodes
-        if (typeof val === 'object' && val !== null) {
-            if (val.text) return val.text;
-            if (val.output) return val.output;
-            if (val.result) return val.result;
+    return extractReadableExecutionOutput();
+});
+
+const displayFinalOutputText = computed(() => {
+    const result = executionResult.value;
+    const directAnswer = extractTextFromValue(result?.outputs?.answer)
+        || extractTextFromValue(result?.data?.outputs?.answer)
+        || extractTextFromValue(result?.output?.answer)
+        || extractTextFromValue(result?.result?.answer);
+    return directAnswer || result?.finalText || finalOutputText.value;
+});
+
+const normalizeOutputText = (value) => {
+    if (typeof value !== 'string') return '';
+    return value.replace(/\\n/g, '\n').trim();
+};
+
+marked.setOptions({
+    breaks: true,
+    gfm: true
+});
+
+const renderPreviewMarkdown = (text) => {
+    return String(marked.parse(text || '')).trim();
+};
+
+const extractTextFromValue = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return normalizeOutputText(value);
+    if (typeof value !== 'object') return '';
+
+    const directKeys = ['answer', 'final_answer', 'finalAnswer', 'text', 'content', 'message', 'output', 'result'];
+    for (const key of directKeys) {
+        const text = extractTextFromValue(value[key]);
+        if (text) return text;
+    }
+
+    return '';
+};
+
+const extractReadableWorkflowOutput = (outputs) => {
+    if (!outputs) return '';
+    if (typeof outputs === 'string') return normalizeOutputText(outputs);
+    if (typeof outputs !== 'object') return String(outputs);
+
+    const endNode = elements.value.find(node => !node.source && normalizeWorkflowNodeType(node.type) === 'end');
+    if (endNode?.id) {
+        const text = extractTextFromValue(outputs[endNode.id]);
+        if (text) return text;
+    }
+
+    const preferredNodeIds = elements.value
+        .filter(node => !node.source)
+        .filter(node => ['answer', 'llm', 'agent', 'code'].includes(normalizeWorkflowNodeType(node.type)))
+        .map(node => node.id)
+        .reverse();
+
+    for (const nodeId of preferredNodeIds) {
+        const text = extractTextFromValue(outputs[nodeId]);
+        if (text) return text;
+    }
+
+    const values = Object.values(outputs).reverse();
+    for (const value of values) {
+        const text = extractTextFromValue(value);
+        if (text) return text;
+    }
+
+    return '';
+};
+
+const extractReadableExecutionOutput = () => {
+    const fromOutputs = extractReadableWorkflowOutput(finalOutputs.value);
+    if (fromOutputs) return fromOutputs;
+
+    const trace = executionResult.value?.trace;
+    if (Array.isArray(trace)) {
+        for (const item of [...trace].reverse()) {
+            const text = extractTextFromValue(item?.outputs);
+            if (text) return text;
         }
     }
-    
-    return JSON.stringify(finalOutputs.value, null, 2);
+
+    return '';
+};
+
+const extractReadableOutputFromResult = (result) => {
+    if (!result) return '';
+    const directAnswer = extractTextFromValue(result?.outputs?.answer)
+        || extractTextFromValue(result?.data?.outputs?.answer)
+        || extractTextFromValue(result?.output?.answer)
+        || extractTextFromValue(result?.result?.answer);
+    if (directAnswer) return directAnswer;
+
+    for (const candidate of getOutputCandidates(result)) {
+        const text = extractReadableWorkflowOutput(candidate);
+        if (text) return text;
+    }
+    const trace = result.trace || result.data?.trace;
+    if (Array.isArray(trace)) {
+        for (const item of [...trace].reverse()) {
+            const text = extractTextFromValue(item?.outputs);
+            if (text) return text;
+        }
+    }
+    return '';
+};
+
+const normalizeExecutionResultForDisplay = (result) => {
+    if (!result || typeof result !== 'object') {
+        return result;
+    }
+    const finalText = extractReadableOutputFromResult(result);
+    return {
+        ...result,
+        finalText,
+        outputs: result.outputs || result.data?.outputs || (finalText ? { answer: finalText } : result.outputs)
+    };
+};
+
+const primaryPreviewInput = computed(() => {
+    const queryInput = previewInputs.value.find(input => input.name === 'query');
+    if (queryInput) return queryInput;
+    if (previewInputs.value.length > 0) return previewInputs.value[0];
+    return { name: 'query', label: '用户问题', value: '' };
 });
+
+const primaryPreviewPlaceholder = computed(() => {
+    const label = primaryPreviewInput.value?.label || primaryPreviewInput.value?.name || '问题';
+    if (primaryPreviewInput.value?.name === 'query') {
+        return '输入要测试的问题，例如：Dify、RAGFlow、AutoGen 怎么接入？';
+    }
+    return `输入 ${label} 后运行调试`;
+});
+
+const createPreviewMessage = (role, content) => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    role,
+    content: String(content || '').trim(),
+    time: new Date().toLocaleTimeString()
+});
+
+const shouldShowInlineResultOutput = computed(() => {
+    return !previewMessages.value.some(message => message.role === 'assistant');
+});
+
+const getAnswerSourceText = (data = {}) => {
+    const source = data.answer || data.text || data.value || data.sourceExpression || '';
+    if (!source) return '未配置回复来源';
+    const text = String(source).replace(/\s+/g, ' ').trim();
+    return text.length > 42 ? `${text.slice(0, 42)}...` : text;
+};
+
+
+const sidePanelMeta = computed(() => {
+    const map = {
+        preview: { title: '调试运行', icon: Promotion, color: '#009688' },
+        features: { title: '功能与发布校验', icon: Operation, color: '#6366f1' },
+        publish: { title: '发布结果', icon: CircleCheck, color: '#10b981' }
+    };
+    return map[activeSidePanel.value] || map.preview;
+});
+
+const collectGraphDiagnostics = () => {
+    const nodes = elements.value.filter(el => !el.source);
+    const edges = elements.value.filter(el => el.source);
+    const unsupported = findUnsupportedWorkflowNodes(elements.value, supportedNodeTypes.value);
+    const issues = [];
+    const nodeIds = new Set(nodes.map(node => node.id));
+
+    unsupported.forEach(node => {
+        issues.push(`暂不支持执行：${node.label}(${node.type})`);
+    });
+
+    if (!nodes.some(node => normalizeWorkflowNodeType(node.type) === 'start')) {
+        issues.push('缺少开始节点');
+    }
+    if (!nodes.some(node => ['end', 'answer'].includes(normalizeWorkflowNodeType(node.type)))) {
+        issues.push('缺少结束节点或直接回复节点');
+    }
+    if (nodes.length > 1 && edges.length === 0) {
+        issues.push('节点之间至少需要一条连线');
+    }
+
+    nodes.forEach(node => {
+        const type = normalizeWorkflowNodeType(node.type);
+        const data = node.data || {};
+        const label = data.label || data.title || node.id;
+        if (type === 'knowledge_retrieval' && !data.knowledge_id) {
+            issues.push(`${label}: 请选择知识库`);
+        }
+        if (type === 'llm' && !getModelName(data.model)) {
+            issues.push(`${label}: 请选择运行模型`);
+        }
+        if (type === 'agent' && !data.agentId) {
+            issues.push(`${label}: 请选择智能体`);
+        }
+        if (type === 'http_request' && !data.url) {
+            issues.push(`${label}: 请配置请求 URL`);
+        }
+        if (type === 'end') {
+            const outputs = normalizeOutputMappings(data.outputs);
+            if (outputs.length === 0) {
+                issues.push(`${label}: 至少配置一个最终输出映射`);
+            }
+            outputs.forEach(output => {
+                if (!output.name) {
+                    issues.push(`${label}: 输出字段名不能为空`);
+                }
+                if (!output.value) {
+                    issues.push(`${label}: 输出 ${output.name || '<未命名>'} 缺少来源表达式`);
+                }
+                getExpressionNodeRefs(output.value).forEach(ref => {
+                    if (ref !== 'inputs' && !nodeIds.has(ref)) {
+                        issues.push(`${label}: 输出 ${output.name || '<未命名>'} 引用了不存在的节点 ${ref}`);
+                    }
+                });
+            });
+        }
+        if (type === 'answer') {
+            if (edges.some(edge => edge.source === node.id)) {
+                issues.push(`${label}: 直接回复是终止节点，不能连接后继节点`);
+            }
+            const expression = data.answer || data.text || data.value || data.sourceExpression || '';
+            if (!expression) {
+                issues.push(`${label}: 请配置回复内容来源`);
+            }
+            getExpressionNodeRefs(expression).forEach(ref => {
+                if (ref !== 'inputs' && !nodeIds.has(ref)) {
+                    issues.push(`${label}: 回复内容引用了不存在的节点 ${ref}`);
+                }
+            });
+        }
+        if (type === 'end' && edges.some(edge => edge.source === node.id)) {
+            issues.push(`${label}: 结束节点不能连接后继节点`);
+        }
+    });
+
+    return {
+        nodeCount: nodes.length,
+        edgeCount: edges.length,
+        unsupported,
+        issues
+    };
+};
+
+const graphDiagnostics = computed(() => collectGraphDiagnostics());
+
+const normalizeOutputMappings = (rawOutputs) => {
+    if (Array.isArray(rawOutputs)) {
+        return rawOutputs
+            .map((item) => ({
+                name: item?.name || item?.key || item?.variable || '',
+                value: item?.value || item?.expression || item?.source || item?.sourceExpression || ''
+            }))
+            .filter((item) => item.name || item.value);
+    }
+    if (rawOutputs && typeof rawOutputs === 'object') {
+        return Object.entries(rawOutputs).map(([name, value]) => ({ name, value: String(value ?? '') }));
+    }
+    return [];
+};
+
+const getExpressionNodeRefs = (expression) => {
+    if (typeof expression !== 'string') return [];
+    return [...expression.matchAll(/\{\{\s*([a-zA-Z0-9_.-]+)\s*}}/g)]
+        .map(match => match[1].split('.')[0])
+        .filter(Boolean);
+};
+
+const getIncomingSourceId = (targetId) => {
+    return elements.value.find(el => el.source && el.target === targetId)?.source || '';
+};
+
+const getDefaultOutputFieldForNode = (nodeId) => {
+    const node = elements.value.find(el => !el.source && el.id === nodeId);
+    const type = normalizeWorkflowNodeType(node?.type);
+    if (['llm', 'knowledge_retrieval'].includes(type)) return 'text';
+    if (type === 'code') return 'result';
+    if (type === 'http_request') return 'body';
+    if (type === 'agent' || type === 'answer') return 'answer';
+    return 'output';
+};
+
+const inferTerminalExpression = (nodeId) => {
+    const sourceId = getIncomingSourceId(nodeId);
+    if (!sourceId) return '{{ inputs.query }}';
+    return `{{ ${sourceId}.${getDefaultOutputFieldForNode(sourceId)} }}`;
+};
+
+const ensureNodeTerminalOutputConfig = (node) => {
+    if (!node || node.source) return node;
+    const type = normalizeWorkflowNodeType(node.type);
+    node.data = node.data || {};
+    if (type === 'end') {
+        const outputs = normalizeOutputMappings(node.data.outputs);
+        node.data.outputs = outputs.length > 0
+            ? outputs
+            : [{ name: 'answer', value: inferTerminalExpression(node.id) }];
+    }
+    if (type === 'answer' && !node.data.answer && !node.data.text && !node.data.value && !node.data.sourceExpression) {
+        node.data.answer = inferTerminalExpression(node.id);
+    }
+    return node;
+};
+
+const ensureTerminalOutputDefaults = () => {
+    elements.value
+        .filter(el => !el.source)
+        .forEach(node => ensureNodeTerminalOutputConfig(node));
+};
+
+const addOutputMapping = () => {
+    if (!selectedNode.value) return;
+    selectedNode.value.data.outputs = normalizeOutputMappings(selectedNode.value.data.outputs);
+    selectedNode.value.data.outputs.push({ name: 'answer', value: inferTerminalExpression(selectedNode.value.id) });
+    updateNode();
+};
+
+const removeOutputMapping = (index) => {
+    if (!selectedNode.value) return;
+    selectedNode.value.data.outputs = normalizeOutputMappings(selectedNode.value.data.outputs);
+    selectedNode.value.data.outputs.splice(index, 1);
+    updateNode();
+};
 
 // AI Generation state
 const showAIDialog = ref(false);
@@ -1163,8 +1755,56 @@ const aiPrompt = ref('');
 
 const { fitView, project } = useVueFlow();
 
+const FIT_VIEW_OPTIONS = {
+    padding: { top: '56px', right: '96px', bottom: '80px', left: '128px' },
+    includeHiddenNodes: false,
+    maxZoom: 1
+};
+
+let pendingFitView = false;
+let fitViewTimer = null;
+let autosaveTimer = null;
+
+const waitForFlowPaint = () => new Promise(resolve => {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+        resolve();
+        return;
+    }
+    window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+});
+
+const fitWorkflowIntoView = async (options = {}) => {
+    await nextTick();
+    await waitForFlowPaint();
+    await fitView({
+        ...FIT_VIEW_OPTIONS,
+        ...options
+    });
+};
+
+const scheduleFitView = (duration = 180) => {
+    pendingFitView = true;
+    if (fitViewTimer) {
+        clearTimeout(fitViewTimer);
+    }
+    fitViewTimer = setTimeout(async () => {
+        pendingFitView = false;
+        await fitWorkflowIntoView({ duration });
+    }, 80);
+};
+
 const onFitView = () => {
-    fitView({ padding: 0.2, includeHiddenNodes: false, duration: 250 });
+    fitWorkflowIntoView({ duration: 250 });
+};
+
+const onPaneReady = () => {
+    scheduleFitView(120);
+};
+
+const onNodesInitialized = () => {
+    if (pendingFitView) {
+        scheduleFitView(120);
+    }
 };
 
 const startEditName = () => {
@@ -1279,6 +1919,7 @@ const onDeleteWorkflow = () => {
 };
 
 const getDifyWorkflowData = () => {
+    ensureTerminalOutputDefaults();
     const nodes = elements.value.filter(el => !el.source).map(n => {
         // Clean up React Flow internal fields
         const { 
@@ -1292,26 +1933,30 @@ const getDifyWorkflowData = () => {
         delete cleanData.selected;
         delete cleanData.dragging;
         
-        const difyType = type === 'note' ? 'custom-note' : type;
+        const nodeType = normalizeWorkflowNodeType(type === 'note' ? 'custom_note' : type);
 
-        if (type === 'llm' && cleanData.model && typeof cleanData.model === 'string') {
-             const modelName = cleanData.model;
-             let provider = 'openai'; 
-             if (modelName.includes('claude')) provider = 'anthropic';
-             if (modelName.includes('grok')) provider = 'xai'; 
-             
-             cleanData.model = {
-                 provider: provider,
-                 name: modelName,
-                 mode: 'chat',
-                 completion_params: { temperature: 0.7 }
-             };
+        if (type === 'llm' && cleanData.model) {
+            const modelName = getModelName(cleanData.model);
+            const configuredModel = availableModels.value.find(item => item.name === modelName);
+            const provider = getModelProvider(cleanData.model) || configuredModel?.provider || 'OpenAI';
+            cleanData.model = {
+                provider,
+                name: modelName,
+                mode: cleanData.model.mode || 'chat',
+                completion_params: cleanData.model.completion_params || { temperature: 0.7 }
+            };
+        }
+
+        if (type === 'knowledge_retrieval') {
+            cleanData.query_variable = cleanData.query_variable || 'inputs.query';
+            cleanData.top_k = cleanData.top_k || 5;
         }
 
         return {
             id,
             position,
-            type: difyType,
+            type: nodeType,
+            title: cleanData.label || cleanData.title || getDefaultLabel(nodeType),
             width: measured?.width || width || 240,
             height: measured?.height || height || 60,
             data: {
@@ -1342,35 +1987,31 @@ const getDifyWorkflowData = () => {
         zIndex: 0 
     }));
 
-    return {
-        kind: 'app',
-        version: '0.1.0',
-        app: {
-            name: workflowName.value || '个性化记忆助手',
-            icon: '🤖',
-            mode: 'advanced-chat', 
-            description: '',
-            use_icon_as_answer_icon: false
-        },
-        workflow: {
-            version: '0.1.0',
-            features: {
-                opening_statement: "",
-                suggested_questions: [],
-                speech_to_text: { enabled: false },
-                text_to_speech: { enabled: false },
-                file_upload: {
-                    image: { enabled: false, number_limits: 3, transfer_methods: ["local_file", "remote_url"] }
-                },
-                retriever_resource: { enabled: true },
-                sensitive_word_avoidance: { enabled: false }
-            },
-            graph: {
-                viewport: { x: 0, y: 0, zoom: 1 },
-                nodes,
-                edges
+    const outputs = nodes
+        .filter(node => ['end', 'answer'].includes(normalizeWorkflowNodeType(node.type)))
+        .flatMap(node => {
+            if (normalizeWorkflowNodeType(node.type) === 'end') {
+                return normalizeOutputMappings(node.data?.outputs);
             }
-        }
+            return [{ name: 'answer', value: node.data?.answer || node.data?.text || node.data?.value || `{{ ${node.id}.answer }}` }];
+        })
+        .filter(output => output.name && output.value);
+
+    return {
+        version: 'orin.workflow.v1',
+        kind: 'workflow',
+        metadata: {
+            source: 'ORIN',
+            compatibility: {}
+        },
+        graph: {
+            viewport: { x: 0, y: 0, zoom: 1 },
+            nodes,
+            edges
+        },
+        inputs: [],
+        outputs,
+        variables: []
     };
 };
 
@@ -1406,7 +2047,7 @@ const allNodeGroups = [
   {
     title: '基础节点 (Basic)',
     items: [
-      { type: 'start', label: '开始 (Start)', icon: VideoPlay, color: '#eff6ff' },
+      { type: 'start', label: '开始 / 输入 (Start)', icon: VideoPlay, color: '#eff6ff' },
       { type: 'end', label: '结束 (End)', icon: CircleCheck, color: '#eff6ff' },
       { type: 'llm', label: '大模型 (LLM)', icon: Cpu, color: '#f0fdf4' },
       { type: 'answer', label: '直接回复 (Answer)', icon: ChatDotSquare, color: '#eff6ff' },
@@ -1462,19 +2103,19 @@ onMounted(async () => {
   } else {
     // Default nodes for new workflow
     elements.value = [
-      { id: 'start_1', type: 'start', position: { x: 100, y: 300 }, data: { id: 'start_1' } },
-      { id: 'end_1', type: 'end', position: { x: 1000, y: 300 }, data: { id: 'end_1' } }
+      { id: 'start_1', type: 'start', position: { x: 160, y: 220 }, data: { id: 'start_1' } },
+      { id: 'end_1', type: 'end', position: { x: 720, y: 220 }, data: { id: 'end_1', outputs: [{ name: 'answer', value: '{{ inputs.query }}' }] } }
     ];
   }
   await fetchAgents();
   await fetchModelsList();
+  await fetchKnowledgeBases();
   await fetchWorkflowCapabilities();
-  await nextTick();
-  onFitView();
+  scheduleFitView(120);
   
   // 真正的自动保存 - 每2分钟保存一次
-  setInterval(async () => {
-    if (route.params.id && elements.value.length > 0) {
+  autosaveTimer = setInterval(async () => {
+    if (!document.hidden && hasUnsavedChanges.value && !saving.value && route.params.id && elements.value.length > 0) {
       try {
         await handleSave(true); // true 表示自动保存，不显示成功提示
         console.log('工作流已自动保存');
@@ -1487,6 +2128,18 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeyDown);
+  if (autosaveTimer) {
+    clearInterval(autosaveTimer);
+  }
+  if (fitViewTimer) {
+    clearTimeout(fitViewTimer);
+  }
+});
+
+watch(activeTab, (tab) => {
+  if (tab === 'orchestrate') {
+    scheduleFitView(120);
+  }
 });
 
 
@@ -1500,15 +2153,40 @@ const fetchAgents = async () => {
 const fetchModelsList = async () => {
     try {
         const res = await getModelList();
-        // Assuming API returns array of model objects { id, name, ... } 
-        // Need to adapt based on actual API response structure
-        availableModels.value = res.map(m => ({
-            label: m.modelName || m.name,
-            value: m.modelName || m.name // Use name as value for Dify compatibility
-        }));
+        const rows = Array.isArray(res) ? res : (res?.data || res?.records || res?.content || []);
+        availableModels.value = rows
+            .filter(m => (m.status || 'ENABLED') !== 'DISABLED')
+            .map(m => {
+                const name = m.modelName || m.modelId || m.name;
+                const provider = m.provider || m.providerType || 'OpenAI';
+                return {
+                    key: `${provider}::${name}`,
+                    label: provider ? `${name} (${provider})` : name,
+                    name,
+                    provider
+                };
+            })
+            .filter(m => m.name);
     } catch (e) {
         console.error('Failed to fetch models', e);
         // Fallback or empty
+    }
+};
+
+const fetchKnowledgeBases = async () => {
+    try {
+        const res = await getKnowledgeList();
+        const rows = Array.isArray(res) ? res : (res?.data || res?.records || res?.content || []);
+        knowledgeBases.value = rows
+            .map(kb => ({
+                id: kb.id || kb.kbId || kb.knowledgeBaseId,
+                name: kb.name || kb.title || kb.id,
+                status: kb.status
+            }))
+            .filter(kb => kb.id);
+    } catch (e) {
+        console.error('Failed to fetch knowledge bases', e);
+        knowledgeBases.value = [];
     }
 };
 
@@ -1526,7 +2204,8 @@ const fetchWorkflowCapabilities = async () => {
 
 const loadWorkflow = async (id) => {
   try {
-    const workflow = await getWorkflow(id);
+    const res = await getWorkflow(id);
+    const workflow = res?.data || res;
     if (!workflow) {
       ElMessage.warning('工作流不存在');
       return;
@@ -1537,10 +2216,13 @@ const loadWorkflow = async (id) => {
     let rawNodes = [];
     let rawEdges = [];
     
-    // Support both Dify nested structure and flat legacy structure
+    // Support Dify nested, ORIN DSL v1 graph, and flat legacy structures
     if (workflow.workflowDefinition?.workflow?.graph) {
         rawNodes = workflow.workflowDefinition.workflow.graph.nodes || [];
         rawEdges = workflow.workflowDefinition.workflow.graph.edges || [];
+    } else if (workflow.workflowDefinition?.graph) {
+        rawNodes = workflow.workflowDefinition.graph.nodes || [];
+        rawEdges = workflow.workflowDefinition.graph.edges || [];
     } else if (workflow.workflowDefinition?.nodes) {
         rawNodes = workflow.workflowDefinition.nodes || [];
         rawEdges = workflow.workflowDefinition.edges || [];
@@ -1584,24 +2266,26 @@ const loadWorkflow = async (id) => {
           ...nodes,
           ...mappedEdges
         ];
+        ensureTerminalOutputDefaults();
     } else {
       // Empty workflow - add default start/end nodes
       elements.value = [
-        { id: 'start_1', type: 'start', position: { x: 100, y: 300 }, data: { id: 'start_1' } },
-        { id: 'end_1', type: 'end', position: { x: 1000, y: 300 }, data: { id: 'end_1' } }
+        { id: 'start_1', type: 'start', position: { x: 160, y: 220 }, data: { id: 'start_1' } },
+        { id: 'end_1', type: 'end', position: { x: 720, y: 220 }, data: { id: 'end_1', outputs: [{ name: 'answer', value: '{{ inputs.query }}' }] } }
       ];
     }
     
     // 加载成功后更新保存时间
     const now = new Date();
     lastSavedTime.value = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    hasUnsavedChanges.value = false;
   } catch (e) { 
       console.error('加载工作流失败:', e);
       ElMessage.error('加载失败: ' + (e.message || '未知错误'));
       // Set default empty workflow on error
       elements.value = [
-        { id: 'start_1', type: 'start', position: { x: 100, y: 300 }, data: { id: 'start_1' } },
-        { id: 'end_1', type: 'end', position: { x: 1000, y: 300 }, data: { id: 'end_1' } }
+        { id: 'start_1', type: 'start', position: { x: 160, y: 220 }, data: { id: 'start_1' } },
+        { id: 'end_1', type: 'end', position: { x: 720, y: 220 }, data: { id: 'end_1', outputs: [{ name: 'answer', value: '{{ inputs.query }}' }] } }
       ];
   }
 };
@@ -1621,9 +2305,11 @@ const addWorkflowNode = (type, position) => {
       label: getDefaultLabel(type)
     }
   };
+  ensureNodeTerminalOutputConfig(newNode);
 
   elements.value.push(newNode);
   selectedNode.value = newNode;
+  markDirty();
   return newNode;
 };
 
@@ -1648,6 +2334,96 @@ const getCanvasCenterPoint = () => {
   });
 };
 
+const organizeWorkflowLayout = () => {
+  const nodes = elements.value.filter(el => !el.source);
+  const edges = elements.value.filter(el => el.source);
+  if (nodes.length === 0) return;
+
+  const nodeIds = new Set(nodes.map(node => node.id));
+  const adjacency = new Map(nodes.map(node => [node.id, []]));
+  const incomingCount = new Map(nodes.map(node => [node.id, 0]));
+
+  edges.forEach(edge => {
+    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) return;
+    adjacency.get(edge.source)?.push(edge.target);
+    incomingCount.set(edge.target, (incomingCount.get(edge.target) || 0) + 1);
+  });
+
+  const startNodes = nodes
+    .filter(node => normalizeWorkflowNodeType(node.type) === 'start')
+    .map(node => node.id);
+  const sourceNodes = nodes
+    .filter(node => (incomingCount.get(node.id) || 0) === 0 && !startNodes.includes(node.id))
+    .map(node => node.id);
+  const queue = [...startNodes, ...sourceNodes];
+  const levels = new Map(queue.map(id => [id, 0]));
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const currentLevel = levels.get(current) || 0;
+    (adjacency.get(current) || []).forEach(targetId => {
+      const nextLevel = currentLevel + 1;
+      if (!levels.has(targetId) || nextLevel > levels.get(targetId)) {
+        levels.set(targetId, nextLevel);
+        queue.push(targetId);
+      }
+    });
+  }
+
+  nodes.forEach(node => {
+    if (!levels.has(node.id)) {
+      levels.set(node.id, 0);
+    }
+  });
+
+  const levelGroups = new Map();
+  nodes.forEach(node => {
+    const level = levels.get(node.id) || 0;
+    if (!levelGroups.has(level)) levelGroups.set(level, []);
+    levelGroups.get(level).push(node);
+  });
+
+  const columnGap = 320;
+  const rowGap = 168;
+  const startX = 180;
+  const startY = 160;
+  const organizedPositions = new Map();
+
+  [...levelGroups.entries()]
+    .sort(([a], [b]) => a - b)
+    .forEach(([level, group]) => {
+      const sortedGroup = [...group].sort((a, b) => {
+        const typeA = normalizeWorkflowNodeType(a.type);
+        const typeB = normalizeWorkflowNodeType(b.type);
+        if (typeA === 'start') return -1;
+        if (typeB === 'start') return 1;
+        if (typeA === 'end') return 1;
+        if (typeB === 'end') return -1;
+        return (a.position?.y || 0) - (b.position?.y || 0);
+      });
+      const topOffset = -((sortedGroup.length - 1) * rowGap) / 2;
+      const baseY = Math.max(120, startY + topOffset);
+      sortedGroup.forEach((node, index) => {
+        organizedPositions.set(node.id, {
+          x: startX + level * columnGap,
+          y: baseY + index * rowGap
+        });
+      });
+    });
+
+  elements.value = elements.value.map(element => {
+    if (element.source) return element;
+    return {
+      ...element,
+      position: organizedPositions.get(element.id) || element.position
+    };
+  });
+
+  markDirty();
+  scheduleFitView(220);
+  ElMessage.success('节点已整理');
+};
+
 const addNodeFromPalette = (type) => {
   addWorkflowNode(type, getCanvasCenterPoint());
   showPalette.value = false;
@@ -1661,7 +2437,7 @@ const onDrop = (event) => {
 
 const getDefaultLabel = (type) => {
   const labels = {
-    start: '开始',
+    start: '开始 / 输入',
     end: '结束',
     answer: '直接回复',
     llm: 'LLM',
@@ -1686,7 +2462,43 @@ const getDefaultLabel = (type) => {
   return labels[type] || type;
 };
 
+const getModelName = (model) => {
+  if (!model) return '';
+  if (typeof model === 'string') return model;
+  return model.name || model.modelName || model.modelId || '';
+};
+
+const getModelProvider = (model) => {
+  if (!model || typeof model === 'string') return '';
+  return model.provider || model.providerType || '';
+};
+
+const getSelectedModelKey = (data = {}) => {
+  const model = data.model;
+  const name = getModelName(model);
+  const provider = getModelProvider(model);
+  if (!name) return '';
+  const exact = availableModels.value.find(item => item.name === name && (!provider || item.provider === provider));
+  if (exact) return exact.key;
+  const byName = availableModels.value.find(item => item.name === name);
+  return byName?.key || `${provider || 'OpenAI'}::${name}`;
+};
+
+const onModelChange = (key) => {
+  const model = availableModels.value.find(item => item.key === key);
+  if (!model || !selectedNode.value) return;
+  selectedNode.value.data.model = {
+    provider: model.provider,
+    name: model.name,
+    mode: 'chat',
+    completion_params: { temperature: 0.7 }
+  };
+  updateNode();
+};
+
 const onNodeClick = (event) => {
+  activeSidePanel.value = null;
+  ensureNodeTerminalOutputConfig(event.node);
   selectedNode.value = event.node;
 };
 
@@ -1695,17 +2507,42 @@ const onPaneClick = () => {
 };
 
 const updateNode = () => {
+  markDirty();
   elements.value = [...elements.value];
+};
+
+const closeSidePanel = () => {
+  activeSidePanel.value = null;
+};
+
+const openFeaturePanel = () => {
+  selectedNode.value = null;
+  preparePreviewInputs();
+  activeSidePanel.value = 'features';
 };
 
 const deleteNode = () => {
   if (selectedNode.value) {
     elements.value = elements.value.filter(el => el.id !== selectedNode.value.id);
     selectedNode.value = null;
+    markDirty();
   }
 };
 
 const onConnect = (params) => {
+    const sourceNode = elements.value.find(el => !el.source && el.id === params.source);
+    const sourceType = normalizeWorkflowNodeType(sourceNode?.type);
+    if (['end', 'answer'].includes(sourceType)) {
+        ElMessage.warning(sourceType === 'answer' ? '直接回复是终止节点，不能连接后继节点' : '结束节点不能连接后继节点');
+        return;
+    }
+
+    const targetNode = elements.value.find(el => !el.source && el.id === params.target);
+    if (normalizeWorkflowNodeType(targetNode?.type) === 'start') {
+        ElMessage.warning('开始 / 输入节点只能作为工作流入口，不能接入前置节点');
+        return;
+    }
+
     // Add new edge
     const newEdge = {
         id: `e-${params.source}-${params.target}-${Date.now()}`,
@@ -1719,6 +2556,23 @@ const onConnect = (params) => {
         data: { sourceType: params.sourceHandle, targetType: params.targetHandle }
     };
     elements.value.push(newEdge);
+    if (targetNode && ['end', 'answer'].includes(normalizeWorkflowNodeType(targetNode.type))) {
+        const currentOutputs = normalizeOutputMappings(targetNode.data?.outputs);
+        if (normalizeWorkflowNodeType(targetNode.type) === 'end'
+            && currentOutputs.length === 1
+            && currentOutputs[0].value === '{{ inputs.query }}') {
+            targetNode.data.outputs = [];
+        }
+        if (normalizeWorkflowNodeType(targetNode.type) === 'answer' && targetNode.data?.answer === '{{ inputs.query }}') {
+            targetNode.data.answer = '';
+        }
+    }
+    ensureNodeTerminalOutputConfig(targetNode);
+    markDirty();
+};
+
+const markDirty = () => {
+  hasUnsavedChanges.value = true;
 };
 
 // Helper to serialize current workflow elements into Dify's nested DSL format
@@ -1745,6 +2599,7 @@ const handleSave = async (isAuto = false) => {
     // Update last saved time
     const now = new Date();
     lastSavedTime.value = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    hasUnsavedChanges.value = false;
     
     if (res && res.id && !route.params.id) {
         // New workflow created, navigate to it
@@ -1764,34 +2619,22 @@ const handleSave = async (isAuto = false) => {
 };
 
 const validateExecutableGraph = () => {
-    const unsupported = findUnsupportedWorkflowNodes(elements.value, supportedNodeTypes.value);
-    if (unsupported.length > 0) {
-        const labels = unsupported.map(node => `${node.label}(${node.type})`).join('、');
-        const error = new Error(`包含暂不支持执行的节点：${labels}`);
-        error.localValidation = true;
-        throw error;
-    }
-
-    const nodes = elements.value.filter(el => !el.source);
-    const edges = elements.value.filter(el => el.source);
-    if (!nodes.some(node => normalizeWorkflowNodeType(node.type) === 'start')) {
-        const error = new Error('发布前必须包含开始节点');
-        error.localValidation = true;
-        throw error;
-    }
-    if (!nodes.some(node => normalizeWorkflowNodeType(node.type) === 'end')) {
-        const error = new Error('发布前必须包含结束节点');
-        error.localValidation = true;
-        throw error;
-    }
-    if (nodes.length > 1 && edges.length === 0) {
-        const error = new Error('发布前请至少连接一条节点边');
+    const diagnostics = collectGraphDiagnostics();
+    if (diagnostics.issues.length > 0) {
+        const error = new Error(diagnostics.issues.join('；'));
         error.localValidation = true;
         throw error;
     }
 };
 
 const handlePublish = async () => {
+    selectedNode.value = null;
+    activeSidePanel.value = 'publish';
+    publishPanelResult.value = {
+        status: 'running',
+        title: '正在发布',
+        message: '正在校验节点配置、保存草稿并调用发布接口...'
+    };
     saving.value = true;
     try {
         validateExecutableGraph();
@@ -1801,6 +2644,11 @@ const handlePublish = async () => {
             throw new Error('保存后未获得工作流 ID，无法发布');
         }
         await publishWorkflow(workflowId);
+        publishPanelResult.value = {
+            status: 'success',
+            title: '发布成功',
+            message: `工作流已发布，可通过执行入口运行。工作流 ID：${workflowId}`
+        };
         ElMessage.success('发布成功，工作流现在可正式执行');
         if (!route.params.id && saved?.id) {
             router.push(`${ROUTES.AGENTS.WORKFLOWS}/${saved.id}`);
@@ -1809,7 +2657,13 @@ const handlePublish = async () => {
         if (!e.localValidation) {
             console.error('发布失败:', e);
         }
-        ElMessage.error('发布失败: ' + (e.response?.data?.message || e.message || '未知错误'));
+        const message = e.response?.data?.message || e.message || '未知错误';
+        publishPanelResult.value = {
+            status: 'error',
+            title: '发布失败',
+            message
+        };
+        ElMessage.error('发布失败: ' + message);
     } finally {
         saving.value = false;
     }
@@ -1860,7 +2714,7 @@ const getNodeColor = (type) => {
         parameter_extractor: '#8b5cf6',
         http_request: '#f97316',
         list_operator: '#f97316',
-        answer: '#3b82f6'
+        answer: '#009688'
     };
     return map[type] || '#334155';
 };
@@ -1968,18 +2822,24 @@ const updateSystemPrompt = (newVal) => {
     updateNode();
 };
 
-const handlePreview = () => {
+const preparePreviewInputs = () => {
     // 1. Identify Start node inputs
     const startNode = elements.value.find(el => el.type === 'start');
     previewInputs.value = [];
     
     // Check if start node has variables defined
     if (startNode && startNode.data && Array.isArray(startNode.data.variables) && startNode.data.variables.length > 0) {
-        previewInputs.value = startNode.data.variables.map(v => ({
-            name: v.variable,
-            label: v.label || v.variable,
-            value: '' // init empty
-        }));
+        previewInputs.value = startNode.data.variables
+            .map(v => {
+                const name = v.name || v.variable || v.key || v.id;
+                if (!name) return null;
+                return {
+                    name,
+                    label: v.label || v.name || v.variable || name,
+                    value: ''
+                };
+            })
+            .filter(Boolean);
     } 
     
     // Always ensure at least one 'query' or 'sys.query' input if explicitly defined inputs are missing or empty
@@ -1987,12 +2847,18 @@ const handlePreview = () => {
     // If the workflow is strictly LLM based without start vars, we might not need inputs?
     // Let's add 'query' by default if list is empty to be safe for chat apps.
     if (previewInputs.value.length === 0) {
-        previewInputs.value.push({ name: 'query', label: 'Query / Sys Query', value: '' });
+        previewInputs.value.push({ name: 'query', label: '用户问题', value: '' });
     }
+};
 
+const handlePreview = () => {
+    preparePreviewInputs();
+    selectedNode.value = null;
     executionResult.value = null;
+    previewFinalText.value = '';
     activePreviewTab.value = 'input';
-    showPreviewDialog.value = true;
+    showPreviewDialog.value = false;
+    activeSidePanel.value = 'preview';
 };
 
 
@@ -2023,16 +2889,33 @@ const formatStatus = (status) => {
 };
 
 const runWorkflow = async () => {
+    selectedNode.value = null;
+    activeSidePanel.value = 'preview';
+    if (previewInputs.value.length === 0) {
+        preparePreviewInputs();
+    }
     activePreviewTab.value = 'result';
     executionLoading.value = true;
     executionResult.value = null;
+    previewFinalText.value = '';
     
     try {
+        validateExecutableGraph();
+
         // Construct inputs map
         const inputs = {};
         previewInputs.value.forEach(p => {
            inputs[p.name] = p.value;
         });
+        const userText = inputs.query || Object.values(inputs).find(Boolean) || '';
+        if (!String(userText).trim()) {
+            ElMessage.warning('请先输入要调试的问题');
+            executionLoading.value = false;
+            return;
+        }
+        inputs.query = inputs.query || userText;
+        inputs['sys.query'] = inputs['sys.query'] || userText;
+        previewMessages.value.push(createPreviewMessage('user', userText));
 
         // 1. Auto-save first (optional but safer)
         if (route.params.id) {
@@ -2044,27 +2927,14 @@ const runWorkflow = async () => {
              });
         }
 
-        // 2. Construct DSL for Execution
-        // We need to transform VueFlow elements to clean WorkflowDSL
-        const nodes = elements.value.filter(el => !el.source).map(n => {
-            return {
-                id: n.id,
-                type: n.type === 'custom-note' ? 'note' : n.type,
-                position: n.position,
-                data: n.data // Pass full data, backend ignores extra fields partially but clean schema is better
-            };
-        });
-        
-        const edges = elements.value.filter(el => el.source).map(e => ({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            sourceHandle: e.sourceHandle,
-            targetHandle: e.targetHandle
-        }));
+        // 2. Construct standard ORIN DSL, then pass graph nodes/edges to the preview engine.
+        const workflowData = getDifyWorkflowData();
+        const nodes = workflowData.graph.nodes;
+        const edges = workflowData.graph.edges;
         
         const payload = {
             dsl: {
+                version: '1.0',
                 nodes,
                 edges
             },
@@ -2073,9 +2943,15 @@ const runWorkflow = async () => {
             }
         };
 
-        lastExecutionDsl.value = payload.dsl;
+        lastExecutionDsl.value = workflowData;
         const res = await runWorkflowPreview(payload);
-        executionResult.value = res;
+        const normalizedResult = normalizeExecutionResultForDisplay(res);
+        executionResult.value = normalizedResult;
+        previewFinalText.value = normalizedResult?.finalText || '';
+        previewMessages.value.push(createPreviewMessage(
+            'assistant',
+            previewFinalText.value || '本次运行没有返回可识别的最终文本输出。'
+        ));
         
         if (res.status === 'error') {
              ElMessage.error(res.error || '执行出错');
@@ -2087,7 +2963,9 @@ const runWorkflow = async () => {
     } catch (e) {
         console.error("Execution Error:", e);
         executionResult.value = { error: '执行失败', details: e.message || e };
-        ElMessage.error('执行失败');
+        previewFinalText.value = '';
+        previewMessages.value.push(createPreviewMessage('assistant', `执行失败：${e.response?.data?.message || e.message || '未知错误'}`));
+        ElMessage.error('执行失败: ' + (e.response?.data?.message || e.message || '未知错误'));
     } finally {
         executionLoading.value = false;
     }
@@ -2097,10 +2975,13 @@ const runWorkflow = async () => {
 
 <style scoped>
 .visual-workflow-editor {
-  /* Fits exactly in screen: 100vh - Navbar(72px) - AppMain Padding(40px) */
-  height: calc(100vh - 115px); 
-  width: calc(100% + 40px);
-  margin: -20px; /* Bleed into app-main padding for flush look */
+  --orin-workflow-accent: #009688;
+  --orin-workflow-accent-hover: #00796b;
+  --orin-workflow-accent-soft: #e6f7f4;
+  --orin-workflow-accent-shadow: rgba(0, 150, 136, 0.18);
+  height: calc(100vh - (var(--orin-page-gap, 20px) * 2));
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   background-color: #f7f8fa;
@@ -2113,22 +2994,34 @@ const runWorkflow = async () => {
 .dify-sub-header {
   height: 56px;
   min-height: 56px;
-  background: #f7f8fa; /* Matching .visual-workflow-editor background */
-  border-bottom: none; /* Seamless blend */
+  margin: 12px 16px 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
   padding: 0 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 100;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .sub-left, .sub-right {
   display: flex;
   align-items: center;
   height: 100%;
+  min-width: 0;
+}
+
+.sub-left {
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .sub-right {
+  flex: 0 0 auto;
   gap: 8px;
 }
 
@@ -2136,14 +3029,35 @@ const runWorkflow = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-right: 48px;
+  margin-right: clamp(16px, 2vw, 40px);
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
-.app-icon { color: #d97706; padding: 4px; background: #fffbeb; border-radius: 4px; }
-.app-name { font-weight: 600; font-size: 14px; }
+.app-icon {
+  color: var(--orin-workflow-accent);
+  padding: 4px;
+  background: var(--orin-workflow-accent-soft);
+  border-radius: 5px;
+}
+.app-name {
+  font-weight: 600;
+  font-size: 14px;
+  max-width: clamp(120px, 18vw, 320px);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .edit-icon { font-size: 14px; color: #94a3b8; cursor: pointer; }
 
-.sub-nav { display: flex; gap: 32px; }
+.sub-nav {
+  display: flex;
+  gap: clamp(14px, 2vw, 32px);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
 .sub-nav-item {
   font-size: 13px;
   text-decoration: none;
@@ -2153,6 +3067,8 @@ const runWorkflow = async () => {
   align-items: center;
   padding: 0 4px;
   position: relative;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .sub-nav-item.active {
@@ -2167,7 +3083,7 @@ const runWorkflow = async () => {
   left: 0;
   width: 100%;
   height: 2px;
-  background: #155eef;
+  background: var(--orin-workflow-accent);
 }
 
 .save-status { 
@@ -2186,6 +3102,7 @@ const runWorkflow = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .dify-divider {
@@ -2221,6 +3138,11 @@ const runWorkflow = async () => {
 
 .dify-bar-item:hover {
   background: #f9fafb;
+}
+
+.dify-bar-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .dify-bar-item svg {
@@ -2302,6 +3224,7 @@ const runWorkflow = async () => {
 .dify-features-btn {
   display: flex;
   align-items: center;
+  gap: 4px;
   height: 32px;
   padding: 0 12px;
   background: #ffffff;
@@ -2321,9 +3244,10 @@ const runWorkflow = async () => {
 .dify-publish-btn {
   display: flex;
   align-items: center;
+  gap: 4px;
   height: 32px;
   padding: 0 12px 0 14px;
-  background: #155eef;
+  background: var(--orin-workflow-accent);
   border: none;
   border-radius: 8px;
   color: #ffffff;
@@ -2334,7 +3258,85 @@ const runWorkflow = async () => {
 }
 
 .dify-publish-btn:hover {
-  background: #1546cb;
+  background: var(--orin-workflow-accent-hover);
+}
+
+@media (max-width: 1320px) {
+  .dify-sub-header {
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 0 12px;
+  }
+
+  .breadcrumb {
+    margin-right: 16px;
+  }
+
+  .app-name {
+    max-width: clamp(96px, 14vw, 220px);
+  }
+
+  .sub-nav {
+    gap: 12px;
+  }
+
+  .save-status {
+    max-width: 122px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dify-bar-item,
+  .dify-features-btn,
+  .dify-publish-btn {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .sub-nav-item:nth-child(n+3),
+  .save-status,
+  .dify-divider {
+    display: none;
+  }
+
+  .dify-sub-header {
+    height: 52px;
+    min-height: 52px;
+  }
+
+  .sub-nav-item {
+    height: 48px;
+  }
+
+  .dify-button-group-wrapper,
+  .sub-right {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 980px) {
+  .sub-nav {
+    display: none;
+  }
+
+  .dify-features-btn,
+  .dify-bar-item {
+    width: 34px;
+    justify-content: center;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .dify-features-btn svg,
+  .dify-bar-item svg {
+    margin: 0;
+  }
+
+  .dify-publish-btn {
+    padding: 0 10px;
+  }
 }
 
 .dify-publish-btn:disabled {
@@ -2402,8 +3404,8 @@ const runWorkflow = async () => {
 .tool-item:hover { background: #f3f4f6; color: #1e293b; }
 
 .tool-item.active { 
-  background: #eff6ff; 
-  color: #155eef; 
+  background: var(--orin-workflow-accent-soft); 
+  color: var(--orin-workflow-accent); 
 }
 
 .tool-item.highlight {
@@ -2486,7 +3488,7 @@ const runWorkflow = async () => {
   transition: all 0.2s;
 }
 
-.palette-node-card:hover { border-color: #155eef; box-shadow: 0 1px 2px rgba(21, 94, 239, 0.1); }
+.palette-node-card:hover { border-color: var(--orin-workflow-accent); box-shadow: 0 1px 2px rgba(0, 150, 136, 0.12); }
 
 .node-icon-wrapper {
   width: 24px;
@@ -2520,8 +3522,8 @@ const runWorkflow = async () => {
 }
 
 .dify-node.selected { 
-  border-color: #155eef; 
-  box-shadow: 0 0 0 4px rgba(21, 94, 239, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+  border-color: var(--orin-workflow-accent); 
+  box-shadow: 0 0 0 4px rgba(0, 150, 136, 0.12), 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
 }
 
 .node-header {
@@ -2547,8 +3549,8 @@ const runWorkflow = async () => {
   color: white !important; /* Icons inside are white */
 }
 
-/* Icon specific background colors matching Dify */
-.start .header-icon { background: #3b82f6; } /* Blue */
+/* Icon specific background colors aligned with ORIN while keeping node type contrast */
+.start .header-icon { background: var(--orin-workflow-accent); } /* ORIN teal */
 .end .header-icon { background: #ef4444; }   /* Red */
 .llm .header-icon { background: #8b5cf6; }   /* Purple/Indigo */
 .agent .header-icon { background: #6366f1; } /* Indigo */
@@ -2643,8 +3645,8 @@ const runWorkflow = async () => {
 }
 
 .vue-flow__handle:hover { 
-  border-color: #3b82f6; 
-  background: #eff6ff;
+  border-color: var(--orin-workflow-accent); 
+  background: var(--orin-workflow-accent-soft);
   transform: scale(1.1);
 }
 
@@ -2665,6 +3667,18 @@ const runWorkflow = async () => {
   z-index: 100;
 }
 
+.workflow-side-panel {
+  width: 460px;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 460px;
+  min-height: 0;
+  z-index: 100;
+  box-shadow: -8px 0 24px -20px rgba(15, 23, 42, 0.45);
+}
+
 .panel-header {
   padding: 16px 20px;
   border-bottom: 1px solid #f3f4f6;
@@ -2678,7 +3692,153 @@ const runWorkflow = async () => {
 
 .panel-content { flex: 1; padding: 20px; overflow-y: auto; }
 
+.feature-panel-content,
+.publish-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.feature-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.feature-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.feature-label {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.feature-card strong {
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.feature-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.feature-ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #059669;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.issue-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.capability-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feature-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.publish-status-card {
+  display: flex;
+  gap: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.publish-status-card > .el-icon {
+  font-size: 22px;
+  margin-top: 1px;
+}
+
+.publish-status-card strong {
+  display: block;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.publish-status-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.publish-status-card.running > .el-icon,
+.publish-status-card.idle > .el-icon {
+  color: var(--orin-workflow-accent);
+}
+
+.publish-status-card.success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.publish-status-card.success > .el-icon {
+  color: #059669;
+}
+
+.publish-status-card.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.publish-status-card.error > .el-icon {
+  color: #dc2626;
+}
+
 .variable-list { margin-top: 8px; }
+.terminal-output-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.terminal-output-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.6fr) minmax(0, 1.4fr) 32px;
+  gap: 8px;
+  align-items: center;
+}
+.terminal-output-name,
+.terminal-output-value {
+  min-width: 0;
+}
 .var-item {
   display: flex;
   justify-content: space-between;
@@ -2688,7 +3848,7 @@ const runWorkflow = async () => {
   margin-bottom: 4px;
   font-size: 12px;
 }
-.var-name { font-family: monospace; color: #155eef; }
+.var-name { font-family: monospace; color: var(--orin-workflow-accent); }
 .var-type { color: #94a3b8; }
 
 .panel-footer {
@@ -2699,7 +3859,7 @@ const runWorkflow = async () => {
 .mini-map-container {
     position: absolute;
     right: 20px;
-    bottom: 20px;
+    bottom: 10px;
     width: 40px;
     height: 40px;
     background: #fff;
@@ -2719,7 +3879,7 @@ const runWorkflow = async () => {
 }
 
 .mini-map-container.active {
-    background: #155eef;
+    background: var(--orin-workflow-accent);
     color: white;
 }
 
@@ -2770,37 +3930,38 @@ const runWorkflow = async () => {
 
 .info-item .value {
     font-weight: 600;
-    color: #155eef;
+    color: var(--orin-workflow-accent);
 }
 
 /* --- Real MiniMap Styling --- */
-.vue-flow__minimap {
+:deep(.vue-flow__panel.vue-flow__minimap) {
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 14px -8px rgba(15, 23, 42, 0.22);
   overflow: hidden;
-  right: 20px;
-  bottom: 70px;
-  width: 200px;
-  height: 150px;
+  right: 20px !important;
+  bottom: 58px !important;
+  margin: 0 !important;
+  width: 176px;
+  height: 96px;
 }
 
-.dark .vue-flow__minimap {
+.dark :deep(.vue-flow__panel.vue-flow__minimap) {
   background-color: #1e293b;
   border-color: #334155;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
 }
 
-.vue-flow__minimap-mask {
+:deep(.vue-flow__minimap-mask) {
   fill: rgba(0, 0, 0, 0.05);
 }
 
-.dark .vue-flow__minimap-mask {
+.dark :deep(.vue-flow__minimap-mask) {
   fill: rgba(255, 255, 255, 0.05);
 }
 
-.vue-flow__minimap-node {
+:deep(.vue-flow__minimap-node) {
   rx: 4;
   ry: 4;
 }
@@ -2834,8 +3995,8 @@ const runWorkflow = async () => {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #eff6ff;
-    color: #155eef;
+    background: var(--orin-workflow-accent-soft);
+    color: var(--orin-workflow-accent);
     font-size: 12px;
     padding: 2px 8px;
     border-radius: 4px;
@@ -2847,7 +4008,7 @@ const runWorkflow = async () => {
     font-size: 10px;
     color: #93c5fd;
 }
-.context-tag .remove-ctx:hover { color: #155eef; }
+.context-tag .remove-ctx:hover { color: var(--orin-workflow-accent); }
 
 .add-context-input {
     display: flex;
@@ -2883,13 +4044,13 @@ const runWorkflow = async () => {
 
 /* Preview Dialog Styles */
 .no-inputs-hint { color: #94a3b8; font-size: 13px; padding: 20px 0; text-align: center; }
-.loading-state { display: flex; align-items: center; justify-content: center; gap: 8px; color: #155eef; padding: 40px; }
+.loading-state { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--orin-workflow-accent); padding: 40px; }
 .result-display { background: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #e5e7eb; }
 .result-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; margin-bottom: 16px; }
 .result-status { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; }
 .result-status.success { color: #059669; }
 .result-status.error { color: #dc2626; }
-.result-status.info { color: #2563eb; }
+.result-status.info { color: var(--orin-workflow-accent); }
 .result-meta { font-size: 12px; color: #64748b; }
 
 .trace-list { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; margin-bottom: 16px; padding-right: 4px; }
@@ -2923,6 +4084,17 @@ const runWorkflow = async () => {
 
 .empty-result { color: #94a3b8; text-align: center; padding: 40px; font-size: 13px; }
 
+.empty-final-output {
+  color: #64748b;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
 /* --- Dark Mode Styles --- */
 .dark .visual-workflow-editor {
   background-color: #0f172a;
@@ -2935,8 +4107,8 @@ const runWorkflow = async () => {
 }
 
 .dark .breadcrumb .app-icon {
-  background: #451a03;
-  color: #fbbf24;
+  background: rgba(45, 212, 191, 0.12);
+  color: #2dd4bf;
 }
 
 .dark .app-name {
@@ -2952,11 +4124,11 @@ const runWorkflow = async () => {
 }
 
 .dark .sub-nav-item.active {
-  color: #3b82f6;
+  color: #2dd4bf;
 }
 
 .dark .sub-nav-item.active::after {
-  background: #3b82f6;
+  background: #2dd4bf;
 }
 
 .dark .tool-rail {
@@ -2972,7 +4144,7 @@ const runWorkflow = async () => {
 
 .dark .tool-item.active {
   background: #1e293b;
-  color: #3b82f6;
+  color: #2dd4bf;
 }
 
 .dark .node-palette {
@@ -2996,7 +4168,7 @@ const runWorkflow = async () => {
 }
 
 .dark .palette-node-card:hover {
-  border-color: #3b82f6;
+  border-color: #2dd4bf;
   background: #1e293b;
 }
 
@@ -3015,8 +4187,8 @@ const runWorkflow = async () => {
 }
 
 .dark .dify-node.selected {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  border-color: #2dd4bf;
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.16), 0 10px 15px -3px rgba(0, 0, 0, 0.4);
 }
 
 .dark .node-body .body-text {
@@ -3038,6 +4210,11 @@ const runWorkflow = async () => {
 }
 
 .dark .properties-panel {
+  background: #1e293b;
+  border-left-color: #334155;
+}
+
+.dark .workflow-side-panel {
   background: #1e293b;
   border-left-color: #334155;
 }
@@ -3124,6 +4301,28 @@ const runWorkflow = async () => {
   border-color: #334155;
 }
 
+.dark .feature-card,
+.dark .feature-section,
+.dark .publish-status-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.dark .feature-card strong,
+.dark .publish-status-card strong {
+  color: #f1f5f9;
+}
+
+.dark .issue-item {
+  background: rgba(120, 53, 15, 0.32);
+  border-color: rgba(217, 119, 6, 0.45);
+  color: #fbbf24;
+}
+
+.dark .publish-status-card p {
+  color: #94a3b8;
+}
+
 .dark .trace-item {
   background: #334155;
   border-color: #475569;
@@ -3198,11 +4397,13 @@ const runWorkflow = async () => {
 .chat-preview-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .chat-messages-area {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 16px;
   background-color: #f8fafc;
@@ -3210,6 +4411,41 @@ const runWorkflow = async () => {
 
 .dark .chat-messages-area {
   background-color: #0f172a;
+}
+
+.preview-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.preview-message {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+.preview-message.user {
+  align-items: flex-end;
+}
+
+.preview-message.assistant {
+  align-items: flex-start;
+}
+
+.preview-message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.preview-message-meta span {
+  color: #94a3b8;
 }
 
 .empty-chat-state {
@@ -3239,10 +4475,125 @@ const runWorkflow = async () => {
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
+.message-bubble.user {
+  max-width: min(84%, 520px);
+  background: var(--orin-workflow-accent);
+  color: #ffffff;
+  border-radius: 12px 12px 3px 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+  box-shadow: 0 2px 8px var(--orin-workflow-accent-shadow);
+}
+
+.preview-message.assistant .message-bubble.bot {
+  max-width: 100%;
+  margin-bottom: 0;
+}
+
+.markdown-body :deep(p) {
+  margin: 0 0 10px;
+}
+
+.markdown-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  margin: 12px 0 8px;
+  color: #0f172a;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.markdown-body :deep(h1) { font-size: 20px; }
+.markdown-body :deep(h2) { font-size: 18px; }
+.markdown-body :deep(h3) { font-size: 16px; }
+.markdown-body :deep(h4) { font-size: 15px; }
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 8px 0 10px;
+  padding-left: 20px;
+}
+
+.markdown-body :deep(li + li) {
+  margin-top: 4px;
+}
+
+.markdown-body :deep(pre) {
+  margin: 10px 0;
+  padding: 12px;
+  overflow-x: auto;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+}
+
+.markdown-body :deep(code) {
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.markdown-body :deep(pre code) {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid #94a3b8;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.markdown-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.markdown-body :deep(th) {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
 .dark .message-bubble.bot {
   background-color: #1e293b;
   border-color: #334155;
   color: #e2e8f0;
+}
+
+.dark .preview-message-meta {
+  color: #94a3b8;
+}
+
+.dark .preview-message-meta span {
+  color: #64748b;
+}
+
+.dark .message-bubble.user {
+  background: #0f9f8f;
+  color: #ffffff;
 }
 
 .trace-collapse {
@@ -3253,6 +4604,7 @@ const runWorkflow = async () => {
   padding: 16px;
   background: white;
   border-top: 1px solid #e2e8f0;
+  flex: 0 0 auto;
 }
 
 .dark .chat-input-area {
@@ -3275,7 +4627,7 @@ const runWorkflow = async () => {
 }
 
 .query-input :deep(.el-textarea__inner:focus) {
-  border-color: #409eff;
+  border-color: var(--orin-workflow-accent);
   background-color: white;
 }
 
@@ -3292,6 +4644,15 @@ const runWorkflow = async () => {
   position: absolute;
   right: 8px;
   bottom: 8px;
+  background: var(--orin-workflow-accent) !important;
+  border-color: var(--orin-workflow-accent) !important;
+  box-shadow: 0 6px 14px var(--orin-workflow-accent-shadow);
+}
+
+.send-btn:hover,
+.send-btn:focus {
+  background: var(--orin-workflow-accent-hover) !important;
+  border-color: var(--orin-workflow-accent-hover) !important;
 }
 
 .extra-inputs {

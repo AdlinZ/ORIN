@@ -10,6 +10,8 @@ import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
 import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
 import com.adlin.orin.modules.workflow.entity.WorkflowInstanceEntity;
 import com.adlin.orin.modules.workflow.entity.WorkflowStepEntity;
+import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
+import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslValidator;
 import com.adlin.orin.modules.workflow.engine.WorkflowEngine;
 import com.adlin.orin.modules.workflow.repository.WorkflowInstanceRepository;
 import com.adlin.orin.modules.workflow.repository.WorkflowRepository;
@@ -22,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,8 @@ public class WorkflowService {
     private final WorkflowInstanceRepository instanceRepository;
     private final WorkflowEngine workflowEngine;
     private final DifyDslConverter difyDslConverter;
+    private final OrinWorkflowDslNormalizer workflowDslNormalizer;
+    private final OrinWorkflowDslValidator workflowDslValidator;
     private final TaskService taskService;
 
     /**
@@ -86,7 +89,7 @@ public class WorkflowService {
         WorkflowEntity saved = workflowRepository.save(entity);
         log.info("Dify workflow imported with ID: {}", saved.getId());
 
-        return WorkflowResponse.fromEntity(saved);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -118,8 +121,7 @@ public class WorkflowService {
                 .workflowName(finalName)
                 .description(request.getDescription())
                 .workflowType(parseWorkflowType(request.getWorkflowType()))
-                .workflowDefinition(
-                        request.getWorkflowDefinition() != null ? request.getWorkflowDefinition() : new HashMap<>())
+                .workflowDefinition(workflowDslNormalizer.normalize(request.getWorkflowDefinition(), "ORIN"))
                 .timeoutSeconds(request.getTimeoutSeconds())
                 .retryPolicy(request.getRetryPolicy())
                 .status(requestedStatus != null ? requestedStatus : WorkflowEntity.WorkflowStatus.DRAFT)
@@ -136,7 +138,7 @@ public class WorkflowService {
             }
         }
 
-        return WorkflowResponse.fromEntity(saved);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -157,7 +159,7 @@ public class WorkflowService {
             entity.setWorkflowType(parseWorkflowType(request.getWorkflowType()));
         }
         if (request.getWorkflowDefinition() != null) {
-            entity.setWorkflowDefinition(request.getWorkflowDefinition());
+            entity.setWorkflowDefinition(workflowDslNormalizer.normalize(request.getWorkflowDefinition(), "ORIN"));
         }
         if (request.getTimeoutSeconds() != null) {
             entity.setTimeoutSeconds(request.getTimeoutSeconds());
@@ -168,7 +170,7 @@ public class WorkflowService {
         WorkflowEntity.WorkflowStatus requestedStatus = parseWorkflowStatus(request.getStatus());
         if (requestedStatus != null) {
             if (requestedStatus == WorkflowEntity.WorkflowStatus.ACTIVE) {
-                ensureWorkflowCanPublish(id);
+                ensureWorkflowCanPublish(entity);
             }
             entity.setStatus(requestedStatus);
         }
@@ -176,7 +178,7 @@ public class WorkflowService {
         WorkflowEntity saved = workflowRepository.save(entity);
         log.info("Workflow updated with ID: {}", saved.getId());
 
-        return WorkflowResponse.fromEntity(saved);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -184,9 +186,9 @@ public class WorkflowService {
         log.info("Publishing workflow: {}", id);
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
-        ensureWorkflowCanPublish(id);
+        ensureWorkflowCanPublish(entity);
         entity.setStatus(WorkflowEntity.WorkflowStatus.ACTIVE);
-        return WorkflowResponse.fromEntity(workflowRepository.save(entity));
+        return toResponse(workflowRepository.save(entity));
     }
 
     @Transactional
@@ -195,7 +197,7 @@ public class WorkflowService {
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
         entity.setStatus(WorkflowEntity.WorkflowStatus.ARCHIVED);
-        return WorkflowResponse.fromEntity(workflowRepository.save(entity));
+        return toResponse(workflowRepository.save(entity));
     }
 
     public Map<String, Object> getWorkflowCapabilities() {
@@ -204,9 +206,12 @@ public class WorkflowService {
                 "publishRequiredStatus", WorkflowEntity.WorkflowStatus.ACTIVE.name());
     }
 
-    private void ensureWorkflowCanPublish(Long id) {
-        if (!workflowEngine.validateWorkflow(id)) {
-            throw new IllegalStateException("Workflow validation failed: " + id);
+    private void ensureWorkflowCanPublish(WorkflowEntity entity) {
+        Map<String, Object> normalized = workflowDslNormalizer.normalize(entity.getWorkflowDefinition(), "ORIN");
+        entity.setWorkflowDefinition(normalized);
+        workflowDslValidator.validateForPublishOrThrow(normalized);
+        if (!workflowEngine.validateWorkflow(entity.getId())) {
+            throw new IllegalStateException("Workflow validation failed: " + entity.getId());
         }
     }
 
@@ -292,6 +297,10 @@ public class WorkflowService {
         if (workflow.getStatus() != WorkflowEntity.WorkflowStatus.ACTIVE) {
             throw new IllegalStateException("Workflow must be published before execution: " + workflowId);
         }
+        Map<String, Object> normalizedDefinition = workflowDslNormalizer.normalize(workflow.getWorkflowDefinition(), "ORIN");
+        workflow.setWorkflowDefinition(normalizedDefinition);
+        workflowDslValidator.validateForPublishOrThrow(normalizedDefinition);
+        workflowRepository.save(workflow);
         if (!workflowEngine.validateWorkflow(workflowId)) {
             throw new IllegalStateException("Workflow validation failed: " + workflowId);
         }
@@ -326,14 +335,14 @@ public class WorkflowService {
 
     public List<WorkflowResponse> getAllWorkflows() {
         return workflowRepository.findAll().stream()
-                .map(WorkflowResponse::fromEntity)
+                .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     public WorkflowResponse getWorkflowById(Long id) {
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
-        return WorkflowResponse.fromEntity(entity);
+        return toResponse(entity);
     }
 
     public WorkflowInstanceEntity getInstance(Long instanceId) {
@@ -378,53 +387,34 @@ public class WorkflowService {
                 .build();
     }
 
-    @SuppressWarnings("unchecked")
     public String exportDifyWorkflow(Long id) {
         log.info("Exporting workflow {} as Dify DSL", id);
 
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
 
-        Map<String, Object> definition = entity.getWorkflowDefinition();
-        if (definition == null || definition.isEmpty()) {
-            // Return minimal Dify DSL structure
-            Map<String, Object> dsl = new HashMap<>();
-            dsl.put("app", Map.of(
-                "name", entity.getWorkflowName(),
-                "mode", "workflow"
-            ));
-            dsl.put("workflow", Map.of(
-                "graph", Map.of(
-                    "nodes", new ArrayList<>(),
-                    "edges", new ArrayList<>(),
-                    "viewport", Map.of("x", 0, "y", 0, "zoom", 1)
-                )
-            ));
-            return new org.yaml.snakeyaml.Yaml().dump(dsl);
-        }
+        Map<String, Object> definition = workflowDslNormalizer.normalize(entity.getWorkflowDefinition(), "ORIN");
+        return difyDslConverter.export(
+                definition,
+                entity.getWorkflowName(),
+                entity.getDescription(),
+                entity.getVersion());
+    }
 
-        List<Map<String, Object>> nodes = (List<Map<String, Object>>) definition.get("nodes");
-        List<Map<String, Object>> edges = (List<Map<String, Object>>) definition.get("edges");
-
-        // Build Dify DSL format
-        Map<String, Object> dsl = new HashMap<>();
-        dsl.put("app", Map.of(
-            "name", entity.getWorkflowName(),
-            "description", entity.getDescription() != null ? entity.getDescription() : "",
-            "mode", "workflow",
-            "version", entity.getVersion() != null ? entity.getVersion() : "1.0"
-        ));
-
-        Map<String, Object> graph = new HashMap<>();
-        graph.put("nodes", nodes != null ? nodes : new ArrayList<>());
-        graph.put("edges", edges != null ? edges : new ArrayList<>());
-        graph.put("viewport", Map.of("x", 0, "y", 0, "zoom", 1));
-
-        Map<String, Object> workflow = new HashMap<>();
-        workflow.put("graph", graph);
-
-        dsl.put("workflow", workflow);
-
-        return new org.yaml.snakeyaml.Yaml().dump(dsl);
+    private WorkflowResponse toResponse(WorkflowEntity entity) {
+        Map<String, Object> normalizedDefinition = workflowDslNormalizer.normalize(entity.getWorkflowDefinition(), "ORIN");
+        return WorkflowResponse.builder()
+                .id(entity.getId())
+                .workflowName(entity.getWorkflowName())
+                .description(entity.getDescription())
+                .workflowType(entity.getWorkflowType())
+                .workflowDefinition(normalizedDefinition)
+                .timeoutSeconds(entity.getTimeoutSeconds())
+                .status(entity.getStatus())
+                .version(entity.getVersion())
+                .createdBy(entity.getCreatedBy())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
 }
