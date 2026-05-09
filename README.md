@@ -1,116 +1,69 @@
 # ORIN
 
-> 当前定位：`Spring Boot + Vue 3 + Python AI Engine` 的智能体管理平台骨架，已具备部分主链路能力，但仍在做闭环收敛和平台化补完。
+> 智能体管理平台 · 本科毕业设计项目
+>
+> 三层架构：`Spring Boot 后端 + Vue 3 前端 + Python AI Engine`
 
----
+## 项目简介
 
-## 当前口径
-
-不要把旧文档或旧页面中的“已完成”“已验收”“100%”直接当成现状。当前更准确的描述是：
-
-- 平台骨架完整
-- 智能体、知识库、工作流、协作、观测等模块都有入口
-- 但不少链路仍处于“部分完成、需逐项核实、需补真实闭环”的状态
-
-统一基线请先看：
-
-- [docs/ORIN统一开发总计划.md](./docs/ORIN统一开发总计划.md)
-- [docs/阶段0_改造基线.md](./docs/阶段0_改造基线.md)
-- [docs/系统功能实现评估报告.md](./docs/系统功能实现评估报告.md)
-- [docs/可验收能力清单.md](./docs/可验收能力清单.md)
-- [docs/ORIN开发Agent执行说明.md](./docs/ORIN开发Agent执行说明.md)
-
-额外提醒：
-
-- 前端存在不少兼容路由、隐藏路由、同页复用路由和占位入口
-- 后端存在多组接口前缀并存，不应假设所有系统能力都统一挂在一个 `/api/v1/system/*` 下
-- 后端健康检查当前同时保留 `/v1/health` 和 `/api/v1/health`
-- AI 引擎健康检查当前同时保留 `/health` 和 `/v1/health`，并暴露依赖状态
-- 涉及工作流、协作、知识链路时，必须同时核对前端、Java 后端、Python AI 引擎三层
-
-## 当前模块方向
-
-### 🤖 智能体管理
-- 智能体接入、配置、聊天、部分 provider 路由
-- 统一 统一网关与平台管理接口并存
-- 生命周期治理、版本管理、批处理能力仍需按代码逐项核实
-
-### 📚 知识库
-- 文档上传、解析、分块、向量化、检索具备基础入口
-- 图谱页面已挂载，但菜单配置仍将其视为占位入口
-- 多模态、同步治理仍需以实际链路为准
-- 不应默认“页面存在 = 能力已交付”
-
-### 🔄 工作流
-- 可视化工作流编排
-- Java 管理层 + Python 执行层双链路
-- 复杂节点、协作节点、真实执行语义仍在补完
-
-### 📊 监控与运维
-- Trace、审计、Prometheus、Langfuse 等能力并存
-- 当前目标是统一观测口径，而不是宣称已完成统一观测平台
-
----
+ORIN 是一个面向企业的智能体（Agent）一体化管理平台，提供智能体接入、知识库治理、工作流编排、多智能体协作、统一观测等能力。系统在 OpenAI 兼容网关之上，沉淀业务级管控能力（鉴权、审计、限流、配额），并通过独立的 Python 执行引擎承载工作流与协作的实际执行。
 
 ## 技术栈
 
-| 层级 | 技术 |
+| 层级 | 选型 |
 |------|------|
-| 后端 | Spring Boot 3.2 + MySQL + Redis |
-| 前端 | Vue 3 + Vite + Element Plus |
-| AI 引擎 | Python FastAPI |
-| 向量库 | Milvus |
-| 消息队列 | RabbitMQ |
+| 后端 | Spring Boot 3.2 · MySQL 8 · Redis · MyBatis/JPA |
+| 前端 | Vue 3 · Vite · Element Plus · Pinia |
+| AI 引擎 | Python 3.11 · FastAPI · LangGraph |
+| 中间件 | Milvus（向量库）· RabbitMQ（可选） |
 
----
+## 目录结构
+
+```
+ORIN/
+├── orin-backend/      Spring Boot 主后端，业务管控与统一网关
+├── orin-frontend/     Vue 3 管理台
+├── orin-ai-engine/    Python FastAPI 执行引擎
+├── docker/            本地基础设施 compose
+├── scripts/           运维与 smoke 脚本
+├── docs/              项目文档
+└── manage.sh          本地开发一键启停脚本
+```
 
 ## 快速开始
 
-### 前置要求
-
-- JDK 17+
-- Node.js 18+
-- MySQL 8.0+
-- Redis 7.0+
-- (可选) Milvus 2.3+
-
-### 本地开发
-
 ```bash
-# 1. 克隆项目
+# 前置：JDK 17+ · Node 18+ · Python 3.11+ · MySQL 8 · Redis
 git clone https://github.com/AdlinZ/ORIN.git
 cd ORIN
 
-# 2. 建议先看 docs/使用指南.md 和 docs/部署指南.md
-# 3. 优先使用手动分开启动，manage.sh 更偏本机开发脚本
+# 一键启动（macOS / 本地 MySQL 环境）
+./manage.sh start
+
+# 或分别启动，详见 docs/部署指南.md
 ```
 
-补充说明：
+启动后访问：
 
-- `manage.sh` 默认假设本机有可用的 MySQL、且 AI 引擎使用 `orin-ai-engine/venv`
-- `manage.sh` 启动后会用实际健康检查路径校验后端和 AI 引擎，避免只看端口造成误报
-- RabbitMQ 在本地不是强依赖；未启用时 AI 引擎健康检查会将队列依赖标为可见状态
-- 如果你的环境不是这套假设，优先按 [docs/部署指南.md](./docs/部署指南.md) 里的手动方式启动
-
-### 部署
-
-详见：
-
-- [docs/部署指南.md](./docs/部署指南.md)
-- [docs/I1.2-部署前检查清单.md](./docs/I1.2-部署前检查清单.md)
-
----
+- 前端：<http://localhost:5173>
+- 后端：<http://localhost:8080>（Swagger：`/swagger-ui/index.html`）
+- AI 引擎：<http://localhost:8000>
 
 ## 文档
 
-- [docs/README.md](./docs/README.md)
-- [docs/ORIN统一开发总计划.md](./docs/ORIN统一开发总计划.md)
-- [docs/ORIN开发Agent执行说明.md](./docs/ORIN开发Agent执行说明.md)
-- [docs/系统功能实现评估报告.md](./docs/系统功能实现评估报告.md)
-- [docs/使用指南.md](./docs/使用指南.md)
-- [docs/API文档.md](./docs/API文档.md)
+| 文档 | 用途 |
+|------|------|
+| [docs/架构设计.md](./docs/架构设计.md) | 系统架构、模块边界、协作执行约束 |
+| [docs/部署指南.md](./docs/部署指南.md) | 环境变量、本地/生产部署、检查清单 |
+| [docs/使用指南.md](./docs/使用指南.md) | 前端导航与功能入口 |
+| [docs/API文档.md](./docs/API文档.md) | 接口分组、统一网关示例 |
+| [docs/功能完成度.md](./docs/功能完成度.md) | 各模块成熟度与可验收能力 |
+| [docs/开发规范.md](./docs/开发规范.md) | 协作约束、提交规范、联调要点 |
+| [TODO.md](./TODO.md) | 待办与进度 |
 
----
+## 当前状态
+
+骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
 
 ## License
 

@@ -1,194 +1,205 @@
 # ORIN API 文档
 
-这份文档不再尝试手写“完整接口清单”，而是提供当前仓库中最稳定的接口分组和查阅方式。它不是“功能已全部对接”的承诺，只说明当前代码中能看到哪些控制器入口。具体参数、请求体和响应结构，请以 OpenAPI 和控制器代码为准。
+本文档提供接口分组导航与统一网关使用示例。详细字段以 Swagger 与控制器代码为准，避免文档与代码漂移。
 
-## 先看哪里
+## 1. 入口与文档资源
 
-- 统一 API 入口：`http://localhost:8080/v1`
-- 统一 API 文档导航：`http://localhost:8080/v1/docs`
-- 统一能力清单：`http://localhost:8080/v1/capabilities`
-- 后端健康检查：`http://localhost:8080/v1/health`、`http://localhost:8080/api/v1/health`
-- AI 引擎健康检查：`http://localhost:8000/health`、`http://localhost:8000/v1/health`
-- Swagger UI：`http://localhost:8080/swagger-ui/index.html`
-- OpenAPI JSON：`http://localhost:8080/v3/api-docs`
-- 后端控制器根目录：`orin-backend/src/main/java/com/adlin/orin/modules`
+| 资源 | 地址 |
+|------|------|
+| 后端基址 | `http://localhost:8080` |
+| 统一网关入口 | `GET /v1` |
+| 网关文档导航 | `GET /v1/docs` |
+| 网关能力清单 | `GET /v1/capabilities` |
+| Swagger UI | `/swagger-ui/index.html` |
+| OpenAPI JSON | `/v3/api-docs` |
+| 健康检查 | `/v1/health` · `/api/v1/health` |
+| AI 引擎健康 | `:8000/health` · `:8000/v1/health` |
 
-## 基础约定
+## 2. 鉴权方式
 
-- Base URL：`http://localhost:8080`
-- 认证方式：内部管理接口通常使用 JWT Bearer Token；统一网关 `/v1/*` 的模型、聊天、Embedding 等接口使用 API Key
-- 内容类型：大多数接口使用 `application/json`
-- 文件上传：通常使用 `multipart/form-data`
-- `/v1/models` 缺少 API Key 时应返回 `401` 与 `AUTH_API_KEY_INVALID`，这是预期鉴权语义，不是服务不可用
+| 接口前缀 | 鉴权 | 说明 |
+|----------|------|------|
+| `/v1/*` | API Key | OpenAI 兼容网关，header `Authorization: Bearer sk-orin-xxx` 或 `X-API-Key: sk-orin-xxx` |
+| `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token |
+| `/v1/health` · `/api/v1/health` | 无 | 健康检查公开 |
 
-## 当前主要接口分组
+API Key 创建：管理台 → 系统管理 → API Key 管理。
 
-下面按控制器实际前缀做保守归类：
+错误码（统一网关）：
 
-| 模块 | 主要路径前缀 | 说明 |
-| --- | --- | --- |
-| 认证 | `/api/v1/auth/*` | 登录、刷新、校验 |
-| 智能体 | `/api/v1/agents/*`, `/api/v1/agents/chat/*`, `/api/v1/admin/agents/*` | 智能体接入、管理、会话与少量管理端接口 |
-| 统一网关 | `/v1/*` | OpenAI 兼容网关 |
-| 知识库 | `/api/v1/knowledge/*`, `/api/v1/knowledge/sync/*` | 知识库、文档、检索、同步 |
-| 工作流 | `/api/workflows/*`, `/api/v1/workflow/*` | 工作流管理与代理执行 |
-| 协作 | `/api/v1/collaboration/*` | 协作任务、包、事件、检查点、回退 |
-| Trace 与观测 | `/api/traces/*`, `/api/v1/monitor/*`, `/api/v1/monitor/dataflow/*`, `/api/v1/observability/*`, `/api/v1/alerts/*` | Trace、监控、观测、告警 |
-| 用户权限 | `/api/v1/users/*`, `/api/v1/roles/*`, `/api/v1/departments/*` | 用户、角色、部门 |
-| 系统与配置 | `/api/v1/system/*`, `/api/v1/settings/*`, `/api/v1/api-keys/*`, `/api/system/integrations/*`, `/api/system/mcp/*`, `/api/v1/notifications/*`, `/api/v1/statistics/*`, `/api/v1/help/*` | 系统配置、集成、通知、帮助、统计 |
+- `401` 缺少或无效 API Key（语义码 `AUTH_API_KEY_INVALID`）
+- `429` 命中限流
+- `503` 当前无可用 Provider
+- `500` 网关内部错误
 
-## 核心接口导航
+响应头 `X-Trace-Id` 用于排查，建议保留。
 
-### 1. 认证
+## 3. 接口分组
 
-常见入口：
+按控制器实际前缀保守归类：
 
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `GET /api/v1/auth/validate`
+| 模块 | 主要前缀 |
+|------|----------|
+| 认证 | `/api/v1/auth/*` |
+| 智能体 | `/api/v1/agents/*` · `/api/v1/agents/chat/*` · `/api/v1/admin/agents/*` |
+| 统一网关 | `/v1/*` |
+| 知识库 | `/api/v1/knowledge/*` · `/api/v1/knowledge/sync/*` |
+| 工作流 | `/api/workflows/*` · `/api/v1/workflow/*` |
+| 协作 | `/api/v1/collaboration/*` |
+| Trace 与监控 | `/api/traces/*` · `/api/v1/monitor/*` · `/api/v1/observability/*` · `/api/v1/alerts/*` |
+| 用户权限 | `/api/v1/users/*` · `/api/v1/roles/*` · `/api/v1/departments/*` |
+| 系统配置 | `/api/v1/system/*` · `/api/v1/settings/*` · `/api/v1/api-keys/*` · `/api/system/integrations/*` · `/api/system/mcp/*` · `/api/v1/notifications/*` · `/api/v1/statistics/*` · `/api/v1/help/*` |
 
-### 2. 智能体
+## 4. 核心接口示例
 
-常见入口：
-
-- `GET /api/v1/agents`
-- `POST /api/v1/agents/onboard`
-- `POST /api/v1/agents/{agentId}/chat`
-
-说明：
-
-- 部分历史文档里提到的某些批量能力、版本能力、导入导出能力，需要先确认当前控制器和服务是否已闭环，不要只依据旧文档判断。
-- 当前同一个“智能体能力”可能分散在管理接口、聊天接口和 OpenAI 兼容网关三处，不要默认只有一条入口。
-
-### 3. OpenAI 兼容网关
-
-常见入口：
-
-- `GET /v1`（统一入口索引）
-- `GET /v1/docs`（统一文档导航）
-- `GET /v1/capabilities`（统一能力清单）
-- `GET /v1/health`（网关健康检查，无需 API Key）
-- `POST /v1/chat/completions`
-- `POST /v1/embeddings`
-- `GET /v1/models`（需要 API Key）
-
-说明：
-
-- 这部分由网关控制器统一适配不同 provider。
-- 第三方接入优先看这里，而不是直接调用内部业务接口。
-- 前端在线调试会明确提示哪些端点需要 API Key；未配置 key 时先验证 `/v1/health`、`/v1/providers`、`/v1/capabilities`。
-
-### 4. 知识库
-
-常见入口：
-
-- `GET /api/v1/knowledge/list`
-- `POST /api/v1/knowledge`
-- `POST /api/v1/knowledge/{kbId}/documents/upload`
-- `POST /api/v1/knowledge/retrieve`
-- `POST /api/v1/knowledge/sync/dify/{agentId}`
-- `GET /api/v1/knowledge/sync/client/{agentId}/changes`
-
-说明：
-
-- 知识库模块接口较多，包含 Notion、Web、RAGFlow、数据库同步等扩展入口。
-- 如果要确认某类同步能力是否真可用，建议同时检查对应 service/adapter。
-
-### 5. 工作流
-
-常见入口：
-
-- `GET /api/workflows`
-- `POST /api/workflows`
-- `POST /api/workflows/{id}/execute`
-- `POST /api/v1/workflow/run`
-
-说明：
-
-- `/api/workflows/*` 偏管理和实例查询
-- `/api/v1/workflow/run` 偏代理执行入口
-
-### 6. 协作
-
-常见入口：
-
-- `POST /api/v1/collaboration/packages`
-- `GET /api/v1/collaboration/packages`
-- `POST /api/v1/collaboration/tasks`
-- `GET /api/v1/collaboration/events/{packageId}`
-
-说明：
-
-- 该模块有控制器和数据结构，但具体执行成熟度需要结合 Python AI 引擎一起判断。
-
-### 7. Trace、监控与观测
-
-常见入口：
-
-- `GET /api/traces/{traceId}`
-- `GET /api/traces/search`
-- `GET /api/traces/{traceId}/link`
-- `GET /api/v1/monitor/dashboard/summary`
-- `GET /api/v1/monitor/tokens/stats`
-- `GET /api/v1/observability/langfuse/status`
-- `GET /api/v1/alerts/history`
-
-### 8. 系统与配置
-
-常见入口：
-
-- `GET /api/v1/system/log-config`
-- `GET /api/v1/system/log-config/loggers`
-- `PUT /api/v1/system/log-config/loggers/{loggerName}`
-- `GET /api/v1/system/config`
-- `PUT /api/v1/system/config`
-- `GET /api/v1/settings/defaults`
-- `GET /api/v1/api-keys`
-- `GET /api/system/integrations/status`
-- `GET /api/system/mcp/services`
-
-## 联调建议
-
-### 查接口是否真的存在
+### 4.1 登录
 
 ```bash
-rg -n "@RequestMapping|@GetMapping|@PostMapping|@PutMapping|@DeleteMapping" \
-  orin-backend/src/main/java/com/adlin/orin
-```
-
-### 查某个接口是不是旧文档遗留或文档写偏了
-
-```bash
-rg -n "/api/v1/workflow/run|/api/v1/agents|/api/v1/knowledge|/api/v1/settings|/api/system/integrations" \
-  orin-backend/src/main/java/com/adlin/orin
-```
-
-### 查鉴权放行规则
-
-```bash
-rg -n "swagger-ui|v3/api-docs|requestMatchers" \
-  orin-backend/src/main/java/com/adlin/orin/security
-```
-
-## 示例
-
-```bash
-TOKEN="your-jwt-token"
-
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"password"}'
+# → { "token": "...", "refreshToken": "..." }
 ```
 
+后续请求附加：`Authorization: Bearer <token>`
+
+### 4.2 统一网关：聊天补全（OpenAI 兼容）
+
 ```bash
-curl http://localhost:8080/api/traces/search?traceId=abc123 \
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk-orin-xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "messages": [
+      {"role":"user","content":"你好，请简要介绍 ORIN。"}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 256
+  }'
+```
+
+### 4.3 统一网关：文本向量
+
+```bash
+curl -X POST http://localhost:8080/v1/embeddings \
+  -H "Authorization: Bearer sk-orin-xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "text-embedding-3-small",
+    "input": "ORIN 智能体平台示例"
+  }'
+```
+
+### 4.4 统一网关：模型列表
+
+```bash
+curl http://localhost:8080/v1/models \
+  -H "Authorization: Bearer sk-orin-xxx"
+```
+
+### 4.5 智能体管理
+
+```bash
+# 列表
+curl http://localhost:8080/api/v1/agents -H "Authorization: Bearer $TOKEN"
+
+# 接入
+curl -X POST http://localhost:8080/api/v1/agents/onboard \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "name": "demo", "type": "OPENAI_COMPAT", "endpoint": "..." }'
+
+# 内部对话（区别于网关）
+curl -X POST http://localhost:8080/api/v1/agents/{agentId}/chat \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "message": "..." }'
+```
+
+### 4.6 知识库
+
+```bash
+# 列表
+curl http://localhost:8080/api/v1/knowledge/list -H "Authorization: Bearer $TOKEN"
+
+# 上传文档
+curl -X POST http://localhost:8080/api/v1/knowledge/{kbId}/documents/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@doc.pdf"
+
+# 检索
+curl -X POST http://localhost:8080/api/v1/knowledge/retrieve \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "kbId": 1, "query": "...", "topK": 5 }'
+
+# 端侧同步增量
+curl http://localhost:8080/api/v1/knowledge/sync/client/{agentId}/changes \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## 维护说明
+### 4.7 工作流
 
-- 本文档只维护“入口级别”信息，避免再出现手写接口清单和真实控制器脱节的问题。
-- 如果某个页面声称依赖某组接口，联调时请先确认控制器前缀、service 实现和前端调用是否真的对齐。
-- 如果新增或删除模块级前缀，应同步更新这里和 [README.md](./README.md)。
+```bash
+# 管理
+curl http://localhost:8080/api/workflows -H "Authorization: Bearer $TOKEN"
 
-**更新日期**：2026-03-31
+# 触发执行
+curl -X POST http://localhost:8080/api/v1/workflow/run \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "workflowId": 1,
+    "inputs": { "query": "test", "iterations": 3 }
+  }'
+```
+
+### 4.8 协作
+
+```bash
+# 创建任务包
+curl -X POST http://localhost:8080/api/v1/collaboration/packages \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Demo",
+    "collaborationMode": "SEQUENTIAL"
+  }'
+
+# 查询状态
+curl http://localhost:8080/api/v1/collaboration/packages/{id}/status \
+  -H "Authorization: Bearer $TOKEN"
+
+# 事件流
+curl http://localhost:8080/api/v1/collaboration/events/{packageId} \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 4.9 Trace 与监控
+
+```bash
+curl http://localhost:8080/api/traces/{traceId} -H "Authorization: Bearer $TOKEN"
+curl "http://localhost:8080/api/traces/search?traceId=abc" -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/v1/monitor/dashboard/summary -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/v1/observability/langfuse/status -H "Authorization: Bearer $TOKEN"
+```
+
+## 5. 联调技巧
+
+```bash
+# 查接口是否真的存在
+rg "@RequestMapping|@GetMapping|@PostMapping" \
+   orin-backend/src/main/java/com/adlin/orin
+
+# 查鉴权放行规则
+rg "swagger-ui|v3/api-docs|requestMatchers" \
+   orin-backend/src/main/java/com/adlin/orin/security
+```
+
+注意：
+
+- 同一智能体能力可能分散在 **管理接口** + **聊天接口** + **OpenAI 网关** 三处入口，第三方接入优先用网关
+- `/api/workflows/*` 偏管理与查询，`/api/v1/workflow/run` 偏代理执行
+- 知识库同步类接口（Notion / Web / RAGFlow / Dify）成熟度不一致，使用前先确认对应 service / adapter 是否已实装
+
+## 6. 维护原则
+
+- 本文档只维护"入口级别"信息，避免再出现手写接口清单与控制器脱节
+- 新增/删除模块前缀时，同步更新本文与 [架构设计.md](./架构设计.md)
+- 字段细节查 Swagger，不再在此重复
