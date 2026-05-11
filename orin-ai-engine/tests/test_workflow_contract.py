@@ -21,6 +21,14 @@ from app.models.workflow import (
 from app.engine.executor import GraphExecutor
 
 
+def trace_outputs(result, node_id):
+    """Return a node's execution outputs from the trace."""
+    for trace in result.trace:
+        if trace.node_id == node_id:
+            return trace.outputs or {}
+    return {}
+
+
 class TestDSLVersionContract:
     """DSL 版本兼容性测试"""
 
@@ -106,7 +114,7 @@ class TestNodeInputOutputContract:
             # 允许 success 或 partial（如果某些节点失败）
             assert result.status in [WorkflowStatus.SUCCESS, WorkflowStatus.PARTIAL]
             # 验证 LLM 节点输出契约
-            llm_output = result.outputs.get("2", {})
+            llm_output = trace_outputs(result, "2")
             assert "text" in llm_output or "content" in llm_output  # 至少有一个
 
     @pytest.mark.asyncio
@@ -138,7 +146,7 @@ class TestNodeInputOutputContract:
 
             assert result.status == WorkflowStatus.SUCCESS
             # 验证 VariableAssigner 输出契约
-            va_output = result.outputs.get("2", {})
+            va_output = trace_outputs(result, "2")
             assert "assigned_variable" in va_output
             assert "value" in va_output
             assert "mode" in va_output
@@ -170,7 +178,7 @@ class TestNodeInputOutputContract:
 
             # 应该成功执行但标记为 skipped
             assert result.status == WorkflowStatus.SUCCESS
-            code_output = result.outputs.get("2", {})
+            code_output = trace_outputs(result, "2")
             assert code_output.get("status") == "skipped" or code_output.get("result") == "No code provided"
 
 
@@ -218,7 +226,7 @@ class TestEdgeRoutingContract:
             result = await executor.execute(dsl, {"x": "yes"})
 
             # if 分支节点 3 应该有输出，else 分支节点 4 不应该有输出
-            assert "3" in result.outputs  # if 分支被执行
+            assert trace_outputs(result, "3")  # if 分支被执行
             # else 分支不应该被执行
 
     @pytest.mark.asyncio
@@ -262,7 +270,7 @@ class TestEdgeRoutingContract:
             result = await executor.execute(dsl, {"x": "no"})  # 条件为假
 
             # else 分支节点 4 应该有输出
-            assert "4" in result.outputs
+            assert trace_outputs(result, "4")
 
 
 class TestErrorHandlingContract:
@@ -363,7 +371,7 @@ class TestWorkflowContextContract:
             result = await executor.execute(dsl, {"query": "hello"})
 
             # 验证 inputs 被传递并被代码节点使用
-            code_output = result.outputs.get("2", {})
+            code_output = trace_outputs(result, "2")
             assert code_output.get("result") == "HELLO"
 
     @pytest.mark.asyncio
@@ -400,10 +408,8 @@ class TestWorkflowContextContract:
             result = await executor.execute(dsl, {})
 
             # 两个节点都应该成功执行
-            assert "2" in result.outputs
-            assert "3" in result.outputs
-            assert result.outputs["2"]["value"] == 100
-            assert result.outputs["3"]["result"] == 50
+            assert trace_outputs(result, "2").get("value") == 100
+            assert trace_outputs(result, "3").get("result") == 50
 
 
 # =============================================================================

@@ -354,8 +354,9 @@
 
 - [ ] `P1` 修复无法在空库上跑通的历史 Flyway 迁移（V5/V6/V8/V11 等缺前置建表）
   当前 Docker 用 SQL dump 快照绕过，应在 Phase 1 期间正式修复
-- [ ] `P1` 修复 WorkflowProxyControllerTest ApplicationContext 加载失败
-- [ ] `P1` 修复 WorkflowServiceTest workflowDslNormalizer 依赖注入缺失
+- [ ] `P1` 重构 WorkflowProxyControllerTest，去除对 Milvus/RabbitMQ/Neo4j 等外部依赖
+  当前测试 43s 且依赖网络，CI 不稳定。应改为纯单元测试或加 `@Tag("integration")` 隔离
+- [x] `P1` 修复 WorkflowServiceTest workflowDslNormalizer 依赖注入缺失
 - [~] `P0` 为协作链补充后端单元测试和集成测试
 - [x] `P0` 为任务重试/死信逻辑补测试
 - [x] `P0` 为同步接口补测试

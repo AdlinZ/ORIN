@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --coverage.reporter=json",
     "test:revamp": "vitest run tests/unit/revamp*.test.js",
     "flags:revamp:snapshot": "node scripts/revamp-flag-snapshot.mjs",
     "smoke:revamp": "node scripts/revamp-smoke.mjs",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@typescript-eslint/parser": "^8.57.2",
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vitest/coverage-v8": "4.0.16",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.26.0",

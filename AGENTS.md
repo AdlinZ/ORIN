@@ -73,7 +73,7 @@ curl http://localhost:8000/v1/health
 cd orin-backend && mvn test
 
 # 前端
-cd orin-frontend && npm run test:unit && npm run build
+cd orin-frontend && npm run test && npm run build
 
 # AI 引擎
 cd orin-ai-engine && venv/bin/pytest
@@ -227,6 +227,8 @@ bash scripts/smoke-test.sh
 - "我看到问题就顺手解决了"
 - "为了完成任务自己拍板"
 - "等做完后在 PR 描述里报告"
+
+**测试与实际代码语义冲突时**：先确认 truth source（看真实代码与产品行为），测试过时则修测试，代码 bug 则停下报告，不可自己拍板改代码。
 
 ### 8.3 完成判定
 
