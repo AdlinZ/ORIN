@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/mcp")
 @RequiredArgsConstructor
 @Tag(name = "MCP Protocol", description = "MCP 标准协议接口")
+@Deprecated
 public class McpController {
 
     private final SkillRepository skillRepository;
@@ -28,7 +29,7 @@ public class McpController {
     @GetMapping("/tools")
     @Operation(summary = "获取所有可用工具 (MCP 标准)")
     public ResponseEntity<Map<String, Object>> getTools() {
-        log.info("MCP request: GET /mcp/tools");
+        log.warn("Deprecated MCP endpoint called: GET /mcp/tools");
 
         List<SkillEntity> skills = skillRepository.findByStatus(SkillEntity.SkillStatus.ACTIVE);
 
@@ -47,7 +48,7 @@ public class McpController {
     @GetMapping("/tools/{skillId}")
     @Operation(summary = "获取单个工具详情 (MCP 标准)")
     public ResponseEntity<Map<String, Object>> getTool(@PathVariable Long skillId) {
-        log.info("MCP request: GET /mcp/tools/{}", skillId);
+        log.warn("Deprecated MCP endpoint called: GET /mcp/tools/{}", skillId);
 
         SkillEntity skill = skillRepository.findById(skillId)
                 .orElseThrow(() -> new IllegalArgumentException("Skill not found: " + skillId));
@@ -63,7 +64,7 @@ public class McpController {
             @PathVariable Long skillId,
             @RequestBody Map<String, Object> arguments) {
 
-        log.info("MCP request: POST /mcp/tools/{}/execute", skillId);
+        log.warn("Deprecated MCP endpoint called: POST /mcp/tools/{}/execute", skillId);
 
         // 这里可以调用 SkillService.executeSkill
         // 为了保持 MCP 标准,返回格式需要符合规范
@@ -80,7 +81,7 @@ public class McpController {
     @GetMapping("/resources")
     @Operation(summary = "获取所有资源 (MCP 标准)")
     public ResponseEntity<Map<String, Object>> getResources() {
-        log.info("MCP request: GET /mcp/resources");
+        log.warn("Deprecated MCP endpoint called: GET /mcp/resources");
 
         List<SkillEntity> knowledgeSkills = skillRepository.findBySkillType(SkillEntity.SkillType.KNOWLEDGE);
 

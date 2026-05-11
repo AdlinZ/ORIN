@@ -99,3 +99,25 @@ class TestTaskRuntimeWorkflow:
                 input_data_raw='{"inputs": {"k": "v"}}',
                 context={},
             )
+
+
+class TestTaskRuntimeMcp:
+    @pytest.mark.asyncio
+    async def test_execute_mcp_task_calls_manager_and_returns_trace(self):
+        runtime = TaskRuntime()
+
+        with patch("app.engine.task_runtime.mcp_client_manager.call_tool", new=AsyncMock(
+            return_value={"content": [{"type": "text", "text": "pong"}]}
+        )) as call_tool:
+            result = await runtime.execute_mcp_task(
+                package_id="pkg-1",
+                sub_task_id="sub-1",
+                trace_id="trace-1",
+                description="call ping",
+                input_data_raw='{"serviceId": 7, "toolName": "ping", "arguments": {"x": 1}}',
+                context={},
+            )
+
+        assert result["text"] == "pong"
+        assert result["toolTrace"]["detail"]["tool_type"] == "mcp"
+        call_tool.assert_awaited_once_with(7, "ping", {"x": 1})

@@ -29,15 +29,15 @@ public class McpManageController {
     private final McpServiceService mcpServiceService;
     private static final List<Map<String, Object>> MARKET_TEMPLATES = List.of(
             template("filesystem", "Filesystem", "本地文件系统读写与检索", "STDIO",
-                    "npx -y @modelcontextprotocol/server-filesystem /path/to/workspace", null),
-            template("git", "Git", "Git 仓库状态与提交查询", "STDIO",
-                    "npx -y @modelcontextprotocol/server-git /path/to/repo", null),
+                    "filesystem /path/to/workspace", null),
+            template("github", "GitHub", "GitHub 仓库与 Issue 查询", "STDIO",
+                    "github", null),
             template("fetch", "Fetch", "HTTP 内容抓取和网页读取", "STDIO",
-                    "uvx mcp-server-fetch", null),
-            template("postgres", "PostgreSQL", "数据库查询与结构探索", "STDIO",
-                    "npx -y @modelcontextprotocol/server-postgres", null),
-            template("sse-proxy", "SSE Proxy", "通过 SSE 方式接入远程 MCP 服务", "SSE",
-                    null, "http://localhost:3000/sse"));
+                    "fetch", null),
+            template("sqlite", "SQLite", "SQLite 数据库查询与结构探索", "STDIO",
+                    "sqlite /path/to/database.db", null),
+            template("time", "Time", "时间与时区工具", "STDIO",
+                    "time", null));
 
     private static Map<String, Object> template(String key, String name, String description, String type,
             String command, String url) {
@@ -60,28 +60,28 @@ public class McpManageController {
         } else {
             services = mcpServiceService.getAllServices();
         }
-        return ResponseEntity.ok(services);
+        return ResponseEntity.ok(services.stream().map(this::maskService).toList());
     }
 
     @GetMapping("/services/{id}")
     @Operation(summary = "获取单个 MCP 服务")
     public ResponseEntity<McpService> getService(@PathVariable Long id) {
         McpService service = mcpServiceService.getServiceById(id);
-        return ResponseEntity.ok(service);
+        return ResponseEntity.ok(maskService(service));
     }
 
     @PostMapping("/services")
     @Operation(summary = "创建 MCP 服务")
     public ResponseEntity<McpService> createService(@RequestBody McpService service) {
         McpService created = mcpServiceService.createService(service);
-        return ResponseEntity.ok(created);
+        return ResponseEntity.ok(maskService(created));
     }
 
     @PutMapping("/services/{id}")
     @Operation(summary = "更新 MCP 服务")
     public ResponseEntity<McpService> updateService(@PathVariable Long id, @RequestBody McpService service) {
         McpService updated = mcpServiceService.updateService(id, service);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(maskService(updated));
     }
 
     @DeleteMapping("/services/{id}")
@@ -148,6 +148,24 @@ public class McpManageController {
         return ResponseEntity.ok(tools);
     }
 
+    @GetMapping("/internal/enabled/{id}")
+    @Operation(summary = "AI Engine 内部读取启用 MCP 配置")
+    public ResponseEntity<Map<String, Object>> getEnabledServiceForAiEngine(@PathVariable Long id) {
+        McpService service = mcpServiceService.getServiceById(id);
+        if (!Boolean.TRUE.equals(service.getEnabled())) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("id", service.getId());
+        payload.put("name", service.getName());
+        payload.put("toolKey", service.getToolKey());
+        payload.put("type", service.getType() != null ? service.getType().name() : "STDIO");
+        payload.put("command", service.getCommand());
+        payload.put("url", service.getUrl());
+        payload.put("envVars", maskEnvVars(service.getEnvVars()));
+        return ResponseEntity.ok(payload);
+    }
+
     @PostMapping("/tools/{toolKey}/install")
     @Operation(summary = "从市场模板安装 MCP 工具")
     public ResponseEntity<McpService> installTool(@PathVariable String toolKey) {
@@ -164,7 +182,7 @@ public class McpManageController {
                 .filter(s -> toolKey.equals(s.getToolKey()))
                 .findFirst();
         if (installedOpt.isPresent()) {
-            return ResponseEntity.ok(installedOpt.get());
+            return ResponseEntity.ok(maskService(installedOpt.get()));
         }
 
         McpService service = McpService.builder()
@@ -177,13 +195,45 @@ public class McpManageController {
                 .enabled(true)
                 .build();
 
-        return ResponseEntity.ok(mcpServiceService.createService(service));
+        return ResponseEntity.ok(maskService(mcpServiceService.createService(service)));
     }
 
     @PutMapping("/services/{id}/enabled")
     @Operation(summary = "启用/禁用 MCP 服务")
     public ResponseEntity<McpService> setServiceEnabled(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
-        return ResponseEntity.ok(mcpServiceService.setServiceEnabled(id, enabled));
+        return ResponseEntity.ok(maskService(mcpServiceService.setServiceEnabled(id, enabled)));
+    }
+
+    private McpService maskService(McpService service) {
+        if (service == null) {
+            return null;
+        }
+        return McpService.builder()
+                .id(service.getId())
+                .name(service.getName())
+                .toolKey(service.getToolKey())
+                .type(service.getType())
+                .command(service.getCommand())
+                .url(service.getUrl())
+                .envVars(maskEnvVars(service.getEnvVars()))
+                .description(service.getDescription())
+                .enabled(service.getEnabled())
+                .status(service.getStatus())
+                .lastConnected(service.getLastConnected())
+                .lastError(service.getLastError())
+                .healthScore(service.getHealthScore())
+                .createdAt(service.getCreatedAt())
+                .updatedAt(service.getUpdatedAt())
+                .build();
+    }
+
+    private String maskEnvVars(String envVars) {
+        if (envVars == null || envVars.isBlank()) {
+            return envVars;
+        }
+        return java.util.Arrays.stream(envVars.split("\\R"))
+                .map(line -> line.contains("=") ? line.substring(0, line.indexOf('=') + 1) + "******" : line)
+                .collect(java.util.stream.Collectors.joining("\n"));
     }
 }

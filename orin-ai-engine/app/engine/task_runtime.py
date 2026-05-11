@@ -6,6 +6,7 @@ This module is the single execution kernel used by both:
 - Legacy collaboration executor compatibility layer
 """
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -15,6 +16,7 @@ import httpx
 from app.core.config import settings
 from app.engine.executor import GraphExecutor
 from app.engine.handlers.llm import RealLLMNodeHandler
+from app.engine.mcp_client_manager import mcp_client_manager
 from app.models.workflow import Node, NodeExecutionOutput
 
 logger = logging.getLogger(__name__)
@@ -213,3 +215,65 @@ class TaskRuntime:
             return json.dumps(payload, ensure_ascii=False)
 
         return str(payload)
+
+    async def execute_mcp_task(
+        self,
+        *,
+        package_id: str,
+        sub_task_id: str,
+        trace_id: Optional[str],
+        description: str,
+        input_data_raw: Optional[str],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {}
+        if input_data_raw:
+            try:
+                parsed = json.loads(input_data_raw)
+                if isinstance(parsed, dict):
+                    payload.update(parsed)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid MCP input_data JSON for task: {sub_task_id}") from exc
+        if context:
+            payload = {**context, **payload}
+
+        service_id = payload.get("mcpServiceId") or payload.get("serviceId")
+        tool_name = payload.get("toolName") or payload.get("name")
+        arguments = payload.get("arguments") or payload.get("args") or {}
+        if service_id is None:
+            raise ValueError(f"No MCP serviceId found for MCP task: {sub_task_id}")
+        if not isinstance(arguments, dict):
+            raise ValueError("MCP arguments must be an object")
+
+        started = asyncio.get_running_loop().time()
+        result = await mcp_client_manager.call_tool(int(service_id), str(tool_name), arguments)
+        duration_ms = int((asyncio.get_running_loop().time() - started) * 1000)
+        return {
+            "text": self._stringify_mcp_result(result),
+            "toolTrace": {
+                "type": "MCP_TOOL_CALL",
+                "kbId": f"mcp:{service_id}:{tool_name}",
+                "message": description or f"MCP tool call: {tool_name}",
+                "status": "success",
+                "durationMs": duration_ms,
+                "detail": {
+                    "tool_type": "mcp",
+                    "packageId": package_id,
+                    "subTaskId": sub_task_id,
+                    "traceId": trace_id,
+                    "serviceId": service_id,
+                    "toolName": tool_name,
+                },
+            },
+        }
+
+    def _stringify_mcp_result(self, result: Dict[str, Any]) -> str:
+        content = result.get("content") if isinstance(result, dict) else None
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, dict) and isinstance(item.get("text"), str):
+                    parts.append(item["text"])
+            if parts:
+                return "\n".join(parts)
+        return json.dumps(result, ensure_ascii=False)

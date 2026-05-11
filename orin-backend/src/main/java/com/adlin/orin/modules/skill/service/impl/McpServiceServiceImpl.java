@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.skill.service.impl;
 
+import com.adlin.orin.common.exception.ValidationException;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.adlin.orin.modules.skill.service.McpServiceService;
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 public class McpServiceServiceImpl implements McpServiceService {
 
     private final McpServiceRepository mcpServiceRepository;
+    private static final List<String> SENSITIVE_ENV_SUFFIXES = List.of("_KEY", "_TOKEN", "_SECRET");
 
     @Override
     public List<McpService> getAllServices() {
@@ -48,6 +50,7 @@ public class McpServiceServiceImpl implements McpServiceService {
     @Override
     @Transactional
     public McpService createService(McpService service) {
+        validateEnvVars(service.getEnvVars());
         if (mcpServiceRepository.existsByName(service.getName())) {
             throw new RuntimeException("服务名称已存在: " + service.getName());
         }
@@ -62,7 +65,9 @@ public class McpServiceServiceImpl implements McpServiceService {
     @Override
     @Transactional
     public McpService updateService(Long id, McpService service) {
-        McpService existing = getServiceById(id);
+        validateEnvVars(service.getEnvVars());
+        McpService existing = mcpServiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("MCP 服务不存在: " + id));
 
         // 检查名称冲突（排除自身）
         if (!existing.getName().equals(service.getName()) &&
@@ -74,7 +79,9 @@ public class McpServiceServiceImpl implements McpServiceService {
         existing.setType(service.getType());
         existing.setCommand(service.getCommand());
         existing.setUrl(service.getUrl());
-        existing.setEnvVars(service.getEnvVars());
+        if (service.getEnvVars() == null || !service.getEnvVars().contains("******")) {
+            existing.setEnvVars(service.getEnvVars());
+        }
         existing.setDescription(service.getDescription());
         existing.setToolKey(service.getToolKey());
         existing.setEnabled(service.getEnabled() != null ? service.getEnabled() : existing.getEnabled());
@@ -415,4 +422,20 @@ public class McpServiceServiceImpl implements McpServiceService {
         }
         return mcpServiceRepository.save(service);
     }
+
+    private void validateEnvVars(String envVars) {
+        if (envVars == null || envVars.isBlank()) {
+            return;
+        }
+        for (String line : envVars.split("\\R")) {
+            if (line == null || line.isBlank() || !line.contains("=")) {
+                continue;
+            }
+            String key = line.substring(0, line.indexOf('=')).trim().toUpperCase();
+            if (SENSITIVE_ENV_SUFFIXES.stream().anyMatch(key::endsWith)) {
+                throw new ValidationException("MCP 环境变量禁止包含敏感字段: " + key);
+            }
+        }
+    }
+
 }
