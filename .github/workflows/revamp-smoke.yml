@@ -31,10 +31,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 18
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: orin-frontend/package-lock.json
 
@@ -47,7 +47,8 @@ jobs:
           npm run smoke:revamp -- --json-out ./artifacts/revamp-smoke-report.json --summary-out ./artifacts/revamp-smoke-summary.md
 
       - name: Revamp test suite
-        run: npm run test:revamp
+        timeout-minutes: 5
+        run: npm run test:revamp -- --reporter=verbose --pool=forks --no-file-parallelism
 
       - name: Generate acceptance checklist artifact
         run: npm run acceptance:revamp -- --out ./artifacts/revamp-acceptance-checklist.md
