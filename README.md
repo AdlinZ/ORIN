@@ -1,8 +1,28 @@
 # ORIN
 
+[![Build](https://img.shields.io/badge/build-pending-lightgrey)](#)
+[![Coverage](https://img.shields.io/badge/coverage-baseline%20pending-lightgrey)](#)
+[![Docker](https://img.shields.io/badge/docker-compose%20ready-blue)](./docker-compose.yml)
+[![License](https://img.shields.io/badge/license-MIT-green)](./README.md#license)
+
 > 智能体管理平台 · 本科毕业设计项目
 >
 > 三层架构：`Spring Boot 后端 + Vue 3 前端 + Python AI Engine`
+
+## 30 秒启动
+
+```bash
+git clone https://github.com/AdlinZ/ORIN.git
+cd ORIN
+cp .env.example .env
+docker compose up
+```
+
+启动后访问：
+
+- 前端：<http://localhost:5173>
+- 后端：<http://localhost:8080>（Swagger：`/swagger-ui/index.html`）
+- AI 引擎：<http://localhost:8000>
 
 ## 项目简介
 
@@ -34,20 +54,11 @@ ORIN/
 
 ```bash
 # 前置：JDK 17+ · Node 18+ · Python 3.11+ · MySQL 8 · Redis
-git clone https://github.com/AdlinZ/ORIN.git
-cd ORIN
-
-# 一键启动（macOS / 本地 MySQL 环境）
+# 本机开发一键启动（macOS / 本地 MySQL 环境）
 ./manage.sh start
 
 # 或分别启动，详见 docs/部署指南.md
 ```
-
-启动后访问：
-
-- 前端：<http://localhost:5173>
-- 后端：<http://localhost:8080>（Swagger：`/swagger-ui/index.html`）
-- AI 引擎：<http://localhost:8000>
 
 ## 文档
 

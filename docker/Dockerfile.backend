@@ -1,48 +1,85 @@
-# ORIN 后端 Dockerfile
-# 多阶段构建，减少镜像体积
+# ORIN backend Dockerfile
 
-# 构建阶段
-FROM maven:3.9-eclipse-temurin-17 AS builder
+FROM maven:3.9.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
-# 复制 pom.xml
 COPY pom.xml .
+RUN set -eux; \
+    for attempt in 1 2 3 4 5; do \
+        mvn -B -Dmaven.wagon.http.retryHandler.count=5 dependency:go-offline && break; \
+        if [ "$attempt" = "5" ]; then exit 1; fi; \
+        rm -rf /root/.m2/repository/.cache; \
+        find /root/.m2/repository -name "*.lastUpdated" -delete; \
+        sleep $((attempt * 10)); \
+    done
 
-# 下载依赖
-RUN mvn dependency:go-offline -B
-
-# 安装 curl for health check
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-# 构建源码并打包
 COPY src src
+# Tests are run by .github/workflows/ci.yml, not at image build time.
+# See docs/路线图.md Phase 0 · 2.2 GitHub Actions CI.
 RUN mvn clean package -DskipTests -B && \
     mkdir -p target/dependency && \
     (cd target/dependency; jar -xf ../*.jar)
 
-# 运行阶段
-FROM eclipse-temurin:17-jre
+FROM maven:3.9.9-eclipse-temurin-17 AS dev
+
+WORKDIR /workspace
+
+RUN apt-get -o Acquire::Retries=5 update && \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV MAVEN_OPTS="-Xmx768m" \
+    JAVA_TOOL_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+
+EXPOSE 8080 5005
+
+CMD ["mvn", "spring-boot:run"]
+
+FROM amazoncorretto:17.0.13-alpine3.20 AS jre-builder
+
+RUN apk add --no-cache binutils >/dev/null && \
+    jlink \
+        --add-modules java.base,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.security.jgss,java.sql,java.xml,jdk.charsets,jdk.crypto.ec,jdk.unsupported \
+        --strip-debug \
+        --no-man-pages \
+        --no-header-files \
+        --compress=2 \
+        --output /opt/orin-jre
+
+FROM alpine:3.20.3 AS lib-packer
+
+RUN apk add --no-cache xz >/dev/null
+
+COPY --from=builder /app/target/dependency/BOOT-INF/lib /work/lib
+RUN cd /work/lib && tar -cJf /work/lib.tar.xz .
+
+FROM alpine:3.20.3 AS runtime
 
 WORKDIR /app
 
-# 从构建阶段复制依赖
-COPY --from=builder /app/target/dependency/BOOT-INF/lib /app/lib
-COPY --from=builder /app/target/dependency/META-INF /app/META-INF
-COPY --from=builder /app/target/dependency/BOOT-INF/classes /app
+RUN \
+    mkdir -p /app/uploads /app/storage && \
+    chown -R 1000:1000 /app
 
-# 创建上传目录
-RUN mkdir -p /app/uploads && chmod 755 /app/uploads
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-# 健康检查
+COPY --from=jre-builder /opt/orin-jre ${JAVA_HOME}
+COPY --from=lib-packer /usr/bin/xz /usr/bin/xz
+COPY --from=lib-packer /usr/lib/liblzma.so.5* /usr/lib/
+COPY --from=lib-packer --chown=1000:1000 /work/lib.tar.xz /app/lib.tar.xz
+COPY --from=builder --chown=1000:1000 /app/target/dependency/META-INF /app/META-INF
+COPY --from=builder --chown=1000:1000 /app/target/dependency/BOOT-INF/classes /app
+
+
+USER 1000:1000
+
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/actuator/health || exit 1
+    CMD wget -q -O /dev/null http://localhost:8080/api/v1/health || exit 1
 
 EXPOSE 8080
 
-# 使用环境变量配置 JVM
 ENV JAVA_OPTS="-Xmx384m -Xms128m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
 
-ENTRYPOINT exec java $JAVA_OPTS \
-    -cp "/app:/app/lib/*" \
-    com.adlin.orin.OrinApplication
+ENTRYPOINT ["sh", "-c", "rm -rf /tmp/orin-lib && mkdir -p /tmp/orin-lib && tar -xJf /app/lib.tar.xz -C /tmp/orin-lib && exec java $JAVA_OPTS -cp \"/app:/tmp/orin-lib/*\" com.adlin.orin.OrinApplication"]

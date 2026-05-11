@@ -1,0 +1,33 @@
+services:
+  orin-backend:
+    build:
+      target: dev
+    working_dir: /workspace
+    command: ["mvn", "spring-boot:run"]
+    environment:
+      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      SPRING_PROFILES_ACTIVE: dev
+    volumes:
+      - ./orin-backend:/workspace
+      - orin-backend-m2:/root/.m2
+    ports:
+      - "${BACKEND_DEBUG_PORT:-5005}:5005"
+
+  orin-ai-engine:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./orin-ai-engine:/app
+
+  orin-frontend:
+    build:
+      target: dev
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "80"]
+    volumes:
+      - ./orin-frontend:/app
+      - orin-frontend-node-modules:/app/node_modules
+
+volumes:
+  orin-backend-m2:
+    name: orin-backend-m2
+  orin-frontend-node-modules:
+    name: orin-frontend-node-modules
