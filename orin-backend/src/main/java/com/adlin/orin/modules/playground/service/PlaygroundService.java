@@ -2,6 +2,7 @@ package com.adlin.orin.modules.playground.service;
 
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.playground.entity.PlaygroundConversationEntity;
 import com.adlin.orin.modules.playground.entity.PlaygroundMessageEntity;
 import com.adlin.orin.modules.playground.entity.PlaygroundRunEntity;
@@ -55,6 +56,7 @@ public class PlaygroundService {
     private final PlaygroundGraphFactory graphFactory;
     private final PlaygroundRuntimeClient runtimeClient;
     private final ObjectMapper objectMapper;
+    private final AgentOwnershipResolver ownershipResolver;
 
     public List<Map<String, Object>> templates() {
         return List.of(
@@ -84,6 +86,7 @@ public class PlaygroundService {
         String id = uuid();
         AgentMetadata agent = new AgentMetadata();
         agent.setAgentId(id);
+        agent.setOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
         applyAgentPayload(agent, payload);
         agent.setSyncTime(LocalDateTime.now());
         return agentDto(agentRepository.save(agent));
@@ -377,6 +380,8 @@ public class PlaygroundService {
         return agentRepository.findById(defaultAgentId).orElseGet(() -> {
             AgentMetadata agent = new AgentMetadata();
             agent.setAgentId(defaultAgentId);
+            // 平台默认 Agent，owner 固定为系统管理员。
+            agent.setOwnerUserId(ownershipResolver.resolveForSystemSeed());
             agent.setName("ORIN 默认助手");
             agent.setDescription("用于 Playground 首次运行的默认单 Agent。");
             agent.setSystemPrompt("You are ORIN default assistant. Answer clearly and keep runtime trace concise.");

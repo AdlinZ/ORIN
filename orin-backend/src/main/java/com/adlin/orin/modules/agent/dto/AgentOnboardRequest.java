@@ -86,6 +86,7 @@ public class AgentOnboardRequest {
     }
 
     private Boolean toolCallingOverride;
+    private Boolean mcpExposed;
 
     public Boolean getToolCallingOverride() {
         return toolCallingOverride;
@@ -93,6 +94,14 @@ public class AgentOnboardRequest {
 
     public void setToolCallingOverride(Boolean toolCallingOverride) {
         this.toolCallingOverride = toolCallingOverride;
+    }
+
+    public Boolean getMcpExposed() {
+        return mcpExposed;
+    }
+
+    public void setMcpExposed(Boolean mcpExposed) {
+        this.mcpExposed = mcpExposed;
     }
 
     // Knowledge retrieval runtime parameters

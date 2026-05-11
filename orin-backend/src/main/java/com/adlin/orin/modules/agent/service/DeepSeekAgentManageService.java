@@ -36,6 +36,7 @@ public class DeepSeekAgentManageService implements AgentManageService {
     private final AgentHealthStatusRepository healthStatusRepository;
     private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
     private final AuditLogService auditLogService;
+    private final AgentOwnershipResolver ownershipResolver;
 
     @Autowired
     public DeepSeekAgentManageService(
@@ -44,13 +45,15 @@ public class DeepSeekAgentManageService implements AgentManageService {
             AgentMetadataRepository metadataRepository,
             AgentHealthStatusRepository healthStatusRepository,
             com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            AgentOwnershipResolver ownershipResolver) {
         this.deepSeekIntegrationService = deepSeekIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
         this.modelMetadataRepository = modelMetadataRepository;
         this.auditLogService = auditLogService;
+        this.ownershipResolver = ownershipResolver;
     }
 
     @Override
@@ -99,6 +102,7 @@ public class DeepSeekAgentManageService implements AgentManageService {
                 .icon("🤖")
                 .modelName(modelName)
                 .providerType("DeepSeek")
+                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
                 .syncTime(LocalDateTime.now())
                 .build();
 

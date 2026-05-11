@@ -7,6 +7,8 @@ import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentJobRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.service.impl.AgentManageServiceImpl;
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.audit.service.AuditHelper;
@@ -93,6 +95,9 @@ class AgentSmokeTest {
     private ExternalProviderKeyRepository providerKeyRepository;
 
     @Mock
+    private AgentOwnershipResolver ownershipResolver;
+
+    @Mock
     private DifyIntegrationService difyIntegrationService;
 
     @Mock
@@ -135,6 +140,7 @@ class AgentSmokeTest {
                 modelConfigService,
                 gatewaySecretService,
                 providerKeyRepository,
+                ownershipResolver,
                 Collections.emptyList(), // providers list
                 siliconFlowAgentManageService,
                 zhipuAgentManageService,
@@ -153,6 +159,7 @@ class AgentSmokeTest {
         when(siliconFlowIntegrationService.resolveSiliconFlowViewType(anyString(), anyString(), anyString()))
                 .thenReturn("CHAT");
         when(modelMetadataRepository.findByModelId(anyString())).thenReturn(Optional.empty());
+        when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(42L);
 
         // When: 接入一个 SiliconFlow 智能体
         AgentOnboardRequest request = new AgentOnboardRequest();
@@ -172,8 +179,42 @@ class AgentSmokeTest {
 
         // Verify: 验证数据保存到了仓库
         verify(accessProfileRepository).save(any(AgentAccessProfile.class));
-        verify(metadataRepository).save(any(AgentMetadata.class));
+        verify(metadataRepository).save(argThat(metadata -> Long.valueOf(42L).equals(metadata.getOwnerUserId())));
         verify(healthStatusRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("MCP 暴露开关: owner 或管理员通过后允许保存")
+    void testUpdateMcpExposure_Authorized() {
+        AgentMetadata metadata = new AgentMetadata();
+        metadata.setAgentId("agent-1");
+        metadata.setOwnerUserId(42L);
+        when(metadataRepository.findById("agent-1")).thenReturn(Optional.of(metadata));
+        when(accessProfileRepository.findById("agent-1")).thenReturn(Optional.empty());
+
+        AgentOnboardRequest request = new AgentOnboardRequest();
+        request.setMcpExposed(true);
+        agentManageService.updateAgent("agent-1", request);
+
+        verify(ownershipResolver).assertCanManageMcpExposure(metadata);
+        verify(metadataRepository).save(argThat(AgentMetadata::isMcpExposed));
+    }
+
+    @Test
+    @DisplayName("MCP 暴露开关: 非 owner 且非管理员禁止保存")
+    void testUpdateMcpExposure_Forbidden() {
+        AgentMetadata metadata = new AgentMetadata();
+        metadata.setAgentId("agent-1");
+        metadata.setOwnerUserId(42L);
+        when(metadataRepository.findById("agent-1")).thenReturn(Optional.of(metadata));
+        doThrow(new BusinessException(ErrorCode.FORBIDDEN, "forbidden"))
+                .when(ownershipResolver).assertCanManageMcpExposure(metadata);
+
+        AgentOnboardRequest request = new AgentOnboardRequest();
+        request.setMcpExposed(true);
+        assertThrows(BusinessException.class, () -> agentManageService.updateAgent("agent-1", request));
+
+        verify(metadataRepository, never()).save(any(AgentMetadata.class));
     }
 
     @Test
