@@ -18,22 +18,52 @@
         </button>
         <button
           class="nav-item"
-          :class="{ active: activeWorkspace === 'creation' }"
+          :class="{ active: activeWorkspace === 'creation' && !showServicePanel }"
           type="button"
           @click="openCreationStudio"
         >
           <el-icon><MagicStick /></el-icon>
           <span>AI 创作</span>
         </button>
-        <button class="nav-item" type="button">
+        <button
+          class="nav-item"
+          :class="{ active: showServicePanel }"
+          type="button"
+          @click="toggleServicePanel"
+        >
           <el-icon><Grid /></el-icon>
-          <span>更多</span>
+          <span>服务</span>
+          <span v-if="agents.length" class="nav-count">{{ agents.length }}</span>
           <el-icon class="nav-tail"><ArrowRight /></el-icon>
         </button>
       </nav>
 
-      <section class="sidebar-section">
-        <div class="section-title">历史对话</div>
+      <section v-if="showServicePanel" class="sidebar-section">
+        <div class="section-title">可用服务</div>
+        <div class="service-list">
+          <button
+            v-for="agent in agents"
+            :key="agent.id"
+            class="service-item"
+            :class="{ active: currentAgentId === agent.id }"
+            type="button"
+            @click="switchAgent(agent)"
+          >
+            <span class="service-icon"><el-icon><Cpu /></el-icon></span>
+            <span class="service-copy">
+              <strong>{{ agent.name }}</strong>
+              <small>{{ getAgentMeta(agent) }}</small>
+            </span>
+          </button>
+          <div v-if="!loadingAgents && agents.length === 0" class="sidebar-empty">
+            暂无可用服务，请联系管理员开通智能体。
+          </div>
+          <div v-else-if="loadingAgents" class="sidebar-empty">正在加载服务...</div>
+        </div>
+      </section>
+
+      <section v-else class="sidebar-section">
+        <div class="section-title">最近对话</div>
         <div class="session-list">
           <button
             v-for="session in sessions"
@@ -46,6 +76,7 @@
             <div class="session-head">
               <el-icon class="session-icon"><ChatRound /></el-icon>
               <span class="session-title">{{ session.title || '未命名会话' }}</span>
+              <span v-if="session.updatedAt" class="session-time">{{ formatDate(session.updatedAt) }}</span>
               <button
                 class="session-delete"
                 type="button"
@@ -155,6 +186,48 @@
 
         <template v-else-if="isHome">
           <div class="home-center">
+            <div v-if="currentAgent" class="service-context">
+              <button class="current-service-button" type="button" @click="openServicePanel">
+                <el-icon><Cpu /></el-icon>
+                <span>
+                  <strong>{{ currentAgent.name }}</strong>
+                  <small>{{ getAgentMeta(currentAgent) }}</small>
+                </span>
+                <el-icon><ArrowRight /></el-icon>
+              </button>
+              <el-popover
+                v-if="knowledgeBases.length"
+                placement="bottom"
+                trigger="click"
+                width="320"
+                popper-class="portal-kb-popover"
+              >
+                <template #reference>
+                  <button class="context-chip" type="button">
+                    <el-icon><Files /></el-icon>
+                    <span>{{ selectedKbLabel }}</span>
+                  </button>
+                </template>
+                <div class="kb-picker">
+                  <div class="kb-picker-head">
+                    <strong>参考资料范围</strong>
+                    <button type="button" @click="clearKnowledgeSelection">全部</button>
+                  </div>
+                  <el-checkbox-group v-model="selectedKbIds">
+                    <el-checkbox
+                      v-for="kb in knowledgeBases"
+                      :key="kb.id"
+                      :label="kb.id"
+                    >
+                      <span class="kb-option">
+                        <strong>{{ kb.name }}</strong>
+                        <small>{{ kb.documentCount }} 份资料</small>
+                      </span>
+                    </el-checkbox>
+                  </el-checkbox-group>
+                </div>
+              </el-popover>
+            </div>
             <h1>
               <span>今天想让 ORIN</span>
               <span class="home-title-accent">帮你处理什么？</span>
@@ -293,6 +366,16 @@
 
           <footer class="composer-dock">
             <div class="input-card compact">
+              <div v-if="currentAgent" class="service-context compact-context">
+                <button class="current-service-button" type="button" @click="openServicePanel">
+                  <el-icon><Cpu /></el-icon>
+                  <span>
+                    <strong>{{ currentAgent.name }}</strong>
+                    <small>{{ selectedKbLabel }}</small>
+                  </span>
+                  <el-icon><ArrowRight /></el-icon>
+                </button>
+              </div>
               <input ref="fileInputRef" class="hidden-file-input" type="file" @change="onFileSelected" />
               <div v-if="uploadingFile" class="uploading-chip">
                 <el-icon class="is-loading"><Loading /></el-icon>
@@ -444,6 +527,7 @@ const selectedUploadFileId = ref('');
 const selectedUploadFileName = ref('');
 const inputMessage = ref('');
 const activeWorkspace = ref('chat');
+const showServicePanel = ref(false);
 const creatorPrompt = ref('');
 const creatorMode = ref('image');
 const generatingCreation = ref(false);
@@ -588,6 +672,16 @@ const userRoleLabel = computed(() => (userStore.isAdmin ? '管理员' : '普通�
 const isHome = computed(() => messages.value.length === 0);
 
 const currentAgent = computed(() => agents.value.find((agent) => agent.id === currentAgentId.value));
+
+const selectedKbLabel = computed(() => {
+  if (!knowledgeBases.value.length) return '无参考资料';
+  if (!selectedKbIds.value.length) return '全部参考资料';
+  if (selectedKbIds.value.length === 1) {
+    const kb = knowledgeBases.value.find((item) => item.id === selectedKbIds.value[0]);
+    return kb?.name || '1 个资料范围';
+  }
+  return `${selectedKbIds.value.length} 个资料范围`;
+});
 
 const matchesAgentCapability = (agent, keywords) => {
   const haystack = [
@@ -844,8 +938,17 @@ const selectAgent = async (agent) => {
   await loadSessions();
 };
 
+const switchAgent = async (agent) => {
+  if (!agent?.id) return;
+  activeWorkspace.value = 'chat';
+  showServicePanel.value = false;
+  clearUploadedFile();
+  await selectAgent(agent);
+};
+
 const startNewSession = async () => {
   activeWorkspace.value = 'chat';
+  showServicePanel.value = false;
   if (!currentAgentId.value) return;
   currentSessionId.value = '';
   messages.value = [];
@@ -857,6 +960,7 @@ const startNewSession = async () => {
 
 const openSession = async (session) => {
   activeWorkspace.value = 'chat';
+  showServicePanel.value = false;
   currentSessionId.value = session.id;
   selectedKbIds.value = [];
   try {
@@ -916,7 +1020,27 @@ const triggerFilePicker = () => {
 
 const openCreationStudio = () => {
   activeWorkspace.value = 'creation';
+  showServicePanel.value = false;
   showToolsMenu.value = false;
+};
+
+const toggleServicePanel = () => {
+  showServicePanel.value = !showServicePanel.value;
+  showToolsMenu.value = false;
+};
+
+const openServicePanel = () => {
+  showServicePanel.value = true;
+  showToolsMenu.value = false;
+};
+
+const clearKnowledgeSelection = () => {
+  selectedKbIds.value = [];
+};
+
+const getAgentMeta = (agent) => {
+  if (!agent) return '智能体服务';
+  return agent.description || agent.modelName || agent.modelType || agent.viewType || '智能体服务';
 };
 
 const applyCreationAction = (action) => {
@@ -1447,6 +1571,21 @@ onMounted(async () => {
   transform: rotate(-45deg);
 }
 
+.nav-count {
+  margin-left: auto;
+  min-width: 22px;
+  height: 20px;
+  border-radius: 999px;
+  background: #e6fffa;
+  color: var(--portal-primary-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .sidebar-section {
   min-height: 0;
   display: flex;
@@ -1468,6 +1607,77 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+
+.service-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding: 0 2px 8px;
+}
+
+.service-item {
+  width: 100%;
+  min-height: 62px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--portal-ink);
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.service-item:hover {
+  background: #f0fdfa;
+  border-color: rgba(0, 191, 165, 0.14);
+  transform: translateX(2px);
+}
+
+.service-item.active {
+  background: #ccfbf1;
+  border-color: rgba(0, 191, 165, 0.24);
+}
+
+.service-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: var(--portal-primary-dark);
+  display: inline-grid;
+  place-items: center;
+}
+
+.service-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.service-copy strong {
+  overflow: hidden;
+  color: #26313f;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-copy small {
+  overflow: hidden;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-item {
@@ -1509,6 +1719,7 @@ onMounted(async () => {
 
 .session-title {
   min-width: 0;
+  flex: 1 1 auto;
   color: #344054;
   font-size: 13px;
   line-height: 1.3;
@@ -1544,6 +1755,7 @@ onMounted(async () => {
 }
 
 .session-time {
+  flex: 0 0 auto;
   color: #8a8d95;
   font-size: 11px;
 }
@@ -2096,6 +2308,150 @@ onMounted(async () => {
   width: min(860px, 100%);
   text-align: center;
   animation: portalHomeIn 0.72s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.service-context {
+  width: min(680px, 100%);
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.service-context.compact-context {
+  width: 100%;
+  margin: 0 0 10px;
+  justify-content: flex-start;
+}
+
+.current-service-button,
+.context-chip {
+  border: 1px solid rgba(0, 191, 165, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--portal-primary-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.current-service-button {
+  max-width: min(460px, 100%);
+  min-height: 42px;
+  padding: 6px 12px;
+  text-align: left;
+}
+
+.context-chip {
+  height: 42px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.current-service-button:hover,
+.context-chip:hover {
+  background: #ecfdf5;
+  border-color: rgba(0, 191, 165, 0.28);
+  transform: translateY(-1px);
+}
+
+.current-service-button > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.current-service-button strong {
+  overflow: hidden;
+  color: var(--portal-ink);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-service-button small {
+  overflow: hidden;
+  max-width: 360px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-context .current-service-button {
+  min-height: 36px;
+  padding: 5px 10px;
+}
+
+.compact-context .current-service-button small {
+  max-width: 300px;
+}
+
+.kb-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.kb-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kb-picker-head strong {
+  color: var(--portal-ink);
+  font-size: 14px;
+}
+
+.kb-picker-head button {
+  border: 0;
+  background: transparent;
+  color: var(--portal-primary-dark);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.kb-picker :deep(.el-checkbox-group) {
+  display: grid;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.kb-picker :deep(.el-checkbox) {
+  height: auto;
+  margin-right: 0;
+  align-items: flex-start;
+  white-space: normal;
+}
+
+.kb-option {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.kb-option strong {
+  color: #26313f;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.kb-option small {
+  color: #667085;
+  font-size: 12px;
 }
 
 .home-center h1 {
