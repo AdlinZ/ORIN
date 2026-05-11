@@ -88,11 +88,7 @@ public class CollaborationResultListener {
             long branchCounter = redisService.writeBranchResultAndIncrement(
                     result.getPackageId(),
                     result.getSubTaskId(),
-                    Map.of(
-                            "result", result.getResult(),
-                            "status", result.getStatus(),
-                            "attempt", result.getAttempt() != null ? result.getAttempt() : 0
-                    )
+                    buildBranchPayload(result)
             );
 
             // 记录 metrics
@@ -169,6 +165,7 @@ public class CollaborationResultListener {
                 payload.put("status", result.getStatus());
                 payload.put("attempt", result.getAttempt() != null ? result.getAttempt() : 0);
                 payload.put("duplicateCallback", true);
+                appendToolTrace(result, payload);
                 redisService.writeBranchResultAndIncrement(
                         result.getPackageId(),
                         result.getSubTaskId(),
@@ -195,6 +192,21 @@ public class CollaborationResultListener {
             );
         } catch (Exception e) {
             log.error("Failed to process result without callback: {}", result.getPackageId(), e);
+        }
+    }
+
+    private Map<String, Object> buildBranchPayload(CollabTaskResult result) {
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("result", result.getResult());
+        payload.put("status", result.getStatus());
+        payload.put("attempt", result.getAttempt() != null ? result.getAttempt() : 0);
+        appendToolTrace(result, payload);
+        return payload;
+    }
+
+    private void appendToolTrace(CollabTaskResult result, Map<String, Object> payload) {
+        if (result.getMetadata() != null && result.getMetadata().get("toolTrace") != null) {
+            payload.put("toolTrace", result.getMetadata().get("toolTrace"));
         }
     }
 

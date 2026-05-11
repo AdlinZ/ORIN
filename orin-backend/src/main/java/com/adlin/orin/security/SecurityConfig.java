@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/actuator/health",
+                                "/api/system/mcp/internal/**",
                                 "/api/playground/**")
                         .permitAll()
                         // 统一网关端点 (/v1/**) - 需要API密钥认证

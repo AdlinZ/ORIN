@@ -9,7 +9,9 @@ import com.adlin.orin.modules.skill.entity.SkillEntity;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.adlin.orin.modules.skill.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -18,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +38,11 @@ public class ToolCatalogService {
     private final ToolCatalogItemRepository toolCatalogItemRepository;
     private final SkillRepository skillRepository;
     private final McpServiceRepository mcpServiceRepository;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final Map<Long, CachedMcpTools> mcpToolsCache = new ConcurrentHashMap<>();
+
+    @Value("${orin.ai-engine.url:http://localhost:8000}")
+    private String aiEngineUrl;
 
     public List<ToolCatalogItemDto> listCatalog(String category, boolean includeDisabled) {
         Map<String, ToolCatalogItemDto> merged = new LinkedHashMap<>();
@@ -134,22 +142,7 @@ public class ToolCatalogService {
         List<McpService> services = mcpServiceRepository.findAll();
         List<ToolCatalogItemDto> result = new ArrayList<>();
         for (McpService service : services) {
-            Map<String, Object> schema = new HashMap<>();
-            schema.put("type", "object");
-            schema.put("properties", Map.of(
-                    "operation", Map.of(
-                            "type", "string",
-                            "description", "MCP operation name",
-                            "enum", List.of("status", "log", "branch", "diff")),
-                    "cwd", Map.of(
-                            "type", "string",
-                            "description", "Optional working directory"),
-                    "args", Map.of(
-                            "type", "array",
-                            "items", Map.of("type", "string"),
-                            "description", "Optional extra args for the operation")
-            ));
-            schema.put("required", List.of("operation"));
+            Map<String, Object> schema = buildMcpServiceSchema(service);
 
             result.add(ToolCatalogItemDto.builder()
                     .toolId("mcp:" + service.getId())
@@ -166,6 +159,54 @@ public class ToolCatalogService {
                     .build());
         }
         return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> buildMcpServiceSchema(McpService service) {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        List<Map<String, Object>> tools = getLiveMcpTools(service);
+        List<String> names = tools.stream()
+                .map(tool -> String.valueOf(tool.get("name")))
+                .filter(name -> name != null && !name.isBlank())
+                .toList();
+        schema.put("properties", Map.of(
+                "toolName", Map.of("type", "string", "description", "MCP tool name", "enum", names),
+                "arguments", Map.of("type", "object", "description", "MCP tool arguments")
+        ));
+        schema.put("required", List.of("toolName"));
+        schema.put("mcpTools", tools);
+        return schema;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> getLiveMcpTools(McpService service) {
+        if (service.getId() == null || !Boolean.TRUE.equals(service.getEnabled())) {
+            return List.of();
+        }
+        CachedMcpTools cached = mcpToolsCache.get(service.getId());
+        long now = System.currentTimeMillis();
+        if (cached != null && now - cached.loadedAtMillis < 60_000L) {
+            return cached.tools;
+        }
+        try {
+            String url = aiEngineUrl.replaceAll("/+$", "") + "/api/mcp/services/" + service.getId() + "/tools";
+            Map<String, Object> payload = restTemplate.getForObject(url, Map.class);
+            Object rawTools = payload != null ? payload.get("tools") : null;
+            List<Map<String, Object>> tools = rawTools instanceof List<?> values
+                    ? values.stream()
+                            .filter(Map.class::isInstance)
+                            .map(item -> (Map<String, Object>) item)
+                            .toList()
+                    : List.of();
+            mcpToolsCache.put(service.getId(), new CachedMcpTools(now, tools));
+            return tools;
+        } catch (Exception e) {
+            return cached != null ? cached.tools : List.of();
+        }
+    }
+
+    private record CachedMcpTools(long loadedAtMillis, List<Map<String, Object>> tools) {
     }
 
     private List<ToolCatalogItemDto> defaultBuiltinTools() {

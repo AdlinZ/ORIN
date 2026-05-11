@@ -346,6 +346,10 @@ class CollabMQWorker:
             async def run_task() -> str:
                 if task.execution_strategy == "WORKFLOW":
                     return await self._execute_workflow(task, context)
+                if task.execution_strategy == "MCP":
+                    mcp_result = await self._execute_mcp(task, context)
+                    context["_mcp_tool_trace"] = mcp_result.get("toolTrace")
+                    return str(mcp_result.get("text") or "")
                 return await self._execute_agent(task, context)
 
             result = await asyncio.wait_for(run_task(), timeout=timeout_seconds)
@@ -368,6 +372,7 @@ class CollabMQWorker:
                     "expectedRole": task.expected_role,
                     "maxRetries": task.max_retries,
                     "timeoutMillis": task.timeout_millis,
+                    "toolTrace": context.get("_mcp_tool_trace"),
                 },
                 correlation_id=task.correlation_id,
             )
@@ -433,6 +438,17 @@ class CollabMQWorker:
             input_data_raw=task.input_data,
             context=context,
             triggered_by="collab_mq_worker",
+        )
+
+    async def _execute_mcp(self, task: CollabTaskMessage, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute via MCP inside TaskRuntime."""
+        return await self.task_runtime.execute_mcp_task(
+            package_id=task.package_id,
+            sub_task_id=task.sub_task_id,
+            trace_id=task.trace_id,
+            description=task.description,
+            input_data_raw=task.input_data,
+            context=context,
         )
 
     async def _write_result(self, result: CollabTaskResult):

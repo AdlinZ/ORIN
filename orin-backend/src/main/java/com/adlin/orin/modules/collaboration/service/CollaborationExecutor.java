@@ -318,6 +318,9 @@ public class CollaborationExecutor {
         if ("WORKFLOW".equals(upper)) {
             return EXECUTOR_TYPE_WORKFLOW;
         }
+        if ("MCP".equals(upper)) {
+            return "MCP";
+        }
         if ("HUMAN".equals(upper)) {
             return EXECUTOR_TYPE_HUMAN;
         }
