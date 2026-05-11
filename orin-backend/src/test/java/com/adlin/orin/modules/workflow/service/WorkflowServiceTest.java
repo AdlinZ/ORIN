@@ -6,6 +6,8 @@ import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.service.TaskService;
 import com.adlin.orin.modules.workflow.converter.DifyDslConverter;
 import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
+import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
+import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslValidator;
 import com.adlin.orin.modules.workflow.engine.WorkflowEngine;
 import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
 import com.adlin.orin.modules.workflow.entity.WorkflowInstanceEntity;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
 
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +46,10 @@ class WorkflowServiceTest {
         private WorkflowEngine workflowEngine;
         @Mock
         private DifyDslConverter difyDslConverter;
+        @Spy
+        private OrinWorkflowDslNormalizer workflowDslNormalizer = new OrinWorkflowDslNormalizer();
+        @Mock
+        private OrinWorkflowDslValidator workflowDslValidator;
         @Mock
         private TaskService taskService;
 
