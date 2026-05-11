@@ -21,6 +21,7 @@
         <!-- Flyway 9.x supports MySQL 8.0.11+ (includes 8.4.x) -->
         <flyway.version>9.22.3</flyway.version>
         <mysql.version>8.0.33</mysql.version>
+        <surefire.excludedGroups>integration</surefire.excludedGroups>
     </properties>
 
     <dependencies>
@@ -358,6 +359,14 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.11</version>
@@ -378,5 +387,21 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>integration-tests</id>
+            <activation>
+                <property>
+                    <name>groups</name>
+                    <value>integration</value>
+                </property>
+            </activation>
+            <properties>
+                <surefire.excludedGroups></surefire.excludedGroups>
+                <groups>integration</groups>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>
