@@ -12,8 +12,8 @@
 
 ### 路由原则
 
-- 路由常量存在 ≠ 能力交付，部分路径仅作历史兼容（如 `/dashboard/knowledge/center` → `/dashboard/resources/center`）
-- `topMenuConfig.js` 中带 `status: 'placeholder'` 的菜单项是占位入口
+- 路由常量存在 ≠ 能力交付，部分路径仅作历史兼容；当前主入口以 `routes.js` 的侧边栏二级分组为准
+- `topMenuConfig.js` 负责顶部菜单的角色过滤和可见性开关，当前不使用占位状态字段标记发布状态
 - 同一能力存在多个路径别名时，必须在 `topMenuConfig.js` 标注主入口，避免误判"多个独立能力"
 
 ### 排查命令
@@ -21,7 +21,7 @@
 ```bash
 sed -n '1,260p' src/router/routes.js
 sed -n '1,260p' src/router/topMenuConfig.js
-rg "status:\s*'placeholder'|开发中|ElMessage\.(info|warning)" src
+rg "开发中|未启用|待实现|ElMessage\.(info|warning)" src
 ```
 
 ## 二、组件规范
