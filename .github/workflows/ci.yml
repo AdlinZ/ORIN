@@ -1,22 +1,30 @@
-# CI 已禁用
-# 由于当前项目处于快速迭代阶段，CI 检查过于严格会影响开发效率
-# 如需启用，请删除此文件或恢复完整 CI 配置
-
-name: CI (Disabled)
+name: CI
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
-    branches: []
+    branches:
+      - main
+  workflow_dispatch:
 
-# 所有 jobs 均为空，仅作占位符
-  # ==================== 后端检查 ====================
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
   backend:
-    name: Backend (Java 17 + Maven)
+    name: Backend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: orin-backend
-
     services:
       mysql:
         image: mysql:8.0
@@ -26,127 +34,173 @@ on:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
-
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '17'
-          distribution: 'temurin'
-          cache: 'maven'
+          cache: maven
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-maven-
+      - name: Test
+        run: mvn -B test
 
-      - name: Backend compile
-        run: mvn compile -q
+      - name: Generate JaCoCo report
+        run: mvn -B jacoco:report
 
-      - name: Backend core tests (F1.x regression)
-        run: |
-          mvn test -q \
-            -Dtest="ErrorCodeTest,ResultTest,BusinessExceptionTest,GlobalExceptionHandlerTest,KnowledgeGraphServiceTest,CollaborationServiceUnitTest,WorkflowServiceTest,AgentSmokeTest" \
-            -Dspring.profiles.active=test \
-            -Dspring.datasource.url=jdbc:mysql://localhost:3306/orin_test \
-            -Dspring.datasource.username=root \
-            -Dspring.datasource.password=root
-
-      - name: Upload test reports
-        if: failure()
+      - name: Upload backend test reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-reports
-          path: orin-backend/target/surefire-reports/*.txt
-          retention-days: 7
+          path: orin-backend/target/surefire-reports/
+          retention-days: 14
 
-  # ==================== 前端检查 ====================
+      - name: Upload backend coverage XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-xml
+          path: orin-backend/target/site/jacoco/jacoco.xml
+          retention-days: 14
+
+      - name: Upload backend coverage HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-html
+          path: orin-backend/target/site/jacoco/
+          retention-days: 14
+
+      - name: Comment backend coverage
+        if: github.event_name == 'pull_request'
+        uses: madrapps/jacoco-report@v1.7.2
+        with:
+          paths: ${{ github.workspace }}/orin-backend/target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: Backend JaCoCo Coverage
+          update-comment: true
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
+
   frontend:
-    name: Frontend (Node.js 18 + Vite)
+    name: Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: orin-frontend
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js 18
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '20'
+          cache: npm
           cache-dependency-path: orin-frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Frontend lint
+      - name: Lint
         run: npm run lint
 
-      - name: Frontend build
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      - name: Build
         run: npm run build
 
-      - name: Upload lint reports
-        if: failure()
+      - name: Upload frontend coverage
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-lint-reports
-          path: orin-frontend/eslint-reports/*.html
-          retention-days: 7
+          name: frontend-coverage
+          path: orin-frontend/coverage/
+          retention-days: 14
 
-  # ==================== AI 引擎检查 ====================
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: orin-frontend/dist/
+          retention-days: 14
+
+      - name: Comment frontend coverage
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: orin-frontend
+
   ai-engine:
-    name: AI Engine (Python 3.11 + FastAPI)
+    name: AI Engine
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: orin-ai-engine
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
+          cache: pip
           cache-dependency-path: orin-ai-engine/pyproject.toml
 
-      - name: Install Poetry
-        run: pip install poetry
-
       - name: Install dependencies
-        run: poetry install --no-root
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-asyncio pytest-cov==5.0.0
 
-      - name: Python syntax check
-        run: python3 -m py_compile app/main.py
+      - name: Lint
+        run: python -m compileall app tests
 
-      - name: AI Engine tests
-        run: poetry run pytest tests/ -v --tb=short
+      - name: Test with coverage
+        run: |
+          pytest --junitxml=pytest.xml --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml | tee pytest-coverage.txt
 
-      - name: Upload test reports
+      - name: Upload AI Engine coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-engine-coverage
+          path: |
+            orin-ai-engine/coverage.xml
+            orin-ai-engine/pytest.xml
+            orin-ai-engine/pytest-coverage.txt
+          retention-days: 14
+
+      - name: Upload AI Engine pytest cache
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-engine-test-reports
-          path: orin-ai-engine/.pytest_cache
-          retention-days: 7
+          name: ai-engine-pytest-cache
+          path: orin-ai-engine/.pytest_cache/
+          retention-days: 14
 
-  # ==================== 最小组合门禁 ====================
-  # 此 job 确保 PR 必须通过所有三端检查才能合并
-  gate:
-    name: CI Gate
-    needs: [backend, frontend, ai-engine]
-    runs-on: ubuntu-latest
-    steps:
-      - name: All checks passed
-        run: echo "所有检查通过 ✅ PR 可以合并"
+      - name: Comment AI Engine coverage
+        if: github.event_name == 'pull_request'
+        uses: MishaKav/pytest-coverage-comment@v1
+        with:
+          pytest-coverage-path: orin-ai-engine/pytest-coverage.txt
+          junitxml-path: orin-ai-engine/pytest.xml

@@ -5,6 +5,14 @@ from app.models.workflow import WorkflowDSL, Node, Edge, WorkflowStatus
 from app.engine.executor import GraphExecutor
 
 
+def trace_outputs(result, node_id):
+    """Return a node's execution outputs from the trace."""
+    for trace in result.trace:
+        if trace.node_id == node_id:
+            return trace.outputs or {}
+    return {}
+
+
 @pytest.mark.asyncio
 async def test_linear_execution():
     """测试线性工作流: start -> llm -> end"""
@@ -36,11 +44,11 @@ async def test_linear_execution():
         result = await executor.execute(dsl, {"query": "test"})
 
         assert result.status == WorkflowStatus.SUCCESS, f"Expected SUCCESS, got {result.status}. Trace: {[(t.node_id, t.status, t.error) for t in result.trace]}"
-        assert "1" in result.outputs
-        assert "2" in result.outputs
+        assert "query" in trace_outputs(result, "1")
+        llm_output = trace_outputs(result, "2")
         # Ensure LLM output contains mock response
-        assert "text" in result.outputs["2"]
-        assert result.outputs["2"]["text"] == "Mocked Answer"
+        assert "text" in llm_output
+        assert llm_output["text"] == "Mocked Answer"
 
 
 @pytest.mark.asyncio
@@ -85,8 +93,8 @@ async def test_parallel_execution():
 
         assert result.status == WorkflowStatus.SUCCESS, f"Expected SUCCESS, got {result.status}. Trace: {[(t.node_id, t.status) for t in result.trace]}"
         # nodes 1 (start) and 4 (end) return empty outputs, nodes 2 and 3 (llm) return mock responses
-        assert len(result.outputs) == 2  # only llm nodes populate outputs
-        assert "2" in result.outputs and "3" in result.outputs
+        assert trace_outputs(result, "2").get("text") == "Mocked Answer"
+        assert trace_outputs(result, "3").get("text") == "Mocked Answer"
 
         # Since LLM handler sleeps for 1s, parallel execution should take ~1s, linear would take 2s
         # Allow some overhead, < 1.5s usually means parallel

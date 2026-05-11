@@ -1,6 +1,6 @@
 # ORIN
 
-[![Build](https://img.shields.io/badge/build-pending-lightgrey)](#)
+[![CI](https://github.com/AdlinZ/ORIN/actions/workflows/ci.yml/badge.svg)](https://github.com/AdlinZ/ORIN/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-baseline%20pending-lightgrey)](#)
 [![Docker](https://img.shields.io/badge/docker-compose%20ready-blue)](./docker-compose.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](./README.md#license)
