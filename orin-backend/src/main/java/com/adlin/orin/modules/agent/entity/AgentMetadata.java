@@ -2,6 +2,7 @@ package com.adlin.orin.modules.agent.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Column;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
@@ -15,6 +16,12 @@ public class AgentMetadata {
 
     @Id
     private String agentId;
+
+    @Column(name = "owner_user_id", nullable = false)
+    private Long ownerUserId;
+
+    @Column(name = "mcp_exposed", nullable = false)
+    private boolean mcpExposed = false;
 
     private String name;
 
@@ -134,6 +141,22 @@ public class AgentMetadata {
         this.agentId = agentId;
     }
 
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
+    }
+
+    public boolean isMcpExposed() {
+        return mcpExposed;
+    }
+
+    public void setMcpExposed(boolean mcpExposed) {
+        this.mcpExposed = mcpExposed;
+    }
+
     public String getName() {
         return name;
     }
@@ -211,6 +234,8 @@ public class AgentMetadata {
         private String modelName;
         private String providerType;
         private String viewType;
+        private Long ownerUserId;
+        private boolean mcpExposed;
         private Double temperature;
         private Double topP;
         private Integer maxTokens;
@@ -259,6 +284,16 @@ public class AgentMetadata {
             return this;
         }
 
+        public AgentMetadataBuilder ownerUserId(Long ownerUserId) {
+            this.ownerUserId = ownerUserId;
+            return this;
+        }
+
+        public AgentMetadataBuilder mcpExposed(boolean mcpExposed) {
+            this.mcpExposed = mcpExposed;
+            return this;
+        }
+
         public AgentMetadataBuilder temperature(Double temperature) {
             this.temperature = temperature;
             return this;
@@ -298,6 +333,8 @@ public class AgentMetadata {
             AgentMetadata metadata = new AgentMetadata(agentId, name, description, icon, mode, modelName, providerType,
                     viewType,
                     syncTime);
+            metadata.setOwnerUserId(ownerUserId);
+            metadata.setMcpExposed(mcpExposed);
             metadata.setTemperature(temperature);
             metadata.setTopP(topP);
             metadata.setMaxTokens(maxTokens);

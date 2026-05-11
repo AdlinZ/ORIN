@@ -243,6 +243,16 @@
                   :placeholder="agentAccessProfileForm.maskedApiKey ? `当前已配置: ${agentAccessProfileForm.maskedApiKey}` : '输入新的 API Key（留空则不修改）'"
                 />
               </div>
+              <div class="config-row">
+                <span>MCP 暴露</span>
+                <el-switch
+                  v-model="mcpExposureEnabled"
+                  :disabled="!canManageMcpExposure || savingMcpExposure"
+                  active-text="开"
+                  inactive-text="关"
+                  @change="saveMcpExposure"
+                />
+              </div>
             </section>
 
             <section class="config-card">
@@ -1306,6 +1316,8 @@ const expandedKbIds = ref(new Set());
 const currentAgentId = ref('');
 const currentAgent = ref(null);
 const currentSessionId = ref('');
+const mcpExposureEnabled = ref(false);
+const savingMcpExposure = ref(false);
 const kbSearch = ref('');
 const inputMessage = ref('');
 const loading = ref(false);
@@ -1537,6 +1549,10 @@ const currentProviderLabel = computed(() => {
     '未知'
   );
 });
+const canManageMcpExposure = computed(() => {
+  const ownerId = currentAgent.value?.ownerUserId;
+  return userStore.isAdmin || (ownerId != null && String(ownerId) === String(userStore.userId));
+});
 
 const filteredProviderKeyOptions = computed(() => {
   const provider = String(currentProviderLabel.value || '').trim().toLowerCase();
@@ -1604,7 +1620,9 @@ const normalizeAgent = (agent) => ({
   provider: agent.provider || agent.providerType || '',
   providerType: agent.providerType || agent.provider || '',
   status: agent.status || '',
-  enabled: agent.enabled
+  enabled: agent.enabled,
+  ownerUserId: agent.ownerUserId,
+  mcpExposed: !!agent.mcpExposed
 });
 
 const findAgentById = (agentId) => {
@@ -1751,6 +1769,7 @@ const loadAgentRuntimeConfig = async (agentId) => {
   if (!agentId) {
     Object.assign(agentRuntimeForm, defaultRuntimeForm());
     Object.assign(agentAccessProfileForm, { endpointUrl: '', apiKey: '', maskedApiKey: '' });
+    mcpExposureEnabled.value = false;
     selectedProviderKeyId.value = null;
     return;
   }
@@ -1758,6 +1777,7 @@ const loadAgentRuntimeConfig = async (agentId) => {
     const metadata = await getAgentMetadata(agentId);
     const accessProfile = await getAgentAccessProfile(agentId).catch(() => null);
     syncRuntimeFormFromMetadata(metadata || {});
+    mcpExposureEnabled.value = !!metadata?.mcpExposed;
     Object.assign(agentAccessProfileForm, {
       endpointUrl: accessProfile?.endpointUrl || '',
       apiKey: '',
@@ -1774,7 +1794,9 @@ const loadAgentRuntimeConfig = async (agentId) => {
         provider: metadata.provider || metadata.providerType || currentAgent.value?.provider || '',
         providerType: metadata.providerType || metadata.provider || currentAgent.value?.providerType || '',
         status: metadata.status || currentAgent.value?.status || '',
-        enabled: metadata.enabled ?? currentAgent.value?.enabled
+        enabled: metadata.enabled ?? currentAgent.value?.enabled,
+        ownerUserId: metadata.ownerUserId ?? currentAgent.value?.ownerUserId,
+        mcpExposed: !!metadata.mcpExposed
       };
       selectedModelName.value = nextModel;
       agents.value = agents.value.map((agent) => (
@@ -1787,7 +1809,9 @@ const loadAgentRuntimeConfig = async (agentId) => {
               provider: metadata.provider || metadata.providerType || agent.provider || '',
               providerType: metadata.providerType || metadata.provider || agent.providerType || '',
               status: metadata.status || agent.status || '',
-              enabled: metadata.enabled ?? agent.enabled
+              enabled: metadata.enabled ?? agent.enabled,
+              ownerUserId: metadata.ownerUserId ?? agent.ownerUserId,
+              mcpExposed: !!metadata.mcpExposed
             }
           : agent
       ));
@@ -1861,6 +1885,24 @@ const saveAgentRuntimeConfig = async () => {
     ElMessage.error('模型参数保存失败');
   } finally {
     savingModelParams.value = false;
+  }
+};
+
+const saveMcpExposure = async (enabled) => {
+  if (!currentAgentId.value || !canManageMcpExposure.value) return;
+  savingMcpExposure.value = true;
+  try {
+    await updateAgent(currentAgentId.value, { mcpExposed: enabled });
+    currentAgent.value = { ...(currentAgent.value || {}), mcpExposed: enabled };
+    agents.value = agents.value.map((agent) => (
+      agent.id === currentAgentId.value ? { ...agent, mcpExposed: enabled } : agent
+    ));
+    ElMessage.success('MCP 暴露设置已保存');
+  } catch (error) {
+    mcpExposureEnabled.value = !enabled;
+    ElMessage.error('MCP 暴露设置保存失败');
+  } finally {
+    savingMcpExposure.value = false;
   }
 };
 

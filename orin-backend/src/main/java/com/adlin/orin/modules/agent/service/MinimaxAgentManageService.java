@@ -26,6 +26,7 @@ public class MinimaxAgentManageService implements AgentManageService {
     private final AgentAccessProfileRepository accessProfileRepository;
     private final AgentMetadataRepository metadataRepository;
     private final AgentHealthStatusRepository healthStatusRepository;
+    private final AgentOwnershipResolver ownershipResolver;
 
     @Override
     public AgentMetadata onboardAgent(String endpointUrl, String apiKey, String datasetApiKey) {
@@ -67,6 +68,7 @@ public class MinimaxAgentManageService implements AgentManageService {
                 .modelName(modelName)
                 .providerType("MiniMax")
                 .viewType(viewType)
+                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
                 .syncTime(LocalDateTime.now())
                 .build();
         metadataRepository.save(metadata);

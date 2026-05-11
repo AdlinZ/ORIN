@@ -94,6 +94,9 @@ class AgentBatchJobTest {
     private ExternalProviderKeyRepository providerKeyRepository;
 
     @Mock
+    private AgentOwnershipResolver ownershipResolver;
+
+    @Mock
     private DifyIntegrationService difyIntegrationService;
 
     @Mock
@@ -135,6 +138,7 @@ class AgentBatchJobTest {
                 modelConfigService,
                 gatewaySecretService,
                 providerKeyRepository,
+                ownershipResolver,
                 Collections.emptyList(),
                 siliconFlowAgentManageService,
                 zhipuAgentManageService,
@@ -293,12 +297,13 @@ class AgentBatchJobTest {
 
         when(metadataRepository.existsById("import-agent-001")).thenReturn(false);
         when(metadataRepository.save(any(AgentMetadata.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(42L);
 
         // When: 执行导入
         agentManageService.batchImportAgents(file);
 
         // Then: 验证保存调用
-        verify(metadataRepository).save(any(AgentMetadata.class));
+        verify(metadataRepository).save(argThat(metadata -> Long.valueOf(42L).equals(metadata.getOwnerUserId())));
         verify(accessProfileRepository).save(any(AgentAccessProfile.class));
         verify(healthStatusRepository).save(any());
     }

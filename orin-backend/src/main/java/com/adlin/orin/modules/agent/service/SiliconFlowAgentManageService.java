@@ -32,6 +32,7 @@ public class SiliconFlowAgentManageService implements AgentManageService {
     private final AgentHealthStatusRepository healthStatusRepository;
     private final com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository;
     private final AuditLogService auditLogService;
+    private final AgentOwnershipResolver ownershipResolver;
 
     @Autowired
     public SiliconFlowAgentManageService(SiliconFlowIntegrationService siliconFlowIntegrationService,
@@ -39,13 +40,15 @@ public class SiliconFlowAgentManageService implements AgentManageService {
             AgentMetadataRepository metadataRepository,
             AgentHealthStatusRepository healthStatusRepository,
             com.adlin.orin.modules.model.repository.ModelMetadataRepository modelMetadataRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            AgentOwnershipResolver ownershipResolver) {
         this.siliconFlowIntegrationService = siliconFlowIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
         this.modelMetadataRepository = modelMetadataRepository;
         this.auditLogService = auditLogService;
+        this.ownershipResolver = ownershipResolver;
     }
 
     @Override
@@ -87,6 +90,7 @@ public class SiliconFlowAgentManageService implements AgentManageService {
                 .modelName(modelName)
                 .providerType("SiliconFlow")
                 .viewType(viewType)
+                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
                 .syncTime(LocalDateTime.now())
                 .build();
         metadataRepository.save(metadata);

@@ -96,6 +96,9 @@ class AgentFailureTest {
     private ExternalProviderKeyRepository providerKeyRepository;
 
     @Mock
+    private AgentOwnershipResolver ownershipResolver;
+
+    @Mock
     private DifyIntegrationService difyIntegrationService;
 
     @Mock
@@ -138,6 +141,7 @@ class AgentFailureTest {
                 modelConfigService,
                 gatewaySecretService,
                 providerKeyRepository,
+                ownershipResolver,
                 Collections.emptyList(), // providers list
                 siliconFlowAgentManageService,
                 zhipuAgentManageService,

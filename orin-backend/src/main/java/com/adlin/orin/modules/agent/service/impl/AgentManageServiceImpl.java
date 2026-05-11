@@ -11,6 +11,7 @@ import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.service.AgentManageService;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.agent.service.provider.MultiModalProvider;
 import com.adlin.orin.modules.agent.service.provider.MultiModalProvider.InteractionRequest;
@@ -88,6 +89,7 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final com.adlin.orin.modules.model.service.ModelConfigService modelConfigService;
     private final GatewaySecretService gatewaySecretService;
     private final ExternalProviderKeyRepository providerKeyRepository;
+    private final AgentOwnershipResolver ownershipResolver;
     private final Map<String, MultiModalProvider> providerMap = new HashMap<>();
 
     // Provider-specific AgentManageService instances
@@ -116,6 +118,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             com.adlin.orin.modules.model.service.ModelConfigService modelConfigService,
             GatewaySecretService gatewaySecretService,
             ExternalProviderKeyRepository providerKeyRepository,
+            AgentOwnershipResolver ownershipResolver,
             List<MultiModalProvider> providers,
             com.adlin.orin.modules.agent.service.SiliconFlowAgentManageService siliconFlowAgentManageService,
             com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
@@ -140,6 +143,7 @@ public class AgentManageServiceImpl implements AgentManageService {
         this.modelConfigService = modelConfigService;
         this.gatewaySecretService = gatewaySecretService;
         this.providerKeyRepository = providerKeyRepository;
+        this.ownershipResolver = ownershipResolver;
         this.siliconFlowAgentManageService = siliconFlowAgentManageService;
         this.zhipuAgentManageService = zhipuAgentManageService;
         this.kimiAgentManageService = kimiAgentManageService;
@@ -290,6 +294,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                 .providerType(provider) // Store provider in metadata
                 .mode("chat") // Default to chat, refresh will update if detectable or manual
                 .viewType(viewType) // Set viewType based on model type
+                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
                 .syncTime(LocalDateTime.now())
                 .build();
 
@@ -462,6 +467,10 @@ public class AgentManageServiceImpl implements AgentManageService {
                 metadata.setSystemPrompt(request.getSystemPrompt());
             if (request.getToolCallingOverride() != null) {
                 metadata.setToolCallingOverride(request.getToolCallingOverride());
+            }
+            if (request.getMcpExposed() != null) {
+                ownershipResolver.assertCanManageMcpExposure(metadata);
+                metadata.setMcpExposed(request.getMcpExposed());
             }
 
             // Update TTS & Image Parameters in the parameters JSON field
@@ -2749,6 +2758,7 @@ public class AgentManageServiceImpl implements AgentManageService {
                 metadata.setMaxTokens(toInteger(data.get("maxTokens")));
                 metadata.setSystemPrompt((String) data.get("systemPrompt"));
                 metadata.setParameters((String) data.get("parameters"));
+                metadata.setOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
                 metadata.setSyncTime(LocalDateTime.now());
 
                 metadataRepository.save(metadata);

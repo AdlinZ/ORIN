@@ -34,6 +34,7 @@ public class KimiAgentManageService implements AgentManageService {
     private final AgentHealthStatusRepository healthStatusRepository;
     private final ModelMetadataRepository modelMetadataRepository;
     private final AuditLogService auditLogService;
+    private final AgentOwnershipResolver ownershipResolver;
 
     @Autowired
     public KimiAgentManageService(KimiIntegrationService kimiIntegrationService,
@@ -41,13 +42,15 @@ public class KimiAgentManageService implements AgentManageService {
             AgentMetadataRepository metadataRepository,
             AgentHealthStatusRepository healthStatusRepository,
             ModelMetadataRepository modelMetadataRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            AgentOwnershipResolver ownershipResolver) {
         this.kimiIntegrationService = kimiIntegrationService;
         this.accessProfileRepository = accessProfileRepository;
         this.metadataRepository = metadataRepository;
         this.healthStatusRepository = healthStatusRepository;
         this.modelMetadataRepository = modelMetadataRepository;
         this.auditLogService = auditLogService;
+        this.ownershipResolver = ownershipResolver;
     }
 
     @Override
@@ -91,6 +94,7 @@ public class KimiAgentManageService implements AgentManageService {
                 .modelName(modelName)
                 .providerType("Kimi")
                 .viewType(viewType)
+                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
                 .syncTime(LocalDateTime.now())
                 .build();
         metadataRepository.save(metadata);

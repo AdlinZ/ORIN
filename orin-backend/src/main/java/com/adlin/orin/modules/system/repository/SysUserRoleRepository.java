@@ -43,4 +43,12 @@ public interface SysUserRoleRepository extends JpaRepository<SysUserRole, Long> 
      */
     @Query("SELECT r.roleCode FROM SysRole r JOIN SysUserRole ur ON r.roleId = ur.roleId WHERE ur.userId = ?1")
     List<String> findRoleCodesByUserId(Long userId);
+
+    @Query("""
+            SELECT ur.userId FROM SysUserRole ur
+            JOIN SysRole r ON r.roleId = ur.roleId
+            WHERE r.roleCode IN ('ROLE_SUPER_ADMIN', 'ROLE_ADMIN')
+            ORDER BY CASE WHEN r.roleCode = 'ROLE_SUPER_ADMIN' THEN 0 ELSE 1 END, ur.userId
+            """)
+    List<Long> findSystemAdminOwnerCandidates();
 }
