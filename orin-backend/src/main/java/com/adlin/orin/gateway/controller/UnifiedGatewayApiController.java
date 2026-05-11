@@ -263,20 +263,11 @@ public class UnifiedGatewayApiController {
     @Operation(summary = "健康检查", description = "检查所有Provider的健康状态")
     @GetMapping("/health")
     public Mono<ResponseEntity<Map<String, Object>>> healthCheck() {
-        return providerRegistry.checkAllHealth()
-                .map(healthStatus -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("status", "ok");
-                    result.put("providers", healthStatus);
-                    result.put("statistics", providerRegistry.getStatistics());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("status", "error");
-                    error.put("message", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "ok");
+        result.put("providers", providerRegistry.getHealthSnapshot());
+        result.put("statistics", providerRegistry.getStatistics());
+        return Mono.just(ResponseEntity.ok(result));
     }
 
     /**

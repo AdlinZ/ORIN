@@ -119,6 +119,17 @@ public class ProviderRegistry {
     }
 
     /**
+     * Return the cached health state without probing external providers.
+     *
+     * Public startup health checks must stay local and fast; provider probes can
+     * block on user-configured external endpoints and should run through the
+     * explicit health-check path instead.
+     */
+    public Map<String, Boolean> getHealthSnapshot() {
+        return Collections.unmodifiableMap(new HashMap<>(healthStatus));
+    }
+
+    /**
      * 检查Provider健康状态
      * 
      * @param providerId Provider标识

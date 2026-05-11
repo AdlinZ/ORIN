@@ -17,8 +17,11 @@ import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,5 +69,22 @@ class UnifiedGatewayApiControllerTest {
         Flux<ServerSentEvent<ChatCompletionResponse>> body =
                 (Flux<ServerSentEvent<ChatCompletionResponse>>) response.getBody();
         assertThat(body.blockFirst().data()).isEqualTo(chunk);
+    }
+
+    @Test
+    void healthCheck_shouldReturnCachedProviderStateWithoutExternalProbe() {
+        when(providerRegistry.getHealthSnapshot()).thenReturn(Map.of("local-ollama", true));
+        when(providerRegistry.getStatistics()).thenReturn(Map.of(
+                "totalProviders", 1,
+                "healthyProviders", 1,
+                "unhealthyProviders", 0));
+
+        ResponseEntity<Map<String, Object>> response = controller.healthCheck().block();
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).containsEntry("status", "ok");
+        assertThat(response.getBody()).containsEntry("providers", Map.of("local-ollama", true));
+        verify(providerRegistry, never()).checkAllHealth();
     }
 }
