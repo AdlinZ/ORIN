@@ -92,7 +92,8 @@ bash scripts/smoke-test.sh
 
 - **业务持久化只能在 Java 后端**。AI 引擎不直连业务数据库；前端不直连 AI 引擎或外部 provider
 - **协作执行链唯一**：编排层 `app.engine.collaboration_langgraph` → 分发层 `app.engine.mq_worker` → 执行内核 `app.engine.task_runtime.TaskRuntime`。**禁止**新增并行的执行内核或在 `mq_worker` 写独立执行逻辑
-- **接口前缀不混用**：`/v1/*`（API Key · OpenAI 网关）、`/api/v1/*`（JWT · 业务）、`/api/workflows/*`（工作流管理）。新增模块前先核对能否复用现有前缀
+- **接口前缀不混用**：`/v1/*`（API Key · 对外协议入口，含 OpenAI 兼容网关与 MCP）、`/api/v1/*`（JWT · 业务）、`/api/workflows/*`（工作流管理）。新增模块前先核对能否复用现有前缀
+- `/v1/mcp/**` 由 API Key 鉴权，与 `/api/v1/**` 的 JWT 业务接口隔离；不得混用鉴权通道
 - **新能力优先在现有模块内闭环**，不另起平行实现
 
 ### 5.2 数据层
