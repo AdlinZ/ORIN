@@ -3,24 +3,35 @@ package com.adlin.orin.modules.mcp.service;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.task.entity.TaskEntity;
+import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
+import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
+import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
+import com.adlin.orin.modules.workflow.repository.WorkflowRepository;
+import com.adlin.orin.modules.workflow.service.WorkflowService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class McpJsonRpcService {
-    private static final String PREFIX = "orin_agent_";
+    private static final String LEGACY_AGENT_PREFIX = "orin_agent_";
+    private static final String AGENT_PREFIX = "agent.";
+    private static final String WORKFLOW_PREFIX = "workflow.";
     private static final String PROTOCOL = "2025-06-18";
 
     private final AgentMetadataRepository agentRepository;
+    private final WorkflowRepository workflowRepository;
     private final ExternalMcpAgentExecutionService executionService;
+    private final WorkflowService workflowService;
+    private final OrinWorkflowDslNormalizer workflowDslNormalizer;
 
     public Map<String, Object> handle(Object body, GatewaySecret secret) {
         if (!(body instanceof Map<?, ?> req)) return error(null, -32600, "Invalid Request");
@@ -43,7 +54,8 @@ public class McpJsonRpcService {
     private Map<String, Object> call(Object id, Map<String, Object> params, GatewaySecret secret) {
         String tool = string(params.get("name"));
         Map<String, Object> args = map(params.get("arguments"));
-        String agentId = decodeToolName(tool);
+        if (tool != null && tool.startsWith(WORKFLOW_PREFIX)) return callWorkflow(id, tool, args, secret);
+        String agentId = decodeAgentToolName(tool);
         if (agentId == null) return error(id, -32602, "Invalid tool name");
         AgentMetadata agent = agentRepository.findById(agentId).orElse(null);
         Long owner = owner(secret);
@@ -61,11 +73,38 @@ public class McpJsonRpcService {
         }
     }
 
+    private Map<String, Object> callWorkflow(Object id, String tool, Map<String, Object> args, GatewaySecret secret) {
+        Long workflowId = decodeWorkflowToolName(tool);
+        Long owner = owner(secret);
+        if (workflowId == null || owner == null) return error(id, -32602, "Invalid tool name");
+        WorkflowEntity workflow = workflowRepository.findById(workflowId).orElse(null);
+        if (workflow == null || !workflow.isMcpExposed() || !owner.equals(workflow.getOwnerUserId())) {
+            return error(id, -32003, "Forbidden");
+        }
+        try {
+            WorkflowExecutionSubmissionResponse submission = workflowService.submitWorkflowExecution(
+                    workflowId, args, TaskEntity.TaskPriority.NORMAL, secret.getUserId(), "external_mcp");
+            String text = "Workflow submitted: taskId=%s, workflowInstanceId=%s, traceId=%s, status=%s, statusUrl=%s"
+                    .formatted(
+                            submission.getTaskId(),
+                            submission.getWorkflowInstanceId(),
+                            safe(submission.getTraceId(), ""),
+                            submission.getStatus(),
+                            submission.getStatusUrl());
+            return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", text)), "isError", false));
+        } catch (Exception e) {
+            return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", safe(e.getMessage(), "Workflow execution failed"))), "isError", true));
+        }
+    }
+
     private List<Map<String, Object>> tools(Long owner) {
         if (owner == null) return List.of();
-        return agentRepository.findByOwnerUserIdAndMcpExposedTrue(owner).stream()
-                .map(a -> Map.of(
-                        "name", toolName(a.getAgentId()),
+        List<Map<String, Object>> tools = new ArrayList<>();
+        List<AgentMetadata> agents = agentRepository.findByOwnerUserIdAndMcpExposedTrue(owner);
+        if (agents == null) agents = List.of();
+        agents.stream()
+                .map(a -> Map.<String, Object>of(
+                        "name", agentToolName(a.getAgentId()),
                         "title", safe(a.getName(), a.getAgentId()),
                         "description", safe(a.getDescription(), "ORIN Agent") + " provider=" + safe(a.getProviderType(), "unknown"),
                         "inputSchema", Map.of(
@@ -78,19 +117,91 @@ public class McpJsonRpcService {
                                 "required", List.of("message")
                         )
                 ))
-                .toList();
+                .forEach(tools::add);
+        List<WorkflowEntity> workflows = workflowRepository.findByOwnerUserIdAndMcpExposedTrue(owner);
+        if (workflows == null) workflows = List.of();
+        workflows.stream()
+                .map(w -> Map.<String, Object>of(
+                        "name", workflowToolName(w.getId()),
+                        "title", safe(w.getWorkflowName(), "Workflow " + w.getId()),
+                        "description", safe(w.getDescription(), "ORIN Workflow"),
+                        "inputSchema", workflowInputSchema(w)
+                ))
+                .forEach(tools::add);
+        return tools;
     }
 
-    private String toolName(String agentId) {
-        return PREFIX + Base64.getUrlEncoder().withoutPadding()
+    private Map<String, Object> workflowInputSchema(WorkflowEntity workflow) {
+        Map<String, Object> normalized = workflowDslNormalizer.normalize(workflow.getWorkflowDefinition(), "ORIN");
+        Object graph = normalized.get("graph");
+        if (graph instanceof Map<?, ?> graphMap && graphMap.get("nodes") instanceof List<?> nodes) {
+            for (Object rawNode : nodes) {
+                if (rawNode instanceof Map<?, ?> node
+                        && "start".equals(string(node.get("type")))
+                        && node.get("data") instanceof Map<?, ?> data
+                        && data.get("variables") instanceof List<?> variables
+                        && !variables.isEmpty()) {
+                    return schemaFromVariables(variables);
+                }
+            }
+        }
+        return Map.of(
+                "type", "object",
+                "properties", Map.of("query", Map.of("type", "string")),
+                "required", List.of("query")
+        );
+    }
+
+    private Map<String, Object> schemaFromVariables(List<?> variables) {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        List<String> required = new ArrayList<>();
+        for (Object rawVariable : variables) {
+            if (!(rawVariable instanceof Map<?, ?> variable)) continue;
+            String name = safe(firstNonBlank(variable.get("name"), variable.get("variable"), variable.get("key"), variable.get("id")), "");
+            if (name.isBlank()) continue;
+            properties.put(name, Map.of("type", jsonSchemaType(string(variable.get("type")))));
+            if (Boolean.TRUE.equals(variable.get("required"))) required.add(name);
+        }
+        if (properties.isEmpty()) properties.put("query", Map.of("type", "string"));
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        if (!required.isEmpty()) schema.put("required", required);
+        return schema;
+    }
+
+    private String jsonSchemaType(String type) {
+        if (type == null) return "string";
+        return switch (type.toLowerCase()) {
+            case "number", "integer", "boolean", "array", "object" -> type.toLowerCase();
+            default -> "string";
+        };
+    }
+
+    private String agentToolName(String agentId) {
+        return AGENT_PREFIX + Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(agentId.getBytes(StandardCharsets.UTF_8));
     }
 
-    private String decodeToolName(String name) {
-        if (name == null || !name.startsWith(PREFIX)) return null;
+    private String workflowToolName(Long workflowId) {
+        return WORKFLOW_PREFIX + workflowId;
+    }
+
+    private String decodeAgentToolName(String name) {
+        if (name == null) return null;
+        String prefix = name.startsWith(LEGACY_AGENT_PREFIX) ? LEGACY_AGENT_PREFIX : AGENT_PREFIX;
+        if (!name.startsWith(prefix)) return null;
         try {
-            return new String(Base64.getUrlDecoder().decode(name.substring(PREFIX.length())), StandardCharsets.UTF_8);
+            return new String(Base64.getUrlDecoder().decode(name.substring(prefix.length())), StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private Long decodeWorkflowToolName(String name) {
+        try {
+            return Long.valueOf(name.substring(WORKFLOW_PREFIX.length()));
+        } catch (RuntimeException e) {
             return null;
         }
     }
@@ -114,6 +225,14 @@ public class McpJsonRpcService {
 
     private String safe(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String firstNonBlank(Object... values) {
+        for (Object value : values) {
+            String candidate = string(value);
+            if (candidate != null && !candidate.isBlank()) return candidate;
+        }
+        return null;
     }
 
     private Map<String, Object> ok(Object id, Map<String, Object> result) {

@@ -7,7 +7,12 @@ POST <ORIN_BASE_URL>/v1/mcp
 Authorization: Bearer <ORIN_API_KEY>
 ```
 
-Only Agents owned by the API key user and marked `mcpExposed=true` are listed as MCP tools.
+Only Agents and Workflows owned by the API key user and marked `mcpExposed=true` are listed as MCP tools.
+
+Tool names are prefixed by resource type:
+
+- `agent.<base64url-agent-id>`
+- `workflow.<workflow-id>`
 
 ## Cursor
 
@@ -116,3 +121,18 @@ Edit:
 ```
 
 Restart Claude Desktop after changing the config.
+
+## Workflow Call Example
+
+After enabling "MCP 暴露" on a published workflow, MCP clients can call it by its `workflow.<id>` tool name.
+
+```json
+{
+  "name": "workflow.42",
+  "arguments": {
+    "query": "Summarize this week's MCP progress"
+  }
+}
+```
+
+Workflow calls are submitted asynchronously through ORIN's existing workflow execution queue. The MCP response returns submission metadata such as `taskId`, `workflowInstanceId`, `traceId`, and `statusUrl`.

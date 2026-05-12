@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.integrationsync.service;
 
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.integrationsync.adapter.DifyWorkflowAdapter;
 import com.adlin.orin.modules.integrationsync.entity.ExternalResourceMapping;
 import com.adlin.orin.modules.integrationsync.model.ExternalResource;
@@ -29,13 +30,15 @@ class DifyResourceImportServiceTest {
     private final KnowledgeBaseRepository knowledgeBaseRepository = mock(KnowledgeBaseRepository.class);
     private final KnowledgeDocumentRepository documentRepository = mock(KnowledgeDocumentRepository.class);
     private final ExternalResourceMappingRepository mappingRepository = mock(ExternalResourceMappingRepository.class);
+    private final AgentOwnershipResolver ownershipResolver = mock(AgentOwnershipResolver.class);
     private final DifyResourceImportService service = new DifyResourceImportService(
             workflowRepository,
             knowledgeBaseRepository,
             documentRepository,
             mappingRepository,
             new DifyWorkflowAdapter(new DifyDslConverter(), new ObjectMapper()),
-            new ObjectMapper());
+            new ObjectMapper(),
+            ownershipResolver);
 
     @Test
     void importResource_ShouldCreateKnowledgeBaseFromDifyDataset() {
