@@ -15,6 +15,7 @@ public class WorkflowRequest {
     private Long id;
     private String workflowName;
     private String description;
+    private Boolean mcpExposed;
     private String workflowType;
     private Map<String, Object> workflowDefinition;
     private Integer timeoutSeconds;

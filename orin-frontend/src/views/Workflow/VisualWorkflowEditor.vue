@@ -44,6 +44,12 @@
           <span class="status-dot" />
           自动保存 {{ lastSavedTime }}
         </div>
+        <el-switch
+          v-model="mcpExposed"
+          active-text="MCP 暴露"
+          class="mcp-exposure-switch"
+          @change="markDirty"
+        />
         
         <div class="dify-button-group-wrapper">
           <!-- Divider -->
@@ -1355,6 +1361,7 @@ const router = useRouter();
 const route = useRoute();
 
 const workflowName = ref('');
+const mcpExposed = ref(false);
 const isEditingName = ref(false);
 const nameInput = ref(null);
 const activeTab = ref('orchestrate');
@@ -2212,6 +2219,7 @@ const loadWorkflow = async (id) => {
     }
     
     workflowName.value = workflow.workflowName || '未命名工作流';
+    mcpExposed.value = Boolean(workflow.mcpExposed);
     
     let rawNodes = [];
     let rawEdges = [];
@@ -2592,6 +2600,7 @@ const handleSave = async (isAuto = false) => {
     const res = await createWorkflow({
         id: route.params.id, // Pass ID if updating
         workflowName: workflowName.value,
+        mcpExposed: mcpExposed.value,
         workflowType: 'DAG', // Explicitly set type to ensure it opens in visual editor
         workflowDefinition: workflowData 
     });
@@ -2923,6 +2932,7 @@ const runWorkflow = async () => {
              await createWorkflow({
                  id: route.params.id, 
                  workflowName: workflowName.value,
+                 mcpExposed: mcpExposed.value,
                  workflowDefinition: workflowData
              });
         }
@@ -3092,6 +3102,11 @@ const runWorkflow = async () => {
   display: flex; 
   align-items: center; 
   gap: 6px;
+  white-space: nowrap;
+}
+
+.mcp-exposure-switch {
+  margin-left: 8px;
   white-space: nowrap;
 }
 

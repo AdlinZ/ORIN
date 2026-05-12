@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.integrationsync.service;
 
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.integrationsync.adapter.DifyWorkflowAdapter;
 import com.adlin.orin.modules.integrationsync.entity.ExternalResourceMapping;
 import com.adlin.orin.modules.integrationsync.model.ExternalResource;
@@ -33,6 +34,7 @@ public class DifyResourceImportService {
     private final ExternalResourceMappingRepository mappingRepository;
     private final DifyWorkflowAdapter workflowAdapter;
     private final ObjectMapper objectMapper;
+    private final AgentOwnershipResolver ownershipResolver;
 
     public boolean supports(IntegrationConnection connection, ExternalResource resource) {
         return connection != null
@@ -69,6 +71,9 @@ public class DifyResourceImportService {
         entity.setDescription(description);
         entity.setWorkflowType(WorkflowEntity.WorkflowType.DAG);
         entity.setWorkflowDefinition(workflowDefinition);
+        if (entity.getOwnerUserId() == null) {
+            entity.setOwnerUserId(ownershipResolver.resolveForSystemSeed());
+        }
         entity.setStatus(WorkflowEntity.WorkflowStatus.DRAFT);
         if (entity.getVersion() == null) {
             entity.setVersion("1.0.0");

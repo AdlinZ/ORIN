@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.workflow.service;
 
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.workflow.dto.WorkflowRequest;
 import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
 import com.adlin.orin.modules.task.entity.TaskEntity;
@@ -52,6 +53,8 @@ class WorkflowServiceTest {
         private OrinWorkflowDslValidator workflowDslValidator;
         @Mock
         private TaskService taskService;
+        @Mock
+        private AgentOwnershipResolver ownershipResolver;
 
         @InjectMocks
         private WorkflowService workflowService;
@@ -98,6 +101,7 @@ class WorkflowServiceTest {
                                 .build();
 
                 when(workflowRepository.existsByWorkflowName(anyString())).thenReturn(false);
+                when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(1L);
                 when(workflowRepository.save(any(WorkflowEntity.class))).thenReturn(savedWorkflow);
                 when(workflowRepository.existsById(1L)).thenReturn(true);
 
@@ -140,6 +144,7 @@ class WorkflowServiceTest {
                                 .build();
 
                 when(workflowRepository.existsByWorkflowName(anyString())).thenReturn(false);
+                when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(1L);
                 when(workflowRepository.save(any(WorkflowEntity.class))).thenReturn(savedWorkflow);
                 when(workflowRepository.existsById(2L)).thenReturn(true);
 

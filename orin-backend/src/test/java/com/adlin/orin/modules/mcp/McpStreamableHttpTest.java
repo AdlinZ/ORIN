@@ -13,6 +13,11 @@ import com.adlin.orin.modules.collaboration.service.CollaborationRedisService;
 import com.adlin.orin.modules.mcp.controller.McpStreamableHttpController;
 import com.adlin.orin.modules.mcp.service.ExternalMcpAgentExecutionService;
 import com.adlin.orin.modules.mcp.service.McpJsonRpcService;
+import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
+import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
+import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
+import com.adlin.orin.modules.workflow.repository.WorkflowRepository;
+import com.adlin.orin.modules.workflow.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,19 +58,90 @@ class McpStreamableHttpTest {
     @Test
     void jsonRpcListsOwnedExposedAgentsAndForbidsOtherOwners() {
         AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+        WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
         ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
-        McpJsonRpcService service = new McpJsonRpcService(repo, exec);
+        WorkflowService workflowService = mock(WorkflowService.class);
+        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer());
         AgentMetadata agent = agent("agent-a", 1L, true);
         when(repo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(agent));
         Map<String, Object> list = service.handle(req(1, "tools/list", Map.of()), secret("1"));
         List<?> tools = (List<?>) ((Map<?, ?>) list.get("result")).get("tools");
         assertThat(tools).hasSize(1);
         String toolName = String.valueOf(((Map<?, ?>) tools.get(0)).get("name"));
+        assertThat(toolName).startsWith("agent.");
 
         when(repo.findById("agent-a")).thenReturn(Optional.of(agent));
         Map<String, Object> forbidden = service.handle(req(2, "tools/call",
                 Map.of("name", toolName, "arguments", Map.of("message", "hello"))), secret("2"));
         assertThat(String.valueOf(((Map<?, ?>) forbidden.get("error")).get("message"))).isEqualTo("Forbidden");
+    }
+
+    @Test
+    void jsonRpcListsAndCallsOwnedExposedWorkflows() {
+        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+        WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
+        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        WorkflowService workflowService = mock(WorkflowService.class);
+        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer());
+        when(repo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(agent("agent-a", 1L, true)));
+        WorkflowEntity workflow = workflow(42L, 1L, true, List.of(Map.of("name", "topic", "type", "string", "required", true)));
+        when(workflowRepo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(workflow));
+        when(workflowRepo.findById(42L)).thenReturn(Optional.of(workflow));
+        when(workflowService.submitWorkflowExecution(eq(42L), eq(Map.of("topic", "MCP")), any(), eq("1"), eq("external_mcp")))
+                .thenReturn(WorkflowExecutionSubmissionResponse.builder()
+                        .taskId("task-42")
+                        .workflowId(42L)
+                        .workflowInstanceId(99L)
+                        .traceId("trace-42")
+                        .status(com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus.QUEUED)
+                        .statusUrl("/api/v1/workflow-tasks/task-42")
+                        .build());
+
+        Map<String, Object> list = service.handle(req(1, "tools/list", Map.of()), secret("1"));
+        List<?> tools = (List<?>) ((Map<?, ?>) list.get("result")).get("tools");
+        assertThat(tools).hasSize(2);
+        assertThat(tools.stream().map(t -> String.valueOf(((Map<?, ?>) t).get("name"))))
+                .anyMatch(name -> name.startsWith("agent."));
+        Map<?, ?> tool = tools.stream()
+                .map(t -> (Map<?, ?>) t)
+                .filter(t -> "workflow.42".equals(t.get("name")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(tool.get("name")).isEqualTo("workflow.42");
+        Map<?, ?> schema = (Map<?, ?>) tool.get("inputSchema");
+        Map<?, ?> properties = (Map<?, ?>) schema.get("properties");
+        List<?> required = (List<?>) schema.get("required");
+        assertThat(properties.keySet().stream().map(String::valueOf)).contains("topic");
+        assertThat(required.stream().map(String::valueOf)).contains("topic");
+
+        Map<String, Object> called = service.handle(req(2, "tools/call",
+                Map.of("name", "workflow.42", "arguments", Map.of("topic", "MCP"))), secret("1"));
+        Map<?, ?> result = (Map<?, ?>) called.get("result");
+        assertThat(result.get("isError")).isEqualTo(false);
+        assertThat(String.valueOf(((Map<?, ?>) ((List<?>) result.get("content")).get(0)).get("text")))
+                .contains("task-42", "trace-42", "/api/v1/workflow-tasks/task-42");
+    }
+
+    @Test
+    void jsonRpcForbidsWorkflowFromAnotherOwnerAndDefaultsSchemaToQuery() {
+        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+        WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
+        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        WorkflowService workflowService = mock(WorkflowService.class);
+        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer());
+        WorkflowEntity workflow = workflow(43L, 1L, true, List.of());
+        when(workflowRepo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(workflow));
+        when(workflowRepo.findById(43L)).thenReturn(Optional.of(workflow));
+
+        Map<String, Object> list = service.handle(req(1, "tools/list", Map.of()), secret("1"));
+        Map<?, ?> schema = (Map<?, ?>) ((Map<?, ?>) ((List<?>) ((Map<?, ?>) list.get("result")).get("tools")).get(0)).get("inputSchema");
+        Map<?, ?> properties = (Map<?, ?>) schema.get("properties");
+        assertThat(properties.keySet().stream().map(String::valueOf)).contains("query");
+
+        Map<String, Object> forbidden = service.handle(req(2, "tools/call",
+                Map.of("name", "workflow.43", "arguments", Map.of("query", "hello"))), secret("2"));
+        assertThat(String.valueOf(((Map<?, ?>) forbidden.get("error")).get("message"))).isEqualTo("Forbidden");
+        verifyNoInteractions(workflowService);
     }
 
     @ParameterizedTest
@@ -112,6 +188,26 @@ class McpStreamableHttpTest {
         return AgentMetadata.builder()
                 .agentId(id).name("Agent " + id).description("Test agent")
                 .ownerUserId(owner).mcpExposed(exposed).providerType("local").build();
+    }
+
+    private WorkflowEntity workflow(Long id, Long owner, boolean exposed, List<Map<String, Object>> variables) {
+        return WorkflowEntity.builder()
+                .id(id)
+                .workflowName("Workflow " + id)
+                .description("Test workflow")
+                .ownerUserId(owner)
+                .mcpExposed(exposed)
+                .status(WorkflowEntity.WorkflowStatus.ACTIVE)
+                .workflowDefinition(Map.of(
+                        "version", "orin.workflow.v1",
+                        "kind", "workflow",
+                        "graph", Map.of(
+                                "nodes", List.of(Map.of(
+                                        "id", "start_1",
+                                        "type", "start",
+                                        "data", Map.of("variables", variables))),
+                                "edges", List.of())))
+                .build();
     }
 
     private Map<String, Object> req(Object id, String method, Map<String, Object> params) {

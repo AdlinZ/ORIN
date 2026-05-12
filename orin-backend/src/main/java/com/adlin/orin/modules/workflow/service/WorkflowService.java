@@ -1,5 +1,8 @@
 package com.adlin.orin.modules.workflow.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.service.TaskService;
@@ -45,6 +48,7 @@ public class WorkflowService {
     private final OrinWorkflowDslNormalizer workflowDslNormalizer;
     private final OrinWorkflowDslValidator workflowDslValidator;
     private final TaskService taskService;
+    private final AgentOwnershipResolver ownershipResolver;
 
     /**
      * 将字符串转换为 WorkflowType 枚举
@@ -81,6 +85,7 @@ public class WorkflowService {
         WorkflowEntity entity = WorkflowEntity.builder()
                 .workflowName(name)
                 .description(description)
+                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
                 .workflowType(WorkflowEntity.WorkflowType.DAG)
                 .workflowDefinition(workflowDefinition)
                 .status(WorkflowEntity.WorkflowStatus.DRAFT) // Import as draft
@@ -120,6 +125,8 @@ public class WorkflowService {
         WorkflowEntity entity = WorkflowEntity.builder()
                 .workflowName(finalName)
                 .description(request.getDescription())
+                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
+                .mcpExposed(Boolean.TRUE.equals(request.getMcpExposed()))
                 .workflowType(parseWorkflowType(request.getWorkflowType()))
                 .workflowDefinition(workflowDslNormalizer.normalize(request.getWorkflowDefinition(), "ORIN"))
                 .timeoutSeconds(request.getTimeoutSeconds())
@@ -167,6 +174,10 @@ public class WorkflowService {
         if (request.getRetryPolicy() != null) {
             entity.setRetryPolicy(request.getRetryPolicy());
         }
+        if (request.getMcpExposed() != null && request.getMcpExposed() != entity.isMcpExposed()) {
+            assertCanManageWorkflowMcpExposure(entity);
+            entity.setMcpExposed(request.getMcpExposed());
+        }
         WorkflowEntity.WorkflowStatus requestedStatus = parseWorkflowStatus(request.getStatus());
         if (requestedStatus != null) {
             if (requestedStatus == WorkflowEntity.WorkflowStatus.ACTIVE) {
@@ -212,6 +223,13 @@ public class WorkflowService {
         workflowDslValidator.validateForPublishOrThrow(normalized);
         if (!workflowEngine.validateWorkflow(entity.getId())) {
             throw new IllegalStateException("Workflow validation failed: " + entity.getId());
+        }
+    }
+
+    private void assertCanManageWorkflowMcpExposure(WorkflowEntity entity) {
+        Long currentUserId = ownershipResolver.resolveFromCurrentRequest();
+        if (!ownershipResolver.isCurrentUserAdmin() && !currentUserId.equals(entity.getOwnerUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权修改该工作流的 MCP 暴露设置");
         }
     }
 
@@ -407,6 +425,8 @@ public class WorkflowService {
                 .id(entity.getId())
                 .workflowName(entity.getWorkflowName())
                 .description(entity.getDescription())
+                .ownerUserId(entity.getOwnerUserId())
+                .mcpExposed(entity.isMcpExposed())
                 .workflowType(entity.getWorkflowType())
                 .workflowDefinition(normalizedDefinition)
                 .timeoutSeconds(entity.getTimeoutSeconds())

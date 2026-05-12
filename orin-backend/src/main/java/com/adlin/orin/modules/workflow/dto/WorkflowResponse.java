@@ -17,6 +17,8 @@ public class WorkflowResponse {
     private Long id;
     private String workflowName;
     private String description;
+    private Long ownerUserId;
+    private boolean mcpExposed;
     private WorkflowEntity.WorkflowType workflowType;
     private Map<String, Object> workflowDefinition;
     private Integer timeoutSeconds;
@@ -31,6 +33,8 @@ public class WorkflowResponse {
                 .id(entity.getId())
                 .workflowName(entity.getWorkflowName())
                 .description(entity.getDescription())
+                .ownerUserId(entity.getOwnerUserId())
+                .mcpExposed(entity.isMcpExposed())
                 .workflowType(entity.getWorkflowType())
                 .workflowDefinition(entity.getWorkflowDefinition())
                 .timeoutSeconds(entity.getTimeoutSeconds())

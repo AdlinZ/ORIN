@@ -19,5 +19,7 @@ public interface WorkflowRepository extends JpaRepository<WorkflowEntity, Long> 
 
     List<WorkflowEntity> findByWorkflowType(WorkflowEntity.WorkflowType workflowType);
 
+    List<WorkflowEntity> findByOwnerUserIdAndMcpExposedTrue(Long ownerUserId);
+
     boolean existsByWorkflowName(String workflowName);
 }

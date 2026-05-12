@@ -41,6 +41,9 @@
           <el-form-item label="超时时间(秒)" prop="timeoutSeconds">
             <el-input-number v-model="form.timeoutSeconds" :min="1" />
           </el-form-item>
+          <el-form-item label="MCP 暴露">
+            <el-switch v-model="form.mcpExposed" />
+          </el-form-item>
         </el-card>
 
         <!-- Steps -->
@@ -174,6 +177,7 @@ const agentList = ref([]);
 const form = reactive({
   workflowName: '',
   description: '',
+  mcpExposed: false,
   workflowType: 'SEQUENTIAL',
   timeoutSeconds: 300,
   steps: []
@@ -198,6 +202,7 @@ const fetchWorkflow = async (id) => {
     
     form.workflowName = wf.workflowName;
     form.description = wf.description;
+    form.mcpExposed = Boolean(wf.mcpExposed);
     form.workflowType = wf.workflowType || 'SEQUENTIAL';
     form.timeoutSeconds = wf.timeoutSeconds || 300;
     

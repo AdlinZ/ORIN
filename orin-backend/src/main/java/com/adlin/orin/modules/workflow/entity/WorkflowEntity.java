@@ -32,6 +32,13 @@ public class WorkflowEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "owner_user_id", nullable = false)
+    private Long ownerUserId;
+
+    @Column(name = "mcp_exposed", nullable = false)
+    @Builder.Default
+    private boolean mcpExposed = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "workflow_type", length = 50)
     @Builder.Default
