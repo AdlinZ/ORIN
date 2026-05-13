@@ -75,6 +75,7 @@ mvnw.cmd
 *.temp
 *.bak
 *.cache
+artifacts/thesis-screenshots/
 
 # ============================================
 # Database
