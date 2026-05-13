@@ -58,6 +58,9 @@ jobs:
           java-version: '17'
           cache: maven
 
+      - name: Lint / compile
+        run: mvn -B -DskipTests compile
+
       - name: Test
         run: mvn -B test
 
