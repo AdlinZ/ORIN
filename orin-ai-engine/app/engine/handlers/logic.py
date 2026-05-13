@@ -527,43 +527,47 @@ class LoopNodeHandler(BaseNodeHandler):
 
         elif loop_mode == "while":
             # while 模式: 条件为真时继续
+            loop_context = {**context}
             while counter < min(max_iterations, 100):
                 if time.time() - start_time > max_duration:
                     errors.append({"iteration": counter, "error": "max_duration exceeded"})
                     break
 
                 # 检查条件
-                condition = self._resolve_variable(condition_var, context)
+                condition = self._resolve_variable(condition_var, loop_context)
                 if not condition:
                     break
 
                 counter += 1
-                result = await self._execute_loop_body(node_data, context, counter, counter_var, node.id)
+                result = await self._execute_loop_body(node_data, loop_context, counter, counter_var, node.id)
                 if result.get("error"):
                     errors.append({"iteration": counter, "error": result["error"]})
                     if node_data.get("stop_on_error", False):
                         break
                 else:
                     results.append(result)
+                    self._merge_loop_result(loop_context, result)
 
         elif loop_mode == "until":
             # until 模式: 条件为真时停止
+            loop_context = {**context}
             while counter < min(max_iterations, 100):
                 if time.time() - start_time > max_duration:
                     errors.append({"iteration": counter, "error": "max_duration exceeded"})
                     break
 
                 counter += 1
-                result = await self._execute_loop_body(node_data, context, counter, counter_var, node.id)
+                result = await self._execute_loop_body(node_data, loop_context, counter, counter_var, node.id)
                 if result.get("error"):
                     errors.append({"iteration": counter, "error": result["error"]})
                     if node_data.get("stop_on_error", False):
                         break
                 else:
                     results.append(result)
+                    self._merge_loop_result(loop_context, result)
 
                 # 检查停止条件
-                condition = self._resolve_variable(condition_var, context)
+                condition = self._resolve_variable(condition_var, loop_context)
                 if condition:
                     break
 
@@ -625,6 +629,12 @@ class LoopNodeHandler(BaseNodeHandler):
 
         except Exception as e:
             return {"error": str(e), "counter": counter, "success": False}
+
+    def _merge_loop_result(self, context: Dict[str, Any], result: Dict[str, Any]) -> None:
+        """Expose loop body outputs to subsequent condition checks."""
+        for key, value in result.items():
+            if key not in {"success", "error"}:
+                context[key] = value
 
     async def _execute_llm_body(self, node_data: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """通过 LLM 执行循环体"""

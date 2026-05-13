@@ -49,6 +49,8 @@ class CollaborationOrchestratorTest {
     @Mock
     private CollaborationMemoryService memoryService;
     @Mock
+    private CollaborationRedisService redisService;
+    @Mock
     private CollaborationEventBus eventBus;
     @Mock
     private AuditHelper auditHelper;
@@ -62,7 +64,7 @@ class CollaborationOrchestratorTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         orchestrator = new CollaborationOrchestrator(
-                packageRepository, subtaskRepository, memoryService,
+                packageRepository, subtaskRepository, memoryService, redisService,
                 eventBus, auditHelper, agentManageService, objectMapper
         );
     }
@@ -186,6 +188,27 @@ class CollaborationOrchestratorTest {
     }
 
     @Test
+    @DisplayName("F2.1 - 获取可执行子任务：依赖被跳过时也解锁下游")
+    void testGetExecutableSubtasks_treatsSkippedDependencyAsSatisfied() {
+        List<CollabSubtaskEntity> subtasks = List.of(
+                CollabSubtaskEntity.builder()
+                        .subTaskId("1").packageId("pkg-e2e-002-skip")
+                        .description("Task 1").status("SKIPPED").dependsOn("[]")
+                        .build(),
+                CollabSubtaskEntity.builder()
+                        .subTaskId("2").packageId("pkg-e2e-002-skip")
+                        .description("Task 2").status("PENDING").dependsOn("[\"1\"]")
+                        .build()
+        );
+        when(subtaskRepository.findByPackageId("pkg-e2e-002-skip")).thenReturn(subtasks);
+
+        List<CollabSubtaskEntity> executable = orchestrator.getExecutableSubtasks("pkg-e2e-002-skip");
+
+        assertEquals(1, executable.size());
+        assertEquals("2", executable.get(0).getSubTaskId());
+    }
+
+    @Test
     @DisplayName("F2.1 - 自动调度：PARALLEL 模式调度所有可执行任务，SEQUENTIAL 只调度第一个")
     void testAutoSchedule_respectsCollaborationMode() {
         CollaborationPackageEntity entity = CollaborationPackageEntity.builder()
@@ -266,6 +289,66 @@ class CollaborationOrchestratorTest {
         assertNotNull(r2.getCompletedAt());
 
         verify(memoryService).writeToBlackboard(eq("pkg-e2e-004"), eq("subtask_1_result"), eq("task result"));
+    }
+
+    @Test
+    @DisplayName("manual-complete 空产出仍写入 branch_result")
+    void testUpdateSubtaskStatus_manualCompleteWritesEmptyBranchResult() {
+        CollaborationPackageEntity entity = CollaborationPackageEntity.builder()
+                .packageId("pkg-manual-empty")
+                .status("EXECUTING")
+                .build();
+        when(packageRepository.findByPackageId("pkg-manual-empty")).thenReturn(Optional.of(entity));
+
+        CollabSubtaskEntity subtask = CollabSubtaskEntity.builder()
+                .subTaskId("1").packageId("pkg-manual-empty")
+                .description("Manual").status("FAILED")
+                .build();
+        when(subtaskRepository.findByPackageIdAndSubTaskId("pkg-manual-empty", "1"))
+                .thenReturn(Optional.of(subtask));
+        when(subtaskRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CollabSubtaskEntity completed = orchestrator.updateSubtaskStatus(
+                "pkg-manual-empty", "1", "COMPLETED", "", null);
+
+        assertEquals("COMPLETED", completed.getStatus());
+        assertEquals("", completed.getResult());
+        verify(redisService).writeBranchResultAndIncrement(
+                eq("pkg-manual-empty"),
+                eq("1"),
+                argThat(payload -> payload instanceof Map<?, ?> map
+                        && "COMPLETED".equals(map.get("status"))
+                        && "".equals(map.get("result")))
+        );
+    }
+
+    @Test
+    @DisplayName("F2.1 - 子任务状态转换：PENDING -> SKIPPED 合法并写入空结果")
+    void testUpdateSubtaskStatus_skipWritesEmptyResult() {
+        CollaborationPackageEntity entity = CollaborationPackageEntity.builder()
+                .packageId("pkg-e2e-004-skip")
+                .status("EXECUTING")
+                .traceId("trace-skip-001")
+                .build();
+        when(packageRepository.findByPackageId("pkg-e2e-004-skip")).thenReturn(Optional.of(entity));
+
+        CollabSubtaskEntity subtask = CollabSubtaskEntity.builder()
+                .subTaskId("1").packageId("pkg-e2e-004-skip")
+                .description("Test").status("PENDING")
+                .build();
+        when(subtaskRepository.findByPackageIdAndSubTaskId("pkg-e2e-004-skip", "1"))
+                .thenReturn(Optional.of(subtask));
+        when(subtaskRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CollabSubtaskEntity skipped = orchestrator.updateSubtaskStatus(
+                "pkg-e2e-004-skip", "1", "SKIPPED", null, "not needed");
+
+        assertEquals("SKIPPED", skipped.getStatus());
+        assertEquals("", skipped.getResult());
+        assertEquals("not needed", skipped.getErrorMessage());
+        assertNotNull(skipped.getCompletedAt());
+        verify(memoryService).writeToBlackboard("pkg-e2e-004-skip", "subtask_1_result", "");
+        verify(eventBus).publishSubtaskSkipped("pkg-e2e-004-skip", "1", "not needed", "trace-skip-001");
     }
 
     @Test

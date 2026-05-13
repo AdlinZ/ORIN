@@ -27,6 +27,7 @@ from app.engine.handlers.logic import (
     IterationNodeHandler,
     LoopNodeHandler,
 )
+from app.engine.handlers.collaboration import ParallelForkNodeHandler
 from app.engine.handlers.tools import HTTPRequestNodeHandler
 from app.engine.handlers.data_processing import KnowledgeRetrievalNodeHandler
 
@@ -624,6 +625,52 @@ class TestLoopNodeHandler:
         assert result.selected_handle == "completed"
 
     @pytest.mark.asyncio
+    async def test_loop_while_uses_body_output_for_next_condition(self):
+        """while 模式：body 输出应更新下一轮条件变量"""
+        handler = LoopNodeHandler()
+        node = Node(
+            id="loop-while",
+            type="loop",
+            data={
+                "loop_mode": "while",
+                "condition_variable": "output",
+                "max_iterations": 10,
+                "body_type": "code",
+                "body_code": "loop_counter < 3",
+                "output_variable": "result",
+            }
+        )
+
+        result = await handler.run(node, {"output": True})
+
+        assert result.outputs["result_iterations"] == 3
+        assert len(result.outputs["result"]) == 3
+        assert result.outputs["result"][-1]["output"] is False
+
+    @pytest.mark.asyncio
+    async def test_loop_until_uses_body_output_for_stop_condition(self):
+        """until 模式：body 输出应能触发停止条件"""
+        handler = LoopNodeHandler()
+        node = Node(
+            id="loop-until",
+            type="loop",
+            data={
+                "loop_mode": "until",
+                "condition_variable": "output",
+                "max_iterations": 10,
+                "body_type": "code",
+                "body_code": "loop_counter >= 3",
+                "output_variable": "result",
+            }
+        )
+
+        result = await handler.run(node, {})
+
+        assert result.outputs["result_iterations"] == 3
+        assert len(result.outputs["result"]) == 3
+        assert result.outputs["result"][-1]["output"] is True
+
+    @pytest.mark.asyncio
     async def test_loop_unknown_mode(self):
         """未知循环模式时返回错误"""
         handler = LoopNodeHandler()
@@ -639,6 +686,45 @@ class TestLoopNodeHandler:
 
         assert result.outputs["status"] == "failed"
         assert "Unknown loop_mode" in result.outputs["error"]
+
+
+# =============================================================================
+# ParallelForkNodeHandler Tests
+# =============================================================================
+
+class TestParallelForkNodeHandler:
+    """ParallelForkNodeHandler 最小测试"""
+
+    @pytest.mark.asyncio
+    async def test_parallel_collects_branch_errors(self):
+        """分支异常应进入 errors，而不是伪装成成功字符串"""
+        handler = ParallelForkNodeHandler()
+
+        class MockLLMHandler:
+            async def run(self, node, context):
+                if node.id.endswith("_bad"):
+                    raise RuntimeError("branch failed")
+                return NodeExecutionOutput(outputs={"text": "ok"})
+
+        handler._llm_handler = MockLLMHandler()
+        node = Node(
+            id="parallel",
+            type="parallel_fork",
+            data={
+                "branches": [
+                    {"id": "good", "type": "llm", "prompt": "good"},
+                    {"id": "bad", "type": "llm", "prompt": "bad"},
+                ],
+                "maxParallel": 5,
+            }
+        )
+
+        result = await handler.run(node, {})
+
+        assert result.outputs["completedCount"] == 1
+        assert result.outputs["branches"]["good"] == "ok"
+        assert result.outputs["branches"]["bad"] is None
+        assert "branch failed" in result.outputs["errors"]["bad"]
 
 
 # =============================================================================

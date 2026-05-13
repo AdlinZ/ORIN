@@ -27,6 +27,7 @@ public class OrinWorkflowDslNormalizer {
             "tool",
             "http_request",
             "if_else",
+            "loop",
             "variable_assigner",
             "code");
 

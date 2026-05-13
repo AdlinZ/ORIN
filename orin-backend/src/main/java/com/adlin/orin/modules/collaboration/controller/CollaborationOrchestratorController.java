@@ -515,7 +515,8 @@ public class CollaborationOrchestratorController {
     @PostMapping("/packages/{packageId}/subtasks/{subTaskId}/skip")
     public ResponseEntity<CollabSubtaskEntity> skipSubtask(
             @PathVariable String packageId,
-            @PathVariable String subTaskId) {
+            @PathVariable String subTaskId,
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
 
         List<CollabSubtaskEntity> subtasks = orchestrator.getSubtasks(packageId);
         CollabSubtaskEntity subtask = subtasks.stream()
@@ -527,7 +528,9 @@ public class CollaborationOrchestratorController {
             throw new IllegalStateException("Only PENDING or FAILED subtasks can be skipped");
         }
 
-        return ResponseEntity.ok(orchestrator.updateSubtaskStatus(packageId, subTaskId, "SKIPPED", null, "Skipped by user"));
+        CollabSubtaskEntity skipped = orchestrator.updateSubtaskStatus(packageId, subTaskId, "SKIPPED", null, "Skipped by user");
+        scheduleNextSubtasks(packageId, traceId);
+        return ResponseEntity.ok(skipped);
     }
 
     @Operation(summary = "手动写入子任务结果")
@@ -535,14 +538,17 @@ public class CollaborationOrchestratorController {
     public ResponseEntity<CollabSubtaskEntity> manualComplete(
             @PathVariable String packageId,
             @PathVariable String subTaskId,
-            @RequestBody Map<String, String> request) {
+            @RequestBody(required = false) Map<String, String> request,
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
 
-        String result = request.get("result");
+        String result = request != null ? request.getOrDefault("result", "") : "";
 
         // 完成等待中的人工任务（如果存在）
         executor.completeHumanTask(packageId, subTaskId, result);
 
-        return ResponseEntity.ok(orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null));
+        CollabSubtaskEntity completed = orchestrator.updateSubtaskStatus(packageId, subTaskId, "COMPLETED", result, null);
+        scheduleNextSubtasks(packageId, traceId);
+        return ResponseEntity.ok(completed);
     }
 
     @Operation(summary = "手动完成协作包")

@@ -97,10 +97,10 @@ public class CollaborationOrchestrator {
 
     // 状态流转校验映射：当前状态 -> 可转换的目标状态
     private static final Map<String, Set<String>> SUBTASK_STATUS_TRANSITIONS = Map.of(
-            SUBTASK_PENDING, Set.of(SUBTASK_RUNNING, SUBTASK_CANCELLED, SUBTASK_AWAITING_HUMAN),
+            SUBTASK_PENDING, Set.of(SUBTASK_RUNNING, SUBTASK_COMPLETED, SUBTASK_SKIPPED, SUBTASK_CANCELLED, SUBTASK_AWAITING_HUMAN),
             SUBTASK_RUNNING, Set.of(SUBTASK_COMPLETED, SUBTASK_FAILED, SUBTASK_CANCELLED, SUBTASK_AWAITING_HUMAN, SUBTASK_MANUAL_HANDLING),
             SUBTASK_COMPLETED, Set.of(),  // 已完成状态不可转换
-            SUBTASK_FAILED, Set.of(SUBTASK_PENDING, SUBTASK_SKIPPED),  // 失败后可重试或跳过
+            SUBTASK_FAILED, Set.of(SUBTASK_PENDING, SUBTASK_COMPLETED, SUBTASK_SKIPPED),  // 失败后可重试、手动完成或跳过
             SUBTASK_SKIPPED, Set.of(),  // 已跳过不可转换
             SUBTASK_CANCELLED, Set.of(SUBTASK_PENDING),  // 取消后可重置
             SUBTASK_AWAITING_HUMAN, Set.of(SUBTASK_COMPLETED, SUBTASK_CANCELLED),  // 人工输入后可完成或取消
@@ -597,11 +597,11 @@ public class CollaborationOrchestrator {
                     if (dependsOn == null || dependsOn.isEmpty()) {
                         return true;
                     }
-                    // 所有依赖的子任务必须已完成
+                    // 所有依赖的子任务必须已处理完成；用户跳过也应解锁下游。
                     return dependsOn.stream().allMatch(depId ->
                             subtasks.stream()
                                     .filter(s -> s.getSubTaskId().equals(depId))
-                                    .anyMatch(s -> "COMPLETED".equals(s.getStatus()))
+                                    .anyMatch(s -> isDependencySatisfiedStatus(s.getStatus()))
                     );
                 })
                 .collect(Collectors.toList());
@@ -614,6 +614,22 @@ public class CollaborationOrchestrator {
     @Transactional
     public CollabSubtaskEntity updateSubtaskStatus(String packageId, String subTaskId, String status,
                                                     String result, String errorMessage) {
+        return updateSubtaskStatusInternal(packageId, subTaskId, status, result, errorMessage, true);
+    }
+
+    /**
+     * 更新子任务状态，但不覆盖统一上下文中的 branch_result。
+     * 用于 MQ result listener 已经写入完整分支 payload 的场景。
+     */
+    @Transactional
+    public CollabSubtaskEntity updateSubtaskStatusOnly(String packageId, String subTaskId, String status,
+                                                       String result, String errorMessage) {
+        return updateSubtaskStatusInternal(packageId, subTaskId, status, result, errorMessage, false);
+    }
+
+    private CollabSubtaskEntity updateSubtaskStatusInternal(String packageId, String subTaskId, String status,
+                                                           String result, String errorMessage,
+                                                           boolean writeBranchResult) {
         Optional<CollabSubtaskEntity> subtaskOpt = subtaskRepository.findByPackageIdAndSubTaskId(packageId, subTaskId);
 
         if (subtaskOpt.isEmpty()) {
@@ -650,10 +666,24 @@ public class CollaborationOrchestrator {
             subtask.setCompletedAt(LocalDateTime.now());
             // 写入黑板
             memoryService.writeToBlackboard(packageId, "subtask_" + subTaskId + "_result", result);
+            if (writeBranchResult) {
+                writeBranchResult(packageId, subTaskId, SUBTASK_COMPLETED, result, null);
+            }
             // 发布子任务完成事件
             eventBus.publishSubtaskCompleted(packageId, subTaskId, subtask.getExecutedBy(), Map.of("result", result != null ? result : ""), getTraceId(packageId));
             // 保存检查点
             memoryService.saveCheckpoint(packageId, "subtask_" + subTaskId + "_completed", Map.of("status", "completed", "result", result != null ? result : ""));
+        } else if ("SKIPPED".equals(status)) {
+            String skipReason = errorMessage != null ? errorMessage : "Skipped by user";
+            subtask.setCompletedAt(LocalDateTime.now());
+            subtask.setResult(result != null ? result : "");
+            subtask.setErrorMessage(skipReason);
+            memoryService.writeToBlackboard(packageId, "subtask_" + subTaskId + "_result", result != null ? result : "");
+            if (writeBranchResult) {
+                writeBranchResult(packageId, subTaskId, SUBTASK_SKIPPED, result != null ? result : "", skipReason);
+            }
+            eventBus.publishSubtaskSkipped(packageId, subTaskId, skipReason, getTraceId(packageId));
+            memoryService.saveCheckpoint(packageId, "subtask_" + subTaskId + "_skipped", Map.of("status", "skipped", "reason", skipReason));
         } else if ("FAILED".equals(status)) {
             subtask.setCompletedAt(LocalDateTime.now());
             // 发布子任务失败事件
@@ -677,7 +707,7 @@ public class CollaborationOrchestrator {
      */
     public boolean isAllSubtasksCompleted(String packageId) {
         List<CollabSubtaskEntity> subtasks = subtaskRepository.findByPackageId(packageId);
-        return subtasks.stream().allMatch(t -> "COMPLETED".equals(t.getStatus()));
+        return subtasks.stream().allMatch(t -> isDependencySatisfiedStatus(t.getStatus()));
     }
 
     /**
@@ -993,6 +1023,28 @@ public class CollaborationOrchestrator {
 
         log.info("Auto-scheduled {} subtasks for package {} (mode={})", toExecute.size(), packageId, collaborationMode);
         return toExecute;
+    }
+
+    private boolean isDependencySatisfiedStatus(String status) {
+        return SUBTASK_COMPLETED.equals(status) || SUBTASK_SKIPPED.equals(status);
+    }
+
+    private void writeBranchResult(String packageId, String subTaskId, String status, String result, String errorMessage) {
+        if (redisService == null) {
+            return;
+        }
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("status", status);
+        payload.put("result", result != null ? result : "");
+        if (errorMessage != null) {
+            payload.put("errorMessage", errorMessage);
+        }
+        try {
+            redisService.writeBranchResultAndIncrement(packageId, subTaskId, payload);
+        } catch (Exception e) {
+            log.warn("Failed to write branch result for manual intervention: packageId={}, subTaskId={}, error={}",
+                    packageId, subTaskId, e.getMessage());
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ import com.adlin.orin.common.exception.WorkflowExecutionException;
 import com.adlin.orin.modules.trace.service.TraceService;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
+import com.adlin.orin.modules.workflow.engine.handler.IfElseNodeHandler;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,13 +55,7 @@ class GraphExecutorTest {
             return NodeExecutionResult.success(out);
         });
 
-        // IfElse Handler (Mock behavior)
-        nodeHandlers.put("ifElseNodeHandler", (data, ctx) -> {
-            boolean condition = (Boolean) data.get("condition"); // Cast directly
-            String handle = condition ? "if" : "else";
-            System.out.println("IfElse Condition: " + condition + " -> " + handle);
-            return NodeExecutionResult.success(Collections.emptyMap(), handle);
-        });
+        nodeHandlers.put("ifElseNodeHandler", new IfElseNodeHandler());
 
         graphExecutor = new GraphExecutor(nodeHandlers, eventPublisher, traceService, langfuseObservabilityService);
         graphExecutor.setInstanceId(1L);
@@ -79,7 +74,11 @@ class GraphExecutorTest {
         nodes.add(createNode("start", "start", Collections.emptyMap()));
 
         Map<String, Object> ifData = new HashMap<>();
-        ifData.put("condition", true);
+        ifData.put("conditions", List.of(Map.of(
+                "variable", "inputs.status",
+                "operator", "equals",
+                "value", "ready")));
+        ifData.put("logical_operator", "and");
         nodes.add(createNode("decision", "if-else", ifData));
 
         nodes.add(createNode("actionA", "action", Collections.emptyMap()));
@@ -93,7 +92,7 @@ class GraphExecutorTest {
         graph.put("nodes", nodes);
         graph.put("edges", edges);
 
-        Map<String, Object> context = new ConcurrentHashMap<>();
+        Map<String, Object> context = new ConcurrentHashMap<>(Map.of("inputs", Map.of("status", "ready")));
 
         Map<String, Object> result = graphExecutor.executeGraph(graph, context);
 
@@ -117,7 +116,11 @@ class GraphExecutorTest {
         nodes.add(createNode("start", "start", Collections.emptyMap()));
 
         Map<String, Object> ifData = new HashMap<>();
-        ifData.put("condition", false);
+        ifData.put("conditions", List.of(Map.of(
+                "variable", "inputs.status",
+                "operator", "equals",
+                "value", "ready")));
+        ifData.put("logical_operator", "and");
         nodes.add(createNode("decision", "if-else", ifData));
 
         nodes.add(createNode("actionA", "action", Collections.emptyMap()));
@@ -130,7 +133,7 @@ class GraphExecutorTest {
         graph.put("nodes", nodes);
         graph.put("edges", edges);
 
-        Map<String, Object> context = new ConcurrentHashMap<>();
+        Map<String, Object> context = new ConcurrentHashMap<>(Map.of("inputs", Map.of("status", "blocked")));
 
         Map<String, Object> result = graphExecutor.executeGraph(graph, context);
 
@@ -139,6 +142,39 @@ class GraphExecutorTest {
         Map<String, Object> resContext = (Map<String, Object>) result.get("context");
         assertFalse(resContext.containsKey("actionA"));
         assertTrue(resContext.containsKey("actionB"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testBranchingLogic_UsesOrinConditionsContract() {
+        Map<String, Object> graph = new HashMap<>();
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        List<Map<String, Object>> edges = new ArrayList<>();
+
+        nodes.add(createNode("start", "start", Collections.emptyMap()));
+        nodes.add(createNode("decision", "if-else", Map.of(
+                "conditions", List.of(Map.of(
+                        "variable", "inputs.status",
+                        "operator", "equals",
+                        "value", "ready")),
+                "logical_operator", "and")));
+        nodes.add(createNode("actionA", "action", Collections.emptyMap()));
+        nodes.add(createNode("actionB", "action", Collections.emptyMap()));
+
+        edges.add(createEdge("start", "decision", null));
+        edges.add(createEdge("decision", "actionA", "if"));
+        edges.add(createEdge("decision", "actionB", "else"));
+
+        graph.put("nodes", nodes);
+        graph.put("edges", edges);
+
+        Map<String, Object> result = graphExecutor.executeGraph(
+                graph,
+                new ConcurrentHashMap<>(Map.of("inputs", Map.of("status", "ready"))));
+
+        Map<String, Object> resContext = (Map<String, Object>) result.get("context");
+        assertTrue(resContext.containsKey("actionA"));
+        assertFalse(resContext.containsKey("actionB"));
     }
 
     @Test

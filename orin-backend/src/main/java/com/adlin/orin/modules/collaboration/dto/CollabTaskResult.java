@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.collaboration.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +16,7 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CollabTaskResult implements Serializable {
 
     private static final long serialVersionUID = 1L;

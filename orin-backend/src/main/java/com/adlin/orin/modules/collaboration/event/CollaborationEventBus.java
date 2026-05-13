@@ -153,6 +153,21 @@ public class CollaborationEventBus {
     }
 
     /**
+     * 发布子任务跳过事件
+     */
+    public void publishSubtaskSkipped(String packageId, String subTaskId, String reason, String traceId) {
+        CollaborationEvent event = CollaborationEvent.builder()
+                .eventType(CollaborationEvent.CollaborationEventType.SUBTASK_SKIPPED)
+                .packageId(packageId)
+                .subTaskId(subTaskId)
+                .eventData(Map.of("reason", reason != null ? reason : "Skipped by user"))
+                .traceId(traceId)
+                .source("user")
+                .build();
+        publish(event);
+    }
+
+    /**
      * 发布共识达成事件
      */
     public void publishConsensusReached(String packageId, Object consensusResult, String traceId) {

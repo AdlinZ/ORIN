@@ -89,7 +89,8 @@ def build_collaboration_graph() -> StateGraph:
         should_continue_critic,
         {
             "delegate": "delegate",
-            "memory_write": "memory_write"
+            "memory_write": "memory_write",
+            "end_failed": END,
         }
     )
     
@@ -191,6 +192,7 @@ async def run_collaboration(
         "final_result": None,
         "status": CollaborationStatus.PLANNING.value,
         "error_message": None,
+        "fallback_attempts": 0,
         "savepoint_id": None,
         **kwargs,
     }
@@ -221,6 +223,7 @@ async def run_collaboration(
             final_status,
             final_result=result.get("final_result"),
             error_message=result.get("error_message"),
+            extra={"fallback_attempts": result.get("fallback_attempts", 0)},
         )
         logger.info(f"[LangGraph] 协作完成: {package_id}, status: {final_status}")
         return result

@@ -53,7 +53,7 @@ class TestTaskRuntimeAgent:
 
 class TestTaskRuntimeWorkflow:
     @pytest.mark.asyncio
-    async def test_execute_workflow_task_calls_backend(self):
+    async def test_execute_workflow_task_uses_context_authorization(self):
         runtime = TaskRuntime()
 
         mock_response = MagicMock()
@@ -68,6 +68,42 @@ class TestTaskRuntimeWorkflow:
         mock_async_client.__aexit__.return_value = None
 
         with patch("app.engine.task_runtime.settings.ORIN_BACKEND_URL", "http://backend.test"), \
+             patch("app.engine.task_runtime.settings.BACKEND_AUTHORIZATION", "Bearer env-token"), \
+             patch("app.engine.task_runtime.httpx.AsyncClient", return_value=mock_async_client):
+            result = await runtime.execute_workflow_task(
+                package_id="pkg-1",
+                sub_task_id="sub-1",
+                trace_id="trace-1",
+                timeout_millis=60000,
+                description="run",
+                input_data_raw='{"workflowId": 42, "inputs": {"k": "v"}}',
+                context={"_authorization": "Bearer user-token"},
+            )
+
+        assert result == "Workflow enqueued: taskId=task-123, workflowInstanceId=123"
+        post_call = mock_client.post.await_args
+        assert post_call.args[0] == "http://backend.test/api/workflows/42/execute"
+        assert post_call.kwargs["params"] == {"triggeredBy": "collab_mq_worker"}
+        assert post_call.kwargs["json"]["k"] == "v"
+        assert post_call.kwargs["headers"]["Authorization"] == "Bearer user-token"
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_task_uses_env_authorization_fallback(self):
+        runtime = TaskRuntime()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"taskId": "task-123", "workflowInstanceId": 123}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        mock_async_client = AsyncMock()
+        mock_async_client.__aenter__.return_value = mock_client
+        mock_async_client.__aexit__.return_value = None
+
+        with patch("app.engine.task_runtime.settings.ORIN_BACKEND_URL", "http://backend.test"), \
+             patch("app.engine.task_runtime.settings.BACKEND_AUTHORIZATION", "Bearer worker-token"), \
              patch("app.engine.task_runtime.httpx.AsyncClient", return_value=mock_async_client):
             result = await runtime.execute_workflow_task(
                 package_id="pkg-1",
@@ -81,9 +117,23 @@ class TestTaskRuntimeWorkflow:
 
         assert result == "Workflow enqueued: taskId=task-123, workflowInstanceId=123"
         post_call = mock_client.post.await_args
-        assert post_call.args[0] == "http://backend.test/api/workflows/42/execute"
-        assert post_call.kwargs["params"] == {"triggeredBy": "collab_mq_worker"}
-        assert post_call.kwargs["json"]["k"] == "v"
+        assert post_call.kwargs["headers"]["Authorization"] == "Bearer worker-token"
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_task_requires_backend_authorization(self):
+        runtime = TaskRuntime()
+
+        with patch("app.engine.task_runtime.settings.BACKEND_AUTHORIZATION", None), \
+             pytest.raises(RuntimeError, match="Backend authorization is required"):
+            await runtime.execute_workflow_task(
+                package_id="pkg-1",
+                sub_task_id="sub-1",
+                trace_id="trace-1",
+                timeout_millis=60000,
+                description="run",
+                input_data_raw='{"workflowId": 42, "inputs": {"k": "v"}}',
+                context={},
+            )
 
     @pytest.mark.asyncio
     async def test_execute_workflow_task_requires_workflow_id(self):

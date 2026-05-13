@@ -5,6 +5,9 @@ from typing import TypedDict, List, Dict, Any, Optional
 from enum import Enum
 
 
+MAX_FALLBACK_ATTEMPTS = 3
+
+
 class CollaborationStatus(str, Enum):
     """协作状态"""
     PLANNING = "PLANNING"
@@ -66,6 +69,9 @@ class CollaborationState(TypedDict):
     
     # 错误信息
     error_message: Optional[str]
+
+    # FALLBACK 兜底次数
+    fallback_attempts: int
     
     # 检查点
     savepoint_id: Optional[str]

@@ -57,7 +57,7 @@ API Key 创建：管理台 → 系统管理 → API Key 管理。
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"password"}'
+  -d '{"username":"admin","password":"admin123"}'
 # → { "token": "...", "refreshToken": "..." }
 ```
 
@@ -130,6 +130,10 @@ curl -X POST http://localhost:8080/api/v1/knowledge/{kbId}/documents/upload \
 curl -X POST http://localhost:8080/api/v1/knowledge/retrieve \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{ "kbId": 1, "query": "...", "topK": 5 }'
+
+# 图谱可视化数据（limit 默认 500，最大 2000）
+curl "http://localhost:8080/api/v1/knowledge/graphs/{graphId}/visualization?limit=500" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 端侧同步增量
 curl http://localhost:8080/api/v1/knowledge/sync/client/{agentId}/changes \

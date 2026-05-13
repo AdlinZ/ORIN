@@ -46,3 +46,22 @@ export function toTimelineViewModel(payload) {
     actor: item.actor || item.agentId || 'system'
   }))
 }
+
+export function toCollaborationSubtasksViewModel(payload) {
+  const rows = Array.isArray(payload) ? payload : []
+  return rows.map((item) => ({
+    id: item.id,
+    packageId: item.packageId,
+    subTaskId: item.subTaskId || item.subtaskId || item.id,
+    description: item.description || '-',
+    expectedRole: item.expectedRole || item.role || '-',
+    status: item.status || 'PENDING',
+    dependsOn: item.dependsOn || '[]',
+    result: item.result || '',
+    errorMessage: item.errorMessage || '',
+    retryCount: Number(item.retryCount || 0),
+    startedAt: item.startedAt || null,
+    completedAt: item.completedAt || null,
+    raw: item
+  }))
+}

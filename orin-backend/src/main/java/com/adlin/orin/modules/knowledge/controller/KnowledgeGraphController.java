@@ -111,7 +111,7 @@ public class KnowledgeGraphController {
     public ResponseEntity<List<GraphEntity>> searchGraphEntities(
             @PathVariable String graphId,
             @RequestParam("q") String keyword) {
-        List<GraphEntity> entities = knowledgeGraphService.searchEntities(graphId, keyword);
+        List<GraphEntity> entities = graphExtractionService.searchEntities(graphId, keyword);
         return ResponseEntity.ok(entities);
     }
 
@@ -119,9 +119,10 @@ public class KnowledgeGraphController {
     @GetMapping("/{graphId}/visualization")
     public ResponseEntity<Map<String, Object>> getVisualizationData(
             @PathVariable String graphId,
-            @RequestParam(value = "documentId", required = false) String documentId) {
+            @RequestParam(value = "documentId", required = false) String documentId,
+            @RequestParam(value = "limit", defaultValue = "500") int limit) {
         GraphExtractionService.GraphVisualizationData data =
-                graphExtractionService.getVisualizationData(graphId, documentId);
+                graphExtractionService.getVisualizationData(graphId, documentId, limit);
         Map<String, Object> result = new HashMap<>();
         result.put("nodes", data.getNodes());
         result.put("edges", data.getEdges());

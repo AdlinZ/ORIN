@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 from langgraph.graph import END
 from langchain_core.messages import HumanMessage, AIMessage
 
+from . import state as collaboration_state
 from .state import CollaborationState, CollaborationStatus, SubTask
 from app.core.collab_state import wait_if_paused, write_status
 
@@ -454,10 +455,26 @@ async def critic_node(state: CollaborationState) -> Dict[str, Any]:
         
         # 判断是否通过
         approved = "YES" in review_result.upper() and "NO" not in review_result.upper()[:50]
+        if not approved:
+            fallback_attempts = int(state.get("fallback_attempts", 0) or 0) + 1
+            max_fallback_attempts = collaboration_state.MAX_FALLBACK_ATTEMPTS
+            if fallback_attempts >= max_fallback_attempts:
+                error_message = f"FALLBACK exceeded max attempts ({fallback_attempts}/{max_fallback_attempts})"
+                return {
+                    "shared_context": {**state.get("shared_context", {}), "__review": review_result},
+                    "fallback_attempts": fallback_attempts,
+                    "status": CollaborationStatus.FAILED.value,
+                    "error_message": error_message,
+                }
+            return {
+                "shared_context": {**state.get("shared_context", {}), "__review": review_result},
+                "fallback_attempts": fallback_attempts,
+                "status": CollaborationStatus.FALLBACK.value,
+            }
         
         return {
             "shared_context": {**state.get("shared_context", {}), "__review": review_result},
-            "status": CollaborationStatus.COMPLETED.value if approved else CollaborationStatus.FALLBACK.value
+            "status": CollaborationStatus.COMPLETED.value,
         }
     except Exception as e:
         logger.error(f"[Critic] 评审失败: {e}")
@@ -542,8 +559,14 @@ def should_continue_delegate(state: CollaborationState) -> str:
 def should_continue_critic(state: CollaborationState) -> str:
     """评审节点的路由决策"""
     status = state.get("status", "")
-    
+
+    if status == CollaborationStatus.FAILED.value:
+        return "end_failed"
+
     if status == CollaborationStatus.FALLBACK.value:
+        fallback_attempts = int(state.get("fallback_attempts", 0) or 0)
+        if fallback_attempts >= collaboration_state.MAX_FALLBACK_ATTEMPTS:
+            return "end_failed"
         return "delegate"  # 驳回，重新执行
-    
+
     return "memory_write"

@@ -102,3 +102,34 @@ async def test_parallel_execution():
         # This assertion might be flaky in very slow envs, but good for local check
         # assert duration < 1.5
         print(f"Parallel execution took {duration:.2f}s")
+
+
+@pytest.mark.asyncio
+async def test_loop_executes_body_subgraph():
+    """loop 节点应通过 body handle 执行子图并聚合结果"""
+    dsl = WorkflowDSL(
+        nodes=[
+            Node(id="1", type="start"),
+            Node(id="2", type="loop", data={
+                "loop_mode": "count",
+                "max_iterations": 2,
+                "body_type": "subgraph",
+                "output_variable": "loop_result",
+            }),
+            Node(id="body", type="code", data={"code": "output['value'] = loop_counter"}),
+            Node(id="3", type="end"),
+        ],
+        edges=[
+            Edge(id="e1", source="1", target="2"),
+            Edge(id="e_body", source="2", target="body", sourceHandle="body"),
+            Edge(id="e2", source="2", target="3"),
+        ],
+    )
+
+    executor = GraphExecutor()
+    result = await executor.execute(dsl, {})
+    loop_output = trace_outputs(result, "2")
+
+    assert result.status == WorkflowStatus.SUCCESS
+    assert loop_output["loop_result_iterations"] == 1
+    assert [item["output"]["body"]["value"] for item in loop_output["loop_result"]] == [0, 1]

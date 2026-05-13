@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.workflow.engine.handler;
 
 import org.springframework.stereotype.Component;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -10,55 +11,92 @@ public class IfElseNodeHandler implements NodeHandler {
 
     @Override
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) {
-        // Condition logic (Simplified, assuming context resolution happened before)
-        // In real Dify, condition is often evaluated against an input variable
-
-        // Check if there is a 'condition' field in nodeData that needs evaluation,
-        // OR if the input context already contains the evaluation result (if
-        // pre-calculated).
-        // Since resolveVariables happens in GraphExecutor, we assume context has the
-        // value needed.
-
-        // For now, support a simple "condition" key in nodeData which is a variable
-        // expression
-        // e.g., "{{#sys.query#}} == 'search'"
-        // BUT, since we moved variable resolution to Executor, let's assume
-        // `GraphExecutor`
-        // handled resolution or we do simple checks here.
-
-        // IMPROVEMENT: GraphExecutor usually calls `evaluateCondition` logic.
-        // Let's rely on `GraphExecutor` passing resolved conditionResult if it's
-        // external,
-        // OR we implement simple evaluation here.
-
-        boolean conditionMet = false;
-
-        // Try getting pre-evaluated result
-        if (context.containsKey("condition_result")) {
-            conditionMet = Boolean.TRUE.equals(context.get("condition_result"));
-        } else {
-            // Fallback: evaluate 'condition' string from nodeData
-            // This is a naive implementation; complex SpEL should be in a utility
-            String condition = (String) nodeData.get("condition"); // e.g. "true"
-            if (condition != null && !condition.isBlank()) {
-                conditionMet = "true".equalsIgnoreCase(condition);
-            } else {
-                String query = String.valueOf(context.getOrDefault("query", ""));
-                conditionMet = query.contains("查询");
-            }
-        }
+        List<?> conditions = nodeData.get("conditions") instanceof List<?> rawConditions
+                ? rawConditions
+                : List.of();
+        String logicalOperator = String.valueOf(nodeData.getOrDefault("logical_operator", "and"));
+        boolean conditionMet = evaluateConditions(conditions, logicalOperator, context);
 
         Map<String, Object> output = new HashMap<>();
         output.put("result", conditionMet);
+        output.put("selected_branch", conditionMet ? "if" : "else");
 
-        // "if" handle for True, "else" handle for False
-        String selectedHandle = conditionMet ? "source" : "false_source"; // Wait, check Dify spec.
-        // Dify usually has 'source' (true) and 'target' is implicit? No.
-        // VisualWorkflowEditor uses: sourceHandle="if" and sourceHandle="else".
-
-        // Let's use the IDs seen in Frontend: id="if" and id="else"
-        selectedHandle = conditionMet ? "if" : "else";
-
+        String selectedHandle = conditionMet ? "if" : "else";
         return NodeExecutionResult.success(output, selectedHandle);
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean evaluateConditions(List<?> conditions, String logicalOperator, Map<String, Object> context) {
+        if (conditions.isEmpty()) {
+            return !"or".equalsIgnoreCase(logicalOperator);
+        }
+
+        boolean useOr = "or".equalsIgnoreCase(logicalOperator);
+        boolean result = !useOr;
+        for (Object item : conditions) {
+            if (!(item instanceof Map<?, ?> rawCondition)) {
+                boolean conditionResult = false;
+                result = useOr ? result || conditionResult : result && conditionResult;
+                continue;
+            }
+
+            Map<String, Object> condition = (Map<String, Object>) rawCondition;
+            boolean conditionResult = evaluateCondition(condition, context);
+            result = useOr ? result || conditionResult : result && conditionResult;
+        }
+        return result;
+    }
+
+    private boolean evaluateCondition(Map<String, Object> condition, Map<String, Object> context) {
+        String variable = stringValue(condition.get("variable"));
+        String operator = stringValue(condition.get("operator"));
+        Object expected = condition.get("value");
+        Object actual = resolveVariable(variable, context);
+
+        return switch (operator == null ? "" : operator) {
+            case "contains" -> String.valueOf(actual).contains(String.valueOf(expected));
+            case "not_contains" -> !String.valueOf(actual).contains(String.valueOf(expected));
+            case "equals" -> Objects.equals(String.valueOf(actual), String.valueOf(expected));
+            case "not_equals" -> !Objects.equals(String.valueOf(actual), String.valueOf(expected));
+            case "is_empty" -> isEmpty(actual);
+            case "is_not_empty" -> !isEmpty(actual);
+            default -> false;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object resolveVariable(String path, Map<String, Object> context) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+        Object current = context;
+        for (String part : path.split("\\.")) {
+            if (current instanceof Map<?, ?> map) {
+                current = ((Map<String, Object>) map).get(part);
+            } else {
+                return null;
+            }
+        }
+        return current;
+    }
+
+    private boolean isEmpty(Object value) {
+        if (value == null) {
+            return true;
+        }
+        if (value instanceof String text) {
+            return text.isEmpty();
+        }
+        if (value instanceof List<?> list) {
+            return list.isEmpty();
+        }
+        if (value instanceof Map<?, ?> map) {
+            return map.isEmpty();
+        }
+        return false;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 }

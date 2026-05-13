@@ -25,6 +25,7 @@
           size="small"
           clearable
           style="width: 260px"
+          @input="handleLocalSearch"
           @keyup.enter="handleSearch"
           @clear="clearSearch"
         >
@@ -36,7 +37,7 @@
         <el-input-number
           v-model="nodeLimit"
           :min="10"
-          :max="5000"
+          :max="2000"
           :step="100"
           size="small"
           style="width: 100px"
@@ -162,7 +163,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Search, Refresh, Download, Close, Loading, ArrowRight, WarningFilled } from '@element-plus/icons-vue'
-import { getGraph, getGraphEntities, getGraphRelations, buildGraph, getGraphEntityDetails } from '@/api/knowledge'
+import { getGraph, getGraphVisualization, searchGraphEntities, buildGraph, getGraphEntityDetails } from '@/api/knowledge'
 import { useTheme } from '@/composables/useTheme'
 import * as echarts from 'echarts'
 
@@ -222,25 +223,28 @@ const fetchVizData = async () => {
   vizLoading.value = true
   try {
     const limit = nodeLimit.value
-    const [entRes, relRes] = await Promise.all([
-      getGraphEntities(graphId.value, { page: 0, size: limit }),
-      getGraphRelations(graphId.value, { page: 0, size: limit * 3 }),
-    ])
-
-    const entityList = entRes.content || entRes || []
-    const relationList = relRes.content || relRes || []
+    const data = await getGraphVisualization(graphId.value, null, limit)
+    const graphData = data || { nodes: [], edges: [], categories: [] }
+    const entityList = (graphData.nodes || []).slice(0, limit)
+    const relationList = graphData.edges || []
 
     // 统计 degree
     const degree = {}
     relationList.forEach(r => {
-      degree[r.sourceEntityId] = (degree[r.sourceEntityId] || 0) + 1
-      degree[r.targetEntityId] = (degree[r.targetEntityId] || 0) + 1
+      degree[r.source] = (degree[r.source] || 0) + 1
+      degree[r.target] = (degree[r.target] || 0) + 1
     })
 
     // 分类颜色
     const catMap = {}
+    const categoryNames = graphData.categories?.length
+      ? graphData.categories
+      : Array.from(new Set(entityList.map(e => e.type || '未分类')))
+    categoryNames.forEach(name => {
+      if (!(name in catMap)) catMap[name] = Object.keys(catMap).length
+    })
     entityList.forEach(e => {
-      const t = e.entityType || '未分类'
+      const t = e.type || '未分类'
       if (!(t in catMap)) catMap[t] = Object.keys(catMap).length
     })
     categories.value = Object.keys(catMap).map((name, i) => ({ name, color: getColor(i) }))
@@ -248,17 +252,17 @@ const fetchVizData = async () => {
     const nodeSet = new Set(entityList.map(e => e.id))
 
     vizNodes.value = entityList.map(e => {
-      const t = e.entityType || '未分类'
+      const t = e.type || '未分类'
       const deg = degree[e.id] || 1
       return {
         id: e.id,
         name: e.name,
         entityType: t,
         description: e.description,
-        filePath: e.sourceDocumentId,
-        sourceId: e.sourceChunkId,
+        filePath: e.filePath || e.documentId,
+        sourceId: e.sourceId || e.sourceChunkId,
         createdAt: e.createdAt,
-        tags: t ? [t] : [],
+        tags: e.tags?.length ? e.tags : (t ? [t] : []),
         catIdx: catMap[t],
         symbolSize: Math.max(14, Math.min(60, 10 + deg * 4)),
         itemStyle: { color: getColor(catMap[t]) },
@@ -267,11 +271,11 @@ const fetchVizData = async () => {
     })
 
     vizLinks.value = relationList
-      .filter(r => nodeSet.has(r.sourceEntityId) && nodeSet.has(r.targetEntityId))
+      .filter(r => nodeSet.has(r.source) && nodeSet.has(r.target))
       .map((r, i) => ({
-        id: r.id,
-        source: r.sourceEntityId,
-        target: r.targetEntityId,
+        id: r.id || `${r.source}-${r.target}-${i}`,
+        source: r.source,
+        target: r.target,
         relationType: r.relationType,
         weight: r.weight,
         lineStyle: { curveness: (i % 5) * 0.06 },
@@ -292,19 +296,43 @@ const reloadViz = () => {
 }
 
 // ── 搜索 ──
-const handleSearch = () => {
+const highlightLocalMatches = () => {
   if (!chartInstance) return
   const kw = searchKeyword.value.trim().toLowerCase()
   if (!kw || kw === '*') {
     chartInstance.dispatchAction({ type: 'downplay' })
-    return
+    return 0
   }
   chartInstance.dispatchAction({ type: 'downplay' })
+  let visibleMatches = 0
   vizNodes.value.forEach((n, i) => {
     if (n.name?.toLowerCase().includes(kw)) {
       chartInstance.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: i })
+      visibleMatches += 1
     }
   })
+  return visibleMatches
+}
+
+const handleLocalSearch = () => {
+  highlightLocalMatches()
+}
+
+const handleSearch = async () => {
+  const kw = searchKeyword.value.trim()
+  const visibleMatches = highlightLocalMatches()
+  if (!kw || kw === '*') return
+
+  try {
+    const result = await searchGraphEntities(graphId.value, kw)
+    const matches = Array.isArray(result) ? result : []
+    const visibleNodeIds = new Set(vizNodes.value.map(n => n.id))
+    const visibleApiMatches = matches.filter(e => visibleNodeIds.has(e.id)).length
+    ElMessage.info(`全图命中 ${matches.length} 个，当前画布显示 ${Math.max(visibleMatches, visibleApiMatches)} 个`)
+  } catch (error) {
+    console.warn('Failed to search graph entities:', error)
+    ElMessage.error('搜索实体失败')
+  }
 }
 
 const clearSearch = () => {

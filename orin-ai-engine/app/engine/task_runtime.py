@@ -22,6 +22,18 @@ from app.models.workflow import Node, NodeExecutionOutput
 logger = logging.getLogger(__name__)
 
 
+def _resolve_backend_authorization(context: Optional[Dict[str, Any]] = None) -> str:
+    """Resolve authorization for protected backend calls."""
+    context = context or {}
+    authorization = context.get("_authorization") or getattr(settings, "BACKEND_AUTHORIZATION", None)
+    if isinstance(authorization, str) and authorization.strip():
+        return authorization.strip()
+    raise RuntimeError(
+        "Backend authorization is required for workflow task execution. "
+        "Provide context['_authorization'] or set ORIN_BACKEND_AUTHORIZATION."
+    )
+
+
 def _bounded_int(value: Any, fallback: int, minimum: int = 256, maximum: int = 16000) -> int:
     try:
         parsed = int(value)
@@ -188,6 +200,7 @@ class TaskRuntime:
         timeout_seconds = max(10.0, (timeout_millis or 300000) / 1000.0)
 
         headers = {"Content-Type": "application/json"}
+        headers["Authorization"] = _resolve_backend_authorization(context)
         if trace_id:
             headers["X-Trace-Id"] = trace_id
 

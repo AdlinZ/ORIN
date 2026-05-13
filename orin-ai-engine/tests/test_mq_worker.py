@@ -51,6 +51,7 @@ class TestMqWorkerWorkflowSmoke:
         mock_async_client.__aexit__.return_value = None
 
         with patch("app.engine.task_runtime.settings.ORIN_BACKEND_URL", "http://backend.test"), \
+             patch("app.engine.task_runtime.settings.BACKEND_AUTHORIZATION", "Bearer worker-token"), \
              patch("app.engine.task_runtime.httpx.AsyncClient", return_value=mock_async_client):
             result = await worker._execute_workflow(task, {})
 
@@ -60,6 +61,7 @@ class TestMqWorkerWorkflowSmoke:
         call_args = mock_client.post.await_args
         assert call_args.args[0] == "http://backend.test/api/workflows/42/execute"
         assert call_args.kwargs["params"] == {"triggeredBy": "collab_mq_worker"}
+        assert call_args.kwargs["headers"]["Authorization"] == "Bearer worker-token"
         assert call_args.kwargs["headers"]["X-Trace-Id"] == "trace-smoke-001"
         assert call_args.kwargs["json"]["description"] == "run workflow"
         assert call_args.kwargs["json"]["packageId"] == "pkg-smoke-001"

@@ -120,4 +120,111 @@ class CollaborationOrchestratorControllerTest {
 
         verify(orchestrator, never()).updateSubtaskStatus("pkg-ctrl-002", "sub-2", "FAILED", null, "worker failed");
     }
+
+    @Test
+    @DisplayName("自动调度拿到 RUNNING 下游任务后应调用执行器")
+    void scheduleNextSubtasks_executesRunningDownstreamSubtask() throws Exception {
+        CollaborationOrchestratorController controller = new CollaborationOrchestratorController(
+                orchestrator,
+                eventBus,
+                executor,
+                memoryService,
+                metricsService
+        );
+
+        CollabSubtaskEntity downstream = CollabSubtaskEntity.builder()
+                .packageId("pkg-ctrl-005")
+                .subTaskId("sub-2")
+                .description("downstream task")
+                .status("RUNNING")
+                .build();
+
+        when(orchestrator.autoScheduleIfPossible("pkg-ctrl-005"))
+                .thenReturn(List.of(downstream), List.of());
+        when(executor.executeSubtask(downstream, "pkg-ctrl-005", "trace-ctrl-005"))
+                .thenReturn(CompletableFuture.completedFuture("downstream done"));
+        when(orchestrator.getSubtasks("pkg-ctrl-005"))
+                .thenReturn(List.of(downstream));
+        when(orchestrator.isAllSubtasksCompleted("pkg-ctrl-005"))
+                .thenReturn(false);
+
+        Method scheduleNextSubtasks = CollaborationOrchestratorController.class
+                .getDeclaredMethod("scheduleNextSubtasks", String.class, String.class);
+        scheduleNextSubtasks.setAccessible(true);
+        scheduleNextSubtasks.invoke(controller, "pkg-ctrl-005", "trace-ctrl-005");
+
+        verify(executor).executeSubtask(downstream, "pkg-ctrl-005", "trace-ctrl-005");
+        verify(orchestrator).updateSubtaskStatus("pkg-ctrl-005", "sub-2", "COMPLETED", "downstream done", null);
+    }
+
+    @Test
+    @DisplayName("skipSubtask 标记跳过后应继续触发后续调度")
+    void skipSubtask_schedulesNextSubtasks() {
+        CollaborationOrchestratorController controller = new CollaborationOrchestratorController(
+                orchestrator,
+                eventBus,
+                executor,
+                memoryService,
+                metricsService
+        );
+
+        CollabSubtaskEntity failed = CollabSubtaskEntity.builder()
+                .packageId("pkg-ctrl-003")
+                .subTaskId("sub-1")
+                .description("failed task")
+                .status("FAILED")
+                .build();
+        CollabSubtaskEntity skipped = CollabSubtaskEntity.builder()
+                .packageId("pkg-ctrl-003")
+                .subTaskId("sub-1")
+                .description("failed task")
+                .status("SKIPPED")
+                .build();
+
+        when(orchestrator.getSubtasks("pkg-ctrl-003")).thenReturn(List.of(failed));
+        when(orchestrator.updateSubtaskStatus("pkg-ctrl-003", "sub-1", "SKIPPED", null, "Skipped by user"))
+                .thenReturn(skipped);
+        when(orchestrator.autoScheduleIfPossible("pkg-ctrl-003")).thenReturn(List.of());
+        when(orchestrator.isAllSubtasksCompleted("pkg-ctrl-003")).thenReturn(false);
+
+        ResponseEntity<CollabSubtaskEntity> response =
+                controller.skipSubtask("pkg-ctrl-003", "sub-1", "trace-ctrl-003");
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("SKIPPED", response.getBody().getStatus());
+        verify(orchestrator).autoScheduleIfPossible("pkg-ctrl-003");
+    }
+
+    @Test
+    @DisplayName("manualComplete 标记完成后应继续触发后续调度")
+    void manualComplete_schedulesNextSubtasks() {
+        CollaborationOrchestratorController controller = new CollaborationOrchestratorController(
+                orchestrator,
+                eventBus,
+                executor,
+                memoryService,
+                metricsService
+        );
+
+        CollabSubtaskEntity completed = CollabSubtaskEntity.builder()
+                .packageId("pkg-ctrl-004")
+                .subTaskId("sub-1")
+                .description("manual task")
+                .status("COMPLETED")
+                .result("")
+                .build();
+
+        when(orchestrator.updateSubtaskStatus("pkg-ctrl-004", "sub-1", "COMPLETED", "", null))
+                .thenReturn(completed);
+        when(orchestrator.autoScheduleIfPossible("pkg-ctrl-004")).thenReturn(List.of());
+        when(orchestrator.isAllSubtasksCompleted("pkg-ctrl-004")).thenReturn(false);
+
+        ResponseEntity<CollabSubtaskEntity> response =
+                controller.manualComplete("pkg-ctrl-004", "sub-1", Map.of("result", ""), "trace-ctrl-004");
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("COMPLETED", response.getBody().getStatus());
+        verify(executor).completeHumanTask("pkg-ctrl-004", "sub-1", "");
+        verify(orchestrator).autoScheduleIfPossible("pkg-ctrl-004");
+    }
 }

@@ -114,6 +114,25 @@ class OrinWorkflowDslNormalizerTest {
     }
 
     @Test
+    void loopNodeIsPublishableInOrinDsl() {
+        Map<String, Object> normalized = normalizer.normalize(Map.of(
+                "nodes", List.of(
+                        Map.of("id", "start", "type", "start"),
+                        Map.of("id", "loop", "type", "loop", "data", Map.of("maxIterations", 3)),
+                        Map.of("id", "end", "type", "end", "data", Map.of(
+                                "outputs", List.of(Map.of("name", "iterations", "value", "{{ loop.totalIterations }}"))))),
+                "edges", List.of(
+                        Map.of("source", "start", "target", "loop"),
+                        Map.of("source", "loop", "target", "end"))));
+
+        Map<?, ?> metadata = (Map<?, ?>) normalized.get("metadata");
+        Map<?, ?> compatibility = (Map<?, ?>) metadata.get("compatibility");
+
+        assertThat(compatibility.get("unsupportedTypes")).asList().doesNotContain("loop");
+        assertThat(validator.validateForPublish(normalized)).isEmpty();
+    }
+
+    @Test
     void publishValidationFailsWhenEndOutputIsMissingOrReferencesMissingNode() {
         Map<String, Object> missingOutput = normalizer.normalize(Map.of(
                 "nodes", List.of(

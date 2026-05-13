@@ -23,6 +23,7 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.SessionConfig;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +51,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class GraphExtractionService {
+    private static final int DEFAULT_VISUALIZATION_LIMIT = 500;
+    private static final int MAX_VISUALIZATION_LIMIT = 2000;
 
     private final Neo4jConfig.Neo4jConnectionManager neo4jConnectionManager;
     private final KnowledgeGraphRepository knowledgeGraphRepository;
@@ -96,8 +99,7 @@ public class GraphExtractionService {
             saveRelationsToMySQL(graphId, documentId, relations);
 
             // 5. 更新图谱统计
-            updateGraphStats(graphId);
-
+            applyGraphStats(graph, graphId);
             graph.setBuildStatus(GraphBuildState.SUCCESS);
             knowledgeGraphRepository.save(graph);
 
@@ -189,8 +191,8 @@ public class GraphExtractionService {
                 }
             }
 
-            updateGraphStats(graphId);
-            boolean success = processed > 0 && totalEntities > 0;
+            applyGraphStats(graph, graphId);
+            boolean success = processed > 0 && graph.getEntityCount() != null && graph.getEntityCount() > 0;
             graph.setBuildStatus(success ? GraphBuildState.SUCCESS : GraphBuildState.FAILED);
             if (success) {
                 graph.setErrorMessage(null);
@@ -379,16 +381,21 @@ public class GraphExtractionService {
      * 获取图谱可视化数据（优先 Neo4j，失败后回退 MySQL）
      */
     public GraphVisualizationData getVisualizationData(String graphId, String documentIdFilter) {
-        GraphVisualizationData neo4jData = tryLoadVisualizationFromNeo4j(graphId, documentIdFilter);
+        return getVisualizationData(graphId, documentIdFilter, DEFAULT_VISUALIZATION_LIMIT);
+    }
+
+    public GraphVisualizationData getVisualizationData(String graphId, String documentIdFilter, int limit) {
+        int normalizedLimit = normalizeVisualizationLimit(limit);
+        GraphVisualizationData neo4jData = tryLoadVisualizationFromNeo4j(graphId, documentIdFilter, normalizedLimit);
         if (!neo4jData.getNodes().isEmpty()) {
             return neo4jData;
         }
 
         log.info("Falling back to MySQL graph visualization for graphId={}", graphId);
-        return loadVisualizationFromMySql(graphId, documentIdFilter);
+        return loadVisualizationFromMySql(graphId, documentIdFilter, normalizedLimit);
     }
 
-    private GraphVisualizationData tryLoadVisualizationFromNeo4j(String graphId, String documentIdFilter) {
+    private GraphVisualizationData tryLoadVisualizationFromNeo4j(String graphId, String documentIdFilter, int limit) {
         try (var session = createNeo4jSession()) {
             String nodeCypher =
                     "MATCH (e:Entity {graphId: $graphId}) " +
@@ -404,10 +411,12 @@ public class GraphExtractionService {
                     "       coalesce(e.truncate, '') AS truncate, " +
                     "       coalesce(e.created_at, 0) AS createdAt, " +
                     "       coalesce(e.source_chunk_id, '') AS sourceChunkId, " +
-                    "       coalesce(e.tags, []) AS tags";
+                    "       coalesce(e.tags, []) AS tags " +
+                    "LIMIT $limit";
             var nodeResult = session.run(nodeCypher, Map.of(
                     "graphId", graphId,
-                    "documentId", safeText(documentIdFilter, "")
+                    "documentId", safeText(documentIdFilter, ""),
+                    "limit", limit
             ));
 
             List<GraphVisualizationData.Node> nodes = new ArrayList<>();
@@ -448,11 +457,13 @@ public class GraphExtractionService {
                     "       coalesce(t.nodeId, toString(id(t))) AS target, " +
                     "       coalesce(r.relation_type, type(r), 'RELATED_TO') AS relationType, " +
                     "       coalesce(r.description, '') AS description, " +
-                    "       coalesce(r.weight, 1.0) AS weight";
+                    "       coalesce(r.weight, 1.0) AS weight " +
+                    "LIMIT $edgeLimit";
             var edgeResult = session.run(edgeCypher, Map.of(
                     "graphId", graphId,
                     "documentId", safeText(documentIdFilter, ""),
-                    "nodeIds", nodeIds
+                    "nodeIds", nodeIds,
+                    "edgeLimit", relationLimit(limit)
             ));
 
             List<GraphVisualizationData.Edge> edges = new ArrayList<>();
@@ -475,33 +486,31 @@ public class GraphExtractionService {
         }
     }
 
-    private GraphVisualizationData loadVisualizationFromMySql(String graphId, String documentIdFilter) {
+    private GraphVisualizationData loadVisualizationFromMySql(String graphId, String documentIdFilter, int limit) {
         List<GraphEntity> entities;
-        List<GraphRelation> relations;
 
         if (StringUtils.hasText(documentIdFilter)) {
-            entities = graphEntityRepository.findByGraphId(graphId).stream()
-                    .filter(e -> documentIdFilter.equals(e.getSourceDocumentId()))
-                    .toList();
-            Set<String> entityIds = new HashSet<>();
-            for (GraphEntity e : entities) {
-                entityIds.add(e.getId());
-            }
-            relations = graphRelationRepository.findByGraphId(graphId).stream()
-                    .filter(r -> entityIds.contains(r.getSourceEntityId()) || entityIds.contains(r.getTargetEntityId()))
-                    .toList();
+            entities = graphEntityRepository.findByGraphIdAndSourceDocumentId(
+                    graphId, documentIdFilter, PageRequest.of(0, limit)).getContent();
         } else {
-            entities = graphEntityRepository.findByGraphId(graphId);
-            relations = graphRelationRepository.findByGraphId(graphId);
+            entities = graphEntityRepository.findByGraphId(graphId, PageRequest.of(0, limit)).getContent();
         }
+
+        Set<String> entityIds = new HashSet<>();
+        for (GraphEntity e : entities) {
+            entityIds.add(e.getId());
+        }
+        List<GraphRelation> relations = entityIds.isEmpty()
+                ? Collections.emptyList()
+                : graphRelationRepository.findByGraphIdAndEntityIds(
+                        graphId, entityIds, PageRequest.of(0, relationLimit(limit)));
 
         List<GraphVisualizationData.Node> nodes = new ArrayList<>();
         Map<String, String> entityIdToNodeId = new HashMap<>();
         Set<String> entityTypes = new HashSet<>();
 
-        for (int i = 0; i < entities.size(); i++) {
-            GraphEntity entity = entities.get(i);
-            String nodeId = "node_" + i;
+        for (GraphEntity entity : entities) {
+            String nodeId = entity.getId();
             entityIdToNodeId.put(entity.getId(), nodeId);
             String entityType = safeText(entity.getEntityType(), "unknown");
             entityTypes.add(entityType);
@@ -513,7 +522,7 @@ public class GraphExtractionService {
                     entityType,
                     entity.getDescription(),
                     safeText(entity.getSourceDocumentId(), ""),
-                    safeText(entity.getName(), ""),
+                    safeText(entity.getId(), ""),
                     safeText(entity.getSourceDocumentId(), ""),
                     safeText(asString(props.get("file_path")), safeText(entity.getSourceDocumentId(), "")),
                     safeText(asString(props.get("truncate")), ""),
@@ -541,6 +550,17 @@ public class GraphExtractionService {
         return new GraphVisualizationData(nodes, edges, new ArrayList<>(entityTypes));
     }
 
+    private int normalizeVisualizationLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_VISUALIZATION_LIMIT;
+        }
+        return Math.min(limit, MAX_VISUALIZATION_LIMIT);
+    }
+
+    private int relationLimit(int nodeLimit) {
+        return Math.max(nodeLimit, Math.min(nodeLimit * 3, MAX_VISUALIZATION_LIMIT * 3));
+    }
+
     /**
      * 搜索实体（优先 Neo4j）
      */
@@ -563,7 +583,8 @@ public class GraphExtractionService {
         if (fromNeo4j.isPresent()) {
             return fromNeo4j;
         }
-        return graphEntityRepository.findById(entityId);
+        return graphEntityRepository.findById(entityId)
+                .filter(entity -> graphId.equals(entity.getGraphId()));
     }
 
     /**
@@ -574,7 +595,7 @@ public class GraphExtractionService {
         if (!fromNeo4j.isEmpty()) {
             return fromNeo4j;
         }
-        return graphRelationRepository.findAll().stream()
+        return graphRelationRepository.findByGraphId(graphId).stream()
                 .filter(r -> entityId.equals(r.getSourceEntityId()) || entityId.equals(r.getTargetEntityId()))
                 .toList();
     }
@@ -761,11 +782,15 @@ public class GraphExtractionService {
         Optional<KnowledgeGraph> graphOpt = knowledgeGraphRepository.findById(graphId);
         if (graphOpt.isPresent()) {
             KnowledgeGraph graph = graphOpt.get();
-            graph.setEntityCount((int) graphEntityRepository.countByGraphId(graphId));
-            graph.setRelationCount((int) graphRelationRepository.countByGraphId(graphId));
-            graph.setLastBuildAt(LocalDateTime.now());
+            applyGraphStats(graph, graphId);
             knowledgeGraphRepository.save(graph);
         }
+    }
+
+    private void applyGraphStats(KnowledgeGraph graph, String graphId) {
+        graph.setEntityCount((int) graphEntityRepository.countByGraphId(graphId));
+        graph.setRelationCount((int) graphRelationRepository.countByGraphId(graphId));
+        graph.setLastBuildAt(LocalDateTime.now());
     }
 
     private Optional<GraphEntity> tryGetEntityDetailsFromNeo4j(String graphId, String entityId) {

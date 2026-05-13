@@ -1,0 +1,76 @@
+{
+  "normal": {
+    "entities": [
+      {
+        "name": "ORIN",
+        "type": "Product",
+        "description": "Agent management platform",
+        "confidence": 0.96
+      },
+      {
+        "name": "LangGraph",
+        "type": "Framework",
+        "description": "Workflow and collaboration runtime",
+        "confidence": 0.91
+      }
+    ],
+    "relations": [
+      {
+        "sourceEntity": "ORIN",
+        "targetEntity": "LangGraph",
+        "relationType": "USES",
+        "description": "ORIN uses LangGraph for workflow and collaboration execution",
+        "confidence": 0.88
+      }
+    ]
+  },
+  "entitiesOnly": {
+    "entities": [
+      {
+        "name": "Milvus",
+        "type": "Database",
+        "description": "Vector database used by the knowledge retrieval pipeline",
+        "confidence": 0.93
+      }
+    ],
+    "relations": []
+  },
+  "partialInvalid": {
+    "entities": [
+      {
+        "name": "Neo4j",
+        "type": "Database",
+        "description": "Graph database used as the primary graph storage",
+        "confidence": 0.94
+      },
+      {
+        "name": "MySQL",
+        "type": "Database",
+        "description": "Relational fallback and index storage",
+        "confidence": 0.92
+      }
+    ],
+    "relations": [
+      {
+        "sourceEntity": "Neo4j",
+        "targetEntity": "MySQL",
+        "relationType": "FALLS_BACK_TO",
+        "description": "Graph data is mirrored to MySQL when Neo4j is unavailable",
+        "confidence": 0.85
+      },
+      {
+        "sourceEntity": "Neo4j",
+        "relationType": "BROKEN_ROW",
+        "description": "Missing target entity should be skipped",
+        "confidence": 0.2
+      },
+      {
+        "sourceEntity": "Unknown",
+        "targetEntity": "MySQL",
+        "relationType": "UNKNOWN_SOURCE",
+        "description": "Unknown source entity should be skipped",
+        "confidence": 0.2
+      }
+    ]
+  }
+}

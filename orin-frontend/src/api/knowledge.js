@@ -449,8 +449,10 @@ export const searchGraphEntities = (graphId, keyword) => {
 
 // ==================== 图谱可视化 ====================
 
-export const getGraphVisualization = (graphId, documentId) => {
-    const params = documentId ? { documentId } : {};
+export const getGraphVisualization = (graphId, documentId, limit) => {
+    const params = {};
+    if (documentId) params.documentId = documentId;
+    if (limit) params.limit = limit;
     return request.get(`/knowledge/graphs/${graphId}/visualization`, { params });
 };
 

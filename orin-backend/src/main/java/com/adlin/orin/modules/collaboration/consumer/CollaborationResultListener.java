@@ -73,7 +73,12 @@ public class CollaborationResultListener {
 
         if ("COMPLETED".equals(result.getStatus())) {
             // 成功完成
-            future.complete(result.getResult());
+            // 并行 fan-in：先原子写入完整分支结果，避免通用状态更新写入的精简 payload 抢占字段。
+            long branchCounter = redisService.writeBranchResultAndIncrement(
+                    result.getPackageId(),
+                    result.getSubTaskId(),
+                    buildBranchPayload(result)
+            );
 
             // 更新 subtask 状态（幂等：重复回执时忽略 COMPLETED->COMPLETED）
             safeUpdateSubtaskStatus(
@@ -84,12 +89,7 @@ public class CollaborationResultListener {
                     null
             );
 
-            // 并行 fan-in：原子写入分支结果并递增计数
-            long branchCounter = redisService.writeBranchResultAndIncrement(
-                    result.getPackageId(),
-                    result.getSubTaskId(),
-                    buildBranchPayload(result)
-            );
+            future.complete(result.getResult());
 
             // 记录 metrics
             recordMetrics(result);
@@ -249,7 +249,11 @@ public class CollaborationResultListener {
                                          String result,
                                          String errorMessage) {
         try {
-            orchestrator.updateSubtaskStatus(packageId, subTaskId, targetStatus, result, errorMessage);
+            if ("COMPLETED".equals(targetStatus)) {
+                orchestrator.updateSubtaskStatusOnly(packageId, subTaskId, targetStatus, result, errorMessage);
+            } else {
+                orchestrator.updateSubtaskStatus(packageId, subTaskId, targetStatus, result, errorMessage);
+            }
         } catch (IllegalStateException e) {
             String msg = e.getMessage() == null ? "" : e.getMessage();
             if (msg.contains("Invalid status transition")) {

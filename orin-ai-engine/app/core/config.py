@@ -6,6 +6,9 @@ class Settings(BaseSettings):
 
     # Backend API URL for calling Java backend services
     ORIN_BACKEND_URL: Optional[str] = "http://localhost:8080"
+    # Optional machine credential used by MQ workers for protected backend APIs.
+    # Reads ORIN_BACKEND_AUTHORIZATION from the environment.
+    BACKEND_AUTHORIZATION: Optional[str] = None
 
     # Redis URL for shared memory storage.
     # Default to local Redis so collaboration runtime can read branch_result

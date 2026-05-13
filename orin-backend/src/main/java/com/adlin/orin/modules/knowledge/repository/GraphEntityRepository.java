@@ -13,6 +13,7 @@ import java.util.List;
 public interface GraphEntityRepository extends JpaRepository<GraphEntity, String> {
     Page<GraphEntity> findByGraphId(String graphId, Pageable pageable);
     List<GraphEntity> findByGraphId(String graphId);
+    Page<GraphEntity> findByGraphIdAndSourceDocumentId(String graphId, String sourceDocumentId, Pageable pageable);
     List<GraphEntity> findByGraphIdAndEntityType(String graphId, String entityType);
     List<GraphEntity> findByGraphIdAndNameContainingIgnoreCase(String graphId, String name);
     long countByGraphId(String graphId);

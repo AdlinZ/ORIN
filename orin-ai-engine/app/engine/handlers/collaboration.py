@@ -432,52 +432,47 @@ class ParallelForkNodeHandler(BaseNodeHandler):
         branch_id = branch.get("id", "unknown")
         trace_id = context.get("_trace_id")
 
-        try:
-            # 优先检查是否指定了 agentId 或 workflowId
-            agent_id = branch.get("agentId")
-            workflow_id = branch.get("workflowId")
+        # 优先检查是否指定了 agentId 或 workflowId
+        agent_id = branch.get("agentId")
+        workflow_id = branch.get("workflowId")
 
-            # 获取 prompt/description
-            prompt_template = branch.get("promptTemplate") or branch.get("prompt") or branch.get("description", "")
-            input_data = branch.get("inputData", {})
-            resolved_inputs = self._resolve_template(prompt_template, input_data, context)
-            prompt = prompt_template.format(**resolved_inputs) if resolved_inputs else prompt_template
+        # 获取 prompt/description
+        prompt_template = branch.get("promptTemplate") or branch.get("prompt") or branch.get("description", "")
+        input_data = branch.get("inputData", {})
+        resolved_inputs = self._resolve_template(prompt_template, input_data, context)
+        prompt = prompt_template.format(**resolved_inputs) if resolved_inputs else prompt_template
 
-            # 1. 调用后端 Agent
-            if agent_id:
-                return await self._call_backend_agent(agent_id, prompt, trace_id)
+        # 1. 调用后端 Agent
+        if agent_id:
+            return await self._call_backend_agent(agent_id, prompt, trace_id)
 
-            # 2. 调用后端 Workflow
-            if workflow_id:
-                return await self._call_backend_workflow(workflow_id, prompt, trace_id)
+        # 2. 调用后端 Workflow
+        if workflow_id:
+            return await self._call_backend_workflow(workflow_id, prompt, trace_id)
 
-            # 3. 本地 LLM 调用
-            if branch_type == "llm":
-                llm_node = Node(
-                    id=f"parallel_branch_{branch_id}",
-                    type="llm",
-                    data={
-                        "prompt": prompt,
-                        "model": branch.get("model") or parent_node.data.get("model") if parent_node.data else None,
-                        "temperature": branch.get("temperature", 0.7),
-                        "api_key": branch.get("api_key") or parent_node.data.get("api_key") if parent_node.data else None,
-                    }
-                )
+        # 3. 本地 LLM 调用
+        if branch_type == "llm":
+            llm_node = Node(
+                id=f"parallel_branch_{branch_id}",
+                type="llm",
+                data={
+                    "prompt": prompt,
+                    "model": branch.get("model") or parent_node.data.get("model") if parent_node.data else None,
+                    "temperature": branch.get("temperature", 0.7),
+                    "api_key": branch.get("api_key") or parent_node.data.get("api_key") if parent_node.data else None,
+                }
+            )
 
-                llm_output = await self.llm_handler.run(llm_node, context)
-                return llm_output.outputs.get("text", str(llm_output.outputs)) if llm_output.outputs else None
+            llm_output = await self.llm_handler.run(llm_node, context)
+            return llm_output.outputs.get("text", str(llm_output.outputs)) if llm_output.outputs else None
 
-            elif branch_type == "tool":
-                # 工具调用分支
-                tool_name = branch.get("tool", "unknown")
-                return f"Tool {tool_name} executed"
+        if branch_type == "tool":
+            # 工具调用分支
+            tool_name = branch.get("tool", "unknown")
+            return f"Tool {tool_name} executed"
 
-            else:
-                # 默认：返回描述
-                return branch.get("description", f"Branch {branch_id} done")
-
-        except Exception as e:
-            return f"[ERROR in branch {branch_id}]: {str(e)}"
+        # 默认：返回描述
+        return branch.get("description", f"Branch {branch_id} done")
 
     async def _call_backend_agent(self, agent_id: str, message: str, trace_id: Optional[str] = None) -> str:
         """调用后端 Agent API"""
