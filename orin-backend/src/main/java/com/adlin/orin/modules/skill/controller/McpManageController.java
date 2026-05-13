@@ -29,13 +29,13 @@ public class McpManageController {
     private final McpServiceService mcpServiceService;
     private static final List<Map<String, Object>> MARKET_TEMPLATES = List.of(
             template("filesystem", "Filesystem", "本地文件系统读写与检索", "STDIO",
-                    "filesystem /path/to/workspace", null),
+                    "filesystem /app", null),
             template("github", "GitHub", "GitHub 仓库与 Issue 查询", "STDIO",
                     "github", null),
             template("fetch", "Fetch", "HTTP 内容抓取和网页读取", "STDIO",
                     "fetch", null),
             template("sqlite", "SQLite", "SQLite 数据库查询与结构探索", "STDIO",
-                    "sqlite /path/to/database.db", null),
+                    "sqlite /app/orin-mcp.sqlite", null),
             template("time", "Time", "时间与时区工具", "STDIO",
                     "time", null));
 

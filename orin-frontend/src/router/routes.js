@@ -18,7 +18,7 @@ const agentRoutes = {
     CHAT_LOGS: '/dashboard/applications/conversations',
     WORKSPACE: '/dashboard/applications/workspace',
     SKILLS: '/dashboard/applications/skills',
-    MCP: '/dashboard/applications/mcp',
+    MCP: '/dashboard/mcp/servers',
     EXTENSIONS: '/dashboard/applications/extensions',
     COLLABORATION_WORKFLOWS: '/dashboard/applications/collaboration/workflows',
     WORKFLOWS: '/dashboard/applications/workflows',
@@ -130,9 +130,15 @@ const controlRoutes = {
     PROFILE: '/dashboard/profile',
 }
 
+const mcpRoutes = {
+    ROOT: '/dashboard/mcp',
+    SERVERS: '/dashboard/mcp/servers',
+}
+
 export const ROUTES = {
     PORTAL: '/portal',
     HOME: '/dashboard/runtime/overview',
+    MCP: mcpRoutes,
     AGENTS: agentRoutes,
     KNOWLEDGE: knowledgeRoutes,
     RESOURCES: {
@@ -175,7 +181,8 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/applications/playground/workflows': ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
     '/dashboard/applications/version': ROUTES.AGENTS.WORKFLOW_EXECUTION,
     '/dashboard/applications/test': ROUTES.AGENTS.WORKFLOW_EXECUTION,
-    '/dashboard/applications/tools': ROUTES.AGENTS.MCP,
+    '/dashboard/applications/tools': ROUTES.MCP.SERVERS,
+    '/dashboard/applications/mcp': ROUTES.MCP.SERVERS,
     '/dashboard/control/revamp-rollout': ROUTES.SYSTEM.ROOT,
     '/dashboard/applications/models': ROUTES.AGENTS.MODELS,
     '/dashboard/applications/models/config': ROUTES.SYSTEM.SETTINGS_MONITOR,
@@ -346,7 +353,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: '/dashboard/agents/capability',
                 children: [
                     { title: '技能管理', path: ROUTES.AGENTS.SKILLS },
-                    { title: 'MCP 服务', path: ROUTES.AGENTS.MCP },
+                    { title: 'MCP 服务', path: ROUTES.MCP.SERVERS },
                 ]
             },
             // 工作流管理

@@ -24,7 +24,7 @@ describe('route cleanup contracts', () => {
       ROUTES.AGENTS.COLLABORATION_WORKFLOWS
     )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/tools']).toBe(
-      '/dashboard/applications/mcp'
+      ROUTES.MCP.SERVERS
     )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/runtime/alert-rules']).toBe(
       ROUTES.MONITOR.ALERTS

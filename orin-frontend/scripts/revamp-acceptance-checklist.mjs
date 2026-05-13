@@ -7,6 +7,7 @@ const canonicalRoutes = [
   '/dashboard/applications/collaboration/dashboard',
   '/dashboard/control/audit-logs',
   '/dashboard/applications/workflows',
+  '/dashboard/mcp/servers',
   '/dashboard/runtime/overview',
   '/dashboard/control/gateway',
   '/dashboard/control/system-env'
@@ -49,7 +50,8 @@ lines.push('')
 lines.push('## 3. Redirect Compatibility Smoke')
 lines.push('- [ ] /dashboard/applications/collaboration/tasks -> /dashboard/applications/collaboration')
 lines.push('- [ ] /dashboard/applications/collaboration/config -> /dashboard/applications/collaboration')
-lines.push('- [ ] /dashboard/applications/tools -> /dashboard/applications/mcp')
+lines.push('- [ ] /dashboard/applications/tools -> /dashboard/mcp/servers')
+lines.push('- [ ] /dashboard/applications/mcp -> /dashboard/mcp/servers')
 lines.push('- [ ] /dashboard/runtime/alert-rules -> /dashboard/runtime/alerts')
 lines.push('- [ ] /dashboard/control/revamp-rollout -> /dashboard/control')
 lines.push('')

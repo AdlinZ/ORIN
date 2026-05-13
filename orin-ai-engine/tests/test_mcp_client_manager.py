@@ -33,6 +33,10 @@ def test_stdio_command_must_use_allowed_template():
         manager._build_stdio_params({"command": "python arbitrary.py"})
 
 
+def test_builtin_stdio_templates_are_registered():
+    assert {"filesystem", "github", "fetch", "sqlite", "time"} <= set(mcp_module.STDIO_TEMPLATES)
+
+
 @pytest.mark.asyncio
 async def test_stdio_fake_server_lists_and_calls_tool(tmp_path: Path, monkeypatch):
     server = tmp_path / "fake_mcp_server.py"

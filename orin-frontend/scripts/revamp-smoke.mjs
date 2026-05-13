@@ -39,7 +39,7 @@ const checks = [
   {
     key: 'legacy.tools',
     route: '/dashboard/applications/tools',
-    passed: LEGACY_ROUTE_REDIRECTS['/dashboard/applications/tools'] === ROUTES.AGENTS.MCP,
+    passed: LEGACY_ROUTE_REDIRECTS['/dashboard/applications/tools'] === ROUTES.MCP.SERVERS,
     reason: 'Tools 历史路由应指向 MCP 入口'
   },
   {

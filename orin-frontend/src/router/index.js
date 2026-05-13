@@ -67,6 +67,19 @@ const routes = [
                 component: () => import('@/views/Profile.vue'),
                 meta: { title: '个人中心', icon: 'User' }
             },
+            {
+                path: 'mcp',
+                redirect: ROUTES.MCP.SERVERS,
+                meta: { title: 'MCP', category: 'mcp' },
+                children: [
+                    {
+                        path: 'servers',
+                        name: 'McpServers',
+                        component: () => import('@/views/System/McpService.vue'),
+                        meta: { title: 'MCP 服务', icon: 'Connection' }
+                    }
+                ]
+            },
 
             // ==================== 智能体管理模块 ====================
             {
@@ -180,7 +193,7 @@ const routes = [
                     {
                         path: 'mcp',
                         name: 'ApplicationMcp',
-                        component: () => import('@/views/System/McpService.vue'),
+                        redirect: ROUTES.MCP.SERVERS,
                         meta: { title: 'MCP 管理', icon: 'Connection' }
                     },
                     {

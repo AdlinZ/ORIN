@@ -35,6 +35,11 @@ ENV PATH="/opt/venv/bin:$PATH" \
     WORKERS=1 \
     TIMEOUT=300
 
+RUN apt-get -o Acquire::Retries=5 update && \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends nodejs npm && \
+    python -m pip install --no-cache-dir uv && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /opt/venv /opt/venv
 COPY app ./app
 COPY pyproject.toml .
