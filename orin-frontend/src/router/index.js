@@ -70,13 +70,12 @@ const routes = [
             {
                 path: 'mcp',
                 redirect: ROUTES.MCP.SERVERS,
-                meta: { title: 'MCP', category: 'mcp' },
+                meta: { title: 'MCP', category: 'applications', hidden: true },
                 children: [
                     {
                         path: 'servers',
-                        name: 'McpServers',
-                        component: () => import('@/views/System/McpService.vue'),
-                        meta: { title: 'MCP 服务', icon: 'Connection' }
+                        redirect: ROUTES.MCP.SERVERS,
+                        meta: { title: 'MCP 服务', icon: 'Connection', hidden: true }
                     }
                 ]
             },
@@ -194,7 +193,7 @@ const routes = [
                         path: 'mcp',
                         name: 'ApplicationMcp',
                         redirect: ROUTES.MCP.SERVERS,
-                        meta: { title: 'MCP 管理', icon: 'Connection' }
+                        meta: { title: 'MCP 管理', icon: 'Connection', hidden: true }
                     },
                     {
                         path: 'extensions',
