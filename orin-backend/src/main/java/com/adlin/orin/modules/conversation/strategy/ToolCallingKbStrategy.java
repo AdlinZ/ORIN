@@ -16,6 +16,7 @@ import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
 import com.adlin.orin.modules.knowledge.service.KnowledgeGraphService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.model.service.OllamaIntegrationService;
+import com.adlin.orin.modules.skill.component.AiEngineMcpClient;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.adlin.orin.modules.skill.service.SkillService;
@@ -50,6 +51,7 @@ public class ToolCallingKbStrategy {
     private final KnowledgeGraphService knowledgeGraphService;
     private final SkillService skillService;
     private final McpServiceRepository mcpServiceRepository;
+    private final AiEngineMcpClient aiEngineMcpClient;
     private final ObjectMapper objectMapper;
     private Integer retrievalTopK;
     private Double retrievalThreshold;
@@ -298,7 +300,8 @@ public class ToolCallingKbStrategy {
         return "（工具 " + toolId + " 未注册执行器，已作为占位返回）";
     }
 
-    private String executeMcpTool(Long mcpId, String displayName, Map<String, Object> args) {
+    @SuppressWarnings("unchecked")
+    String executeMcpTool(Long mcpId, String displayName, Map<String, Object> args) {
         Optional<McpService> serviceOpt = mcpServiceRepository.findById(mcpId);
         if (serviceOpt.isEmpty()) {
             return "（MCP 服务不存在: " + mcpId + "）";
@@ -311,72 +314,23 @@ public class ToolCallingKbStrategy {
             return "（MCP 服务未连接: " + service.getName() + "）";
         }
 
-        String nameLower = (service.getName() != null ? service.getName() : "").toLowerCase(Locale.ROOT);
-        String commandLower = (service.getCommand() != null ? service.getCommand() : "").toLowerCase(Locale.ROOT);
-        boolean isGitMcp = nameLower.contains("git")
-                || commandLower.contains("git")
-                || "git".equalsIgnoreCase(service.getToolKey());
-        if (!isGitMcp) {
-            return "（MCP 服务 " + (displayName != null ? displayName : service.getName()) + " 尚未实现自动执行适配）";
+        String label = displayName != null ? displayName : service.getName();
+        Object toolNameRaw = args != null ? args.get("toolName") : null;
+        if (toolNameRaw == null || String.valueOf(toolNameRaw).isBlank()) {
+            return "（MCP 服务 " + label + " 调用缺少 toolName 参数）";
         }
+        String toolName = String.valueOf(toolNameRaw);
 
-        return executeGitMcp(args);
-    }
-
-    @SuppressWarnings("unchecked")
-    private String executeGitMcp(Map<String, Object> args) {
-        String operation = String.valueOf(args != null ? args.getOrDefault("operation", "status") : "status");
-        String cwd = args != null && args.get("cwd") != null ? String.valueOf(args.get("cwd")) : ".";
-        List<String> extraArgs = new ArrayList<>();
-        if (args != null && args.get("args") instanceof List<?> values) {
-            for (Object value : values) {
-                if (value != null) extraArgs.add(String.valueOf(value));
-            }
+        Map<String, Object> toolArgs = Collections.emptyMap();
+        Object argumentsRaw = args.get("arguments");
+        if (argumentsRaw instanceof Map<?, ?> map) {
+            toolArgs = (Map<String, Object>) map;
         }
-
-        List<String> command = new ArrayList<>();
-        command.add("git");
-        switch (operation) {
-            case "status" -> {
-                command.add("status");
-                command.add("--short");
-                command.add("--branch");
-            }
-            case "log" -> {
-                command.add("log");
-                command.add("--oneline");
-                command.add("-n");
-                command.add("20");
-            }
-            case "branch" -> {
-                command.add("branch");
-                command.add("-vv");
-            }
-            case "diff" -> {
-                command.add("diff");
-                command.add("--stat");
-            }
-            default -> {
-                return "（不支持的 git MCP operation: " + operation + "）";
-            }
-        }
-        command.addAll(extraArgs);
 
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(Path.of(cwd).toFile());
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-            byte[] outputBytes = process.getInputStream().readAllBytes();
-            int exitCode = process.waitFor();
-            String output = new String(outputBytes);
-            if (exitCode != 0) {
-                return "（git 执行失败，exitCode=" + exitCode + "）\n" + output;
-            }
-            return output == null || output.isBlank() ? "（git 命令执行成功，无输出）" : output.trim();
-        } catch (Exception e) {
-            log.warn("Git MCP execution failed: op={}, cwd={}, err={}", operation, cwd, e.getMessage());
-            return "（Git MCP 执行异常: " + e.getMessage() + "）";
+            return aiEngineMcpClient.callTool(service.getId(), toolName, toolArgs);
+        } catch (AiEngineMcpClient.McpToolCallException e) {
+            return "（MCP 工具 " + label + "/" + toolName + " 执行失败: " + e.getMessage() + "）";
         }
     }
 

@@ -9,6 +9,7 @@ import com.adlin.orin.modules.conversation.entity.ConversationLog;
 import com.adlin.orin.modules.conversation.repository.AgentChatSessionRepository;
 import com.adlin.orin.modules.conversation.strategy.ToolCallingCapabilityDetector;
 import com.adlin.orin.modules.conversation.strategy.ToolCallingKbStrategy;
+import com.adlin.orin.modules.skill.component.AiEngineMcpClient;
 import com.adlin.orin.modules.conversation.dto.tooling.EffectiveToolBinding;
 import com.adlin.orin.modules.conversation.dto.tooling.ToolCatalogItemDto;
 import com.adlin.orin.modules.conversation.tool.*;
@@ -56,6 +57,7 @@ public class AgentChatService {
     private final KnowledgeManageService knowledgeManageService;
     private final KnowledgeGraphService knowledgeGraphService;
     private final McpServiceRepository mcpServiceRepository;
+    private final AiEngineMcpClient aiEngineMcpClient;
     private final OllamaIntegrationService ollamaIntegrationService;
     private final ToolCallingCapabilityDetector toolCallingDetector;
     private final ToolBindingService toolBindingService;
@@ -82,6 +84,7 @@ public class AgentChatService {
             KnowledgeManageService knowledgeManageService,
             KnowledgeGraphService knowledgeGraphService,
             McpServiceRepository mcpServiceRepository,
+            AiEngineMcpClient aiEngineMcpClient,
             OllamaIntegrationService ollamaIntegrationService,
             ToolCallingCapabilityDetector toolCallingDetector,
             ToolBindingService toolBindingService,
@@ -102,6 +105,7 @@ public class AgentChatService {
         this.knowledgeManageService = knowledgeManageService;
         this.knowledgeGraphService = knowledgeGraphService;
         this.mcpServiceRepository = mcpServiceRepository;
+        this.aiEngineMcpClient = aiEngineMcpClient;
         this.ollamaIntegrationService = ollamaIntegrationService;
         this.toolCallingDetector = toolCallingDetector;
         this.toolBindingService = toolBindingService;
@@ -715,7 +719,8 @@ public class AgentChatService {
                         ollamaIntegrationService, retrievalService, documentRepository,
                         knowledgeBaseRepository, knowledgeGraphRepository, graphEntityRepository,
                         graphRelationRepository,
-                        knowledgeManageService, knowledgeGraphService, skillService, mcpServiceRepository, objectMapper);
+                        knowledgeManageService, knowledgeGraphService, skillService, mcpServiceRepository,
+                        aiEngineMcpClient, objectMapper);
                 strategy.configureRetrieval(
                         ctx.getRetrievalTopK(),
                         ctx.getRetrievalThreshold(),
