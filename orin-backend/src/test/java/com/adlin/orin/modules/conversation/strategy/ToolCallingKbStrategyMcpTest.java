@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.conversation.strategy;
 
 import com.adlin.orin.modules.skill.component.AiEngineMcpClient;
+import com.adlin.orin.modules.conversation.tooling.ToolExecutionLogService;
 import com.adlin.orin.modules.skill.component.McpErrorCode;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
@@ -26,6 +27,8 @@ class ToolCallingKbStrategyMcpTest {
     private McpServiceRepository mcpServiceRepository;
     @Mock
     private AiEngineMcpClient aiEngineMcpClient;
+    @Mock
+    private ToolExecutionLogService toolExecutionLogService;
 
     private ToolCallingKbStrategy strategy;
 
@@ -34,6 +37,7 @@ class ToolCallingKbStrategyMcpTest {
         strategy = new ToolCallingKbStrategy(
                 null, null, null, null, null, null, null, null, null, null,
                 mcpServiceRepository, aiEngineMcpClient, new ObjectMapper());
+        strategy.configureExecutionLog("session-1", "agent-1", toolExecutionLogService);
     }
 
     private McpService service(McpService.McpStatus status) {
@@ -98,6 +102,21 @@ class ToolCallingKbStrategyMcpTest {
         ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(aiEngineMcpClient).callTool(eq(42L), eq("fetch"), argsCaptor.capture());
         assertEquals("https://example.com", argsCaptor.getValue().get("url"));
+
+        ArgumentCaptor<Map<String, Object>> detailCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(toolExecutionLogService).log(
+                eq("session-1"),
+                eq("agent-1"),
+                eq("mcp:42"),
+                eq("function_call"),
+                eq(true),
+                isNull(),
+                longThat(value -> value >= 1),
+                detailCaptor.capture());
+        assertEquals("MCP", detailCaptor.getValue().get("source"));
+        assertEquals(42L, detailCaptor.getValue().get("mcpServiceId"));
+        assertEquals("fetch", detailCaptor.getValue().get("mcpToolName"));
+        assertEquals(java.util.List.of("url"), detailCaptor.getValue().get("argumentKeys"));
     }
 
     @Test
@@ -114,5 +133,14 @@ class ToolCallingKbStrategyMcpTest {
         assertEquals("MCP_TIMEOUT", outcome.errorCode());
         assertTrue(outcome.content().contains("执行失败"));
         assertTrue(outcome.content().contains("超时"));
+        verify(toolExecutionLogService).log(
+                eq("session-1"),
+                eq("agent-1"),
+                eq("mcp:42"),
+                eq("function_call"),
+                eq(false),
+                eq("MCP_TIMEOUT"),
+                longThat(value -> value >= 1),
+                anyMap());
     }
 }

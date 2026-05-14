@@ -15,6 +15,7 @@ import com.adlin.orin.modules.conversation.dto.tooling.ToolCatalogItemDto;
 import com.adlin.orin.modules.conversation.tool.*;
 import com.adlin.orin.modules.conversation.tooling.ToolBindingService;
 import com.adlin.orin.modules.conversation.tooling.ToolExecutor;
+import com.adlin.orin.modules.conversation.tooling.ToolExecutionLogService;
 import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
@@ -62,6 +63,7 @@ public class AgentChatService {
     private final ToolCallingCapabilityDetector toolCallingDetector;
     private final ToolBindingService toolBindingService;
     private final ToolExecutor toolExecutor;
+    private final ToolExecutionLogService toolExecutionLogService;
     private final SkillService skillService;
     private final ObjectMapper objectMapper;
 
@@ -89,6 +91,7 @@ public class AgentChatService {
             ToolCallingCapabilityDetector toolCallingDetector,
             ToolBindingService toolBindingService,
             ToolExecutor toolExecutor,
+            ToolExecutionLogService toolExecutionLogService,
             SkillService skillService,
             ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
@@ -110,6 +113,7 @@ public class AgentChatService {
         this.toolCallingDetector = toolCallingDetector;
         this.toolBindingService = toolBindingService;
         this.toolExecutor = toolExecutor;
+        this.toolExecutionLogService = toolExecutionLogService;
         this.skillService = skillService;
         this.objectMapper = objectMapper;
         // Initialize tools
@@ -721,6 +725,7 @@ public class AgentChatService {
                         graphRelationRepository,
                         knowledgeManageService, knowledgeGraphService, skillService, mcpServiceRepository,
                         aiEngineMcpClient, objectMapper);
+                strategy.configureExecutionLog(ctx.getSessionId(), ctx.getAgentId(), toolExecutionLogService);
                 strategy.configureRetrieval(
                         ctx.getRetrievalTopK(),
                         ctx.getRetrievalThreshold(),

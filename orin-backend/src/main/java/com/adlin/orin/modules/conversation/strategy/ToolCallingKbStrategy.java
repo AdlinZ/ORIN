@@ -2,6 +2,8 @@ package com.adlin.orin.modules.conversation.strategy;
 
 import com.adlin.orin.modules.conversation.dto.ChatMessageResponse.ToolTrace;
 import com.adlin.orin.modules.conversation.dto.tooling.ToolCatalogItemDto;
+import com.adlin.orin.modules.conversation.tooling.ToolCatalogService;
+import com.adlin.orin.modules.conversation.tooling.ToolExecutionLogService;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
@@ -60,6 +62,9 @@ public class ToolCallingKbStrategy {
     private String retrievalEmbeddingModel;
     private Boolean retrievalEnableRerank;
     private String retrievalRerankModel;
+    private String sessionId;
+    private String agentId;
+    private ToolExecutionLogService toolExecutionLogService;
 
     public void configureRetrieval(Integer topK, Double threshold, Double alpha, String embeddingModel,
             Boolean enableRerank, String rerankModel) {
@@ -69,6 +74,13 @@ public class ToolCallingKbStrategy {
         this.retrievalEmbeddingModel = embeddingModel;
         this.retrievalEnableRerank = enableRerank;
         this.retrievalRerankModel = rerankModel;
+    }
+
+    public void configureExecutionLog(String sessionId, String agentId,
+            ToolExecutionLogService toolExecutionLogService) {
+        this.sessionId = sessionId;
+        this.agentId = agentId;
+        this.toolExecutionLogService = toolExecutionLogService;
     }
 
     public Map<String, Object> execute(
@@ -323,21 +335,30 @@ public class ToolCallingKbStrategy {
 
     @SuppressWarnings("unchecked")
     ToolOutcome executeMcpTool(Long mcpId, String displayName, Map<String, Object> args) {
+        long started = System.currentTimeMillis();
         Optional<McpService> serviceOpt = mcpServiceRepository.findById(mcpId);
         if (serviceOpt.isEmpty()) {
+            logMcpExecution(mcpId, null, null, Collections.emptyMap(), false,
+                    McpErrorCode.MCP_NOT_FOUND, started);
             return ToolOutcome.error("（MCP 服务不存在: " + mcpId + "）", McpErrorCode.MCP_NOT_FOUND);
         }
         McpService service = serviceOpt.get();
         if (!Boolean.TRUE.equals(service.getEnabled())) {
+            logMcpExecution(mcpId, service, null, Collections.emptyMap(), false,
+                    McpErrorCode.MCP_DISABLED, started);
             return ToolOutcome.error("（MCP 服务已禁用: " + service.getName() + "）", McpErrorCode.MCP_DISABLED);
         }
         if (service.getStatus() != McpService.McpStatus.CONNECTED) {
+            logMcpExecution(mcpId, service, null, Collections.emptyMap(), false,
+                    McpErrorCode.MCP_NOT_CONNECTED, started);
             return ToolOutcome.error("（MCP 服务未连接: " + service.getName() + "）", McpErrorCode.MCP_NOT_CONNECTED);
         }
 
         String label = displayName != null ? displayName : service.getName();
         Object toolNameRaw = args != null ? args.get("toolName") : null;
         if (toolNameRaw == null || String.valueOf(toolNameRaw).isBlank()) {
+            logMcpExecution(mcpId, service, null, Collections.emptyMap(), false,
+                    McpErrorCode.MCP_BAD_REQUEST, started);
             return ToolOutcome.error("（MCP 服务 " + label + " 调用缺少 toolName 参数）", McpErrorCode.MCP_BAD_REQUEST);
         }
         String toolName = String.valueOf(toolNameRaw);
@@ -349,13 +370,44 @@ public class ToolCallingKbStrategy {
         }
 
         try {
-            return ToolOutcome.ok(aiEngineMcpClient.callTool(service.getId(), toolName, toolArgs));
+            String result = aiEngineMcpClient.callTool(service.getId(), toolName, toolArgs);
+            logMcpExecution(mcpId, service, toolName, toolArgs, true, null, started);
+            return ToolOutcome.ok(result);
         } catch (AiEngineMcpClient.McpToolCallException e) {
             log.warn("MCP tool execution failed: service={}, tool={}, code={}, msg={}",
                     label, toolName, e.getCode(), e.getMessage());
+            logMcpExecution(mcpId, service, toolName, toolArgs, false, e.getCode(), started);
             return ToolOutcome.error(
                     "（MCP 工具 " + label + "/" + toolName + " 执行失败[" + e.getCode() + "]: " + e.getMessage() + "）",
                     e.getCode());
+        }
+    }
+
+    private void logMcpExecution(Long mcpId, McpService service, String toolName, Map<String, Object> toolArgs,
+            boolean success, McpErrorCode errorCode, long started) {
+        if (toolExecutionLogService == null) {
+            return;
+        }
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("source", "MCP");
+        detail.put("mcpServiceId", mcpId);
+        detail.put("mcpServiceName", service != null && service.getName() != null ? service.getName() : "");
+        detail.put("mcpStatus", service != null && service.getStatus() != null ? service.getStatus().name() : "UNKNOWN");
+        detail.put("mcpToolName", toolName != null ? toolName : "");
+        detail.put("argumentKeys", toolArgs != null ? new ArrayList<>(toolArgs.keySet()) : Collections.emptyList());
+        try {
+            toolExecutionLogService.log(
+                    sessionId,
+                    agentId,
+                    "mcp:" + mcpId,
+                    ToolCatalogService.MODE_FUNCTION_CALL,
+                    success,
+                    errorCode != null ? errorCode.name() : null,
+                    Math.max(1L, System.currentTimeMillis() - started),
+                    detail);
+        } catch (Exception e) {
+            log.warn("Persist MCP tool execution log failed: service={}, tool={}, error={}",
+                    mcpId, toolName, e.getMessage());
         }
     }
 
