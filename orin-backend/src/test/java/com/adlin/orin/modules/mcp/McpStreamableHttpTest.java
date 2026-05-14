@@ -3,6 +3,7 @@ package com.adlin.orin.modules.mcp;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.collaboration.config.CollaborationOrchestrationMode;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.entity.CollaborationPackageEntity;
@@ -10,6 +11,7 @@ import com.adlin.orin.modules.collaboration.repository.CollabSubtaskRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.collaboration.service.CollaborationExecutor;
 import com.adlin.orin.modules.collaboration.service.CollaborationRedisService;
+import com.adlin.orin.config.WebConfig;
 import com.adlin.orin.modules.mcp.controller.McpStreamableHttpController;
 import com.adlin.orin.modules.mcp.service.ExternalMcpAgentExecutionService;
 import com.adlin.orin.modules.mcp.service.McpJsonRpcService;
@@ -18,13 +20,19 @@ import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
 import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
 import com.adlin.orin.modules.workflow.repository.WorkflowRepository;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
+import com.adlin.orin.security.ApiKeyAuthInterceptor;
+import com.adlin.orin.security.ApiRateLimitInterceptor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 
 import java.util.List;
 import java.util.Map;
@@ -34,9 +42,70 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class McpStreamableHttpTest {
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webConfigWiresApiKeyInterceptorsOnlyForMcpV1Endpoint() {
+        ApiKeyAuthInterceptor auth = mock(ApiKeyAuthInterceptor.class);
+        ApiRateLimitInterceptor rateLimit = mock(ApiRateLimitInterceptor.class);
+        WebConfig config = new WebConfig(auth, rateLimit);
+        InterceptorRegistry registry = new InterceptorRegistry();
+
+        config.addInterceptors(registry);
+
+        List<Object> registrations = (List<Object>) ReflectionTestUtils.getField(registry, "registrations");
+        assertThat(registrations).hasSizeGreaterThanOrEqualTo(2);
+        List<String> authPatterns = (List<String>) ReflectionTestUtils.getField(registrations.get(0), "includePatterns");
+        List<String> rateLimitPatterns = (List<String>) ReflectionTestUtils.getField(registrations.get(1), "includePatterns");
+        assertThat(authPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**");
+        assertThat(rateLimitPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**");
+        assertThat(authPatterns).doesNotContain("/v1/**");
+        assertThat(rateLimitPatterns).doesNotContain("/v1/**");
+    }
+
+    @Test
+    void mcpEndpointRequiresClientAccessApiKeyThroughInterceptor() throws Exception {
+        McpJsonRpcService json = mock(McpJsonRpcService.class);
+        McpStreamableHttpController controller = new McpStreamableHttpController(json);
+        GatewaySecretService gatewaySecretService = mock(GatewaySecretService.class);
+        ApiKeyAuthInterceptor auth = new ApiKeyAuthInterceptor(gatewaySecretService, mapper);
+        GatewaySecret valid = secret("1");
+        valid.setSecretType(GatewaySecret.SecretType.CLIENT_ACCESS);
+        when(gatewaySecretService.validateClientAccessSecret("sk-orin-valid")).thenReturn(Optional.of(valid));
+        when(gatewaySecretService.validateClientAccessSecret("sk-orin-invalid")).thenReturn(Optional.empty());
+        when(json.handle(any(), same(valid))).thenReturn(Map.of(
+                "jsonrpc", "2.0",
+                "id", 1,
+                "result", Map.of("serverInfo", Map.of("name", "ORIN"))));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
+                .addInterceptors(auth)
+                .build();
+
+        mvc.perform(post("/v1/mcp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}"))
+                .andExpect(status().isUnauthorized());
+
+        mvc.perform(post("/v1/mcp")
+                        .header("Authorization", "Bearer sk-orin-invalid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}"))
+                .andExpect(status().isUnauthorized());
+
+        mvc.perform(post("/v1/mcp")
+                        .header("Authorization", "Bearer sk-orin-valid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.serverInfo.name").value("ORIN"));
+        verify(json).handle(any(), same(valid));
+    }
 
     @Test
     void controllerRejectsMissingApiKeyAndBadOrigin() {
@@ -74,6 +143,63 @@ class McpStreamableHttpTest {
         Map<String, Object> forbidden = service.handle(req(2, "tools/call",
                 Map.of("name", toolName, "arguments", Map.of("message", "hello"))), secret("2"));
         assertThat(String.valueOf(((Map<?, ?>) forbidden.get("error")).get("message"))).isEqualTo("Forbidden");
+    }
+
+    @Test
+    void jsonRpcCallsOwnedExposedAgentAndReturnsAgentFailuresAsToolErrors() {
+        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+        WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
+        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        WorkflowService workflowService = mock(WorkflowService.class);
+        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer());
+        AgentMetadata agent = agent("agent-a", 1L, true);
+        when(repo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(agent));
+        when(repo.findById("agent-a")).thenReturn(Optional.of(agent));
+        when(exec.execute(agent, "hello", "ctx", 88, "1")).thenReturn("agent ok");
+        Map<String, Object> list = service.handle(req(1, "tools/list", Map.of()), secret("1"));
+        String toolName = String.valueOf(((Map<?, ?>) ((List<?>) ((Map<?, ?>) list.get("result")).get("tools")).get(0)).get("name"));
+
+        Map<String, Object> called = service.handle(req(2, "tools/call",
+                Map.of("name", toolName, "arguments", Map.of("message", "hello", "context", "ctx", "max_tokens", 88))), secret("1"));
+        Map<?, ?> result = (Map<?, ?>) called.get("result");
+        assertThat(result.get("isError")).isEqualTo(false);
+        assertThat(String.valueOf(((Map<?, ?>) ((List<?>) result.get("content")).get(0)).get("text"))).isEqualTo("agent ok");
+        verify(exec).execute(agent, "hello", "ctx", 88, "1");
+
+        Map<String, Object> missingMessage = service.handle(req(3, "tools/call",
+                Map.of("name", toolName, "arguments", Map.of("context", "ctx"))), secret("1"));
+        assertThat(((Map<?, ?>) missingMessage.get("error")).get("code")).isEqualTo(-32602);
+        assertThat(String.valueOf(((Map<?, ?>) missingMessage.get("error")).get("message"))).isEqualTo("message is required");
+
+        when(exec.execute(agent, "fail", null, null, "1")).thenThrow(new IllegalStateException("boom"));
+        Map<String, Object> failed = service.handle(req(4, "tools/call",
+                Map.of("name", toolName, "arguments", Map.of("message", "fail"))), secret("1"));
+        Map<?, ?> failedResult = (Map<?, ?>) failed.get("result");
+        assertThat(failedResult.get("isError")).isEqualTo(true);
+        assertThat(String.valueOf(((Map<?, ?>) ((List<?>) failedResult.get("content")).get(0)).get("text"))).contains("boom");
+    }
+
+    @Test
+    void jsonRpcForbidsUnexposedAgentsAndRejectsInvalidToolNames() {
+        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+        WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
+        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        WorkflowService workflowService = mock(WorkflowService.class);
+        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer());
+        AgentMetadata hidden = agent("agent-hidden", 1L, false);
+        String hiddenTool = "agent.YWdlbnQtaGlkZGVu";
+        when(repo.findById("agent-hidden")).thenReturn(Optional.of(hidden));
+
+        Map<String, Object> invalid = service.handle(req(1, "tools/call",
+                Map.of("name", "agent.%%%", "arguments", Map.of("message", "hello"))), secret("1"));
+        assertThat(((Map<?, ?>) invalid.get("error")).get("code")).isEqualTo(-32602);
+        assertThat(String.valueOf(((Map<?, ?>) invalid.get("error")).get("message"))).isEqualTo("Invalid tool name");
+
+        Map<String, Object> forbidden = service.handle(req(2, "tools/call",
+                Map.of("name", hiddenTool, "arguments", Map.of("message", "hello"))), secret("1"));
+        assertThat(((Map<?, ?>) forbidden.get("error")).get("code")).isEqualTo(-32003);
+        assertThat(String.valueOf(((Map<?, ?>) forbidden.get("error")).get("message"))).isEqualTo("Forbidden");
+        verifyNoInteractions(exec);
     }
 
     @Test
