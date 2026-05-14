@@ -52,6 +52,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/actuator/health",
+                                // 服务间内部路径：仅供 AI Engine 读取启用 MCP 配置（含明文 env）。
+                                // 不是面向用户的接口，前端一律走 /api/system/mcp 的 masked 视图。
                                 "/api/system/mcp/internal/**",
                                 "/api/playground/**")
                         .permitAll()

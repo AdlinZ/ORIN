@@ -148,8 +148,15 @@ public class McpManageController {
         return ResponseEntity.ok(tools);
     }
 
+    /**
+     * 仅供 AI Engine 服务间调用：返回启用 MCP 服务的真实配置（含明文 envVars），
+     * 以便 MCP Server 能拿到实际运行所需的环境变量。
+     *
+     * <p><b>禁止</b>暴露给前端或普通用户接口——前端一律走 {@link #maskService} 后的 masked 视图。
+     * 该路径在 {@code SecurityConfig} 中作为服务间内部白名单放行，不要给它加面向用户的入口。
+     */
     @GetMapping("/internal/enabled/{id}")
-    @Operation(summary = "AI Engine 内部读取启用 MCP 配置")
+    @Operation(summary = "AI Engine 内部读取启用 MCP 配置（含明文 env，禁止前端使用）")
     public ResponseEntity<Map<String, Object>> getEnabledServiceForAiEngine(@PathVariable Long id) {
         McpService service = mcpServiceService.getServiceById(id);
         if (!Boolean.TRUE.equals(service.getEnabled())) {
@@ -162,7 +169,8 @@ public class McpManageController {
         payload.put("type", service.getType() != null ? service.getType().name() : "STDIO");
         payload.put("command", service.getCommand());
         payload.put("url", service.getUrl());
-        payload.put("envVars", maskEnvVars(service.getEnvVars()));
+        // 真实 env：AI Engine 需要明文才能启动需要凭据/路径的 MCP Server
+        payload.put("envVars", service.getEnvVars());
         return ResponseEntity.ok(payload);
     }
 
