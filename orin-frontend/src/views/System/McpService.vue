@@ -719,8 +719,8 @@ const localPathLabel = (tool) => {
 
 const localPathPlaceholder = (tool) => {
   return tool?.key === 'sqlite'
-    ? '/Users/adlin/Documents/Code/ORIN/orin-mcp.sqlite'
-    : '/Users/adlin/Documents/Code/ORIN'
+    ? '/path/to/your/database.sqlite'
+    : '/path/to/your/project'
 }
 
 const localPathTip = (tool) => {
