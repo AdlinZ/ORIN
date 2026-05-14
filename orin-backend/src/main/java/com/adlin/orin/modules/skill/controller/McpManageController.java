@@ -27,26 +27,31 @@ import java.util.Optional;
 public class McpManageController {
 
     private final McpServiceService mcpServiceService;
+
+    // command：docker-compose 部署默认参数（容器内路径）。
+    // localCommand：本机开发默认参数，带路径的 server（filesystem/sqlite）留空待用户填写，
+    //               避免把 /app 这类容器路径污染到本机环境。
     private static final List<Map<String, Object>> MARKET_TEMPLATES = List.of(
             template("filesystem", "Filesystem", "本地文件系统读写与检索", "STDIO",
-                    "filesystem /app", null),
+                    "filesystem /app", "filesystem", null),
             template("github", "GitHub", "GitHub 仓库与 Issue 查询", "STDIO",
-                    "github", null),
+                    "github", "github", null),
             template("fetch", "Fetch", "HTTP 内容抓取和网页读取", "STDIO",
-                    "fetch", null),
+                    "fetch", "fetch", null),
             template("sqlite", "SQLite", "SQLite 数据库查询与结构探索", "STDIO",
-                    "sqlite /app/orin-mcp.sqlite", null),
+                    "sqlite /app/orin-mcp.sqlite", "sqlite", null),
             template("time", "Time", "时间与时区工具", "STDIO",
-                    "time", null));
+                    "time", "time", null));
 
     private static Map<String, Object> template(String key, String name, String description, String type,
-            String command, String url) {
+            String command, String localCommand, String url) {
         Map<String, Object> template = new HashMap<>();
         template.put("key", key);
         template.put("name", name);
         template.put("description", description);
         template.put("type", type);
         template.put("command", command);
+        template.put("localCommand", localCommand);
         template.put("url", url);
         return template;
     }
@@ -175,8 +180,11 @@ public class McpManageController {
     }
 
     @PostMapping("/tools/{toolKey}/install")
-    @Operation(summary = "从市场模板安装 MCP 工具")
-    public ResponseEntity<McpService> installTool(@PathVariable String toolKey) {
+    @Operation(summary = "从市场模板安装 MCP 工具",
+            description = "mode=docker（默认）使用容器路径默认参数；mode=local 使用本机开发参数，"
+                    + "带路径的 server（filesystem/sqlite）会留空 command 路径待用户填写")
+    public ResponseEntity<McpService> installTool(@PathVariable String toolKey,
+            @RequestParam(defaultValue = "docker") String mode) {
         Optional<Map<String, Object>> templateOpt = MARKET_TEMPLATES.stream()
                 .filter(t -> toolKey.equals(t.get("key")))
                 .findFirst();
@@ -193,11 +201,15 @@ public class McpManageController {
             return ResponseEntity.ok(maskService(installedOpt.get()));
         }
 
+        String command = "local".equalsIgnoreCase(mode)
+                ? (String) template.get("localCommand")
+                : (String) template.get("command");
+
         McpService service = McpService.builder()
                 .name(String.valueOf(template.get("name")))
                 .toolKey(toolKey)
                 .type(McpService.McpType.valueOf(String.valueOf(template.get("type"))))
-                .command((String) template.get("command"))
+                .command(command)
                 .url((String) template.get("url"))
                 .description((String) template.get("description"))
                 .enabled(true)
