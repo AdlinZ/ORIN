@@ -303,6 +303,16 @@
                 <p class="tool-desc">
                   {{ tool.description || '暂无描述' }}
                 </p>
+                <dl class="tool-command-list">
+                  <div>
+                    <dt>{{ tool.installed ? '当前' : 'Docker' }}</dt>
+                    <dd>{{ tool.command || tool.url || '-' }}</dd>
+                  </div>
+                  <div v-if="tool.localCommand">
+                    <dt>本机</dt>
+                    <dd>{{ formatLocalCommand(tool) }}</dd>
+                  </div>
+                </dl>
                 <div class="tool-actions">
                   <el-button
                     v-if="!tool.installed && tool.key"
@@ -394,6 +404,63 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 市场安装对话框 -->
+    <el-dialog
+      v-model="installDialogVisible"
+      title="安装 MCP 工具"
+      width="560px"
+      destroy-on-close
+    >
+      <el-form
+        ref="installFormRef"
+        :model="installForm"
+        :rules="installFormRules"
+        label-width="100px"
+        label-position="top"
+      >
+        <el-form-item label="工具">
+          <div class="install-tool-summary">
+            <strong>{{ installForm.tool?.name || '-' }}</strong>
+            <span>{{ installForm.tool?.description || '暂无描述' }}</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="安装模式" prop="mode">
+          <el-radio-group v-model="installForm.mode">
+            <el-radio-button value="docker">Docker</el-radio-button>
+            <el-radio-button value="local">本机</el-radio-button>
+          </el-radio-group>
+          <div class="form-tip">
+            Docker 使用容器内默认路径；本机模式使用本地命令模板。
+          </div>
+        </el-form-item>
+        <el-form-item
+          v-if="requiresLocalPath(installForm.tool) && installForm.mode === 'local'"
+          :label="localPathLabel(installForm.tool)"
+          prop="localPath"
+        >
+          <el-input
+            v-model="installForm.localPath"
+            :placeholder="localPathPlaceholder(installForm.tool)"
+            clearable
+          />
+          <div class="form-tip">
+            {{ localPathTip(installForm.tool) }}
+          </div>
+        </el-form-item>
+        <el-form-item label="最终命令">
+          <el-input :model-value="installCommandPreview" readonly />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="installDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="installingToolKey === installForm.tool?.key" @click="confirmInstallTool">
+          安装
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -431,6 +498,7 @@ const testingId = ref(null)
 const installingToolKey = ref('')
 const toggleServiceId = ref(null)
 const formRef = ref(null)
+const installFormRef = ref(null)
 const loadError = ref('')
 
 // 分页和搜索
@@ -456,6 +524,24 @@ const serviceForm = reactive({
   url: '',
   envVars: '',
   description: ''
+})
+
+const installForm = reactive({
+  tool: null,
+  mode: 'docker',
+  localPath: ''
+})
+
+const installDialogVisible = ref(false)
+const localPathToolKeys = new Set(['filesystem', 'sqlite'])
+
+const installCommandPreview = computed(() => {
+  const tool = installForm.tool
+  if (!tool) return ''
+  if (installForm.mode === 'local') {
+    return buildLocalCommand(tool, installForm.localPath)
+  }
+  return tool.command || tool.url || ''
 })
 
 // 表单校验规则
@@ -491,6 +577,21 @@ const formRules = {
         } else {
           callback()
         }
+      } else {
+        callback()
+      }
+    }, trigger: 'blur' }
+  ]
+}
+
+const installFormRules = {
+  localPath: [
+    { validator: (rule, value, callback) => {
+      const path = String(value || '').trim()
+      if (installForm.mode === 'local' && requiresLocalPath(installForm.tool) && !path) {
+        callback(new Error('请填写本机路径'))
+      } else if (path && !isAbsolutePath(path)) {
+        callback(new Error('请填写绝对路径'))
       } else {
         callback()
       }
@@ -557,18 +658,97 @@ const refreshTools = () => {
   ElMessage.success('已刷新')
 }
 
-const installTool = async (tool) => {
+const installTool = (tool) => {
   if (!tool?.key) return
-  installingToolKey.value = tool.key
-  try {
-    await installMcpTool(tool.key)
-    ElMessage.success(`已安装: ${tool.name}`)
-    await Promise.all([loadAvailableTools(), loadMcpServices()])
-  } catch (e) {
-    ElMessage.error('安装失败: ' + (e.message || e))
-  } finally {
-    installingToolKey.value = ''
+  Object.assign(installForm, {
+    tool,
+    mode: 'docker',
+    localPath: ''
+  })
+  if (installFormRef.value) {
+    installFormRef.value.clearValidate()
   }
+  installDialogVisible.value = true
+}
+
+const confirmInstallTool = async () => {
+  if (!installForm.tool?.key || !installFormRef.value) return
+  await installFormRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    const tool = installForm.tool
+    installingToolKey.value = tool.key
+    try {
+      const service = await installMcpTool(tool.key, { mode: installForm.mode })
+      if (installForm.mode === 'local' && requiresLocalPath(tool)) {
+        await updateInstalledLocalCommand(service, tool)
+      }
+      ElMessage.success(`已安装: ${tool.name}`)
+      installDialogVisible.value = false
+      await Promise.all([loadAvailableTools(), loadMcpServices()])
+    } catch (e) {
+      ElMessage.error('安装失败: ' + (e.message || e))
+    } finally {
+      installingToolKey.value = ''
+    }
+  })
+}
+
+const updateInstalledLocalCommand = async (service, tool) => {
+  const serviceId = service?.id || service?.serviceId
+  if (!serviceId) return
+  await updateMcpService(serviceId, {
+    name: service.name || tool.name,
+    type: service.type || tool.type || 'STDIO',
+    command: buildLocalCommand(tool, installForm.localPath),
+    url: service.url || tool.url || null,
+    envVars: service.envVars || null,
+    description: service.description || tool.description || null,
+    toolKey: service.toolKey || tool.key,
+    enabled: service.enabled ?? true
+  })
+}
+
+const requiresLocalPath = (tool) => {
+  return Boolean(tool?.key && localPathToolKeys.has(tool.key))
+}
+
+const localPathLabel = (tool) => {
+  return tool?.key === 'sqlite' ? 'SQLite 文件路径' : '允许访问目录'
+}
+
+const localPathPlaceholder = (tool) => {
+  return tool?.key === 'sqlite'
+    ? '/Users/adlin/Documents/Code/ORIN/orin-mcp.sqlite'
+    : '/Users/adlin/Documents/Code/ORIN'
+}
+
+const localPathTip = (tool) => {
+  return tool?.key === 'sqlite'
+    ? '填写本机可访问的 .sqlite/.db 文件绝对路径。'
+    : '填写本机允许 MCP filesystem 访问的目录绝对路径。'
+}
+
+const formatLocalCommand = (tool) => {
+  if (!tool?.localCommand) return '-'
+  return requiresLocalPath(tool) ? `${tool.localCommand} <本机路径>` : tool.localCommand
+}
+
+const buildLocalCommand = (tool, localPath) => {
+  const base = tool?.localCommand || tool?.command || tool?.key || ''
+  if (!requiresLocalPath(tool)) return base
+  const path = String(localPath || '').trim()
+  return path ? `${base} ${quoteCommandArg(path)}` : `${base} <本机路径>`
+}
+
+const quoteCommandArg = (value) => {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  return /[\s'"\\]/.test(text) ? `'${text.replace(/'/g, "'\\''")}'` : text
+}
+
+const isAbsolutePath = (value) => {
+  return value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
 }
 
 const toggleTool = async (tool) => {
@@ -1019,8 +1199,58 @@ onMounted(() => {
   margin: 8px 0;
 }
 
+.tool-command-list {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.tool-command-list div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+.tool-command-list dt {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tool-command-list dd {
+  min-width: 0;
+  margin: 0;
+  color: #334155;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tool-actions {
   margin-top: 12px;
+}
+
+.install-tool-summary {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+}
+
+.install-tool-summary strong {
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.install-tool-summary span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .health-score {
@@ -1054,8 +1284,18 @@ html.dark .service-title-wrap h3 {
 html.dark .embedded-description,
 html.dark .mcp-stat span,
 html.dark .service-title-wrap span,
-html.dark .service-meta {
+html.dark .service-meta,
+html.dark .tool-command-list dt,
+html.dark .install-tool-summary span {
   color: #94a3b8;
+}
+
+html.dark .tool-command-list dd {
+  color: #cbd5e1;
+}
+
+html.dark .install-tool-summary strong {
+  color: #f8fafc;
 }
 
 html.dark .mcp-stat,

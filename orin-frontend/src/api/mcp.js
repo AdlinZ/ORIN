@@ -36,8 +36,13 @@ export const getMcpTools = () => {
 };
 
 // 从市场安装工具
-export const installMcpTool = (toolKey) => {
-    return request.post(`/api/system/mcp/tools/${toolKey}/install`, null, { baseURL: '' });
+export const installMcpTool = (toolKey, options = {}) => {
+    return request.post(`/api/system/mcp/tools/${toolKey}/install`, null, {
+        baseURL: '',
+        params: {
+            mode: options.mode
+        }
+    });
 };
 
 // 启用/禁用服务
