@@ -55,4 +55,27 @@ describe('top menu IA behavior', () => {
       icon: 'Connection',
     })
   })
+
+  it('keeps MCP service management inside the extensions tab instead of a separate agent menu item', () => {
+    const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
+    const agentMenu = adminMenus.find((menu) => menu.id === 'agents')
+    const systemMenu = adminMenus.find((menu) => menu.id === 'system')
+
+    expect(ROUTES.MCP.SERVERS).toBe('/dashboard/applications/extensions?tab=mcp')
+    expect(agentMenu.children).not.toContainEqual({
+      title: 'MCP 服务',
+      path: ROUTES.MCP.SERVERS,
+      icon: 'Connection',
+    })
+    expect(agentMenu.children).toContainEqual({
+      title: '扩展管理',
+      path: ROUTES.AGENTS.EXTENSIONS,
+      icon: 'Star',
+    })
+    expect(systemMenu.children).toContainEqual({
+      title: 'MCP 服务',
+      path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE,
+      icon: 'Connection',
+    })
+  })
 })
