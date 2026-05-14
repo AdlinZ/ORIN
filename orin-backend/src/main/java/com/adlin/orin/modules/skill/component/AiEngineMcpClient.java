@@ -62,22 +62,32 @@ public class AiEngineMcpClient {
         } catch (ResourceAccessException e) {
             log.warn("MCP tool call timeout/unreachable: serviceId={}, tool={}, err={}",
                     serviceId, toolName, e.getMessage());
-            throw new McpToolCallException("MCP 工具调用超时或 AI Engine 不可达: " + e.getMessage(), e);
+            throw new McpToolCallException(McpErrorCode.MCP_TIMEOUT,
+                    "MCP 工具调用超时或 AI Engine 不可达: " + e.getMessage(), e);
         } catch (RestClientResponseException e) {
             log.warn("MCP tool call failed: serviceId={}, tool={}, status={}, body={}",
                     serviceId, toolName, e.getStatusCode(), e.getResponseBodyAsString());
-            throw new McpToolCallException("MCP 工具调用失败 (HTTP " + e.getStatusCode().value() + "): "
-                    + e.getResponseBodyAsString(), e);
+            throw new McpToolCallException(McpErrorCode.MCP_HTTP_ERROR,
+                    "MCP 工具调用失败 (HTTP " + e.getStatusCode().value() + "): "
+                            + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
             log.warn("MCP tool call error: serviceId={}, tool={}, err={}", serviceId, toolName, e.getMessage());
-            throw new McpToolCallException("MCP 工具调用异常: " + e.getMessage(), e);
+            throw new McpToolCallException(McpErrorCode.MCP_CALL_FAILED,
+                    "MCP 工具调用异常: " + e.getMessage(), e);
         }
     }
 
-    /** AI Engine MCP 调用失败时抛出。 */
+    /** AI Engine MCP 调用失败时抛出，携带分类错误码。 */
     public static class McpToolCallException extends RuntimeException {
-        public McpToolCallException(String message, Throwable cause) {
+        private final McpErrorCode code;
+
+        public McpToolCallException(McpErrorCode code, String message, Throwable cause) {
             super(message, cause);
+            this.code = code;
+        }
+
+        public McpErrorCode getCode() {
+            return code;
         }
     }
 }

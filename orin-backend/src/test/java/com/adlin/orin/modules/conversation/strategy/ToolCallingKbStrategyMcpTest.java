@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.conversation.strategy;
 
 import com.adlin.orin.modules.skill.component.AiEngineMcpClient;
+import com.adlin.orin.modules.skill.component.McpErrorCode;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,25 +46,39 @@ class ToolCallingKbStrategyMcpTest {
     }
 
     @Test
-    void executeMcpTool_missingToolName_returnsHintWithoutCallingAiEngine() {
-        when(mcpServiceRepository.findById(42L))
-                .thenReturn(Optional.of(service(McpService.McpStatus.CONNECTED)));
+    void executeMcpTool_serviceNotFound_returnsNotFoundCode() {
+        when(mcpServiceRepository.findById(42L)).thenReturn(Optional.empty());
 
-        String result = strategy.executeMcpTool(42L, "Fetch", Map.of("arguments", Map.of("url", "x")));
+        ToolCallingKbStrategy.ToolOutcome outcome = strategy.executeMcpTool(42L, "Fetch",
+                Map.of("toolName", "fetch"));
 
-        assertTrue(result.contains("toolName"));
+        assertEquals("MCP_NOT_FOUND", outcome.errorCode());
         verifyNoInteractions(aiEngineMcpClient);
     }
 
     @Test
-    void executeMcpTool_serviceNotConnected_returnsHintWithoutCallingAiEngine() {
+    void executeMcpTool_missingToolName_returnsBadRequestCodeWithoutCallingAiEngine() {
+        when(mcpServiceRepository.findById(42L))
+                .thenReturn(Optional.of(service(McpService.McpStatus.CONNECTED)));
+
+        ToolCallingKbStrategy.ToolOutcome outcome = strategy.executeMcpTool(42L, "Fetch",
+                Map.of("arguments", Map.of("url", "x")));
+
+        assertEquals("MCP_BAD_REQUEST", outcome.errorCode());
+        assertTrue(outcome.content().contains("toolName"));
+        verifyNoInteractions(aiEngineMcpClient);
+    }
+
+    @Test
+    void executeMcpTool_serviceNotConnected_returnsNotConnectedCodeWithoutCallingAiEngine() {
         when(mcpServiceRepository.findById(42L))
                 .thenReturn(Optional.of(service(McpService.McpStatus.DISCONNECTED)));
 
-        String result = strategy.executeMcpTool(42L, "Fetch",
+        ToolCallingKbStrategy.ToolOutcome outcome = strategy.executeMcpTool(42L, "Fetch",
                 Map.of("toolName", "fetch", "arguments", Map.of("url", "x")));
 
-        assertTrue(result.contains("未连接"));
+        assertEquals("MCP_NOT_CONNECTED", outcome.errorCode());
+        assertTrue(outcome.content().contains("未连接"));
         verifyNoInteractions(aiEngineMcpClient);
     }
 
@@ -74,10 +89,11 @@ class ToolCallingKbStrategyMcpTest {
         when(aiEngineMcpClient.callTool(eq(42L), eq("fetch"), anyMap()))
                 .thenReturn("{\"status\":200}");
 
-        String result = strategy.executeMcpTool(42L, "Fetch",
+        ToolCallingKbStrategy.ToolOutcome outcome = strategy.executeMcpTool(42L, "Fetch",
                 Map.of("toolName", "fetch", "arguments", Map.of("url", "https://example.com")));
 
-        assertEquals("{\"status\":200}", result);
+        assertNull(outcome.errorCode());
+        assertEquals("{\"status\":200}", outcome.content());
 
         ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(aiEngineMcpClient).callTool(eq(42L), eq("fetch"), argsCaptor.capture());
@@ -85,16 +101,18 @@ class ToolCallingKbStrategyMcpTest {
     }
 
     @Test
-    void executeMcpTool_aiEngineFailure_returnsReadableError() {
+    void executeMcpTool_aiEngineFailure_propagatesErrorCodeAndReadableMessage() {
         when(mcpServiceRepository.findById(42L))
                 .thenReturn(Optional.of(service(McpService.McpStatus.CONNECTED)));
         when(aiEngineMcpClient.callTool(anyLong(), anyString(), anyMap()))
-                .thenThrow(new AiEngineMcpClient.McpToolCallException("MCP 工具调用超时", null));
+                .thenThrow(new AiEngineMcpClient.McpToolCallException(
+                        McpErrorCode.MCP_TIMEOUT, "MCP 工具调用超时或 AI Engine 不可达", null));
 
-        String result = strategy.executeMcpTool(42L, "Fetch",
+        ToolCallingKbStrategy.ToolOutcome outcome = strategy.executeMcpTool(42L, "Fetch",
                 Map.of("toolName", "fetch", "arguments", Map.of()));
 
-        assertTrue(result.contains("执行失败"));
-        assertTrue(result.contains("超时"));
+        assertEquals("MCP_TIMEOUT", outcome.errorCode());
+        assertTrue(outcome.content().contains("执行失败"));
+        assertTrue(outcome.content().contains("超时"));
     }
 }

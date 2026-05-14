@@ -46,7 +46,7 @@ class AiEngineMcpClientTest {
     }
 
     @Test
-    void callTool_aiEngine502_throwsClassifiedException() {
+    void callTool_aiEngine502_throwsHttpErrorCode() {
         mockServer.expect(requestTo(containsString("/tools/fetch/call")))
                 .andRespond(withStatus(HttpStatus.BAD_GATEWAY).body("mcp server crashed"));
 
@@ -54,12 +54,13 @@ class AiEngineMcpClientTest {
                 AiEngineMcpClient.McpToolCallException.class,
                 () -> client.callTool(3L, "fetch", Map.of("url", "https://example.com")));
 
+        assertEquals(McpErrorCode.MCP_HTTP_ERROR, ex.getCode());
         assertTrue(ex.getMessage().contains("502"));
         assertTrue(ex.getMessage().contains("mcp server crashed"));
     }
 
     @Test
-    void callTool_aiEngine500_throwsClassifiedException() {
+    void callTool_aiEngine500_throwsHttpErrorCode() {
         mockServer.expect(requestTo(containsString("/tools/fetch/call")))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR).body("boom"));
 
@@ -67,11 +68,12 @@ class AiEngineMcpClientTest {
                 AiEngineMcpClient.McpToolCallException.class,
                 () -> client.callTool(3L, "fetch", Map.of()));
 
+        assertEquals(McpErrorCode.MCP_HTTP_ERROR, ex.getCode());
         assertTrue(ex.getMessage().contains("500"));
     }
 
     @Test
-    void callTool_unreachable_throwsClassifiedException() {
+    void callTool_unreachable_throwsTimeoutCode() {
         mockServer.expect(requestTo(containsString("/tools/fetch/call")))
                 .andRespond(withException(new IOException("connection refused")));
 
@@ -79,6 +81,7 @@ class AiEngineMcpClientTest {
                 AiEngineMcpClient.McpToolCallException.class,
                 () -> client.callTool(3L, "fetch", Map.of()));
 
+        assertEquals(McpErrorCode.MCP_TIMEOUT, ex.getCode());
         assertTrue(ex.getMessage().contains("超时") || ex.getMessage().contains("不可达"));
     }
 }

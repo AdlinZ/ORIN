@@ -17,6 +17,7 @@ import com.adlin.orin.modules.knowledge.service.KnowledgeGraphService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import com.adlin.orin.modules.model.service.OllamaIntegrationService;
 import com.adlin.orin.modules.skill.component.AiEngineMcpClient;
+import com.adlin.orin.modules.skill.component.McpErrorCode;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.adlin.orin.modules.skill.service.SkillService;
@@ -195,24 +196,31 @@ public class ToolCallingKbStrategy {
 
                 String fnName = (String) fn.get("name");
                 String argsJson = (String) fn.get("arguments");
-                String toolResult = executeTool(fnName, argsJson, kbIds, boundToolsByFnName);
+                ToolOutcome outcome = executeTool(fnName, argsJson, kbIds, boundToolsByFnName);
+                String toolResult = outcome.content();
                 totalToolCalls++;
 
-                boolean failed = toolResult != null
+                boolean failed = outcome.errorCode() != null
+                        || (toolResult != null
                         && (toolResult.startsWith("（工具执行失败")
-                        || toolResult.startsWith("（未知工具"));
+                        || toolResult.startsWith("（未知工具")));
+                Map<String, Object> traceDetail = new HashMap<>();
+                traceDetail.put("round", round + 1);
+                traceDetail.put("toolCallId", toolCallId != null ? toolCallId : "");
+                traceDetail.put("toolName", fnName != null ? fnName : "");
+                traceDetail.put("arguments", parseArgsSafe(argsJson));
+                traceDetail.put("resultPreview", preview(toolResult));
+                if (outcome.errorCode() != null) {
+                    traceDetail.put("errorCode", outcome.errorCode());
+                }
                 emitTrace(traceConsumer, ToolTrace.builder()
                         .type("KB_MODEL_TOOL_CALL")
                         .kbId("multiple")
-                        .message("模型调用工具 " + fnName + "（第 " + (round + 1) + " 轮）")
-                        .status(failed ? "warning" : "success")
+                        .message("模型调用工具 " + fnName + "（第 " + (round + 1) + " 轮）"
+                                + (outcome.errorCode() != null ? " 失败[" + outcome.errorCode() + "]" : ""))
+                        .status(failed ? (outcome.errorCode() != null ? "error" : "warning") : "success")
                         .durationMs(System.currentTimeMillis() - toolStart)
-                        .detail(Map.of(
-                                "round", round + 1,
-                                "toolCallId", toolCallId != null ? toolCallId : "",
-                                "toolName", fnName != null ? fnName : "",
-                                "arguments", parseArgsSafe(argsJson),
-                                "resultPreview", preview(toolResult)))
+                        .detail(traceDetail)
                         .build());
 
                 Map<String, Object> toolMsg = new HashMap<>();
@@ -234,7 +242,18 @@ public class ToolCallingKbStrategy {
         return result("（达到最大工具调用轮数，未能生成最终回答）", "", promptTokens, completionTokens, totalTokens);
     }
 
-    private String executeTool(String name, String argsJson, List<String> availableKbIds,
+    /** 工具执行结果：content 给模型，errorCode 非空表示失败分类（当前用于 MCP）。 */
+    record ToolOutcome(String content, String errorCode) {
+        static ToolOutcome ok(String content) {
+            return new ToolOutcome(content, null);
+        }
+
+        static ToolOutcome error(String content, McpErrorCode code) {
+            return new ToolOutcome(content, code.name());
+        }
+    }
+
+    private ToolOutcome executeTool(String name, String argsJson, List<String> availableKbIds,
             Map<String, ToolCatalogItemDto> boundToolsByFnName) {
         try {
             @SuppressWarnings("unchecked")
@@ -243,15 +262,15 @@ public class ToolCallingKbStrategy {
                     : objectMapper.readValue(argsJson, Map.class);
 
             String kbResult = executeKbTool(name, args, availableKbIds);
-            if (kbResult != null) return kbResult;
+            if (kbResult != null) return ToolOutcome.ok(kbResult);
 
             ToolCatalogItemDto bound = boundToolsByFnName != null ? boundToolsByFnName.get(name) : null;
             if (bound != null) return executeBoundTool(bound, args);
 
-            return "（未知工具: " + name + "）";
+            return ToolOutcome.ok("（未知工具: " + name + "）");
         } catch (Exception e) {
             log.warn("Tool execution failed: tool={}, error={}", name, e.getMessage());
-            return "（工具执行失败: " + e.getMessage() + "）";
+            return ToolOutcome.ok("（工具执行失败: " + e.getMessage() + "）");
         }
     }
 
@@ -273,51 +292,53 @@ public class ToolCallingKbStrategy {
         };
     }
 
-    private String executeBoundTool(ToolCatalogItemDto tool, Map<String, Object> args) {
+    private ToolOutcome executeBoundTool(ToolCatalogItemDto tool, Map<String, Object> args) {
         String toolId = tool.getToolId();
-        if (toolId == null) return "（工具缺少 toolId）";
+        if (toolId == null) return ToolOutcome.ok("（工具缺少 toolId）");
 
         if (toolId.startsWith("skill:")) {
             Long skillId = parseLong(toolId.substring("skill:".length()));
-            if (skillId == null) return "（无效的 skill id: " + toolId + "）";
-            if (skillService == null) return "（技能执行服务未注入，无法运行 " + tool.getDisplayName() + "）";
+            if (skillId == null) return ToolOutcome.ok("（无效的 skill id: " + toolId + "）");
+            if (skillService == null) return ToolOutcome.ok("（技能执行服务未注入，无法运行 " + tool.getDisplayName() + "）");
             try {
                 Map<String, Object> output = skillService.executeSkill(
                         skillId, args != null ? args : Collections.emptyMap());
-                return output != null
+                return ToolOutcome.ok(output != null
                         ? objectMapper.writeValueAsString(output)
-                        : "（技能返回空结果）";
+                        : "（技能返回空结果）");
             } catch (Exception e) {
                 log.warn("Skill execution failed: skillId={}, error={}", skillId, e.getMessage());
-                return "（技能执行失败: " + e.getMessage() + "）";
+                return ToolOutcome.ok("（技能执行失败: " + e.getMessage() + "）");
             }
         }
         if (toolId.startsWith("mcp:")) {
             Long mcpId = parseLong(toolId.substring("mcp:".length()));
-            if (mcpId == null) return "（无效的 mcp id: " + toolId + "）";
+            if (mcpId == null) {
+                return ToolOutcome.error("（无效的 mcp id: " + toolId + "）", McpErrorCode.MCP_BAD_REQUEST);
+            }
             return executeMcpTool(mcpId, tool.getDisplayName(), args);
         }
-        return "（工具 " + toolId + " 未注册执行器，已作为占位返回）";
+        return ToolOutcome.ok("（工具 " + toolId + " 未注册执行器，已作为占位返回）");
     }
 
     @SuppressWarnings("unchecked")
-    String executeMcpTool(Long mcpId, String displayName, Map<String, Object> args) {
+    ToolOutcome executeMcpTool(Long mcpId, String displayName, Map<String, Object> args) {
         Optional<McpService> serviceOpt = mcpServiceRepository.findById(mcpId);
         if (serviceOpt.isEmpty()) {
-            return "（MCP 服务不存在: " + mcpId + "）";
+            return ToolOutcome.error("（MCP 服务不存在: " + mcpId + "）", McpErrorCode.MCP_NOT_FOUND);
         }
         McpService service = serviceOpt.get();
         if (!Boolean.TRUE.equals(service.getEnabled())) {
-            return "（MCP 服务已禁用: " + service.getName() + "）";
+            return ToolOutcome.error("（MCP 服务已禁用: " + service.getName() + "）", McpErrorCode.MCP_DISABLED);
         }
         if (service.getStatus() != McpService.McpStatus.CONNECTED) {
-            return "（MCP 服务未连接: " + service.getName() + "）";
+            return ToolOutcome.error("（MCP 服务未连接: " + service.getName() + "）", McpErrorCode.MCP_NOT_CONNECTED);
         }
 
         String label = displayName != null ? displayName : service.getName();
         Object toolNameRaw = args != null ? args.get("toolName") : null;
         if (toolNameRaw == null || String.valueOf(toolNameRaw).isBlank()) {
-            return "（MCP 服务 " + label + " 调用缺少 toolName 参数）";
+            return ToolOutcome.error("（MCP 服务 " + label + " 调用缺少 toolName 参数）", McpErrorCode.MCP_BAD_REQUEST);
         }
         String toolName = String.valueOf(toolNameRaw);
 
@@ -328,9 +349,13 @@ public class ToolCallingKbStrategy {
         }
 
         try {
-            return aiEngineMcpClient.callTool(service.getId(), toolName, toolArgs);
+            return ToolOutcome.ok(aiEngineMcpClient.callTool(service.getId(), toolName, toolArgs));
         } catch (AiEngineMcpClient.McpToolCallException e) {
-            return "（MCP 工具 " + label + "/" + toolName + " 执行失败: " + e.getMessage() + "）";
+            log.warn("MCP tool execution failed: service={}, tool={}, code={}, msg={}",
+                    label, toolName, e.getCode(), e.getMessage());
+            return ToolOutcome.error(
+                    "（MCP 工具 " + label + "/" + toolName + " 执行失败[" + e.getCode() + "]: " + e.getMessage() + "）",
+                    e.getCode());
         }
     }
 
