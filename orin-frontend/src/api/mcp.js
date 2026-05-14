@@ -49,3 +49,18 @@ export const installMcpTool = (toolKey, options = {}) => {
 export const setMcpServiceEnabled = (id, enabled) => {
     return request.put(`/api/system/mcp/services/${id}/enabled`, { enabled }, { baseURL: '' });
 };
+
+// 列出 MCP env 密钥
+export const getMcpSecrets = () => {
+    return request.get('/api/v1/mcp/secrets', { baseURL: '' });
+};
+
+// 创建 MCP env 密钥
+export const createMcpSecret = ({ name, secret, description }) => {
+    return request.post('/api/v1/mcp/secrets', { name, secret, description }, { baseURL: '' });
+};
+
+// 删除 MCP env 密钥
+export const deleteMcpSecret = (secretId) => {
+    return request.delete(`/api/v1/mcp/secrets/${secretId}`, { baseURL: '' });
+};

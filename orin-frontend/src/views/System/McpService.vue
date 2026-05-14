@@ -382,8 +382,28 @@
             :rows="3"
             placeholder="KEY=VALUE, 每行一个"
           />
+          <div class="env-secret-insert">
+            <el-select
+              v-model="secretRefToInsert"
+              size="small"
+              placeholder="插入密钥引用"
+              clearable
+              @change="insertSecretRef"
+            >
+              <el-option
+                v-for="s in mcpSecrets"
+                :key="s.secretId"
+                :label="`${s.name}（${s.maskedSecret}）`"
+                :value="s.secretId"
+              />
+            </el-select>
+            <el-button size="small" text @click="openCreateSecretDialog">
+              + 新建密钥
+            </el-button>
+          </div>
           <div class="form-tip">
-            每行一个环境变量，格式: KEY=VALUE
+            每行一个环境变量，格式: KEY=VALUE。敏感变量（*_TOKEN/_KEY/_SECRET）只能用
+            <code>KEY=${secret:xxx}</code> 引用，明文会被拒绝。
           </div>
         </el-form-item>
         <el-form-item label="描述" prop="description">
@@ -461,6 +481,48 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 新建 MCP 密钥对话框 -->
+    <el-dialog
+      v-model="secretDialogVisible"
+      title="新建 MCP 密钥"
+      width="480px"
+      destroy-on-close
+    >
+      <el-form
+        ref="secretFormRef"
+        :model="secretForm"
+        :rules="secretFormRules"
+        label-width="80px"
+        label-position="top"
+      >
+        <el-form-item label="名称" prop="name">
+          <el-input v-model="secretForm.name" placeholder="例如 github-token" />
+        </el-form-item>
+        <el-form-item label="密钥值" prop="secret">
+          <el-input
+            v-model="secretForm.secret"
+            type="password"
+            show-password
+            placeholder="粘贴真实 token / key，仅加密存储，不会回显"
+          />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="secretForm.description" placeholder="可选" />
+        </el-form-item>
+        <div class="form-tip">
+          创建后通过 <code>${secret:xxx}</code> 引用，明文只在后端解析下发给 AI Engine。
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="secretDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="creatingSecret" @click="confirmCreateSecret">
+          创建
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -476,7 +538,9 @@ import {
   testMcpConnection,
   getMcpTools,
   installMcpTool,
-  setMcpServiceEnabled
+  setMcpServiceEnabled,
+  getMcpSecrets,
+  createMcpSecret
 } from '@/api/mcp'
 
 defineProps({
@@ -500,6 +564,22 @@ const toggleServiceId = ref(null)
 const formRef = ref(null)
 const installFormRef = ref(null)
 const loadError = ref('')
+
+// MCP env 密钥引用
+const mcpSecrets = ref([])
+const secretRefToInsert = ref('')
+const secretDialogVisible = ref(false)
+const secretFormRef = ref(null)
+const creatingSecret = ref(false)
+const secretForm = reactive({
+  name: '',
+  secret: '',
+  description: ''
+})
+const secretFormRules = {
+  name: [{ required: true, message: '请填写密钥名称', trigger: 'blur' }],
+  secret: [{ required: true, message: '请填写密钥值', trigger: 'blur' }]
+}
 
 // 分页和搜索
 const searchQuery = ref('')
@@ -917,9 +997,62 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
+const loadMcpSecrets = async () => {
+  try {
+    const data = await getMcpSecrets()
+    mcpSecrets.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    mcpSecrets.value = []
+  }
+}
+
+const insertSecretRef = (secretId) => {
+  if (!secretId) return
+  const ref = `\${secret:${secretId}}`
+  const current = serviceForm.envVars || ''
+  serviceForm.envVars = current && !current.endsWith('\n')
+    ? `${current}\n${ref}`
+    : `${current}${ref}`
+  secretRefToInsert.value = ''
+}
+
+const openCreateSecretDialog = () => {
+  Object.assign(secretForm, { name: '', secret: '', description: '' })
+  if (secretFormRef.value) {
+    secretFormRef.value.clearValidate()
+  }
+  secretDialogVisible.value = true
+}
+
+const confirmCreateSecret = async () => {
+  if (!secretFormRef.value) return
+  await secretFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    creatingSecret.value = true
+    try {
+      const created = await createMcpSecret({
+        name: secretForm.name,
+        secret: secretForm.secret,
+        description: secretForm.description
+      })
+      ElMessage.success('密钥已创建')
+      secretDialogVisible.value = false
+      await loadMcpSecrets()
+      if (created?.secretId) {
+        insertSecretRef(created.secretId)
+      }
+    } catch (e) {
+      ElMessage.error('创建密钥失败: ' + (e.message || e))
+    } finally {
+      creatingSecret.value = false
+    }
+  })
+}
+
 onMounted(() => {
   loadMcpServices()
   loadAvailableTools()
+  loadMcpSecrets()
 })
 </script>
 
@@ -1077,6 +1210,22 @@ onMounted(() => {
   font-size: 12px;
   color: var(--neutral-gray-400);
   margin-top: 4px;
+}
+
+.form-tip code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+
+.env-secret-insert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.env-secret-insert .el-select {
+  width: 220px;
 }
 
 .pagination-wrapper {

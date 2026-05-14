@@ -16,8 +16,6 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-SENSITIVE_ENV_PARTS = ("_KEY", "_TOKEN", "_SECRET")
-
 STDIO_TEMPLATES: dict[str, tuple[str, list[str]]] = {
     "filesystem": ("npx", ["-y", "@modelcontextprotocol/server-filesystem"]),
     "github": ("npx", ["-y", "@modelcontextprotocol/server-github"]),
@@ -120,6 +118,10 @@ class MCPClientManager:
         )
 
     def _parse_env(self, raw: str) -> dict[str, str]:
+        # 敏感 env（token/key/secret）的拦截已上移到后端：写入时 validateEnvVars
+        # 强制敏感 key 必须用 ${secret:<id>} 引用，下发时 resolveEnvVars 在服务端
+        # 解析为明文。env 只经由可信的 internal 接口到达这里，敏感值是被刻意放进
+        # 来、且 MCP Server 启动必需的，无需也不应在此再拒绝。
         env: dict[str, str] = {}
         for line in raw.splitlines():
             if not line.strip() or "=" not in line:
@@ -128,9 +130,6 @@ class MCPClientManager:
             key = key.strip()
             if not key:
                 continue
-            upper = key.upper()
-            if any(part in upper or upper.endswith(part.removeprefix("_")) for part in SENSITIVE_ENV_PARTS):
-                raise ValueError(f"Sensitive MCP env var is not allowed: {key}")
             env[key] = value.strip()
         return env
 

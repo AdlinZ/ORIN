@@ -37,6 +37,17 @@ def test_builtin_stdio_templates_are_registered():
     assert {"filesystem", "github", "fetch", "sqlite", "time"} <= set(mcp_module.STDIO_TEMPLATES)
 
 
+def test_parse_env_accepts_sensitive_keys_resolved_by_backend():
+    # 敏感 key 拦截已上移到后端；env 经可信 internal 接口到达，明文是必需的
+    manager = MCPClientManager()
+
+    env = manager._parse_env(
+        "GITHUB_PERSONAL_ACCESS_TOKEN=ghp_realtoken\nWORKDIR=/srv\n# comment\nNOEQUALS"
+    )
+
+    assert env == {"GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_realtoken", "WORKDIR": "/srv"}
+
+
 @pytest.mark.asyncio
 async def test_stdio_fake_server_lists_and_calls_tool(tmp_path: Path, monkeypatch):
     server = tmp_path / "fake_mcp_server.py"
