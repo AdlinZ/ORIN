@@ -25,7 +25,8 @@ public class GatewaySecret {
 
     public enum SecretType {
         CLIENT_ACCESS,
-        PROVIDER_CREDENTIAL
+        PROVIDER_CREDENTIAL,
+        MCP_ENV
     }
 
     public enum SecretStatus {
@@ -137,6 +138,10 @@ public class GatewaySecret {
 
     public boolean isProviderCredential() {
         return secretType == SecretType.PROVIDER_CREDENTIAL;
+    }
+
+    public boolean isMcpEnv() {
+        return secretType == SecretType.MCP_ENV;
     }
 
     public boolean isActive() {

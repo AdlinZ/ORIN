@@ -2,6 +2,7 @@ package com.adlin.orin.modules.skill.controller;
 
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.service.McpServiceService;
+import com.adlin.orin.modules.skill.util.McpEnvSecretRef;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -174,8 +175,9 @@ public class McpManageController {
         payload.put("type", service.getType() != null ? service.getType().name() : "STDIO");
         payload.put("command", service.getCommand());
         payload.put("url", service.getUrl());
-        // 真实 env：AI Engine 需要明文才能启动需要凭据/路径的 MCP Server
-        payload.put("envVars", service.getEnvVars());
+        // 真实 env：AI Engine 需要明文才能启动需要凭据/路径的 MCP Server。
+        // ${secret:<id>} 引用在此解析为真实明文；引用不可用时硬失败。
+        payload.put("envVars", mcpServiceService.resolveEnvVars(service.getEnvVars()));
         return ResponseEntity.ok(payload);
     }
 
@@ -253,7 +255,19 @@ public class McpManageController {
             return envVars;
         }
         return java.util.Arrays.stream(envVars.split("\\R"))
-                .map(line -> line.contains("=") ? line.substring(0, line.indexOf('=') + 1) + "******" : line)
+                .map(this::maskEnvLine)
                 .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
+    private String maskEnvLine(String line) {
+        int eq = line == null ? -1 : line.indexOf('=');
+        if (line == null || eq < 0) {
+            return line;
+        }
+        // ${secret:<id>} 引用本身不敏感，且前端编辑需要看到引用，原样返回
+        if (McpEnvSecretRef.isSecretRef(line.substring(eq + 1).trim())) {
+            return line;
+        }
+        return line.substring(0, eq + 1) + "******";
     }
 }

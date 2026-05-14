@@ -139,6 +139,37 @@ public class GatewaySecretService {
         return gatewaySecretRepository.save(secret);
     }
 
+    /**
+     * 创建 MCP env 密钥。值加密存储；若未配置 ENCRYPTION_KEY 则硬拒，
+     * 避免敏感 token 以明文落库。
+     */
+    @Transactional
+    public GatewaySecret createMcpEnvSecret(String name, String secretValue, String description, String operator) {
+        if (secretValue == null || secretValue.isBlank()) {
+            throw new IllegalArgumentException("MCP 密钥值不能为空");
+        }
+        if (!encryptionUtil.isEncryptionEnabled()) {
+            throw new IllegalStateException("未配置 ENCRYPTION_KEY，拒绝以明文存储 MCP 密钥");
+        }
+        GatewaySecret secret = GatewaySecret.builder()
+                .secretId("gsec_mcp_" + UUID.randomUUID().toString().replace("-", ""))
+                .name(name != null && !name.isBlank() ? name : "mcp secret")
+                .secretType(GatewaySecret.SecretType.MCP_ENV)
+                .status(GatewaySecret.SecretStatus.ACTIVE)
+                .encryptedSecret(encryptionUtil.encrypt(secretValue))
+                .last4(secretValue.substring(Math.max(0, secretValue.length() - 4)))
+                .description(description)
+                .rotationAt(LocalDateTime.now())
+                .createdBy(operator)
+                .updatedBy(operator)
+                .build();
+        return gatewaySecretRepository.save(secret);
+    }
+
+    public List<GatewaySecret> listMcpEnvSecrets() {
+        return listByType(GatewaySecret.SecretType.MCP_ENV);
+    }
+
     public Optional<ResolvedProviderCredential> resolveProviderCredential(String provider) {
         String normalizedProvider = normalizeProvider(provider);
         return gatewaySecretRepository

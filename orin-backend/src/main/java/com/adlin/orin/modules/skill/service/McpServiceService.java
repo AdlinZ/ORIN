@@ -54,4 +54,10 @@ public interface McpServiceService {
      * 启用/禁用服务
      */
     McpService setServiceEnabled(Long id, boolean enabled);
+
+    /**
+     * 将 env 中的 {@code ${secret:<secretId>}} 引用解析为真实明文。
+     * 仅供 AI Engine 内部接口下发运行时 env 使用；引用无法解析时硬失败。
+     */
+    String resolveEnvVars(String rawEnvVars);
 }

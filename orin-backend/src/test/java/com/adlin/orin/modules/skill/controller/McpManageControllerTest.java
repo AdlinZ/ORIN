@@ -62,12 +62,32 @@ class McpManageControllerTest {
     }
 
     @Test
-    void getEnabledServiceForAiEngine_returnsRealEnvVars() throws Exception {
+    void getEnabledServiceForAiEngine_returnsResolvedEnvVars() throws Exception {
         when(mcpServiceService.getServiceById(9L)).thenReturn(service(true));
+        when(mcpServiceService.resolveEnvVars("GITHUB_TOKEN=ghp_realsecret\nWORKDIR=/srv"))
+                .thenReturn("GITHUB_TOKEN=ghp_resolved\nWORKDIR=/srv");
 
         mockMvc.perform(get("/api/system/mcp/internal/enabled/9"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.envVars").value("GITHUB_TOKEN=ghp_realsecret\nWORKDIR=/srv"));
+                .andExpect(jsonPath("$.envVars").value("GITHUB_TOKEN=ghp_resolved\nWORKDIR=/srv"));
+    }
+
+    @Test
+    void getService_keepsSecretRefLineUnmasked() throws Exception {
+        McpService svc = McpService.builder()
+                .id(9L)
+                .name("github")
+                .type(McpService.McpType.STDIO)
+                .command("github")
+                .envVars("GITHUB_TOKEN=${secret:gsec_mcp_x}\nWORKDIR=/srv")
+                .enabled(true)
+                .status(McpService.McpStatus.CONNECTED)
+                .build();
+        when(mcpServiceService.getServiceById(9L)).thenReturn(svc);
+
+        mockMvc.perform(get("/api/system/mcp/services/9"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.envVars").value("GITHUB_TOKEN=${secret:gsec_mcp_x}\nWORKDIR=******"));
     }
 
     @Test

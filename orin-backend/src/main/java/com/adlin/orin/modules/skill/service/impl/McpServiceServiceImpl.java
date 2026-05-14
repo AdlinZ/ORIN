@@ -1,9 +1,12 @@
 package com.adlin.orin.modules.skill.service.impl;
 
 import com.adlin.orin.common.exception.ValidationException;
+import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.repository.McpServiceRepository;
 import com.adlin.orin.modules.skill.service.McpServiceService;
+import com.adlin.orin.modules.skill.util.McpEnvSecretRef;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +32,7 @@ import java.util.Map;
 public class McpServiceServiceImpl implements McpServiceService {
 
     private final McpServiceRepository mcpServiceRepository;
-    private static final List<String> SENSITIVE_ENV_SUFFIXES = List.of("_KEY", "_TOKEN", "_SECRET");
+    private final GatewaySecretService gatewaySecretService;
 
     @Value("${orin.ai-engine.url:http://localhost:8000}")
     private String aiEngineUrl;
@@ -262,6 +265,11 @@ public class McpServiceServiceImpl implements McpServiceService {
         return mcpServiceRepository.save(service);
     }
 
+    /**
+     * 校验 env：非敏感 key 放行任意值；敏感 key（{@code *_KEY/_TOKEN/_SECRET}）
+     * 只允许 {@code ${secret:<secretId>}} 引用，且引用必须指向存在、ACTIVE、
+     * 类型为 MCP_ENV 的密钥，明文敏感值一律拒绝。
+     */
     private void validateEnvVars(String envVars) {
         if (envVars == null || envVars.isBlank()) {
             return;
@@ -270,11 +278,61 @@ public class McpServiceServiceImpl implements McpServiceService {
             if (line == null || line.isBlank() || !line.contains("=")) {
                 continue;
             }
-            String key = line.substring(0, line.indexOf('=')).trim().toUpperCase();
-            if (SENSITIVE_ENV_SUFFIXES.stream().anyMatch(key::endsWith)) {
-                throw new ValidationException("MCP 环境变量禁止包含敏感字段: " + key);
+            int eq = line.indexOf('=');
+            String key = line.substring(0, eq).trim();
+            String value = line.substring(eq + 1).trim();
+            if (!McpEnvSecretRef.isSensitiveKey(key)) {
+                continue;
+            }
+            if (!McpEnvSecretRef.isSecretRef(value)) {
+                throw new ValidationException("敏感字段 " + key + " 仅支持 ${secret:<secretId>} 引用，明文会被拒绝");
+            }
+            String secretId = McpEnvSecretRef.extractSecretId(value);
+            GatewaySecret secret = gatewaySecretService.findBySecretId(secretId)
+                    .orElseThrow(() -> new ValidationException("引用的密钥不存在: " + secretId));
+            if (!secret.isMcpEnv()) {
+                throw new ValidationException("引用的密钥不是 MCP 类型: " + secretId);
+            }
+            if (!secret.isActive()) {
+                throw new ValidationException("引用的密钥未启用: " + secretId);
             }
         }
+    }
+
+    @Override
+    public String resolveEnvVars(String rawEnvVars) {
+        if (rawEnvVars == null || rawEnvVars.isBlank()) {
+            return rawEnvVars;
+        }
+        StringBuilder resolved = new StringBuilder();
+        String[] lines = rawEnvVars.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) {
+                resolved.append('\n');
+            }
+            String line = lines[i];
+            int eq = line == null ? -1 : line.indexOf('=');
+            if (line == null || line.isBlank() || eq < 0) {
+                resolved.append(line == null ? "" : line);
+                continue;
+            }
+            String key = line.substring(0, eq);
+            String value = line.substring(eq + 1).trim();
+            if (!McpEnvSecretRef.isSecretRef(value)) {
+                resolved.append(line);
+                continue;
+            }
+            String secretId = McpEnvSecretRef.extractSecretId(value);
+            GatewaySecret secret = gatewaySecretService.findBySecretId(secretId)
+                    .orElseThrow(() -> new IllegalStateException("MCP env 引用的密钥不存在: " + secretId));
+            if (!secret.isMcpEnv() || !secret.isActive()) {
+                throw new IllegalStateException("MCP env 引用的密钥不可用: " + secretId);
+            }
+            String plain = gatewaySecretService.revealSecret(secretId)
+                    .orElseThrow(() -> new IllegalStateException("MCP env 引用的密钥无法解密: " + secretId));
+            resolved.append(key).append('=').append(plain);
+        }
+        return resolved.toString();
     }
 
 }
