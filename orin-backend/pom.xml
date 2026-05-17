@@ -19,7 +19,7 @@
         <java.version>17</java.version>
         <!-- Database Version Matrix -->
         <!-- Flyway 9.x supports MySQL 8.0.11+ (includes 8.4.x) -->
-        <flyway.version>9.22.3</flyway.version>
+        <flyway.version>12.6.1</flyway.version>
         <mysql.version>8.0.33</mysql.version>
         <surefire.excludedGroups>integration</surefire.excludedGroups>
     </properties>
