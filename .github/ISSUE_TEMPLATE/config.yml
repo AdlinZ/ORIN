@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: ORIN roadmap
+    url: https://github.com/AdlinZ/ORIN/blob/main/docs/%E8%B7%AF%E7%BA%BF%E5%9B%BE.md
+    about: Check the roadmap before opening broad planning issues.

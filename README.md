@@ -72,6 +72,7 @@ ORIN/
 | [docs/API文档.md](./docs/API文档.md) | 接口分组、统一网关示例 |
 | [docs/功能完成度.md](./docs/功能完成度.md) | 各模块成熟度与可验收能力 |
 | [docs/开发规范.md](./docs/开发规范.md) | 协作约束、提交规范、联调要点 |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献流程、分支与 PR 规范 |
 | [TODO.md](./TODO.md) | 待办与进度 |
 
 ## 当前状态
