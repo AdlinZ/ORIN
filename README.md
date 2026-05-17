@@ -79,7 +79,7 @@ ORIN/
 
 ## 当前状态
 
-骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。Docker quickstart 仍待可用 Docker runtime 下真实 smoke 验证。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
+骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。本机进程模式优先通过 health checks 与 `bash scripts/smoke-test.sh` 验证；Docker quickstart 仍待可用 Docker runtime 下真实 smoke 验证。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
 
 ## License
 
