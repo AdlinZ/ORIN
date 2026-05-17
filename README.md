@@ -74,6 +74,7 @@ ORIN/
 | [docs/开发规范.md](./docs/开发规范.md) | 协作约束、提交规范、联调要点 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献流程、分支与 PR 规范 |
 | [SUPPORT.md](./SUPPORT.md) | 获取帮助、提 issue 前的信息清单 |
+| [SECURITY.md](./SECURITY.md) | 漏洞披露流程与依赖维护口径 |
 | [TODO.md](./TODO.md) | 待办与进度 |
 
 ## 当前状态
