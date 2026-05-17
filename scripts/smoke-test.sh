@@ -1,5 +1,6 @@
 #!/bin/bash
 # ORIN Smoke Test Script
+# 本机最小闭环 + 可选 live smoke；不是完整 E2E。
 # 用于快速验证 ORIN 三端可运行性，并脱敏展示当前本机运行态。
 
 set -e
@@ -45,6 +46,15 @@ env_set_state() {
     fi
 }
 
+port_state() {
+    local value="$1"
+    if [ -n "$value" ]; then
+        echo "$value"
+    else
+        echo "unset"
+    fi
+}
+
 endpoint_host_from_url() {
     python3 - "$1" <<'PY'
 from urllib.parse import urlparse
@@ -77,25 +87,41 @@ BACKEND_ENV="$ORIN_ROOT/orin-backend/.env"
 ROOT_ENV="$ORIN_ROOT/.env"
 if [ -f "$BACKEND_ENV" ]; then
     DB_HOST_VALUE="$(read_env_value "$BACKEND_ENV" DB_HOST)"
+    DB_PORT_VALUE="$(read_env_value "$BACKEND_ENV" DB_PORT)"
     REDIS_HOST_VALUE="$(read_env_value "$BACKEND_ENV" REDIS_HOST)"
+    REDIS_PORT_VALUE="$(read_env_value "$BACKEND_ENV" REDIS_PORT)"
     RABBITMQ_HOST_VALUE="$(read_env_value "$BACKEND_ENV" RABBITMQ_HOST)"
+    RABBITMQ_PORT_VALUE="$(read_env_value "$BACKEND_ENV" RABBITMQ_PORT)"
     MILVUS_HOST_VALUE="$(read_env_value "$BACKEND_ENV" MILVUS_HOST)"
+    MILVUS_PORT_VALUE="$(read_env_value "$BACKEND_ENV" MILVUS_PORT)"
     DIFY_ENDPOINT_VALUE="$(read_env_value "$BACKEND_ENV" DIFY_DEFAULT_ENDPOINT)"
     RAGFLOW_ENDPOINT_VALUE="$(read_env_value "$BACKEND_ENV" RAGFLOW_DEFAULT_ENDPOINT)"
     SILICONFLOW_KEY_VALUE="$(read_env_value "$BACKEND_ENV" SILICONFLOW_API_KEY)"
     echo "  backend .env DB_HOST: $(classify_host "$DB_HOST_VALUE")"
+    echo "  backend .env DB_PORT: $(port_state "$DB_PORT_VALUE")"
     echo "  backend .env REDIS_HOST: $(classify_host "$REDIS_HOST_VALUE")"
+    echo "  backend .env REDIS_PORT: $(port_state "$REDIS_PORT_VALUE")"
     echo "  backend .env RABBITMQ_HOST: $(classify_host "$RABBITMQ_HOST_VALUE")"
+    echo "  backend .env RABBITMQ_PORT: $(port_state "$RABBITMQ_PORT_VALUE")"
     echo "  backend .env MILVUS_HOST: $(classify_host "$MILVUS_HOST_VALUE")"
+    echo "  backend .env MILVUS_PORT: $(port_state "$MILVUS_PORT_VALUE")"
     echo "  backend .env DIFY_DEFAULT_ENDPOINT: $(classify_host "$(endpoint_host_from_url "$DIFY_ENDPOINT_VALUE")")"
     echo "  backend .env RAGFLOW_DEFAULT_ENDPOINT: $(classify_host "$(endpoint_host_from_url "$RAGFLOW_ENDPOINT_VALUE")")"
     echo "  backend .env SILICONFLOW_API_KEY: $(env_set_state "$SILICONFLOW_KEY_VALUE")"
 elif [ -f "$ROOT_ENV" ]; then
     MYSQL_HOST_VALUE="$(read_env_value "$ROOT_ENV" MYSQL_HOST)"
+    MYSQL_PORT_VALUE="$(read_env_value "$ROOT_ENV" MYSQL_PORT)"
+    REDIS_HOST_VALUE="$(read_env_value "$ROOT_ENV" REDIS_HOST)"
+    REDIS_PORT_VALUE="$(read_env_value "$ROOT_ENV" REDIS_PORT)"
     MILVUS_HOST_VALUE="$(read_env_value "$ROOT_ENV" MILVUS_HOST)"
+    MILVUS_PORT_VALUE="$(read_env_value "$ROOT_ENV" MILVUS_PORT)"
     SILICONFLOW_KEY_VALUE="$(read_env_value "$ROOT_ENV" SILICONFLOW_API_KEY)"
     echo "  root .env MYSQL_HOST: $(classify_host "$MYSQL_HOST_VALUE")"
+    echo "  root .env MYSQL_PORT: $(port_state "$MYSQL_PORT_VALUE")"
+    echo "  root .env REDIS_HOST: $(classify_host "$REDIS_HOST_VALUE")"
+    echo "  root .env REDIS_PORT: $(port_state "$REDIS_PORT_VALUE")"
     echo "  root .env MILVUS_HOST: $(classify_host "$MILVUS_HOST_VALUE")"
+    echo "  root .env MILVUS_PORT: $(port_state "$MILVUS_PORT_VALUE")"
     echo "  root .env SILICONFLOW_API_KEY: $(env_set_state "$SILICONFLOW_KEY_VALUE")"
 else
     echo "  No .env file found; runtime services must come from shell environment or defaults"
@@ -192,25 +218,30 @@ if curl -fsS http://127.0.0.1:8080/v1/health >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Backend /v1/health OK${NC}"
 else
     echo -e "${YELLOW}⚠ Backend /v1/health unavailable, skipped live backend smoke${NC}"
+    echo "  Start backend: cd orin-backend && mvn spring-boot:run"
 fi
 
 if curl -fsS http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Backend /api/v1/health OK${NC}"
 else
     echo -e "${YELLOW}⚠ Backend /api/v1/health unavailable, skipped legacy health smoke${NC}"
+    echo "  Database connectivity is judged by /api/v1/health when backend is running"
 fi
 
 if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1 \
     && curl -fsS http://127.0.0.1:8000/v1/health >/dev/null 2>&1; then
-    echo -e "${GREEN}✓ AI Engine /health and /v1/health OK${NC}"
+    echo -e "${GREEN}✓ AI Engine /health and /v1/health reachable${NC}"
+    echo "  AI Engine may report degraded optional dependencies such as RabbitMQ"
 else
     echo -e "${YELLOW}⚠ AI Engine health endpoints unavailable, skipped live AI smoke${NC}"
+    echo "  Start AI Engine: cd orin-ai-engine && venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000"
 fi
 
 if curl -fsS http://127.0.0.1:5173/ >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Frontend homepage OK${NC}"
 else
     echo -e "${YELLOW}⚠ Frontend homepage unavailable, skipped live frontend smoke${NC}"
+    echo "  Start frontend: cd orin-frontend && npm run dev"
 fi
 
 # 6. 本轮基线说明
@@ -218,6 +249,7 @@ echo -e "${YELLOW}[6/6] Baseline Notes...${NC}"
 echo "  Required local runtime: frontend, backend, ai-engine, Redis, MySQL"
 echo "  Optional local infra: Milvus, RabbitMQ, Langfuse, Prometheus/Grafana, Neo4j, MinIO"
 echo "  External dependencies: model providers, Dify/RAGFlow endpoints, remote MCP servers, production databases"
+echo "  DB connectivity source: backend /api/v1/health database status; local :3306 listening is only a hint"
 echo "  Schema baseline: run bash scripts/check-schema-baseline.sh to verify snapshot coverage and V88+ boundary"
 
 echo ""
