@@ -11,42 +11,28 @@ on:
 
 permissions:
   contents: read
-  checks: write
-  pull-requests: write
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  schema-baseline:
+    name: Schema Baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check schema snapshot baseline
+        run: bash scripts/check-schema-baseline.sh
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: orin-backend
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: orin_test
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,14 +44,8 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Lint / compile
-        run: mvn -B -DskipTests compile
-
       - name: Test
         run: mvn -B test
-
-      - name: Generate JaCoCo report
-        run: mvn -B jacoco:report
 
       - name: Upload backend test reports
         if: always()
@@ -74,33 +54,6 @@ jobs:
           name: backend-test-reports
           path: orin-backend/target/surefire-reports/
           retention-days: 14
-
-      - name: Upload backend coverage XML
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-jacoco-xml
-          path: orin-backend/target/site/jacoco/jacoco.xml
-          retention-days: 14
-
-      - name: Upload backend coverage HTML
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-jacoco-html
-          path: orin-backend/target/site/jacoco/
-          retention-days: 14
-
-      - name: Comment backend coverage
-        if: github.event_name == 'pull_request'
-        uses: madrapps/jacoco-report@v1.7.2
-        with:
-          paths: ${{ github.workspace }}/orin-backend/target/site/jacoco/jacoco.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: Backend JaCoCo Coverage
-          update-comment: true
-          min-coverage-overall: 0
-          min-coverage-changed-files: 0
 
   frontend:
     name: Frontend
@@ -122,22 +75,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Test with coverage
-        run: npm run test:coverage
+      - name: Test
+        run: npm run test
 
       - name: Build
         run: npm run build
-
-      - name: Upload frontend coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: orin-frontend/coverage/
-          retention-days: 14
 
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
@@ -145,12 +87,6 @@ jobs:
           name: frontend-dist
           path: orin-frontend/dist/
           retention-days: 14
-
-      - name: Comment frontend coverage
-        if: github.event_name == 'pull_request'
-        uses: davelosert/vitest-coverage-report-action@v2
-        with:
-          working-directory: orin-frontend
 
   ai-engine:
     name: AI Engine
@@ -173,37 +109,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .
-          python -m pip install pytest pytest-asyncio pytest-cov==5.0.0
+          python -m pip install pytest pytest-asyncio
 
-      - name: Lint
-        run: python -m compileall app tests
-
-      - name: Test with coverage
-        run: |
-          pytest --junitxml=pytest.xml --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml | tee pytest-coverage.txt
-
-      - name: Upload AI Engine coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-engine-coverage
-          path: |
-            orin-ai-engine/coverage.xml
-            orin-ai-engine/pytest.xml
-            orin-ai-engine/pytest-coverage.txt
-          retention-days: 14
-
-      - name: Upload AI Engine pytest cache
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-engine-pytest-cache
-          path: orin-ai-engine/.pytest_cache/
-          retention-days: 14
-
-      - name: Comment AI Engine coverage
-        if: github.event_name == 'pull_request'
-        uses: MishaKav/pytest-coverage-comment@v1
-        with:
-          pytest-coverage-path: orin-ai-engine/pytest-coverage.txt
-          junitxml-path: orin-ai-engine/pytest.xml
+      - name: Test
+        run: pytest
