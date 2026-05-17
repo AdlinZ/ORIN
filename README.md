@@ -18,7 +18,7 @@ cp .env.example .env
 docker compose up
 ```
 
-Docker quickstart 依赖 `docker/mysql/init/01-orin-schema.sql` 作为 schema snapshot baseline 初始化 MySQL，后端启动后再由 Flyway 补跑快照之后的迁移；当前不支持从空库纯重放 `V1..latest`。可用 `bash scripts/check-schema-baseline.sh` 检查快照覆盖版本与当前最高迁移。
+Docker quickstart 依赖 `docker/mysql/init/01-orin-schema.sql` 作为 schema snapshot baseline 初始化 MySQL，后端启动后再由 Flyway 补跑快照之后的迁移；当前不支持从空库纯重放 `V1..latest`。可用 `bash scripts/check-schema-baseline.sh` 检查快照覆盖版本与当前最高迁移；无 Docker runtime 时可先跑 `bash scripts/check-docker-quickstart.sh` 做静态预检，但它不等于真实容器 smoke。
 
 启动后访问：
 

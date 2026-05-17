@@ -251,6 +251,7 @@ echo "  Optional local infra: Milvus, RabbitMQ, Langfuse, Prometheus/Grafana, Ne
 echo "  External dependencies: model providers, Dify/RAGFlow endpoints, remote MCP servers, production databases"
 echo "  DB connectivity source: backend /api/v1/health database status; local :3306 listening is only a hint"
 echo "  Schema baseline: run bash scripts/check-schema-baseline.sh to verify snapshot coverage and V88+ boundary"
+echo "  Docker quickstart static preflight: run bash scripts/check-docker-quickstart.sh"
 
 echo ""
 if [ "$FAILED" -eq 0 ]; then
