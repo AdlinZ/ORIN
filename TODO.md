@@ -31,6 +31,9 @@
   - Workflow 执行链
   - Collaboration 协作链
 - [x] `P0` 明确每条链路的入口接口、执行服务、审计点、追踪点和失败处理点
+- [x] `P0` 建立核心链路验收矩阵
+  - 已在 `docs/功能完成度.md` 固定 Agent 对话、知识库、Workflow、Collaboration、MCP 五条核心链路的前端入口、后端入口、AI Engine 参与点、必需依赖、当前风险和下一步补测入口
+  - 后续模块评分、smoke、targeted test 和真实链路验收以该矩阵为入口逐步更新
 
 ---
 
