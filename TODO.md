@@ -353,7 +353,7 @@
 ### 测试补齐
 
 - [~] `P0` 建立非 Docker CI 基线
-  `.github/workflows/ci.yml` 已覆盖 schema baseline、后端 `mvn test`、前端 `npm run test && npm run build`、AI Engine `pytest`，main branch protection 已要求这四个 checks 通过。Docker compose smoke、lint、覆盖率评论仍后续补齐。
+  `.github/workflows/ci.yml` 已覆盖 schema baseline、后端 `mvn test`、前端 `npm run lint && npm run test && npm run build`、AI Engine `compileall && pytest`，main branch protection 已要求这四个 checks 通过。Docker compose smoke、Python black/isort、覆盖率评论仍后续补齐。
 - [~] `P1` 固定 schema snapshot baseline，确保 Docker quickstart 走快照初始化 + 快照之后的 Flyway 迁移
   短期正式口径：`docker/mysql/init/01-orin-schema.sql` 作为 `V1..V83` baseline schema snapshot；后端启动后补跑 `V84..V87`，后续新增 schema 迁移从 `V88` 开始。禁止直接改写已发布迁移，尤其是 `V5/V6/V8/V11/V87`。长期如确实需要空库纯 Flyway 重放，再单独做历史迁移重整。
 - [~] `P1` 重构 WorkflowProxyControllerTest，去除对 Milvus/RabbitMQ/Neo4j 等外部依赖
