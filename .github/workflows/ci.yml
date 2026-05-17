@@ -55,6 +55,16 @@ jobs:
           path: orin-backend/target/surefire-reports/
           retention-days: 14
 
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: |
+            orin-backend/target/site/jacoco/
+            orin-backend/target/jacoco.exec
+          retention-days: 14
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -78,11 +88,19 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test
-        run: npm run test
+      - name: Test with coverage
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: orin-frontend/coverage/
+          retention-days: 14
 
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
@@ -112,10 +130,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .
-          python -m pip install pytest pytest-asyncio
+          python -m pip install pytest pytest-asyncio pytest-cov==5.0.0
 
       - name: Compile
         run: python -m compileall app tests
 
-      - name: Test
-        run: pytest
+      - name: Test with coverage
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+
+      - name: Upload AI Engine coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-engine-coverage
+          path: orin-ai-engine/coverage.xml
+          retention-days: 14
