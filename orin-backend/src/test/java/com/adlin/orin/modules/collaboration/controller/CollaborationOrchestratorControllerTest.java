@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.collaboration.controller;
 
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
+import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
 import com.adlin.orin.modules.collaboration.metrics.CollaborationMetricsService;
 import com.adlin.orin.modules.collaboration.service.CollaborationExecutor;
@@ -226,5 +227,65 @@ class CollaborationOrchestratorControllerTest {
         assertEquals("COMPLETED", response.getBody().getStatus());
         verify(executor).completeHumanTask("pkg-ctrl-004", "sub-1", "");
         verify(orchestrator).autoScheduleIfPossible("pkg-ctrl-004");
+    }
+
+    @Test
+    @DisplayName("runtime 与 diagnostics 应返回运行摘要和失败子任务")
+    void runtimeAndDiagnostics_returnPackageOperationsSummary() {
+        CollaborationOrchestratorController controller = new CollaborationOrchestratorController(
+                orchestrator,
+                eventBus,
+                executor,
+                memoryService,
+                metricsService
+        );
+
+        CollabSubtaskEntity failed = CollabSubtaskEntity.builder()
+                .packageId("pkg-ctrl-006")
+                .subTaskId("sub-failed")
+                .status("FAILED")
+                .retryCount(2)
+                .errorMessage("worker failed")
+                .build();
+
+        when(orchestrator.getRuntimeStatus("pkg-ctrl-006"))
+                .thenReturn(new java.util.HashMap<>(Map.of("packageId", "pkg-ctrl-006", "traceId", "trace-ctrl-006")));
+        when(orchestrator.getSubtasks("pkg-ctrl-006")).thenReturn(List.of(failed));
+
+        ResponseEntity<Map<String, Object>> runtime = controller.getRuntimeStatus("pkg-ctrl-006");
+        ResponseEntity<Map<String, Object>> diagnostics = controller.getDiagnostics("pkg-ctrl-006");
+
+        assertEquals(200, runtime.getStatusCode().value());
+        assertEquals("pkg-ctrl-006", runtime.getBody().get("packageId"));
+        assertEquals(200, diagnostics.getStatusCode().value());
+        List<?> failedSubtasks = (List<?>) diagnostics.getBody().get("failedSubtasks");
+        assertEquals(1, failedSubtasks.size());
+    }
+
+    @Test
+    @DisplayName("包级 pause/resume/cancel/manual-complete 应委托既有 orchestrator")
+    void packageOperations_delegateToOrchestrator() {
+        CollaborationOrchestratorController controller = new CollaborationOrchestratorController(
+                orchestrator,
+                eventBus,
+                executor,
+                memoryService,
+                metricsService
+        );
+
+        CollaborationPackage paused = CollaborationPackage.builder().packageId("pkg-ctrl-007").status("PAUSED").build();
+        CollaborationPackage resumed = CollaborationPackage.builder().packageId("pkg-ctrl-007").status("EXECUTING").build();
+        CollaborationPackage cancelled = CollaborationPackage.builder().packageId("pkg-ctrl-007").status("CANCELLED").build();
+        CollaborationPackage completed = CollaborationPackage.builder().packageId("pkg-ctrl-007").status("COMPLETED").build();
+        when(orchestrator.pause("pkg-ctrl-007")).thenReturn(paused);
+        when(orchestrator.resume("pkg-ctrl-007")).thenReturn(resumed);
+        when(orchestrator.cancel("pkg-ctrl-007")).thenReturn(cancelled);
+        when(orchestrator.complete("pkg-ctrl-007", "manual result")).thenReturn(completed);
+
+        assertEquals("PAUSED", controller.pauseCollaboration("pkg-ctrl-007").getBody().getStatus());
+        assertEquals("EXECUTING", controller.resumeCollaboration("pkg-ctrl-007").getBody().getStatus());
+        assertEquals("CANCELLED", controller.cancelCollaboration("pkg-ctrl-007").getBody().getStatus());
+        assertEquals("COMPLETED",
+                controller.manualCompletePackage("pkg-ctrl-007", Map.of("result", "manual result")).getBody().getStatus());
     }
 }

@@ -12,6 +12,10 @@ export const getTraceStats = (traceId) => {
     return request.get(`/traces/${traceId}/stats`);
 };
 
+export const getTraceSummary = (traceId) => {
+    return request.get(`/traces/${traceId}/summary`);
+};
+
 export const searchTraces = (traceId, params = {}) => {
     return request.get('/traces/search', {
         params: { traceId, ...params }

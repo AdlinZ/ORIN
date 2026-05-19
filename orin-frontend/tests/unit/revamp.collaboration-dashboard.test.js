@@ -5,15 +5,43 @@ import CollaborationDashboardV2 from '@/views/revamp/collaboration/Collaboration
 const getCollaborationStatsMock = vi.fn()
 const getAllPackagesMock = vi.fn()
 const getEventHistoryMock = vi.fn()
+const getSubtasksMock = vi.fn()
 const createCollaborationPackageMock = vi.fn()
+const manualCompletePackageMock = vi.fn()
+const manualCompleteSubtaskMock = vi.fn()
+const retrySubtaskMock = vi.fn()
+const skipSubtaskMock = vi.fn()
+const getRuntimeStatusMock = vi.fn()
+const getDiagnosticsMock = vi.fn()
+const pauseCollaborationMock = vi.fn()
+const resumeCollaborationMock = vi.fn()
+const cancelCollaborationMock = vi.fn()
 const warningMock = vi.fn()
 const successMock = vi.fn()
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useRoute: () => ({ query: {} })
+}))
 
 vi.mock('@/api/collaboration', () => ({
   getCollaborationStats: (...args) => getCollaborationStatsMock(...args),
   getAllPackages: (...args) => getAllPackagesMock(...args),
   getEventHistory: (...args) => getEventHistoryMock(...args),
+  getSubtasks: (...args) => getSubtasksMock(...args),
+  manualCompletePackage: (...args) => manualCompletePackageMock(...args),
+  manualCompleteSubtask: (...args) => manualCompleteSubtaskMock(...args),
+  retrySubtask: (...args) => retrySubtaskMock(...args),
+  skipSubtask: (...args) => skipSubtaskMock(...args),
   createCollaborationPackage: (...args) => createCollaborationPackageMock(...args)
+}))
+
+vi.mock('@/api/collaborationRuntime', () => ({
+  getRuntimeStatus: (...args) => getRuntimeStatusMock(...args),
+  getDiagnostics: (...args) => getDiagnosticsMock(...args),
+  pauseCollaboration: (...args) => pauseCollaborationMock(...args),
+  resumeCollaboration: (...args) => resumeCollaborationMock(...args),
+  cancelCollaboration: (...args) => cancelCollaborationMock(...args)
 }))
 
 vi.mock('element-plus', async (importOriginal) => {
@@ -44,6 +72,9 @@ const createWrapper = () => mount(CollaborationDashboardV2, {
       'el-option': { template: '<option><slot /></option>' },
       'el-tag': { template: '<span><slot /></span>' },
       'el-dialog': { template: '<div><slot /><slot name="footer" /></div>' },
+      'el-drawer': { template: '<div><slot /></div>' },
+      'el-descriptions': { template: '<div><slot /></div>' },
+      'el-descriptions-item': { template: '<div><slot /></div>' },
       'el-form': { template: '<form><slot /></form>' },
       'el-form-item': { template: '<div><slot /></div>' },
       'el-table': {
@@ -62,9 +93,22 @@ describe('CollaborationDashboardV2', () => {
     getCollaborationStatsMock.mockReset()
     getAllPackagesMock.mockReset()
     getEventHistoryMock.mockReset()
+    getSubtasksMock.mockReset()
     createCollaborationPackageMock.mockReset()
+    manualCompletePackageMock.mockReset()
+    manualCompleteSubtaskMock.mockReset()
+    retrySubtaskMock.mockReset()
+    skipSubtaskMock.mockReset()
+    getRuntimeStatusMock.mockReset()
+    getDiagnosticsMock.mockReset()
+    pauseCollaborationMock.mockReset()
+    resumeCollaborationMock.mockReset()
+    cancelCollaborationMock.mockReset()
     warningMock.mockReset()
     successMock.mockReset()
+    getSubtasksMock.mockResolvedValue([])
+    getRuntimeStatusMock.mockResolvedValue({})
+    getDiagnosticsMock.mockResolvedValue({})
   })
 
   it('loads stats and packages on mounted', async () => {

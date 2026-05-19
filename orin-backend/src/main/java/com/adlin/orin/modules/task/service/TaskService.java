@@ -12,8 +12,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +52,28 @@ public class TaskService {
     @Transactional
     public TaskEntity createAndEnqueueTask(Long workflowId, Long workflowInstanceId, Map<String, Object> inputData,
                                            TaskPriority priority, String triggeredBy, String triggerSource) {
+        return createAndEnqueueTask(
+                workflowId,
+                workflowInstanceId,
+                inputData,
+                priority,
+                triggeredBy,
+                triggerSource,
+                null);
+    }
+
+    /**
+     * 创建任务并绑定已创建的工作流实例后入队，可按单任务覆盖最大重试次数。
+     */
+    @Transactional
+    public TaskEntity createAndEnqueueTask(Long workflowId, Long workflowInstanceId, Map<String, Object> inputData,
+                                           TaskPriority priority, String triggeredBy, String triggerSource,
+                                           Integer maxRetriesOverride) {
         // 生成唯一任务ID
         String taskId = "task-" + UUID.randomUUID().toString();
+        int maxRetries = maxRetriesOverride != null && maxRetriesOverride >= 0
+                ? maxRetriesOverride
+                : defaultMaxRetries;
 
         // 创建任务实体
         TaskEntity task = TaskEntity.builder()
@@ -63,7 +86,7 @@ public class TaskService {
                 .triggeredBy(triggeredBy)
                 .triggerSource(triggerSource)
                 .retryCount(0)
-                .maxRetries(defaultMaxRetries)
+                .maxRetries(maxRetries)
                 .build();
 
         task = taskRepository.save(task);
@@ -81,24 +104,11 @@ public class TaskService {
                 .maxRetries(task.getMaxRetries())
                 .build();
 
-        try {
-            taskQueueProducer.sendTask(message);
-        } catch (RuntimeException e) {
-            log.error("Failed to enqueue task: taskId={}, workflowId={}", taskId, workflowId, e);
-            task.setStatus(TaskStatus.FAILED);
-            task.setErrorMessage("任务队列不可用，工作流未能入队，请确认 RabbitMQ 正在运行后重试");
-            task.setErrorStack(e.getMessage());
-            task.setCompletedAt(LocalDateTime.now());
-            if (task.getQueuedAt() != null) {
-                task.setDurationMs(java.time.Duration.between(task.getQueuedAt(), task.getCompletedAt()).toMillis());
-            }
-            return taskRepository.save(task);
-        }
-
+        TaskEntity result = sendTaskAfterCommitOrNow(task, message);
         log.info("Task created and enqueued: taskId={}, workflowId={}, priority={}",
                 taskId, workflowId, priority);
 
-        return task;
+        return result;
     }
 
     /**
@@ -175,6 +185,13 @@ public class TaskService {
     }
 
     /**
+     * 查询已取消任务（分页）
+     */
+    public Page<TaskEntity> getCancelledTasks(Pageable pageable) {
+        return taskRepository.findByStatusOrderByUpdatedAtDesc(TaskStatus.CANCELLED, pageable);
+    }
+
+    /**
      * 手动重放失败或死信任务
      */
     @Transactional
@@ -195,6 +212,7 @@ public class TaskService {
         TaskEntity newTask = TaskEntity.builder()
                 .taskId(newTaskId)
                 .workflowId(task.getWorkflowId())
+                .taskCategory(task.getTaskCategory())
                 .priority(task.getPriority())
                 .status(TaskStatus.QUEUED)
                 .inputData(task.getInputData())
@@ -220,12 +238,7 @@ public class TaskService {
                 .originalTaskId(taskId)
                 .build();
 
-        taskQueueProducer.sendTask(message);
-
-        // 更新原任务状态
-        task.setStatus(TaskStatus.RETRYING);
-        task.setUpdatedAt(java.time.LocalDateTime.now());
-        taskRepository.save(task);
+        newTask = sendTaskAfterCommitOrNow(newTask, message);
 
         return newTask;
     }
@@ -234,26 +247,62 @@ public class TaskService {
      * 取消任务
      */
     @Transactional
-    public boolean cancelTask(String taskId) {
-        Optional<TaskEntity> taskOpt = taskRepository.findByTaskId(taskId);
-        if (taskOpt.isEmpty()) {
-            return false;
-        }
-
-        TaskEntity task = taskOpt.get();
+    public TaskEntity cancelTask(String taskId) {
+        TaskEntity task = taskRepository.findByTaskId(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
         if (task.getStatus() == TaskStatus.QUEUED) {
-            task.setStatus(TaskStatus.FAILED);
+            LocalDateTime completedAt = LocalDateTime.now();
+            task.setStatus(TaskStatus.CANCELLED);
             task.setErrorMessage("Task cancelled by user");
-            taskRepository.save(task);
+            task.setCompletedAt(completedAt);
+            if (task.getQueuedAt() != null) {
+                task.setDurationMs(Duration.between(task.getQueuedAt(), completedAt).toMillis());
+            }
+            TaskEntity saved = taskRepository.save(task);
             log.info("Task cancelled: {}", taskId);
-            return true;
-        } else if (task.getStatus() == TaskStatus.RUNNING || task.getStatus() == TaskStatus.RETRYING) {
-            // 正在运行的任务无法取消
-            log.warn("Cannot cancel task in status: {}", task.getStatus());
-            return false;
+            return saved;
         }
 
-        return false;
+        log.warn("Cannot cancel task in status: taskId={}, status={}", taskId, task.getStatus());
+        throw new IllegalStateException("Only QUEUED tasks can be cancelled. Current status: " + task.getStatus());
+    }
+
+    private TaskEntity sendTaskAfterCommitOrNow(TaskEntity task, TaskMessage message) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return sendTaskNow(task, message);
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sendTaskNow(task, message);
+            }
+        });
+        return task;
+    }
+
+    private TaskEntity sendTaskNow(TaskEntity task, TaskMessage message) {
+        try {
+            taskQueueProducer.sendTask(message);
+            return task;
+        } catch (RuntimeException e) {
+            return markTaskEnqueueFailed(task, e);
+        }
+    }
+
+    private TaskEntity markTaskEnqueueFailed(TaskEntity task, RuntimeException e) {
+        log.error("Failed to enqueue task: taskId={}, workflowId={}", task.getTaskId(), task.getWorkflowId(), e);
+
+        Optional<TaskEntity> taskOpt = taskRepository.findByTaskId(task.getTaskId());
+        TaskEntity persistedTask = taskOpt != null ? taskOpt.orElse(task) : task;
+        persistedTask.setStatus(TaskStatus.FAILED);
+        persistedTask.setErrorMessage("任务队列不可用，工作流未能入队，请确认 RabbitMQ 正在运行后重试");
+        persistedTask.setErrorStack(e.getMessage());
+        persistedTask.setCompletedAt(LocalDateTime.now());
+        if (persistedTask.getQueuedAt() != null) {
+            persistedTask.setDurationMs(Duration.between(persistedTask.getQueuedAt(), persistedTask.getCompletedAt()).toMillis());
+        }
+        return taskRepository.save(persistedTask);
     }
 
     /**

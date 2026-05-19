@@ -327,13 +327,23 @@ public class WorkflowService {
                 workflowId,
                 inputs != null ? inputs : new HashMap<>(),
                 triggeredBy);
-        TaskEntity task = taskService.createAndEnqueueTask(
-                workflowId,
-                instance.getId(),
-                inputs != null ? inputs : new HashMap<>(),
-                priority,
-                triggeredBy,
-                triggerSource);
+        Integer maxRetriesOverride = resolveTaskMaxRetries(workflow);
+        TaskEntity task = maxRetriesOverride == null
+                ? taskService.createAndEnqueueTask(
+                        workflowId,
+                        instance.getId(),
+                        inputs != null ? inputs : new HashMap<>(),
+                        priority,
+                        triggeredBy,
+                        triggerSource)
+                : taskService.createAndEnqueueTask(
+                        workflowId,
+                        instance.getId(),
+                        inputs != null ? inputs : new HashMap<>(),
+                        priority,
+                        triggeredBy,
+                        triggerSource,
+                        maxRetriesOverride);
         if (task.getStatus() == TaskEntity.TaskStatus.FAILED) {
             instance.setStatus(WorkflowInstanceEntity.InstanceStatus.FAILED);
             instance.setErrorMessage(task.getErrorMessage());
@@ -349,6 +359,53 @@ public class WorkflowService {
                 task.getTaskId(), workflowId, instance.getId());
 
         return WorkflowExecutionSubmissionResponse.from(task, instance);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Integer resolveTaskMaxRetries(WorkflowEntity workflow) {
+        if (workflow == null) {
+            return null;
+        }
+        Integer retryPolicyMaxRetries = resolveMaxRetriesValue(workflow.getRetryPolicy());
+        if (retryPolicyMaxRetries != null) {
+            return retryPolicyMaxRetries;
+        }
+        Map<String, Object> workflowDefinition = workflow.getWorkflowDefinition();
+        if (workflowDefinition == null) {
+            return null;
+        }
+        Map<String, Object> metadata = workflowDefinition.get("metadata") instanceof Map<?, ?> rawMetadata
+                ? (Map<String, Object>) rawMetadata
+                : Map.of();
+        Map<String, Object> execution = metadata.get("execution") instanceof Map<?, ?> rawExecution
+                ? (Map<String, Object>) rawExecution
+                : Map.of();
+        Object value = execution.getOrDefault("maxRetries", metadata.get("maxRetries"));
+        return resolveMaxRetriesValue(value);
+    }
+
+    private Integer resolveMaxRetriesValue(Map<String, Object> retryPolicy) {
+        if (retryPolicy == null) {
+            return null;
+        }
+        Object value = retryPolicy.getOrDefault("maxRetries", retryPolicy.get("max_retries"));
+        return resolveMaxRetriesValue(value);
+    }
+
+    private Integer resolveMaxRetriesValue(Object value) {
+        if (value instanceof Number number) {
+            int retries = number.intValue();
+            return retries >= 0 ? retries : null;
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                int retries = Integer.parseInt(text.trim());
+                return retries >= 0 ? retries : null;
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     public List<WorkflowResponse> getAllWorkflows() {

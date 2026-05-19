@@ -206,6 +206,74 @@ class WorkflowServiceTest {
         }
 
         @Test
+        void triggerWorkflowWithPriority_ShouldApplyRetryPolicyMaxRetriesOverride() {
+                Long workflowId = 8L;
+                Map<String, Object> inputs = Map.of("query", "hello");
+                Map<String, Object> definition = Map.of(
+                                "version", "orin.workflow.v1",
+                                "kind", "workflow",
+                                "graph", Map.of(
+                                                "nodes", List.of(
+                                                                Map.of("id", "start", "type", "start"),
+                                                                Map.of("id", "code", "type", "code"),
+                                                                Map.of("id", "end", "type", "end",
+                                                                                "data", Map.of("outputs", List.of(
+                                                                                                Map.of("name", "answer", "value", "{{ code.result }}"))))),
+                                                "edges", List.of(
+                                                                Map.of("source", "start", "target", "code"),
+                                                                Map.of("source", "code", "target", "end"))));
+                WorkflowEntity workflow = WorkflowEntity.builder()
+                                .id(workflowId)
+                                .workflowName("No Retry Workflow")
+                                .status(WorkflowEntity.WorkflowStatus.ACTIVE)
+                                .workflowDefinition(definition)
+                                .retryPolicy(Map.of("maxRetries", 0))
+                                .build();
+                WorkflowInstanceEntity instance = WorkflowInstanceEntity.builder()
+                                .id(89L)
+                                .workflowId(workflowId)
+                                .traceId("trace-89")
+                                .build();
+                TaskEntity task = TaskEntity.builder()
+                                .taskId("task-89")
+                                .workflowId(workflowId)
+                                .workflowInstanceId(instance.getId())
+                                .status(TaskEntity.TaskStatus.QUEUED)
+                                .maxRetries(0)
+                                .build();
+
+                when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
+                when(workflowRepository.save(any(WorkflowEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+                when(workflowEngine.validateWorkflow(workflowId)).thenReturn(true);
+                when(workflowEngine.createInstance(eq(workflowId), any(), eq("tester"))).thenReturn(instance);
+                when(taskService.createAndEnqueueTask(
+                                eq(workflowId),
+                                eq(instance.getId()),
+                                any(),
+                                eq(TaskEntity.TaskPriority.NORMAL),
+                                eq("tester"),
+                                eq("API"),
+                                eq(0)))
+                                .thenReturn(task);
+
+                WorkflowExecutionSubmissionResponse response = workflowService.triggerWorkflowWithPriority(
+                                workflowId,
+                                inputs,
+                                TaskEntity.TaskPriority.NORMAL,
+                                "tester");
+
+                assertThat(response.getTaskId()).isEqualTo("task-89");
+                verify(taskService).createAndEnqueueTask(
+                                eq(workflowId),
+                                eq(instance.getId()),
+                                any(),
+                                eq(TaskEntity.TaskPriority.NORMAL),
+                                eq("tester"),
+                                eq("API"),
+                                eq(0));
+        }
+
+        @Test
         void triggerWorkflowWithPriority_ShouldRejectDraftWorkflow() {
                 Long workflowId = 9L;
                 WorkflowEntity workflow = WorkflowEntity.builder()
