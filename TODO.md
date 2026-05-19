@@ -69,7 +69,7 @@
 - [x] `P0` 为 `CollaborationService` 定义真实执行流程，替换当前仅推进索引的占位逻辑
 - [x] `P0` 将子任务执行映射到真实执行器
   - 调用智能体
-  - 调用工作流 (当前仍为 TODO 预留)
+  - 调用工作流
   - 人工任务占位
 - [x] `P0` 为协作包增加执行状态机
   - `PLANNING`
@@ -387,6 +387,14 @@
 - [x] `P0` 为任务重试/死信逻辑补测试
 - [x] `P0` 为同步接口补测试
 - [~] `P1` 为前端协作页、任务页、Trace 聚合视图补更完整交互测试
+  已补充协作包暂停交互、协作人工干预 API、任务恢复/取消、Trace 聚合加载和前端错误 traceId 提示测试；真实浏览器 E2E 仍待补。
+
+### 开源演示版安全与 MCP 基线
+
+- [x] `P1` README 增加 MCP-Native、CodeQL、gitleaks 状态入口
+- [x] `P1` 增加 CodeQL 与 gitleaks GitHub Actions 基线
+- [x] `P1` 增加 `scripts/mcp-open-demo-smoke.sh`，覆盖 `/v1/mcp initialize`、`tools/list` 与可选 Agent / Workflow `tools/call`
+- [x] `P1` 强化 Claude Desktop / Streamable HTTP MCP 客户端接入文档与排障清单
 
 ---
 
@@ -423,6 +431,7 @@
 - 同步模块当前结论：变更查询、检查点、Webhook 治理已具备基础闭环，手动全量/增量同步能力已完成
 - 外部集成当前结论：Dify、RAGFlow 为已支持能力；AutoGen、CrewAI 仍为预留位，不应视为已完成
 - 测试当前结论：已补仓储/状态类后端测试，协作编排集成测试与前端协作页、任务页交互测试待补充
+- 开源演示版增量：Workflow DSL 发布校验已覆盖环、孤岛、不可达节点、无终点路径与非法边引用；MCP 演示脚本与 CodeQL/gitleaks 基线已补；前端错误提示会保留后端 traceId。
 
 ---
 
@@ -445,6 +454,7 @@
 - [x] 协作链后端单元测试
 - [x] 外部集成页面与后端能力一一对应
 - [~] 前端协作页和任务页交互测试（Vitest 单元测试）
+- [x] 开源演示版基线（MCP-Native README 入口、Claude Desktop 文档、MCP smoke 脚本、CodeQL/gitleaks workflow、DSL 非法图校验）
 
 ---
 

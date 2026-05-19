@@ -1,8 +1,11 @@
 # ORIN
 
 [![CI](https://github.com/AdlinZ/ORIN/actions/workflows/ci.yml/badge.svg)](https://github.com/AdlinZ/ORIN/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/AdlinZ/ORIN/actions/workflows/codeql.yml/badge.svg)](https://github.com/AdlinZ/ORIN/actions/workflows/codeql.yml)
+[![Gitleaks](https://github.com/AdlinZ/ORIN/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/AdlinZ/ORIN/actions/workflows/gitleaks.yml)
 [![Coverage](https://img.shields.io/badge/coverage-artifacts%20available-blue)](./docs/功能完成度.md#4-测试覆盖率基线)
 [![Docker](https://img.shields.io/badge/docker-smoke%20verified-green)](./scripts/docker-smoke.sh)
+[![MCP Native](https://img.shields.io/badge/MCP--Native-Streamable%20HTTP%20%2B%20Claude%20Desktop-blueviolet)](./docs/mcp-client-setup.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](./README.md#license)
 
 > 智能体管理平台 · 本科毕业设计项目
@@ -41,6 +44,12 @@ bash scripts/business-smoke.sh
 - 前端：<http://localhost:5173>
 - 后端：<http://localhost:8080>（Swagger：`/swagger-ui/index.html`）
 - AI 引擎：<http://localhost:8000>
+
+MCP-Native 演示入口：
+
+- 客户端配置：[docs/mcp-client-setup.md](./docs/mcp-client-setup.md)
+- 本机 smoke：`ORIN_API_KEY=sk-orin-... bash scripts/mcp-open-demo-smoke.sh`
+- 如需真实调用已暴露的 Agent / Workflow：`ORIN_MCP_CALL_TOOLS=1 ORIN_API_KEY=sk-orin-... bash scripts/mcp-open-demo-smoke.sh`
 
 ## 项目简介
 

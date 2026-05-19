@@ -170,3 +170,38 @@ Workflow calls are submitted asynchronously through ORIN's existing workflow exe
 3. POST `initialize` and `tools/list` to `<ORIN_BASE_URL>/v1/mcp` with `Authorization: Bearer <ORIN_API_KEY>`.
 4. For Claude Desktop, run `orin-mcp-bridge` over stdio and confirm the same tools are listed.
 5. Call one Agent tool and confirm the response content includes `Trace ID` and `Package ID` without logging the API key or tool arguments.
+
+## Repository Smoke Script
+
+The repository includes a local smoke script that verifies the public MCP endpoint without printing the API key:
+
+```bash
+export ORIN_BASE_URL=http://127.0.0.1:8080
+export ORIN_API_KEY=<CLIENT_ACCESS_KEY>
+bash scripts/mcp-open-demo-smoke.sh
+```
+
+By default the script checks `initialize` and `tools/list` without sending an `Origin` header. To test the same Origin policy used by browser-like clients or the Claude Desktop bridge, set `ORIN_MCP_ORIGIN=http://localhost:8080`. To also call the first exposed Agent and Workflow tool found in `tools/list`, opt in explicitly:
+
+```bash
+ORIN_MCP_CALL_TOOLS=1 bash scripts/mcp-open-demo-smoke.sh
+```
+
+If multiple tools are exposed, pin the exact tools:
+
+```bash
+ORIN_MCP_CALL_TOOLS=1 \
+ORIN_MCP_AGENT_TOOL=agent.<base64url-agent-id> \
+ORIN_MCP_WORKFLOW_TOOL=workflow.<workflow-id> \
+bash scripts/mcp-open-demo-smoke.sh
+```
+
+The script sends only minimal demo arguments (`message` for Agents, `query` for Workflows). If your exposed Workflow requires a stricter input schema, use the script for `initialize` / `tools/list` and call that Workflow manually with the expected arguments.
+
+## Troubleshooting
+
+- `401`: the key is missing, disabled, rotated, or not a `CLIENT_ACCESS / sk-orin-*` key.
+- `403` or `Origin not allowed`: add `ORIN_MCP_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080` before backend startup.
+- Empty `tools/list`: enable `mcpExposed=true` on an Agent or a published Workflow owned by the API key user.
+- Claude Desktop does not show ORIN tools: restart Claude Desktop after editing `claude_desktop_config.json`, and run the bridge from the same Python venv configured in the file.
+- Workflow call returns only submission metadata: this is expected. Workflow MCP calls enqueue through ORIN's workflow queue and return `taskId`, `workflowInstanceId`, `traceId`, and `statusUrl`.

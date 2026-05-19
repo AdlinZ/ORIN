@@ -18,6 +18,8 @@ const resumeCollaborationMock = vi.fn()
 const cancelCollaborationMock = vi.fn()
 const warningMock = vi.fn()
 const successMock = vi.fn()
+const confirmMock = vi.fn()
+const promptMock = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -51,6 +53,10 @@ vi.mock('element-plus', async (importOriginal) => {
     ElMessage: {
       warning: (...args) => warningMock(...args),
       success: (...args) => successMock(...args)
+    },
+    ElMessageBox: {
+      confirm: (...args) => confirmMock(...args),
+      prompt: (...args) => promptMock(...args)
     }
   }
 })
@@ -106,6 +112,10 @@ describe('CollaborationDashboardV2', () => {
     cancelCollaborationMock.mockReset()
     warningMock.mockReset()
     successMock.mockReset()
+    confirmMock.mockReset()
+    promptMock.mockReset()
+    confirmMock.mockResolvedValue()
+    promptMock.mockResolvedValue({ value: 'done manually' })
     getSubtasksMock.mockResolvedValue([])
     getRuntimeStatusMock.mockResolvedValue({})
     getDiagnosticsMock.mockResolvedValue({})
@@ -154,5 +164,30 @@ describe('CollaborationDashboardV2', () => {
     expect(timelineBtn).toBeTruthy()
     await timelineBtn.trigger('click')
     expect(getEventHistoryMock).toHaveBeenCalledWith('pkg-1')
+  })
+
+  it('pauses an executing package from the detail drawer and refreshes runtime state', async () => {
+    getCollaborationStatsMock.mockResolvedValue({})
+    getAllPackagesMock.mockResolvedValue([{ packageId: 'pkg-1', intent: 'intent A', status: 'EXECUTING' }])
+    getEventHistoryMock.mockResolvedValue([])
+    pauseCollaborationMock.mockResolvedValue({})
+
+    const wrapper = createWrapper()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const detailBtn = wrapper.findAll('button').find((btn) => btn.text().includes('详情'))
+    expect(detailBtn).toBeTruthy()
+    await detailBtn.trigger('click')
+    await Promise.resolve()
+
+    const pauseBtn = wrapper.findAll('button').find((btn) => btn.text().trim() === '暂停')
+    expect(pauseBtn).toBeTruthy()
+    await pauseBtn.trigger('click')
+    await Promise.resolve()
+
+    expect(confirmMock).toHaveBeenCalledWith('确认暂停该协作任务包？', '暂停协作包', { type: 'warning' })
+    expect(pauseCollaborationMock).toHaveBeenCalledWith('pkg-1')
+    expect(successMock).toHaveBeenCalledWith('协作包已暂停')
   })
 })
