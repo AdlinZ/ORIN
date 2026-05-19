@@ -3,6 +3,7 @@ package com.adlin.orin.modules.mcp.service;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
 import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
@@ -32,8 +33,10 @@ public class McpJsonRpcService {
     private final ExternalMcpAgentExecutionService executionService;
     private final WorkflowService workflowService;
     private final OrinWorkflowDslNormalizer workflowDslNormalizer;
+    private final AuditHelper auditHelper;
 
     public Map<String, Object> handle(Object body, GatewaySecret secret) {
+        if (body instanceof List<?>) return error(null, -32600, "Invalid Request: batch is not supported");
         if (!(body instanceof Map<?, ?> req)) return error(null, -32600, "Invalid Request");
         Object id = req.get("id");
         Object rawMethod = req.get("method");
@@ -45,10 +48,16 @@ public class McpJsonRpcService {
                     "capabilities", Map.of("tools", Map.of("listChanged", false)),
                     "serverInfo", Map.of("name", "ORIN", "version", "0.1.0")
             ));
-            case "tools/list" -> ok(id, Map.of("tools", tools(owner(secret))));
+            case "tools/list" -> listTools(id, secret);
             case "tools/call" -> call(id, map(req.get("params")), secret);
             default -> error(id, -32601, "Method not found");
         };
+    }
+
+    private Map<String, Object> listTools(Object id, GatewaySecret secret) {
+        List<Map<String, Object>> exposedTools = tools(owner(secret));
+        audit(secret, "tools/list", null, null, null, true, null);
+        return ok(id, Map.of("tools", exposedTools));
     }
 
     private Map<String, Object> call(Object id, Map<String, Object> params, GatewaySecret secret) {
@@ -56,19 +65,34 @@ public class McpJsonRpcService {
         Map<String, Object> args = map(params.get("arguments"));
         if (tool != null && tool.startsWith(WORKFLOW_PREFIX)) return callWorkflow(id, tool, args, secret);
         String agentId = decodeAgentToolName(tool);
-        if (agentId == null) return error(id, -32602, "Invalid tool name");
+        if (agentId == null) {
+            audit(secret, "tools/call", tool, null, null, false, "-32602");
+            return error(id, -32602, "Invalid tool name");
+        }
         AgentMetadata agent = agentRepository.findById(agentId).orElse(null);
         Long owner = owner(secret);
         if (agent == null || !agent.isMcpExposed() || owner == null || !owner.equals(agent.getOwnerUserId())) {
+            audit(secret, "tools/call", tool, null, null, false, "-32003");
             return error(id, -32003, "Forbidden");
         }
         String message = string(args.get("message"));
-        if (message == null || message.isBlank()) return error(id, -32602, "message is required");
+        if (message == null || message.isBlank()) {
+            audit(secret, "tools/call", tool, null, null, false, "-32602");
+            return error(id, -32602, "message is required");
+        }
         Integer maxTokens = args.get("max_tokens") instanceof Number n ? n.intValue() : null;
         try {
-            String text = safe(executionService.execute(agent, message, string(args.get("context")), maxTokens, secret.getUserId()), "");
-            return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", text)), "isError", false));
+            ExternalMcpAgentExecutionService.ExecutionResult execution = executionService.execute(
+                    agent, message, string(args.get("context")), maxTokens, secret.getUserId());
+            audit(secret, "tools/call", tool, execution.traceId(), execution.packageId(), true, null);
+            return ok(id, Map.of(
+                    "content", List.of(Map.of("type", "text", "text", agentText(execution))),
+                    "isError", false));
+        } catch (ExternalMcpAgentExecutionService.ExecutionFailedException e) {
+            audit(secret, "tools/call", tool, e.getTraceId(), e.getPackageId(), false, "TOOL_ERROR");
+            return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", safe(e.getMessage(), "Agent execution failed"))), "isError", true));
         } catch (Exception e) {
+            audit(secret, "tools/call", tool, null, null, false, "TOOL_ERROR");
             return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", safe(e.getMessage(), "Agent execution failed"))), "isError", true));
         }
     }
@@ -76,9 +100,13 @@ public class McpJsonRpcService {
     private Map<String, Object> callWorkflow(Object id, String tool, Map<String, Object> args, GatewaySecret secret) {
         Long workflowId = decodeWorkflowToolName(tool);
         Long owner = owner(secret);
-        if (workflowId == null || owner == null) return error(id, -32602, "Invalid tool name");
+        if (workflowId == null || owner == null) {
+            audit(secret, "tools/call", tool, null, null, false, "-32602");
+            return error(id, -32602, "Invalid tool name");
+        }
         WorkflowEntity workflow = workflowRepository.findById(workflowId).orElse(null);
         if (workflow == null || !workflow.isMcpExposed() || !owner.equals(workflow.getOwnerUserId())) {
+            audit(secret, "tools/call", tool, null, null, false, "-32003");
             return error(id, -32003, "Forbidden");
         }
         try {
@@ -91,10 +119,20 @@ public class McpJsonRpcService {
                             safe(submission.getTraceId(), ""),
                             submission.getStatus(),
                             submission.getStatusUrl());
+            audit(secret, "tools/call", tool, safe(submission.getTraceId(), null), null, true, null);
             return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", text)), "isError", false));
         } catch (Exception e) {
+            audit(secret, "tools/call", tool, null, null, false, "TOOL_ERROR");
             return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", safe(e.getMessage(), "Workflow execution failed"))), "isError", true));
         }
+    }
+
+    private String agentText(ExternalMcpAgentExecutionService.ExecutionResult execution) {
+        String text = safe(execution.text(), "");
+        String tracking = "Trace ID: %s%nPackage ID: %s".formatted(
+                safe(execution.traceId(), ""),
+                safe(execution.packageId(), ""));
+        return text.isBlank() ? tracking : text + "\n\n" + tracking;
     }
 
     private List<Map<String, Object>> tools(Long owner) {
@@ -233,6 +271,25 @@ public class McpJsonRpcService {
             if (candidate != null && !candidate.isBlank()) return candidate;
         }
         return null;
+    }
+
+    private void audit(GatewaySecret secret, String method, String tool, String traceId, String packageId,
+                       boolean success, String errorCode) {
+        if (auditHelper == null) return;
+        StringBuilder detail = new StringBuilder("method=").append(method);
+        detail.append(";secretId=").append(safe(secret == null ? null : secret.getSecretId(), ""));
+        if (tool != null && !tool.isBlank()) detail.append(";toolName=").append(tool);
+        if (traceId != null && !traceId.isBlank()) detail.append(";traceId=").append(traceId);
+        if (packageId != null && !packageId.isBlank()) detail.append(";packageId=").append(packageId);
+        if (errorCode != null && !errorCode.isBlank()) detail.append(";errorCode=").append(errorCode);
+        String operation = "tools/list".equals(method) ? "MCP_TOOLS_LIST" : "MCP_TOOLS_CALL";
+        auditHelper.log(
+                secret == null ? null : secret.getUserId(),
+                operation,
+                "/v1/mcp",
+                detail.toString(),
+                success,
+                success ? null : safe(errorCode, "MCP tool call failed"));
     }
 
     private Map<String, Object> ok(Object id, Map<String, Object> result) {
