@@ -54,9 +54,12 @@ public class ApiKeyController {
     public ResponseEntity<Map<String, Object>> createApiKey(
             @RequestBody CreateApiKeyRequest request,
             @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+        String targetUserId = request.getTargetUserId() != null && !request.getTargetUserId().isBlank()
+                ? request.getTargetUserId().trim()
+                : userId;
 
         ApiKeyService.ApiKeyWithSecret result = apiKeyService.createApiKey(
-                userId,
+                targetUserId,
                 request.getName(),
                 request.getDescription(),
                 request.getRateLimitPerMinute(),
@@ -64,8 +67,9 @@ public class ApiKeyController {
                 request.getMonthlyTokenQuota(),
                 request.getExpiresAt());
 
-        auditHelper.log("SYSTEM", "API_KEY_CREATE", "/api/v1/api-keys",
-                "创建API密钥: " + request.getName() + ", 用户: " + userId, true, null);
+        auditHelper.log(targetUserId, "API_KEY_CREATE", "/api/v1/api-keys",
+                "action=create;keyId=" + result.getApiKey().getId() + ";targetUserId=" + targetUserId,
+                true, null);
 
         Map<String, Object> response = new HashMap<>();
         response.put("apiKey", toApiKeyResponse(result.getApiKey()));
@@ -130,10 +134,18 @@ public class ApiKeyController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
+        if (request == null || !"REVEAL_API_KEY".equals(request.getConfirmReveal())) {
+            auditHelper.log(String.valueOf(currentUserId), "API_KEY_REVEAL", "/api/v1/api-keys/" + keyId + "/secret",
+                    "action=reveal;keyId=" + keyId, false, "CONFIRM_REQUIRED");
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "需要二次确认");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+
         if (request == null || request.getCurrentPassword() == null
                 || !passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
             auditHelper.log(String.valueOf(currentUserId), "API_KEY_REVEAL", "/api/v1/api-keys/" + keyId + "/secret",
-                    "管理员查看API密钥明文失败（密码校验失败）: " + keyId, false, "INVALID_PASSWORD");
+                    "action=reveal;keyId=" + keyId, false, "INVALID_PASSWORD");
             Map<String, Object> response = new HashMap<>();
             response.put("message", "当前密码错误");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
@@ -142,7 +154,7 @@ public class ApiKeyController {
         return apiKeyService.getSecretKeyForAdmin(keyId)
                 .map(secret -> {
                     auditHelper.log(String.valueOf(currentUserId), "API_KEY_REVEAL", "/api/v1/api-keys/" + keyId + "/secret",
-                            "管理员查看API密钥明文: " + keyId, true, null);
+                            "action=reveal;keyId=" + keyId, true, null);
 
                     Map<String, Object> response = new HashMap<>();
                     response.put("keyId", keyId);
@@ -151,6 +163,30 @@ public class ApiKeyController {
                 })
                 .orElseGet(() -> {
                     return ResponseEntity.notFound().build();
+                });
+    }
+
+    /**
+     * 获取 API Key 调用摘要与最近调用历史（脱敏）
+     */
+    @Operation(summary = "获取API Key调用摘要")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{keyId}/usage")
+    public ResponseEntity<?> getApiKeyUsage(
+            @PathVariable String keyId,
+            @RequestParam(value = "limit", required = false, defaultValue = "20") int limit,
+            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+        return apiKeyService.getApiKeyUsage(keyId, userId, limit)
+                .<ResponseEntity<?>>map(usage -> {
+                    auditHelper.log(userId, "API_KEY_USAGE_READ", "/api/v1/api-keys/" + keyId + "/usage",
+                            "action=usage-read;keyId=" + keyId, true, null);
+                    return ResponseEntity.ok(usage);
+                })
+                .orElseGet(() -> {
+                    auditHelper.log(userId, "API_KEY_USAGE_READ", "/api/v1/api-keys/" + keyId + "/usage",
+                            "action=usage-read;keyId=" + keyId, false, "NOT_FOUND_OR_FORBIDDEN");
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("message", "API Key不存在或无权限"));
                 });
     }
 
@@ -165,6 +201,8 @@ public class ApiKeyController {
             @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
 
         boolean success = apiKeyService.disableApiKey(keyId, userId);
+        auditHelper.log(userId, "API_KEY_DISABLE", "/api/v1/api-keys/" + keyId + "/disable",
+                "action=disable;keyId=" + keyId, success, success ? null : "DISABLE_FAILED");
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -184,6 +222,8 @@ public class ApiKeyController {
             @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
 
         boolean success = apiKeyService.enableApiKey(keyId, userId);
+        auditHelper.log(userId, "API_KEY_ENABLE", "/api/v1/api-keys/" + keyId + "/enable",
+                "action=enable;keyId=" + keyId, success, success ? null : "ENABLE_FAILED");
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -204,8 +244,8 @@ public class ApiKeyController {
 
         boolean success = apiKeyService.deleteApiKey(keyId, userId);
 
-        auditHelper.log("SYSTEM", "API_KEY_DELETE", "/api/v1/api-keys/" + keyId,
-                "删除API密钥: " + keyId + ", 用户: " + userId, success, success ? null : "删除失败");
+        auditHelper.log(userId, "API_KEY_DELETE", "/api/v1/api-keys/" + keyId,
+                "action=delete;keyId=" + keyId, success, success ? null : "DELETE_FAILED");
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -226,7 +266,7 @@ public class ApiKeyController {
         apiKeyService.resetMonthlyQuota(keyId);
 
         auditHelper.log("SYSTEM", "API_KEY_RESET_QUOTA", "/api/v1/api-keys/" + keyId + "/reset-quota",
-                "重置API密钥配额: " + keyId, true, null);
+                "action=reset-quota;keyId=" + keyId, true, null);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -246,13 +286,19 @@ public class ApiKeyController {
             @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
         return apiKeyService.rotateApiKey(keyId, userId)
                 .map(rotated -> {
+                    auditHelper.log(userId, "API_KEY_ROTATE", "/api/v1/api-keys/" + keyId + "/rotate",
+                            "action=rotate;keyId=" + keyId, true, null);
                     Map<String, Object> response = new HashMap<>();
                     response.put("apiKey", toApiKeyResponse(rotated.getApiKey()));
                     response.put("secretKey", rotated.getSecretKey());
                     response.put("warning", "请妥善保存此密钥，它只会显示一次！");
                     return ResponseEntity.ok(response);
                 })
-                .orElseGet(() -> ResponseEntity.badRequest().body(Map.of("success", false, "message", "rotate failed")));
+                .orElseGet(() -> {
+                    auditHelper.log(userId, "API_KEY_ROTATE", "/api/v1/api-keys/" + keyId + "/rotate",
+                            "action=rotate;keyId=" + keyId, false, "ROTATE_FAILED");
+                    return ResponseEntity.badRequest().body(Map.of("success", false, "message", "rotate failed"));
+                });
     }
 
     /**
@@ -266,6 +312,7 @@ public class ApiKeyController {
                 .name(apiKey.getName())
                 .description(apiKey.getDescription())
                 .enabled(apiKey.getEnabled())
+                .status(resolveStatus(apiKey))
                 .rateLimitPerMinute(apiKey.getRateLimitPerMinute())
                 .rateLimitPerDay(apiKey.getRateLimitPerDay())
                 .monthlyTokenQuota(apiKey.getMonthlyTokenQuota())
@@ -276,6 +323,13 @@ public class ApiKeyController {
                 .userId(apiKey.getUserId())
                 .createdAt(apiKey.getCreatedAt())
                 .build();
+    }
+
+    private String resolveStatus(ApiKey apiKey) {
+        if (apiKey.getExpiresAt() != null && apiKey.getExpiresAt().isBefore(LocalDateTime.now())) {
+            return "EXPIRED";
+        }
+        return Boolean.TRUE.equals(apiKey.getEnabled()) ? "ACTIVE" : "DISABLED";
     }
 
     /**
@@ -289,11 +343,13 @@ public class ApiKeyController {
         private Integer rateLimitPerDay;
         private Long monthlyTokenQuota;
         private LocalDateTime expiresAt;
+        private String targetUserId;
     }
 
     @Data
     public static class RevealSecretRequest {
         private String currentPassword;
+        private String confirmReveal;
     }
 
     /**
@@ -310,6 +366,7 @@ public class ApiKeyController {
         private String description;
         private String userId;
         private Boolean enabled;
+        private String status;
         private Integer rateLimitPerMinute;
         private Integer rateLimitPerDay;
         private Long monthlyTokenQuota;
