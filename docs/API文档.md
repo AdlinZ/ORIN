@@ -23,7 +23,19 @@
 | `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token |
 | `/v1/health` · `/api/v1/health` | 无 | 健康检查公开 |
 
-API Key 创建：管理台 → 系统管理 → API Key 管理。
+API Key 创建：管理台 → 系统管理 → API Key 管理。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
+
+API Key 生命周期接口：
+
+- `GET /api/v1/api-keys`：查询平台访问密钥，响应只返回前缀、状态、配额、过期时间、最后使用时间等摘要。
+- `POST /api/v1/api-keys`：创建平台访问密钥，明文 `secretKey` 只在创建响应中返回一次。
+- `PATCH /api/v1/api-keys/{keyId}/disable` / `enable`：禁用或启用密钥，禁用后 `/v1/mcp` 与其他 `/v1/*` 入口必须返回 `401`。
+- `POST /api/v1/api-keys/{keyId}/rotate`：轮换密钥，旧密钥立即失效，新明文只返回一次。
+- `POST /api/v1/api-keys/{keyId}/secret`：管理员受控回显明文，必须提交当前密码和 `confirmReveal=REVEAL_API_KEY`；成功/失败均写脱敏审计。
+- `GET /api/v1/api-keys/{keyId}/usage?limit=20`：返回该 key 的 30 天调用摘要与最近调用历史，只包含状态、计数、路径、traceId、耗时、错误摘要等脱敏字段。
+- `DELETE /api/v1/api-keys/{keyId}`：删除密钥。
+
+创建、禁用、启用、轮换、删除、配额重置、明文回显、调用历史读取均写审计日志；审计详情只记录 `keyId / userId / action / success` 等摘要，不记录 API Key 原文、JWT、provider token、完整请求体或完整响应体。
 
 错误码（统一网关）：
 
@@ -155,6 +167,20 @@ curl -X POST http://localhost:8080/api/v1/workflow/run \
   }'
 ```
 
+Workflow task 运行态接口保持在 `/api/v1/workflow-tasks/**`，兼容旧 `/v1/tasks/**` 对外查询入口。wire status 固定为：
+
+`QUEUED / RUNNING / RETRYING / COMPLETED / FAILED / DEAD / CANCELLED`
+
+语义约束：
+
+- `CANCELLED` 是终态。
+- 仅 `QUEUED` 可取消：`POST /api/v1/workflow-tasks/{taskId}/cancel`。
+- 仅 `FAILED / DEAD` 可重放：`POST /api/v1/workflow-tasks/{taskId}/replay`，重放会创建新的 `QUEUED` 任务，原任务保持原终态。
+- 任务详情：`GET /api/v1/workflow-tasks/{taskId}`。
+- 工作流任务历史：`GET /api/v1/workflow-tasks/workflow/{workflowId}`。
+- 任务中心与 Workflow 执行页会在 `FAILED / DEAD` 重放前展示失败原因、死信原因、重试次数和 traceId；重放成功后返回并展示 `originalTaskId / newTaskId`。
+- Workflow 创建请求可在顶层 `retryPolicy.maxRetries` 覆盖该 Workflow task 最大重试次数；设为 `0` 表示失败后直接进入 `FAILED` 终态，不进入 `RETRYING / DEAD`。
+
 ### 4.8 协作
 
 ```bash
@@ -173,16 +199,34 @@ curl http://localhost:8080/api/v1/collaboration/packages/{id}/status \
 # 事件流
 curl http://localhost:8080/api/v1/collaboration/events/{packageId} \
   -H "Authorization: Bearer $TOKEN"
+
+# 运行时 / 诊断 / 人工干预
+curl http://localhost:8080/api/v1/collaboration/packages/{packageId}/runtime \
+  -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/v1/collaboration/packages/{packageId}/diagnostics \
+  -H "Authorization: Bearer $TOKEN"
+curl -X POST http://localhost:8080/api/v1/collaboration/packages/{packageId}/pause \
+  -H "Authorization: Bearer $TOKEN"
+curl -X POST http://localhost:8080/api/v1/collaboration/packages/{packageId}/resume \
+  -H "Authorization: Bearer $TOKEN"
+curl -X POST http://localhost:8080/api/v1/collaboration/packages/{packageId}/cancel \
+  -H "Authorization: Bearer $TOKEN"
+curl -X POST http://localhost:8080/api/v1/collaboration/packages/{packageId}/manual-complete \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"result":"manual result"}'
 ```
 
 ### 4.9 Trace 与监控
 
 ```bash
 curl http://localhost:8080/api/traces/{traceId} -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/v1/traces/{traceId}/summary -H "Authorization: Bearer $TOKEN"
 curl "http://localhost:8080/api/traces/search?traceId=abc" -H "Authorization: Bearer $TOKEN"
 curl http://localhost:8080/api/v1/monitor/dashboard/summary -H "Authorization: Bearer $TOKEN"
 curl http://localhost:8080/api/v1/observability/langfuse/status -H "Authorization: Bearer $TOKEN"
 ```
+
+`GET /api/v1/traces/{traceId}/summary` 返回脱敏聚合摘要：workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 和 Langfuse link 状态。响应只包含 ID、状态、时间、耗时、错误摘要、计数和跳转所需字段；不得返回 `inputData`、`outputData`、`requestParams`、`responseContent`、token、API Key 或 provider 凭据。
 
 ## 5. 联调技巧
 

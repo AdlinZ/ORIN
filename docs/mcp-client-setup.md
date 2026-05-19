@@ -14,6 +14,8 @@ Tool names are prefixed by resource type:
 - `agent.<base64url-agent-id>`
 - `workflow.<workflow-id>`
 
+JSON-RPC batch requests are not supported yet. Send one Streamable HTTP JSON-RPC request per POST; batch arrays return `Invalid Request`.
+
 ## Cursor
 
 ```json
@@ -139,6 +141,13 @@ After enabling "MCP 暴露" on an Agent owned by the API key user, MCP clients c
 
 Agent calls run through ORIN's existing collaboration execution path. They are not executed by a separate MCP-specific runtime.
 
+Successful Agent call responses include execution tracking lines after the agent text:
+
+```text
+Trace ID: <traceId>
+Package ID: <packageId>
+```
+
 ## Workflow Call Example
 
 After enabling "MCP 暴露" on a published workflow, MCP clients can call it by its `workflow.<id>` tool name.
@@ -160,4 +169,4 @@ Workflow calls are submitted asynchronously through ORIN's existing workflow exe
 2. Mark at least one owned Agent or Workflow as `mcpExposed=true`.
 3. POST `initialize` and `tools/list` to `<ORIN_BASE_URL>/v1/mcp` with `Authorization: Bearer <ORIN_API_KEY>`.
 4. For Claude Desktop, run `orin-mcp-bridge` over stdio and confirm the same tools are listed.
-5. Call one Agent tool and confirm the response content is returned without logging the API key.
+5. Call one Agent tool and confirm the response content includes `Trace ID` and `Package ID` without logging the API key or tool arguments.
