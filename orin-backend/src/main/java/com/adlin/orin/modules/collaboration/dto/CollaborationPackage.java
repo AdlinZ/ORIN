@@ -151,7 +151,7 @@ public class CollaborationPackage {
         private String description;
 
         /**
-         * 期望角色：PLANNER, SPECIALIST, REVIEWER, CRITIC, COORDINATOR
+         * 期望角色：PLANNER, SPECIALIST, REVIEWER, CRITIC, COORDINATOR, WORKFLOW, MCP, HUMAN
          */
         private String expectedRole;
 

@@ -34,7 +34,7 @@ bash scripts/docker-smoke.sh
 bash scripts/business-smoke.sh
 ```
 
-`business-smoke.sh` 会通过真实 HTTP API 登录、创建并禁用临时 API Key、验证 `/v1/mcp` 接受启用密钥且拒绝禁用密钥、读取 Agent 列表、创建/发布/执行最小 Workflow、校验已完成任务的取消/重放保护、创建一个可控失败 Workflow 并验证 replay 新任务、创建/分解/查询 Collaboration 包，并做 best-effort 清理。Agent 真正对话默认跳过；如需纳入必检，设置 `ORIN_BUSINESS_SMOKE_AGENT_ID=<agentId>`。脚本默认自动探测 `RABBITMQ_HOST:RABBITMQ_PORT`，RabbitMQ 可达时要求 Workflow task 跑到 `COMPLETED`，不可达时才按 `WARN` 降级；`docker-smoke.sh` 额外强制启用严格口径。
+`business-smoke.sh` 会通过真实 HTTP API 登录、创建并禁用临时 API Key、验证 `/v1/mcp` 接受启用密钥且拒绝禁用密钥、读取 Agent 列表、创建/发布/执行最小 Workflow、校验已完成任务的取消/重放保护、创建一个可控失败 Workflow 并验证 replay 新任务、创建/分解/查询 Collaboration 包，并做 best-effort 清理。Workflow 与 Collaboration 会额外断言 `GET /api/v1/traces/{traceId}/summary` 能聚合到对应对象。Agent 真正对话默认跳过；如需纳入必检，设置 `ORIN_BUSINESS_SMOKE_AGENT_ID=<agentId>`，脚本会要求响应不是错误负载，并能在 trace summary 中查到审计或 trace 记录。协作 Workflow 子任务端到端验收默认跳过；启用 AI Engine MQ worker、后端协作结果监听和 `ORIN_BACKEND_AUTHORIZATION` 后，可设置 `ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK=1` 纳入必检。脚本默认自动探测 `RABBITMQ_HOST:RABBITMQ_PORT`，RabbitMQ 可达时要求 Workflow task 跑到 `COMPLETED`，不可达时才按 `WARN` 降级；`docker-smoke.sh` 额外强制启用严格口径。
 
 启动后访问：
 
@@ -95,7 +95,7 @@ ORIN/
 
 ## 当前状态
 
-骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。本机进程模式优先通过 health checks 与 `bash scripts/smoke-test.sh` 验证；Docker quickstart 已在干净 volume 下通过 `docker compose --env-file .env.example up --build -d` 与运行态 HTTP smoke；核心业务链路可通过 `bash scripts/business-smoke.sh` 做 API 级验收。Phase 1D 已补 Trace 聚合摘要、任务失败恢复确认/高亮、协作包 runtime/diagnostics 与人工干预入口；Phase 1E/1F 已补 API Key 轮换/禁用审计、调用摘要/最近历史、前端 MCP 配置复制与 smoke 级生命周期验收。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
+骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。本机进程模式优先通过 health checks 与 `bash scripts/smoke-test.sh` 验证；Docker quickstart 已在干净 volume 下通过 `docker compose --env-file .env.example up --build -d` 与运行态 HTTP smoke；核心业务链路可通过 `bash scripts/business-smoke.sh` 做 API 级验收，并已覆盖 Workflow / Collaboration trace summary 聚合断言以及可选 Agent Chat 强校验。Phase 1D 已补 Trace 聚合摘要、任务失败恢复确认/高亮、协作包 runtime/diagnostics、人工干预入口，以及显式 `workflowId` 协作子任务经 MQ/AI Engine `TaskRuntime` 执行的路径；Phase 1E/1F 已补 API Key 轮换/禁用审计、调用摘要/最近历史、前端 MCP 配置复制与 smoke 级生命周期验收。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
 
 ## License
 

@@ -54,8 +54,9 @@
   - 协作包完成后统一审计记录
 - 仍未完成的重点
   - 前端协作页人工干预操作按钮与详情闭环已补基础入口，仍需端到端业务验收
-  - 工作流子任务执行仍为预留实现
+  - 协作 Workflow 子任务已支持显式 `workflowId` 分解、MQ `WORKFLOW` 策略映射，并复用 AI Engine `TaskRuntime.execute_workflow_task`
   - 协作页筛选已接真实接口，但人工操作闭环仍缺失
+  - Workflow 子任务运行态 smoke 已提供 `ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK=1` 可选强验收，运行环境需具备 RabbitMQ、AI Engine MQ worker、后端协作结果监听与 `ORIN_BACKEND_AUTHORIZATION`
 
 ### 1.1 后端协作任务执行
 
@@ -125,7 +126,7 @@
 ### 1.4 阶段验收
 
 - [~] `P0` 创建协作包后可以自动分解为真实子任务
-- [~] `P0` 协作子任务可以实际调用智能体或工作流
+- [x] `P0` 协作子任务可以实际调用智能体或工作流
 - [~] `P0` 协作事件能完整记录并回显到前端
 - [~] `P0` 子任务失败后可重试或触发回退
 - [~] `P0` 协作包完成后有明确最终结果和审计记录
@@ -366,13 +367,13 @@
 - [x] `P0` 固化 `/v1/mcp` 企业级协议边界测试
   `McpStreamableHttpTest` 已覆盖 CLIENT_ACCESS API Key 鉴权、JWT 隔离、Origin 白名单、`notifications/initialized` 202、JSON-RPC batch 拒绝、owner / `mcpExposed` 隔离、Agent trace/package 返回、Workflow 提交返回与无敏感参数审计。
 - [x] `P0` 建立核心业务闭环 smoke baseline
-  `scripts/business-smoke.sh` 已覆盖登录、Agent 列表、Workflow 最小 DSL 创建/发布/提交/查询、已完成任务取消/重放保护、失败 Workflow replay、Collaboration 创建/分解/查询；Agent chat 需显式设置 `ORIN_BUSINESS_SMOKE_AGENT_ID`，RabbitMQ 可达时要求 Workflow task 到 `COMPLETED`。
+  `scripts/business-smoke.sh` 已覆盖登录、Agent 列表、Workflow 最小 DSL 创建/发布/提交/查询、Workflow trace summary 聚合断言、已完成任务取消/重放保护、失败 Workflow replay、Collaboration 创建/分解/查询、Collaboration trace summary 聚合断言；Agent chat 需显式设置 `ORIN_BUSINESS_SMOKE_AGENT_ID`，设置后会强校验响应不是错误负载且 trace summary 中存在审计或 trace 记录；`ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK=1` 会额外验证显式 Workflow 协作子任务经 AI Engine `TaskRuntime` 入队并能在同一 trace summary 中聚合到 workflow task；RabbitMQ 可达时要求 Workflow task 到 `COMPLETED`。
 - [x] `P1` Phase 1B：默认运行态闭环与任务队列稳定化
   Root Docker quickstart 已纳入 RabbitMQ，后端 workflow consumer 默认启用；V89 修复 Docker snapshot 路径默认 admin 明文密码/缺角色问题；`docker-smoke.sh` 严格调用 `business-smoke.sh` 验证 Workflow 完整消费。
 - [x] `P1` Phase 1C：补齐任务状态一致性、失败恢复与前端调用历史
   Workflow task wire status 固定为 `QUEUED/RUNNING/RETRYING/COMPLETED/FAILED/DEAD/CANCELLED`；取消仅允许 `QUEUED` 并写入 `CANCELLED` 终态，重放仅允许 `FAILED/DEAD` 并创建新 `QUEUED` 任务；前端任务中心与 Workflow 执行页补调用历史、状态徽标、失败重放/排队取消入口。
 - [~] `P1` Phase 1D：失败恢复入口与 Trace 聚合
-  新增 `GET /api/v1/traces/{traceId}/summary` 脱敏聚合 workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 与 Langfuse link 状态；TraceViewer 可跳转任务/Workflow/协作包；任务中心和 Workflow 执行页补恢复确认、新任务高亮；Workflow 创建请求支持 `retryPolicy.maxRetries` 任务级重试覆盖；协作 Dashboard 补 runtime/diagnostics/events/subtasks 与包级、子任务级人工干预入口；`business-smoke.sh` 已覆盖失败 Workflow replay。
+  新增 `GET /api/v1/traces/{traceId}/summary` 脱敏聚合 workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 与 Langfuse link 状态；TraceViewer 可跳转任务/Workflow/协作包；任务中心和 Workflow 执行页补恢复确认、新任务高亮；Workflow 创建请求支持 `retryPolicy.maxRetries` 任务级重试覆盖；协作 Dashboard 补 runtime/diagnostics/events/subtasks 与包级、子任务级人工干预入口；`business-smoke.sh` 已覆盖失败 Workflow replay，并对 Workflow / Collaboration / 可选 Agent Chat 增加 trace summary 端到端断言。
 - [~] `P1` Phase 1E：API Key 生命周期与权限治理基线
   平台访问密钥固定 `CLIENT_ACCESS / sk-orin-*` 口径；API Key 创建、禁用、启用、删除、配额重置、轮换写入脱敏审计；前端 API Key 管理页支持状态展示、轮换确认、一次性密钥展示与 MCP 配置复制；`business-smoke.sh` 覆盖临时 key 创建、`/v1/mcp` 成功、禁用后 401 与清理，并已纳入 Docker runtime smoke 验证。后续补角色自助权限、长期配额趋势与限流命中明细。
 - [~] `P1` Phase 1F：API Key 调用历史与敏感回显收敛
@@ -432,7 +433,7 @@
 状态更新项目：
 
 - [x] 协作页人工干预功能（包级 pause/resume/cancel/manual-complete；子任务 retry/skip/manual-complete）
-- [~] 协作子任务真实调用智能体执行 - 执行链成熟度待验收
+- [x] 协作子任务真实调用智能体 / Workflow 执行路径
 - [x] 任务状态字段与语义统一
 - [x] 任务详情接口字段补齐（触发来源、错误信息、重试时间等）
 - [x] 任务统计卡片和优先级分布图

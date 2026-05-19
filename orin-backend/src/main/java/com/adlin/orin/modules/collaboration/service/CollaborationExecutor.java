@@ -106,7 +106,7 @@ public class CollaborationExecutor {
         String subTaskId = subtask.getSubTaskId();
         String description = subtask.getDescription();
         String expectedRole = subtask.getExpectedRole();
-        String executorType = determineExecutorType(expectedRole);
+        String executorType = determineExecutorType(subtask);
 
         // 幂等保护：已终态的子任务不重复执行（除非上游显式改回 PENDING 触发重试）。
         String currentStatus = subtask.getStatus();
@@ -208,7 +208,7 @@ public class CollaborationExecutor {
                     .dependsOn(parseDependsOn(subtask.getDependsOn()))
                     .maxRetries(3)
                     .timeoutMillis(300000L)
-                    .executionStrategy(determineExecutorType(subtask.getExpectedRole()))
+                    .executionStrategy(determineExecutorType(subtask))
                     .replyTo("collaboration-task-result-queue")
                     .correlationId(callbackKey)
                     .contextSnapshot(contextSnapshot)
@@ -226,7 +226,7 @@ public class CollaborationExecutor {
             pendingTaskData.put("expectedRole", subtask.getExpectedRole());
             pendingTaskData.put("description", subtask.getDescription());
             pendingTaskData.put("inputData", subtask.getInputData());
-            pendingTaskData.put("executionStrategy", determineExecutorType(subtask.getExpectedRole()));
+            pendingTaskData.put("executionStrategy", determineExecutorType(subtask));
             pendingTaskData.put("contextSnapshot", contextSnapshot);
             pendingTaskData.put("maxRetries", 3);
             redisService.updateContextField(packageId, buildPendingTaskField(subtask.getSubTaskId()), pendingTaskData);
@@ -310,6 +310,13 @@ public class CollaborationExecutor {
     /**
      * 根据 expectedRole 判断执行器类型
      */
+    private String determineExecutorType(CollabSubtaskEntity subtask) {
+        if (subtask != null && extractWorkflowId(subtask) != null) {
+            return EXECUTOR_TYPE_WORKFLOW;
+        }
+        return determineExecutorType(subtask != null ? subtask.getExpectedRole() : null);
+    }
+
     private String determineExecutorType(String expectedRole) {
         if (expectedRole == null) {
             return EXECUTOR_TYPE_AGENT;

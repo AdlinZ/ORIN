@@ -41,6 +41,39 @@ class CollaborationOrchestratorControllerTest {
     private CollaborationMetricsService metricsService;
 
     @Test
+    @DisplayName("decompose 应透传显式 Workflow 子任务配置")
+    void decompose_passesExplicitWorkflowSubtasks() {
+        CollaborationOrchestratorController controller = new CollaborationOrchestratorController(
+                orchestrator,
+                eventBus,
+                executor,
+                memoryService,
+                metricsService
+        );
+
+        List<Map<String, Object>> subtasks = List.of(Map.of(
+                "subTaskId", "workflow-1",
+                "description", "run workflow",
+                "expectedRole", "WORKFLOW",
+                "inputData", Map.of("workflowId", 42, "inputs", Map.of("topic", "collab"))
+        ));
+        CollaborationPackage expected = CollaborationPackage.builder()
+                .packageId("pkg-explicit")
+                .status("EXECUTING")
+                .build();
+        when(orchestrator.decompose("pkg-explicit", List.of("workflow"), subtasks)).thenReturn(expected);
+
+        ResponseEntity<CollaborationPackage> response = controller.decompose(
+                "pkg-explicit",
+                Map.of("capabilities", List.of("workflow"), "subtasks", subtasks)
+        );
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("pkg-explicit", response.getBody().getPackageId());
+        verify(orchestrator).decompose("pkg-explicit", List.of("workflow"), subtasks);
+    }
+
+    @Test
     @DisplayName("executeSubtask 在 MQ 已完成回写后不应重复推进 COMPLETED")
     void executeSubtask_skipsDuplicateCompletedTransition() {
         CollaborationOrchestratorController controller = new CollaborationOrchestratorController(

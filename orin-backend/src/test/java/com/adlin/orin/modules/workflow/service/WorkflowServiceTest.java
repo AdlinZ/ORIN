@@ -274,6 +274,52 @@ class WorkflowServiceTest {
         }
 
         @Test
+        void triggerWorkflowWithPriority_ShouldPropagateTraceIdWhenProvided() {
+                Long workflowId = 11L;
+                String traceId = "trace-from-header";
+                Map<String, Object> inputs = Map.of("query", "hello");
+                WorkflowEntity workflow = WorkflowEntity.builder()
+                                .id(workflowId)
+                                .workflowName("Trace Workflow")
+                                .status(WorkflowEntity.WorkflowStatus.ACTIVE)
+                                .build();
+                WorkflowInstanceEntity instance = WorkflowInstanceEntity.builder()
+                                .id(90L)
+                                .workflowId(workflowId)
+                                .traceId(traceId)
+                                .build();
+                TaskEntity task = TaskEntity.builder()
+                                .taskId("task-90")
+                                .workflowId(workflowId)
+                                .workflowInstanceId(instance.getId())
+                                .status(TaskEntity.TaskStatus.QUEUED)
+                                .build();
+
+                when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
+                when(workflowEngine.validateWorkflow(workflowId)).thenReturn(true);
+                when(workflowEngine.createInstance(eq(workflowId), any(), eq("collab_mq_worker"), eq(traceId)))
+                                .thenReturn(instance);
+                when(taskService.createAndEnqueueTask(
+                                eq(workflowId),
+                                eq(instance.getId()),
+                                any(),
+                                isNull(),
+                                eq("collab_mq_worker"),
+                                eq("API")))
+                                .thenReturn(task);
+
+                WorkflowExecutionSubmissionResponse response = workflowService.triggerWorkflowWithPriority(
+                                workflowId,
+                                inputs,
+                                null,
+                                "collab_mq_worker",
+                                traceId);
+
+                assertThat(response.getTraceId()).isEqualTo(traceId);
+                verify(workflowEngine).createInstance(eq(workflowId), any(), eq("collab_mq_worker"), eq(traceId));
+        }
+
+        @Test
         void triggerWorkflowWithPriority_ShouldRejectDraftWorkflow() {
                 Long workflowId = 9L;
                 WorkflowEntity workflow = WorkflowEntity.builder()

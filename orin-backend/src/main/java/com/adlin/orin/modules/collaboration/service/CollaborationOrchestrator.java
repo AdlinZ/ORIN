@@ -76,6 +76,9 @@ public class CollaborationOrchestrator {
     public static final String ROLE_REVIEWER = "REVIEWER";
     public static final String ROLE_CRITIC = "CRITIC";
     public static final String ROLE_COORDINATOR = "COORDINATOR";
+    public static final String ROLE_WORKFLOW = "WORKFLOW";
+    public static final String ROLE_MCP = "MCP";
+    public static final String ROLE_HUMAN = "HUMAN";
 
     // 协作模式
     public static final String MODE_SEQUENTIAL = "SEQUENTIAL";
@@ -217,6 +220,12 @@ public class CollaborationOrchestrator {
      */
     @Transactional
     public CollaborationPackage decompose(String packageId, List<String> capabilities) {
+        return decompose(packageId, capabilities, List.of());
+    }
+
+    @Transactional
+    public CollaborationPackage decompose(String packageId, List<String> capabilities,
+                                          List<Map<String, Object>> explicitSubtasks) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
             throw new RuntimeException("Package not found: " + packageId);
@@ -228,7 +237,9 @@ public class CollaborationOrchestrator {
 
         // 根据意图类型分解任务
         String category = entity.getIntentCategory();
-        List<CollabSubtaskEntity> subtasks = generateSubtasks(packageId, category, capabilities);
+        List<CollabSubtaskEntity> subtasks = hasExplicitSubtasks(explicitSubtasks)
+                ? materializeExplicitSubtasks(packageId, explicitSubtasks)
+                : generateSubtasks(packageId, category, capabilities);
         persistSubtasksToRuntimeContext(packageId, subtasks);
 
         entity.setStatus(STATUS_EXECUTING);
@@ -241,6 +252,10 @@ public class CollaborationOrchestrator {
         memoryService.saveCheckpoint(packageId, "decomposed", Map.of("subtasks", subtasks.size()));
 
         return toDto(entity, subtasks);
+    }
+
+    private boolean hasExplicitSubtasks(List<Map<String, Object>> explicitSubtasks) {
+        return explicitSubtasks != null && !explicitSubtasks.isEmpty();
     }
 
     private void persistSubtasksToRuntimeContext(String packageId, List<CollabSubtaskEntity> subtasks) {
@@ -424,6 +439,83 @@ public class CollaborationOrchestrator {
         return subtasks;
     }
 
+    @SuppressWarnings("unchecked")
+    private List<CollabSubtaskEntity> materializeExplicitSubtasks(String packageId, List<Map<String, Object>> plan) {
+        List<CollabSubtaskEntity> subtasks = new ArrayList<>();
+        for (int i = 0; i < plan.size(); i++) {
+            Map<String, Object> item = plan.get(i);
+            if (item == null || item.isEmpty()) {
+                continue;
+            }
+            String subTaskId = valueAsString(item.getOrDefault("subTaskId", item.getOrDefault("id", String.valueOf(i + 1))));
+            if (subTaskId == null || subTaskId.isBlank()) {
+                subTaskId = String.valueOf(i + 1);
+            }
+            String description = valueAsString(item.get("description"));
+            if (description == null || description.isBlank()) {
+                continue;
+            }
+            String role = normalizeRole(valueAsString(item.getOrDefault("expectedRole", item.get("role"))));
+            List<String> dependsOn = valueAsStringList(item.get("dependsOn"));
+            Double confidence = valueAsDouble(item.get("confidence"));
+
+            Map<String, Object> inputData = new LinkedHashMap<>();
+            Object input = item.getOrDefault("inputData", item.get("input"));
+            if (input instanceof Map<?, ?> inputMap) {
+                inputMap.forEach((key, value) -> inputData.put(String.valueOf(key), value));
+            }
+            copyIfPresent(item, inputData, "workflowId");
+            copyIfPresent(item, inputData, "mcpServerId");
+            copyIfPresent(item, inputData, "toolName");
+            copyIfPresent(item, inputData, "arguments");
+
+            subtasks.add(createSubtask(
+                    packageId,
+                    subTaskId,
+                    description,
+                    role,
+                    dependsOn,
+                    confidence != null ? clampConfidence(confidence) : 0.82,
+                    inputData.isEmpty() ? null : inputData
+            ));
+        }
+        return subtaskRepository.saveAll(subtasks);
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source != null && source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
+    }
+
+    private String valueAsString(Object value) {
+        return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private Double valueAsDouble(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private List<String> valueAsStringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(this::valueAsString)
+                .filter(item -> item != null && !item.isBlank())
+                .toList();
+    }
+
     private AgentMetadata pickPlannerAgent(List<AgentMetadata> agents) {
         for (AgentMetadata agent : agents) {
             String text = ((agent.getName() != null ? agent.getName() : "") + " "
@@ -560,19 +652,27 @@ public class CollaborationOrchestrator {
     private String normalizeRole(String role) {
         String upper = role != null ? role.trim().toUpperCase(Locale.ROOT) : ROLE_SPECIALIST;
         return switch (upper) {
-            case ROLE_PLANNER, ROLE_SPECIALIST, ROLE_REVIEWER, ROLE_CRITIC, ROLE_COORDINATOR -> upper;
+            case ROLE_PLANNER, ROLE_SPECIALIST, ROLE_REVIEWER, ROLE_CRITIC, ROLE_COORDINATOR,
+                    ROLE_WORKFLOW, ROLE_MCP, ROLE_HUMAN -> upper;
             default -> ROLE_SPECIALIST;
         };
     }
 
     private CollabSubtaskEntity createSubtask(String packageId, String subTaskId, String description,
                                                String role, List<String> dependsOn, double confidence) {
+        return createSubtask(packageId, subTaskId, description, role, dependsOn, confidence, null);
+    }
+
+    private CollabSubtaskEntity createSubtask(String packageId, String subTaskId, String description,
+                                               String role, List<String> dependsOn, double confidence,
+                                               Map<String, Object> inputData) {
         return CollabSubtaskEntity.builder()
                 .packageId(packageId)
                 .subTaskId(subTaskId)
                 .description(description)
                 .expectedRole(role)
                 .dependsOn(toJson(dependsOn))
+                .inputData(inputData == null || inputData.isEmpty() ? null : toJson(inputData))
                 .confidence(confidence)
                 .status("PENDING")
                 .retryCount(0)

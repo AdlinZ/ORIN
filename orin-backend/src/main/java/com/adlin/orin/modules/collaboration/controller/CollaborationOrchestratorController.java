@@ -105,7 +105,9 @@ public class CollaborationOrchestratorController {
                 ? (List<String>) request.get("capabilities")
                 : List.of("analysis", "generation", "review");
 
-        CollaborationPackage pkg = orchestrator.decompose(packageId, capabilities);
+        List<Map<String, Object>> subtasks = extractSubtasks(request);
+
+        CollaborationPackage pkg = orchestrator.decompose(packageId, capabilities, subtasks);
         return ResponseEntity.ok(pkg);
     }
 
@@ -692,5 +694,19 @@ public class CollaborationOrchestratorController {
         if (source.containsKey(key) && source.get(key) != null) {
             target.put(key, source.get(key));
         }
+    }
+
+    private List<Map<String, Object>> extractSubtasks(Map<String, Object> request) {
+        if (request == null || !(request.get("subtasks") instanceof List<?> items)) {
+            return List.of();
+        }
+        return items.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> subtask = (Map<String, Object>) item;
+                    return subtask;
+                })
+                .toList();
     }
 }

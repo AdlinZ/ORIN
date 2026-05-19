@@ -355,9 +355,19 @@ public class WorkflowEngine {
      * 创建工作流实例
      */
     public WorkflowInstanceEntity createInstance(Long workflowId, Map<String, Object> inputs, String triggeredBy) {
+        return createInstance(workflowId, inputs, triggeredBy, null);
+    }
+
+    /**
+     * 创建工作流实例，优先使用调用方透传的 traceId。
+     */
+    public WorkflowInstanceEntity createInstance(Long workflowId, Map<String, Object> inputs, String triggeredBy, String traceId) {
+        String resolvedTraceId = traceId == null || traceId.isBlank()
+                ? UUID.randomUUID().toString()
+                : traceId.trim();
         WorkflowInstanceEntity instance = WorkflowInstanceEntity.builder()
                 .workflowId(workflowId)
-                .traceId(UUID.randomUUID().toString())
+                .traceId(resolvedTraceId)
                 .status(WorkflowInstanceEntity.InstanceStatus.RUNNING)
                 .inputData(inputs)
                 .triggeredBy(triggeredBy)

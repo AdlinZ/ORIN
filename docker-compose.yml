@@ -85,11 +85,15 @@ services:
       - .env
     environment:
       ORIN_BACKEND_URL: http://orin-backend:8080
+      ORIN_BACKEND_AUTHORIZATION: ${ORIN_BACKEND_AUTHORIZATION:-}
       ORIN_REDIS_URL: redis://:${REDIS_PASSWORD:?Copy .env.example to .env and set REDIS_PASSWORD}@redis:6379/0
-      ORIN_MQ_WORKER_DISABLED: "true"
-      ORIN_MQ_WORKER_AUTO_START: "false"
+      ORIN_RABBITMQ_URL: ${ORIN_RABBITMQ_URL:-}
+      ORIN_MQ_WORKER_DISABLED: ${ORIN_MQ_WORKER_DISABLED:-true}
+      ORIN_MQ_WORKER_AUTO_START: ${ORIN_MQ_WORKER_AUTO_START:-false}
     depends_on:
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     ports:
       - "${AI_ENGINE_PORT:-8000}:8000"
@@ -137,7 +141,7 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-replace_with_local_rabbitmq_password}
       RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/orin}
       ORIN_RABBITMQ_LISTENERS_AUTO_STARTUP: "true"
-      COLLAB_LISTENERS_AUTO_STARTUP: "false"
+      COLLAB_LISTENERS_AUTO_STARTUP: ${COLLAB_LISTENERS_AUTO_STARTUP:-false}
       COLLAB_MODE: ${COLLAB_MODE:-JAVA_NATIVE}
       LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
     depends_on:

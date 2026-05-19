@@ -11,6 +11,8 @@ ORIN_ADMIN_PASSWORD="${ORIN_ADMIN_PASSWORD:-admin123}"
 ORIN_BUSINESS_SMOKE_AGENT_ID="${ORIN_BUSINESS_SMOKE_AGENT_ID:-}"
 ORIN_BUSINESS_SMOKE_TIMEOUT_SECONDS="${ORIN_BUSINESS_SMOKE_TIMEOUT_SECONDS:-120}"
 ORIN_BUSINESS_SMOKE_REQUIRE_WORKFLOW_COMPLETED="${ORIN_BUSINESS_SMOKE_REQUIRE_WORKFLOW_COMPLETED:-auto}"
+ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK="${ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK:-false}"
+ORIN_BACKEND_AUTHORIZATION="${ORIN_BACKEND_AUTHORIZATION:-}"
 RABBITMQ_HOST="${RABBITMQ_HOST:-127.0.0.1}"
 RABBITMQ_PORT="${RABBITMQ_PORT:-5672}"
 
@@ -237,6 +239,116 @@ print("0")
 PY
 }
 
+json_number_ge() {
+    python3 - "$1" "$2" "$3" <<'PY'
+import json
+import sys
+
+path = sys.argv[2].split(".")
+minimum = int(sys.argv[3])
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh:
+        value = json.load(fh)
+except Exception:
+    sys.exit(1)
+
+for part in path:
+    if isinstance(value, dict):
+        value = value.get(part)
+    elif isinstance(value, list) and part.isdigit():
+        idx = int(part)
+        value = value[idx] if idx < len(value) else None
+    else:
+        value = None
+    if value is None:
+        break
+
+if isinstance(value, bool):
+    sys.exit(1)
+if isinstance(value, (int, float)) and value >= minimum:
+    sys.exit(0)
+sys.exit(1)
+PY
+}
+
+json_find_item_value() {
+    python3 - "$1" "$2" "$3" "$4" <<'PY'
+import json
+import sys
+
+source = sys.argv[1]
+match_key = sys.argv[2]
+match_value = sys.argv[3]
+target_key = sys.argv[4]
+
+try:
+    with open(source, "r", encoding="utf-8") as fh:
+        value = json.load(fh)
+except Exception:
+    sys.exit(0)
+
+if isinstance(value, dict):
+    for key in ("content", "data", "items", "records", "list"):
+        nested = value.get(key)
+        if isinstance(nested, list):
+            value = nested
+            break
+
+if not isinstance(value, list):
+    sys.exit(0)
+
+for item in value:
+    if not isinstance(item, dict):
+        continue
+    if str(item.get(match_key, "")) != match_value:
+        continue
+    result = item.get(target_key)
+    if result is None:
+        sys.exit(0)
+    if isinstance(result, bool):
+        print("true" if result else "false")
+    elif isinstance(result, (dict, list)):
+        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+    else:
+        print(result)
+    sys.exit(0)
+PY
+}
+
+require_no_error_payload() {
+    python3 - "$1" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh:
+        value = json.load(fh)
+except Exception:
+    sys.exit(1)
+
+def has_error_payload(obj):
+    if isinstance(obj, dict):
+        for key, nested in obj.items():
+            normalized_key = str(key).lower()
+            if normalized_key == "status" and isinstance(nested, str) and nested.upper() == "ERROR":
+                return True
+            if normalized_key == "error":
+                if nested is None or nested is False or nested == "":
+                    continue
+                if isinstance(nested, (list, dict)) and len(nested) == 0:
+                    continue
+                return True
+            if has_error_payload(nested):
+                return True
+    elif isinstance(obj, list):
+        return any(has_error_payload(item) for item in obj)
+    return False
+
+sys.exit(1 if has_error_payload(value) else 0)
+PY
+}
+
 has_queue_unavailable_error() {
     python3 - "$1" <<'PY'
 import json
@@ -280,6 +392,17 @@ requires_workflow_completed() {
             ;;
         *)
             rabbitmq_reachable
+            ;;
+    esac
+}
+
+requires_workflow_subtask_smoke() {
+    case "$ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK" in
+        1|true|TRUE|yes|YES)
+            return 0
+            ;;
+        *)
+            return 1
             ;;
     esac
 }
@@ -515,6 +638,33 @@ with open(sys.argv[1], "w", encoding="utf-8") as fh:
 PY
 }
 
+write_collab_workflow_decompose_payload() {
+    python3 - "$1" "$2" <<'PY'
+import json
+import sys
+
+payload = {
+    "capabilities": ["workflow"],
+    "subtasks": [
+        {
+            "subTaskId": "workflow-1",
+            "description": "Run the business smoke workflow as a collaboration subtask",
+            "expectedRole": "WORKFLOW",
+            "workflowId": int(sys.argv[2]),
+            "inputData": {
+                "inputs": {
+                    "query": "business smoke workflow subtask"
+                }
+            },
+            "dependsOn": [],
+        }
+    ],
+}
+with open(sys.argv[1], "w", encoding="utf-8") as fh:
+    json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
+PY
+}
+
 absolute_backend_url() {
     local value="$1"
     if [[ "$value" =~ ^https?:// ]]; then
@@ -529,6 +679,19 @@ require_2xx() {
     local code="$2"
     if ! is_2xx "$code"; then
         fail "$label returned HTTP $code"
+    fi
+}
+
+require_trace_summary_found() {
+    local trace_id="$1"
+    local out="$2"
+    local label="$3"
+    local code
+
+    code=$(request GET "$ORIN_BASE_URL/api/v1/traces/$trace_id/summary" "$out" --auth)
+    require_2xx "$label trace summary" "$code"
+    if [ "$(json_value "$out" found)" != "true" ]; then
+        fail "$label trace summary did not find traceId=$trace_id"
     fi
 }
 
@@ -583,10 +746,24 @@ check_agents() {
 
     local body="$TMP_DIR/agent-chat-request.json"
     local chat_out="$TMP_DIR/agent-chat-response.json"
+    local trace_id="business-smoke-agent-$(date +%Y%m%d%H%M%S)-$$"
     write_agent_chat_payload "$body"
-    code=$(request POST "$ORIN_BASE_URL/api/v1/agents/$ORIN_BUSINESS_SMOKE_AGENT_ID/chat" "$chat_out" --auth --body "$body")
+    code=$(request POST "$ORIN_BASE_URL/api/v1/agents/$ORIN_BUSINESS_SMOKE_AGENT_ID/chat" "$chat_out" \
+        --auth \
+        --header "X-Trace-Id: $trace_id" \
+        --body "$body")
     require_2xx "agent chat" "$code"
-    pass "agent chat reachable for configured agent"
+    if ! require_no_error_payload "$chat_out"; then
+        fail "agent chat returned an error payload"
+    fi
+
+    local summary_out="$TMP_DIR/agent-chat-trace-summary.json"
+    require_trace_summary_found "$trace_id" "$summary_out" "agent chat"
+    if ! json_number_ge "$summary_out" "counts.auditLogs" 1 \
+        && ! json_number_ge "$summary_out" "counts.traceSteps" 1; then
+        fail "agent chat trace summary has no auditLogs or traceSteps"
+    fi
+    pass "agent chat reachable and trace summary linked for configured agent"
 }
 
 check_api_key_lifecycle() {
@@ -904,6 +1081,18 @@ check_workflow() {
         fail "workflow instance traceId does not match submission traceId"
     fi
     pass "workflow instance query reachable"
+
+    local summary_out="$TMP_DIR/workflow-trace-summary.json"
+    require_trace_summary_found "$trace_id" "$summary_out" "workflow"
+    local summary_trace
+    summary_trace="$(json_value "$summary_out" workflowInstance.traceId)"
+    if [ "$summary_trace" != "$trace_id" ]; then
+        fail "workflow trace summary workflowInstance traceId does not match submission traceId"
+    fi
+    if ! json_number_ge "$summary_out" "counts.workflowTasks" 1; then
+        fail "workflow trace summary has no workflowTasks"
+    fi
+    pass "workflow trace summary linked"
 }
 
 check_collaboration() {
@@ -952,6 +1141,13 @@ check_collaboration() {
     event_count="$(json_collection_count "$events_out")"
     pass "collaboration events query reachable (count=$event_count)"
 
+    local summary_out="$TMP_DIR/collab-trace-summary.json"
+    require_trace_summary_found "$trace_id" "$summary_out" "collaboration"
+    if ! json_number_ge "$summary_out" "counts.collaborationPackages" 1; then
+        fail "collaboration trace summary has no collaborationPackages"
+    fi
+    pass "collaboration trace summary linked"
+
     local cleanup_body="$TMP_DIR/collab-complete-request.json"
     local cleanup_out="$TMP_DIR/collab-complete-response.json"
     printf '{"result":"business smoke verified"}' >"$cleanup_body"
@@ -971,6 +1167,155 @@ check_collaboration() {
     fi
 }
 
+poll_collaboration_subtask_completed() {
+    local package_id="$1"
+    local subtask_id="$2"
+    local out="$TMP_DIR/collab-workflow-subtasks-poll.json"
+    local deadline=$((SECONDS + ORIN_BUSINESS_SMOKE_TIMEOUT_SECONDS))
+    local code
+    local status
+    local error_message
+
+    while true; do
+        code=$(request GET "$ORIN_BASE_URL/api/v1/collaboration/packages/$package_id/subtasks" "$out" --auth)
+        require_2xx "collaboration workflow subtask status" "$code"
+        status="$(json_find_item_value "$out" subTaskId "$subtask_id" status)"
+        case "$status" in
+            COMPLETED)
+                pass "collaboration workflow subtask completed"
+                return
+                ;;
+            FAILED|CANCELLED|SKIPPED)
+                error_message="$(json_find_item_value "$out" subTaskId "$subtask_id" errorMessage)"
+                fail "collaboration workflow subtask finished with status=$status${error_message:+, error=$error_message}"
+                ;;
+            PENDING|RUNNING|"")
+                if [ "$SECONDS" -ge "$deadline" ]; then
+                    fail "collaboration workflow subtask remained ${status:-missing} after ${ORIN_BUSINESS_SMOKE_TIMEOUT_SECONDS}s"
+                fi
+                sleep 2
+                ;;
+            *)
+                fail "collaboration workflow subtask returned unexpected status=$status"
+                ;;
+        esac
+    done
+}
+
+require_collaboration_workflow_subtask_materialized() {
+    local package_id="$1"
+    local subtask_id="$2"
+    local out="$TMP_DIR/collab-workflow-subtasks-materialized.json"
+    local code
+    local role
+    local input_data
+
+    code=$(request GET "$ORIN_BASE_URL/api/v1/collaboration/packages/$package_id/subtasks" "$out" --auth)
+    require_2xx "collaboration workflow subtasks materialization query" "$code"
+    role="$(json_find_item_value "$out" subTaskId "$subtask_id" expectedRole)"
+    input_data="$(json_find_item_value "$out" subTaskId "$subtask_id" inputData)"
+
+    if [ -z "$role" ]; then
+        fail "collaboration workflow subtask was not materialized; deploy backend code that supports explicit decompose subtasks"
+    fi
+    if [ "$role" != "WORKFLOW" ]; then
+        fail "collaboration workflow subtask has role=$role, expected WORKFLOW"
+    fi
+    case "$input_data" in
+        *"workflowId"*)
+            pass "collaboration workflow subtask materialized"
+            ;;
+        *)
+            fail "collaboration workflow subtask missing workflowId in inputData"
+            ;;
+    esac
+}
+
+check_collaboration_workflow_subtask() {
+    if ! requires_workflow_subtask_smoke; then
+        skip "collaboration workflow subtask smoke skipped because ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK is not enabled"
+        return
+    fi
+    if [ -z "$WORKFLOW_ID" ]; then
+        fail "collaboration workflow subtask smoke requires a published workflow id"
+    fi
+    if ! rabbitmq_reachable; then
+        fail "collaboration workflow subtask smoke requires RabbitMQ at $RABBITMQ_HOST:$RABBITMQ_PORT"
+    fi
+    if [ -z "$ORIN_BACKEND_AUTHORIZATION" ]; then
+        warn "ORIN_BACKEND_AUTHORIZATION is not exported in this shell; assuming the AI Engine worker was started with it"
+    fi
+
+    local trace_id="business-smoke-collab-workflow-$(date +%Y%m%d%H%M%S)-$$"
+    local body="$TMP_DIR/collab-workflow-create-request.json"
+    local out="$TMP_DIR/collab-workflow-create-response.json"
+    local code
+
+    write_collab_create_payload "$body"
+    code=$(request POST "$ORIN_BASE_URL/api/v1/collaboration/packages" "$out" \
+        --auth \
+        --header "X-User-Id: business-smoke" \
+        --header "X-Trace-Id: $trace_id" \
+        --body "$body")
+    require_2xx "collaboration workflow package create" "$code"
+    COLLAB_PACKAGE_ID="$(json_value "$out" packageId)"
+    if [ -z "$COLLAB_PACKAGE_ID" ]; then
+        fail "collaboration workflow package create did not return packageId"
+    fi
+    COLLAB_PACKAGE_OPEN=1
+    pass "collaboration workflow package created (packageId=$COLLAB_PACKAGE_ID, traceId=$trace_id)"
+
+    local decompose_body="$TMP_DIR/collab-workflow-decompose-request.json"
+    local decompose_out="$TMP_DIR/collab-workflow-decompose-response.json"
+    write_collab_workflow_decompose_payload "$decompose_body" "$WORKFLOW_ID"
+    code=$(request POST "$ORIN_BASE_URL/api/v1/collaboration/packages/$COLLAB_PACKAGE_ID/decompose" "$decompose_out" --auth --body "$decompose_body")
+    require_2xx "collaboration workflow package decompose" "$code"
+    pass "collaboration workflow package decomposed"
+    require_collaboration_workflow_subtask_materialized "$COLLAB_PACKAGE_ID" "workflow-1"
+
+    local execute_out="$TMP_DIR/collab-workflow-execute-response.json"
+    code=$(request POST "$ORIN_BASE_URL/api/v1/collaboration/packages/$COLLAB_PACKAGE_ID/subtasks/workflow-1/execute" "$execute_out" \
+        --auth \
+        --header "X-Trace-Id: $trace_id")
+    if [ "$code" != "202" ]; then
+        fail "collaboration workflow subtask execute returned HTTP $code"
+    fi
+    pass "collaboration workflow subtask execution started"
+
+    poll_collaboration_subtask_completed "$COLLAB_PACKAGE_ID" "workflow-1"
+    local subtask_result
+    subtask_result="$(json_find_item_value "$TMP_DIR/collab-workflow-subtasks-poll.json" subTaskId "workflow-1" result)"
+    case "$subtask_result" in
+        *"Workflow enqueued:"*)
+            pass "collaboration workflow subtask used AI Engine TaskRuntime"
+            ;;
+        *)
+            fail "collaboration workflow subtask did not return the AI Engine workflow enqueue result"
+            ;;
+    esac
+
+    local summary_out="$TMP_DIR/collab-workflow-trace-summary.json"
+    require_trace_summary_found "$trace_id" "$summary_out" "collaboration workflow subtask"
+    if ! json_number_ge "$summary_out" "counts.collaborationPackages" 1; then
+        fail "collaboration workflow subtask trace summary has no collaborationPackages"
+    fi
+    if ! json_number_ge "$summary_out" "counts.workflowTasks" 1; then
+        fail "collaboration workflow subtask trace summary has no workflowTasks"
+    fi
+    pass "collaboration workflow subtask trace summary linked"
+
+    local cleanup_body="$TMP_DIR/collab-workflow-complete-request.json"
+    local cleanup_out="$TMP_DIR/collab-workflow-complete-response.json"
+    printf '{"result":"business smoke workflow subtask verified"}' >"$cleanup_body"
+    code=$(request POST "$ORIN_BASE_URL/api/v1/collaboration/packages/$COLLAB_PACKAGE_ID/complete" "$cleanup_out" --auth --body "$cleanup_body")
+    if is_2xx "$code"; then
+        COLLAB_PACKAGE_OPEN=0
+        pass "collaboration workflow package completed for cleanup"
+    else
+        warn "collaboration workflow cleanup endpoint returned HTTP $code; package may remain visible"
+    fi
+}
+
 echo "=== ORIN Business Smoke ==="
 echo "Backend: $ORIN_BASE_URL"
 echo "AI Engine: $ORIN_AI_BASE_URL"
@@ -983,6 +1328,7 @@ check_agents
 check_workflow
 check_workflow_failure_recovery
 check_collaboration
+check_collaboration_workflow_subtask
 
 echo ""
 echo "=== ORIN Business Smoke Complete ==="

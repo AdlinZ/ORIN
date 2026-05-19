@@ -161,6 +161,48 @@ class CollaborationOrchestratorTest {
     }
 
     @Test
+    @DisplayName("显式 Workflow 子任务应保留 workflowId 与输入数据")
+    void testDecompose_materializesExplicitWorkflowSubtasks() {
+        CollaborationPackageEntity entity = CollaborationPackageEntity.builder()
+                .packageId("pkg-workflow-explicit")
+                .intent("执行指定工作流")
+                .intentCategory("GENERAL")
+                .status("PLANNING")
+                .traceId("trace-workflow-explicit")
+                .createdBy("test-user")
+                .build();
+
+        when(packageRepository.findByPackageId("pkg-workflow-explicit")).thenReturn(Optional.of(entity));
+        when(packageRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(subtaskRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+        CollaborationPackage pkg = orchestrator.decompose(
+                "pkg-workflow-explicit",
+                List.of("workflow"),
+                List.of(Map.of(
+                        "subTaskId", "workflow-1",
+                        "description", "运行既有工作流",
+                        "expectedRole", "WORKFLOW",
+                        "dependsOn", List.of("prepare"),
+                        "inputData", Map.of("inputs", Map.of("topic", "collab")),
+                        "workflowId", 42
+                ))
+        );
+
+        assertEquals("EXECUTING", pkg.getStatus());
+        verify(subtaskRepository).saveAll(argThat(subtasks -> {
+            List<CollabSubtaskEntity> list = (List<CollabSubtaskEntity>) subtasks;
+            return list.size() == 1
+                    && "workflow-1".equals(list.get(0).getSubTaskId())
+                    && "WORKFLOW".equals(list.get(0).getExpectedRole())
+                    && "[\"prepare\"]".equals(list.get(0).getDependsOn())
+                    && list.get(0).getInputData().contains("\"workflowId\":42")
+                    && list.get(0).getInputData().contains("\"topic\":\"collab\"");
+        }));
+        verify(eventBus).publishPackageDecomposed(eq("pkg-workflow-explicit"), eq(1), eq("trace-workflow-explicit"));
+    }
+
+    @Test
     @DisplayName("F2.1 - 获取可执行子任务：依赖满足时返回 PENDING 子任务")
     void testGetExecutableSubtasks_returnsReadyTasks() {
         List<CollabSubtaskEntity> subtasks = List.of(
