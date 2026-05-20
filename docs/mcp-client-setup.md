@@ -196,7 +196,35 @@ ORIN_MCP_WORKFLOW_TOOL=workflow.<workflow-id> \
 bash scripts/mcp-open-demo-smoke.sh
 ```
 
+CI-like local acceptance can require specific tools and trace metadata:
+
+```bash
+ORIN_MCP_CALL_TOOLS=1 \
+ORIN_MCP_WORKFLOW_TOOL=workflow.<workflow-id> \
+ORIN_MCP_REQUIRE_WORKFLOW_TOOL=1 \
+ORIN_MCP_REQUIRE_TRACE_METADATA=1 \
+bash scripts/mcp-open-demo-smoke.sh
+```
+
 The script sends only minimal demo arguments (`message` for Agents, `query` for Workflows). If your exposed Workflow requires a stricter input schema, use the script for `initialize` / `tools/list` and call that Workflow manually with the expected arguments.
+
+For an end-to-end open-demo acceptance pass, use the orchestrator script:
+
+```bash
+bash scripts/open-demo-acceptance.sh
+```
+
+It runs health checks, the business smoke baseline, creates a temporary `CLIENT_ACCESS` key, creates and publishes a temporary `mcpExposed=true` Workflow, then calls the public MCP smoke with `ORIN_MCP_CALL_TOOLS=1`. It cleans up the temporary key and workflow on exit. If you have a real provider-backed Agent to include in the MCP demo, pass its ID:
+
+```bash
+ORIN_OPEN_DEMO_AGENT_ID=<agent-id> bash scripts/open-demo-acceptance.sh
+```
+
+The collaboration Workflow subtask strong smoke is opt-in because it requires AI Engine to be started with the MQ worker enabled and backend authorization configured:
+
+```bash
+ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK=1 bash scripts/open-demo-acceptance.sh
+```
 
 ## Troubleshooting
 

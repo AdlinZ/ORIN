@@ -7,6 +7,9 @@ CALL_TOOLS="${ORIN_MCP_CALL_TOOLS:-0}"
 AGENT_TOOL="${ORIN_MCP_AGENT_TOOL:-}"
 WORKFLOW_TOOL="${ORIN_MCP_WORKFLOW_TOOL:-}"
 MCP_ORIGIN="${ORIN_MCP_ORIGIN:-}"
+REQUIRE_AGENT_TOOL="${ORIN_MCP_REQUIRE_AGENT_TOOL:-0}"
+REQUIRE_WORKFLOW_TOOL="${ORIN_MCP_REQUIRE_WORKFLOW_TOOL:-0}"
+REQUIRE_TRACE_METADATA="${ORIN_MCP_REQUIRE_TRACE_METADATA:-0}"
 
 if [ -z "$API_KEY" ]; then
   echo "error: ORIN_API_KEY is required and must be a CLIENT_ACCESS key" >&2
@@ -126,9 +129,10 @@ PY
 summarize_call() {
   local label="$1"
   local response="$2"
-  python3 - "$label" "$response" <<'PY'
+  local require_trace="$3"
+  python3 - "$label" "$response" "$require_trace" <<'PY'
 import json, sys
-label, path = sys.argv[1], sys.argv[2]
+label, path, require_trace = sys.argv[1], sys.argv[2], sys.argv[3]
 data = json.load(open(path, encoding="utf-8"))
 if "error" in data:
     print(f"{label} call returned MCP error: {data['error'].get('code')} {data['error'].get('message')}")
@@ -137,6 +141,8 @@ content = data.get("result", {}).get("content", [])
 text = "\n".join(item.get("text", "") for item in content if isinstance(item, dict))
 trace_present = "Trace ID:" in text or "traceId" in text
 print(f"{label} call ok: contentItems={len(content)} traceMetadata={trace_present}")
+if require_trace == "1" and not trace_present:
+    sys.exit(1)
 PY
 }
 
@@ -155,16 +161,24 @@ if [ "$CALL_TOOLS" = "1" ]; then
   if [ -n "$selected_agent" ]; then
     write_tool_call "$selected_agent" "agent" "$TMP_DIR/agent-call.json"
     post_mcp "$TMP_DIR/agent-call.json" "$TMP_DIR/agent-call-response.json"
-    summarize_call "agent" "$TMP_DIR/agent-call-response.json"
+    summarize_call "agent" "$TMP_DIR/agent-call-response.json" "$REQUIRE_TRACE_METADATA"
   else
+    if [ "$REQUIRE_AGENT_TOOL" = "1" ]; then
+      echo "error: required exposed agent tool not found" >&2
+      exit 1
+    fi
     echo "agent call skipped: no exposed agent tool found"
   fi
 
   if [ -n "$selected_workflow" ]; then
     write_tool_call "$selected_workflow" "workflow" "$TMP_DIR/workflow-call.json"
     post_mcp "$TMP_DIR/workflow-call.json" "$TMP_DIR/workflow-call-response.json"
-    summarize_call "workflow" "$TMP_DIR/workflow-call-response.json"
+    summarize_call "workflow" "$TMP_DIR/workflow-call-response.json" "$REQUIRE_TRACE_METADATA"
   else
+    if [ "$REQUIRE_WORKFLOW_TOOL" = "1" ]; then
+      echo "error: required exposed workflow tool not found" >&2
+      exit 1
+    fi
     echo "workflow call skipped: no exposed workflow tool found"
   fi
 else

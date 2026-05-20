@@ -78,8 +78,9 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 ### 4.2 统一网关：聊天补全（OpenAI 兼容）
 
 ```bash
+ORIN_API_KEY=<CLIENT_ACCESS_KEY>
 curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer sk-orin-xxx" \
+  --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "Qwen/Qwen2.5-7B-Instruct",
@@ -94,8 +95,9 @@ curl -X POST http://localhost:8080/v1/chat/completions \
 ### 4.3 统一网关：文本向量
 
 ```bash
+ORIN_API_KEY=<CLIENT_ACCESS_KEY>
 curl -X POST http://localhost:8080/v1/embeddings \
-  -H "Authorization: Bearer sk-orin-xxx" \
+  --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "text-embedding-3-small",
@@ -106,8 +108,9 @@ curl -X POST http://localhost:8080/v1/embeddings \
 ### 4.4 统一网关：模型列表
 
 ```bash
+ORIN_API_KEY=<CLIENT_ACCESS_KEY>
 curl http://localhost:8080/v1/models \
-  -H "Authorization: Bearer sk-orin-xxx"
+  --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")"
 ```
 
 ### 4.5 智能体管理

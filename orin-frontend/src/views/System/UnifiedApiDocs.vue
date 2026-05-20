@@ -215,8 +215,9 @@
           <p class="lead">先用 cURL 跑通，再接入你的业务代码。</p>
           <section class="section">
             <h2>示例 cURL</h2>
-            <pre class="code-block">curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+            <pre class="code-block">ORIN_API_KEY=&lt;CLIENT_ACCESS_KEY&gt;
+curl -X POST http://localhost:8080/v1/chat/completions \
+  --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "Qwen/Qwen2.5-7B-Instruct",
