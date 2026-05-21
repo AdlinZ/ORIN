@@ -842,6 +842,91 @@ public class CollaborationOrchestrator {
     }
 
     /**
+     * FALLBACK 真重派：重置目标子任务并清理旧 branch_result，避免旧结果被幂等保护复用。
+     */
+    @Transactional
+    public Map<String, Object> retryFallback(String packageId, String reason, String review,
+                                             Integer attempt, List<String> subTaskIds) {
+        CollaborationPackageEntity entity = packageRepository.findByPackageId(packageId)
+                .orElseThrow(() -> new RuntimeException("Package not found: " + packageId));
+
+        List<CollabSubtaskEntity> subtasks = subtaskRepository.findByPackageId(packageId);
+        Set<String> requestedIds = subTaskIds == null || subTaskIds.isEmpty()
+                ? subtasks.stream().map(CollabSubtaskEntity::getSubTaskId).collect(Collectors.toCollection(LinkedHashSet::new))
+                : subTaskIds.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<String> resetSubTaskIds = new ArrayList<>();
+        List<String> contextFieldsToRemove = new ArrayList<>();
+        Map<String, Object> ctx = redisService != null ? redisService.loadContext(packageId).orElse(Collections.emptyMap()) : Collections.emptyMap();
+
+        for (CollabSubtaskEntity subtask : subtasks) {
+            String subTaskId = subtask.getSubTaskId();
+            if (!requestedIds.contains(subTaskId)) {
+                continue;
+            }
+            Object oldBranchResult = ctx.get("branch_result:" + subTaskId);
+            List<String> excludedAgents = extractAgentIds(oldBranchResult);
+            if (!excludedAgents.isEmpty()) {
+                memoryService.writeToBlackboard(packageId, "fallback_excluded_agents:" + subTaskId, excludedAgents);
+            }
+
+            subtask.setStatus(SUBTASK_PENDING);
+            subtask.setResult(null);
+            subtask.setErrorMessage(null);
+            subtask.setStartedAt(null);
+            subtask.setCompletedAt(null);
+            subtask.setRetryCount((subtask.getRetryCount() != null ? subtask.getRetryCount() : 0) + 1);
+            subtaskRepository.save(subtask);
+
+            resetSubTaskIds.add(subTaskId);
+            contextFieldsToRemove.add("branch_result:" + subTaskId);
+            memoryService.deleteFromBlackboard(packageId, "subtask_" + subTaskId + "_result");
+            eventBus.publishSubtaskRetry(packageId, subTaskId, subtask.getRetryCount(), reason, entity.getTraceId());
+        }
+
+        if (redisService != null && !contextFieldsToRemove.isEmpty()) {
+            redisService.removeContextFields(packageId, contextFieldsToRemove);
+        }
+
+        int fallbackAttempt = attempt != null ? attempt : 0;
+        Map<String, Object> trailEntry = new LinkedHashMap<>();
+        trailEntry.put("attempt", fallbackAttempt);
+        trailEntry.put("reason", reason != null ? reason : "critic rejected result");
+        trailEntry.put("review", truncate(review, 500));
+        trailEntry.put("resetSubTaskIds", resetSubTaskIds);
+        trailEntry.put("timestamp", System.currentTimeMillis());
+
+        List<Object> fallbackTrail = new ArrayList<>();
+        Optional<Object> existingTrail = memoryService.readFromBlackboard(packageId, "fallbackTrail");
+        if (existingTrail != null) {
+            existingTrail.ifPresent(existing -> {
+                if (existing instanceof List<?> list) {
+                    fallbackTrail.addAll(list);
+                }
+            });
+        }
+        fallbackTrail.add(trailEntry);
+        memoryService.writeToBlackboard(packageId, "fallbackTrail", fallbackTrail);
+        memoryService.writeToBlackboard(packageId, "fallback_review:last", review != null ? review : "");
+        memoryService.writeToBlackboard(packageId, "fallback_attempt:last", fallbackAttempt);
+
+        entity.setStatus(STATUS_EXECUTING);
+        entity.setErrorMessage(null);
+        entity.setUpdatedAt(LocalDateTime.now());
+        packageRepository.save(entity);
+
+        eventBus.publishFallbackTriggered(packageId, reason != null ? reason : "critic rejected result", entity.getTraceId());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("packageId", packageId);
+        response.put("status", STATUS_EXECUTING);
+        response.put("attempt", fallbackAttempt);
+        response.put("resetSubTaskIds", resetSubTaskIds);
+        response.put("fallbackTrail", fallbackTrail);
+        return response;
+    }
+
+    /**
      * 完成协作任务
      */
     @Transactional
@@ -1050,6 +1135,16 @@ public class CollaborationOrchestrator {
 
         memoryService.readFromBlackboard(packageId, "selection_last")
                 .ifPresent(selection -> runtime.put("selection", selection));
+        Optional<Object> fallbackTrail = memoryService.readFromBlackboard(packageId, "fallbackTrail");
+        if (fallbackTrail != null) {
+            fallbackTrail.ifPresent(trail -> {
+                runtime.put("fallbackTrail", trail);
+                if (trail instanceof List<?> list) {
+                    runtime.put("fallbackAttempts", list.size());
+                }
+            });
+        }
+        runtime.putIfAbsent("fallbackAttempts", 0);
 
         return runtime;
     }
@@ -1260,6 +1355,27 @@ public class CollaborationOrchestrator {
         }
         Set<String> allowedTransitions = SUBTASK_STATUS_TRANSITIONS.get(currentStatus);
         return allowedTransitions != null && allowedTransitions.contains(newStatus);
+    }
+
+    private List<String> extractAgentIds(Object branchResult) {
+        if (!(branchResult instanceof Map<?, ?> map)) {
+            return Collections.emptyList();
+        }
+        List<String> ids = new ArrayList<>();
+        for (String key : List.of("selectedAgentId", "agentId", "executedBy")) {
+            Object value = map.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                ids.add(String.valueOf(value));
+            }
+        }
+        return ids.stream().distinct().toList();
+    }
+
+    private String truncate(String text, int limit) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() <= limit ? text : text.substring(0, limit);
     }
 
     private CollaborationPackage toDto(CollaborationPackageEntity entity) {

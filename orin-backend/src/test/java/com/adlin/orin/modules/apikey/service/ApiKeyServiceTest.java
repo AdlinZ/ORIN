@@ -69,6 +69,30 @@ class ApiKeyServiceTest {
     }
 
     @Test
+    void adminLifecycleOperationsCanManageAnyClientAccessSecret() {
+        GatewaySecret client = GatewaySecret.builder()
+                .secretId("gsec_client")
+                .secretType(GatewaySecret.SecretType.CLIENT_ACCESS)
+                .userId("owner")
+                .build();
+        when(gatewaySecretService.findBySecretId("gsec_client")).thenReturn(Optional.of(client));
+        when(gatewaySecretService.updateStatus(eq("gsec_client"), any(), eq("admin"))).thenReturn(true);
+        when(gatewaySecretService.deleteBySecretId("gsec_client", "admin")).thenReturn(true);
+        when(gatewaySecretService.rotateClientAccessSecret("gsec_client", "admin"))
+                .thenReturn(Optional.of(new GatewaySecretService.ClientAccessSecretWithValue(client, "sk-orin-new")));
+
+        assertThat(apiKeyService.disableApiKey("gsec_client", "admin", true)).isTrue();
+        assertThat(apiKeyService.enableApiKey("gsec_client", "admin", true)).isTrue();
+        assertThat(apiKeyService.deleteApiKey("gsec_client", "admin", true)).isTrue();
+        assertThat(apiKeyService.rotateApiKey("gsec_client", "admin", true)).isPresent();
+
+        verify(gatewaySecretService).updateStatus("gsec_client", GatewaySecret.SecretStatus.DISABLED, "admin");
+        verify(gatewaySecretService).updateStatus("gsec_client", GatewaySecret.SecretStatus.ACTIVE, "admin");
+        verify(gatewaySecretService).deleteBySecretId("gsec_client", "admin");
+        verify(gatewaySecretService).rotateClientAccessSecret("gsec_client", "admin");
+    }
+
+    @Test
     void usageSummaryRequiresClientAccessSecretOwnedByUserAndRedactsEvents() {
         GatewaySecret client = GatewaySecret.builder()
                 .secretId("gsec_client")

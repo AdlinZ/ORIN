@@ -203,6 +203,62 @@ class CollaborationOrchestratorTest {
     }
 
     @Test
+    @DisplayName("FALLBACK retry 应重置子任务、清理 branch_result 并记录重派事件")
+    void retryFallback_resetsSubtasksAndClearsBranchResults() {
+        CollaborationPackageEntity entity = CollaborationPackageEntity.builder()
+                .packageId("pkg-fallback-retry")
+                .intent("fallback retry")
+                .status("FALLBACK")
+                .traceId("trace-fallback-retry")
+                .build();
+        CollabSubtaskEntity completed = CollabSubtaskEntity.builder()
+                .packageId("pkg-fallback-retry")
+                .subTaskId("sub-1")
+                .status("COMPLETED")
+                .result("old result")
+                .retryCount(1)
+                .build();
+        CollabSubtaskEntity failed = CollabSubtaskEntity.builder()
+                .packageId("pkg-fallback-retry")
+                .subTaskId("sub-2")
+                .status("FAILED")
+                .errorMessage("old error")
+                .retryCount(0)
+                .build();
+
+        when(packageRepository.findByPackageId("pkg-fallback-retry")).thenReturn(Optional.of(entity));
+        when(subtaskRepository.findByPackageId("pkg-fallback-retry")).thenReturn(List.of(completed, failed));
+        when(redisService.loadContext("pkg-fallback-retry")).thenReturn(Optional.of(Map.of(
+                "branch_result:sub-1", Map.of("selectedAgentId", "agent-a"),
+                "branch_result:sub-2", Map.of("agentId", "agent-b")
+        )));
+        when(subtaskRepository.save(any(CollabSubtaskEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(packageRepository.save(any(CollaborationPackageEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Map<String, Object> result = orchestrator.retryFallback(
+                "pkg-fallback-retry",
+                "critic rejected result",
+                "needs revision",
+                2,
+                List.of()
+        );
+
+        assertEquals("EXECUTING", result.get("status"));
+        assertEquals(List.of("sub-1", "sub-2"), result.get("resetSubTaskIds"));
+        assertEquals("PENDING", completed.getStatus());
+        assertEquals("PENDING", failed.getStatus());
+        assertNull(completed.getResult());
+        assertNull(failed.getErrorMessage());
+        assertEquals(2, completed.getRetryCount());
+        assertEquals(1, failed.getRetryCount());
+        verify(redisService).removeContextFields("pkg-fallback-retry", List.of("branch_result:sub-1", "branch_result:sub-2"));
+        verify(memoryService).writeToBlackboard("pkg-fallback-retry", "fallback_excluded_agents:sub-1", List.of("agent-a"));
+        verify(memoryService).writeToBlackboard(eq("pkg-fallback-retry"), eq("fallbackTrail"), any());
+        verify(eventBus).publishFallbackTriggered("pkg-fallback-retry", "critic rejected result", "trace-fallback-retry");
+        verify(eventBus).publishSubtaskRetry("pkg-fallback-retry", "sub-1", 2, "critic rejected result", "trace-fallback-retry");
+    }
+
+    @Test
     @DisplayName("F2.1 - 获取可执行子任务：依赖满足时返回 PENDING 子任务")
     void testGetExecutableSubtasks_returnsReadyTasks() {
         List<CollabSubtaskEntity> subtasks = List.of(

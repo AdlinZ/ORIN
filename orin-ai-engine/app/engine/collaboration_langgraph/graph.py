@@ -18,10 +18,12 @@ from .nodes import (
     parallel_fork_node,
     consensus_node,
     critic_node,
+    fallback_prepare_node,
     memory_read_node,
     memory_write_node,
     should_continue_delegate,
-    should_continue_critic
+    should_continue_critic,
+    should_continue_fallback_prepare
 )
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,7 @@ def build_collaboration_graph() -> StateGraph:
     workflow.add_node("parallel_fork", parallel_fork_node)
     workflow.add_node("consensus", consensus_node)
     workflow.add_node("critic", critic_node)
+    workflow.add_node("fallback_prepare", fallback_prepare_node)
     workflow.add_node("memory_read", memory_read_node)
     workflow.add_node("memory_write", memory_write_node)
     
@@ -88,8 +91,18 @@ def build_collaboration_graph() -> StateGraph:
         "critic",
         should_continue_critic,
         {
-            "delegate": "delegate",
+            "fallback_prepare": "fallback_prepare",
             "memory_write": "memory_write",
+            "end_failed": END,
+        }
+    )
+
+    workflow.add_conditional_edges(
+        "fallback_prepare",
+        should_continue_fallback_prepare,
+        {
+            "delegate": "delegate",
+            "parallel_fork": "parallel_fork",
             "end_failed": END,
         }
     )

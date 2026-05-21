@@ -204,6 +204,17 @@ public class CollaborationResultListener {
         payload.put("result", result.getResult());
         payload.put("status", result.getStatus());
         payload.put("attempt", result.getAttempt() != null ? result.getAttempt() : 0);
+        if (result.getExecutedBy() != null && !result.getExecutedBy().isBlank()) {
+            payload.put("executedBy", result.getExecutedBy());
+            payload.put("agentId", result.getExecutedBy());
+        }
+        if (result.getSelectionMeta() != null && !result.getSelectionMeta().isEmpty()) {
+            payload.put("selectionMeta", result.getSelectionMeta());
+            Object selectedAgentId = result.getSelectionMeta().get("selectedAgentId");
+            if (selectedAgentId != null) {
+                payload.put("selectedAgentId", selectedAgentId);
+            }
+        }
         appendToolTrace(result, payload);
         return payload;
     }

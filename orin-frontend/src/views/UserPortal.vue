@@ -105,6 +105,7 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+              <el-dropdown-item command="apiKeys">API Key 自助</el-dropdown-item>
               <el-dropdown-item command="settings">设置与帮助</el-dropdown-item>
               <el-dropdown-item v-if="userStore.isAdmin" command="dashboard">管理端</el-dropdown-item>
               <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
@@ -1354,6 +1355,10 @@ const handleUserCommand = (command) => {
   }
   if (command === 'settings') {
     router.push('/dashboard/profile');
+    return;
+  }
+  if (command === 'apiKeys') {
+    router.push(ROUTES.PORTAL_API_KEYS);
     return;
   }
   if (command === 'dashboard') {

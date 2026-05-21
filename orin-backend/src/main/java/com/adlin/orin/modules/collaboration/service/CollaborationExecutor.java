@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 协作任务执行器 - 负责执行子任务，调用智能体或工作流
@@ -443,6 +444,7 @@ public class CollaborationExecutor {
                 candidateAgents = preferTextAgents(candidateAgents);
             }
 
+            candidateAgents = applyFallbackAgentExclusions(candidateAgents, packageId, subTaskId);
             candidateAgents = applyParallelDiversification(candidateAgents, packageId, collaborationMode);
 
             AgentSelectionContext selectionContext = AgentSelectionContext.builder()
@@ -741,6 +743,30 @@ public class CollaborationExecutor {
         return filtered.isEmpty() ? candidates : filtered;
     }
 
+    @SuppressWarnings("unchecked")
+    private List<AgentMetadata> applyFallbackAgentExclusions(List<AgentMetadata> candidates,
+                                                             String packageId,
+                                                             String subTaskId) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+        Optional<Object> excluded = memoryService.readFromBlackboard(packageId, "fallback_excluded_agents:" + subTaskId);
+        if (excluded == null || excluded.isEmpty() || !(excluded.get() instanceof List<?> list) || list.isEmpty()) {
+            return candidates;
+        }
+        Set<String> excludedIds = list.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .collect(Collectors.toSet());
+        if (excludedIds.isEmpty()) {
+            return candidates;
+        }
+        List<AgentMetadata> filtered = candidates.stream()
+                .filter(agent -> agent.getAgentId() == null || !excludedIds.contains(agent.getAgentId()))
+                .toList();
+        return filtered.isEmpty() ? candidates : filtered;
+    }
+
     private void reserveAgentForPackage(String packageId, String collaborationMode, String agentId) {
         if (packageId == null || packageId.isBlank() || agentId == null || agentId.isBlank()) {
             return;
@@ -799,13 +825,19 @@ public class CollaborationExecutor {
         String intent = packageRepository.findByPackageId(packageId)
                 .map(CollaborationPackageEntity::getIntent)
                 .orElse("");
+        String description;
         if (intent == null || intent.isBlank()) {
-            return subtask;
+            description = subtask;
+        } else if (subtask == null || subtask.isBlank()) {
+            description = intent;
+        } else {
+            description = subtask + "\n\n任务原始意图: " + intent;
         }
-        if (subtask == null || subtask.isBlank()) {
-            return intent;
+        Optional<Object> fallbackReview = memoryService.readFromBlackboard(packageId, "fallback_review:last");
+        if (fallbackReview != null && fallbackReview.isPresent() && !String.valueOf(fallbackReview.get()).isBlank()) {
+            description += "\n\n上一轮 critic 反馈: " + fallbackReview.get();
         }
-        return subtask + "\n\n任务原始意图: " + intent;
+        return description;
     }
 
     private void writeSelectionAudit(String packageId, String subTaskId, AgentSelectionResult selection,

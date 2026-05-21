@@ -10,6 +10,7 @@ export function toCollaborationPackagesViewModel(payload) {
     intentCategory: item.intentCategory || item.category || 'ANALYSIS',
     createdAt: item.createdAt || item.createTime || null,
     updatedAt: item.updatedAt || item.updateTime || null,
+    traceId: item.traceId || item.trace_id || '',
     priority: item.priority || 'NORMAL',
     raw: item
   }))

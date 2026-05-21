@@ -177,7 +177,7 @@ service.interceptors.response.use(
         }
 
         // 处理 401 错误 - 尝试刷新 Token
-        if (error.response && error.response.status === 401 && !config._retry) {
+        if (error.response && error.response.status === 401 && !config._retry && !config.skipAuthRefresh) {
             config._retry = true;
 
             if (!isRefreshing) {

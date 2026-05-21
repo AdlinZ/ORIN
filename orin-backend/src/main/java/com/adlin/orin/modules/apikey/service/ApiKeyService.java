@@ -71,6 +71,10 @@ public class ApiKeyService {
                 .collect(Collectors.toList());
     }
 
+    public List<ApiKey> getApiKeysForActor(String userId, boolean canManageAll) {
+        return canManageAll ? getAllApiKeys() : getUserApiKeys(userId);
+    }
+
     /**
      * 获取所有密钥（管理员用）
      */
@@ -114,8 +118,13 @@ public class ApiKeyService {
      */
     @Transactional
     public boolean disableApiKey(String keyId, String userId) {
+        return disableApiKey(keyId, userId, false);
+    }
+
+    @Transactional
+    public boolean disableApiKey(String keyId, String userId, boolean canManageAll) {
         Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
-        if (keyOpt.isPresent() && keyOpt.get().isClientAccess() && userId.equals(keyOpt.get().getUserId())) {
+        if (canManage(keyOpt, userId, canManageAll)) {
             return gatewaySecretService.updateStatus(keyId, GatewaySecret.SecretStatus.DISABLED, userId);
         }
         return false;
@@ -126,8 +135,13 @@ public class ApiKeyService {
      */
     @Transactional
     public boolean enableApiKey(String keyId, String userId) {
+        return enableApiKey(keyId, userId, false);
+    }
+
+    @Transactional
+    public boolean enableApiKey(String keyId, String userId, boolean canManageAll) {
         Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
-        if (keyOpt.isPresent() && keyOpt.get().isClientAccess() && userId.equals(keyOpt.get().getUserId())) {
+        if (canManage(keyOpt, userId, canManageAll)) {
             return gatewaySecretService.updateStatus(keyId, GatewaySecret.SecretStatus.ACTIVE, userId);
         }
         return false;
@@ -138,8 +152,13 @@ public class ApiKeyService {
      */
     @Transactional
     public boolean deleteApiKey(String keyId, String userId) {
+        return deleteApiKey(keyId, userId, false);
+    }
+
+    @Transactional
+    public boolean deleteApiKey(String keyId, String userId, boolean canManageAll) {
         Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
-        if (keyOpt.isPresent() && keyOpt.get().isClientAccess() && userId.equals(keyOpt.get().getUserId())) {
+        if (canManage(keyOpt, userId, canManageAll)) {
             return gatewaySecretService.deleteBySecretId(keyId, userId);
         }
         return false;
@@ -163,8 +182,12 @@ public class ApiKeyService {
     }
 
     public Optional<ApiKeyWithSecret> rotateApiKey(String keyId, String userId) {
+        return rotateApiKey(keyId, userId, false);
+    }
+
+    public Optional<ApiKeyWithSecret> rotateApiKey(String keyId, String userId, boolean canManageAll) {
         Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
-        if (keyOpt.isEmpty() || !keyOpt.get().isClientAccess() || !userId.equals(keyOpt.get().getUserId())) {
+        if (!canManage(keyOpt, userId, canManageAll)) {
             return Optional.empty();
         }
 
@@ -173,8 +196,12 @@ public class ApiKeyService {
     }
 
     public Optional<ApiKeyUsageResponse> getApiKeyUsage(String keyId, String userId, int limit) {
+        return getApiKeyUsage(keyId, userId, limit, false);
+    }
+
+    public Optional<ApiKeyUsageResponse> getApiKeyUsage(String keyId, String userId, int limit, boolean canManageAll) {
         Optional<GatewaySecret> keyOpt = gatewaySecretService.findBySecretId(keyId);
-        if (keyOpt.isEmpty() || !keyOpt.get().isClientAccess() || !userId.equals(keyOpt.get().getUserId())) {
+        if (!canManage(keyOpt, userId, canManageAll)) {
             return Optional.empty();
         }
 
@@ -242,6 +269,13 @@ public class ApiKeyService {
                 .averageLatencyMs(resolveAverage(gatewayAvgLatency, auditAvgLatency))
                 .recentEvents(recentEvents)
                 .build());
+    }
+
+    private boolean canManage(Optional<GatewaySecret> keyOpt, String userId, boolean canManageAll) {
+        if (keyOpt.isEmpty() || !keyOpt.get().isClientAccess()) {
+            return false;
+        }
+        return canManageAll || userId.equals(keyOpt.get().getUserId());
     }
 
     private ApiKey toLegacyApiKey(GatewaySecret secret) {

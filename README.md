@@ -5,7 +5,7 @@
 [![Gitleaks](https://github.com/AdlinZ/ORIN/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/AdlinZ/ORIN/actions/workflows/gitleaks.yml)
 [![Coverage](https://img.shields.io/badge/coverage-artifacts%20available-blue)](./docs/功能完成度.md#4-测试覆盖率基线)
 [![Docker](https://img.shields.io/badge/docker-smoke%20verified-green)](./scripts/docker-smoke.sh)
-[![MCP Native](https://img.shields.io/badge/MCP--Native-Streamable%20HTTP%20%2B%20Claude%20Desktop-blueviolet)](./docs/mcp-client-setup.md)
+[![MCP Native](https://img.shields.io/badge/MCP--Native-Codex%20%2B%20MCP%20Clients-blueviolet)](./docs/mcp-client-setup.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](./README.md#license)
 
 > 智能体管理平台 · 本科毕业设计项目
@@ -48,8 +48,11 @@ bash scripts/business-smoke.sh
 MCP-Native 演示入口：
 
 - 客户端配置：[docs/mcp-client-setup.md](./docs/mcp-client-setup.md)
+- 开源演示验收清单：[docs/open-demo-checklist.md](./docs/open-demo-checklist.md)
+- 客户端口径：Codex 作为开发者主验收入口；Claude Desktop / Cursor / Windsurf 作为外部客户端兼容与展示入口
 - 本机 smoke：`ORIN_API_KEY=sk-orin-... bash scripts/mcp-open-demo-smoke.sh`
 - 如需真实调用已暴露的 Agent / Workflow：`ORIN_MCP_CALL_TOOLS=1 ORIN_API_KEY=sk-orin-... bash scripts/mcp-open-demo-smoke.sh`
+- 如需按真实 provider-backed Agent 强验收：`ORIN_OPEN_DEMO_AGENT_ID=<agent-id> bash scripts/open-demo-acceptance.sh`
 
 ## 项目简介
 
@@ -96,6 +99,9 @@ ORIN/
 | [docs/使用指南.md](./docs/使用指南.md) | 前端导航与功能入口 |
 | [docs/API文档.md](./docs/API文档.md) | 接口分组、统一网关示例 |
 | [docs/功能完成度.md](./docs/功能完成度.md) | 各模块成熟度与可验收能力 |
+| [docs/路线图.md](./docs/路线图.md) | 当前阶段、后续开发顺序与里程碑 |
+| [docs/角色矩阵.md](./docs/角色矩阵.md) | 管理台角色入口、菜单可见性与权限收口口径 |
+| [docs/open-demo-checklist.md](./docs/open-demo-checklist.md) | MCP API smoke、Codex 客户端验收与外部客户端展示清单 |
 | [docs/开发规范.md](./docs/开发规范.md) | 协作约束、提交规范、联调要点 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献流程、分支与 PR 规范 |
 | [SUPPORT.md](./SUPPORT.md) | 获取帮助、提 issue 前的信息清单 |
@@ -104,7 +110,7 @@ ORIN/
 
 ## 当前状态
 
-骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。本机进程模式优先通过 health checks 与 `bash scripts/smoke-test.sh` 验证；Docker quickstart 已在干净 volume 下通过 `docker compose --env-file .env.example up --build -d` 与运行态 HTTP smoke；核心业务链路可通过 `bash scripts/business-smoke.sh` 做 API 级验收，并已覆盖 Workflow / Collaboration trace summary 聚合断言以及可选 Agent Chat 强校验。Phase 1D 已补 Trace 聚合摘要、任务失败恢复确认/高亮、协作包 runtime/diagnostics、人工干预入口，以及显式 `workflowId` 协作子任务经 MQ/AI Engine `TaskRuntime` 执行的路径；Phase 1E/1F 已补 API Key 轮换/禁用审计、调用摘要/最近历史、前端 MCP 配置复制与 smoke 级生命周期验收。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
+骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。本机进程模式优先通过 health checks 与 `bash scripts/smoke-test.sh` 验证；Docker quickstart 已在干净 volume 下通过 `docker compose --env-file .env.example up --build -d` 与运行态 HTTP smoke；核心业务链路可通过 `bash scripts/business-smoke.sh` 做 API 级验收，并已覆盖 Workflow / Collaboration trace summary 聚合断言以及可选 Agent Chat 强校验。Phase 1D 已补 Trace 聚合摘要、任务失败恢复确认/高亮、协作包 runtime/diagnostics、人工干预入口，以及显式 `workflowId` 协作子任务经 MQ/AI Engine `TaskRuntime` 执行的路径；Phase 1E/1F 已补 API Key 轮换/禁用审计、调用摘要/最近历史、前端 MCP 配置复制与 smoke 级生命周期验收；Phase 1.5 已建立首版角色矩阵、前端菜单/路由同源过滤、用户/部门/角色管理接口权限收口和 `/portal/api-keys` 自助密钥边界。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
 
 ## License
 

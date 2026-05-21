@@ -67,7 +67,7 @@ const createWrapper = () => mount(CollaborationDashboardV2, {
       OrinPageShell: { template: '<div><slot /><slot name="actions" /><slot name="filters" /></div>' },
       OrinFilterBar: { template: '<div><slot /></div>' },
       OrinAsyncState: { template: '<div><slot /></div>' },
-      OrinTaskTimeline: { template: '<div class="timeline-stub" />' },
+      OrinTaskTimeline: { props: ['items'], template: '<div class="timeline-stub">{{ JSON.stringify(items) }}</div>' },
       StatCard: { template: '<div class="stat-card" />' },
       'el-row': { template: '<div><slot /></div>' },
       'el-col': { template: '<div><slot /></div>' },
@@ -189,5 +189,40 @@ describe('CollaborationDashboardV2', () => {
     expect(confirmMock).toHaveBeenCalledWith('确认暂停该协作任务包？', '暂停协作包', { type: 'warning' })
     expect(pauseCollaborationMock).toHaveBeenCalledWith('pkg-1')
     expect(successMock).toHaveBeenCalledWith('协作包已暂停')
+  })
+
+  it('shows fallback attempts in runtime and event history', async () => {
+    getCollaborationStatsMock.mockResolvedValue({})
+    getAllPackagesMock.mockResolvedValue([{ packageId: 'pkg-1', intent: 'intent A', status: 'EXECUTING' }])
+    getEventHistoryMock.mockResolvedValue([
+      { eventType: 'FALLBACK_TRIGGERED', timestamp: '2026-04-09T01:00:00Z', eventData: { attempt: 1 } },
+      { eventType: 'SUBTASK_RETRY', timestamp: '2026-04-09T01:00:01Z', eventData: { subTaskId: 'sub-1' } }
+    ])
+    getRuntimeStatusMock.mockResolvedValue({
+      packageId: 'pkg-1',
+      fallbackAttempts: 1,
+      fallbackTrail: [{ attempt: 1, reason: 'critic rejected result', resetSubTaskIds: ['sub-1'] }]
+    })
+    getDiagnosticsMock.mockResolvedValue({
+      runtime: {
+        fallbackAttempts: 1,
+        fallbackTrail: [{ attempt: 1, reason: 'critic rejected result' }]
+      }
+    })
+
+    const wrapper = createWrapper()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const detailBtn = wrapper.findAll('button').find((btn) => btn.text().includes('详情'))
+    expect(detailBtn).toBeTruthy()
+    await detailBtn.trigger('click')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(wrapper.text()).toContain('fallbackAttempts')
+    expect(wrapper.text()).toContain('critic rejected result')
+    expect(wrapper.text()).toContain('FALLBACK_TRIGGERED')
+    expect(wrapper.text()).toContain('SUBTASK_RETRY')
   })
 })

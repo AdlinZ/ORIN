@@ -3,9 +3,9 @@
     <div class="tab-wrapper-card">
       <OrinEntityHeader
         v-if="!embedded"
-        title="API 密钥"
-        description="管理平台访问密钥、供应商凭据、调用额度与限流策略"
-        domain="组织权限"
+        :title="selfService ? 'API Key 自助' : 'API 密钥'"
+        :description="selfService ? '创建和管理你自己的平台访问密钥，用于调用 ORIN MCP 与开放网关能力' : '管理平台访问密钥、供应商凭据、调用额度与限流策略'"
+        :domain="selfService ? '个人访问' : '组织权限'"
       >
         <template #actions>
           <el-button
@@ -17,7 +17,7 @@
             创建平台密钥
           </el-button>
           <el-button
-            v-else
+            v-else-if="!selfService"
             type="primary"
             :icon="Plus"
             @click="showExternalCreate"
@@ -30,8 +30,8 @@
       <div v-else class="embedded-access-toolbar">
         <div>
           <span class="command-eyebrow">访问凭据</span>
-          <h3>API Key 与供应商凭据</h3>
-          <p>管理调用方访问密钥、上游供应商凭据和配额状态。</p>
+          <h3>{{ selfService ? 'API Key 自助' : 'API Key 与供应商凭据' }}</h3>
+          <p>{{ selfService ? '管理你的个人平台访问密钥和调用历史。' : '管理调用方访问密钥、上游供应商凭据和配额状态。' }}</p>
         </div>
         <div class="embedded-access-actions">
           <el-button
@@ -43,7 +43,7 @@
             创建平台密钥
           </el-button>
           <el-button
-            v-else
+            v-else-if="!selfService"
             type="primary"
             :icon="Plus"
             @click="showExternalCreate"
@@ -168,7 +168,7 @@
                     {{ row.enabled ? '禁用' : '启用' }}
                   </el-button>
                   <el-button
-                    v-if="row.canRevealSecret"
+                    v-if="!selfService && row.canRevealSecret"
                     size="small"
                     type="info"
                     link
@@ -202,6 +202,7 @@
                     配置
                   </el-button>
                   <el-button
+                    v-if="!selfService"
                     size="small"
                     type="primary"
                     link
@@ -230,7 +231,7 @@
           </OrinDataTable>
         </el-tab-pane>
 
-        <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
+        <el-tab-pane v-if="!selfService" label="外部供应商密钥 (Credentials)" name="provider">
           <OrinDataTable class="table-card">
             <el-table
               v-loading="loading"
@@ -385,19 +386,22 @@
             placeholder="密钥用途描述"
           />
         </el-form-item>
-        <el-form-item label="速率限制(分钟)">
+        <el-form-item v-if="!selfService" label="速率限制(分钟)">
           <el-input-number v-model="formData.rateLimitPerMinute" :min="1" :max="10000" />
         </el-form-item>
-        <el-form-item label="速率限制(天)">
+        <el-form-item v-if="!selfService" label="速率限制(天)">
           <el-input-number v-model="formData.rateLimitPerDay" :min="1" :max="1000000" />
         </el-form-item>
-        <el-form-item label="月度Token配额">
+        <el-form-item v-if="!selfService" label="月度Token配额">
           <el-input-number
             v-model="formData.monthlyTokenQuota"
             :min="1000"
             :max="100000000"
             :step="10000"
           />
+        </el-form-item>
+        <el-form-item v-else label="配额与限流">
+          <span class="readonly-form-note">按平台默认策略生效</span>
         </el-form-item>
         <el-form-item label="过期时间">
           <el-date-picker
@@ -562,12 +566,18 @@ import {
 } from '@/api/apiKey';
 import { View, Hide } from '@element-plus/icons-vue';
 
-defineProps({
+const props = defineProps({
   embedded: {
+    type: Boolean,
+    default: false
+  },
+  selfService: {
     type: Boolean,
     default: false
   }
 });
+
+const selfService = computed(() => props.selfService);
 
 const activeTab = ref('platform');
 const externalKeys = ref([]);
@@ -597,30 +607,39 @@ const usageDialogTitle = computed(() => {
   return `调用历史 - ${usageKey.value.name || usageKey.value.id}`;
 });
 
-const apiKeyStatusItems = computed(() => [
-  {
-    label: '平台密钥',
-    value: apiKeys.value.length,
-    meta: '面向业务系统的访问凭据'
-  },
-  {
-    label: '启用中',
-    value: apiKeys.value.filter(key => key.enabled).length,
-    meta: '当前可调用平台网关',
-    intent: 'success'
-  },
-  {
-    label: '供应商凭据',
-    value: externalKeys.value.length,
-    meta: '上游模型服务访问凭据'
-  },
-  {
+const apiKeyStatusItems = computed(() => {
+  const items = [
+    {
+      label: '平台密钥',
+      value: apiKeys.value.length,
+      meta: selfService.value ? '你创建的访问凭据' : '面向业务系统的访问凭据'
+    },
+    {
+      label: '启用中',
+      value: apiKeys.value.filter(key => key.enabled).length,
+      meta: '当前可调用平台网关',
+      intent: 'success'
+    }
+  ];
+
+  if (!selfService.value) {
+    items.push({
+      label: '供应商凭据',
+      value: externalKeys.value.length,
+      meta: '上游模型服务访问凭据'
+    });
+  }
+
+  items.push({
     label: '停用凭据',
-    value: apiKeys.value.filter(key => !key.enabled).length + externalKeys.value.filter(key => !key.enabled).length,
+    value: apiKeys.value.filter(key => !key.enabled).length
+      + (selfService.value ? 0 : externalKeys.value.filter(key => !key.enabled).length),
     meta: '已从调用链路移除',
     intent: 'warning'
-  }
-]);
+  });
+
+  return items;
+});
 
 const formData = ref({
   name: '',
@@ -656,7 +675,7 @@ const fetchApiKeys = async () => {
   try {
     const [platformRes, externalRes] = await Promise.all([
       getAllApiKeys(),
-      getExternalKeys()
+      selfService.value ? Promise.resolve([]) : getExternalKeys()
     ]);
     apiKeys.value = platformRes;
     externalKeys.value = externalRes;
@@ -670,6 +689,7 @@ const fetchApiKeys = async () => {
 
 // 获取供应商列表
 const fetchProviders = async () => {
+  if (selfService.value) return;
   try {
     const res = await getProviderList();
     providerList.value = res || [];
@@ -690,13 +710,25 @@ const showCreateDialog = () => {
   dialogVisible.value = true;
 };
 
+const buildCreatePayload = () => {
+  if (selfService.value) {
+    return {
+      name: formData.value.name,
+      description: formData.value.description,
+      expiresAt: formData.value.expiresAt
+    };
+  }
+
+  return { ...formData.value };
+};
+
 const handleCreate = async () => {
   const valid = await formRef.value.validate();
   if (!valid) return;
 
   submitting.value = true;
   try {
-    const res = await createApiKey(formData.value);
+    const res = await createApiKey(buildCreatePayload());
     createdSecretKey.value = res.secretKey;
     secretDialogTitle.value = '密钥创建成功';
     secretDialogDescription.value = '请妥善保存此密钥,它只会显示一次!关闭此对话框后将无法再次查看。';
@@ -1120,5 +1152,10 @@ onUnmounted(() => {
 
 .usage-events-table {
   margin-top: 16px;
+}
+
+.readonly-form-note {
+  color: #64748b;
+  font-size: 13px;
 }
 </style>

@@ -43,6 +43,7 @@ public class SecurityConfig {
                         // 公开端点 - 无需认证
                         .requestMatchers(
                                 "/api/v1/auth/**",
+                                "/api/v1/setup/**",
                                 "/api/v1/multimodal/files/*/download",
                                 "/api/v1/multimodal/files/*/thumbnail",
                                 "/api/v1/system/providers/**",
@@ -65,10 +66,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/model-config/**").permitAll()
                         .requestMatchers("/api/v1/conversation-logs/**").permitAll()
                         .requestMatchers("/api/v1/knowledge/diagnose/**").permitAll()
-                        // 用户权限管理端点
-                        .requestMatchers("/api/v1/departments/**").permitAll()
-                        .requestMatchers("/api/v1/roles/**").permitAll()
-                        .requestMatchers("/api/v1/users/**").permitAll()
                         // 管理端点（需要JWT认证）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())

@@ -348,9 +348,15 @@ run_base_business_smoke() {
 }
 
 run_mcp_smoke() {
+  local require_agent_tool=0
+  if [ -n "$ORIN_OPEN_DEMO_AGENT_ID" ]; then
+    require_agent_tool=1
+  fi
   ORIN_BASE_URL="$ORIN_BASE_URL" \
   ORIN_API_KEY="$DEMO_API_KEY_SECRET" \
   ORIN_MCP_CALL_TOOLS=1 \
+  ORIN_MCP_AGENT_ID="$ORIN_OPEN_DEMO_AGENT_ID" \
+  ORIN_MCP_REQUIRE_AGENT_TOOL="$require_agent_tool" \
   ORIN_MCP_WORKFLOW_TOOL="workflow.$DEMO_WORKFLOW_ID" \
   ORIN_MCP_REQUIRE_WORKFLOW_TOOL=1 \
   ORIN_MCP_REQUIRE_TRACE_METADATA=1 \

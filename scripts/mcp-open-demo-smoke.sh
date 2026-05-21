@@ -5,6 +5,8 @@ BASE_URL="${ORIN_BASE_URL:-http://127.0.0.1:8080}"
 API_KEY="${ORIN_API_KEY:-}"
 CALL_TOOLS="${ORIN_MCP_CALL_TOOLS:-0}"
 AGENT_TOOL="${ORIN_MCP_AGENT_TOOL:-}"
+AGENT_ID="${ORIN_MCP_AGENT_ID:-}"
+AGENT_MESSAGE="${ORIN_MCP_AGENT_MESSAGE:-Summarize the ORIN MCP open demo status in one short paragraph.}"
 WORKFLOW_TOOL="${ORIN_MCP_WORKFLOW_TOOL:-}"
 MCP_ORIGIN="${ORIN_MCP_ORIGIN:-}"
 REQUIRE_AGENT_TOOL="${ORIN_MCP_REQUIRE_AGENT_TOOL:-0}"
@@ -21,6 +23,21 @@ cleanup() {
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
+
+agent_tool_from_id() {
+  python3 - "$1" <<'PY'
+import base64
+import sys
+
+agent_id = sys.argv[1].encode("utf-8")
+encoded = base64.urlsafe_b64encode(agent_id).decode("ascii").rstrip("=")
+print(f"agent.{encoded}")
+PY
+}
+
+if [ -z "$AGENT_TOOL" ] && [ -n "$AGENT_ID" ]; then
+  AGENT_TOOL="$(agent_tool_from_id "$AGENT_ID")"
+fi
 
 post_mcp() {
   local payload="$1"
@@ -82,10 +99,11 @@ write_tool_call() {
   local name="$1"
   local kind="$2"
   local path="$3"
-  python3 - "$name" "$kind" "$path" <<'PY'
+  local message="$4"
+  python3 - "$name" "$kind" "$path" "$message" <<'PY'
 import json, sys
-name, kind, path = sys.argv[1], sys.argv[2], sys.argv[3]
-arguments = {"message": "Summarize the ORIN MCP open demo status in one short paragraph."}
+name, kind, path, message = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+arguments = {"message": message}
 if kind == "workflow":
     arguments = {"query": "Summarize the ORIN MCP open demo status in one short paragraph."}
 payload = {
@@ -137,11 +155,23 @@ data = json.load(open(path, encoding="utf-8"))
 if "error" in data:
     print(f"{label} call returned MCP error: {data['error'].get('code')} {data['error'].get('message')}")
     sys.exit(1)
-content = data.get("result", {}).get("content", [])
+result = data.get("result", {})
+if result.get("isError") is True:
+    print(f"{label} call returned tool error")
+    sys.exit(1)
+content = result.get("content", [])
 text = "\n".join(item.get("text", "") for item in content if isinstance(item, dict))
+if not text.strip():
+    print(f"{label} call returned empty text content")
+    sys.exit(1)
 trace_present = "Trace ID:" in text or "traceId" in text
+package_present = "Package ID:" in text or "packageId" in text
 print(f"{label} call ok: contentItems={len(content)} traceMetadata={trace_present}")
 if require_trace == "1" and not trace_present:
+    print(f"{label} call missing trace metadata")
+    sys.exit(1)
+if require_trace == "1" and label == "agent" and not package_present:
+    print("agent call missing package metadata")
     sys.exit(1)
 PY
 }
@@ -159,19 +189,20 @@ if [ "$CALL_TOOLS" = "1" ]; then
   selected_workflow="$(extract_tool "workflow." "$WORKFLOW_TOOL")"
 
   if [ -n "$selected_agent" ]; then
-    write_tool_call "$selected_agent" "agent" "$TMP_DIR/agent-call.json"
+    write_tool_call "$selected_agent" "agent" "$TMP_DIR/agent-call.json" "$AGENT_MESSAGE"
     post_mcp "$TMP_DIR/agent-call.json" "$TMP_DIR/agent-call-response.json"
     summarize_call "agent" "$TMP_DIR/agent-call-response.json" "$REQUIRE_TRACE_METADATA"
   else
     if [ "$REQUIRE_AGENT_TOOL" = "1" ]; then
       echo "error: required exposed agent tool not found" >&2
+      echo "hint: ensure the Agent is mcpExposed=true and owned by the CLIENT_ACCESS key user" >&2
       exit 1
     fi
     echo "agent call skipped: no exposed agent tool found"
   fi
 
   if [ -n "$selected_workflow" ]; then
-    write_tool_call "$selected_workflow" "workflow" "$TMP_DIR/workflow-call.json"
+    write_tool_call "$selected_workflow" "workflow" "$TMP_DIR/workflow-call.json" "$AGENT_MESSAGE"
     post_mcp "$TMP_DIR/workflow-call.json" "$TMP_DIR/workflow-call-response.json"
     summarize_call "workflow" "$TMP_DIR/workflow-call-response.json" "$REQUIRE_TRACE_METADATA"
   else

@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -150,6 +151,20 @@ public class CollaborationOrchestratorController {
         String reason = request.get("reason");
         CollaborationPackage pkg = orchestrator.executeFallback(packageId, reason);
         return ResponseEntity.ok(pkg);
+    }
+
+    @Operation(summary = "FALLBACK 重派协作子任务")
+    @PostMapping("/packages/{packageId}/fallback/retry")
+    public ResponseEntity<Map<String, Object>> retryFallback(
+            @PathVariable String packageId,
+            @RequestBody Map<String, Object> request) {
+
+        String reason = stringValue(request.get("reason"));
+        String review = stringValue(request.get("review"));
+        Integer attempt = integerValue(request.get("attempt"));
+        List<String> subTaskIds = stringListValue(request.get("subTaskIds"));
+        Map<String, Object> result = orchestrator.retryFallback(packageId, reason, review, attempt, subTaskIds);
+        return ResponseEntity.ok(result);
     }
 
     @Operation(summary = "完成协作任务")
@@ -694,6 +709,30 @@ public class CollaborationOrchestratorController {
         if (source.containsKey(key) && source.get(key) != null) {
             target.put(key, source.get(key));
         }
+    }
+
+    private static String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static Integer integerValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return Integer.parseInt(String.valueOf(value));
+    }
+
+    private static List<String> stringListValue(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .toList();
     }
 
     private List<Map<String, Object>> extractSubtasks(Map<String, Object> request) {

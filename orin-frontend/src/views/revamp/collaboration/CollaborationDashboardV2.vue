@@ -143,7 +143,12 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="协作任务包详情" size="720px">
+    <el-drawer
+      v-model="detailVisible"
+      title="协作任务包详情"
+      size="720px"
+      :close-on-click-modal="false"
+    >
       <div v-if="activePackage" class="detail-drawer">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="任务包ID">

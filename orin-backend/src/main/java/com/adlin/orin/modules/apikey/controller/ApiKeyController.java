@@ -20,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
@@ -39,6 +38,11 @@ import java.util.stream.Collectors;
 @Deprecated(forRemoval = false)
 public class ApiKeyController {
 
+    private static final String API_KEY_ACCESS_ROLES =
+            "hasAnyRole('ADMIN','SUPER_ADMIN','PLATFORM_ADMIN','OPERATOR','USER')";
+    private static final String API_KEY_ADMIN_ROLES =
+            "hasAnyRole('ADMIN','SUPER_ADMIN','PLATFORM_ADMIN')";
+
     private final ApiKeyService apiKeyService;
     private final ProviderKeyService providerKeyService;
     private final AuditHelper auditHelper;
@@ -49,25 +53,28 @@ public class ApiKeyController {
      * 创建API密钥
      */
     @Operation(summary = "创建API密钥")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ACCESS_ROLES)
     @PostMapping
     public ResponseEntity<Map<String, Object>> createApiKey(
-            @RequestBody CreateApiKeyRequest request,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
-        String targetUserId = request.getTargetUserId() != null && !request.getTargetUserId().isBlank()
+            @RequestBody CreateApiKeyRequest request) {
+        String actorUserId = currentUserId();
+        boolean canManageAll = canManageAllApiKeys();
+        String targetUserId = canManageAll
+                && request.getTargetUserId() != null
+                && !request.getTargetUserId().isBlank()
                 ? request.getTargetUserId().trim()
-                : userId;
+                : actorUserId;
 
         ApiKeyService.ApiKeyWithSecret result = apiKeyService.createApiKey(
                 targetUserId,
                 request.getName(),
                 request.getDescription(),
-                request.getRateLimitPerMinute(),
-                request.getRateLimitPerDay(),
-                request.getMonthlyTokenQuota(),
+                canManageAll ? request.getRateLimitPerMinute() : null,
+                canManageAll ? request.getRateLimitPerDay() : null,
+                canManageAll ? request.getMonthlyTokenQuota() : null,
                 request.getExpiresAt());
 
-        auditHelper.log(targetUserId, "API_KEY_CREATE", "/api/v1/api-keys",
+        auditHelper.log(actorUserId, "API_KEY_CREATE", "/api/v1/api-keys",
                 "action=create;keyId=" + result.getApiKey().getId() + ";targetUserId=" + targetUserId,
                 true, null);
 
@@ -83,23 +90,11 @@ public class ApiKeyController {
      * 获取用户的所有API密钥
      */
     @Operation(summary = "获取API密钥列表")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ACCESS_ROLES)
     @GetMapping
-    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
-
-        // 获取当前认证用户
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
-
-        List<ApiKey> keys;
-        if (isAdmin) {
-            // 管理员返回所有密钥
-            keys = apiKeyService.getAllApiKeys();
-        } else {
-            // 普通用户只返回自己的密钥
-            keys = apiKeyService.getUserApiKeys(userId);
-        }
+    public ResponseEntity<List<ApiKeyResponse>> getApiKeys() {
+        String actorUserId = currentUserId();
+        List<ApiKey> keys = apiKeyService.getApiKeysForActor(actorUserId, canManageAllApiKeys());
 
         List<ApiKeyResponse> response = keys.stream()
                 .map(this::toApiKeyResponse)
@@ -112,7 +107,7 @@ public class ApiKeyController {
      * 管理员查看API密钥明文（受控回显）
      */
     @Operation(summary = "管理员查看API密钥明文")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ADMIN_ROLES)
     @PostMapping("/{keyId}/secret")
     public ResponseEntity<Map<String, Object>> getApiKeySecret(
             @PathVariable String keyId,
@@ -170,20 +165,20 @@ public class ApiKeyController {
      * 获取 API Key 调用摘要与最近调用历史（脱敏）
      */
     @Operation(summary = "获取API Key调用摘要")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ACCESS_ROLES)
     @GetMapping("/{keyId}/usage")
     public ResponseEntity<?> getApiKeyUsage(
             @PathVariable String keyId,
-            @RequestParam(value = "limit", required = false, defaultValue = "20") int limit,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
-        return apiKeyService.getApiKeyUsage(keyId, userId, limit)
+            @RequestParam(value = "limit", required = false, defaultValue = "20") int limit) {
+        String actorUserId = currentUserId();
+        return apiKeyService.getApiKeyUsage(keyId, actorUserId, limit, canManageAllApiKeys())
                 .<ResponseEntity<?>>map(usage -> {
-                    auditHelper.log(userId, "API_KEY_USAGE_READ", "/api/v1/api-keys/" + keyId + "/usage",
+                    auditHelper.log(actorUserId, "API_KEY_USAGE_READ", "/api/v1/api-keys/" + keyId + "/usage",
                             "action=usage-read;keyId=" + keyId, true, null);
                     return ResponseEntity.ok(usage);
                 })
                 .orElseGet(() -> {
-                    auditHelper.log(userId, "API_KEY_USAGE_READ", "/api/v1/api-keys/" + keyId + "/usage",
+                    auditHelper.log(actorUserId, "API_KEY_USAGE_READ", "/api/v1/api-keys/" + keyId + "/usage",
                             "action=usage-read;keyId=" + keyId, false, "NOT_FOUND_OR_FORBIDDEN");
                     return ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body(Map.of("message", "API Key不存在或无权限"));
@@ -194,15 +189,19 @@ public class ApiKeyController {
      * 禁用API密钥
      */
     @Operation(summary = "禁用API密钥")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ACCESS_ROLES)
     @PatchMapping("/{keyId}/disable")
-    public ResponseEntity<Map<String, Object>> disableApiKey(
-            @PathVariable String keyId,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+    public ResponseEntity<Map<String, Object>> disableApiKey(@PathVariable String keyId) {
 
-        boolean success = apiKeyService.disableApiKey(keyId, userId);
-        auditHelper.log(userId, "API_KEY_DISABLE", "/api/v1/api-keys/" + keyId + "/disable",
+        String actorUserId = currentUserId();
+        boolean success = apiKeyService.disableApiKey(keyId, actorUserId, canManageAllApiKeys());
+        auditHelper.log(actorUserId, "API_KEY_DISABLE", "/api/v1/api-keys/" + keyId + "/disable",
                 "action=disable;keyId=" + keyId, success, success ? null : "DISABLE_FAILED");
+
+        if (!success) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "message", "API Key不存在或无权限"));
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -215,15 +214,19 @@ public class ApiKeyController {
      * 启用API密钥
      */
     @Operation(summary = "启用API密钥")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ACCESS_ROLES)
     @PatchMapping("/{keyId}/enable")
-    public ResponseEntity<Map<String, Object>> enableApiKey(
-            @PathVariable String keyId,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+    public ResponseEntity<Map<String, Object>> enableApiKey(@PathVariable String keyId) {
 
-        boolean success = apiKeyService.enableApiKey(keyId, userId);
-        auditHelper.log(userId, "API_KEY_ENABLE", "/api/v1/api-keys/" + keyId + "/enable",
+        String actorUserId = currentUserId();
+        boolean success = apiKeyService.enableApiKey(keyId, actorUserId, canManageAllApiKeys());
+        auditHelper.log(actorUserId, "API_KEY_ENABLE", "/api/v1/api-keys/" + keyId + "/enable",
                 "action=enable;keyId=" + keyId, success, success ? null : "ENABLE_FAILED");
+
+        if (!success) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "message", "API Key不存在或无权限"));
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -236,16 +239,20 @@ public class ApiKeyController {
      * 删除API密钥
      */
     @Operation(summary = "删除API密钥")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ACCESS_ROLES)
     @DeleteMapping("/{keyId}")
-    public ResponseEntity<Map<String, Object>> deleteApiKey(
-            @PathVariable String keyId,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+    public ResponseEntity<Map<String, Object>> deleteApiKey(@PathVariable String keyId) {
 
-        boolean success = apiKeyService.deleteApiKey(keyId, userId);
+        String actorUserId = currentUserId();
+        boolean success = apiKeyService.deleteApiKey(keyId, actorUserId, canManageAllApiKeys());
 
-        auditHelper.log(userId, "API_KEY_DELETE", "/api/v1/api-keys/" + keyId,
+        auditHelper.log(actorUserId, "API_KEY_DELETE", "/api/v1/api-keys/" + keyId,
                 "action=delete;keyId=" + keyId, success, success ? null : "DELETE_FAILED");
+
+        if (!success) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "message", "API Key不存在或无权限"));
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -258,14 +265,15 @@ public class ApiKeyController {
      * 重置月度配额
      */
     @Operation(summary = "重置月度配额")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ADMIN_ROLES)
     @PatchMapping("/{keyId}/reset-quota")
     public ResponseEntity<Map<String, Object>> resetQuota(
             @PathVariable String keyId) {
 
+        String actorUserId = currentUserId();
         apiKeyService.resetMonthlyQuota(keyId);
 
-        auditHelper.log("SYSTEM", "API_KEY_RESET_QUOTA", "/api/v1/api-keys/" + keyId + "/reset-quota",
+        auditHelper.log(actorUserId, "API_KEY_RESET_QUOTA", "/api/v1/api-keys/" + keyId + "/reset-quota",
                 "action=reset-quota;keyId=" + keyId, true, null);
 
         Map<String, Object> response = new HashMap<>();
@@ -279,14 +287,13 @@ public class ApiKeyController {
      * 轮换API密钥
      */
     @Operation(summary = "轮换API密钥（Deprecated）")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(API_KEY_ACCESS_ROLES)
     @PostMapping("/{keyId}/rotate")
-    public ResponseEntity<Map<String, Object>> rotateApiKey(
-            @PathVariable String keyId,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
-        return apiKeyService.rotateApiKey(keyId, userId)
+    public ResponseEntity<Map<String, Object>> rotateApiKey(@PathVariable String keyId) {
+        String actorUserId = currentUserId();
+        return apiKeyService.rotateApiKey(keyId, actorUserId, canManageAllApiKeys())
                 .map(rotated -> {
-                    auditHelper.log(userId, "API_KEY_ROTATE", "/api/v1/api-keys/" + keyId + "/rotate",
+                    auditHelper.log(actorUserId, "API_KEY_ROTATE", "/api/v1/api-keys/" + keyId + "/rotate",
                             "action=rotate;keyId=" + keyId, true, null);
                     Map<String, Object> response = new HashMap<>();
                     response.put("apiKey", toApiKeyResponse(rotated.getApiKey()));
@@ -295,10 +302,27 @@ public class ApiKeyController {
                     return ResponseEntity.ok(response);
                 })
                 .orElseGet(() -> {
-                    auditHelper.log(userId, "API_KEY_ROTATE", "/api/v1/api-keys/" + keyId + "/rotate",
+                    auditHelper.log(actorUserId, "API_KEY_ROTATE", "/api/v1/api-keys/" + keyId + "/rotate",
                             "action=rotate;keyId=" + keyId, false, "ROTATE_FAILED");
-                    return ResponseEntity.badRequest().body(Map.of("success", false, "message", "rotate failed"));
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("success", false, "message", "API Key不存在或无权限"));
                 });
+    }
+
+    private String currentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null) {
+            throw new org.springframework.security.authentication.BadCredentialsException("Missing user context");
+        }
+        return auth.getPrincipal().toString();
+    }
+
+    private boolean canManageAllApiKeys() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream().anyMatch(authority ->
+                "ROLE_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_SUPER_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_PLATFORM_ADMIN".equals(authority.getAuthority()));
     }
 
     /**
@@ -380,12 +404,14 @@ public class ApiKeyController {
     // --- External Provider Keys ---
 
     @Operation(summary = "获取外部供应商密钥列表")
+    @PreAuthorize(API_KEY_ADMIN_ROLES)
     @GetMapping("/external")
     public List<ExternalProviderKey> listExternalKeys() {
         return providerKeyService.getAllKeys();
     }
 
     @Operation(summary = "新建/编辑外部供应商密钥")
+    @PreAuthorize(API_KEY_ADMIN_ROLES)
     @PostMapping("/external")
     public ExternalProviderKey saveExternalKey(@RequestBody ExternalProviderKey key) {
         ExternalProviderKey saved = providerKeyService.saveKey(key);
@@ -395,6 +421,7 @@ public class ApiKeyController {
     }
 
     @Operation(summary = "删除外部供应商密钥")
+    @PreAuthorize(API_KEY_ADMIN_ROLES)
     @DeleteMapping("/external/{id}")
     public void deleteExternalKey(@PathVariable Long id) {
         providerKeyService.deleteKey(id);
@@ -403,6 +430,7 @@ public class ApiKeyController {
     }
 
     @Operation(summary = "切换外部密钥启用状态")
+    @PreAuthorize(API_KEY_ADMIN_ROLES)
     @PatchMapping("/external/{id}/toggle")
     public ExternalProviderKey toggleExternalStatus(@PathVariable Long id) {
         ExternalProviderKey toggled = providerKeyService.toggleStatus(id);

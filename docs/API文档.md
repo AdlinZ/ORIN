@@ -23,7 +23,7 @@
 | `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token |
 | `/v1/health` · `/api/v1/health` | 无 | 健康检查公开 |
 
-API Key 创建：管理台 → 系统管理 → API Key 管理。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
+API Key 创建：管理员在管理台 → 系统设置 → 统一网关 → 访问凭据；普通用户 / 运维在 `/portal/api-keys` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
 
 API Key 生命周期接口：
 
@@ -34,6 +34,13 @@ API Key 生命周期接口：
 - `POST /api/v1/api-keys/{keyId}/secret`：管理员受控回显明文，必须提交当前密码和 `confirmReveal=REVEAL_API_KEY`；成功/失败均写脱敏审计。
 - `GET /api/v1/api-keys/{keyId}/usage?limit=20`：返回该 key 的 30 天调用摘要与最近调用历史，只包含状态、计数、路径、traceId、耗时、错误摘要等脱敏字段。
 - `DELETE /api/v1/api-keys/{keyId}`：删除密钥。
+
+权限语义：
+
+- `ROLE_ADMIN`、`ROLE_SUPER_ADMIN`、`ROLE_PLATFORM_ADMIN` 具备全局 API Key 治理能力，可管理全部 `CLIENT_ACCESS` Key，并可管理供应商凭据和 MCP env 密钥。
+- `ROLE_OPERATOR`、`ROLE_USER` 只能管理自己拥有的 `CLIENT_ACCESS` Key。所有权来自 JWT 当前用户；`X-User-Id` 与请求体 `targetUserId` 不会覆盖自助用户归属。
+- 自助用户访问非本人 Key 时统一返回 `404`；访问明文回显、配额重置、供应商凭据或 MCP env 密钥接口返回 `403`。
+- 自助用户创建 / 轮换后只会获得一次明文 `secretKey`，不能再次 reveal 旧密钥。
 
 创建、禁用、启用、轮换、删除、配额重置、明文回显、调用历史读取均写审计日志；审计详情只记录 `keyId / userId / action / success` 等摘要，不记录 API Key 原文、JWT、provider token、完整请求体或完整响应体。
 
@@ -58,7 +65,7 @@ API Key 生命周期接口：
 | 知识库 | `/api/v1/knowledge/*` · `/api/v1/knowledge/sync/*` |
 | 工作流 | `/api/workflows/*` · `/api/v1/workflow/*` |
 | 协作 | `/api/v1/collaboration/*` |
-| Trace 与监控 | `/api/traces/*` · `/api/v1/monitor/*` · `/api/v1/observability/*` · `/api/v1/alerts/*` |
+| Trace 与监控 | `/api/traces/*` · `/api/v1/monitor/*` · `/api/v1/dashboard/*` · `/api/v1/observability/*` · `/api/v1/alerts/*` |
 | 用户权限 | `/api/v1/users/*` · `/api/v1/roles/*` · `/api/v1/departments/*` |
 | 系统配置 | `/api/v1/system/*` · `/api/v1/settings/*` · `/api/v1/api-keys/*` · `/api/system/integrations/*` · `/api/system/mcp/*` · `/api/v1/notifications/*` · `/api/v1/statistics/*` · `/api/v1/help/*` |
 
@@ -226,10 +233,13 @@ curl http://localhost:8080/api/traces/{traceId} -H "Authorization: Bearer $TOKEN
 curl http://localhost:8080/api/v1/traces/{traceId}/summary -H "Authorization: Bearer $TOKEN"
 curl "http://localhost:8080/api/traces/search?traceId=abc" -H "Authorization: Bearer $TOKEN"
 curl http://localhost:8080/api/v1/monitor/dashboard/summary -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/v1/dashboard/summary -H "Authorization: Bearer $TOKEN"
 curl http://localhost:8080/api/v1/observability/langfuse/status -H "Authorization: Bearer $TOKEN"
 ```
 
 `GET /api/v1/traces/{traceId}/summary` 返回脱敏聚合摘要：workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 和 Langfuse link 状态。响应只包含 ID、状态、时间、耗时、错误摘要、计数和跳转所需字段；不得返回 `inputData`、`outputData`、`requestParams`、`responseContent`、token、API Key 或 provider 凭据。
+
+`GET /api/v1/dashboard/summary` 返回前端统一改造 1.0 的角色化首页聚合摘要：`roles / defaultHome / systemHealth / metrics / recentActivity / quickLinks`。该接口只读、JWT 鉴权，由 Java 后端聚合 AI Engine 健康状态，前端不得直连 AI Engine。`recentActivity` 只返回审计摘要字段，不返回完整请求体、响应体、token、API Key 或 provider 凭据。
 
 ## 5. 联调技巧
 

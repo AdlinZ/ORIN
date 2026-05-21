@@ -321,4 +321,43 @@ class CollaborationOrchestratorControllerTest {
         assertEquals("COMPLETED",
                 controller.manualCompletePackage("pkg-ctrl-007", Map.of("result", "manual result")).getBody().getStatus());
     }
+
+    @Test
+    @DisplayName("fallback retry 应委托 orchestrator 并返回重派摘要")
+    void fallbackRetry_delegatesToOrchestrator() {
+        CollaborationOrchestratorController controller = new CollaborationOrchestratorController(
+                orchestrator,
+                eventBus,
+                executor,
+                memoryService,
+                metricsService
+        );
+        Map<String, Object> expected = Map.of(
+                "packageId", "pkg-ctrl-008",
+                "status", "EXECUTING",
+                "attempt", 1,
+                "resetSubTaskIds", List.of("sub-1")
+        );
+        when(orchestrator.retryFallback(
+                "pkg-ctrl-008",
+                "critic rejected result",
+                "needs revision",
+                1,
+                List.of("sub-1")
+        )).thenReturn(expected);
+
+        ResponseEntity<Map<String, Object>> response = controller.retryFallback(
+                "pkg-ctrl-008",
+                Map.of(
+                        "reason", "critic rejected result",
+                        "review", "needs revision",
+                        "attempt", 1,
+                        "subTaskIds", List.of("sub-1")
+                )
+        );
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("EXECUTING", response.getBody().get("status"));
+        verify(orchestrator).retryFallback("pkg-ctrl-008", "critic rejected result", "needs revision", 1, List.of("sub-1"));
+    }
 }

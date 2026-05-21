@@ -99,6 +99,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
     server: {
       deps: {
         inline: ['element-plus', '@element-plus/icons-vue', '@arco-design/web-vue']
