@@ -21,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
 import java.util.Map;
@@ -81,6 +82,7 @@ class CollaborationExecutorTest {
                 staticSelector,
                 biddingSelector
         );
+        ReflectionTestUtils.setField(executor, "collaborationResultQueueName", "open-demo-result-queue");
 
         CollabSubtaskEntity subtask = CollabSubtaskEntity.builder()
                 .packageId("pkg-workflow")
@@ -112,6 +114,7 @@ class CollaborationExecutorTest {
         assertThat(message.getExecutionStrategy()).isEqualTo("WORKFLOW");
         assertThat(message.getExpectedRole()).isEqualTo("SPECIALIST");
         assertThat(message.getInputData()).contains("\"workflowId\":42");
+        assertThat(message.getReplyTo()).isEqualTo("open-demo-result-queue");
         verify(resultListener).registerCallback(eq("pkg-workflow:workflow-1"), any());
         verify(redisService).updateContextField(eq("pkg-workflow"), eq("pending_task:workflow-1"), any());
     }

@@ -21,6 +21,7 @@ import com.adlin.orin.modules.workflow.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -51,6 +52,9 @@ public class CollaborationExecutor {
     private final CollaborationRedisService redisService;
     private final StaticSelector staticSelector;
     private final BiddingSelector biddingSelector;
+
+    @Value("${orin.collaboration.result.queue:collaboration-task-result-queue}")
+    private String collaborationResultQueueName = "collaboration-task-result-queue";
 
     // 角色 -> 能力关键词映射（从 agent name/description 中匹配）
     private static final Map<String, List<String>> ROLE_CAPABILITY_KEYWORDS = Map.of(
@@ -209,7 +213,7 @@ public class CollaborationExecutor {
                     .maxRetries(3)
                     .timeoutMillis(300000L)
                     .executionStrategy(determineExecutorType(subtask))
-                    .replyTo("collaboration-task-result-queue")
+                    .replyTo(collaborationResultQueueName)
                     .correlationId(callbackKey)
                     .contextSnapshot(contextSnapshot)
                     .enqueuedAt(System.currentTimeMillis())

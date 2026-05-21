@@ -340,10 +340,15 @@ run_base_business_smoke() {
     skip "base business smoke skipped by ORIN_OPEN_DEMO_RUN_BUSINESS_SMOKE"
     return
   fi
+  ORIN_BASE_URL="$ORIN_BASE_URL" \
+  ORIN_AI_BASE_URL="$ORIN_AI_BASE_URL" \
+  ORIN_ADMIN_USERNAME="$ORIN_ADMIN_USERNAME" \
+  ORIN_ADMIN_PASSWORD="$ORIN_ADMIN_PASSWORD" \
   bash scripts/business-smoke.sh
 }
 
 run_mcp_smoke() {
+  ORIN_BASE_URL="$ORIN_BASE_URL" \
   ORIN_API_KEY="$DEMO_API_KEY_SECRET" \
   ORIN_MCP_CALL_TOOLS=1 \
   ORIN_MCP_WORKFLOW_TOOL="workflow.$DEMO_WORKFLOW_ID" \
@@ -357,7 +362,12 @@ run_workflow_subtask_smoke() {
     skip "collaboration workflow subtask smoke skipped by ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK"
     return
   fi
-  ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK=1 bash scripts/business-smoke.sh
+  ORIN_BASE_URL="$ORIN_BASE_URL" \
+  ORIN_AI_BASE_URL="$ORIN_AI_BASE_URL" \
+  ORIN_ADMIN_USERNAME="$ORIN_ADMIN_USERNAME" \
+  ORIN_ADMIN_PASSWORD="$ORIN_ADMIN_PASSWORD" \
+  ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK=1 \
+  bash scripts/business-smoke.sh
 }
 
 echo "=== ORIN Open Demo Acceptance ==="

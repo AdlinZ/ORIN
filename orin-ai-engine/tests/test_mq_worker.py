@@ -173,3 +173,39 @@ class TestMqWorkerWorkflowSmoke:
         assert payload["result"] == "Workflow executed: instanceId=222"
         assert "correlationId" in payload
         assert routing_key == worker.reply_routing_key
+
+    @pytest.mark.asyncio
+    async def test_write_result_uses_message_reply_to_queue(self):
+        worker = CollabMQWorker()
+        default_exchange = AsyncMock()
+        channel = AsyncMock()
+        channel.default_exchange = default_exchange
+        worker.channel = channel
+
+        task = CollabTaskMessage(
+            package_id="pkg-reply-001",
+            sub_task_id="sub-reply-001",
+            trace_id="trace-reply-001",
+            attempt=0,
+            collaboration_mode="PARALLEL",
+            expected_role="WORKFLOW",
+            description="reply to isolated queue",
+            reply_to="isolated-result-queue",
+            correlation_id="pkg-reply-001:sub-reply-001",
+        )
+        result = CollabTaskResult(
+            package_id="pkg-reply-001",
+            sub_task_id="sub-reply-001",
+            trace_id="trace-reply-001",
+            attempt=0,
+            status="COMPLETED",
+            result="ok",
+            correlation_id="pkg-reply-001:sub-reply-001",
+        )
+
+        await worker._write_result(result, task)
+
+        channel.get_exchange.assert_not_called()
+        default_exchange.publish.assert_awaited_once()
+        publish_call = default_exchange.publish.await_args
+        assert publish_call.kwargs["routing_key"] == "isolated-result-queue"

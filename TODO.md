@@ -397,12 +397,12 @@
 - [x] `P1` 强化 Claude Desktop / Streamable HTTP MCP 客户端接入文档与排障清单
 - [x] `P1` 增加 `scripts/open-demo-acceptance.sh`，自动创建临时 MCP key 与 exposed Workflow 并调用 MCP smoke
 - [~] `P1` MCP Agent `tools/call` 真实验收依赖本机存在可用 provider-backed Agent；无真实 Agent 时不伪造 provider
-- [~] `P1` Collaboration Workflow 子任务强验收依赖 AI Engine 以 MQ worker + 后端授权启动；worker disabled 时保留为待验收
+- [x] `P1` Collaboration Workflow 子任务强验收通过；本机已有常驻服务时需使用隔离队列，避免多个后端实例抢同一 RabbitMQ queue
 
-验收记录（2026-05-20）：
+验收记录（2026-05-21）：
 - [x] `scripts/open-demo-acceptance.sh` 通过：自动创建临时 `mcpExposed=true` Workflow、按 Workflow owner 创建临时 `CLIENT_ACCESS` key，`/v1/mcp tools/list` 返回 Workflow tool，`tools/call` 返回 trace metadata，并完成临时资源清理
 - [~] Agent MCP `tools/call` 跳过：本机 Agent 列表为空，未伪造 provider-backed Agent
-- [~] Collaboration Workflow 子任务强验收跳过：AI Engine `/health` 显示 RabbitMQ worker 为 `disabled`
+- [x] Collaboration Workflow 子任务强验收通过：临时 `LANGGRAPH_MQ` 后端 + 临时 AI Engine MQ worker + 临时 RabbitMQ 用户 + 唯一 workflow/collaboration queue，`ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK=1 bash scripts/open-demo-acceptance.sh` 完成 Workflow task、trace summary 与协作 Workflow 子任务 `TaskRuntime` 断言
 - [~] Claude Desktop 人工验收未执行：需在桌面客户端中加载 `orin-mcp-bridge` 后人工确认 tools/list 与 Agent / Workflow 调用
 - [x] gitleaks 本地扫描通过：当前 Git 跟踪文件扫描为 0；`gitleaks detect --source . --redact --no-banner` 已通过。处理方式为修正文档/前端示例 Authorization 写法、删除本地未跟踪日志，并用 `.gitleaksignore` 记录历史 redacted 指纹基线；未输出 secret 原文，未改写历史
 

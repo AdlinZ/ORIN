@@ -226,6 +226,8 @@ The collaboration Workflow subtask strong smoke is opt-in because it requires AI
 ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK=1 bash scripts/open-demo-acceptance.sh
 ```
 
+If another backend instance is already consuming the default RabbitMQ queues, start the acceptance backend and MQ worker with unique `TASK_*` and `COLLAB_*` queue/exchange names. This keeps Workflow task and collaboration result messages from being consumed by the wrong local process. ORIN honors `replyTo` on collaboration messages, so an isolated `COLLAB_RESULT_QUEUE` can receive only the results for that acceptance run.
+
 ## Troubleshooting
 
 - `401`: the key is missing, disabled, rotated, or not a `CLIENT_ACCESS / sk-orin-*` key.
