@@ -1,5 +1,23 @@
 <template>
   <div class="notification-channels-page page-container fade-in">
+    <OrinPageShell
+      domain="系统控制"
+      title="通知设置"
+      description="统一管理系统事件投递、外部通知渠道，以及邮件中心的收发和模板运营。"
+      icon="Message"
+    >
+      <template #actions>
+        <el-button
+          v-if="activeWorkspace === 'channels'"
+          type="primary"
+          :loading="notifSaving"
+          @click="notifSaveConfig"
+        >
+          保存配置
+        </el-button>
+      </template>
+    </OrinPageShell>
+
     <section class="notification-console">
       <header class="notification-hero">
         <div class="notification-hero-row">
@@ -243,6 +261,7 @@ import {
   Timer
 } from '@element-plus/icons-vue'
 import { getNotificationConfig, saveNotificationConfig, testNotificationChannel } from '@/api/alert'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import MailWorkbench from '@/views/Mail/MailWorkbench.vue'
 
 const route = useRoute()

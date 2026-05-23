@@ -35,6 +35,14 @@ rg "开发中|未启用|待实现|ElMessage\.(info|warning)" src
 
 业务表格使用项目内的 `ResizableTable` 包装组件（位于 `src/components/`），支持列宽拖拽与持久化。新增表格时优先复用，避免直接用裸 `el-table`。
 
+### 前端统一改造 1.0
+
+- 管理台默认采用侧边栏企业后台模式，`topbar` 仅作为兼容/备用模式。
+- 新增业务页优先使用 `OrinPageShell`、`OrinAsyncState`、`OrinDataTable`、`OrinFilterBar`、`OrinMetricStrip`。
+- 不扩大 Arco 组件使用范围；`src/ui/arco/` 仅作为隔离适配层保留。
+- 角色化首页数据统一走 `src/api/dashboard.js` → `GET /api/v1/dashboard/summary`，页面消费 `toDashboardSummaryViewModel()` 后的标准结构。
+- Dashboard 聚合数据由 Java 后端读取，前端不得直连 AI Engine。
+
 ## 三、调试
 
 ```bash

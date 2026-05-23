@@ -71,29 +71,31 @@
         description="暂无可用模型工具"
       />
 
-      <el-table v-else-if="!embedded" :data="filteredTools" v-loading="loading" stripe>
-        <el-table-column prop="toolId" label="Tool ID" min-width="220" />
-        <el-table-column prop="displayName" label="名称" min-width="180" />
-        <el-table-column prop="category" label="类别" width="140" />
-        <el-table-column label="运行模式" width="150">
-          <template #default="{ row }">
-            <el-tag :type="row.runtimeMode === 'function_call' ? 'success' : 'info'" effect="plain">
-              {{ row.runtimeMode || 'context_only' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="启用" width="120">
-          <template #default="{ row }">
-            <el-switch
-              :model-value="row.enabled !== false"
-              :loading="savingToolId === row.toolId"
-              @change="(val) => setToolEnabled(row, val)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="healthStatus" label="健康状态" width="140" />
-        <el-table-column prop="source" label="来源" width="120" />
-      </el-table>
+      <OrinDataTable v-else-if="!embedded" compact>
+        <el-table :data="filteredTools" v-loading="loading" stripe>
+          <el-table-column prop="toolId" label="Tool ID" min-width="220" />
+          <el-table-column prop="displayName" label="名称" min-width="180" />
+          <el-table-column prop="category" label="类别" width="140" />
+          <el-table-column label="运行模式" width="150">
+            <template #default="{ row }">
+              <el-tag :type="row.runtimeMode === 'function_call' ? 'success' : 'info'" effect="plain">
+                {{ row.runtimeMode || 'context_only' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="启用" width="120">
+            <template #default="{ row }">
+              <el-switch
+                :model-value="row.enabled !== false"
+                :loading="savingToolId === row.toolId"
+                @change="(val) => setToolEnabled(row, val)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column prop="healthStatus" label="健康状态" width="140" />
+          <el-table-column prop="source" label="来源" width="120" />
+        </el-table>
+      </OrinDataTable>
     </el-card>
   </div>
 </template>
@@ -102,6 +104,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getToolCatalog, updateToolCatalogItem } from '@/api/agent-chat'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 defineProps({
   embedded: {

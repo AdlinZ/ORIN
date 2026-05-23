@@ -1,16 +1,15 @@
 <template>
   <div class="agent-extensions-page">
     <section class="extensions-console">
-      <header class="extensions-hero">
-        <div class="extensions-hero-main">
-          <div class="extensions-icon">
-            <el-icon><MagicStick /></el-icon>
-          </div>
-          <div class="extensions-title-block">
-            <h1>智能体扩展中心</h1>
-            <p>统一管理 Skills、MCP 服务与模型工具能力，集中完成配置、启停和维护。</p>
-          </div>
-        </div>
+      <OrinPageShell
+        title="智能体扩展中心"
+        description="统一管理 Skills、MCP 服务与模型工具能力，集中完成配置、启停和维护"
+        icon="MagicStick"
+        domain="应用域"
+        maturity="beta"
+      />
+
+      <OrinMetricStrip :metrics="extensionMetrics" class="extensions-metric-strip" />
 
         <div class="extensions-summary">
           <button
@@ -28,38 +27,24 @@
           </button>
         </div>
 
-      </header>
-
       <section
         ref="contentPanelRef"
         class="content-panel"
       >
-        <div v-if="switchLoading" class="tab-skeleton-wrap">
-          <el-skeleton :rows="7" animated />
-        </div>
-        <div v-else class="tab-content">
-          <el-alert
-            v-if="tabRenderError"
-            class="tab-error"
-            type="error"
-            :title="`页面渲染失败：${tabRenderError}`"
-            description="已自动回退到默认标签页，请点击重试。"
-            show-icon
-            :closable="false"
-          >
-            <template #default>
-              <el-button type="primary" text @click="recoverFromTabError">
-                重试
-              </el-button>
-            </template>
-          </el-alert>
+        <OrinAsyncState
+          :status="extensionPanelState"
+          :error-text="`页面渲染失败：${tabRenderError || '未知错误'}`"
+          @retry="recoverFromTabError"
+        >
+          <div class="tab-content">
           <keep-alive>
             <component
               :is="currentTabComponent"
               :embedded="true"
             />
           </keep-alive>
-        </div>
+          </div>
+        </OrinAsyncState>
       </section>
     </section>
   </div>
@@ -70,6 +55,9 @@ import { computed, nextTick, onErrorCaptured, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { MagicStick, Service, Setting } from '@element-plus/icons-vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import SkillManagementPanel from '@/views/Skill/SkillManagement.vue'
 import McpServicePanel from '@/views/System/McpService.vue'
 import AgentToolsBindingPanel from '@/views/Agent/AgentToolsBindingPanel.vue'
@@ -121,6 +109,19 @@ const tabSummaries = [
 ]
 
 const currentTabComponent = computed(() => tabComponentMap[activeTab.value] || tabComponentMap[TAB_DEFAULT])
+
+const extensionMetrics = computed(() => tabSummaries.map((item) => ({
+  key: item.key,
+  label: item.title,
+  value: activeTab.value === item.key ? '当前' : '可用',
+  meta: item.description
+})))
+
+const extensionPanelState = computed(() => {
+  if (switchLoading.value) return 'loading'
+  if (tabRenderError.value) return 'error'
+  return 'success'
+})
 
 const getSanitizedTab = (value) => {
   const resolved = Array.isArray(value) ? value[0] : value

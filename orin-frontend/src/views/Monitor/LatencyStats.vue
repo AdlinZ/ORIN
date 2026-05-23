@@ -1,5 +1,12 @@
 <template>
   <div class="latency-workspace server-workspace">
+    <OrinPageShell
+      title="性能分析"
+      description="对齐真实响应链路，定位趋势波动、慢请求分布与异常耗时样本"
+      icon="Timer"
+      domain="运行监控"
+    />
+
     <section class="runtime-command-panel">
       <div class="runtime-command-head">
         <div class="header-main">
@@ -151,6 +158,11 @@
         />
       </div>
 
+      <OrinAsyncState
+        :status="historyLoading ? 'loading' : (historyData.length ? 'success' : 'empty')"
+        empty-text="暂无慢请求样本"
+      >
+      <OrinDataTable compact>
       <el-table
         v-loading="historyLoading"
         border
@@ -210,6 +222,8 @@
           </template>
         </el-table-column>
       </el-table>
+      </OrinDataTable>
+      </OrinAsyncState>
 
       <div class="pagination-container">
         <el-pagination
@@ -230,8 +244,11 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { Download, Refresh, Timer } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { getLatencyStats, getLatencyHistory, getLatencyTrend } from '@/api/monitor';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 const defaultLatencyStats = {
   avg: 0,

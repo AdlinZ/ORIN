@@ -70,3 +70,21 @@ export function initializeDefaultEndpoints() {
         method: 'post'
     })
 }
+
+export async function invokeUnifiedApiEndpoint({ method, url, data = null, headers = {}, timeout = 120000 }) {
+    const responseData = await request({
+        url,
+        method,
+        data,
+        headers,
+        timeout,
+        baseURL: '',
+        noRetry: true,
+        silentError: true
+    })
+
+    return {
+        status: 200,
+        data: responseData
+    }
+}

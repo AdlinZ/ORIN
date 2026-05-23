@@ -70,7 +70,15 @@
       </article>
     </section>
 
-    <div class="split-workbench" v-loading="loading">
+    <OrinAsyncState
+      :status="assetState.status"
+      :error-text="assetErrorText"
+      empty-text="暂无知识资产，请先创建知识库"
+      empty-action-label="返回知识库"
+      @retry="loadData"
+      @empty-action="goCenter"
+    >
+    <div class="split-workbench">
       <!-- ── Left: Enhanced asset list ─────────────────────────── -->
       <aside class="asset-list">
         <div class="list-head">
@@ -308,11 +316,12 @@
         </template>
       </section>
     </div>
+    </OrinAsyncState>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -328,15 +337,18 @@ import {
 } from '@element-plus/icons-vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { ROUTES } from '@/router/routes'
 import { buildGraph, getGraphEntities, getGraphList, getGraphRelations, getKnowledgeList } from '@/api/knowledge'
+import { createAsyncState, markEmpty, markError, markLoading, markSuccess, toKnowledgeAssetListViewModel } from '@/viewmodels'
 
 const router = useRouter()
 
 const loading = ref(false)
 const rebuilding = ref(false)
 const rows = ref([])
+const assetState = reactive(createAsyncState())
 
 const keyword = ref('')
 const typeFilter = ref('')
@@ -347,6 +359,11 @@ const graphCountOverrides = ref({})
 const linkedCount = computed(() => rows.value.filter((row) => row.graph).length)
 const readyCount = computed(() => rows.value.filter((row) => row.graph?.buildStatus === 'SUCCESS').length)
 const issueCount = computed(() => rows.value.length - readyCount.value)
+const assetErrorText = computed(() => {
+  const message = assetState.error?.message || '知识资产加载失败，请稍后重试'
+  const traceId = assetState.error?.traceId || assetState.error?.response?.data?.traceId
+  return traceId ? `${message} · TraceId: ${traceId}` : message
+})
 const overviewCards = computed(() => [
   {
     key: 'linked',
@@ -430,23 +447,15 @@ const resetFilters = () => {
 
 const loadData = async () => {
   loading.value = true
+  markLoading(assetState)
   try {
     const [kbs, graphs] = await Promise.all([getKnowledgeList(), getGraphList()])
-    const kbList = Array.isArray(kbs) ? kbs : []
-    const graphList = Array.isArray(graphs) ? graphs : []
-
-    const graphMap = new Map()
-    for (const graph of graphList) {
-      if (!graph.knowledgeBaseId) continue
-      graphMap.set(String(graph.knowledgeBaseId), graph)
-    }
-
-    rows.value = kbList.map((kb) => ({
-      kb,
-      graph: graphMap.get(String(kb.id ?? kb.kbId)) || null
-    }))
+    rows.value = toKnowledgeAssetListViewModel(kbs, graphs)
     graphCountOverrides.value = {}
+    if (rows.value.length === 0) markEmpty(assetState)
+    else markSuccess(assetState)
   } catch (error) {
+    markError(assetState, error)
     ElMessage.error('加载知识资产失败')
   } finally {
     loading.value = false

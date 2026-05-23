@@ -92,7 +92,6 @@ const handleTranscribe = async () => {
         isProcessing.value = true;
         // 1. Upload to local ORIN storage
         const uploadRes = await uploadMultimodalFile(selectedFile.value);
-        console.log('Upload response:', uploadRes);
         
         // uploadRes is the MultimodalFile entity
         const fileId = uploadRes.id;

@@ -1,4 +1,29 @@
 <template>
+  <div class="retrieval-workbench-page">
+    <OrinPageShell
+      title="知识库检索"
+      description="验证召回质量、来源覆盖和片段可用性"
+      icon="Search"
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #actions>
+        <el-button :icon="Plus" type="primary" @click="newRetrieval">
+          新建检索
+        </el-button>
+        <el-button :icon="Setting" @click="expandParams">
+          参数
+        </el-button>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag effect="plain">{{ activeKbName }}</el-tag>
+          <el-tag type="success" effect="plain">Top {{ config.topK }}</el-tag>
+          <el-tag effect="plain">{{ rerankStatus }}</el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
+
   <div class="retrieval-workbench">
     <aside class="retrieval-sidebar" :class="{ 'is-collapsed': sidebarCollapsed }">
       <button class="sidebar-toggle" type="button" @click="toggleSidebar">
@@ -417,6 +442,7 @@
       </div>
     </el-drawer>
   </div>
+  </div>
 </template>
 
 <script setup>
@@ -433,9 +459,12 @@ import {
   WarningFilled,
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import request from '@/utils/request';
 import { getAgentList, updateAgent } from '@/api/agent';
 import { getAgentToolBinding, saveAgentToolBinding } from '@/api/agent-chat';
+import { getModelList } from '@/api/model';
+import { getKnowledgeList, getKnowledgeVectorStatus, testRetrieval } from '@/api/knowledge';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 const HISTORY_KEY = 'orin-retrieval-history';
 const MAX_HISTORY = 50;
@@ -604,9 +633,9 @@ const loadInitialData = async () => {
   initialDataLoading.value = true;
   try {
     const [modelsRes, kbRes, vectorRes, agentsRes] = await Promise.allSettled([
-      request.get('/models'),
-      request.get('/knowledge/list'),
-      request.get('/knowledge/vector/status'),
+      getModelList(),
+      getKnowledgeList(),
+      getKnowledgeVectorStatus(),
       getAgentList(),
     ]);
 
@@ -694,7 +723,7 @@ const loadKnowledgeBases = async ({ silent = false } = {}) => {
 
   knowledgeLoading.value = true;
   try {
-    const response = await request.get('/knowledge/list');
+    const response = await getKnowledgeList();
     applyKnowledgeBases(response);
   } catch (error) {
     console.error('Failed to load knowledge bases', error);
@@ -740,7 +769,7 @@ const handleSearch = async () => {
   const startedAt = Date.now();
 
   try {
-    const response = await request.post('/knowledge/retrieve/test', {
+    const response = await testRetrieval({
       query: query.value.trim(),
       kbId: selectedKbId.value,
       topK: config.topK,

@@ -27,6 +27,10 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          */
         Page<AuditLog> findByApiKeyIdOrderByCreatedAtDesc(String apiKeyId, Pageable pageable);
 
+        long countByApiKeyIdAndCreatedAtAfter(String apiKeyId, LocalDateTime after);
+
+        long countByApiKeyIdAndSuccessAndCreatedAtAfter(String apiKeyId, Boolean success, LocalDateTime after);
+
         /**
          * 获取时间范围内的审计日志
          */
@@ -43,6 +47,9 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          */
         @Query("SELECT SUM(a.totalTokens) FROM AuditLog a WHERE a.apiKeyId = ?1 AND a.createdAt >= ?2")
         Long sumTokensByApiKeyIdAndCreatedAtAfter(String apiKeyId, LocalDateTime after);
+
+        @Query("SELECT AVG(a.responseTime) FROM AuditLog a WHERE a.apiKeyId = ?1 AND a.createdAt >= ?2")
+        Double avgResponseTimeByApiKeyIdAndCreatedAtAfter(String apiKeyId, LocalDateTime after);
 
         /**
          * 统计用户的总成本 (支持排除系统日志)

@@ -13,6 +13,30 @@
   - `P1` 重要增强，核心闭环后完成
   - `P2` 体验和治理优化
 
+## 当前推进口径（2026-05-21）
+
+当前 TODO 不再表示“从零补骨架”。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立，后续开发按以下顺序推进：
+
+1. `P0` Phase 1 收口：真实后端联调下的浏览器 E2E、协作人工干预验收、真实 provider-backed Agent 对话与 MCP `tools/call`、FALLBACK 真重派闭环与 Codex Workflow tool 客户端验收已具备入口；外部客户端展示资产继续后续。
+2. `P1` Phase 1.5：首版角色矩阵、权限同源、角色默认页、高风险管理接口收口与 API Key 自助边界已落地；后续补角色专属视图与资源级权限。
+3. `P1/P2` Phase 2：错误码、`traceparent`、JSON 日志、OTel / Jaeger、覆盖率红线。
+4. `P2` Phase 3/4：安全运维、备份恢复、v0.1.0 release、README 展示资产。
+
+完成度判断仍以“前端入口 + Java service + Python AI Engine + smoke / E2E 验收”同时成立为准。
+
+---
+
+## Phase 1.5：角色化体验与权限闭环
+
+- [x] `P1` 新增 [docs/角色矩阵.md](docs/角色矩阵.md)，固定现有五类角色、默认入口、菜单可见性和后端权限口径
+- [x] `P1` 前端菜单与路由守卫同源使用角色常量，一级菜单、子菜单和直接 URL 访问按同一矩阵过滤
+- [x] `P1` 普通用户默认进入 `/portal`，运维默认进入智能体列表，管理员默认进入监控总览
+- [x] `P1` 用户、部门、角色管理接口移出匿名放行，并补 JWT / 角色边界测试
+- [x] `P1` 新增 Playwright 角色导航 smoke，覆盖运维菜单过滤和普通用户管理台重定向
+- [x] `P1` API Key 自助治理边界：普通用户 / 运维可以管理自己的访问密钥，管理员保留全局治理能力
+- [ ] `P1` 角色专属视图：普通用户门户、运维工作台、管理员总览拆分出更清晰的信息密度
+- [ ] `P2` 资源级 ACL：按知识库、智能体、工作流归属收敛细粒度访问控制
+
 ---
 
 ## 阶段 0：基线收敛
@@ -39,9 +63,9 @@
 
 ## 阶段 1：多智能体协作闭环
 
-### 审查结论（2026-03-26）
+### 审查结论（2026-05-21）
 
-- 当前完成度判断：约 `75%`
+- 当前完成度判断：约 `80%`（实现骨架、API 级 smoke 与协作看板 mock 后端浏览器 E2E 较完整，真实后端联调与真实 provider 场景仍缺）
 - 已完成的重点
   - 协作任务包、子任务、事件日志三类核心数据模型已落地
   - 协作包状态机已落地
@@ -52,10 +76,13 @@
   - 添加了运行时执行接口（启动、重试）
   - 添加了人工干预接口（跳过、手动完成）
   - 协作包完成后统一审计记录
+  - critic 驳回后的 FALLBACK 真重派已能重置子任务、清理旧 `branch_result`、记录事件，并回到既有 LangGraph / MQ / TaskRuntime 执行链
 - 仍未完成的重点
-  - 前端协作页人工干预操作按钮与详情闭环仍未完成
-  - 工作流子任务执行仍为预留实现
-  - 协作页筛选已接真实接口，但人工操作闭环仍缺失
+  - 前端协作页人工干预操作按钮与详情闭环已补基础入口和 Playwright mock 后端浏览器 E2E，仍需真实后端联调验收
+  - 协作 Workflow 子任务已支持显式 `workflowId` 分解、MQ `WORKFLOW` 策略映射，并复用 AI Engine `TaskRuntime.execute_workflow_task`
+  - 协作页筛选已接真实接口，人工操作 API 与单元测试已有基础，浏览器完整流程仍缺失
+  - Workflow 子任务运行态 smoke 已提供 `ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK=1` 可选强验收，运行环境需具备 RabbitMQ、AI Engine MQ worker、后端协作结果监听与 `ORIN_BACKEND_AUTHORIZATION`
+  - 真实 Agent / MCP 子任务样本仍待补
 
 ### 1.1 后端协作任务执行
 
@@ -68,7 +95,7 @@
 - [x] `P0` 为 `CollaborationService` 定义真实执行流程，替换当前仅推进索引的占位逻辑
 - [x] `P0` 将子任务执行映射到真实执行器
   - 调用智能体
-  - 调用工作流 (当前仍为 TODO 预留)
+  - 调用工作流
   - 人工任务占位
 - [x] `P0` 为协作包增加执行状态机
   - `PLANNING`
@@ -119,13 +146,13 @@
   - 当前执行节点
   - 各节点状态
 - [x] `P1` 协作页展示真实事件时间线
-- [~] `P1` 协作页支持人工干预操作
+- [x] `P1` 协作页支持人工干预操作
 - [x] `P1` 协作页支持按用户、状态、优先级筛选
 
 ### 1.4 阶段验收
 
 - [~] `P0` 创建协作包后可以自动分解为真实子任务
-- [~] `P0` 协作子任务可以实际调用智能体或工作流
+- [x] `P0` 协作子任务可以实际调用智能体或工作流
 - [~] `P0` 协作事件能完整记录并回显到前端
 - [~] `P0` 子任务失败后可重试或触发回退
 - [~] `P0` 协作包完成后有明确最终结果和审计记录
@@ -302,7 +329,7 @@
 ### 5.3 AutoGen / CrewAI / 预留位
 
 - [x] `P1` 明确哪些模块是预留位
-- [x` `P1` 对预留位页面添加”未启用/待实现”状态，避免误导
+- [x] `P1` 对预留位页面添加”未启用/待实现”状态，避免误导
 
 ### 5.4 阶段验收
 
@@ -358,18 +385,56 @@
 - [~] `P0` 建立非 Docker CI 基线
   `.github/workflows/ci.yml` 已覆盖 schema baseline、后端 `mvn test`、前端 `npm run lint && npm run test:coverage && npm run build`、AI Engine `compileall && pytest --cov`，main branch protection 已要求这四个 checks 通过。CI 已上传 coverage artifacts 并写入 GitHub Step Summary；Docker compose smoke、Python black/isort、覆盖率 PR 评论仍后续补齐。
 - [~] `P0` 收敛本机最小运行闭环
-  本机进程模式以 backend、frontend、AI Engine、Redis、MySQL 或等价可达数据库连接为必需基线；`scripts/smoke-test.sh` 已作为最小闭环入口，Docker quickstart 仍待真实 runtime smoke 验证。
+  本机进程模式以 backend、frontend、AI Engine、Redis、MySQL 或等价可达数据库连接为必需基线；`scripts/smoke-test.sh` 已作为最小闭环入口，Docker quickstart 已在干净 volume 下通过真实 runtime smoke 验证。
 - [~] `P0` 建立 Docker quickstart 静态预检
-  `scripts/check-docker-quickstart.sh` 已覆盖 root compose 服务名、MySQL init 挂载、schema snapshot 边界与关键服务连线；该检查不依赖 Docker runtime，也不代表真实 `docker compose up --build` 已通过。
+  `scripts/check-docker-quickstart.sh` 已覆盖 root compose 服务名、MySQL init 挂载、schema snapshot 边界与关键服务连线；真实 Docker runtime 另已通过 `scripts/docker-smoke.sh` 与 HTTP smoke。
+- [x] `P0` 固化 Docker runtime smoke
+  `scripts/docker-smoke.sh` 已覆盖 clean volume build/up、六容器 health、后端/AI/前端 HTTP endpoint、Flyway V88/V89/V90、默认 admin 密码/角色、MCP route 与业务 smoke 校验；`.github/workflows/docker-smoke.yml` 已支持手动触发，后续稳定后可考虑纳入必过 checks。
+- [x] `P0` 固化 `/v1/mcp` 企业级协议边界测试
+  `McpStreamableHttpTest` 已覆盖 CLIENT_ACCESS API Key 鉴权、JWT 隔离、Origin 白名单、`notifications/initialized` 202、JSON-RPC batch 拒绝、owner / `mcpExposed` 隔离、Agent trace/package 返回、Workflow 提交返回与无敏感参数审计。
+- [x] `P0` 建立核心业务闭环 smoke baseline
+  `scripts/business-smoke.sh` 已覆盖登录、Agent 列表、Workflow 最小 DSL 创建/发布/提交/查询、Workflow trace summary 聚合断言、已完成任务取消/重放保护、失败 Workflow replay、Collaboration 创建/分解/查询、Collaboration trace summary 聚合断言；Agent chat 需显式设置 `ORIN_BUSINESS_SMOKE_AGENT_ID`，设置后会强校验响应不是错误负载且 trace summary 中存在审计或 trace 记录；`ORIN_BUSINESS_SMOKE_WORKFLOW_SUBTASK=1` 会额外验证显式 Workflow 协作子任务经 AI Engine `TaskRuntime` 入队并能在同一 trace summary 中聚合到 workflow task；RabbitMQ 可达时要求 Workflow task 到 `COMPLETED`。
+- [x] `P1` Phase 1B：默认运行态闭环与任务队列稳定化
+  Root Docker quickstart 已纳入 RabbitMQ，后端 workflow consumer 默认启用；V89 修复 Docker snapshot 路径默认 admin 明文密码/缺角色问题；`docker-smoke.sh` 严格调用 `business-smoke.sh` 验证 Workflow 完整消费。
+- [x] `P1` Phase 1C：补齐任务状态一致性、失败恢复与前端调用历史
+  Workflow task wire status 固定为 `QUEUED/RUNNING/RETRYING/COMPLETED/FAILED/DEAD/CANCELLED`；取消仅允许 `QUEUED` 并写入 `CANCELLED` 终态，重放仅允许 `FAILED/DEAD` 并创建新 `QUEUED` 任务；前端任务中心与 Workflow 执行页补调用历史、状态徽标、失败重放/排队取消入口。
+- [~] `P1` Phase 1D：失败恢复入口与 Trace 聚合
+  新增 `GET /api/v1/traces/{traceId}/summary` 脱敏聚合 workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 与 Langfuse link 状态；TraceViewer 可跳转任务/Workflow/协作包；任务中心和 Workflow 执行页补恢复确认、新任务高亮；Workflow 创建请求支持 `retryPolicy.maxRetries` 任务级重试覆盖；协作 Dashboard 补 runtime/diagnostics/events/subtasks 与包级、子任务级人工干预入口；`business-smoke.sh` 已覆盖失败 Workflow replay，并对 Workflow / Collaboration / 可选 Agent Chat 增加 trace summary 端到端断言。
+- [~] `P1` Phase 1E：API Key 生命周期与权限治理基线
+  平台访问密钥固定 `CLIENT_ACCESS / sk-orin-*` 口径；API Key 创建、禁用、启用、删除、配额重置、轮换写入脱敏审计；前端 API Key 管理页支持状态展示、轮换确认、一次性密钥展示与 MCP 配置复制；`business-smoke.sh` 覆盖临时 key 创建、`/v1/mcp` 成功、禁用后 401 与清理，并已纳入 Docker runtime smoke 验证。后续补角色自助权限、长期配额趋势与限流命中明细。
+- [~] `P1` Phase 1F：API Key 调用历史与敏感回显收敛
+  新增 `GET /api/v1/api-keys/{keyId}/usage`，基于现有网关审计和业务审计聚合 30 天调用数、成功/失败、失败率、Token、平均耗时与最近调用历史，响应不返回 `requestParams/responseContent`；前端 API Key 管理页新增“历史”弹窗；管理员明文回显新增显式二次确认 `confirmReveal=REVEAL_API_KEY`。
+- [x] `P1` Phase 1.5B：API Key 自助治理边界
+  `/portal/api-keys` 提供普通用户 / 运维个人 `CLIENT_ACCESS` Key 自助入口；后端 `/api/v1/api-keys` 以 JWT 当前用户作为自助 owner，忽略 `X-User-Id` / `targetUserId` 覆盖，非本人 Key 返回 `404`；管理员 / 平台管理员保留全局治理、供应商凭据、MCP env 与受控明文回显能力。已补 controller/security、service 单测和 Playwright 自助入口 smoke。
 - [~] `P1` 固定 schema snapshot baseline，确保 Docker quickstart 走快照初始化 + 快照之后的 Flyway 迁移
-  短期正式口径：`docker/mysql/init/01-orin-schema.sql` 作为 `V1..V83` baseline schema snapshot；后端启动后补跑 `V84..V87`，后续新增 schema 迁移从 `V88` 开始。禁止直接改写已发布迁移，尤其是 `V5/V6/V8/V11/V87`。长期如确实需要空库纯 Flyway 重放，再单独做历史迁移重整。
+  短期正式口径：`docker/mysql/init/01-orin-schema.sql` 作为 `V1..V87` baseline schema snapshot；后端启动后补跑 `V88` 及之后迁移，当前最高迁移为 `V90`，后续新增 schema 迁移从 `V91` 开始。禁止直接改写已发布迁移，尤其是 `V5/V6/V8/V11/V87/V88/V89/V90`。长期如确实需要空库纯 Flyway 重放，再单独做历史迁移重整。
 - [~] `P1` 重构 WorkflowProxyControllerTest，去除对 Milvus/RabbitMQ/Neo4j 等外部依赖
   当前已通过 `@Tag("integration")` 隔离，不再阻塞 CI；后续仍应改为纯单元测试，减少对本机外部服务的依赖
 - [x] `P1` 修复 WorkflowServiceTest workflowDslNormalizer 依赖注入缺失
 - [~] `P0` 为协作链补充后端单元测试和集成测试
 - [x] `P0` 为任务重试/死信逻辑补测试
 - [x] `P0` 为同步接口补测试
-- [~] `P1` 为前端协作页和任务页补基础交互测试
+- [~] `P1` 为前端协作页、任务页、Trace 聚合视图补更完整交互测试
+  已补充协作包暂停交互、协作人工干预 API、任务恢复/取消、Trace 聚合加载和前端错误 traceId 提示测试；协作看板已新增 Playwright mock 后端浏览器 E2E，真实后端联调 E2E 仍待补。
+
+### 开源演示版安全与 MCP 基线
+
+- [x] `P1` README 增加 MCP-Native、CodeQL、gitleaks 状态入口
+- [x] `P1` 增加 CodeQL 与 gitleaks GitHub Actions 基线
+- [x] `P1` 增加 `scripts/mcp-open-demo-smoke.sh`，覆盖 `/v1/mcp initialize`、`tools/list` 与可选 Agent / Workflow `tools/call`
+- [x] `P1` 强化 Codex / Claude Desktop / Cursor / Windsurf MCP 客户端接入文档与排障清单
+- [x] `P1` 增加 `docs/open-demo-checklist.md`，区分 API smoke、Codex client acceptance 与外部客户端 showcase 完成口径
+- [x] `P1` 增加 `scripts/open-demo-acceptance.sh`，自动创建临时 MCP key 与 exposed Workflow 并调用 MCP smoke
+- [x] `P1` MCP Agent `tools/call` 真实验收已用临时 Ollama provider-backed Agent 跑通；无真实 Agent 时不伪造 provider
+- [x] `P1` Collaboration Workflow 子任务强验收通过；本机已有常驻服务时需使用隔离队列，避免多个后端实例抢同一 RabbitMQ queue
+
+验收记录（2026-05-21）：
+- [x] `scripts/open-demo-acceptance.sh` 通过：自动创建临时 `mcpExposed=true` Workflow、按 Workflow owner 创建临时 `CLIENT_ACCESS` key，`/v1/mcp tools/list` 返回 Workflow tool，`tools/call` 返回 trace metadata，并完成临时资源清理
+- [x] Agent MCP `tools/call` 通过：临时创建同 owner 的 Ollama `llama3.1:8b` Agent 与 `CLIENT_ACCESS` key，`/v1/mcp tools/list` 暴露 `agent.*`，`tools/call` 返回非空文本与 `Trace ID / Package ID`
+- [x] Collaboration Workflow 子任务强验收通过：临时 `LANGGRAPH_MQ` 后端 + 临时 AI Engine MQ worker + 临时 RabbitMQ 用户 + 唯一 workflow/collaboration queue，`ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK=1 bash scripts/open-demo-acceptance.sh` 完成 Workflow task、trace summary 与协作 Workflow 子任务 `TaskRuntime` 断言
+- [x] Codex 客户端真实验收通过：Codex CLI 子会话已通过临时 `orin` MCP 配置调用 Workflow tool，并通过临时 `orin-agent` Streamable HTTP MCP 配置调用 provider-backed Agent tool，响应包含 `Trace ID / Package ID`
+- [~] Claude Desktop / Cursor / Windsurf 外部展示未执行：需在真实客户端中加载 ORIN MCP 配置后录制截图或 GIF
+- [x] gitleaks 本地扫描通过：当前 Git 跟踪文件扫描为 0；`gitleaks detect --source . --redact --no-banner` 已通过。处理方式为修正文档/前端示例 Authorization 写法、删除本地未跟踪日志，并用 `.gitleaksignore` 记录历史 redacted 指纹基线；未输出 secret 原文，未改写历史
 
 ---
 
@@ -377,46 +442,45 @@
 
 ### 里程碑 M1
 
-- [~] 完成阶段 1 与阶段 2
-- [~] 协作与任务链路形成真实闭环
+- [~] 完成阶段 1 收口
+- [~] 协作与任务链路形成真实闭环（API / open demo smoke / 协作看板 Playwright E2E 与 FALLBACK 真重派已具备；真实后端联调 E2E、真实 Agent / MCP 子任务样本仍待补）
 
 ### 里程碑 M2
 
-- [x] 完成阶段 3
-- [~] 统一监控主链路上线
+- [~] 完成 Phase 1.5 角色化体验
+- [ ] 角色矩阵、权限同源、多角色默认页、专属手册和越权 E2E 完成
 
 ### 里程碑 M3
 
-- [x] 完成阶段 4 与阶段 5
-- [x] 知识同步与外部集成能力收口
+- [~] 完成 Phase 2 质量与可观测
+- [ ] 错误码 / traceparent / JSON 日志 / OTel / Jaeger / 覆盖率红线完成
 
 ### 里程碑 M4
 
-- [x] 完成阶段 6 与技术债清理
-- [x] 形成稳定可维护版本
+- [~] 完成 Phase 3/4 安全运维与社区化
+- [ ] 备份恢复、生产 SOP、v0.1.0 release、README 展示资产完成
 
 ---
 
-## 审查备注（2026-03-26）
+## 审查备注（2026-05-21）
 
 - 本次状态按当前代码实装重新校准，不再仅以历史勾选为准
-- 协作模块当前结论：后端执行、事件、检查点、人工干预接口已具备基础实现，前端人工干预按钮与详情闭环仍在补强，协作执行链端到端验收尚未完成
-- 任务模块当前结论：队列、重试、死信主链路已落地，任务状态语义已收敛，前端统计接口已对齐
-- 监控模块当前结论：Trace、Audit、Langfuse、DataFlow 多套能力并存，前端统一入口、traceId 搜索已闭环，Langfuse 深链待补充
+- 协作模块当前结论：后端执行、事件、检查点、人工干预接口已具备基础实现，前端详情已补 runtime、diagnostics、events、subtasks 与人工干预按钮；显式 Workflow 子任务强验收、协作看板 Playwright E2E 与 FALLBACK 真重派已通过目标测试，真实后端联调 E2E、真实 Agent / MCP 子任务样本仍需继续补
+- 任务模块当前结论：队列、重试、死信主链路已落地，任务状态语义已收敛，前端统计、调用历史、失败重放和排队取消入口已对齐
+- 监控模块当前结论：Trace、Audit、Langfuse、DataFlow 多套能力并存，前端统一入口、traceId 搜索、脱敏聚合摘要和关联对象跳转已闭环
 - 同步模块当前结论：变更查询、检查点、Webhook 治理已具备基础闭环，手动全量/增量同步能力已完成
 - 外部集成当前结论：Dify、RAGFlow 为已支持能力；AutoGen、CrewAI 仍为预留位，不应视为已完成
 - 测试当前结论：已补仓储/状态类后端测试，协作编排集成测试与前端协作页、任务页交互测试待补充
+- 开源演示版增量：Workflow DSL 发布校验已覆盖环、孤岛、不可达节点、无终点路径与非法边引用；MCP 演示脚本、open demo acceptance、Codex Workflow tool 客户端验收、Codex provider-backed Agent 客户端验收、CodeQL/gitleaks 基线已补；前端错误提示会保留后端 traceId。外部客户端展示未执行。
 
 ---
 
----
-
-## 本次更新（2026-03-26）
+## 本次更新（2026-05-21）
 
 状态更新项目：
 
-- [~] 协作页人工干预功能（重试、跳过、手动完成按钮）- 仍在补强闭环
-- [~] 协作子任务真实调用智能体执行 - 执行链成熟度待验收
+- [x] 协作页人工干预功能（包级 pause/resume/cancel/manual-complete；子任务 retry/skip/manual-complete）
+- [x] 协作子任务真实调用智能体 / Workflow 执行路径
 - [x] 任务状态字段与语义统一
 - [x] 任务详情接口字段补齐（触发来源、错误信息、重试时间等）
 - [x] 任务统计卡片和优先级分布图
@@ -428,6 +492,10 @@
 - [x] 协作链后端单元测试
 - [x] 外部集成页面与后端能力一一对应
 - [~] 前端协作页和任务页交互测试（Vitest 单元测试）
+- [x] 开源演示版基线（MCP-Native README 入口、Codex / Claude Desktop / Cursor / Windsurf 文档、MCP smoke 脚本、CodeQL/gitleaks workflow、DSL 非法图校验）
+- [x] open demo acceptance 记录同步：Workflow MCP `tools/call`、trace metadata、临时资源清理与 Collaboration Workflow 子任务强验收已记录
+- [x] 协作看板 Playwright E2E：覆盖包级 pause/resume/manual-complete、子任务 retry/skip/manual-complete、事件流与 runtime/diagnostics 刷新
+- [~] 后续开发顺序同步：Phase 1 收口 → Phase 1.5 角色化体验 → Phase 2 质量与可观测 → Phase 3/4 安全运维与社区化
 
 ---
 
@@ -444,4 +512,4 @@
 
 ---
 
-*最后更新: 2026-03-26*
+*最后更新: 2026-05-21*

@@ -775,18 +775,18 @@
 <script setup>
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { onboardAgent } from '../api/agent';
+import { onboardAgent } from '@/api/agent';
 import {
   testDifyConnection, testSiliconFlowConnection,
   testZhipuConnection, testDeepSeekConnection,
   testMinimaxConnection, testOllamaConnection, testKimiConnection
-} from '../api/modelConfig';
-import { onboardSiliconFlowAgent } from '../api/siliconFlowAgent';
-import { onboardZhipuAgent } from '../api/zhipuAgent';
-import { onboardDeepSeekAgent } from '../api/deepseekAgent';
-import { onboardKimiAgent } from '../api/kimiAgent';
-import { getModelList } from '../api/model';
-import { getExternalKeys } from '../api/apiKey';
+} from '@/api/modelConfig';
+import { onboardSiliconFlowAgent } from '@/api/siliconFlowAgent';
+import { onboardZhipuAgent } from '@/api/zhipuAgent';
+import { onboardDeepSeekAgent } from '@/api/deepseekAgent';
+import { onboardKimiAgent } from '@/api/kimiAgent';
+import { getModelList } from '@/api/model';
+import { getExternalKeys } from '@/api/apiKey';
 import { getProviderList } from '@/api/system';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinStepFlow from '@/components/orin/OrinStepFlow.vue';

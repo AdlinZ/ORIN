@@ -1,9 +1,10 @@
 <template>
   <div class="error-dashboard">
-    <PageHeader
+    <OrinPageShell
       title="错误统计"
       description="查看近期失败调用、错误类型分布与受影响会话"
       icon="Warning"
+      domain="运行监控"
     >
       <template #actions>
         <el-button :icon="Download" @click="handleExport">
@@ -14,7 +15,7 @@
         </el-button>
       </template>
       <template #filters>
-        <div class="filters-row">
+        <OrinFilterBar>
           <el-date-picker
             v-model="dateRange"
             type="daterange"
@@ -36,9 +37,9 @@
               @change="handleAutoRefreshChange"
             />
           </div>
-        </div>
+        </OrinFilterBar>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
     <div class="stats-grid">
       <el-card shadow="never" class="stat-card">
@@ -155,6 +156,11 @@
             </div>
           </div>
         </template>
+        <OrinAsyncState
+          :status="loading ? 'loading' : (errorDistribution.length ? 'success' : 'empty')"
+          empty-text="当前时间范围内暂无错误明细"
+        >
+        <OrinDataTable compact>
         <el-table
           v-loading="loading"
           :data="errorDistribution"
@@ -200,6 +206,8 @@
             </template>
           </el-table-column>
         </el-table>
+        </OrinDataTable>
+        </OrinAsyncState>
       </el-card>
 
       <el-card shadow="never" class="table-card">
@@ -218,6 +226,11 @@
             </el-tag>
           </div>
         </template>
+        <OrinAsyncState
+          :status="loading ? 'loading' : (errorSessions.length ? 'success' : 'empty')"
+          empty-text="当前时间范围内暂无异常会话"
+        >
+        <OrinDataTable compact>
         <el-table
           v-loading="loading"
           :data="errorSessions"
@@ -284,6 +297,8 @@
             align="center"
           />
         </el-table>
+        </OrinDataTable>
+        </OrinAsyncState>
       </el-card>
     </div>
   </div>
@@ -292,9 +307,12 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { CircleCloseFilled, DataAnalysis, Download, Monitor, RefreshRight, Tickets, Warning } from '@element-plus/icons-vue';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { ElMessage } from 'element-plus';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import { getCallSuccessRate, getErrorDistribution, getSessions } from '@/api/monitor';
 
 const loading = ref(false);

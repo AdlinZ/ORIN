@@ -4,15 +4,68 @@ import Cookies from 'js-cookie'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import { ROUTES, LEGACY_ROUTE_REDIRECTS } from './routes'
-import { ADMIN_MENU_ROLES, getDefaultHomeByRoles } from './topMenuConfig'
+import { getSetupStatus } from '@/api/setup'
+import {
+    ADMIN_MENU_ROLES,
+    DASHBOARD_OPERATOR_ROLES,
+    MONITOR_MENU_ROLES,
+    ORGANIZATION_MENU_ROLES,
+    OPERATOR_MENU_ROLES,
+    USER_MENU_ROLES,
+    canAccessAnyRole,
+    getDefaultHomeByRoles
+} from './topMenuConfig'
 
 const ADMIN_ROUTE_ROLES = [...ADMIN_MENU_ROLES]
+const OPERATOR_ROUTE_ROLES = [...DASHBOARD_OPERATOR_ROLES]
+const MONITOR_ROUTE_ROLES = [...MONITOR_MENU_ROLES]
+const ORGANIZATION_ROUTE_ROLES = [...ORGANIZATION_MENU_ROLES]
+const API_KEY_SELF_SERVICE_ROUTE_ROLES = [...OPERATOR_MENU_ROLES, ...USER_MENU_ROLES]
+const SETUP_COMPLETED_SESSION_KEY = 'orin_setup_completed'
+
+let setupStatusCache = null
+let setupStatusFetchedAt = 0
+let setupStatusPromise = null
 
 const getStoredToken = () => {
     return Cookies.get('orin_token')
         || window.localStorage.getItem('orin_token')
         || window.sessionStorage.getItem('orin_token')
         || ''
+}
+
+const getUnauthorizedFallback = (from, userRoles = []) => {
+    const defaultHome = getDefaultHomeByRoles(userRoles)
+    const publicFallbacks = new Set(['/', '/login', '/datawall', '/unified-docs'])
+
+    if (!from?.path || publicFallbacks.has(from.path)) {
+        return defaultHome
+    }
+
+    return from.fullPath || from.path
+}
+
+const getSetupStatusCached = async (force = false) => {
+    const now = Date.now()
+    if (!force && setupStatusCache && now - setupStatusFetchedAt < 10000) {
+        return setupStatusCache
+    }
+    if (!setupStatusPromise) {
+        setupStatusPromise = getSetupStatus()
+            .then(status => {
+                setupStatusCache = status
+                setupStatusFetchedAt = Date.now()
+                if (status?.completed) {
+                    window.sessionStorage.setItem(SETUP_COMPLETED_SESSION_KEY, 'true')
+                }
+                return status
+            })
+            .catch(() => null)
+            .finally(() => {
+                setupStatusPromise = null
+            })
+    }
+    return setupStatusPromise
 }
 
 // ==================== 路由配置 ====================
@@ -33,10 +86,23 @@ const routes = [
         meta: { title: '用户登录' }
     },
     {
+        path: '/setup',
+        name: 'SetupWizard',
+        component: () => import('@/views/SetupWizard.vue'),
+        meta: { title: '首次初始化' }
+    },
+    {
         path: '/portal',
         name: 'UserPortal',
         component: () => import('@/views/UserPortal.vue'),
         meta: { title: '智能体服务门户' }
+    },
+    {
+        path: '/portal/api-keys',
+        name: 'PortalApiKeys',
+        component: () => import('@/views/System/ApiKeyManagement.vue'),
+        props: { selfService: true },
+        meta: { title: 'API Key 自助', roles: API_KEY_SELF_SERVICE_ROUTE_ROLES }
     },
 
     // 数据大屏
@@ -83,7 +149,7 @@ const routes = [
             // ==================== 智能体管理模块 ====================
             {
                 path: 'applications',
-                meta: { title: '智能体管理', category: 'applications' },
+                meta: { title: '智能体管理', category: 'applications', roles: OPERATOR_ROUTE_ROLES },
                 children: [
                     // 应用列表（智能体）
                     {
@@ -167,19 +233,19 @@ const routes = [
                         path: 'models',
                         name: 'ApplicationModels',
                         component: () => import('@/views/ModelConfig/ModelList.vue'),
-                        meta: { title: '模型管理', icon: 'Cpu' }
+                        meta: { title: '模型管理', icon: 'Cpu', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'models/add',
                         name: 'ModelAdd',
                         component: () => import('@/views/ModelConfig/AddModel.vue'),
-                        meta: { title: '添加模型', hidden: true }
+                        meta: { title: '添加模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'models/edit/:id',
                         name: 'ModelEdit',
                         component: () => import('@/views/ModelConfig/AddModel.vue'),
-                        meta: { title: '编辑模型', hidden: true }
+                        meta: { title: '编辑模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // 技能绑定
@@ -274,7 +340,7 @@ const routes = [
             // ==================== 运行监控模块 ====================
             {
                 path: 'runtime',
-                meta: { title: '运行监控', category: 'runtime' },
+                meta: { title: '运行监控', category: 'runtime', roles: MONITOR_ROUTE_ROLES },
                 children: [
                     // 监控总览
                     {
@@ -409,7 +475,7 @@ const routes = [
             // ==================== 知识库管理模块 ====================
             {
                 path: 'resources',
-                meta: { title: '知识库管理', category: 'resources' },
+                meta: { title: '知识库管理', category: 'resources', roles: OPERATOR_ROUTE_ROLES },
                 children: [
                     {
                         path: '',
@@ -514,26 +580,26 @@ const routes = [
             // ==================== 系统设置模块 ====================
             {
                 path: 'control',
-                meta: { title: '系统设置', category: 'control', requiresAdmin: true },
+                meta: { title: '系统设置', category: 'control', requiresAdmin: true, roles: ADMIN_ROUTE_ROLES },
                 children: [
                     // 用户权限
                     {
                         path: 'users',
                         name: 'ControlUsers',
                         component: () => import('@/views/System/UserManagement.vue'),
-                        meta: { title: '用户管理', icon: 'User', roles: ADMIN_ROUTE_ROLES }
+                        meta: { title: '用户管理', icon: 'User', roles: ORGANIZATION_ROUTE_ROLES }
                     },
                     {
                         path: 'departments',
                         name: 'ControlDepartments',
                         component: () => import('@/views/System/DepartmentManagement.vue'),
-                        meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ADMIN_ROUTE_ROLES }
+                        meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ORGANIZATION_ROUTE_ROLES }
                     },
                     {
                         path: 'roles',
                         name: 'ControlRoles',
                         component: () => import('@/views/System/RoleManagement.vue'),
-                        meta: { title: '角色管理', icon: 'UserFilled', roles: ADMIN_ROUTE_ROLES }
+                        meta: { title: '角色管理', icon: 'UserFilled', roles: ORGANIZATION_ROUTE_ROLES }
                     },
 
 
@@ -749,17 +815,31 @@ const router = createRouter({
 })
 
 // ==================== 路由守卫 ====================
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     // 设置页面标题
     if (to.meta.title) {
         document.title = `${to.meta.title} - ORIN`
+    }
+
+    const setupStatus = await getSetupStatusCached(to.path === ROUTES.SETUP)
+    if (setupStatus && !setupStatus.completed && setupStatus.canInitialize && to.path !== ROUTES.SETUP) {
+        return next(ROUTES.SETUP)
+    }
+    if (to.path === ROUTES.SETUP && setupStatus?.completed) {
+        const token = getStoredToken()
+        if (token) {
+            const userStore = useUserStore()
+            userStore.restoreFromCookies()
+            return next(getDefaultHomeByRoles(userStore.roles || []))
+        }
+        return next(ROUTES.LOGIN)
     }
 
     // 检查是否需要登录
     const token = getStoredToken()
 
     // 公开页面列表
-    const publicPages = ['/', '/login', '/datawall', '/unified-docs']
+    const publicPages = ['/', '/login', '/setup', '/datawall', '/unified-docs']
     const authRequired = !publicPages.includes(to.path)
 
     if (authRequired && !token) {
@@ -781,13 +861,18 @@ router.beforeEach((to, from, next) => {
         }
     }
 
-    // 检查权限
-    if (to.meta.roles) {
-        const hasRole = to.meta.roles.some(role => userStore.roles?.includes(role))
+    // 检查权限。父级模块和子页面都可以声明 roles，直接输入 URL 时同样生效。
+    const roleRequirements = to.matched
+        .map(record => record.meta?.roles)
+        .filter(roles => Array.isArray(roles) && roles.length > 0)
 
-        if (!hasRole) {
+    if (roleRequirements.length > 0) {
+        const userRoles = userStore.roles || []
+        const hasRequiredRoles = roleRequirements.every(roles => canAccessAnyRole(userRoles, roles))
+
+        if (!hasRequiredRoles) {
             ElMessage.error('您没有权限访问此页面')
-            return next(from.path || getDefaultHomeByRoles(userStore.roles || []))
+            return next(getUnauthorizedFallback(from, userRoles))
         }
     }
 

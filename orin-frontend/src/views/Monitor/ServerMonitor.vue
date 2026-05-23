@@ -1,5 +1,12 @@
 <template>
   <div class="agent-workspace server-workspace" :class="{ 'is-collapsed': sessionPaneCollapsed }">
+    <OrinPageShell
+      title="服务器监控"
+      description="查看服务器节点、硬件指标、Prometheus 状态与历史采样"
+      icon="Monitor"
+      domain="运行监控"
+    />
+
     <div v-if="!sessionPaneCollapsed" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
 
     <aside class="workspace-sidebar" :class="{ 'is-collapsed': sessionPaneCollapsed }">
@@ -653,6 +660,11 @@
                 </div>
               </template>
 
+              <OrinAsyncState
+                :status="loading ? 'loading' : (historyData.length ? 'success' : 'empty')"
+                empty-text="暂无服务器历史采样"
+              >
+              <OrinDataTable compact>
               <el-table v-loading="loading" :data="historyData" style="width: 100%">
                 <el-table-column label="时间" min-width="180" fixed>
                   <template #default="{ row }">
@@ -719,6 +731,8 @@
                   </template>
                 </el-table-column>
               </el-table>
+              </OrinDataTable>
+              </OrinAsyncState>
 
               <div class="pagination-container">
                 <el-pagination
@@ -959,6 +973,9 @@ import {
   updateSystemProperties
 } from '@/api/monitor'
 import { ROUTES } from '@/router/routes'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const router = useRouter()
 

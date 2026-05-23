@@ -5,7 +5,8 @@ class Settings(BaseSettings):
     NODE_DEFAULT_TIMEOUT: float = 60.0 # Seconds
 
     # Backend API URL for calling Java backend services
-    ORIN_BACKEND_URL: Optional[str] = "http://localhost:8080"
+    # Reads ORIN_BACKEND_URL from the environment via env_prefix below.
+    BACKEND_URL: Optional[str] = "http://localhost:8080"
     # Optional machine credential used by MQ workers for protected backend APIs.
     # Reads ORIN_BACKEND_AUTHORIZATION from the environment.
     BACKEND_AUTHORIZATION: Optional[str] = None
@@ -48,5 +49,14 @@ class Settings(BaseSettings):
         env_prefix = "ORIN_"
         env_file = ".env"
         extra = "ignore"
+
+    @property
+    def ORIN_BACKEND_URL(self) -> Optional[str]:
+        """Backward-compatible access for existing runtime code."""
+        return self.BACKEND_URL
+
+    @ORIN_BACKEND_URL.setter
+    def ORIN_BACKEND_URL(self, value: Optional[str]) -> None:
+        self.BACKEND_URL = value
 
 settings = Settings()

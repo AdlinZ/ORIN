@@ -156,8 +156,8 @@
   margin-bottom: 0;
 }
 
-/* ========== Tab 卡片容器（PageHeader flat + tab 头 + 内容合为一个卡片）========== */
-/* 用法：<el-card class="tab-wrapper-card"><PageHeader flat /><el-tabs class="xxx-tabs">...</el-tabs></el-card> */
+/* ========== Tab 卡片容器（OrinPageShell flat + tab 头 + 内容合为一个卡片）========== */
+/* 用法：<el-card class="tab-wrapper-card"><OrinPageShell flat /><el-tabs class="xxx-tabs">...</el-tabs></el-card> */
 .tab-wrapper-card.el-card :deep(.el-card__body) {
   padding: 0;
 }
@@ -179,8 +179,8 @@ html.dark .tab-wrapper-card.el-card :deep(.el-tabs > .el-tabs__header) {
   border-bottom-color: var(--neutral-gray-200, #1a2e2e) !important;
 }
 
-/* ========== 页面导航卡片（PageHeader flat + tab 导航栏合一）========== */
-/* 用法：<el-card class="page-nav-card"> <PageHeader flat/> <div class="tab-nav-bar">... */
+/* ========== 页面导航卡片（OrinPageShell flat + tab 导航栏合一）========== */
+/* 用法：<el-card class="page-nav-card"> <OrinPageShell flat/> <div class="tab-nav-bar">... */
 .page-nav-card.el-card :deep(.el-card__body) {
   padding: 0;
 }

@@ -4,7 +4,12 @@ import pytest
 from langgraph.graph import END, StateGraph
 
 from app.engine.collaboration_langgraph import state as collaboration_state
-from app.engine.collaboration_langgraph.nodes import critic_node, should_continue_critic
+from app.engine.collaboration_langgraph.nodes import (
+    critic_node,
+    fallback_prepare_node,
+    should_continue_critic,
+    should_continue_fallback_prepare,
+)
 from app.engine.collaboration_langgraph.state import CollaborationState, CollaborationStatus
 from app.models.workflow import NodeExecutionOutput
 
@@ -17,7 +22,83 @@ def test_should_continue_critic_routes_fallback_before_limit(monkeypatch):
         "fallback_attempts": 2,
     })
 
-    assert route == "delegate"
+    assert route == "fallback_prepare"
+
+
+def test_should_continue_fallback_prepare_routes_by_mode():
+    assert should_continue_fallback_prepare({
+        "status": CollaborationStatus.EXECUTING.value,
+        "collaboration_mode": "SEQUENTIAL",
+    }) == "delegate"
+    assert should_continue_fallback_prepare({
+        "status": CollaborationStatus.EXECUTING.value,
+        "collaboration_mode": "PARALLEL",
+    }) == "parallel_fork"
+    assert should_continue_fallback_prepare({
+        "status": CollaborationStatus.FAILED.value,
+        "collaboration_mode": "PARALLEL",
+    }) == "end_failed"
+
+
+@pytest.mark.asyncio
+async def test_fallback_prepare_node_resets_local_state_and_calls_backend(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        status_code = 200
+        text = "{}"
+
+        def json(self):
+            return {
+                "packageId": "pkg-fallback",
+                "status": "EXECUTING",
+                "attempt": 1,
+                "resetSubTaskIds": ["sub-1"],
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json, headers):
+            calls.append({"url": url, "json": json, "headers": headers})
+            return FakeResponse()
+
+    monkeypatch.setattr("httpx.AsyncClient", FakeClient)
+
+    result = await fallback_prepare_node({
+        "package_id": "pkg-fallback",
+        "status": CollaborationStatus.FALLBACK.value,
+        "fallback_attempts": 1,
+        "collaboration_mode": "SEQUENTIAL",
+        "completed_subtasks": ["sub-1"],
+        "branch_results": {"sub-1": "old result"},
+        "final_result": "old final",
+        "shared_context": {
+            "__review": "是否通过: NO\n改进建议: revise",
+            "__consensus_summary": "old summary",
+            "task_sub-1_result": "old result",
+            "keep": "value",
+        },
+    })
+
+    assert calls[0]["url"].endswith("/api/v1/collaboration/packages/pkg-fallback/fallback/retry")
+    assert calls[0]["json"]["attempt"] == 1
+    assert calls[0]["json"]["review"].startswith("是否通过: NO")
+    assert result["status"] == CollaborationStatus.EXECUTING.value
+    assert result["completed_subtasks"] == []
+    assert result["branch_results"] == {}
+    assert result["final_result"] is None
+    assert "task_sub-1_result" not in result["shared_context"]
+    assert "__consensus_summary" not in result["shared_context"]
+    assert result["shared_context"]["__fallback_attempt"] == 1
+    assert result["shared_context"]["keep"] == "value"
 
 
 @pytest.mark.asyncio

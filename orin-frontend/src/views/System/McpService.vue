@@ -1,15 +1,22 @@
 <template>
   <div :class="['mcp-service-container', { 'is-embedded': embedded }]">
-    <el-card shadow="never" class="tab-wrapper-card">
-      <PageHeader
-        v-if="!embedded"
-        flat
-        title="MCP 服务管理"
-        description="管理 MCP (Model Context Protocol) 服务的配置和连接"
-        icon="Service"
-      />
+    <OrinPageShell
+      v-if="!embedded"
+      domain="系统控制"
+      title="MCP 服务管理"
+      description="管理 MCP（Model Context Protocol）服务配置、连接健康与工具安装。"
+      icon="Service"
+    >
+      <template #actions>
+        <el-button type="primary" @click="openAddDialog">
+          <el-icon><Plus /></el-icon>
+          添加服务
+        </el-button>
+      </template>
+    </OrinPageShell>
 
-      <div v-else class="embedded-toolbar">
+    <el-card shadow="never" class="tab-wrapper-card">
+      <div v-if="embedded" class="embedded-toolbar">
         <div class="embedded-toolbar-main">
           <div>
             <h2 class="embedded-title">MCP服务</h2>
@@ -151,85 +158,95 @@
             description="暂无 MCP 服务，点击“添加服务”创建"
           />
 
-          <el-table
+          <OrinAsyncState
             v-else-if="!embedded"
-            v-loading="loading"
-            :data="mcpServices"
+            :status="loading ? 'loading' : mcpServices.length > 0 ? 'success' : loadError ? 'error' : 'empty'"
             empty-text="暂无 MCP 服务，点击“添加服务”创建"
-            stripe
+            empty-action-label="添加服务"
+            :error-text="loadError || '请稍后重试'"
+            @retry="loadMcpServices"
+            @empty-action="openAddDialog"
           >
-            <el-table-column prop="name" label="服务名称" min-width="150" />
-            <el-table-column prop="type" label="类型" width="100">
-              <template #default="{ row }">
-                <el-tag>{{ getTypeText(row.type) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column
-              prop="command"
-              label="命令/URL"
-              min-width="200"
-              show-overflow-tooltip
-            >
-              <template #default="{ row }">
-                {{ row.type === 'STDIO' ? row.command : row.url }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">
-                  {{ getStatusText(row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="enabled" label="启用" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.enabled ? 'success' : 'info'">
-                  {{ row.enabled ? '是' : '否' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="healthScore" label="健康分" width="80">
-              <template #default="{ row }">
-                <span :class="['health-score', getHealthClass(row.healthScore)]">
-                  {{ row.healthScore ?? '-' }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="lastConnected" label="最后连接" width="180">
-              <template #default="{ row }">
-                {{ row.lastConnected ? formatDate(row.lastConnected) : '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="200" fixed="right">
-              <template #default="{ row }">
-                <el-button
-                  type="primary"
-                  link
-                  size="small"
-                  :loading="testingId === row.id"
-                  @click="testConnection(row)"
+            <OrinDataTable compact>
+              <el-table
+                :data="mcpServices"
+                empty-text="暂无 MCP 服务，点击“添加服务”创建"
+                stripe
+              >
+                <el-table-column prop="name" label="服务名称" min-width="150" />
+                <el-table-column prop="type" label="类型" width="100">
+                  <template #default="{ row }">
+                    <el-tag>{{ getTypeText(row.type) }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="command"
+                  label="命令/URL"
+                  min-width="200"
+                  show-overflow-tooltip
                 >
-                  测试
-                </el-button>
-                <el-button
-                  type="primary"
-                  link
-                  size="small"
-                  @click="editService(row)"
-                >
-                  编辑
-                </el-button>
-                <el-button
-                  type="danger"
-                  link
-                  size="small"
-                  @click="deleteService(row)"
-                >
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+                  <template #default="{ row }">
+                    {{ row.type === 'STDIO' ? row.command : row.url }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="getStatusType(row.status)">
+                      {{ getStatusText(row.status) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="enabled" label="启用" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.enabled ? 'success' : 'info'">
+                      {{ row.enabled ? '是' : '否' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="healthScore" label="健康分" width="80">
+                  <template #default="{ row }">
+                    <span :class="['health-score', getHealthClass(row.healthScore)]">
+                      {{ row.healthScore ?? '-' }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="lastConnected" label="最后连接" width="180">
+                  <template #default="{ row }">
+                    {{ row.lastConnected ? formatDate(row.lastConnected) : '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="200" fixed="right">
+                  <template #default="{ row }">
+                    <el-button
+                      type="primary"
+                      link
+                      size="small"
+                      :loading="testingId === row.id"
+                      @click="testConnection(row)"
+                    >
+                      测试
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      link
+                      size="small"
+                      @click="editService(row)"
+                    >
+                      编辑
+                    </el-button>
+                    <el-button
+                      type="danger"
+                      link
+                      size="small"
+                      @click="deleteService(row)"
+                    >
+                      删除
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinDataTable>
+          </OrinAsyncState>
 
           <!-- 分页 -->
           <div v-if="totalServices > 0" class="pagination-wrapper">
@@ -529,7 +546,9 @@
 <script setup>
 import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import PageHeader from '@/components/PageHeader.vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import {
   getMcpServices,
   createMcpService,

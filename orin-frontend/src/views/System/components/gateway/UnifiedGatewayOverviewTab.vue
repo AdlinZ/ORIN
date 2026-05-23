@@ -30,28 +30,30 @@
           刷新
         </el-button>
       </div>
-      <el-table v-loading="loading" :data="overview.serviceHealth || []" stripe>
-        <el-table-column prop="serviceName" label="服务名称" />
-        <el-table-column prop="instanceCount" label="实例数" width="90" align="center" />
-        <el-table-column label="健康实例" width="100" align="center">
-          <template #default="{ row }">
-            <span :class="healthClass(row.status)">{{ row.healthyCount }}/{{ row.instanceCount }}</span>
+      <OrinDataTable compact>
+        <el-table v-loading="loading" :data="overview.serviceHealth || []" stripe>
+          <el-table-column prop="serviceName" label="服务名称" />
+          <el-table-column prop="instanceCount" label="实例数" width="90" align="center" />
+          <el-table-column label="健康实例" width="100" align="center">
+            <template #default="{ row }">
+              <span :class="healthClass(row.status)">{{ row.healthyCount }}/{{ row.instanceCount }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="statusTagType(row.status)" size="small" effect="light">
+                {{ statusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <div class="empty-state">
+              <el-icon class="empty-icon"><SetUp /></el-icon>
+              <p class="empty-text">暂无服务，请先在「服务管理」中添加上游服务</p>
+            </div>
           </template>
-        </el-table-column>
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small" effect="light">
-              {{ statusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <div class="empty-state">
-            <el-icon class="empty-icon"><SetUp /></el-icon>
-            <p class="empty-text">暂无服务，请先在「服务管理」中添加上游服务</p>
-          </div>
-        </template>
-      </el-table>
+        </el-table>
+      </OrinDataTable>
     </div>
 
     <!-- Bottom row -->
@@ -88,13 +90,15 @@
           <div class="section-header">
             <div class="section-title"><el-icon><TrendCharts /></el-icon> 热门路由 TOP 5</div>
           </div>
-          <el-table :data="overview.topRoutes || []" stripe size="small">
-            <el-table-column prop="routeName" label="路由名称" />
-            <el-table-column prop="requestCount" label="请求数" width="90" align="right" />
-            <el-table-column label="平均延迟" width="100" align="right">
-              <template #default="{ row }">{{ row.avgLatencyMs }}ms</template>
-            </el-table-column>
-          </el-table>
+          <OrinDataTable compact>
+            <el-table :data="overview.topRoutes || []" stripe size="small">
+              <el-table-column prop="routeName" label="路由名称" />
+              <el-table-column prop="requestCount" label="请求数" width="90" align="right" />
+              <el-table-column label="平均延迟" width="100" align="right">
+                <template #default="{ row }">{{ row.avgLatencyMs }}ms</template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
           <div v-if="!overview.topRoutes?.length" class="empty-state small">
             <p class="empty-text">暂无请求数据</p>
           </div>
@@ -109,6 +113,7 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { DataLine, TrendCharts, Timer, Warning, SetUp, Refresh, DataAnalysis } from '@element-plus/icons-vue'
 import { getUnifiedGatewayOverview } from '@/api/gateway'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 const loading = ref(false)
 const overview = reactive({

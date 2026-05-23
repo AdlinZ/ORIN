@@ -67,7 +67,7 @@ class TestTaskRuntimeWorkflow:
         mock_async_client.__aenter__.return_value = mock_client
         mock_async_client.__aexit__.return_value = None
 
-        with patch("app.engine.task_runtime.settings.ORIN_BACKEND_URL", "http://backend.test"), \
+        with patch("app.engine.task_runtime.settings.BACKEND_URL", "http://backend.test"), \
              patch("app.engine.task_runtime.settings.BACKEND_AUTHORIZATION", "Bearer env-token"), \
              patch("app.engine.task_runtime.httpx.AsyncClient", return_value=mock_async_client):
             result = await runtime.execute_workflow_task(
@@ -102,7 +102,7 @@ class TestTaskRuntimeWorkflow:
         mock_async_client.__aenter__.return_value = mock_client
         mock_async_client.__aexit__.return_value = None
 
-        with patch("app.engine.task_runtime.settings.ORIN_BACKEND_URL", "http://backend.test"), \
+        with patch("app.engine.task_runtime.settings.BACKEND_URL", "http://backend.test"), \
              patch("app.engine.task_runtime.settings.BACKEND_AUTHORIZATION", "Bearer worker-token"), \
              patch("app.engine.task_runtime.httpx.AsyncClient", return_value=mock_async_client):
             result = await runtime.execute_workflow_task(

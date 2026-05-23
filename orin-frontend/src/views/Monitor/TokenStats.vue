@@ -1,5 +1,12 @@
 <template>
   <div class="metrics-dashboard server-workspace">
+    <OrinPageShell
+      title="用量统计"
+      description="运行时令牌、延迟与成本的综合监控看板"
+      icon="TrendCharts"
+      domain="运行监控"
+    />
+
     <section class="runtime-command-panel metrics-command-panel">
       <div class="runtime-command-head">
         <div class="header-main">
@@ -354,9 +361,10 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue';
 import { Cpu, Monitor, RefreshRight, Download, Coin, Timer, Money, ChatDotRound, TrendCharts } from '@element-plus/icons-vue';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { getTokenByDayOfWeek, getTokenByHour, getTokenByType, getSessions, getTokenStats, getDailyTokenTrend, getLatencyStats, getCostDistribution, getAgentList } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 // Auto refresh
 const autoRefresh = ref(false);

@@ -14,6 +14,39 @@ Tool names are prefixed by resource type:
 - `agent.<base64url-agent-id>`
 - `workflow.<workflow-id>`
 
+JSON-RPC batch requests are not supported yet. Send one Streamable HTTP JSON-RPC request per POST; batch arrays return `Invalid Request`.
+
+## Codex
+
+Codex is the preferred developer acceptance client for ORIN MCP. Use it to prove that `/v1/mcp` works in a real coding-agent workflow before recording external showcase assets.
+
+Use the same local stdio bridge as Claude Desktop when your Codex build expects a local MCP process:
+
+```text
+command: /absolute/path/to/ORIN/orin-mcp-bridge/.venv/bin/python
+args: -m orin_mcp_bridge
+env:
+  ORIN_BASE_URL=http://localhost:8080
+  ORIN_API_KEY=<CLIENT_ACCESS_KEY>
+  ORIN_MCP_ORIGIN=http://localhost:8080
+```
+
+If your Codex MCP configuration supports Streamable HTTP directly, point it at:
+
+```text
+url: http://localhost:8080/v1/mcp
+headers:
+  Authorization: Bearer <CLIENT_ACCESS_KEY>
+```
+
+Acceptance checklist:
+
+1. Use a `CLIENT_ACCESS / sk-orin-*` key owned by the same user as the exposed Agent or Workflow.
+2. Confirm Codex lists at least one `agent.*` or `workflow.*` ORIN tool.
+3. Call an Agent tool and verify the response includes `Trace ID` and `Package ID`.
+4. Call a Workflow tool and verify the response includes `taskId`, `workflowInstanceId`, `traceId`, and `statusUrl`.
+5. Do not mark provider-backed Agent acceptance complete unless the underlying Agent has a real provider/model configured and the call actually returns content.
+
 ## Cursor
 
 ```json
@@ -44,7 +77,7 @@ Tool names are prefixed by resource type:
 }
 ```
 
-Cursor and Windsurf support Streamable HTTP in current releases; exact compatibility depends on the installed client version. Claude Desktop uses the stdio bridge below.
+Codex is the primary developer acceptance client. Cursor and Windsurf support Streamable HTTP in current releases; exact compatibility depends on the installed client version. Claude Desktop uses the stdio bridge below and is kept as an external showcase client.
 
 ## Claude Desktop
 
@@ -139,6 +172,13 @@ After enabling "MCP 暴露" on an Agent owned by the API key user, MCP clients c
 
 Agent calls run through ORIN's existing collaboration execution path. They are not executed by a separate MCP-specific runtime.
 
+Successful Agent call responses include execution tracking lines after the agent text:
+
+```text
+Trace ID: <traceId>
+Package ID: <packageId>
+```
+
 ## Workflow Call Example
 
 After enabling "MCP 暴露" on a published workflow, MCP clients can call it by its `workflow.<id>` tool name.
@@ -159,5 +199,82 @@ Workflow calls are submitted asynchronously through ORIN's existing workflow exe
 1. Create or reuse a `CLIENT_ACCESS` API key for the owning user.
 2. Mark at least one owned Agent or Workflow as `mcpExposed=true`.
 3. POST `initialize` and `tools/list` to `<ORIN_BASE_URL>/v1/mcp` with `Authorization: Bearer <ORIN_API_KEY>`.
-4. For Claude Desktop, run `orin-mcp-bridge` over stdio and confirm the same tools are listed.
-5. Call one Agent tool and confirm the response content is returned without logging the API key.
+4. For Codex, run `orin-mcp-bridge` over stdio or configure Streamable HTTP directly and confirm the same tools are listed.
+5. Call one Agent tool and confirm the response content includes `Trace ID` and `Package ID` without logging the API key or tool arguments.
+
+## Repository Smoke Script
+
+The repository includes a local smoke script that verifies the public MCP endpoint without printing the API key:
+
+```bash
+export ORIN_BASE_URL=http://127.0.0.1:8080
+export ORIN_API_KEY=<CLIENT_ACCESS_KEY>
+bash scripts/mcp-open-demo-smoke.sh
+```
+
+By default the script checks `initialize` and `tools/list` without sending an `Origin` header. To test the same Origin policy used by browser-like clients or the Claude Desktop bridge, set `ORIN_MCP_ORIGIN=http://localhost:8080`. To also call the first exposed Agent and Workflow tool found in `tools/list`, opt in explicitly:
+
+```bash
+ORIN_MCP_CALL_TOOLS=1 bash scripts/mcp-open-demo-smoke.sh
+```
+
+If multiple tools are exposed, pin the exact tools:
+
+```bash
+ORIN_MCP_CALL_TOOLS=1 \
+ORIN_MCP_AGENT_TOOL=agent.<base64url-agent-id> \
+ORIN_MCP_WORKFLOW_TOOL=workflow.<workflow-id> \
+bash scripts/mcp-open-demo-smoke.sh
+```
+
+For Agent tools you can also pass the raw Agent ID and let the script derive the MCP tool name. The API key must belong to the Agent owner, and the Agent must already be `mcpExposed=true`:
+
+```bash
+ORIN_MCP_CALL_TOOLS=1 \
+ORIN_MCP_AGENT_ID=<agent-id> \
+ORIN_MCP_REQUIRE_AGENT_TOOL=1 \
+ORIN_MCP_REQUIRE_TRACE_METADATA=1 \
+bash scripts/mcp-open-demo-smoke.sh
+```
+
+CI-like local acceptance can require specific tools and trace metadata:
+
+```bash
+ORIN_MCP_CALL_TOOLS=1 \
+ORIN_MCP_WORKFLOW_TOOL=workflow.<workflow-id> \
+ORIN_MCP_REQUIRE_WORKFLOW_TOOL=1 \
+ORIN_MCP_REQUIRE_TRACE_METADATA=1 \
+bash scripts/mcp-open-demo-smoke.sh
+```
+
+The script sends only minimal demo arguments (`message` for Agents, `query` for Workflows). Override the Agent prompt with `ORIN_MCP_AGENT_MESSAGE` when testing a provider-backed Agent. If your exposed Workflow requires a stricter input schema, use the script for `initialize` / `tools/list` and call that Workflow manually with the expected arguments.
+
+For an end-to-end open-demo acceptance pass, use the orchestrator script:
+
+```bash
+bash scripts/open-demo-acceptance.sh
+```
+
+It runs health checks, the business smoke baseline, creates a temporary `CLIENT_ACCESS` key, creates and publishes a temporary `mcpExposed=true` Workflow, then calls the public MCP smoke with `ORIN_MCP_CALL_TOOLS=1`. It cleans up the temporary key and workflow on exit. If you have a real provider-backed Agent to include in the MCP demo, pass its ID:
+
+```bash
+ORIN_OPEN_DEMO_AGENT_ID=<agent-id> bash scripts/open-demo-acceptance.sh
+```
+
+When `ORIN_OPEN_DEMO_AGENT_ID` is set, the orchestrator exposes that Agent and makes the Agent MCP `tools/call` a required check. The Agent must be owned by the same user as the temporary `CLIENT_ACCESS` key created for the demo; otherwise it will not appear in `tools/list` and the script will fail with an ownership/exposure hint.
+
+The collaboration Workflow subtask strong smoke is opt-in because it requires AI Engine to be started with the MQ worker enabled and backend authorization configured:
+
+```bash
+ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK=1 bash scripts/open-demo-acceptance.sh
+```
+
+If another backend instance is already consuming the default RabbitMQ queues, start the acceptance backend and MQ worker with unique `TASK_*` and `COLLAB_*` queue/exchange names. This keeps Workflow task and collaboration result messages from being consumed by the wrong local process. ORIN honors `replyTo` on collaboration messages, so an isolated `COLLAB_RESULT_QUEUE` can receive only the results for that acceptance run.
+
+## Troubleshooting
+
+- `401`: the key is missing, disabled, rotated, or not a `CLIENT_ACCESS / sk-orin-*` key.
+- `403` or `Origin not allowed`: add `ORIN_MCP_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080` before backend startup.
+- Empty `tools/list`: enable `mcpExposed=true` on an Agent or a published Workflow owned by the API key user.
+- Claude Desktop does not show ORIN tools: restart Claude Desktop after editing `claude_desktop_config.json`, and run the bridge from the same Python venv configured in the file.
+- Workflow call returns only submission metadata: this is expected. Workflow MCP calls enqueue through ORIN's workflow queue and return `taskId`, `workflowInstanceId`, `traceId`, and `statusUrl`.

@@ -230,8 +230,7 @@ import LineChart from '@/components/LineChart.vue';
 import BarChart from '@/components/BarChart.vue';
 import AnimatedNumber from '@/components/AnimatedNumber.vue';
 import { Monitor, Tickets, Cpu, Connection, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
-import { getGlobalSummary, getAgentList } from '@/api/monitor';
-import request from '@/utils/request';
+import { getGlobalSummary, getAgentList, getServerHardware } from '@/api/monitor';
 import BrandingLogo from '@/components/BrandingLogo.vue';
 
 const router = useRouter();
@@ -368,7 +367,7 @@ const fetchData = async () => {
     if (listRes) agents.value = listRes;
     
     try {
-      const hwRes = await request.get('/monitor/server-hardware');
+      const hwRes = await getServerHardware();
       if (hwRes) {
         performanceMetrics.value[0].value = hwRes.cpuUsage || 0;
         performanceMetrics.value[1].value = hwRes.memoryUsage || 0;

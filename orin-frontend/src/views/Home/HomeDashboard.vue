@@ -1,5 +1,12 @@
 <template>
   <div class="dashboard-home command-center-root">
+    <OrinPageShell
+      title="监控总览"
+      description="服务健康、调用趋势、节点状态与待处理异常"
+      icon="DataAnalysis"
+      domain="运行监控"
+    />
+
     <header class="page-header cc-header-glass">
       <!-- 1. 品牌区 -->
       <div class="header-brand">
@@ -447,7 +454,9 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import { getAgentList } from '@/api/agent'
+import { getDashboardSummary } from '@/api/dashboard'
 import {
   getGlobalSummary,
   getTokenHistory,
@@ -464,6 +473,7 @@ import {
 } from '@/api/monitor'
 import { getIntegrationStatus } from '@/api/integrations'
 import { UI_TEXT } from '@/constants/uiText'
+import { toDashboardSummaryViewModel } from '@/viewmodels'
 
 const loading = ref(false)
 const isRefreshing = ref(false)
@@ -1126,7 +1136,8 @@ const loadDashboardData = async () => {
   loading.value = true
   isRefreshing.value = true
   try {
-    const [summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes, integrationStatusRes] = await Promise.all([
+    const [dashboardSummaryRes, summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes, integrationStatusRes] = await Promise.all([
+      getDashboardSummary({ silentError: true }).catch(() => ({})),
       getGlobalSummary(),
       getAgentList(),
       getTokenHistory({ size: 200 }),
@@ -1138,6 +1149,7 @@ const loadDashboardData = async () => {
       getIntegrationStatus().catch(() => ({})),
     ])
 
+    const dashboardSummary = toDashboardSummaryViewModel(unwrapResponse(dashboardSummaryRes, {}) || {})
     const summary = unwrapResponse(summaryRes, {}) || {}
     const agents = unwrapResponse(agentsRes, []) || []
     const tokenHistoryPayload = unwrapResponse(tokenHistoryRes, {}) || {}
@@ -1154,16 +1166,16 @@ const loadDashboardData = async () => {
     const nodesData = unwrapResponse(nodesRes, []) || []
     const integrationStatus = unwrapResponse(integrationStatusRes, {}) || {}
 
-    const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length
+    const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length || dashboardSummary.metrics.agents
     const todayCalls = safeNumber(summary.daily_requests, historyList.filter((item) => dayjs(item.createdAt || item.timestamp).isSame(dayjs(), 'day')).length)
     const avgLatencyValue = readLatencyStatValue(summary, latencyData)
-    const alertCount = safeNumber(summary.alertCount, safeNumber(summary.highLoadAgents))
+    const alertCount = safeNumber(summary.alertCount, safeNumber(summary.highLoadAgents, dashboardSummary.metrics.failedTasks))
 
     summaryData.value = summary
     serverNodes.value = Array.isArray(nodesData) ? nodesData : []
     await hydrateHardwareSnapshot(hardware)
 
-    const healthRaw = String(health?.status || health?.code || '').toUpperCase()
+    const healthRaw = String(health?.status || health?.code || dashboardSummary.systemHealth.aiEngine.status || '').toUpperCase()
     if (healthRaw.includes('UP') || healthRaw.includes('OK') || healthRaw.includes('SUCCESS')) {
       healthStatusText.value = '运行正常'
       healthStatusClass.value = 'status-ok'
@@ -1243,9 +1255,9 @@ const loadDashboardData = async () => {
     }
 
     queueStats.value = {
-      pending: safeNumber(summary.pendingTasks, safeNumber(summary.queuePending)),
-      running: safeNumber(summary.runningTasks, safeNumber(summary.queueRunning)),
-      failed: safeNumber(summary.failedTasks, safeNumber(summary.queueFailed)),
+      pending: safeNumber(summary.pendingTasks, safeNumber(summary.queuePending, dashboardSummary.metrics.tasks.QUEUED)),
+      running: safeNumber(summary.runningTasks, safeNumber(summary.queueRunning, dashboardSummary.metrics.tasks.RUNNING)),
+      failed: safeNumber(summary.failedTasks, safeNumber(summary.queueFailed, dashboardSummary.metrics.failedTasks)),
     }
   } catch (error) {
     ElMessage.error('加载首页数据失败，请稍后重试')

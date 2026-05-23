@@ -171,11 +171,13 @@
 
       <div v-if="comparisonResult" class="comparison-result">
         <h4>差异列表</h4>
-        <el-table border :data="comparisonResult.differences" stripe>
-          <el-table-column prop="field" label="字段" width="150" />
-          <el-table-column prop="oldValue" label="旧值" />
-          <el-table-column prop="newValue" label="新值" />
-        </el-table>
+        <OrinDataTable compact>
+          <el-table border :data="comparisonResult.differences" stripe>
+            <el-table-column prop="field" label="字段" width="150" />
+            <el-table-column prop="oldValue" label="旧值" />
+            <el-table-column prop="newValue" label="新值" />
+          </el-table>
+        </OrinDataTable>
         <el-empty v-if="comparisonResult.differences.length === 0" description="两个版本配置相同" />
       </div>
     </el-dialog>
@@ -185,10 +187,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/utils/request'
+import {
+  compareAgentVersions,
+  createAgentVersion,
+  getAgentVersions,
+  rollbackAgentVersion
+} from '@/api/agent'
 import {
   Clock, Plus, User, View, RefreshLeft, DocumentCopy
 } from '@element-plus/icons-vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 import { useUserStore } from '@/stores/user'
 
@@ -221,8 +229,8 @@ const compareVersion2 = ref(null)
 const loadVersions = async () => {
   loading.value = true
   try {
-    const res = await request.get(`/agents/${props.agentId}/versions`)
-    versions.value = res.data || []
+    const res = await getAgentVersions(props.agentId)
+    versions.value = res?.data || res || []
   } catch (error) {
     ElMessage.error('加载版本列表失败')
   } finally {
@@ -233,7 +241,7 @@ const loadVersions = async () => {
 const createVersion = async () => {
   creating.value = true
   try {
-    await request.post(`/agents/${props.agentId}/versions`, {
+    await createAgentVersion(props.agentId, {
       description: newVersion.value.description,
       createdBy: userStore.username || 'unknown',
     })
@@ -265,7 +273,7 @@ const rollbackVersion = async (version) => {
       }
     )
 
-    await request.post(`/agents/${props.agentId}/versions/${version.id}/rollback`)
+    await rollbackAgentVersion(props.agentId, version.id)
     ElMessage.success('回滚成功')
     await loadVersions()
   } catch (error) {
@@ -282,13 +290,8 @@ const compareVersions = async () => {
   }
 
   try {
-    const res = await request.get(`/agents/${props.agentId}/versions/compare`, {
-      params: {
-        version1: compareVersion1.value,
-        version2: compareVersion2.value
-      }
-    })
-    comparisonResult.value = res.data
+    const res = await compareAgentVersions(props.agentId, compareVersion1.value, compareVersion2.value)
+    comparisonResult.value = res?.data || res
   } catch (error) {
     ElMessage.error('版本对比失败')
   }

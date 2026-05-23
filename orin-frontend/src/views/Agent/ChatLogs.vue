@@ -1,34 +1,105 @@
 <template>
   <div class="page-container">
-    <PageHeader 
+    <OrinPageShell
       title="会话记录" 
       description="审计并追溯所有智能体的历史交互记录"
       icon="ChatLineRound"
+      domain="应用域"
+      maturity="available"
     >
       <template #actions>
         <el-button :icon="Download" @click="handleExport">
           导出报告
         </el-button>
       </template>
-    </PageHeader>
+      <template #filters>
+        <OrinFilterBar>
+          <el-input
+            v-model="searchQuery"
+            class="filter-search"
+            placeholder="搜索会话 ID / 内容 / 智能体 / 模型"
+            :prefix-icon="Search"
+            clearable
+          />
+          <el-select
+            v-model="filterAgent"
+            class="filter-select"
+            placeholder="智能体"
+            clearable
+          >
+            <el-option
+              v-for="agent in agents"
+              :key="agent.agentId || agent.id"
+              :label="agent.agentName || agent.name"
+              :value="agent.agentId || agent.id"
+            />
+          </el-select>
+          <el-select
+            v-model="filterResult"
+            class="filter-select filter-select-small"
+            placeholder="结果"
+            clearable
+          >
+            <el-option label="成功" value="success" />
+            <el-option label="失败" value="failed" />
+          </el-select>
+          <el-popover
+            placement="bottom-end"
+            trigger="click"
+            width="420"
+            popper-class="conversation-filter-popover"
+          >
+            <template #reference>
+              <el-button class="advanced-filter-button">
+                高级筛选
+                <el-tag
+                  v-if="advancedFilterCount"
+                  size="small"
+                  round
+                  effect="plain"
+                >
+                  {{ advancedFilterCount }}
+                </el-tag>
+              </el-button>
+            </template>
+            <div class="advanced-filter-panel">
+              <span class="advanced-filter-title">时间范围</span>
+              <el-date-picker
+                v-model="filterDateRange"
+                class="advanced-date-range"
+                type="datetimerange"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间"
+                range-separator="至"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                clearable
+              />
+              <span class="advanced-filter-title">Tokens 区间</span>
+              <div class="token-filter">
+                <el-input-number
+                  v-model="minTokens"
+                  :min="0"
+                  :controls="false"
+                  placeholder="最小"
+                />
+                <span class="token-separator">-</span>
+                <el-input-number
+                  v-model="maxTokens"
+                  :min="0"
+                  :controls="false"
+                  placeholder="最大"
+                />
+              </div>
+            </div>
+          </el-popover>
+          <el-button class="reset-filter-button" @click="resetFilters">
+            重置
+          </el-button>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
 
-    <section class="conversation-summary-grid">
-      <article
-        v-for="card in summaryCards"
-        :key="card.key"
-        class="summary-card"
-        :class="`tone-${card.tone}`"
-      >
-        <div class="summary-icon">
-          <el-icon><component :is="card.icon" /></el-icon>
-        </div>
-        <div class="summary-content">
-          <span>{{ card.label }}</span>
-          <strong>{{ card.value }}</strong>
-          <small>{{ card.meta }}</small>
-        </div>
-      </article>
-    </section>
+    <OrinMetricStrip :metrics="conversationMetrics" class="conversation-summary-strip" />
 
     <section class="conversation-insights">
       <article class="insight-card accent-card">
@@ -89,7 +160,12 @@
       </article>
     </section>
 
-    <el-card shadow="never" class="table-card">
+    <OrinDataTable
+      class="table-card"
+      title="会话流水"
+      description="按最近活跃时间排序，支持筛选、导出与上下文回放"
+      compact
+    >
       <template #header>
         <div class="table-card-header">
           <div>
@@ -101,96 +177,18 @@
           </el-tag>
         </div>
       </template>
-      <div class="table-filter-bar">
-        <el-input
-          v-model="searchQuery"
-          class="filter-search"
-          placeholder="搜索会话 ID / 内容 / 智能体 / 模型"
-          :prefix-icon="Search"
-          clearable
-        />
-        <el-select
-          v-model="filterAgent"
-          class="filter-select"
-          placeholder="智能体"
-          clearable
-        >
-          <el-option
-            v-for="agent in agents"
-            :key="agent.agentId || agent.id"
-            :label="agent.agentName || agent.name"
-            :value="agent.agentId || agent.id"
-          />
-        </el-select>
-        <el-select
-          v-model="filterResult"
-          class="filter-select filter-select-small"
-          placeholder="结果"
-          clearable
-        >
-          <el-option label="成功" value="success" />
-          <el-option label="失败" value="failed" />
-        </el-select>
-        <el-popover
-          placement="bottom-end"
-          trigger="click"
-          width="420"
-          popper-class="conversation-filter-popover"
-        >
-          <template #reference>
-            <el-button class="advanced-filter-button">
-              高级筛选
-              <el-tag
-                v-if="advancedFilterCount"
-                size="small"
-                round
-                effect="plain"
-              >
-                {{ advancedFilterCount }}
-              </el-tag>
-            </el-button>
-          </template>
-          <div class="advanced-filter-panel">
-            <span class="advanced-filter-title">时间范围</span>
-            <el-date-picker
-              v-model="filterDateRange"
-              class="advanced-date-range"
-              type="datetimerange"
-              start-placeholder="开始时间"
-              end-placeholder="结束时间"
-              range-separator="至"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              clearable
-            />
-            <span class="advanced-filter-title">Tokens 区间</span>
-            <div class="token-filter">
-              <el-input-number
-                v-model="minTokens"
-                :min="0"
-                :controls="false"
-                placeholder="最小"
-              />
-              <span class="token-separator">-</span>
-              <el-input-number
-                v-model="maxTokens"
-                :min="0"
-                :controls="false"
-                placeholder="最大"
-              />
-            </div>
-          </div>
-        </el-popover>
-        <el-button class="reset-filter-button" @click="resetFilters">
-          重置
-        </el-button>
-      </div>
-      <el-table
-        v-loading="loading"
-        border
-        :data="pagedLogs"
-        style="width: 100%"
-        stripe
+      <OrinAsyncState
+        :status="chatLogsState"
+        empty-text="暂无会话记录"
+        :error-text="chatLogsErrorText"
+        @retry="loadChatLogs"
       >
+        <el-table
+          border
+          :data="pagedLogs"
+          style="width: 100%"
+          stripe
+        >
         <el-table-column
           prop="sessionId"
           label="会话 ID"
@@ -257,9 +255,10 @@
             </el-button>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </OrinAsyncState>
 
-      <div class="pagination-container">
+      <template #footer>
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
@@ -267,8 +266,8 @@
           layout="total, sizes, prev, pager, next"
           :total="filteredChatLogs.length"
         />
-      </div>
-    </el-card>
+      </template>
+    </OrinDataTable>
 
     <!-- Chat Replay Drawer -->
     <el-drawer
@@ -335,12 +334,18 @@ import {
   Timer,
   User
 } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import { getAgentList, getGroupedConversationLogs, getConversationHistory } from '@/api/agent';
+import { toSessionListViewModel } from '@/viewmodels';
 import { ElMessage } from 'element-plus';
 import { marked } from 'marked';
 
 const loading = ref(false);
+const loadError = ref('');
 const filterAgent = ref('');
 const searchQuery = ref('');
 const filterDateRange = ref([]);
@@ -388,24 +393,28 @@ const loadAgents = async () => {
 
 const loadChatLogs = async () => {
   loading.value = true;
+  loadError.value = '';
   try {
     const res = await getGroupedConversationLogs(currentPage.value - 1, pageSize.value);
-    rawLogs.value = res.content.map(log => ({
-      sessionId: log.conversationId,
+    rawLogs.value = toSessionListViewModel(res.content).map(log => ({
+      sessionId: log.sessionId,
       agentId: log.agentId,
-      agentName: '', // Will be resolved by computed
-      modelName: log.model,
-      lastQuery: log.query,
-      tokens: log.cumulativeTokens,
+      agentName: log.agentName,
+      modelName: log.modelName,
+      lastQuery: log.lastQuery,
+      tokens: log.tokens,
       responseTime: log.responseTime,
-      time: log.createdAt,
-      timestamp: new Date(String(log.createdAt).replace(' ', 'T')).getTime(),
+      time: log.time,
+      timestamp: new Date(String(log.time).replace(' ', 'T')).getTime(),
       success: log.success
     }));
     // total is used for pagination
     // Since we are using grouped logs, we should probably handle totalElements
     // But local filtering is used here, so I'll just keep it simple for now or update total
   } catch (error) {
+    loadError.value = error?.traceId
+      ? `获取日志流水线失败 · TraceId: ${error.traceId}`
+      : `获取日志流水线失败：${error?.message || '未知错误'}`;
     ElMessage.error('获取日志流水线失败');
   } finally {
     loading.value = false;
@@ -536,6 +545,22 @@ const summaryCards = computed(() => [
     tone: averageLatency.value > 3000 ? 'danger' : 'green'
   }
 ]);
+
+const conversationMetrics = computed(() => summaryCards.value.map(card => ({
+  key: card.key,
+  label: card.label,
+  value: card.value,
+  meta: card.meta,
+  intent: card.tone === 'danger' ? 'danger' : 'default'
+})));
+
+const chatLogsState = computed(() => {
+  if (loading.value) return 'loading';
+  if (loadError.value) return 'error';
+  return filteredChatLogs.value.length ? 'success' : 'empty';
+});
+
+const chatLogsErrorText = computed(() => loadError.value || '请稍后重试');
 
 const topAgentCards = computed(() => {
   const counts = enrichedLogs.value.reduce((acc, log) => {

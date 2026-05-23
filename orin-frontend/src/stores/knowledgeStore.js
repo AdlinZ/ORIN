@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import request from '@/utils/request'
+import {
+    getBoundKnowledge,
+    saveProceduralKnowledgeSkill,
+    uploadUnstructuredKnowledge
+} from '@/api/knowledge'
 
 export const useKnowledgeStore = defineStore('knowledge', () => {
     // State
@@ -15,7 +19,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     const loadKnowledge = async (agentId, type) => {
         loading.value = true
         try {
-            const res = await request.get(`/knowledge/agents/${agentId}`, { params: { type } })
+            const res = await getBoundKnowledge(agentId, type)
             knowledgeList.value = res.data || []
         } catch (error) {
             console.error(error)
@@ -27,55 +31,34 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
 
     // 2. Unstructured File Upload (Async Tracking)
     const uploadFile = async (agentId, file, kbId) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('kbId', kbId)
-        formData.append('agentId', agentId)
-
-        // Mock Task ID for now, in real backend this comes from response
-        const taskId = Date.now().toString()
-
-        // Start "Amber" state tracking
-        uploadingMap.value.set(taskId, { fileName: file.name, status: 'VECTORIZING', progress: 0 })
+        const uploadKey = `${agentId}:${kbId}:${file.name}:${file.size}:${file.lastModified || 0}`
+        uploadingMap.value.set(uploadKey, { fileName: file.name, status: 'UPLOADING', progress: 0 })
 
         try {
-            await request.post('/knowledge/unstructured/upload', formData)
-            // Poll for status or simulate progress
-            simulateProgress(taskId)
+            const res = await uploadUnstructuredKnowledge(agentId, kbId, file)
+            const taskId = res?.taskId || res?.id || uploadKey
+            if (taskId !== uploadKey) {
+                uploadingMap.value.delete(uploadKey)
+            }
+            uploadingMap.value.set(taskId, {
+                fileName: file.name,
+                status: res?.status || 'COMPLETED',
+                progress: Number.isFinite(Number(res?.progress)) ? Number(res.progress) : 100
+            })
+            await loadKnowledge(agentId, 'DOCUMENT')
+            setTimeout(() => uploadingMap.value.delete(taskId), 3000)
         } catch (e) {
-            uploadingMap.value.set(taskId, { fileName: file.name, status: 'ERROR', progress: 0 })
+            uploadingMap.value.set(uploadKey, { fileName: file.name, status: 'ERROR', progress: 0 })
             ElMessage.error('Upload failed')
         }
 
-        return taskId
-    }
-
-    const simulateProgress = (taskId) => {
-        let p = 0
-        const interval = setInterval(() => {
-            p += 10
-            if (p > 100) {
-                clearInterval(interval)
-                uploadingMap.value.set(taskId, { ...uploadingMap.value.get(taskId), status: 'COMPLETED', progress: 100 })
-                // Clear after delay
-                setTimeout(() => uploadingMap.value.delete(taskId), 3000)
-            } else {
-                uploadingMap.value.set(taskId, { ...uploadingMap.value.get(taskId), progress: p })
-            }
-        }, 500)
+        return uploadKey
     }
 
     // 3. Save Workflow (Procedural)
     const saveWorkflow = async (agentId, workflowData) => {
-        // Validation handled in Component usually, but we can double check
         try {
-            // Validate and Serialize is implicitly done by JSON.stringify in request
-            // But we ensure struct is correct
-            const payload = {
-                ...workflowData,
-                agentId
-            }
-            await request.post('/knowledge/procedural/skills', payload)
+            await saveProceduralKnowledgeSkill(agentId, workflowData)
             ElMessage.success('Skill registered successfully')
         } catch (e) {
             ElMessage.error('Failed to save skill')

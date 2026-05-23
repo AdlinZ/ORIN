@@ -66,31 +66,33 @@
           +{{ lastSyncRecord.addedCount }} ~{{ lastSyncRecord.updatedCount }} -{{ lastSyncRecord.deletedCount }}
         </span>
       </div>
-      <el-table v-loading="historyLoading" :data="syncHistory" style="margin-top: 8px">
-        <el-table-column prop="syncType" label="类型" width="90">
-          <template #default="{ row }">
-            <el-tag :type="row.syncType === 'FULL' ? 'danger' : 'info'" size="small">
-              {{ row.syncType }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small">
-              {{ row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="addedCount" label="新增" width="70" />
-        <el-table-column prop="updatedCount" label="更新" width="70" />
-        <el-table-column prop="deletedCount" label="删除" width="70" />
-        <el-table-column prop="errorMessage" label="失败原因" show-overflow-tooltip />
-        <el-table-column prop="endTime" label="时间" width="160">
-          <template #default="{ row }">
-            {{ row.endTime ? formatDateTime(row.endTime) : '-' }}
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact class="history-table">
+        <el-table v-loading="historyLoading" :data="syncHistory">
+          <el-table-column prop="syncType" label="类型" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.syncType === 'FULL' ? 'danger' : 'info'" size="small">
+                {{ row.syncType }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="statusTagType(row.status)" size="small">
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="addedCount" label="新增" width="70" />
+          <el-table-column prop="updatedCount" label="更新" width="70" />
+          <el-table-column prop="deletedCount" label="删除" width="70" />
+          <el-table-column prop="errorMessage" label="失败原因" show-overflow-tooltip />
+          <el-table-column prop="endTime" label="时间" width="160">
+            <template #default="{ row }">
+              {{ row.endTime ? formatDateTime(row.endTime) : '-' }}
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </el-dialog>
   </div>
 </template>
@@ -99,6 +101,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Clock, Download, Connection } from '@element-plus/icons-vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import {
   syncDifyKnowledge,
   fullSyncDify,

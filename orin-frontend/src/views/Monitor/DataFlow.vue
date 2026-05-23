@@ -1,9 +1,10 @@
 <template>
   <div class="page-container">
-    <PageHeader
+    <OrinPageShell
       title="数据流追踪"
       :description="`Trace ID: ${traceId}`"
       icon="Share"
+      domain="运行监控"
     />
     <div class="action-bar">
       <div>
@@ -20,7 +21,12 @@
     </div>
 
     <!-- Trace Visualization -->
-    <el-card v-loading="loading" class="box-card">
+    <el-card class="box-card">
+      <OrinAsyncState
+        :status="loading ? 'loading' : (traceData ? 'success' : 'empty')"
+        empty-text="无法找到该链路的追踪数据"
+        @retry="loadTrace"
+      >
       <div v-if="traceData" class="trace-container">
         <div class="trace-summary">
           <el-descriptions border>
@@ -59,6 +65,7 @@
       <div v-else class="empty-state">
         <el-empty description="无法找到该链路的追踪数据" />
       </div>
+      </OrinAsyncState>
     </el-card>
   </div>
 </template>
@@ -66,9 +73,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import request from '@/utils/request'
-import { ArrowLeft } from '@element-plus/icons-vue'
-import PageHeader from '@/components/PageHeader.vue'
+import { getDataFlow } from '@/api/trace'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -80,7 +87,7 @@ const traceData = ref(null)
 const loadTrace = async () => {
     loading.value = true
     try {
-        const res = await request.get(`/api/v1/monitor/dataflow/${traceId.value}`)
+        const res = await getDataFlow(traceId.value)
         traceData.value = res
     } catch (error) {
         console.error(error)
