@@ -1,5 +1,29 @@
 <template>
   <div class="kb-workbench-page">
+    <OrinPageShell
+      title="知识库详情"
+      :description="kbData.description || '管理文档、检索效果和知识图谱可视化'"
+      icon="Reading"
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="router.push(ROUTES.RESOURCES.KNOWLEDGE)">
+          返回知识库列表
+        </el-button>
+        <el-button type="primary" :icon="Upload" @click="activeTab = 'retrieve'">
+          检索测试
+        </el-button>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag effect="plain">{{ getTypeName(kbData.type) }}</el-tag>
+          <el-tag type="success" effect="plain">{{ documents.length }} 文档</el-tag>
+          <el-tag effect="plain">当前：{{ activeWorkspaceMeta.label }}</el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
+
     <div class="workbench-hero">
       <div class="hero-main">
         <div class="title-row">
@@ -265,19 +289,21 @@
               <el-button :icon="Refresh" @click="refreshBenchmarks">刷新</el-button>
             </div>
 
-            <el-table :data="benchmarks" stripe>
-              <el-table-column prop="name" label="基准名称" min-width="180" />
-              <el-table-column prop="description" label="描述" min-width="260" show-overflow-tooltip />
-              <el-table-column prop="score" label="得分" width="120">
-                <template #default="{ row }">{{ row.score }}%</template>
-              </el-table-column>
-              <el-table-column prop="updatedAt" label="最近执行" width="180" />
-              <el-table-column label="操作" width="120">
-                <template #default="{ row }">
-                  <el-button link type="primary" @click="runBenchmark(row)">运行</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+            <OrinAsyncState
+              :status="benchmarks.length ? 'success' : 'empty'"
+              empty-text="暂无后端评估基准"
+            >
+              <OrinDataTable title="评估基准" description="展示后端返回的评估记录，不由前端生成分数">
+                <el-table :data="benchmarks" stripe>
+                  <el-table-column prop="name" label="基准名称" min-width="180" />
+                  <el-table-column prop="description" label="描述" min-width="260" show-overflow-tooltip />
+                  <el-table-column prop="score" label="得分" width="120">
+                    <template #default="{ row }">{{ formatBenchmarkScore(row.score) }}</template>
+                  </el-table-column>
+                  <el-table-column prop="updatedAt" label="最近执行" width="180" />
+                </el-table>
+              </OrinDataTable>
+            </OrinAsyncState>
           </section>
 
           <section v-show="activeTab === 'settings'" class="settings-pane">
@@ -369,20 +395,27 @@ import {
   Upload
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import dayjs from 'dayjs';
 import {
   deleteDocument,
   deleteKnowledge,
+  getEvaluationBenchmarks,
   getDocuments,
+  getKnowledge,
   getKnowledgeList,
+  testRetrieval,
   triggerVectorization,
   updateKnowledge,
   uploadDocument
 } from '@/api/knowledge';
 import { getModelList } from '@/api/model';
-import request from '@/utils/request';
 import { ROUTES } from '@/router/routes';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import { toKnowledgeDocumentListViewModel, toRetrievalResultViewModel } from '@/viewmodels';
 
 const route = useRoute();
 const router = useRouter();
@@ -472,7 +505,7 @@ const workspaceNavItems = [
   { key: 'retrieve', label: '检索测试', icon: Search, title: '检索测试', desc: '快速验证召回质量与文档命中情况。' },
   { key: 'graph', label: '知识导图', icon: Connection, title: '知识导图', desc: '查看知识结构与文档分组关系。' },
   { key: 'rag', label: 'RAG评估', icon: Collection, title: 'RAG评估', desc: '基于检索结果观察当前配置效果。' },
-  { key: 'benchmark', label: '评估基准', icon: Cpu, title: '评估基准', desc: '运行基准集并记录得分变化。' },
+  { key: 'benchmark', label: '评估基准', icon: Cpu, title: '评估基准', desc: '查看后端评估记录和最近执行结果。' },
   { key: 'settings', label: '知识库设置', icon: Setting, title: '知识库设置', desc: '维护检索参数、模型与知识库元信息。' }
 ];
 
@@ -626,7 +659,7 @@ const parseConfiguration = (raw) => {
 
 const loadKb = async () => {
   try {
-    const kb = await request.get(`/knowledge/${kbId.value}`);
+    const kb = await getKnowledge(kbId.value);
     if (!kb || !kb.id) {
       throw new Error('知识库不存在');
     }
@@ -670,7 +703,7 @@ const loadDocuments = async () => {
   documentsLoading.value = true;
   try {
     const rows = await getDocuments(kbId.value);
-    documents.value = normalizeDocuments(rows);
+    documents.value = normalizeDocuments(toKnowledgeDocumentListViewModel(rows));
 
     for (const group of groupedDocs.value) {
       if (!(group.name in expandedFolders)) expandedFolders[group.name] = true;
@@ -764,22 +797,13 @@ const runRetrieval = async () => {
       rerankModel: settingsForm.enableRerank ? settingsForm.rerankModel || null : null,
       embeddingModel: settingsForm.embeddingModel || null
     };
-    const res = await request.post('/knowledge/retrieve/test', {
-      ...payload
-    });
-    retrievalResults.value = unwrapRetrievalResults(res);
+    const res = await testRetrieval(payload);
+    retrievalResults.value = toRetrievalResultViewModel(res);
   } catch (error) {
     ElMessage.error(`检索失败: ${error.message}`);
   } finally {
     retrievalLoading.value = false;
   }
-};
-
-const unwrapRetrievalResults = (response) => {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.results)) return response.results;
-  if (Array.isArray(response?.data)) return response.data;
-  return [];
 };
 
 const buildMindTree = (docs) => {
@@ -886,39 +910,38 @@ const fitGraph = () => {
   }
 };
 
-const refreshBenchmarks = () => {
-  const now = dayjs();
-  benchmarks.value = [
-    {
-      id: 1,
-      name: '教材结构一致性',
-      description: '验证章节/分组检索是否能稳定命中主干资料',
-      score: Math.round(78 + Math.random() * 15),
-      updatedAt: now.subtract(2, 'hour').format('YYYY-MM-DD HH:mm')
-    },
-    {
-      id: 2,
-      name: '实体问答召回',
-      description: '测试术语、成分、工艺类问题的召回准确率',
-      score: Math.round(74 + Math.random() * 18),
-      updatedAt: now.subtract(1, 'day').format('YYYY-MM-DD HH:mm')
-    },
-    {
-      id: 3,
-      name: '跨文档推理支持',
-      description: '验证多文档关联问题在 TopK 内覆盖情况',
-      score: Math.round(70 + Math.random() * 20),
-      updatedAt: now.subtract(3, 'day').format('YYYY-MM-DD HH:mm')
-    }
-  ];
+const refreshBenchmarks = async () => {
+  try {
+    const rows = await getEvaluationBenchmarks();
+    benchmarks.value = normalizeBenchmarks(rows);
+  } catch (error) {
+    benchmarks.value = [];
+    ElMessage.error(`加载评估基准失败: ${error.message}`);
+  }
 };
 
-const runBenchmark = async (row) => {
-  ElMessage.info(`正在执行：${row.name}`);
-  await runRetrieval();
-  row.score = Math.min(99, Math.max(55, Math.round(avgScore.value * 100 + Math.random() * 8)));
-  row.updatedAt = dayjs().format('YYYY-MM-DD HH:mm');
-  ElMessage.success('基准执行完成');
+const normalizeBenchmarks = (rows) => {
+  const list = Array.isArray(rows?.data) ? rows.data : (Array.isArray(rows) ? rows : []);
+  return list.map((item, index) => ({
+    id: item.id ?? item.benchmarkId ?? index,
+    name: item.name || item.benchmarkName || `评估基准-${index + 1}`,
+    description: item.description || item.remark || '-',
+    score: item.score ?? item.avgScore ?? item.averageScore ?? null,
+    updatedAt: formatBenchmarkTime(item.updatedAt || item.lastRun || item.lastRunAt || item.executedAt)
+  }));
+};
+
+const formatBenchmarkScore = (score) => {
+  if (score === null || score === undefined || score === '') return '-';
+  const value = Number(score);
+  if (!Number.isFinite(value)) return '-';
+  return value <= 1 ? `${(value * 100).toFixed(1)}%` : `${value.toFixed(1)}%`;
+};
+
+const formatBenchmarkTime = (time) => {
+  if (!time) return '-';
+  const parsed = dayjs(time);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : '-';
 };
 
 const saveSettings = async () => {

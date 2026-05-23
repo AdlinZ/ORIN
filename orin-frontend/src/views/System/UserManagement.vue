@@ -1,11 +1,11 @@
 <template>
   <div class="user-management page-container fade-in">
-    <section class="user-shell">
-      <OrinEntityHeader
-        domain="组织权限"
-        title="用户管理"
-        description="维护企业成员、账号状态、部门归属和系统访问角色。"
-      >
+    <OrinPageShell
+      domain="系统控制"
+      title="用户管理"
+      description="维护企业成员、账号状态、部门归属和系统访问角色。"
+      icon="User"
+    >
         <template #actions>
           <el-button :icon="Refresh" @click="loadUsers">
             刷新
@@ -50,8 +50,9 @@
             <el-segmented v-model="statusFilter" :options="statusFilterOptions" />
           </div>
         </template>
-      </OrinEntityHeader>
+    </OrinPageShell>
 
+    <section class="user-shell">
       <OrinStatusSummary :items="userStatusItems" class="governance-summary" />
 
       <section class="user-workspace">
@@ -63,111 +64,120 @@
           <span class="workspace-count">当前筛选 {{ filteredUsers.length }} 个</span>
         </div>
 
-        <el-table
-          v-loading="loading"
-          :data="filteredUsers"
-          row-key="id"
-          class="user-table"
+        <OrinAsyncState
+          :status="loading ? 'loading' : filteredUsers.length > 0 ? 'success' : 'empty'"
           empty-text="暂无组织用户"
-          @row-click="openUserDetail"
+          empty-action-label="创建用户"
+          @retry="loadUsers"
+          @empty-action="handleCreate"
         >
-          <el-table-column label="用户" min-width="220" fixed>
-            <template #default="{ row }">
-              <div class="user-cell">
-                <div class="user-avatar">
-                  {{ getUserInitial(row) }}
-                </div>
-                <div class="user-copy">
-                  <strong>{{ row.username }}</strong>
-                  <span>{{ row.email || '未设置邮箱' }}</span>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
+          <OrinDataTable compact>
+            <el-table
+              :data="filteredUsers"
+              row-key="id"
+              class="user-table"
+              empty-text="暂无组织用户"
+              @row-click="openUserDetail"
+            >
+              <el-table-column label="用户" min-width="220" fixed>
+                <template #default="{ row }">
+                  <div class="user-cell">
+                    <div class="user-avatar">
+                      {{ getUserInitial(row) }}
+                    </div>
+                    <div class="user-copy">
+                      <strong>{{ row.username }}</strong>
+                      <span>{{ row.email || '未设置邮箱' }}</span>
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
 
-          <el-table-column label="角色" width="160">
-            <template #default="{ row }">
-              <el-tag
-                size="small"
-                effect="light"
-                :type="isAdminRole(row.role) ? 'danger' : 'primary'"
+              <el-table-column label="角色" width="160">
+                <template #default="{ row }">
+                  <el-tag
+                    size="small"
+                    effect="light"
+                    :type="isAdminRole(row.role) ? 'danger' : 'primary'"
+                  >
+                    {{ getRoleName(row.role) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="部门" min-width="150">
+                <template #default="{ row }">
+                  <span class="muted-text">{{ getDepartmentName(row.departmentId) }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="状态" width="130">
+                <template #default="{ row }">
+                  <span class="status-pill" :class="row.status === 'active' ? 'active' : 'inactive'">
+                    <span class="status-dot" />
+                    {{ row.status === 'active' ? '启用中' : '已禁用' }}
+                  </span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="创建时间" width="180">
+                <template #default="{ row }">
+                  <span class="time-text">{{ formatDate(row.createdAt) }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="最后登录" width="180">
+                <template #default="{ row }">
+                  <span class="time-text">{{ formatDate(row.lastLogin) }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column
+                label="操作"
+                width="210"
+                align="right"
+                fixed="right"
               >
-                {{ getRoleName(row.role) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="部门" min-width="150">
-            <template #default="{ row }">
-              <span class="muted-text">{{ getDepartmentName(row.departmentId) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="状态" width="130">
-            <template #default="{ row }">
-              <span class="status-pill" :class="row.status === 'active' ? 'active' : 'inactive'">
-                <span class="status-dot" />
-                {{ row.status === 'active' ? '启用中' : '已禁用' }}
-              </span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="创建时间" width="180">
-            <template #default="{ row }">
-              <span class="time-text">{{ formatDate(row.createdAt) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="最后登录" width="180">
-            <template #default="{ row }">
-              <span class="time-text">{{ formatDate(row.lastLogin) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column
-            label="操作"
-            width="210"
-            align="right"
-            fixed="right"
-          >
-            <template #default="{ row }">
-              <div class="action-buttons" @click.stop>
-                <el-tooltip content="查看详情" placement="top">
-                  <el-button
-                    link
-                    type="primary"
-                    :icon="View"
-                    @click="openUserDetail(row)"
-                  />
-                </el-tooltip>
-                <el-tooltip content="编辑用户" placement="top">
-                  <el-button
-                    link
-                    type="primary"
-                    :icon="Edit"
-                    @click="handleEdit(row)"
-                  />
-                </el-tooltip>
-                <el-tooltip :content="row.status === 'active' ? '禁用用户' : '启用用户'" placement="top">
-                  <el-button
-                    link
-                    :type="row.status === 'active' ? 'warning' : 'success'"
-                    :icon="row.status === 'active' ? Lock : Unlock"
-                    @click="handleToggleStatus(row)"
-                  />
-                </el-tooltip>
-                <el-tooltip content="删除用户" placement="top">
-                  <el-button
-                    link
-                    type="danger"
-                    :icon="Delete"
-                    @click="handleDelete(row)"
-                  />
-                </el-tooltip>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+                <template #default="{ row }">
+                  <div class="action-buttons" @click.stop>
+                    <el-tooltip content="查看详情" placement="top">
+                      <el-button
+                        link
+                        type="primary"
+                        :icon="View"
+                        @click="openUserDetail(row)"
+                      />
+                    </el-tooltip>
+                    <el-tooltip content="编辑用户" placement="top">
+                      <el-button
+                        link
+                        type="primary"
+                        :icon="Edit"
+                        @click="handleEdit(row)"
+                      />
+                    </el-tooltip>
+                    <el-tooltip :content="row.status === 'active' ? '禁用用户' : '启用用户'" placement="top">
+                      <el-button
+                        link
+                        :type="row.status === 'active' ? 'warning' : 'success'"
+                        :icon="row.status === 'active' ? Lock : Unlock"
+                        @click="handleToggleStatus(row)"
+                      />
+                    </el-tooltip>
+                    <el-tooltip content="删除用户" placement="top">
+                      <el-button
+                        link
+                        type="danger"
+                        :icon="Delete"
+                        @click="handleDelete(row)"
+                      />
+                    </el-tooltip>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
+        </OrinAsyncState>
 
         <div class="table-footer">
           <span>共 {{ totalUsers || filteredUsers.length }} 个用户</span>
@@ -327,7 +337,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Edit, Lock, Plus, Refresh, Search, Unlock, View } from '@element-plus/icons-vue'
 import { getUserList, createUser, updateUser, deleteUser, toggleUserStatus } from '@/api/userManage'
 import { getDepartmentList } from '@/api/department'
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 const loading = ref(false)

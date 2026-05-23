@@ -117,10 +117,6 @@ export const useUserStore = defineStore('user', () => {
             }
 
             token.value = savedToken
-
-            // 输出 Token 剩余有效时间（用于调试）
-            const remaining = getTokenRemainingTime(savedToken)
-            console.log(`Token is valid, remaining time: ${formatRemainingTime(remaining)}`)
         }
 
         if (savedUserInfo) {

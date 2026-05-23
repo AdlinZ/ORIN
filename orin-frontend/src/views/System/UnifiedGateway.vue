@@ -1,5 +1,25 @@
 <template>
   <div class="unified-gateway-workbench page-container fade-in">
+    <OrinPageShell
+      domain="系统控制"
+      title="统一网关"
+      description="模型 API、后台控制面、服务代理、访问凭据与流量保护的统一网关控制台。"
+      icon="Connection"
+    >
+      <template #actions>
+        <el-button
+          :icon="Refresh"
+          :loading="workbenchState.status === 'loading'"
+          @click="refreshCurrentWorkspace"
+        >
+          刷新
+        </el-button>
+        <el-button type="primary" :icon="Connection" @click="openRouteTest">
+          入口测试
+        </el-button>
+      </template>
+    </OrinPageShell>
+
     <section class="gateway-console">
       <header class="gateway-hero">
         <div class="gateway-hero-row">
@@ -443,14 +463,16 @@
           </ol>
 
           <OrinDetailPanel title="目标实例" class="block-gap">
-            <el-table :data="effectiveConfig.allInstances || []" size="small">
-              <el-table-column prop="host" label="主机" />
-              <el-table-column prop="port" label="端口" width="80" />
-              <el-table-column prop="status" label="状态" width="90" />
-              <template #empty>
-                <OrinEmptyState description="此入口由后台处理或直连目标承接，没有服务实例" />
-              </template>
-            </el-table>
+            <OrinDataTable compact>
+              <el-table :data="effectiveConfig.allInstances || []" size="small">
+                <el-table-column prop="host" label="主机" />
+                <el-table-column prop="port" label="端口" width="80" />
+                <el-table-column prop="status" label="状态" width="90" />
+                <template #empty>
+                  <OrinEmptyState description="此入口由后台处理或直连目标承接，没有服务实例" />
+                </template>
+              </el-table>
+            </OrinDataTable>
           </OrinDetailPanel>
         </template>
       </OrinAsyncState>
@@ -514,6 +536,7 @@ import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDetailPanel from '@/components/orin/OrinDetailPanel.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import UnifiedGatewayRoutesTab from './components/gateway/UnifiedGatewayRoutesTab.vue'
 import UnifiedGatewayServicesTab from './components/gateway/UnifiedGatewayServicesTab.vue'
 import UnifiedGatewayAclTab from './components/gateway/UnifiedGatewayAclTab.vue'

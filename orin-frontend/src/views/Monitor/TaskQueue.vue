@@ -1,12 +1,17 @@
 <template>
   <div class="page-container">
-    <PageHeader title="任务队列管理" icon="Tickets">
+    <OrinPageShell
+      title="任务队列管理"
+      description="查看排队、执行、失败、死信和取消任务，并执行重放或取消操作"
+      icon="Tickets"
+      domain="运行监控"
+    >
       <template #actions>
         <el-button :icon="Refresh" :loading="loading" @click="fetchData">
           刷新
         </el-button>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
     <!-- 任务统计概览 -->
     <el-row :gutter="20" class="stats-row">
@@ -75,6 +80,11 @@
         </div>
       </template>
 
+      <OrinAsyncState
+        :status="loading ? 'loading' : (taskList.length ? 'success' : 'empty')"
+        empty-text="当前状态下暂无任务"
+      >
+      <OrinDataTable compact>
       <el-table v-loading="loading" :data="taskList" :row-class-name="taskRowClassName" stripe>
         <el-table-column
           prop="taskId"
@@ -151,6 +161,8 @@
           </template>
         </el-table-column>
       </el-table>
+      </OrinDataTable>
+      </OrinAsyncState>
 
       <div class="pagination-wrapper">
         <el-pagination
@@ -244,7 +256,9 @@ import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh, Tickets, CircleCheck, Loading, Warning, CircleClose } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import {
   getTaskStatistics,
   getPendingPriorityStatistics,

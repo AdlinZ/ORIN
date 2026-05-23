@@ -324,22 +324,24 @@
               <el-divider content-position="left" style="margin: 16px 0;">
                 识别到的模型（共 {{ detectedModels.length }} 个）
               </el-divider>
-              <el-table :data="detectedModels" max-height="300" style="width: 100%">
-                <el-table-column prop="id" label="模型标识符" min-width="1000" />
-                <el-table-column prop="_sub_type" label="子类型" width="200" />
-                <el-table-column label="操作" width="150">
-                  <template #default="scope">
-                    <el-button
-                      type="primary"
-                      size="small"
-                      :icon="Plus"
-                      @click="importSingleModel(scope.row)"
-                    >
-                      导入
-                    </el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
+              <OrinDataTable compact>
+                <el-table :data="detectedModels" max-height="300" style="width: 100%">
+                  <el-table-column prop="id" label="模型标识符" min-width="1000" />
+                  <el-table-column prop="_sub_type" label="子类型" width="200" />
+                  <el-table-column label="操作" width="150">
+                    <template #default="scope">
+                      <el-button
+                        type="primary"
+                        size="small"
+                        :icon="Plus"
+                        @click="importSingleModel(scope.row)"
+                      >
+                        导入
+                      </el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </OrinDataTable>
               <div class="batch-actions">
                 <el-button
                   type="success"
@@ -684,9 +686,10 @@ import {
 } from '@element-plus/icons-vue';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinStepFlow from '@/components/orin/OrinStepFlow.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import { ElMessage } from 'element-plus';
 import { getExternalKeys } from '@/api/apiKey';
-import { saveModel } from '@/api/model';
+import { fetchModels, saveModel } from '@/api/model';
 import { getProviderList } from '@/api/system';
 
 const router = useRouter();
@@ -881,7 +884,29 @@ const handleSavedKeySelect = (id) => {
   }
 };
 
-// 一键导入 SiliconFlow 全部模型 - 获取模型列表
+const modelTypeToSubType = {
+  CHAT: 'chat',
+  EMBEDDING: 'embedding',
+  RERANKER: 'reranker',
+  RERANK: 'reranker',
+  TEXT_TO_IMAGE: 'text-to-image',
+  IMAGE_TO_IMAGE: 'image-to-image',
+  SPEECH_TO_TEXT: 'speech-to-text',
+  TEXT_TO_VIDEO: 'text-to-video',
+  IMAGE_TO_VIDEO: 'text-to-video',
+  TEXT_TO_SPEECH: 'text-to-speech'
+};
+
+const normalizeFetchedModel = (model) => {
+  const type = String(model.type || model.modelType || 'CHAT').toUpperCase();
+  return {
+    ...model,
+    id: model.id || model.modelId || model.name,
+    _sub_type: model._sub_type || model.subType || modelTypeToSubType[type] || 'chat'
+  };
+};
+
+// 一键导入 SiliconFlow 全部模型 - 通过后端代理获取模型列表
 const handleSiliconFlowBatchImport = async () => {
   if (!form.apiKey) {
     ElMessage.warning('请先输入 API Key');
@@ -891,31 +916,8 @@ const handleSiliconFlowBatchImport = async () => {
   isBatchImporting.value = true;
 
   try {
-    // 分别获取不同 sub_type 的模型
-    const subTypes = ['chat', 'embedding', 'reranker', 'text-to-image', 'image-to-image', 'speech-to-text', 'text-to-video'];
-    let allModels = [];
-
-    for (const subType of subTypes) {
-      const response = await fetch(`https://api.siliconflow.cn/v1/models?sub_type=${subType}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${form.apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const models = data.data || [];
-        // 为每个模型添加 sub_type 字段
-        models.forEach(m => {
-          m._sub_type = subType;
-        });
-        allModels = [...allModels, ...models];
-      }
-    }
-
-    console.log('SiliconFlow models:', allModels);
+    const endpoint = form.endpointUrl || 'https://api.siliconflow.cn/v1';
+    const allModels = (await fetchModels(endpoint, form.apiKey)).map(normalizeFetchedModel);
 
     if (allModels.length === 0) {
       ElMessage.warning('未获取到任何模型');
@@ -935,7 +937,6 @@ const handleSiliconFlowBatchImport = async () => {
 const importSingleModel = async (model) => {
   try {
     const modelType = getModelTypeFromSiliconFlow(model);
-    console.log('Importing model:', model.id, '_sub_type:', model._sub_type, 'mapped to:', modelType);
     await saveModel({
       name: model.id,
       modelId: model.id,
@@ -988,6 +989,7 @@ const importAllModels = async () => {
 const getModelTypeFromSiliconFlow = (model) => {
   // 使用 _sub_type (根据 API 查询参数设置的)
   const subType = model._sub_type;
+  const apiType = String(model.type || model.modelType || '').toUpperCase();
   const subTypeMap = {
     'chat': 'CHAT',
     'embedding': 'EMBEDDING',
@@ -995,11 +997,16 @@ const getModelTypeFromSiliconFlow = (model) => {
     'text-to-image': 'TEXT_TO_IMAGE',
     'image-to-image': 'TEXT_TO_IMAGE',
     'speech-to-text': 'SPEECH_TO_TEXT',
-    'text-to-video': 'TEXT_TO_VIDEO'
+    'text-to-video': 'TEXT_TO_VIDEO',
+    'image-to-video': 'TEXT_TO_VIDEO',
+    'text-to-speech': 'TEXT_TO_SPEECH'
   };
 
   if (subType && subTypeMap[subType]) {
     return subTypeMap[subType];
+  }
+  if (apiType && modelTypeToSubType[apiType]) {
+    return apiType === 'RERANK' ? 'RERANKER' : apiType;
   }
   return 'CHAT';
 };

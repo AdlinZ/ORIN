@@ -12,7 +12,6 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:revamp": "vitest run tests/unit/revamp*.test.js",
-    "flags:revamp:snapshot": "node scripts/revamp-flag-snapshot.mjs",
     "smoke:revamp": "node scripts/revamp-smoke.mjs",
     "acceptance:revamp": "node scripts/revamp-acceptance-checklist.mjs",
     "rollback:revamp:drill": "node scripts/revamp-rollback-drill.mjs",

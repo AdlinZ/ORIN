@@ -9,7 +9,7 @@ export default defineConfig({
   fullyParallel: true,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:5174',
+    baseURL: 'http://127.0.0.1:4174',
     trace: 'on-first-retry'
   },
   projects: [
@@ -19,9 +19,9 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 5174',
-    url: 'http://127.0.0.1:5174',
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4174',
+    url: 'http://127.0.0.1:4174',
+    reuseExistingServer: false,
     timeout: 120_000
   }
 })

@@ -1,22 +1,11 @@
 <template>
   <div class="trace-viewer server-workspace">
-    <section class="runtime-command-panel trace-command-panel">
-      <div class="runtime-command-head">
-        <div class="header-main">
-          <div class="header-icon">
-            <el-icon><Share /></el-icon>
-          </div>
-          <div>
-            <h2 class="header-title">
-              调用链路
-            </h2>
-            <div class="header-subtitle">
-              查看执行链路、步骤耗时与运行指标
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    <OrinPageShell
+      title="调用链路"
+      description="查看执行链路、步骤耗时与运行指标"
+      icon="Share"
+      domain="运行监控"
+    />
 
     <el-card class="search-card" shadow="never">
       <div class="search-row">
@@ -41,6 +30,11 @@
           <span>最近调用链路</span>
         </div>
       </template>
+      <OrinAsyncState
+        :status="recentLoading ? 'loading' : (recentTraces.length ? 'success' : 'empty')"
+        empty-text="暂无调用链路数据，请输入 traceId 搜索"
+      >
+      <OrinDataTable compact>
       <el-table
         v-loading="recentLoading"
         border
@@ -69,6 +63,8 @@
           </template>
         </el-table-column>
       </el-table>
+      </OrinDataTable>
+      </OrinAsyncState>
     </el-card>
 
     <template v-else>
@@ -182,6 +178,7 @@
 
               <div class="relation-section">
                 <h3>Workflow 任务</h3>
+                <OrinDataTable compact>
                 <el-table border :data="summary.workflowTasks || []" empty-text="暂无关联任务" size="small">
                   <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
                   <el-table-column prop="workflowInstanceId" label="实例ID" width="100" />
@@ -206,10 +203,12 @@
                     </template>
                   </el-table-column>
                 </el-table>
+                </OrinDataTable>
               </div>
 
               <div class="relation-section">
                 <h3>协作包</h3>
+                <OrinDataTable compact>
                 <el-table border :data="summary.collaborationPackages || []" empty-text="暂无关联协作包" size="small">
                   <el-table-column prop="packageId" label="Package ID" min-width="180" show-overflow-tooltip />
                   <el-table-column prop="status" label="状态" width="120" />
@@ -224,10 +223,12 @@
                     </template>
                   </el-table-column>
                 </el-table>
+                </OrinDataTable>
               </div>
 
               <div class="relation-section">
                 <h3>审计事件</h3>
+                <OrinDataTable compact>
                 <el-table border :data="summary.auditLogs || []" empty-text="暂无关联审计事件" size="small">
                   <el-table-column prop="id" label="审计ID" min-width="180" show-overflow-tooltip />
                   <el-table-column prop="method" label="方法" width="80" />
@@ -243,6 +244,7 @@
                   <el-table-column prop="responseTime" label="耗时(ms)" width="110" />
                   <el-table-column prop="errorMessage" label="错误摘要" min-width="180" show-overflow-tooltip />
                 </el-table>
+                </OrinDataTable>
               </div>
             </template>
           </div>
@@ -270,6 +272,11 @@
 
         <el-card class="table-card">
           <h3>步骤详情</h3>
+          <OrinAsyncState
+            :status="detailLoading ? 'loading' : (traces.length ? 'success' : 'empty')"
+            empty-text="未找到该 traceId 的调用链路"
+          >
+          <OrinDataTable compact>
           <el-table v-loading="detailLoading" border :data="traces" stripe>
             <el-table-column prop="stepName" label="步骤名称" min-width="150" />
             <el-table-column prop="skillName" label="技能名称" min-width="150" />
@@ -296,6 +303,8 @@
               </template>
             </el-table-column>
           </el-table>
+          </OrinDataTable>
+          </OrinAsyncState>
         </el-card>
       </template>
     </template>
@@ -354,8 +363,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getRecentTraces, getTrace, getTraceLink, getTraceStats, getTraceSummary, searchTraces } from '@/api/trace'
 import { ROUTES } from '@/router/routes'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import { RefreshRight, Search, Share } from '@element-plus/icons-vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const route = useRoute()
 const router = useRouter()

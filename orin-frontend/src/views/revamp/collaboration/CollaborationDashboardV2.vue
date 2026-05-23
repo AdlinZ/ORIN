@@ -239,51 +239,53 @@
         </div>
 
         <OrinAsyncState :status="subtasksState.status" empty-text="暂无子任务">
-          <el-table :data="subtasks" border stripe>
-            <el-table-column prop="subTaskId" label="子任务ID" width="120" show-overflow-tooltip />
-            <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
-            <el-table-column prop="expectedRole" label="角色" width="110" />
-            <el-table-column prop="status" label="状态" width="130">
-              <template #default="{ row }">
-                <el-tag :type="subtaskStatusTag(row.status)" size="small">
-                  {{ row.status }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="retryCount" label="重试" width="70" align="center" />
-            <el-table-column label="操作" width="190" fixed="right">
-              <template #default="{ row }">
-                <el-button
-                  v-if="canSkip(row)"
-                  link
-                  type="warning"
-                  :disabled="Boolean(operatingSubtaskId)"
-                  @click="handleSkipSubtask(row)"
-                >
-                  跳过
-                </el-button>
-                <el-button
-                  v-if="canManualComplete(row)"
-                  link
-                  type="success"
-                  :disabled="Boolean(operatingSubtaskId)"
-                  @click="handleManualCompleteSubtask(row)"
-                >
-                  手动完成
-                </el-button>
-                <el-button
-                  v-if="canRetry(row)"
-                  link
-                  type="primary"
-                  :disabled="Boolean(operatingSubtaskId)"
-                  @click="handleRetrySubtask(row)"
-                >
-                  重试
-                </el-button>
-                <span v-if="!hasSubtaskAction(row)" class="muted-action">-</span>
-              </template>
-            </el-table-column>
-          </el-table>
+          <OrinDataTable compact>
+            <el-table :data="subtasks" border stripe>
+              <el-table-column prop="subTaskId" label="子任务ID" width="120" show-overflow-tooltip />
+              <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
+              <el-table-column prop="expectedRole" label="角色" width="110" />
+              <el-table-column prop="status" label="状态" width="130">
+                <template #default="{ row }">
+                  <el-tag :type="subtaskStatusTag(row.status)" size="small">
+                    {{ row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="retryCount" label="重试" width="70" align="center" />
+              <el-table-column label="操作" width="190" fixed="right">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="canSkip(row)"
+                    link
+                    type="warning"
+                    :disabled="Boolean(operatingSubtaskId)"
+                    @click="handleSkipSubtask(row)"
+                  >
+                    跳过
+                  </el-button>
+                  <el-button
+                    v-if="canManualComplete(row)"
+                    link
+                    type="success"
+                    :disabled="Boolean(operatingSubtaskId)"
+                    @click="handleManualCompleteSubtask(row)"
+                  >
+                    手动完成
+                  </el-button>
+                  <el-button
+                    v-if="canRetry(row)"
+                    link
+                    type="primary"
+                    :disabled="Boolean(operatingSubtaskId)"
+                    @click="handleRetrySubtask(row)"
+                  >
+                    重试
+                  </el-button>
+                  <span v-if="!hasSubtaskAction(row)" class="muted-action">-</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
         </OrinAsyncState>
 
         <div class="drawer-section-header">

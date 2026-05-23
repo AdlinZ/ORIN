@@ -1,4 +1,27 @@
 <template>
+  <div class="graph-shell-page">
+    <OrinPageShell
+      title="知识图谱"
+      :description="graph?.description || '查看图谱实体、关系和构建状态'"
+      icon="Connection"
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="goBack">返回资产</el-button>
+        <el-button type="primary" :loading="building" @click="triggerBuild">构建图谱</el-button>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag :type="getStatusType(graph?.buildStatus)" effect="plain">
+            {{ getStatusText(graph?.buildStatus) }}
+          </el-tag>
+          <el-tag effect="plain">实体 {{ graph?.entityCount || 0 }}</el-tag>
+          <el-tag effect="plain">关系 {{ graph?.relationCount || 0 }}</el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
+
   <div class="graph-page">
     <!-- ── 顶部工具栏 ── -->
     <div class="top-bar">
@@ -156,6 +179,7 @@
       </transition>
     </div>
   </div>
+  </div>
 </template>
 
 <script setup>
@@ -165,7 +189,9 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft, Search, Refresh, Download, Close, Loading, ArrowRight, WarningFilled } from '@element-plus/icons-vue'
 import { getGraph, getGraphVisualization, searchGraphEntities, buildGraph, getGraphEntityDetails } from '@/api/knowledge'
 import { useTheme } from '@/composables/useTheme'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const route = useRoute()
 const router = useRouter()

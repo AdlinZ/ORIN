@@ -235,7 +235,6 @@ service.interceptors.response.use(
 
         if (shouldRetry) {
             config.retryCount += 1;
-            console.log(`重试请求 (${config.retryCount}/${MAX_RETRIES}): ${config.url}`);
 
             // 等待后重试
             await delay(RETRY_DELAY * config.retryCount);

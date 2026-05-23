@@ -1,5 +1,12 @@
 <template>
   <div class="alerts-logs-center">
+    <OrinPageShell
+      title="告警与日志"
+      description="把告警规则、告警历史与审计日志放在一个工作台里"
+      icon="Bell"
+      domain="运行监控"
+    />
+
     <section class="alerts-hero">
       <div class="hero-copy">
         <span class="hero-kicker">Runtime Operations</span>
@@ -50,6 +57,7 @@
 import { ref } from 'vue'
 import AlertManagement from '@/views/System/AlertManagement.vue'
 import AuditCenterV2 from '@/views/revamp/system/AuditCenterV2.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const activeTab = ref('rules')
 

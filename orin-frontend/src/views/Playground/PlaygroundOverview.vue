@@ -10,7 +10,10 @@ import {
   Users,
   Workflow as WorkflowIcon,
 } from "lucide-vue-next"
-import { fetchAgents, fetchWorkflows, fetchTemplates } from "./api"
+import OrinMetricStrip from "@/components/orin/OrinMetricStrip.vue"
+import OrinPageShell from "@/components/orin/OrinPageShell.vue"
+import { toPlaygroundSummaryViewModel } from "@/viewmodels"
+import { fetchAgents, fetchWorkflows, fetchTemplates } from "@/api/playground"
 
 const agents = ref([])
 const workflows = ref([])
@@ -40,6 +43,12 @@ const defaultWorkflowAgents = computed(() => {
     .filter(Boolean)
 })
 
+const overviewMetrics = computed(() => toPlaygroundSummaryViewModel({
+  agents: agents.value,
+  workflows: workflows.value,
+  templates: templates.value
+}).metrics)
+
 const workflowTypeLabels = {
   router_specialists: "路由专家",
   planner_executor: "规划执行",
@@ -61,31 +70,18 @@ const steps = [
 
 <template>
   <div class="po-root">
-    <!-- Header -->
-    <header class="po-topbar">
-      <div class="po-shell po-topbar-inner">
-        <div class="po-brand">
-          <div class="po-brand-mark">
-            <BrainCircuit :size="22" />
-          </div>
-          <div>
-            <h1>多智能体控制台</h1>
-            <p>多智能体编排与执行追踪系统</p>
-          </div>
-        </div>
-        <div class="po-topbar-right">
-          <div class="po-topbar-status">
-            <span class="po-chip po-chip-dark">MVP</span>
-            <Activity :size="14" class="po-status-icon" />
-            <span>系统就绪</span>
-          </div>
-        </div>
-      </div>
-    </header>
+    <OrinPageShell
+      title="多智能体控制台"
+      description="多智能体编排与执行追踪系统"
+      icon="Promotion"
+      domain="应用域"
+      maturity="beta"
+    />
 
     <!-- Page content -->
     <main class="po-shell po-main">
       <div class="po-page-stack">
+        <OrinMetricStrip :metrics="overviewMetrics" />
 
         <!-- Hero + Stats row -->
         <section class="po-overview-grid">

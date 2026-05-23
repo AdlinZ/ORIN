@@ -229,7 +229,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import request from '@/utils/request'
+import { createAlertRule, getAlertRules, updateAlertRule } from '@/api/alert'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinStepFlow from '@/components/orin/OrinStepFlow.vue'
 
@@ -757,7 +757,7 @@ const loadRule = async () => {
     return
   }
 
-  const rules = await request.get('/alerts/rules')
+  const rules = await getAlertRules()
   const rule = (rules || []).find(item => item.id === route.params.id)
   if (!rule) {
     ElMessage.error('告警规则不存在')
@@ -796,10 +796,10 @@ const saveRule = async () => {
   saving.value = true
   try {
     if (isEditMode.value) {
-      await request.put(`/alerts/rules/${route.params.id}`, payload)
+      await updateAlertRule(route.params.id, payload)
       ElMessage.success('规则更新成功')
     } else {
-      await request.post('/alerts/rules', payload)
+      await createAlertRule(payload)
       ElMessage.success('规则创建成功')
     }
     goBack()

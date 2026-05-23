@@ -46,9 +46,6 @@ const getUnauthorizedFallback = (from, userRoles = []) => {
 }
 
 const getSetupStatusCached = async (force = false) => {
-    if (window.sessionStorage.getItem(SETUP_COMPLETED_SESSION_KEY) === 'true' && !force) {
-        return { completed: true, canInitialize: false }
-    }
     const now = Date.now()
     if (!force && setupStatusCache && now - setupStatusFetchedAt < 10000) {
         return setupStatusCache

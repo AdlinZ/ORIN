@@ -222,73 +222,79 @@
           <el-tag effect="plain" round>{{ workflowTasks.length }} 条</el-tag>
         </div>
 
-        <el-table
-          v-if="selectedWorkflow"
-          v-loading="taskHistoryLoading"
-          :data="workflowTasks"
-          :row-class-name="taskHistoryRowClassName"
-          stripe
-          size="small"
-          class="task-history-table"
-          empty-text="该工作流暂无任务历史"
-        >
-          <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="workflowInstanceId" label="实例ID" width="110" />
-          <el-table-column prop="status" label="状态" width="110">
-            <template #default="{ row }">
-              <el-tag size="small" :type="taskStatusTagType(row.status)">
-                {{ row.status }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="retryCount" label="重试" width="80">
-            <template #default="{ row }">
-              {{ row.retryCount || 0 }} / {{ row.maxRetries || 0 }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="durationMs" label="耗时" width="100">
-            <template #default="{ row }">
-              {{ formatTaskDuration(row.durationMs) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="updatedAt" label="更新时间" width="170">
-            <template #default="{ row }">
-              {{ formatTime(row.updatedAt || row.createdAt) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="240" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                v-if="row.workflowInstanceId"
-                size="small"
-                text
-                type="primary"
-                :icon="Search"
-                @click="openTraceForTask(row)"
-              >
-                查看链路
-              </el-button>
-              <el-button
-                v-if="canReplayTask(row)"
-                size="small"
-                text
-                type="warning"
-                @click="replayTaskFromHistory(row)"
-              >
-                重放
-              </el-button>
-              <el-button
-                v-if="canCancelTask(row)"
-                size="small"
-                text
-                type="danger"
-                @click="cancelTaskFromHistory(row)"
-              >
-                取消
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <OrinDataTable v-if="selectedWorkflow" class="task-history-data-table" compact>
+          <OrinAsyncState
+            :status="taskHistoryState.status"
+            empty-text="该工作流暂无任务历史"
+            :error-text="taskHistoryErrorText"
+            @retry="loadTaskHistory"
+          >
+            <el-table
+              :data="workflowTasks"
+              :row-class-name="taskHistoryRowClassName"
+              stripe
+              size="small"
+              class="task-history-table"
+            >
+              <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="workflowInstanceId" label="实例ID" width="110" />
+              <el-table-column prop="status" label="状态" width="110">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="taskStatusTagType(row.status)">
+                    {{ row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="retryCount" label="重试" width="80">
+                <template #default="{ row }">
+                  {{ row.retryCount || 0 }} / {{ row.maxRetries || 0 }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="durationMs" label="耗时" width="100">
+                <template #default="{ row }">
+                  {{ formatTaskDuration(row.durationMs) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="updatedAt" label="更新时间" width="170">
+                <template #default="{ row }">
+                  {{ formatTime(row.updatedAt || row.createdAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="240" fixed="right">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="row.workflowInstanceId"
+                    size="small"
+                    text
+                    type="primary"
+                    :icon="Search"
+                    @click="openTraceForTask(row)"
+                  >
+                    查看链路
+                  </el-button>
+                  <el-button
+                    v-if="canReplayTask(row)"
+                    size="small"
+                    text
+                    type="warning"
+                    @click="replayTaskFromHistory(row)"
+                  >
+                    重放
+                  </el-button>
+                  <el-button
+                    v-if="canCancelTask(row)"
+                    size="small"
+                    text
+                    type="danger"
+                    @click="cancelTaskFromHistory(row)"
+                  >
+                    取消
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinAsyncState>
+        </OrinDataTable>
 
         <div class="execution-ledger-header">
           <div>
@@ -441,9 +447,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { ROUTES } from '@/router/routes'
-import request from '@/utils/request'
 import {
   createAsyncState,
   markEmpty,
@@ -451,11 +457,22 @@ import {
   markLoading,
   markSuccess,
   toWorkflowListViewModel,
+  toWorkflowInstanceViewModel,
+  toWorkflowTaskViewModel,
   toWorkflowStatsViewModel,
   workflowStatusLabel,
   workflowStatusTagType
 } from '@/viewmodels'
-import { executeWorkflow, getWorkflowInstances, getWorkflows } from '@/api/workflow'
+import {
+  cancelWorkflowTask,
+  executeWorkflow,
+  getWorkflowInstance,
+  getWorkflowInstances,
+  getWorkflowTask,
+  getWorkflowTaskHistory,
+  getWorkflows,
+  replayWorkflowTask
+} from '@/api/workflow'
 import { getTraceByInstance } from '@/api/trace'
 
 const router = useRouter()
@@ -463,6 +480,7 @@ const route = useRoute()
 
 const workflowState = reactive(createAsyncState())
 const instanceState = reactive(createAsyncState({ status: 'empty' }))
+const taskHistoryState = reactive(createAsyncState({ status: 'empty' }))
 
 const search = ref('')
 const workflows = ref([])
@@ -617,26 +635,7 @@ const canCancelLatestTask = computed(() => {
   return status === 'QUEUED'
 })
 
-const normalizeInstances = (payload) => {
-  const list = Array.isArray(payload?.data?.records)
-    ? payload.data.records
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload?.records)
-        ? payload.records
-        : Array.isArray(payload)
-          ? payload
-          : []
-
-  return list.map((item, index) => ({
-    id: item.id || item.instanceId || item.runId || `instance-${index}`,
-    status: item.status || item.state || 'UNKNOWN',
-    createdAt: item.createdAt || item.startTime || item.startedAt || null,
-    finishedAt: item.finishedAt || item.completedAt || item.endTime || null,
-    traceId: resolveTraceId(item),
-    raw: item
-  }))
-}
+const normalizeInstances = (payload) => toWorkflowInstanceViewModel(payload?.data?.records || payload?.data || payload?.records || payload)
 
 const resolveTraceId = (payload) => {
   if (!payload || typeof payload !== 'object') return ''
@@ -711,19 +710,23 @@ const loadInstances = async () => {
 const loadTaskHistory = async () => {
   if (!selectedWorkflow.value?.id) {
     workflowTasks.value = []
+    markEmpty(taskHistoryState)
     return
   }
 
   taskHistoryLoading.value = true
+  markLoading(taskHistoryState)
   try {
-    const response = await request.get(`/api/v1/workflow-tasks/workflow/${selectedWorkflow.value.id}`, {
-      baseURL: '',
-      params: { page: 0, size: 20 }
-    })
+    const response = await getWorkflowTaskHistory(selectedWorkflow.value.id, { page: 0, size: 20 })
     const payload = response?.data ?? response
-    const rows = Array.isArray(payload?.content) ? payload.content : []
-    workflowTasks.value = rows
+    workflowTasks.value = toWorkflowTaskViewModel(payload?.content || payload)
+    if (workflowTasks.value.length) {
+      markSuccess(taskHistoryState)
+    } else {
+      markEmpty(taskHistoryState)
+    }
   } catch (error) {
+    markError(taskHistoryState, error)
     ElMessage.error(formatRequestError(error, '任务历史加载失败'))
     workflowTasks.value = []
   } finally {
@@ -806,7 +809,7 @@ const queryLatestTask = async () => {
   if (!taskId) return null
   taskStatusLoading.value = true
   try {
-    const response = await request.get(`/api/v1/workflow-tasks/${taskId}`, { baseURL: '' })
+    const response = await getWorkflowTask(taskId)
     taskStatusResult.value = response?.data ?? response
     await loadTaskHistory()
     const instanceId = taskStatusResult.value?.workflowInstanceId || latestExecutionObject.value?.workflowInstanceId
@@ -824,7 +827,7 @@ const queryLatestTask = async () => {
 
 const loadInstanceDetail = async (instanceId) => {
   try {
-    const response = await request.get(`/api/workflows/instances/${instanceId}`, { baseURL: '' })
+    const response = await getWorkflowInstance(instanceId)
     latestInstanceDetail.value = response?.data ?? response
   } catch (error) {
     console.warn('Failed to load workflow instance detail:', error)
@@ -839,7 +842,7 @@ const selectInstance = async (row, options = {}) => {
     detailDrawerVisible.value = true
   }
   try {
-    const response = await request.get(`/api/workflows/instances/${row.id}`, { baseURL: '' })
+    const response = await getWorkflowInstance(row.id)
     selectedInstanceDetail.value = response?.data ?? response
   } catch (error) {
     selectedInstanceDetail.value = null
@@ -886,7 +889,7 @@ const replayLatestTask = async () => {
   try {
     const taskContext = taskStatusResult.value || latestExecutionObject.value || { taskId }
     await confirmReplayTask(taskContext)
-    const response = await request.post(`/api/v1/workflow-tasks/${taskId}/replay`, null, { baseURL: '' })
+    const response = await replayWorkflowTask(taskId)
     const payload = response?.data ?? response
     highlightedTaskId.value = payload.newTaskId || payload.taskId || ''
     latestExecutionObject.value = {
@@ -914,7 +917,7 @@ const cancelLatestTask = async () => {
   try {
     const taskContext = taskStatusResult.value || latestExecutionObject.value || { taskId }
     await confirmCancelTask(taskContext)
-    const response = await request.post(`/api/v1/workflow-tasks/${taskId}/cancel`, null, { baseURL: '' })
+    const response = await cancelWorkflowTask(taskId)
     const payload = response?.data ?? response
     taskStatusResult.value = payload
     highlightedTaskId.value = taskId
@@ -943,7 +946,7 @@ const replayTaskFromHistory = async (task) => {
   taskStatusLoading.value = true
   try {
     await confirmReplayTask(task)
-    const response = await request.post(`/api/v1/workflow-tasks/${task.taskId}/replay`, null, { baseURL: '' })
+    const response = await replayWorkflowTask(task.taskId)
     const payload = response?.data ?? response
     highlightedTaskId.value = payload.newTaskId || payload.taskId || ''
     latestExecutionObject.value = {
@@ -969,7 +972,7 @@ const cancelTaskFromHistory = async (task) => {
   taskStatusLoading.value = true
   try {
     await confirmCancelTask(task)
-    const response = await request.post(`/api/v1/workflow-tasks/${task.taskId}/cancel`, null, { baseURL: '' })
+    const response = await cancelWorkflowTask(task.taskId)
     taskStatusResult.value = response?.data ?? response
     highlightedTaskId.value = task.taskId
     ElMessage.success('排队任务已取消')
@@ -1163,6 +1166,12 @@ const formatRequestError = (error, fallback) => {
   if (message.includes('timeout')) return '请求超时，请检查网络连接'
   return message || fallback
 }
+
+const taskHistoryErrorText = computed(() => {
+  const error = taskHistoryState.error
+  if (!error) return '任务历史加载失败，请稍后重试'
+  return formatRequestError(error, '任务历史加载失败')
+})
 
 const formatScore = (value) => {
   const number = Number(value)

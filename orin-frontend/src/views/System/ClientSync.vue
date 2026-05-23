@@ -103,67 +103,71 @@
             </div>
           </div>
 
-          <el-table v-loading="changesLoading" :data="changes" stripe>
-            <template #empty>
-              <el-empty description="暂无变更记录" :image-size="80" />
-            </template>
-            <el-table-column
-              prop="agentId"
-              label="Agent"
-              width="170"
-              show-overflow-tooltip
-            />
-            <el-table-column
-              prop="documentId"
-              label="文档ID"
-              width="200"
-              show-overflow-tooltip
-            />
-            <el-table-column
-              prop="knowledgeBaseId"
-              label="知识库ID"
-              width="150"
-              show-overflow-tooltip
-            />
-            <el-table-column prop="changeType" label="变更类型" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getChangeTypeTag(row.changeType)" size="small">
-                  {{ row.changeType }}
-                </el-tag>
+          <OrinDataTable compact>
+            <el-table v-loading="changesLoading" :data="changes" stripe>
+              <template #empty>
+                <el-empty description="暂无变更记录" :image-size="80" />
               </template>
-            </el-table-column>
-            <el-table-column prop="version" label="版本" width="80" />
-            <el-table-column
-              prop="contentHash"
-              label="Hash"
-              width="150"
-              show-overflow-tooltip
-            />
-            <el-table-column prop="changedAt" label="变更时间" width="180">
-              <template #default="{ row }">
-                {{ formatDateTime(row.changedAt) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="synced" label="已同步" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.synced ? 'success' : 'warning'" size="small">
-                  {{ row.synced ? '是' : '否' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
+              <el-table-column
+                prop="agentId"
+                label="Agent"
+                width="170"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="documentId"
+                label="文档ID"
+                width="200"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="knowledgeBaseId"
+                label="知识库ID"
+                width="150"
+                show-overflow-tooltip
+              />
+              <el-table-column prop="changeType" label="变更类型" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getChangeTypeTag(row.changeType)" size="small">
+                    {{ row.changeType }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="version" label="版本" width="80" />
+              <el-table-column
+                prop="contentHash"
+                label="Hash"
+                width="150"
+                show-overflow-tooltip
+              />
+              <el-table-column prop="changedAt" label="变更时间" width="180">
+                <template #default="{ row }">
+                  {{ formatDateTime(row.changedAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="synced" label="已同步" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.synced ? 'success' : 'warning'" size="small">
+                    {{ row.synced ? '是' : '否' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
 
-          <div class="pagination-wrapper">
-            <el-pagination
-              v-model:current-page="changesPage"
-              v-model:page-size="changesSize"
-              :total="changesTotal"
-              :page-sizes="[10, 20, 50]"
-              layout="total, sizes, prev, pager, next"
-              @size-change="loadChanges"
-              @current-change="loadChanges"
-            />
-          </div>
+            <template #footer>
+              <div class="pagination-wrapper">
+                <el-pagination
+                  v-model:current-page="changesPage"
+                  v-model:page-size="changesSize"
+                  :total="changesTotal"
+                  :page-sizes="[10, 20, 50]"
+                  layout="total, sizes, prev, pager, next"
+                  @size-change="loadChanges"
+                  @current-change="loadChanges"
+                />
+              </div>
+            </template>
+          </OrinDataTable>
         </div>
 
         <!-- Webhook -->
@@ -177,68 +181,70 @@
             </div>
           </div>
 
-          <el-table v-loading="webhooksLoading" :data="webhooks">
-            <template #empty>
-              <el-empty description="暂无 Webhook 配置" :image-size="80" />
-            </template>
-            <el-table-column
-              prop="agentId"
-              label="Agent"
-              width="170"
-              show-overflow-tooltip
-            />
-            <el-table-column prop="webhookUrl" label="URL" show-overflow-tooltip />
-            <el-table-column prop="eventTypes" label="事件类型" width="220">
-              <template #default="{ row }">
-                <el-tag
-                  v-for="event in (row.eventTypes || '').split(',').filter(Boolean)"
-                  :key="event"
-                  size="small"
-                  class="event-tag"
-                >
-                  {{ event }}
-                </el-tag>
+          <OrinDataTable compact>
+            <el-table v-loading="webhooksLoading" :data="webhooks">
+              <template #empty>
+                <el-empty description="暂无 Webhook 配置" :image-size="80" />
               </template>
-            </el-table-column>
-            <el-table-column prop="enabled" label="状态" width="90">
-              <template #default="{ row }">
-                <el-tag :type="row.disabled ? 'danger' : row.enabled ? 'success' : 'info'" size="small">
-                  {{ row.disabled ? '已失效' : row.enabled ? '启用' : '禁用' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="failureCount" label="失败次数" width="90">
-              <template #default="{ row }">
-                <span :class="{ 'text-danger': row.failureCount > 0 }">{{ row.failureCount || 0 }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="lastFailureTime" label="最后失败" width="160">
-              <template #default="{ row }">
-                {{ row.lastFailureTime ? formatDateTime(row.lastFailureTime) : '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="160">
-              <template #default="{ row }">
-                <el-button
-                  v-if="row.disabled"
-                  type="primary"
-                  size="small"
-                  text
-                  @click="handleReenableWebhook(row.id)"
-                >
-                  重新启用
-                </el-button>
-                <el-button
-                  type="danger"
-                  size="small"
-                  text
-                  @click="handleDeleteWebhook(row.id)"
-                >
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+              <el-table-column
+                prop="agentId"
+                label="Agent"
+                width="170"
+                show-overflow-tooltip
+              />
+              <el-table-column prop="webhookUrl" label="URL" show-overflow-tooltip />
+              <el-table-column prop="eventTypes" label="事件类型" width="220">
+                <template #default="{ row }">
+                  <el-tag
+                    v-for="event in (row.eventTypes || '').split(',').filter(Boolean)"
+                    :key="event"
+                    size="small"
+                    class="event-tag"
+                  >
+                    {{ event }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="enabled" label="状态" width="90">
+                <template #default="{ row }">
+                  <el-tag :type="row.disabled ? 'danger' : row.enabled ? 'success' : 'info'" size="small">
+                    {{ row.disabled ? '已失效' : row.enabled ? '启用' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="failureCount" label="失败次数" width="90">
+                <template #default="{ row }">
+                  <span :class="{ 'text-danger': row.failureCount > 0 }">{{ row.failureCount || 0 }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="lastFailureTime" label="最后失败" width="160">
+                <template #default="{ row }">
+                  {{ row.lastFailureTime ? formatDateTime(row.lastFailureTime) : '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="160">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="row.disabled"
+                    type="primary"
+                    size="small"
+                    text
+                    @click="handleReenableWebhook(row.id)"
+                  >
+                    重新启用
+                  </el-button>
+                  <el-button
+                    type="danger"
+                    size="small"
+                    text
+                    @click="handleDeleteWebhook(row.id)"
+                  >
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
         </div>
 
         <!-- Dify 同步 -->
@@ -419,6 +425,7 @@ import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, List, Promotion, Link } from '@element-plus/icons-vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import {
   getClientChanges,
   getClientCheckpoint,

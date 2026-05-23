@@ -1,11 +1,12 @@
 <template>
   <div class="page-container">
     <div class="tab-wrapper-card">
-      <OrinEntityHeader
+      <OrinPageShell
         v-if="!embedded"
         :title="selfService ? 'API Key 自助' : 'API 密钥'"
         :description="selfService ? '创建和管理你自己的平台访问密钥，用于调用 ORIN MCP 与开放网关能力' : '管理平台访问密钥、供应商凭据、调用额度与限流策略'"
-        :domain="selfService ? '个人访问' : '组织权限'"
+        :domain="selfService ? '个人访问' : '系统控制'"
+        icon="Key"
       >
         <template #actions>
           <el-button
@@ -25,7 +26,7 @@
             添加供应商密钥
           </el-button>
         </template>
-      </OrinEntityHeader>
+      </OrinPageShell>
 
       <div v-else class="embedded-access-toolbar">
         <div>
@@ -495,41 +496,41 @@
           </el-descriptions-item>
         </el-descriptions>
 
-        <el-table
-          v-if="usageData"
-          class="usage-events-table"
-          :data="usageData.recentEvents || []"
-          border
-          stripe
-          max-height="320"
-        >
-          <el-table-column prop="createdAt" label="时间" width="170">
-            <template #default="{ row }">
-              {{ formatDateTime(row.createdAt) || '-' }}
+        <OrinDataTable v-if="usageData" compact class="usage-events-table">
+          <el-table
+            :data="usageData.recentEvents || []"
+            border
+            stripe
+            max-height="320"
+          >
+            <el-table-column prop="createdAt" label="时间" width="170">
+              <template #default="{ row }">
+                {{ formatDateTime(row.createdAt) || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="source" label="来源" width="90" />
+            <el-table-column prop="method" label="方法" width="80" />
+            <el-table-column prop="path" label="路径" min-width="190" show-overflow-tooltip />
+            <el-table-column prop="statusCode" label="状态码" width="90" />
+            <el-table-column label="结果" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.success ? 'success' : 'danger'" size="small">
+                  {{ row.success ? '成功' : '失败' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="耗时" width="90">
+              <template #default="{ row }">
+                {{ formatLatency(row.latencyMs) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="traceId" label="Trace ID" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="errorSummary" label="错误摘要" min-width="180" show-overflow-tooltip />
+            <template #empty>
+              <OrinEmptyState description="暂无调用历史" />
             </template>
-          </el-table-column>
-          <el-table-column prop="source" label="来源" width="90" />
-          <el-table-column prop="method" label="方法" width="80" />
-          <el-table-column prop="path" label="路径" min-width="190" show-overflow-tooltip />
-          <el-table-column prop="statusCode" label="状态码" width="90" />
-          <el-table-column label="结果" width="90">
-            <template #default="{ row }">
-              <el-tag :type="row.success ? 'success' : 'danger'" size="small">
-                {{ row.success ? '成功' : '失败' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="耗时" width="90">
-            <template #default="{ row }">
-              {{ formatLatency(row.latencyMs) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="traceId" label="Trace ID" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="errorSummary" label="错误摘要" min-width="180" show-overflow-tooltip />
-          <template #empty>
-            <OrinEmptyState description="暂无调用历史" />
-          </template>
-        </el-table>
+          </el-table>
+        </OrinDataTable>
       </div>
       <template #footer>
         <el-button @click="usageDialogVisible = false">
@@ -543,7 +544,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Plus, CopyDocument } from '@element-plus/icons-vue';
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue';
 import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';

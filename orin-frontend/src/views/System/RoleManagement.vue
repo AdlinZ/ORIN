@@ -1,9 +1,10 @@
 <template>
   <div class="role-management fade-in">
-    <OrinEntityHeader
-      domain="组织权限"
+    <OrinPageShell
+      domain="系统控制"
       title="角色管理"
       description="配置系统角色及其菜单与操作权限，区分系统保护角色与自定义治理角色。"
+      icon="UserFilled"
     >
       <template #actions>
         <el-button type="primary" class="create-btn" @click="handleCreate">
@@ -31,7 +32,7 @@
           </el-button>
         </div>
       </template>
-    </OrinEntityHeader>
+    </OrinPageShell>
 
     <OrinStatusSummary :items="roleStatusItems" class="governance-summary" />
 
@@ -47,86 +48,95 @@
         </el-tag>
       </div>
 
-      <el-table
-        v-loading="loading"
-        border
-        :data="filteredRoles"
-        style="width: 100%"
-        class="premium-table"
-        :header-cell-style="{ background: 'transparent', color: 'var(--el-text-color-secondary)' }"
+      <OrinAsyncState
+        :status="loading ? 'loading' : filteredRoles.length > 0 ? 'success' : 'empty'"
+        empty-text="暂无角色数据"
+        empty-action-label="创建角色"
+        @retry="loadRoles"
+        @empty-action="handleCreate"
       >
-        <el-table-column prop="roleCode" label="角色代码" min-width="150">
-          <template #default="{ row }">
-            <span :class="['role-code', row.roleCode === 'ROLE_ADMIN' ? 'admin' : '']">
-              {{ row.roleCode }}
-            </span>
-          </template>
-        </el-table-column>
+        <OrinDataTable compact>
+          <el-table
+            border
+            :data="filteredRoles"
+            style="width: 100%"
+            class="premium-table"
+            :header-cell-style="{ background: 'transparent', color: 'var(--el-text-color-secondary)' }"
+          >
+            <el-table-column prop="roleCode" label="角色代码" min-width="150">
+              <template #default="{ row }">
+                <span :class="['role-code', row.roleCode === 'ROLE_ADMIN' ? 'admin' : '']">
+                  {{ row.roleCode }}
+                </span>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="roleName" label="角色名称" min-width="150" />
+            <el-table-column prop="roleName" label="角色名称" min-width="150" />
 
-        <el-table-column label="角色类型" width="130">
-          <template #default="{ row }">
-            <el-tag :type="isSystemRole(row.roleCode) ? 'success' : 'info'" effect="plain" size="small">
-              {{ isSystemRole(row.roleCode) ? '系统角色' : '自定义角色' }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            <el-table-column label="角色类型" width="130">
+              <template #default="{ row }">
+                <el-tag :type="isSystemRole(row.roleCode) ? 'success' : 'info'" effect="plain" size="small">
+                  {{ isSystemRole(row.roleCode) ? '系统角色' : '自定义角色' }}
+                </el-tag>
+              </template>
+            </el-table-column>
 
-        <el-table-column label="权限范围" min-width="180">
-          <template #default="{ row }">
-            <span class="scope-text">{{ getRoleScope(row.roleCode) }}</span>
-          </template>
-        </el-table-column>
+            <el-table-column label="权限范围" min-width="180">
+              <template #default="{ row }">
+                <span class="scope-text">{{ getRoleScope(row.roleCode) }}</span>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="description" label="描述" min-width="250">
-          <template #default="{ row }">
-            <span class="description-text">{{ row.description || '-' }}</span>
-          </template>
-        </el-table-column>
+            <el-table-column prop="description" label="描述" min-width="250">
+              <template #default="{ row }">
+                <span class="description-text">{{ row.description || '-' }}</span>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="createTime" label="创建时间" width="180">
-          <template #default="{ row }">
-            <span class="time-text">{{ formatDate(row.createTime) }}</span>
-          </template>
-        </el-table-column>
+            <el-table-column prop="createTime" label="创建时间" width="180">
+              <template #default="{ row }">
+                <span class="time-text">{{ formatDate(row.createTime) }}</span>
+              </template>
+            </el-table-column>
 
-        <el-table-column label="保护状态" width="120" align="center">
-          <template #default="{ row }">
-            <span class="protection-pill" :class="{ locked: isSystemRole(row.roleCode) }">
-              {{ isSystemRole(row.roleCode) ? '受保护' : '可维护' }}
-            </span>
-          </template>
-        </el-table-column>
+            <el-table-column label="保护状态" width="120" align="center">
+              <template #default="{ row }">
+                <span class="protection-pill" :class="{ locked: isSystemRole(row.roleCode) }">
+                  {{ isSystemRole(row.roleCode) ? '受保护' : '可维护' }}
+                </span>
+              </template>
+            </el-table-column>
 
-        <el-table-column
-          label="操作"
-          fixed="right"
-          width="150"
-          align="center"
-        >
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-tooltip content="编辑" placement="top" :show-after="500">
-                <el-button link class="action-btn edit" @click="handleEdit(row)">
-                  <el-icon><Edit /></el-icon>
-                </el-button>
-              </el-tooltip>
+            <el-table-column
+              label="操作"
+              fixed="right"
+              width="150"
+              align="center"
+            >
+              <template #default="{ row }">
+                <div class="action-buttons">
+                  <el-tooltip content="编辑" placement="top" :show-after="500">
+                    <el-button link class="action-btn edit" @click="handleEdit(row)">
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                  </el-tooltip>
 
-              <el-tooltip :content="isSystemRole(row.roleCode) ? '系统角色不可删除' : '删除'" placement="top" :show-after="500">
-                <el-button
-                  link
-                  class="action-btn delete"
-                  :disabled="isSystemRole(row.roleCode)"
-                  @click="handleDelete(row)"
-                >
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+                  <el-tooltip :content="isSystemRole(row.roleCode) ? '系统角色不可删除' : '删除'" placement="top" :show-after="500">
+                    <el-button
+                      link
+                      class="action-btn delete"
+                      :disabled="isSystemRole(row.roleCode)"
+                      @click="handleDelete(row)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </OrinDataTable>
+      </OrinAsyncState>
 
       <!-- 分页 -->
       <div class="pagination-wrapper">
@@ -204,7 +214,9 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Refresh } from '@element-plus/icons-vue'
 import { getRoleList, createRole, updateRole, deleteRole } from '@/api/role'
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 // 数据状态

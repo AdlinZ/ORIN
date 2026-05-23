@@ -1,5 +1,12 @@
 <template>
   <div class="dashboard-home command-center-root">
+    <OrinPageShell
+      title="监控总览"
+      description="服务健康、调用趋势、节点状态与待处理异常"
+      icon="DataAnalysis"
+      domain="运行监控"
+    />
+
     <header class="page-header cc-header-glass">
       <!-- 1. 品牌区 -->
       <div class="header-brand">
@@ -447,6 +454,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import { getAgentList } from '@/api/agent'
 import { getDashboardSummary } from '@/api/dashboard'
 import {

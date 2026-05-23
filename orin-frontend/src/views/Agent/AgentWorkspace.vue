@@ -1205,7 +1205,7 @@ import {
   fetchWorkflows as fetchPlaygroundWorkflows,
   runWorkflow,
   runWorkflowStream
-} from '@/views/Playground/api';
+} from '@/api/playground';
 import GraphViewer from '@/views/Playground/components/GraphViewer.vue';
 import TraceViewer from '@/views/Playground/components/TraceViewer.vue';
 import { createUiI18n, I18N_KEY } from '@/views/Playground/i18n';

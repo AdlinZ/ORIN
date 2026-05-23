@@ -1,41 +1,21 @@
 <template>
   <div class="file-management page-container fade-in" :class="{ embedded }">
     <section class="file-shell">
-      <header v-if="!embedded" class="file-topbar">
-        <div class="topbar-copy">
-          <span class="topbar-eyebrow">系统设置</span>
-          <h1>文件管理</h1>
-          <p>管理多模态生成文件、文件类型、存储占用与下载入口。</p>
-        </div>
-        <div class="topbar-actions">
+      <OrinPageShell
+        v-if="!embedded"
+        title="文件管理"
+        description="管理多模态生成文件、文件类型、存储占用与下载入口"
+        icon="FolderOpened"
+        domain="系统设置"
+      >
+        <template #actions>
           <el-button :icon="Refresh" :loading="loading" @click="fetchFiles">
             刷新
           </el-button>
-        </div>
-      </header>
+        </template>
+      </OrinPageShell>
 
-      <section class="summary-grid">
-        <article class="summary-card primary">
-          <span>文件总数</span>
-          <strong>{{ stats.totalFiles || 0 }}</strong>
-          <p>当前存储中的全部资源</p>
-        </article>
-        <article class="summary-card">
-          <span>图片</span>
-          <strong>{{ stats.imageCount || 0 }}</strong>
-          <p>图像生成和上传资源</p>
-        </article>
-        <article class="summary-card">
-          <span>视频</span>
-          <strong>{{ stats.videoCount || 0 }}</strong>
-          <p>视频生成与转码产物</p>
-        </article>
-        <article class="summary-card">
-          <span>音频 / 文档</span>
-          <strong>{{ (stats.audioCount || 0) + (stats.documentCount || 0) }}</strong>
-          <p>音频 {{ stats.audioCount || 0 }} · 文档 {{ stats.documentCount || 0 }}</p>
-        </article>
-      </section>
+      <OrinMetricStrip :metrics="fileMetrics" />
 
       <section class="file-workspace">
         <div class="workspace-head">
@@ -78,109 +58,113 @@
           </el-button>
         </div>
 
-        <el-table
-          v-loading="loading"
-          :data="filteredFiles"
-          row-key="id"
-          class="file-table"
-          empty-text="暂无文件资源，请调整筛选或等待生成任务产出"
-        >
-          <el-table-column label="预览" width="86" align="center">
-            <template #default="{ row }">
-              <div class="file-preview">
-                <el-image
-                  v-if="row.fileType === 'IMAGE' && row.thumbnailPath"
-                  :src="`/api/v1/multimodal/files/${row.id}/thumbnail`"
-                  :preview-src-list="[`/api/v1/multimodal/files/${row.id}/download`]"
-                  fit="cover"
-                  class="preview-img"
-                />
-                <div v-else class="file-icon-card" :class="getFileTypeClass(row.fileType)">
-                  <el-icon :size="22">
-                    <component :is="getFileIcon(row.fileType)" />
-                  </el-icon>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="文件" min-width="300">
-            <template #default="{ row }">
-              <div class="file-copy">
-                <strong>{{ row.fileName }}</strong>
-                <span>{{ row.id }}</span>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="类型" width="120">
-            <template #default="{ row }">
-              <el-tag size="small" effect="light" :type="getFileTypeTag(row.fileType)">
-                {{ getFileTypeLabel(row.fileType) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="大小" width="120">
-            <template #default="{ row }">
-              <span class="muted-text">{{ formatFileSize(row.fileSize) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="上传者" width="140">
-            <template #default="{ row }">
-              <span class="muted-text">{{ row.uploadedBy || 'system' }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="上传时间" width="180">
-            <template #default="{ row }">
-              <span class="time-text">{{ formatDateTime(row.uploadedAt) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column
-            label="操作"
-            width="130"
-            align="right"
-            fixed="right"
+        <OrinDataTable compact>
+          <el-table
+            v-loading="loading"
+            :data="filteredFiles"
+            row-key="id"
+            class="file-table"
+            empty-text="暂无文件资源，请调整筛选或等待生成任务产出"
           >
-            <template #default="{ row }">
-              <div class="action-buttons">
-                <el-tooltip content="下载文件" placement="top">
-                  <el-button
-                    link
-                    type="primary"
-                    :icon="Download"
-                    @click="downloadFile(row)"
+            <el-table-column label="预览" width="86" align="center">
+              <template #default="{ row }">
+                <div class="file-preview">
+                  <el-image
+                    v-if="row.fileType === 'IMAGE' && row.thumbnailPath"
+                    :src="`/api/v1/multimodal/files/${row.id}/thumbnail`"
+                    :preview-src-list="[`/api/v1/multimodal/files/${row.id}/download`]"
+                    fit="cover"
+                    class="preview-img"
                   />
-                </el-tooltip>
-                <el-tooltip content="删除文件" placement="top">
-                  <el-button
-                    link
-                    type="danger"
-                    :icon="Delete"
-                    :loading="deleting && currentFile?.id === row.id"
-                    @click="confirmDelete(row)"
-                  />
-                </el-tooltip>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+                  <div v-else class="file-icon-card" :class="getFileTypeClass(row.fileType)">
+                    <el-icon :size="22">
+                      <component :is="getFileIcon(row.fileType)" />
+                    </el-icon>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
 
-        <div class="table-footer">
-          <span>第 {{ currentPage }} 页 · 每页 {{ pageSize }} 条</span>
-          <el-pagination
-            v-if="totalFiles > pageSize"
-            v-model:current-page="currentPage"
-            :page-size="pageSize"
-            :total="totalFiles"
-            layout="prev, pager, next"
-            small
-            @current-change="handlePageChange"
-          />
-        </div>
+            <el-table-column label="文件" min-width="300">
+              <template #default="{ row }">
+                <div class="file-copy">
+                  <strong>{{ row.fileName }}</strong>
+                  <span>{{ row.id }}</span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="类型" width="120">
+              <template #default="{ row }">
+                <el-tag size="small" effect="light" :type="getFileTypeTag(row.fileType)">
+                  {{ getFileTypeLabel(row.fileType) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="大小" width="120">
+              <template #default="{ row }">
+                <span class="muted-text">{{ formatFileSize(row.fileSize) }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="上传者" width="140">
+              <template #default="{ row }">
+                <span class="muted-text">{{ row.uploadedBy || 'system' }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="上传时间" width="180">
+              <template #default="{ row }">
+                <span class="time-text">{{ formatDateTime(row.uploadedAt) }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column
+              label="操作"
+              width="130"
+              align="right"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <div class="action-buttons">
+                  <el-tooltip content="下载文件" placement="top">
+                    <el-button
+                      link
+                      type="primary"
+                      :icon="Download"
+                      @click="downloadFile(row)"
+                    />
+                  </el-tooltip>
+                  <el-tooltip content="删除文件" placement="top">
+                    <el-button
+                      link
+                      type="danger"
+                      :icon="Delete"
+                      :loading="deleting && currentFile?.id === row.id"
+                      @click="confirmDelete(row)"
+                    />
+                  </el-tooltip>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <template #footer>
+            <div class="table-footer">
+              <span>第 {{ currentPage }} 页 · 每页 {{ pageSize }} 条</span>
+              <el-pagination
+                v-if="totalFiles > pageSize"
+                v-model:current-page="currentPage"
+                :page-size="pageSize"
+                :total="totalFiles"
+                layout="prev, pager, next"
+                small
+                @current-change="handlePageChange"
+              />
+            </div>
+          </template>
+        </OrinDataTable>
       </section>
     </section>
   </div>
@@ -199,7 +183,15 @@ import {
   Search,
   VideoCamera
 } from '@element-plus/icons-vue'
-import request from '@/utils/request'
+import {
+  deleteMultimodalFile,
+  getMultimodalFiles,
+  getMultimodalFilesByType,
+  getMultimodalStats
+} from '@/api/multimodal'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 defineProps({
   embedded: {
@@ -227,13 +219,23 @@ const pageSize = ref(20)
 const totalFiles = ref(0)
 const currentFile = ref(null)
 
+const fileMetrics = computed(() => [
+  { label: '文件总数', value: stats.value.totalFiles || 0, meta: '当前存储中的全部资源' },
+  { label: '图片', value: stats.value.imageCount || 0, meta: '图像生成和上传资源' },
+  { label: '视频', value: stats.value.videoCount || 0, meta: '视频生成与转码产物' },
+  {
+    label: '音频 / 文档',
+    value: (stats.value.audioCount || 0) + (stats.value.documentCount || 0),
+    meta: `音频 ${stats.value.audioCount || 0} · 文档 ${stats.value.documentCount || 0}`
+  }
+])
+
 const fetchFiles = async () => {
   loading.value = true
   try {
-    const url = fileTypeFilter.value
-      ? `/multimodal/files/type/${fileTypeFilter.value}`
-      : '/multimodal/files'
-    const data = await request.get(url)
+    const data = fileTypeFilter.value
+      ? await getMultimodalFilesByType(fileTypeFilter.value)
+      : await getMultimodalFiles()
     files.value = Array.isArray(data) ? data : []
     totalFiles.value = files.value.length
 
@@ -248,7 +250,7 @@ const fetchFiles = async () => {
 
 const fetchStats = async () => {
   try {
-    const data = await request.get('/multimodal/stats')
+    const data = await getMultimodalStats()
     stats.value = data
   } catch (error) {
     console.error('获取统计信息失败', error)
@@ -317,7 +319,7 @@ const deleteFile = async () => {
 
   deleting.value = true
   try {
-    await request.delete(`/multimodal/files/${currentFile.value.id}`)
+    await deleteMultimodalFile(currentFile.value.id)
     ElMessage.success('文件删除成功')
     currentFile.value = null
     await fetchFiles()

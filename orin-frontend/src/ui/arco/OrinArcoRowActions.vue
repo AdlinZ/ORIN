@@ -39,6 +39,11 @@
 
 <script setup>
 import { computed } from 'vue'
+import AButton from '@arco-design/web-vue/es/button'
+import ADoption from '@arco-design/web-vue/es/dropdown/dropdown-option'
+import ADropdown from '@arco-design/web-vue/es/dropdown'
+import '@arco-design/web-vue/es/button/style/css'
+import '@arco-design/web-vue/es/dropdown/style/css'
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },

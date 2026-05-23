@@ -1,6 +1,7 @@
 import Cookies from "js-cookie"
+import requestClient from "@/utils/request"
 
-const PLAYGROUND_BASE_URL = import.meta.env.VITE_PLAYGROUND_API_URL || "/api/playground"
+const PLAYGROUND_BASE_URL = "/api/playground"
 
 function resolveApiUrl(path) {
   const normalizedPath = String(path || "")
@@ -12,127 +13,112 @@ function resolveApiUrl(path) {
   return `${base}${cleanPath}`
 }
 
-async function request(path, options = {}) {
-  const token = Cookies.get("orin_token") || window.localStorage.getItem("orin_token") || window.sessionStorage.getItem("orin_token") || ""
-  const response = await fetch(resolveApiUrl(path), {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-    ...options,
+async function playgroundRequest(path, options = {}) {
+  const { body, headers, method = "GET", ...config } = options
+  const payload = typeof body === "string" ? JSON.parse(body) : body
+  return requestClient({
+    url: resolveApiUrl(path),
+    baseURL: "",
+    method,
+    data: payload,
+    headers,
+    ...config,
   })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    let detail = errorText
-    try {
-      const parsed = JSON.parse(errorText)
-      if (typeof parsed?.detail === "string" && parsed.detail.trim()) {
-        detail = parsed.detail.trim()
-      }
-    } catch {
-      // noop
-    }
-    throw new Error(detail || `Request failed: ${response.status}`)
-  }
-
-  return response.json()
 }
 
 export function fetchTemplates() {
-  return request("/api/workflow-templates")
+  return playgroundRequest("/api/workflow-templates")
 }
 
 export function fetchAppSettings() {
-  return request("/api/settings")
+  return playgroundRequest("/api/settings")
 }
 
 export function updateAppSettings(payload) {
-  return request("/api/settings", {
+  return playgroundRequest("/api/settings", {
     method: "PUT",
     body: JSON.stringify(payload),
   })
 }
 
 export function fetchSkills() {
-  return request("/api/skills")
+  return playgroundRequest("/api/skills")
 }
 
 export function createSkill(payload) {
-  return request("/api/skills", {
+  return playgroundRequest("/api/skills", {
     method: "POST",
     body: JSON.stringify(payload),
   })
 }
 
 export function syncSkills(payload) {
-  return request("/api/skills/sync", {
+  return playgroundRequest("/api/skills/sync", {
     method: "POST",
     body: JSON.stringify(payload),
   })
 }
 
 export function installSkill(skillId) {
-  return request(`/api/skills/${skillId}/install`, {
+  return playgroundRequest(`/api/skills/${skillId}/install`, {
     method: "POST",
   })
 }
 
 export function fetchAgents() {
-  return request("/api/agents")
+  return playgroundRequest("/api/agents")
 }
 
 export function createAgent(payload) {
-  return request("/api/agents", {
+  return playgroundRequest("/api/agents", {
     method: "POST",
     body: JSON.stringify(payload),
   })
 }
 
 export function updateAgent(agentId, payload) {
-  return request(`/api/agents/${agentId}`, {
+  return playgroundRequest(`/api/agents/${agentId}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   })
 }
 
 export function deleteAgent(agentId) {
-  return request(`/api/agents/${agentId}`, {
+  return playgroundRequest(`/api/agents/${agentId}`, {
     method: "DELETE",
   })
 }
 
 export function fetchWorkflows() {
-  return request("/api/workflows")
+  return playgroundRequest("/api/workflows")
 }
 
 export function createWorkflow(payload) {
-  return request("/api/workflows", {
+  return playgroundRequest("/api/workflows", {
     method: "POST",
     body: JSON.stringify(payload),
   })
 }
 
 export function updateWorkflow(workflowId, payload) {
-  return request(`/api/workflows/${workflowId}`, {
+  return playgroundRequest(`/api/workflows/${workflowId}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   })
 }
 
 export function deleteWorkflow(workflowId) {
-  return request(`/api/workflows/${workflowId}`, {
+  return playgroundRequest(`/api/workflows/${workflowId}`, {
     method: "DELETE",
   })
 }
 
 export function fetchWorkflowGraph(workflowId) {
-  return request(`/api/workflows/${workflowId}/graph`)
+  return playgroundRequest(`/api/workflows/${workflowId}/graph`)
 }
 
 export function runWorkflow(payload) {
-  return request("/api/runs", {
+  return playgroundRequest("/api/runs", {
     method: "POST",
     body: JSON.stringify(payload),
   })
@@ -140,22 +126,22 @@ export function runWorkflow(payload) {
 
 export function fetchConversations(workflowId) {
   const query = workflowId ? `?workflow_id=${encodeURIComponent(workflowId)}` : ""
-  return request(`/api/conversations${query}`)
+  return playgroundRequest(`/api/conversations${query}`)
 }
 
 export function createConversation(workflowId) {
-  return request("/api/conversations", {
+  return playgroundRequest("/api/conversations", {
     method: "POST",
     body: JSON.stringify({ workflow_id: workflowId }),
   })
 }
 
 export function fetchConversation(conversationId) {
-  return request(`/api/conversations/${conversationId}`)
+  return playgroundRequest(`/api/conversations/${conversationId}`)
 }
 
 export function deleteConversation(conversationId) {
-  return request(`/api/conversations/${conversationId}`, {
+  return playgroundRequest(`/api/conversations/${conversationId}`, {
     method: "DELETE",
   })
 }
