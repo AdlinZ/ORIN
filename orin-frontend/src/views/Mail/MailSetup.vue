@@ -517,9 +517,7 @@ onMounted(() => {
 .notification-hero {
   padding: 18px 20px 16px;
   border-bottom: 1px solid var(--orin-border, #e2e8f0);
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.82), rgba(255, 255, 255, 0.96) 48%),
-    var(--neutral-white, #ffffff);
+  background: var(--neutral-white, #ffffff);
 }
 
 .notification-hero-row {
@@ -832,9 +830,7 @@ html.dark .policy-panel {
 }
 
 html.dark .notification-hero {
-  background:
-    linear-gradient(135deg, rgba(20, 83, 77, 0.26), rgba(17, 24, 39, 0.96) 48%),
-    #111827;
+  background: #111827;
 }
 
 html.dark .notification-summary,

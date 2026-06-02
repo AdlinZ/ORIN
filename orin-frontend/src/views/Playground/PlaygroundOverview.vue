@@ -358,14 +358,7 @@ const steps = [
 }
 
 .po-hero-orb {
-  position: absolute;
-  right: -80px;
-  bottom: -120px;
-  width: 320px;
-  height: 320px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(191, 219, 254, 0.72), rgba(191, 219, 254, 0));
-  filter: blur(20px);
+  display: none;
 }
 
 /* ── Stats ── */

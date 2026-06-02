@@ -1,25 +1,5 @@
 <template>
   <div class="unified-gateway-workbench page-container fade-in">
-    <OrinPageShell
-      domain="系统控制"
-      title="统一网关"
-      description="模型 API、后台控制面、服务代理、访问凭据与流量保护的统一网关控制台。"
-      icon="Connection"
-    >
-      <template #actions>
-        <el-button
-          :icon="Refresh"
-          :loading="workbenchState.status === 'loading'"
-          @click="refreshCurrentWorkspace"
-        >
-          刷新
-        </el-button>
-        <el-button type="primary" :icon="Connection" @click="openRouteTest">
-          入口测试
-        </el-button>
-      </template>
-    </OrinPageShell>
-
     <section class="gateway-console">
       <header class="gateway-hero">
         <div class="gateway-hero-row">
@@ -536,7 +516,6 @@ import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDetailPanel from '@/components/orin/OrinDetailPanel.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
-import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import UnifiedGatewayRoutesTab from './components/gateway/UnifiedGatewayRoutesTab.vue'
 import UnifiedGatewayServicesTab from './components/gateway/UnifiedGatewayServicesTab.vue'
 import UnifiedGatewayAclTab from './components/gateway/UnifiedGatewayAclTab.vue'
@@ -901,9 +880,7 @@ const coverageStatusType = (status) => {
 .gateway-hero {
   padding: 18px 20px 16px;
   border-bottom: 1px solid var(--orin-border, #e2e8f0);
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.8), rgba(255, 255, 255, 0.96) 48%),
-    var(--neutral-white, #ffffff);
+  background: var(--neutral-white, #ffffff);
 }
 
 .gateway-hero-row {
@@ -1705,16 +1682,12 @@ const coverageStatusType = (status) => {
 }
 
 html.dark .gateway-console {
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.94)),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
   box-shadow: none;
 }
 
 html.dark .gateway-hero {
-  background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(15, 23, 42, 0.94) 52%),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
 }
 
 html.dark .gateway-title-block h1,

@@ -7,12 +7,11 @@ import {
   CheckCircle2,
   GitBranch,
   Plus,
-  Route,
 } from "lucide-vue-next";
 import { ROUTES } from "@/router/routes";
 import OrinDataTable from "@/components/orin/OrinDataTable.vue";
 import OrinFilterBar from "@/components/orin/OrinFilterBar.vue";
-import OrinPageShell from "@/components/orin/OrinPageShell.vue";
+import OrinMetricStrip from "@/components/orin/OrinMetricStrip.vue";
 import { I18N_KEY } from "../i18n";
 
 const props = defineProps({
@@ -126,10 +125,6 @@ const filteredWorkflows = computed(() => {
 
 const selectedWorkflow = computed(() =>
   visibleWorkflows.value.find((workflow) => workflow.id === props.selectedWorkflowId) || null,
-);
-
-const selectedAgents = computed(() =>
-  (selectedWorkflow.value?.specialist_agent_ids || []).map((agentId) => resolveAgent(agentId)),
 );
 
 const drawerTitle = computed(() =>
@@ -381,233 +376,160 @@ function goWorkspace() {
 
 <template>
   <section class="page-container collab-workflow-page">
-    <OrinPageShell
-      title="多智能体协同"
-      description="配置跨智能体协同方案，维护路由、参与智能体与结果收口策略"
-      icon="Connection"
-      domain="智能体管理"
-      maturity="available"
-    >
-      <template #actions>
+    <section class="workflow-admin-header">
+      <div class="workflow-admin-title">
+        <div class="workflow-admin-icon">
+          <GitBranch :size="20" />
+        </div>
+        <div>
+          <h2>多智能体协同</h2>
+          <p>配置跨智能体协同方案，维护路由、参与智能体与结果收口策略</p>
+        </div>
+      </div>
+      <div class="workflow-admin-actions">
         <el-button type="primary" @click="beginCreate">
           <Plus :size="16" />
           新建协同方案
         </el-button>
-      </template>
-      <template #filters>
-        <OrinFilterBar>
-          <el-input
-            v-model="searchQuery"
-            :prefix-icon="Search"
-            clearable
-            placeholder="搜索方案、ID、模式"
-            class="filter-search"
+      </div>
+      <OrinFilterBar class="workflow-admin-filters">
+        <el-input
+          v-model="searchQuery"
+          :prefix-icon="Search"
+          clearable
+          placeholder="搜索方案、ID、模式"
+          class="filter-search"
+        />
+        <el-select v-model="typeFilter" clearable placeholder="协作模式" class="filter-select">
+          <el-option
+            v-for="mode in workflowModeCards"
+            :key="mode.type"
+            :label="mode.title"
+            :value="mode.type"
           />
-          <el-select v-model="typeFilter" clearable placeholder="协作模式" class="filter-select">
-            <el-option
-              v-for="mode in workflowModeCards"
-              :key="mode.type"
-              :label="mode.title"
-              :value="mode.type"
-            />
-          </el-select>
-          <el-select
-            v-model="agentFilter"
-            clearable
-            placeholder="按智能体筛选"
-            class="filter-select agent-filter-select"
-          >
-            <el-option
-              v-for="agent in props.agents"
-              :key="agent.id"
-              :label="agent.name"
-              :value="agent.id"
-            />
-          </el-select>
-        </OrinFilterBar>
-      </template>
-    </OrinPageShell>
-
-    <section class="collab-metrics" aria-label="协同方案概览">
-      <article
-        v-for="metric in workflowMetrics"
-        :key="metric.key"
-        class="collab-metric-card"
-        :class="`metric-tone-${metric.tone}`"
-      >
-        <span class="metric-signal" aria-hidden="true" />
-        <div>
-          <span class="metric-label">{{ metric.label }}</span>
-          <strong class="metric-value">{{ metric.value }}</strong>
-          <span class="metric-meta">{{ metric.meta }}</span>
-        </div>
-      </article>
-    </section>
-
-    <section class="collab-main-grid">
-      <OrinDataTable class="workflow-table-panel">
-        <template #header>
-          <div class="table-heading">
-            <div>
-              <strong>协同方案目录</strong>
-              <span>选择一个方案作为工作台当前运行方案，或进入抽屉维护配置。</span>
-            </div>
-            <span>{{ filteredWorkflows.length }} / {{ visibleWorkflows.length }}</span>
-          </div>
-        </template>
-
-        <el-table
-          :data="filteredWorkflows"
-          border
-          stripe
-          table-layout="auto"
-          :row-class-name="rowClassName"
-          @row-click="selectWorkflow"
+        </el-select>
+        <el-select
+          v-model="agentFilter"
+          clearable
+          placeholder="按智能体筛选"
+          class="filter-select agent-filter-select"
         >
-          <el-table-column label="方案" min-width="280" show-overflow-tooltip>
-            <template #default="{ row }">
-              <div class="workflow-name-cell">
-                <span
-                  class="workflow-row-icon"
-                  :class="[workflowTone(row.type), { selected: row.id === props.selectedWorkflowId }]"
-                >
-                  <Route :size="18" />
-                </span>
-                <div class="workflow-name-main">
-                  <div class="workflow-title-line">
-                    <strong>{{ row.name }}</strong>
-                    <el-tag v-if="row.id === props.selectedWorkflowId" size="small" type="success" effect="light">
-                      当前
-                    </el-tag>
-                  </div>
-                  <span>workflow_{{ row.id }}</span>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="协作模式" width="170">
-            <template #default="{ row }">
-              <span class="mode-pill" :class="workflowTone(row.type)">
-                {{ workflowTypeLabel(row.type) }}
-              </span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="参与智能体" min-width="240" show-overflow-tooltip>
-            <template #default="{ row }">
-              <div class="agent-stack-cell" :title="selectedAgentNames(row)">
-                <span class="avatar-stack">
-                  <span
-                    v-for="(agentId, index) in row.specialist_agent_ids"
-                    :key="agentId"
-                    class="stack-avatar"
-                    :class="resolveAgent(agentId).theme"
-                    :style="{ zIndex: 10 - index }"
-                  >
-                    {{ resolveAgent(agentId).name.charAt(0) }}
-                  </span>
-                </span>
-                <span>{{ row.specialist_agent_ids?.length || 0 }} 个智能体</span>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="策略" width="190">
-            <template #default="{ row }">
-              <div class="policy-cell">
-                <span>{{ row.agent_max_tokens || 2400 }} tokens</span>
-                <el-tag size="small" :type="row.finalizer_enabled ? 'success' : 'info'" effect="light">
-                  {{ row.finalizer_enabled ? "统一收口" : "直接返回" }}
-                </el-tag>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="操作" width="190" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click.stop="selectWorkflow(row)">
-                选择
-              </el-button>
-              <el-button link type="primary" @click.stop="beginEdit(row)">
-                编辑
-              </el-button>
-              <el-button link type="danger" @click.stop="confirmDelete(row)">
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <div v-if="!filteredWorkflows.length" class="table-empty-state">
-          <el-empty
-            :image-size="64"
-            :description="visibleWorkflows.length ? '没有匹配筛选条件的协同方案' : '暂无协同方案'"
-          >
-            <el-button type="primary" @click="beginCreate">新建协同方案</el-button>
-          </el-empty>
-        </div>
-      </OrinDataTable>
-
-      <aside class="selected-panel" :class="selectedWorkflow ? workflowTone(selectedWorkflow.type) : 'tone-neutral'">
-        <div class="selected-panel-head">
-          <span class="panel-icon">
-            <GitBranch :size="18" />
-          </span>
-          <div>
-            <strong>当前运行方案</strong>
-            <p>工作台会优先使用这里选中的协同方案。</p>
-          </div>
-        </div>
-
-        <template v-if="selectedWorkflow">
-          <div class="selected-summary">
-            <h3>{{ selectedWorkflow.name }}</h3>
-            <span class="mode-pill" :class="workflowTone(selectedWorkflow.type)">
-              {{ workflowTypeLabel(selectedWorkflow.type) }}
-            </span>
-          </div>
-          <p class="selected-description">
-            {{ workflowDescription(selectedWorkflow) || "暂无协作说明" }}
-          </p>
-          <div class="selected-meta-grid">
-            <div>
-              <span>参与智能体</span>
-              <strong>{{ selectedWorkflow.specialist_agent_ids?.length || 0 }}</strong>
-            </div>
-            <div>
-              <span>输出上限</span>
-              <strong>{{ selectedWorkflow.agent_max_tokens || 2400 }}</strong>
-            </div>
-            <div>
-              <span>结果收口</span>
-              <strong>{{ selectedWorkflow.finalizer_enabled ? "启用" : "关闭" }}</strong>
-            </div>
-          </div>
-          <div class="selected-agent-list">
-            <div
-              v-for="agent in selectedAgents"
-              :key="agent.id"
-              class="selected-agent"
-            >
-              <span class="stack-avatar" :class="agent.theme">{{ agent.name.charAt(0) }}</span>
-              <div>
-                <strong>{{ agent.name }}</strong>
-                <small>{{ agent.model || "未配置模型信息" }}</small>
-              </div>
-            </div>
-          </div>
-          <div class="selected-actions">
-            <el-button type="primary" @click="goWorkspace">去工作台运行</el-button>
-            <el-button @click="beginEdit(selectedWorkflow)">编辑方案</el-button>
-          </div>
-        </template>
-
-        <el-empty v-else :image-size="64" description="尚未选择协同方案">
-          <el-button @click="beginCreate">新建方案</el-button>
-        </el-empty>
-      </aside>
+          <el-option
+            v-for="agent in props.agents"
+            :key="agent.id"
+            :label="agent.name"
+            :value="agent.id"
+          />
+        </el-select>
+      </OrinFilterBar>
     </section>
+
+    <OrinMetricStrip :metrics="workflowMetrics" class="workflow-summary-strip" />
+
+    <OrinDataTable class="workflow-table-panel">
+      <template #header>
+        <div class="table-heading">
+          <div>
+            <strong>协同方案目录</strong>
+            <span>选择一个方案作为工作台当前运行方案，或进入抽屉维护配置。</span>
+          </div>
+          <div class="table-heading-actions">
+            <span class="table-count">{{ filteredWorkflows.length }} / {{ visibleWorkflows.length }}</span>
+            <el-button
+              v-if="selectedWorkflow"
+              size="small"
+              @click="goWorkspace"
+            >
+              去工作台运行
+            </el-button>
+          </div>
+        </div>
+        <div v-if="selectedWorkflow" class="current-selection-bar">
+          <span>当前运行方案</span>
+          <strong>{{ selectedWorkflow.name }}</strong>
+          <el-tag size="small" effect="plain">
+            {{ workflowTypeLabel(selectedWorkflow.type) }}
+          </el-tag>
+          <small>{{ selectedWorkflow.specialist_agent_ids?.length || 0 }} 个智能体 · {{ selectedWorkflow.agent_max_tokens || 2400 }} tokens</small>
+        </div>
+      </template>
+
+      <el-table
+        :data="filteredWorkflows"
+        border
+        stripe
+        table-layout="auto"
+        :row-class-name="rowClassName"
+        @row-click="selectWorkflow"
+      >
+        <el-table-column label="方案" min-width="280" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div class="workflow-name-cell">
+              <div class="workflow-name-main">
+                <div class="workflow-title-line">
+                  <strong>{{ row.name }}</strong>
+                  <el-tag v-if="row.id === props.selectedWorkflowId" size="small" type="success" effect="plain">
+                    当前
+                  </el-tag>
+                </div>
+                <span>workflow_{{ row.id }}</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="协作模式" width="170">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">
+              {{ workflowTypeLabel(row.type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="参与智能体" min-width="240" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div class="agent-stack-cell" :title="selectedAgentNames(row)">
+              <span>{{ row.specialist_agent_ids?.length || 0 }} 个智能体</span>
+              <small>{{ selectedAgentNames(row) || "未配置" }}</small>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="策略" width="190">
+          <template #default="{ row }">
+            <div class="policy-cell">
+              <span>{{ row.agent_max_tokens || 2400 }} tokens</span>
+              <el-tag size="small" :type="row.finalizer_enabled ? 'success' : 'info'" effect="plain">
+                {{ row.finalizer_enabled ? "统一收口" : "直接返回" }}
+              </el-tag>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="190" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click.stop="selectWorkflow(row)">
+              选择
+            </el-button>
+            <el-button link type="primary" @click.stop="beginEdit(row)">
+              编辑
+            </el-button>
+            <el-button link type="danger" @click.stop="confirmDelete(row)">
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="!filteredWorkflows.length" class="table-empty-state">
+        <el-empty
+          :image-size="64"
+          :description="visibleWorkflows.length ? '没有匹配筛选条件的协同方案' : '暂无协同方案'"
+        >
+          <el-button type="primary" @click="beginCreate">新建协同方案</el-button>
+        </el-empty>
+      </div>
+    </OrinDataTable>
 
     <el-drawer
       v-model="drawerVisible"
@@ -732,102 +654,69 @@ function goWorkspace() {
 <style scoped>
 .collab-workflow-page {
   display: grid;
-  gap: var(--orin-page-gap, 20px);
-  background:
-    linear-gradient(180deg, rgba(248, 250, 252, 0.3), rgba(255, 255, 255, 0) 260px);
+  gap: 16px;
+  background: transparent;
 }
 
-.collab-metrics {
+.workflow-admin-header {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, #ffffff);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.08));
+}
+
+.workflow-admin-title {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
   gap: 14px;
 }
 
-.collab-metric-card {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  gap: 13px;
-  padding: 16px;
-  overflow: hidden;
-  border: 1px solid var(--metric-border);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.78)),
-    linear-gradient(135deg, var(--metric-soft), rgba(255, 255, 255, 0));
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
-}
-
-.collab-metric-card::after {
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 3px;
-  content: "";
-  background: linear-gradient(90deg, var(--metric-color), transparent);
-}
-
-.metric-signal {
-  width: 38px;
-  height: 38px;
-  display: inline-grid;
+.workflow-admin-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid var(--metric-border);
-  border-radius: 10px;
-  background: var(--metric-soft);
+  border: 1px solid rgba(13, 148, 136, 0.16);
+  border-radius: var(--radius-base, 8px);
+  color: var(--orin-primary, #0d9488);
+  background: var(--orin-primary-soft, #f0fdfa);
 }
 
-.metric-signal::before {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  content: "";
-  background: var(--metric-color);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--metric-color) 14%, transparent);
+.workflow-admin-title h2 {
+  margin: 0;
+  color: var(--neutral-gray-900, #0f172a);
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: 0;
 }
 
-.metric-label,
-.metric-meta {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.4;
+.workflow-admin-title p {
+  margin: 8px 0 0;
+  color: var(--neutral-gray-500, #64748b);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-.metric-label {
-  font-weight: 700;
+.workflow-admin-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.metric-value {
-  display: block;
-  margin: 5px 0 4px;
-  color: #0f172a;
-  font-size: 25px;
-  line-height: 1;
-}
-
-.metric-tone-teal {
-  --metric-color: #0d9488;
-  --metric-soft: rgba(20, 184, 166, 0.13);
-  --metric-border: rgba(13, 148, 136, 0.18);
-}
-
-.metric-tone-blue {
-  --metric-color: #2563eb;
-  --metric-soft: rgba(59, 130, 246, 0.13);
-  --metric-border: rgba(37, 99, 235, 0.18);
-}
-
-.metric-tone-violet {
-  --metric-color: #7c3aed;
-  --metric-soft: rgba(124, 58, 237, 0.13);
-  --metric-border: rgba(124, 58, 237, 0.18);
-}
-
-.metric-tone-amber {
-  --metric-color: #d97706;
-  --metric-soft: rgba(245, 158, 11, 0.15);
-  --metric-border: rgba(217, 119, 6, 0.2);
+.workflow-admin-filters {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(150px, 0.32fr) minmax(170px, 0.36fr);
+  align-items: center;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--orin-border, #e2e8f0);
 }
 
 .tone-blue {
@@ -880,22 +769,17 @@ function goWorkspace() {
 }
 
 .filter-search {
-  width: 280px;
+  width: 100%;
+  min-width: 0;
 }
 
 .filter-select {
-  width: 180px;
+  width: 100%;
+  min-width: 0;
 }
 
 .agent-filter-select {
-  width: 220px;
-}
-
-.collab-main-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 16px;
-  align-items: start;
+  width: 100%;
 }
 
 .table-heading {
@@ -903,17 +787,51 @@ function goWorkspace() {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  width: 100%;
 }
 
-.table-heading strong,
-.selected-panel-head strong {
+.table-heading-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.table-count {
+  color: #64748b;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.current-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--orin-border, #e2e8f0);
+}
+
+.current-selection-bar span,
+.current-selection-bar small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.current-selection-bar strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.table-heading strong {
   display: block;
   color: #0f172a;
   font-size: 15px;
 }
 
-.table-heading span,
-.selected-panel-head p {
+.table-heading span {
   margin: 3px 0 0;
   color: #64748b;
   font-size: 12px;
@@ -922,28 +840,7 @@ function goWorkspace() {
 .workflow-name-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
   min-width: 0;
-}
-
-.workflow-row-icon,
-.panel-icon {
-  width: 36px;
-  height: 36px;
-  display: inline-grid;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--tone-border);
-  border-radius: 8px;
-  color: var(--tone-strong);
-  background: var(--tone-soft);
-}
-
-.workflow-row-icon.selected {
-  color: #fff;
-  border-color: var(--tone-color);
-  background: linear-gradient(135deg, var(--tone-color), var(--tone-strong));
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--tone-color) 22%, transparent);
 }
 
 .workflow-name-main {
@@ -981,25 +878,17 @@ function goWorkspace() {
   font-size: 13px;
 }
 
-.mode-pill {
-  display: inline-flex;
-  align-items: center;
+.agent-stack-cell {
   max-width: 100%;
-  min-height: 26px;
-  padding: 0 9px;
-  border: 1px solid var(--tone-border);
-  border-radius: 999px;
-  color: var(--tone-strong);
-  background: var(--tone-soft);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
+  flex-wrap: wrap;
 }
 
-.avatar-stack {
-  display: inline-flex;
-  align-items: center;
+.agent-stack-cell small {
+  max-width: 100%;
+  overflow: hidden;
+  color: #94a3b8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stack-avatar {
@@ -1043,121 +932,6 @@ function goWorkspace() {
   background: #4f46e5;
 }
 
-.selected-panel {
-  position: relative;
-  display: grid;
-  gap: 16px;
-  padding: 16px;
-  overflow: hidden;
-  border: 1px solid var(--tone-border);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.82)),
-    linear-gradient(135deg, var(--tone-panel), rgba(255, 255, 255, 0));
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
-}
-
-.selected-panel::before {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 4px;
-  content: "";
-  background: linear-gradient(90deg, var(--tone-color), transparent);
-}
-
-.selected-panel-head {
-  position: relative;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.selected-summary {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.selected-summary h3 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 18px;
-  line-height: 1.3;
-}
-
-.selected-description {
-  margin: 0;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.selected-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.selected-meta-grid > div {
-  padding: 10px;
-  border: 1px solid var(--tone-border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.68);
-}
-
-.selected-meta-grid span {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.selected-meta-grid strong {
-  display: block;
-  margin-top: 4px;
-  color: #0f172a;
-  font-size: 15px;
-}
-
-.selected-agent-list {
-  display: grid;
-  gap: 8px;
-}
-
-.selected-agent {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border: 1px solid var(--tone-border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.selected-agent .stack-avatar {
-  margin-left: 0;
-}
-
-.selected-agent strong,
-.selected-agent small {
-  display: block;
-}
-
-.selected-agent strong {
-  color: #0f172a;
-  font-size: 13px;
-}
-
-.selected-agent small {
-  color: #94a3b8;
-  font-size: 12px;
-}
-
-.selected-actions {
-  display: flex;
-  gap: 8px;
-}
-
 .table-empty-state {
   padding: 28px;
 }
@@ -1190,9 +964,7 @@ function goWorkspace() {
 .mode-card:hover,
 .mode-card.selected {
   border-color: var(--tone-color);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.72)),
-    var(--tone-panel);
+  background: var(--tone-panel);
   box-shadow: inset 3px 0 0 var(--tone-color);
 }
 
@@ -1296,33 +1068,28 @@ function goWorkspace() {
   color: #94a3b8;
 }
 
-@media (max-width: 1180px) {
-  .collab-main-grid {
+@media (max-width: 760px) {
+  .workflow-admin-header {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .workflow-admin-actions {
+    justify-content: flex-start;
+  }
+
+  .workflow-admin-filters {
     grid-template-columns: 1fr;
   }
 
-  .selected-panel {
-    order: -1;
-  }
-}
-
-@media (max-width: 760px) {
-  .filter-search,
-  .filter-select {
-    width: 100%;
-  }
-
-  .table-heading,
-  .selected-summary,
-  .selected-actions {
+  .table-heading {
     align-items: stretch;
     flex-direction: column;
   }
 
   .mode-grid,
   .form-inline-grid,
-  .agent-picker,
-  .selected-meta-grid {
+  .agent-picker {
     grid-template-columns: 1fr;
   }
 }

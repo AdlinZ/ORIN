@@ -686,9 +686,7 @@ watch(
 .trace-viewer {
   padding: 20px;
   min-height: 100%;
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
+  background: transparent;
 }
 
 .search-card,

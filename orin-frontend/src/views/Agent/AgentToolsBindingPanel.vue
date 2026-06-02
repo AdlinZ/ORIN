@@ -195,9 +195,7 @@ onMounted(loadCatalog)
 
 .header-card {
   margin-bottom: 12px;
-  background:
-    linear-gradient(135deg, rgba(250, 245, 255, 0.74), rgba(255, 255, 255, 0.96) 54%),
-    var(--neutral-white);
+  background: var(--neutral-white);
 }
 
 .header-card :deep(.el-card__body) {
@@ -355,9 +353,7 @@ onMounted(loadCatalog)
 }
 
 html.dark .header-card {
-  background:
-    linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(15, 23, 42, 0.94) 56%),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
 }
 
 html.dark .title,
