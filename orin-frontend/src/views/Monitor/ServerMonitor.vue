@@ -1,12 +1,5 @@
 <template>
   <div class="agent-workspace server-workspace" :class="{ 'is-collapsed': sessionPaneCollapsed }">
-    <OrinPageShell
-      title="服务器监控"
-      description="查看服务器节点、硬件指标、Prometheus 状态与历史采样"
-      icon="Monitor"
-      domain="运行监控"
-    />
-
     <div v-if="!sessionPaneCollapsed" class="d-overlay" @click="sessionPaneCollapsed = true"></div>
 
     <aside class="workspace-sidebar" :class="{ 'is-collapsed': sessionPaneCollapsed }">
@@ -975,7 +968,6 @@ import {
 import { ROUTES } from '@/router/routes'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
-import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const router = useRouter()
 
@@ -1797,7 +1789,7 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  background: #ffffff;
 }
 
 .section-title {

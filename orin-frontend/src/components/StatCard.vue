@@ -60,11 +60,11 @@ const displayValue = computed(() => {
 
 const iconBg = computed(() => {
   const colors: Record<string, string> = {
-    default: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-    primary: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-    success: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-    warning: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-    danger: 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)'
+    default: '#e2e8f0',
+    primary: '#6366f1',
+    success: '#10b981',
+    warning: '#f59e0b',
+    danger: '#ef4444'
   };
   return colors[props.variant];
 });

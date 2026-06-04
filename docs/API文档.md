@@ -23,7 +23,7 @@
 | `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token |
 | `/v1/health` · `/api/v1/health` | 无 | 健康检查公开 |
 
-API Key 创建：管理员在管理台 → 系统设置 → 统一网关 → 访问凭据；普通用户 / 运维在 `/portal/api-keys` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
+API Key 创建：管理员在管理台 `/dashboard/control/gateway` 的访问凭据区域创建；普通用户 / 运维在 `/portal/api-keys` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
 
 API Key 生命周期接口：
 
@@ -74,9 +74,10 @@ API Key 生命周期接口：
 ### 4.1 登录
 
 ```bash
+ORIN_ADMIN_PASSWORD=<由本地配置或初始化向导创建的管理员密码>
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
+  -d "{\"username\":\"admin\",\"password\":\"${ORIN_ADMIN_PASSWORD}\"}"
 # → { "token": "...", "refreshToken": "..." }
 ```
 

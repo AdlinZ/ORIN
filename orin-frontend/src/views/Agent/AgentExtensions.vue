@@ -1,31 +1,21 @@
 <template>
   <div class="agent-extensions-page">
     <section class="extensions-console">
-      <OrinPageShell
-        title="智能体扩展中心"
-        description="统一管理 Skills、MCP 服务与模型工具能力，集中完成配置、启停和维护"
-        icon="MagicStick"
-        domain="应用域"
-        maturity="beta"
-      />
-
-      <OrinMetricStrip :metrics="extensionMetrics" class="extensions-metric-strip" />
-
-        <div class="extensions-summary">
-          <button
-            v-for="item in tabSummaries"
-            :key="item.key"
-            type="button"
-            :class="['summary-card', { active: activeTab === item.key }]"
-            @click="activeTab = item.key"
-          >
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>
-              <strong>{{ item.title }}</strong>
-              <small>{{ item.description }}</small>
-            </span>
-          </button>
-        </div>
+      <div class="extensions-summary">
+        <button
+          v-for="item in tabSummaries"
+          :key="item.key"
+          type="button"
+          :class="['summary-card', { active: activeTab === item.key }]"
+          @click="activeTab = item.key"
+        >
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>
+            <strong>{{ item.title }}</strong>
+            <small>{{ item.description }}</small>
+          </span>
+        </button>
+      </div>
 
       <section
         ref="contentPanelRef"
@@ -56,8 +46,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { MagicStick, Service, Setting } from '@element-plus/icons-vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
-import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
-import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import SkillManagementPanel from '@/views/Skill/SkillManagement.vue'
 import McpServicePanel from '@/views/System/McpService.vue'
 import AgentToolsBindingPanel from '@/views/Agent/AgentToolsBindingPanel.vue'
@@ -109,13 +97,6 @@ const tabSummaries = [
 ]
 
 const currentTabComponent = computed(() => tabComponentMap[activeTab.value] || tabComponentMap[TAB_DEFAULT])
-
-const extensionMetrics = computed(() => tabSummaries.map((item) => ({
-  key: item.key,
-  label: item.title,
-  value: activeTab.value === item.key ? '当前' : '可用',
-  meta: item.description
-})))
 
 const extensionPanelState = computed(() => {
   if (switchLoading.value) return 'loading'
@@ -211,25 +192,21 @@ onErrorCaptured((error) => {
 
 <style scoped>
 .agent-extensions-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: block;
 }
 
 .extensions-console {
   overflow: visible;
-  border: 1px solid var(--orin-border);
-  border-radius: var(--orin-card-radius, 8px);
-  background: var(--neutral-white, #ffffff);
-  box-shadow: 0 14px 36px -34px rgba(15, 23, 42, 0.5);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .extensions-hero {
   padding: 18px 20px 16px;
   border-bottom: 1px solid var(--orin-border);
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.8), rgba(255, 255, 255, 0.96) 48%),
-    var(--neutral-white);
+  background: var(--neutral-white);
 }
 
 .extensions-hero-main {
@@ -274,20 +251,20 @@ onErrorCaptured((error) => {
 .extensions-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 16px;
-  padding: 4px;
-  border: 1px solid rgba(15, 118, 110, 0.12);
-  border-radius: 10px;
-  background: rgba(248, 250, 252, 0.82);
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 6px;
+  border: 1px solid var(--orin-border, #e2e8f0);
+  border-radius: var(--orin-card-radius, 8px);
+  background: #ffffff;
 }
 
 .summary-card {
   min-width: 0;
   display: flex;
   gap: 10px;
-  align-items: flex-start;
-  padding: 12px 14px;
+  align-items: center;
+  padding: 10px 12px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -300,12 +277,12 @@ onErrorCaptured((error) => {
 .summary-card:hover,
 .summary-card.active {
   border-color: rgba(15, 118, 110, 0.22);
-  background: #ffffff;
-  box-shadow: 0 8px 18px -16px rgba(15, 23, 42, 0.45);
+  background: rgba(240, 253, 250, 0.72);
+  box-shadow: none;
 }
 
 .summary-card .el-icon {
-  margin-top: 2px;
+  margin-top: 0;
   color: var(--orin-primary);
 }
 
@@ -328,7 +305,7 @@ onErrorCaptured((error) => {
 }
 
 .content-panel {
-  padding: 14px;
+  padding: 0;
   background: transparent;
   overflow: visible;
 }
@@ -350,15 +327,13 @@ onErrorCaptured((error) => {
   margin-bottom: 12px !important;
   border: 1px solid var(--orin-border, #e2e8f0) !important;
   border-radius: var(--orin-card-radius, 8px) !important;
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.76), rgba(255, 255, 255, 0.96) 56%),
-    #ffffff !important;
+  background: #ffffff !important;
   box-shadow: none !important;
 }
 
 .tab-content :deep(.embedded-toolbar),
 .tab-content :deep(.header-card .el-card__body) {
-  padding: 16px !important;
+  padding: 14px !important;
 }
 
 .tab-content :deep(.embedded-toolbar-main),
@@ -478,7 +453,7 @@ onErrorCaptured((error) => {
 .tab-content :deep(.tool-card-grid),
 .tab-content :deep(.tools-grid) {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 10px;
 }
 
@@ -500,6 +475,25 @@ onErrorCaptured((error) => {
   font-size: 15px;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.tab-content :deep(.skill-management.is-embedded .skill-card-item) {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.tab-content :deep(.skill-management.is-embedded .skill-card-head) {
+  align-items: flex-start;
+}
+
+.tab-content :deep(.skill-management.is-embedded .skill-card-actions) {
+  width: 100%;
+  max-width: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--orin-border, #e2e8f0);
 }
 
 .tab-content :deep(.skill-card-description),
@@ -526,9 +520,9 @@ onErrorCaptured((error) => {
 
 .tab-content :deep(.skill-management.is-embedded .embedded-control-row) {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .tab-content :deep(.skill-management.is-embedded .embedded-stats) {
@@ -552,13 +546,15 @@ onErrorCaptured((error) => {
 }
 
 .tab-content :deep(.skill-management.is-embedded .embedded-filters) {
-  flex-wrap: nowrap;
-  justify-content: flex-end;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  justify-content: stretch;
   margin-left: 0;
 }
 
 .tab-content :deep(.skill-management.is-embedded .skill-search-input) {
-  width: min(360px, 34vw);
+  width: 100%;
 }
 
 @media (max-width: 720px) {
@@ -598,16 +594,12 @@ onErrorCaptured((error) => {
 }
 
 html.dark .extensions-console {
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.94)),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
   box-shadow: none;
 }
 
 html.dark .extensions-hero {
-  background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(15, 23, 42, 0.94) 52%),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
 }
 
 html.dark .extensions-title-block h1,
@@ -638,9 +630,7 @@ html.dark .tab-content :deep(.list-card),
 html.dark .tab-content :deep(.mcp-tabs .el-card),
 html.dark .tab-content :deep(.table-card) {
   border-color: rgba(148, 163, 184, 0.16) !important;
-  background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(15, 23, 42, 0.94) 56%),
-    var(--neutral-gray-900, #0f172a) !important;
+  background: var(--neutral-gray-900, #0f172a) !important;
 }
 
 html.dark .tab-content :deep(.list-card .el-card__header),

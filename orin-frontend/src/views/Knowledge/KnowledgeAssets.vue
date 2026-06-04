@@ -708,9 +708,7 @@ onMounted(loadData)
   min-height: 116px;
   padding: 18px 20px;
   border-radius: 16px;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(15, 157, 138, 0.16), transparent 34%),
-    linear-gradient(135deg, #ffffff 0%, #f0fbf8 100%);
+  background: #ffffff;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;

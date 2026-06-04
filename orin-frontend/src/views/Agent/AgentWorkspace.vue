@@ -4719,7 +4719,7 @@ watch(
   height: 46px !important;
   border-radius: 14px !important;
   font-size: 14px;
-  background: linear-gradient(180deg, #f8fbff 0%, #f1f7ff 100%);
+  background: #f8fbff;
   border: 1px solid #d7e4f3;
   box-shadow: 0 8px 16px -12px rgba(15, 23, 42, 0.4);
   color: #5b6b80;
@@ -4728,7 +4728,7 @@ watch(
 .collapse-btn:hover {
   color: #0f766e;
   border-color: rgba(15, 159, 149, 0.42);
-  background: linear-gradient(180deg, #f2fffc 0%, #e9fbf7 100%);
+  background: #f2fffc;
   box-shadow: 0 12px 20px -12px rgba(15, 159, 149, 0.3);
   transform: translateX(-1px);
 }
@@ -5672,7 +5672,7 @@ watch(
 /* Input Area Fixed to Bottom */
 .input-area {
   padding: 16px 24px 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.92) 30%, #ffffff 100%);
+  background: #ffffff;
   z-index: 5;
   width: 100%;
   max-width: calc(var(--chat-content-max-width) + 48px);
@@ -6716,14 +6716,14 @@ html.dark .session-delete:hover {
 }
 
 html.dark .collapse-btn {
-  background: linear-gradient(180deg, rgba(20, 36, 36, 0.96) 0%, rgba(15, 28, 28, 0.96) 100%);
+  background: rgba(20, 36, 36, 0.96);
   border-color: rgba(38, 255, 223, 0.24);
   color: #8cd7cf;
   box-shadow: 0 10px 18px -14px rgba(0, 0, 0, 0.65);
 }
 
 html.dark .collapse-btn:hover {
-  background: linear-gradient(180deg, rgba(30, 56, 56, 0.96) 0%, rgba(21, 46, 46, 0.96) 100%);
+  background: rgba(30, 56, 56, 0.96);
   border-color: rgba(38, 255, 223, 0.45);
   color: #26ffdf;
   box-shadow: 0 12px 22px -14px rgba(38, 255, 223, 0.35);
@@ -6937,7 +6937,7 @@ html.dark .message-text {
 }
 
 html.dark .message-item.user .message-text {
-  background: linear-gradient(135deg, #26FFDF, #0f9f95);
+  background: #26ffdf;
   color: #041010;
   border: none;
   box-shadow: 0 4px 12px rgba(38, 255, 223, 0.2);
@@ -7021,7 +7021,7 @@ html.dark .generated-video {
 }
 
 html.dark .input-area {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.9) 30%, #0f172a 100%);
+  background: #0f172a;
 }
 
 html.dark .input-area-wrapper,

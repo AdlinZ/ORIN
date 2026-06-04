@@ -1095,9 +1095,7 @@ onMounted(() => {
   padding: 18px;
   border: 1px solid var(--orin-border);
   border-radius: var(--orin-card-radius, 8px);
-  background:
-    linear-gradient(135deg, rgba(239, 246, 255, 0.74), rgba(255, 255, 255, 0.96) 54%),
-    var(--neutral-white);
+  background: var(--neutral-white);
   box-shadow: 0 10px 26px -24px rgba(15, 23, 42, 0.42);
 }
 
@@ -1438,9 +1436,7 @@ onMounted(() => {
 }
 
 html.dark .embedded-toolbar {
-  background:
-    linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(15, 23, 42, 0.94) 56%),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
   box-shadow: none;
 }
 

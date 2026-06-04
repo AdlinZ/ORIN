@@ -24,12 +24,20 @@ defineProps({
 
 <style scoped>
 .orin-data-table {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
   border-radius: var(--radius-base, 8px) !important;
   border-color: var(--orin-border-strong, #d8e0e8) !important;
 }
 
 .orin-data-table :deep(.el-card__body) {
   padding: 0;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .orin-data-table :deep(.el-card__header) {
@@ -39,6 +47,8 @@ defineProps({
 }
 
 .orin-data-table :deep(.el-table) {
+  width: 100%;
+  max-width: 100%;
   border-radius: 0;
   --el-table-header-bg-color: #ffffff;
   --el-table-row-hover-bg-color: rgba(13, 148, 136, 0.04);

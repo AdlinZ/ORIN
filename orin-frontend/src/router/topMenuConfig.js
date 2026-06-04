@@ -64,6 +64,7 @@ export const TOP_MENU_CONFIG = [
     roles: DASHBOARD_OPERATOR_ROLES,
     children: [
       { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', roles: DASHBOARD_OPERATOR_ROLES },
+      { title: '开发者工作台', path: ROUTES.AGENTS.DEVELOPER, icon: 'Monitor', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'List', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS, icon: 'ChatDotRound', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '多智能体协同', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS, icon: 'Connection', roles: DASHBOARD_OPERATOR_ROLES },
@@ -132,6 +133,7 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.SYSTEM.ROOT,
     roles: SYSTEM_MENU_ROLES,
     children: [
+      { title: '平台总览', path: ROUTES.SYSTEM.ADMIN_DASHBOARD, icon: 'DataBoard', roles: SYSTEM_MENU_ROLES },
       { title: '模型管理', path: ROUTES.SYSTEM.MODELS, icon: 'SetUp', roles: SYSTEM_MENU_ROLES },
       { title: '定价配置', path: ROUTES.SYSTEM.PRICING, icon: 'PriceTag', roles: SYSTEM_MENU_ROLES },
       { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE, icon: 'Setting', roles: SYSTEM_MENU_ROLES },

@@ -1049,10 +1049,7 @@ onUnmounted(() => {
 .kb-workbench-page {
   min-height: 100vh;
   padding: 16px;
-  background:
-    radial-gradient(circle at 0% -20%, rgba(15, 157, 138, 0.10) 0, rgba(15, 157, 138, 0) 55%),
-    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.07) 0, rgba(59, 130, 246, 0) 50%),
-    #f3f6f8;
+  background: #f3f6f8;
 }
 
 .workbench-hero {
@@ -1060,7 +1057,7 @@ onUnmounted(() => {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
   align-items: stretch;
   gap: 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdfd 100%);
+  background: #ffffff;
   border: 1px solid #dce7e4;
   border-radius: 12px;
   padding: 14px 16px;

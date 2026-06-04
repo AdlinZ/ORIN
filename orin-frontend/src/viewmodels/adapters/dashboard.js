@@ -9,6 +9,13 @@ const DEFAULT_METRICS = {
   failedTasks: 0
 }
 
+const DEFAULT_ADMIN_STATS = {
+  totalUsers: 0,
+  totalApiKeys: 0,
+  activeAlerts: 0,
+  resolvedAlerts: 0
+}
+
 const normalizeNumber = (value) => {
   const num = Number(value)
   return Number.isFinite(num) ? num : 0
@@ -35,6 +42,20 @@ export function toDashboardSummaryViewModel(payload = {}) {
     ...(payload.metrics || {})
   }
 
+  const adminStats = {
+    ...DEFAULT_ADMIN_STATS,
+    ...(payload.adminStats || {})
+  }
+
+  const topAlertEvents = Array.isArray(payload.topAlertEvents)
+    ? payload.topAlertEvents.map((item) => ({
+      endpoint: item.endpoint || '',
+      method: item.method || '',
+      statusCode: item.statusCode ?? null,
+      createdAt: item.createdAt || ''
+    }))
+    : []
+
   return {
     roles: Array.isArray(payload.roles) ? payload.roles : ['ROLE_USER'],
     defaultHome: payload.defaultHome || '/portal',
@@ -49,6 +70,13 @@ export function toDashboardSummaryViewModel(payload = {}) {
       openTasks: normalizeNumber(metrics.openTasks),
       failedTasks: normalizeNumber(metrics.failedTasks)
     },
+    adminStats: {
+      totalUsers: normalizeNumber(adminStats.totalUsers),
+      totalApiKeys: normalizeNumber(adminStats.totalApiKeys),
+      activeAlerts: normalizeNumber(adminStats.activeAlerts),
+      resolvedAlerts: normalizeNumber(adminStats.resolvedAlerts)
+    },
+    topAlertEvents,
     recentActivity: Array.isArray(payload.recentActivity)
       ? payload.recentActivity.map((item) => ({
         id: item.id || '',

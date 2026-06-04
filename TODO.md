@@ -13,9 +13,9 @@
   - `P1` 重要增强，核心闭环后完成
   - `P2` 体验和治理优化
 
-## 当前推进口径（2026-05-21）
+## 当前推进口径（2026-06-04 文档同步）
 
-当前 TODO 不再表示“从零补骨架”。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立，后续开发按以下顺序推进：
+当前 TODO 不再表示“从零补骨架”。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立；本轮仅同步文档入口和命令口径，最近一次核心 smoke 记录仍按 2026-05-21。后续开发按以下顺序推进：
 
 1. `P0` Phase 1 收口：真实后端联调下的浏览器 E2E、协作人工干预验收、真实 provider-backed Agent 对话与 MCP `tools/call`、FALLBACK 真重派闭环与 Codex Workflow tool 客户端验收已具备入口；外部客户端展示资产继续后续。
 2. `P1` Phase 1.5：首版角色矩阵、权限同源、角色默认页、高风险管理接口收口与 API Key 自助边界已落地；后续补角色专属视图与资源级权限。
@@ -34,7 +34,8 @@
 - [x] `P1` 用户、部门、角色管理接口移出匿名放行，并补 JWT / 角色边界测试
 - [x] `P1` 新增 Playwright 角色导航 smoke，覆盖运维菜单过滤和普通用户管理台重定向
 - [x] `P1` API Key 自助治理边界：普通用户 / 运维可以管理自己的访问密钥，管理员保留全局治理能力
-- [ ] `P1` 角色专属视图：普通用户门户、运维工作台、管理员总览拆分出更清晰的信息密度
+- [~] `P1` 角色专属视图：普通用户门户、运维工作台、管理员总览拆分出更清晰的信息密度
+  本轮已新增开发者工作台与管理员平台总览入口，并补充管理员 / 开发者 / 用户手册；普通用户门户与资源级视图仍需继续收敛。
 - [ ] `P2` 资源级 ACL：按知识库、智能体、工作流归属收敛细粒度访问控制
 
 ---
@@ -399,7 +400,7 @@
 - [x] `P1` Phase 1C：补齐任务状态一致性、失败恢复与前端调用历史
   Workflow task wire status 固定为 `QUEUED/RUNNING/RETRYING/COMPLETED/FAILED/DEAD/CANCELLED`；取消仅允许 `QUEUED` 并写入 `CANCELLED` 终态，重放仅允许 `FAILED/DEAD` 并创建新 `QUEUED` 任务；前端任务中心与 Workflow 执行页补调用历史、状态徽标、失败重放/排队取消入口。
 - [~] `P1` Phase 1D：失败恢复入口与 Trace 聚合
-  新增 `GET /api/v1/traces/{traceId}/summary` 脱敏聚合 workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 与 Langfuse link 状态；TraceViewer 可跳转任务/Workflow/协作包；任务中心和 Workflow 执行页补恢复确认、新任务高亮；Workflow 创建请求支持 `retryPolicy.maxRetries` 任务级重试覆盖；协作 Dashboard 补 runtime/diagnostics/events/subtasks 与包级、子任务级人工干预入口；`business-smoke.sh` 已覆盖失败 Workflow replay，并对 Workflow / Collaboration / 可选 Agent Chat 增加 trace summary 端到端断言。
+  新增 `GET /api/v1/traces/{traceId}/summary` 脱敏聚合 workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 与 Langfuse link 状态；TraceViewer 可跳转任务/Workflow/协作包；任务中心和 Workflow 执行页补恢复确认、新任务高亮；Workflow 创建请求支持 `retryPolicy.maxRetries` 任务级重试覆盖；协作 Dashboard 补 runtime/diagnostics/events/subtasks 与包级、子任务级人工干预入口；`business-smoke.sh` 已覆盖失败 Workflow replay，并对 Workflow / Collaboration / 可选 Agent Chat 增加 trace summary 端到端断言。本轮补充真实后端 Playwright 配置与协作人工干预 E2E 样本，仍需在三端常驻环境下纳入固定验收。
 - [~] `P1` Phase 1E：API Key 生命周期与权限治理基线
   平台访问密钥固定 `CLIENT_ACCESS / sk-orin-*` 口径；API Key 创建、禁用、启用、删除、配额重置、轮换写入脱敏审计；前端 API Key 管理页支持状态展示、轮换确认、一次性密钥展示与 MCP 配置复制；`business-smoke.sh` 覆盖临时 key 创建、`/v1/mcp` 成功、禁用后 401 与清理，并已纳入 Docker runtime smoke 验证。后续补角色自助权限、长期配额趋势与限流命中明细。
 - [~] `P1` Phase 1F：API Key 调用历史与敏感回显收敛
@@ -415,7 +416,7 @@
 - [x] `P0` 为任务重试/死信逻辑补测试
 - [x] `P0` 为同步接口补测试
 - [~] `P1` 为前端协作页、任务页、Trace 聚合视图补更完整交互测试
-  已补充协作包暂停交互、协作人工干预 API、任务恢复/取消、Trace 聚合加载和前端错误 traceId 提示测试；协作看板已新增 Playwright mock 后端浏览器 E2E，真实后端联调 E2E 仍待补。
+  已补充协作包暂停交互、协作人工干预 API、任务恢复/取消、Trace 聚合加载和前端错误 traceId 提示测试；协作看板已新增 Playwright mock 后端浏览器 E2E。本轮新增真实后端 Playwright E2E 配置、协作人工干预样本与真实 Agent / MCP 子任务 opt-in 样本，仍需在稳定本机三端环境中固定运行口径。
 
 ### 开源演示版安全与 MCP 基线
 
@@ -448,17 +449,20 @@
 ### 里程碑 M2
 
 - [~] 完成 Phase 1.5 角色化体验
-- [ ] 角色矩阵、权限同源、多角色默认页、专属手册和越权 E2E 完成
+- [~] 角色矩阵、权限同源、多角色默认页、专属手册和越权 E2E 完成
+  本轮已补管理员 / 开发者 / 用户手册与管理员、开发者工作台入口；越权 E2E 和普通用户专属视图仍待补。
 
 ### 里程碑 M3
 
 - [~] 完成 Phase 2 质量与可观测
-- [ ] 错误码 / traceparent / JSON 日志 / OTel / Jaeger / 覆盖率红线完成
+- [~] 错误码 / traceparent / JSON 日志 / OTel / Jaeger / 覆盖率红线完成
+  本轮已补后端 traceparent 响应与出站传播、JSON 日志配置和 OTLP exporter 开关；Jaeger 运行态联调与覆盖率红线仍待补。
 
 ### 里程碑 M4
 
 - [~] 完成 Phase 3/4 安全运维与社区化
-- [ ] 备份恢复、生产 SOP、v0.1.0 release、README 展示资产完成
+- [~] 备份恢复、生产 SOP、v0.1.0 release、README 展示资产完成
+  本轮已新增 `scripts/backup.sh` / `scripts/restore.sh` 与部署文档入口；生产 SOP、定期演练、release 和 README 展示资产仍待补。
 
 ---
 
@@ -512,4 +516,4 @@
 
 ---
 
-*最后更新: 2026-05-21*
+*最后更新: 2026-06-04（角色工作台、trace/JSON/OTel、真实后端 E2E 入口与备份恢复脚本同步；本轮 smoke 见提交后记录）*

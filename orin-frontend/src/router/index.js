@@ -159,6 +159,12 @@ const routes = [
                         meta: { title: '智能体列表', icon: 'Grid' }
                     },
                     {
+                        path: 'developer',
+                        name: 'ApplicationDeveloper',
+                        component: () => import('@/views/revamp/agents/DeveloperDashboard.vue'),
+                        meta: { title: '开发者工作台', icon: 'Monitor', roles: OPERATOR_ROUTE_ROLES }
+                    },
+                    {
                         path: 'agents/console',
                         name: 'AgentConsoleEntry',
                         redirect: ROUTES.AGENTS.LIST,
@@ -582,6 +588,13 @@ const routes = [
                 path: 'control',
                 meta: { title: '系统设置', category: 'control', requiresAdmin: true, roles: ADMIN_ROUTE_ROLES },
                 children: [
+                    // 平台总览
+                    {
+                        path: 'admin-overview',
+                        name: 'ControlAdminDashboard',
+                        component: () => import('@/views/revamp/system/AdminDashboard.vue'),
+                        meta: { title: '平台总览', icon: 'DataBoard', roles: ADMIN_ROUTE_ROLES }
+                    },
                     // 用户权限
                     {
                         path: 'users',
