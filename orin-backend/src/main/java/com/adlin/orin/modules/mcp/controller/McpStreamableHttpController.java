@@ -35,6 +35,9 @@ public class McpStreamableHttpController {
         if (!(apiKey instanceof GatewaySecret secret)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Missing API key"));
         }
+        if (!secret.isClientAccess()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid API key"));
+        }
         Map<String, Object> response = jsonRpcService.handle(body, secret);
         return response == null ? ResponseEntity.accepted().build() : ResponseEntity.ok(response);
     }

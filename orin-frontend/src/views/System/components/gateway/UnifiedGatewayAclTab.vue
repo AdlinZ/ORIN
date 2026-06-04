@@ -12,37 +12,39 @@
         </el-button>
       </div>
 
-      <el-table v-loading="loading" :data="rules" stripe style="border-radius:0">
-        <el-table-column prop="name" label="规则名称" width="150" />
-        <el-table-column prop="type" label="类型" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.type === 'WHITELIST' ? 'success' : 'danger'" size="small">
-              {{ row.type === 'WHITELIST' ? '白名单' : '黑名单' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="ipPattern" label="IP 模式" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="pathPattern" label="路径模式" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="apiKeyRequired" label="需要API Key" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.apiKeyRequired ? 'warning' : 'info'" size="small">
-              {{ row.apiKeyRequired ? '是' : '否' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="priority" label="优先级" width="80" />
-        <el-table-column prop="enabled" label="状态" width="80">
-          <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="toggleRule(row)" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openDialog(row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteRule(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact>
+        <el-table v-loading="loading" :data="rules" stripe style="border-radius:0">
+          <el-table-column prop="name" label="规则名称" width="150" />
+          <el-table-column prop="type" label="类型" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.type === 'WHITELIST' ? 'success' : 'danger'" size="small">
+                {{ row.type === 'WHITELIST' ? '白名单' : '黑名单' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="ipPattern" label="IP 模式" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="pathPattern" label="路径模式" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="apiKeyRequired" label="需要API Key" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.apiKeyRequired ? 'warning' : 'info'" size="small">
+                {{ row.apiKeyRequired ? '是' : '否' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="priority" label="优先级" width="80" />
+          <el-table-column prop="enabled" label="状态" width="80">
+            <template #default="{ row }">
+              <el-switch v-model="row.enabled" @change="toggleRule(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="openDialog(row)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="deleteRule(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </div>
 
     <!-- Test Dialog -->
@@ -107,6 +109,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Lock, Plus, Search } from '@element-plus/icons-vue'
 import { getAclRules, createAclRule, updateAclRule, deleteAclRule, testAclRule } from '@/api/gateway'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 const loading = ref(false)
 const submitting = ref(false)

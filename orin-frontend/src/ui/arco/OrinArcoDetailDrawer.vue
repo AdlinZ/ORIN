@@ -14,6 +14,9 @@
 </template>
 
 <script setup>
+import ADrawer from '@arco-design/web-vue/es/drawer'
+import '@arco-design/web-vue/es/drawer/style/css'
+
 defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: '' },

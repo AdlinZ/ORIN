@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
@@ -25,17 +24,10 @@ import java.util.Map;
 public class AiEngineMcpClient {
 
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = buildRestTemplate();
+    private final RestTemplate restTemplate;
 
     @Value("${orin.ai-engine.url:http://127.0.0.1:8000}")
     private String aiEngineUrl;
-
-    private static RestTemplate buildRestTemplate() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5_000);
-        factory.setReadTimeout(35_000);
-        return new RestTemplate(factory);
-    }
 
     /**
      * 通过 AI Engine 调用指定 MCP 服务的某个 tool。

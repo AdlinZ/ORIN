@@ -69,51 +69,53 @@
         </el-button-group>
       </div>
 
-      <el-table
-        :data="filteredTasks"
-        stripe
-        style="width: 100%"
-        :loading="loading"
-      >
-        <el-table-column prop="id" label="任务ID" width="120" show-overflow-tooltip />
-        <el-table-column prop="taskType" label="任务类型" width="100">
-          <template #default="{ row }">
-            <el-tag size="small">{{ getTaskTypeText(row.taskType) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="retryCount" label="重试" width="60" align="center" />
-        <el-table-column prop="executionTimeMs" label="耗时" width="80">
-          <template #default="{ row }">
-            {{ formatDuration(row.executionTimeMs) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="errorMessage" label="失败原因" show-overflow-tooltip />
-        <el-table-column prop="createdAt" label="创建时间" width="160">
-          <template #default="{ row }">
-            {{ formatTime(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'FAILED'"
-              type="primary"
-              text
-              size="small"
-              @click="retryTask(row.id)"
-            >
-              重试
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact>
+        <el-table
+          :data="filteredTasks"
+          stripe
+          style="width: 100%"
+          v-loading="loading"
+        >
+          <el-table-column prop="id" label="任务ID" width="120" show-overflow-tooltip />
+          <el-table-column prop="taskType" label="任务类型" width="100">
+            <template #default="{ row }">
+              <el-tag size="small">{{ getTaskTypeText(row.taskType) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.status)" size="small">
+                {{ getStatusText(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="retryCount" label="重试" width="60" align="center" />
+          <el-table-column prop="executionTimeMs" label="耗时" width="80">
+            <template #default="{ row }">
+              {{ formatDuration(row.executionTimeMs) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="errorMessage" label="失败原因" show-overflow-tooltip />
+          <el-table-column prop="createdAt" label="创建时间" width="160">
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" fixed="right">
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'FAILED'"
+                type="primary"
+                text
+                size="small"
+                @click="retryTask(row.id)"
+              >
+                重试
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
 
       <el-pagination
         v-model:current-page="currentPage"
@@ -136,8 +138,9 @@ import {
   CircleClose,
   Refresh
 } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import { getKnowledgeTasks, getQueueStats, retryKnowledgeTask } from '@/api/knowledge'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 const props = defineProps({
   kbId: {

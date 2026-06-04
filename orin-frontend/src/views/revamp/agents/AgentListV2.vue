@@ -551,9 +551,7 @@ onMounted(loadData)
 
 .agent-spotlight-card {
   overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.92), rgba(255, 255, 255, 0.96) 56%),
-    radial-gradient(circle at 92% 12%, rgba(13, 148, 136, 0.16), transparent 30%);
+  background: #ffffff;
 }
 
 .agent-spotlight-card :deep(.el-card__body) {
@@ -891,9 +889,7 @@ html.dark .recent-title {
 }
 
 html.dark .agent-spotlight-card {
-  background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.88) 58%),
-    radial-gradient(circle at 92% 12%, rgba(45, 212, 191, 0.18), transparent 30%);
+  background: #0f172a;
 }
 
 html.dark .spotlight-copy h3,

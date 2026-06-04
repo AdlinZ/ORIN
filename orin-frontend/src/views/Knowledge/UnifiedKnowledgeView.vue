@@ -246,6 +246,7 @@ const customUpload = async (options) => {
 }
 
 const getStatusColor = (status) => {
+    if (status === 'UPLOADING') return 'var(--orin-primary)'
     if (status === 'VECTORIZING') return '#F59E0B' // Amber
     if (status === 'COMPLETED') return '#67C23A' // Green
     if (status === 'ERROR') return '#F56C6C' // Red
@@ -253,6 +254,7 @@ const getStatusColor = (status) => {
 }
 
 const getStatusText = (status) => {
+    if (status === 'UPLOADING') return '上传中...'
     if (status === 'VECTORIZING') return '向量化中...'
     if (status === 'COMPLETED') return '已完成'
     return status

@@ -1,10 +1,18 @@
 <template>
   <div class="statistics-container">
-    <PageHeader
+    <OrinPageShell
+      domain="系统控制"
       title="统计分析"
       description="查看系统使用数据、Token消耗和任务执行统计"
       icon="DataAnalysis"
-    />
+    >
+      <template #actions>
+        <el-button type="primary" @click="handleExport">
+          <el-icon><Download /></el-icon>
+          导出报表
+        </el-button>
+      </template>
+    </OrinPageShell>
 
     <!-- 时间范围选择 -->
     <el-card class="filter-card">
@@ -19,12 +27,6 @@
             value-format="YYYY-MM-DD"
             @change="handleDateChange"
           />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleExport">
-            <el-icon><Download /></el-icon>
-            导出报表
-          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -132,21 +134,29 @@
           <template #header>
             <span>任务状态分布</span>
           </template>
-          <el-table v-loading="loading" :data="taskStats">
-            <el-table-column prop="status" label="状态">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">
-                  {{ row.status }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="count" label="数量" />
-            <el-table-column label="占比">
-              <template #default="{ row }">
-                {{ calculatePercentage(row.count, totalTaskCount) }}%
-              </template>
-            </el-table-column>
-          </el-table>
+          <OrinAsyncState
+            :status="loading ? 'loading' : taskStats.length > 0 ? 'success' : 'empty'"
+            empty-text="暂无任务状态统计"
+            @retry="loadData"
+          >
+            <OrinDataTable compact>
+              <el-table :data="taskStats">
+                <el-table-column prop="status" label="状态">
+                  <template #default="{ row }">
+                    <el-tag :type="getStatusType(row.status)">
+                      {{ row.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="count" label="数量" />
+                <el-table-column label="占比">
+                  <template #default="{ row }">
+                    {{ calculatePercentage(row.count, totalTaskCount) }}%
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinDataTable>
+          </OrinAsyncState>
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -154,10 +164,18 @@
           <template #header>
             <span>Top 10 智能体调用</span>
           </template>
-          <el-table v-loading="loading" :data="agentStats">
-            <el-table-column prop="agent" label="智能体" />
-            <el-table-column prop="count" label="调用次数" />
-          </el-table>
+          <OrinAsyncState
+            :status="loading ? 'loading' : agentStats.length > 0 ? 'success' : 'empty'"
+            empty-text="暂无智能体调用统计"
+            @retry="loadData"
+          >
+            <OrinDataTable compact>
+              <el-table :data="agentStats">
+                <el-table-column prop="agent" label="智能体" />
+                <el-table-column prop="count" label="调用次数" />
+              </el-table>
+            </OrinDataTable>
+          </OrinAsyncState>
         </el-card>
       </el-col>
     </el-row>
@@ -168,8 +186,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { User, ChatLineRound, Coin, Grid, Download } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
-import PageHeader from '@/components/PageHeader.vue'
+import echarts from '@/utils/echarts'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import {
   getStatisticsOverview,
   getStatisticsUsers,

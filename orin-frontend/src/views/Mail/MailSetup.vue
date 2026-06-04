@@ -1,5 +1,23 @@
 <template>
   <div class="notification-channels-page page-container fade-in">
+    <OrinPageShell
+      domain="系统控制"
+      title="通知设置"
+      description="统一管理系统事件投递、外部通知渠道，以及邮件中心的收发和模板运营。"
+      icon="Message"
+    >
+      <template #actions>
+        <el-button
+          v-if="activeWorkspace === 'channels'"
+          type="primary"
+          :loading="notifSaving"
+          @click="notifSaveConfig"
+        >
+          保存配置
+        </el-button>
+      </template>
+    </OrinPageShell>
+
     <section class="notification-console">
       <header class="notification-hero">
         <div class="notification-hero-row">
@@ -243,6 +261,7 @@ import {
   Timer
 } from '@element-plus/icons-vue'
 import { getNotificationConfig, saveNotificationConfig, testNotificationChannel } from '@/api/alert'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import MailWorkbench from '@/views/Mail/MailWorkbench.vue'
 
 const route = useRoute()
@@ -498,9 +517,7 @@ onMounted(() => {
 .notification-hero {
   padding: 18px 20px 16px;
   border-bottom: 1px solid var(--orin-border, #e2e8f0);
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.82), rgba(255, 255, 255, 0.96) 48%),
-    var(--neutral-white, #ffffff);
+  background: var(--neutral-white, #ffffff);
 }
 
 .notification-hero-row {
@@ -813,9 +830,7 @@ html.dark .policy-panel {
 }
 
 html.dark .notification-hero {
-  background:
-    linear-gradient(135deg, rgba(20, 83, 77, 0.26), rgba(17, 24, 39, 0.96) 48%),
-    #111827;
+  background: #111827;
 }
 
 html.dark .notification-summary,

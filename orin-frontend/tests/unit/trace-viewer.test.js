@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getRecentTraces: vi.fn(),
   getTrace: vi.fn(),
   getTraceStats: vi.fn(),
+  getTraceSummary: vi.fn(),
   getTraceLink: vi.fn(),
   searchTraces: vi.fn(),
   chartSetOption: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('@/api/trace', () => ({
   getRecentTraces: mocks.getRecentTraces,
   getTrace: mocks.getTrace,
   getTraceStats: mocks.getTraceStats,
+  getTraceSummary: mocks.getTraceSummary,
   getTraceLink: mocks.getTraceLink,
   searchTraces: mocks.searchTraces
 }))
@@ -67,6 +69,7 @@ describe('TraceViewer', () => {
     mocks.getRecentTraces.mockReset()
     mocks.getTrace.mockReset()
     mocks.getTraceStats.mockReset()
+    mocks.getTraceSummary.mockReset()
     mocks.getTraceLink.mockReset()
     mocks.searchTraces.mockReset()
     mocks.chartSetOption.mockClear()
@@ -74,6 +77,7 @@ describe('TraceViewer', () => {
     mocks.getRecentTraces.mockResolvedValue([])
     mocks.getTrace.mockResolvedValue([])
     mocks.getTraceStats.mockResolvedValue({})
+    mocks.getTraceSummary.mockResolvedValue({ found: false })
     mocks.getTraceLink.mockResolvedValue({})
   })
 
@@ -98,6 +102,12 @@ describe('TraceViewer', () => {
       }
     ])
     mocks.getTraceStats.mockResolvedValue({ totalSteps: 1, successCount: 1 })
+    mocks.getTraceSummary.mockResolvedValue({
+      found: true,
+      workflowTasks: [{ taskId: 'task-1', status: 'FAILED' }],
+      collaborationPackages: [],
+      auditLogs: []
+    })
     mocks.getTraceLink.mockResolvedValue({ available: true, link: 'https://langfuse.local/trace-1' })
 
     mountTraceViewer()
@@ -105,6 +115,7 @@ describe('TraceViewer', () => {
 
     expect(mocks.getTrace).toHaveBeenCalledWith('trace-1')
     expect(mocks.getTraceStats).toHaveBeenCalledWith('trace-1')
+    expect(mocks.getTraceSummary).toHaveBeenCalledWith('trace-1')
     expect(mocks.getTraceLink).toHaveBeenCalledWith('trace-1')
     expect(mocks.getRecentTraces).not.toHaveBeenCalled()
   })

@@ -1,10 +1,17 @@
 <template>
   <div class="system-maintenance-container">
-    <PageHeader
+    <OrinPageShell
+      domain="系统控制"
       title="系统维护"
       description="系统备份、升级、日志归档、缓存清理等运维操作"
       icon="Tools"
-    />
+    >
+      <template #actions>
+        <el-button :icon="Refresh" @click="refreshSystemInfo">
+          刷新状态
+        </el-button>
+      </template>
+    </OrinPageShell>
 
     <el-row :gutter="20">
       <!-- 左侧操作面板 -->
@@ -135,23 +142,31 @@
             </div>
           </template>
 
-          <el-table v-loading="logsLoading" :data="maintenanceLogs" max-height="300">
-            <el-table-column prop="operation" label="操作" width="120" />
-            <el-table-column prop="status" label="状态" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.status === 'success' ? 'success' : row.status === 'failed' ? 'danger' : 'warning'" size="small">
-                  {{ row.status === 'success' ? '成功' : row.status === 'failed' ? '失败' : '进行中' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="operator" label="操作人" width="100" />
-            <el-table-column prop="timestamp" label="时间" width="180">
-              <template #default="{ row }">
-                {{ formatDate(row.timestamp) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="message" label="详情" show-overflow-tooltip />
-          </el-table>
+          <OrinAsyncState
+            :status="logsLoading ? 'loading' : maintenanceLogs.length > 0 ? 'success' : 'empty'"
+            empty-text="暂无运维操作记录"
+            @retry="loadMaintenanceLogs"
+          >
+            <OrinDataTable compact>
+              <el-table :data="maintenanceLogs" max-height="300">
+                <el-table-column prop="operation" label="操作" width="120" />
+                <el-table-column prop="status" label="状态" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.status === 'success' ? 'success' : row.status === 'failed' ? 'danger' : 'warning'" size="small">
+                      {{ row.status === 'success' ? '成功' : row.status === 'failed' ? '失败' : '进行中' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="operator" label="操作人" width="100" />
+                <el-table-column prop="timestamp" label="时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatDate(row.timestamp) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="message" label="详情" show-overflow-tooltip />
+              </el-table>
+            </OrinDataTable>
+          </OrinAsyncState>
         </el-card>
       </el-col>
     </el-row>
@@ -335,8 +350,20 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import PageHeader from '@/components/PageHeader.vue'
-import request from '@/utils/request'
+import { CircleCheck, Delete, Document, Folder, Refresh, Upload, UploadFilled } from '@element-plus/icons-vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
+import {
+  archiveMaintenanceLogs,
+  cleanMaintenanceCache,
+  getMaintenanceHealth,
+  getMaintenanceInfo,
+  getMaintenanceLogs,
+  restoreMaintenanceBackup,
+  startMaintenanceBackup,
+  startSystemUpgrade
+} from '@/api/maintenance'
 
 // 系统信息
 const systemInfo = ref({
@@ -406,7 +433,7 @@ const backupList = ref([
 // 刷新系统信息
 const refreshSystemInfo = async () => {
   try {
-    const res = await request.get('/system/maintenance/info')
+    const res = await getMaintenanceInfo()
     if (res) {
       systemInfo.value = { ...systemInfo.value, ...res }
     }
@@ -420,7 +447,7 @@ const refreshSystemInfo = async () => {
 const loadMaintenanceLogs = async () => {
   logsLoading.value = true
   try {
-    const res = await request.get('/system/maintenance/logs')
+    const res = await getMaintenanceLogs()
     maintenanceLogs.value = res || []
   } catch (e) {
     console.error('加载日志失败:', e)
@@ -438,7 +465,7 @@ const openBackupDialog = () => {
 const executeBackup = async () => {
   backingUp.value = true
   try {
-    await request.post('/system/maintenance/backup', backupForm)
+    await startMaintenanceBackup(backupForm)
     ElMessage.success('备份已开始，请稍后查看结果')
     backupDialogVisible.value = false
     loadMaintenanceLogs()
@@ -464,7 +491,7 @@ const executeRestore = async () => {
   try {
     await ElMessageBox.confirm('此操作将覆盖当前数据，是否继续?', '警告', { type: 'warning' })
     restoring.value = true
-    await request.post('/system/maintenance/restore', restoreForm)
+    await restoreMaintenanceBackup(restoreForm)
     ElMessage.success('恢复成功')
     restoreDialogVisible.value = false
   } catch (e) {
@@ -485,7 +512,7 @@ const openUpgradeDialog = async () => {
 const executeUpgrade = async () => {
   upgrading.value = true
   try {
-    await request.post('/system/maintenance/upgrade')
+    await startSystemUpgrade()
     ElMessage.success('系统升级完成，请刷新页面')
     upgradeDialogVisible.value = false
     refreshSystemInfo()
@@ -510,7 +537,7 @@ const executeArchive = async () => {
 
   archiving.value = true
   try {
-    await request.post('/system/maintenance/log-archive', logArchiveForm)
+    await archiveMaintenanceLogs(logArchiveForm)
     ElMessage.success('日志归档完成')
     logArchiveDialogVisible.value = false
   } catch (e) {
@@ -534,7 +561,7 @@ const executeClean = async () => {
 
   cleaning.value = true
   try {
-    await request.post('/system/maintenance/cache-clean', cacheForm)
+    await cleanMaintenanceCache(cacheForm)
     ElMessage.success('缓存清理完成')
     cacheDialogVisible.value = false
   } catch (e) {
@@ -547,7 +574,7 @@ const executeClean = async () => {
 // 健康检查
 const openHealthCheck = async () => {
   try {
-    const res = await request.get('/system/maintenance/health')
+    const res = await getMaintenanceHealth()
     if (res.status === 'healthy') {
       ElMessage.success('系统健康检查通过')
     } else {

@@ -107,10 +107,11 @@ public class WorkflowController {
     public ResponseEntity<WorkflowExecutionSubmissionResponse> executeWorkflow(
             @PathVariable Long id,
             @RequestBody Map<String, Object> inputs,
-            @RequestParam(required = false, defaultValue = "system") String triggeredBy) {
+            @RequestParam(required = false, defaultValue = "system") String triggeredBy,
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
         log.info("REST request to execute workflow: {}", id);
         WorkflowExecutionSubmissionResponse response =
-                workflowService.triggerWorkflowWithPriority(id, inputs, null, triggeredBy);
+                workflowService.triggerWorkflowWithPriority(id, inputs, null, triggeredBy, traceId);
         return ResponseEntity.ok(response);
     }
 

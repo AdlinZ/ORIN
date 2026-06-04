@@ -25,48 +25,50 @@
         </div>
       </div>
 
-      <el-table v-else v-loading="loading" :data="routes" stripe style="border-radius:0">
-        <el-table-column prop="name" label="名称" width="140" />
-        <el-table-column prop="pathPattern" label="路径" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="method" label="方法" width="80">
-          <template #default="{ row }">
-            <el-tag :type="getMethodType(row.method)" size="small">{{ row.method }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="类型 / 目标" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              <el-tag v-if="isLocalTableRoute(row)" type="primary" size="small" effect="dark">LOCAL</el-tag>
-              <el-tag v-else type="success" size="small" effect="dark">PROXY</el-tag>
-              <span v-if="row.targetUrl" class="target-text">{{ row.targetUrl }}</span>
-              <span v-else-if="row.serviceId" class="target-text">{{ getServiceName(row.serviceId) }}</span>
-              <span v-else class="text-muted">本地处理</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="策略" width="160">
-          <template #default="{ row }">
-            <el-space wrap>
-              <el-tag v-if="row.rateLimitPolicyId" type="warning" size="small" effect="plain">限流</el-tag>
-              <el-tag v-if="row.circuitBreakerPolicyId" type="danger" size="small" effect="plain">熔断</el-tag>
-              <el-tag v-if="row.retryPolicyId" type="success" size="small" effect="plain">重试</el-tag>
-              <el-tag v-if="row.authRequired" type="info" size="small" effect="plain">认证</el-tag>
-            </el-space>
-          </template>
-        </el-table-column>
-        <el-table-column prop="priority" label="优先级" width="80" />
-        <el-table-column prop="enabled" label="状态" width="80">
-          <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="toggleRoute(row)" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteRoute(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable v-else compact>
+        <el-table v-loading="loading" :data="routes" stripe style="border-radius:0">
+          <el-table-column prop="name" label="名称" width="140" />
+          <el-table-column prop="pathPattern" label="路径" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="method" label="方法" width="80">
+            <template #default="{ row }">
+              <el-tag :type="getMethodType(row.method)" size="small">{{ row.method }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型 / 目标" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <el-tag v-if="isLocalTableRoute(row)" type="primary" size="small" effect="dark">LOCAL</el-tag>
+                <el-tag v-else type="success" size="small" effect="dark">PROXY</el-tag>
+                <span v-if="row.targetUrl" class="target-text">{{ row.targetUrl }}</span>
+                <span v-else-if="row.serviceId" class="target-text">{{ getServiceName(row.serviceId) }}</span>
+                <span v-else class="text-muted">本地处理</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="策略" width="160">
+            <template #default="{ row }">
+              <el-space wrap>
+                <el-tag v-if="row.rateLimitPolicyId" type="warning" size="small" effect="plain">限流</el-tag>
+                <el-tag v-if="row.circuitBreakerPolicyId" type="danger" size="small" effect="plain">熔断</el-tag>
+                <el-tag v-if="row.retryPolicyId" type="success" size="small" effect="plain">重试</el-tag>
+                <el-tag v-if="row.authRequired" type="info" size="small" effect="plain">认证</el-tag>
+              </el-space>
+            </template>
+          </el-table-column>
+          <el-table-column prop="priority" label="优先级" width="80" />
+          <el-table-column prop="enabled" label="状态" width="80">
+            <template #default="{ row }">
+              <el-switch v-model="row.enabled" @change="toggleRoute(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="deleteRoute(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </div>
 
     <!-- Create/Edit Dialog -->
@@ -243,6 +245,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Connection, Plus, Share } from '@element-plus/icons-vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import {
   getRoutes, createRoute, updateRoute, deleteRoute as removeRoute, patchRoute, testRoute,
   getAllPolicies, getServices

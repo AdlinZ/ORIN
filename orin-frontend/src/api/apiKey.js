@@ -53,12 +53,29 @@ export function resetQuota(keyId) {
     })
 }
 
+// 轮换平台访问密钥
+export function rotateApiKey(keyId) {
+    return request({
+        url: `/api-keys/${keyId}/rotate`,
+        method: 'post'
+    })
+}
+
 // 管理员查看密钥明文（受控回显）
 export function getApiKeySecret(keyId, data) {
     return request({
         url: `/api-keys/${keyId}/secret`,
         method: 'post',
         data
+    })
+}
+
+// 获取平台访问密钥调用摘要与最近调用历史
+export function getApiKeyUsage(keyId, params = {}) {
+    return request({
+        url: `/api-keys/${keyId}/usage`,
+        method: 'get',
+        params
     })
 }
 // --- External Provider Keys ---

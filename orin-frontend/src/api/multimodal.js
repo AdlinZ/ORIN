@@ -4,9 +4,18 @@ export const getMultimodalModels = () => {
     return request.get('/multimodal/models');
 };
 
-export const uploadMultimodalFile = (file) => {
+export const uploadMultimodalFile = (file, fields = {}) => {
     const formData = new FormData();
-    formData.append('file', file);
+    if (fields.fileName) {
+        formData.append('file', file, fields.fileName);
+    } else {
+        formData.append('file', file);
+    }
+    Object.entries(fields).forEach(([key, value]) => {
+        if (key !== 'fileName' && value !== undefined && value !== null) {
+            formData.append(key, value);
+        }
+    });
     return request.post('/multimodal/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     });

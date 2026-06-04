@@ -1,5 +1,25 @@
 <template>
   <div class="document-detail-page">
+    <OrinPageShell
+      title="文档详情"
+      :description="documentData.name || '查看原文、索引内容与分段向量化状态'"
+      icon="Document"
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="goBackToKB">返回知识库工作台</el-button>
+        <el-button type="primary" :loading="vectorizing" @click="handleVectorize">立即向量化</el-button>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag effect="plain">{{ documentData.vectorStatus || 'PENDING' }}</el-tag>
+          <el-tag effect="plain">{{ (documentData.wordCount || 0).toLocaleString() }} 字符</el-tag>
+          <el-tag effect="plain">Trace 状态：{{ documentAsyncStatus }}</el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
+
     <div class="detail-header-card">
       <div class="header-topbar">
         <el-button link :icon="ArrowLeft" @click="goBackToKB">
@@ -499,8 +519,25 @@ import {
   Headset, Picture, Download, DocumentCopy, Loading, DataLine
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import request from '@/utils/request';
-import { useUserStore } from '@/stores/user';
+import {
+  deleteChunk,
+  deleteDocument,
+  downloadDocument,
+  getChunkStats,
+  getChunkVector,
+  getDocument,
+  getDocumentChunks,
+  getDocumentContent,
+  getDocumentHistory,
+  getDocumentRetrievalInfo,
+  getKnowledgeList,
+  triggerParsing,
+  triggerVectorization,
+  updateChunk,
+  updateDocument
+} from '@/api/knowledge';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -562,10 +599,16 @@ const filteredSegments = computed(() => {
   );
 });
 
+const documentAsyncStatus = computed(() => {
+  if (originalLoading.value || loading.value || retrievalLoading.value) return 'loading';
+  if (!documentData.value?.id) return 'empty';
+  return 'success';
+});
+
 const loadDocumentData = async () => {
   try {
     // Load document data from real API
-    const doc = await request.get(`/knowledge/documents/${docId.value}`);
+    const doc = await getDocument(docId.value);
     if (!doc) {
       ElMessage.error('文档不存在');
       router.push(ROUTES.RESOURCES.KNOWLEDGE);
@@ -592,7 +635,7 @@ const loadDocumentData = async () => {
     // Try to find KB name from local storage or simplified way
     kbName.value = '知识库'; // Fallback
     try {
-        const kbs = await request.get('/knowledge/list');
+        const kbs = await getKnowledgeList();
         const kb = kbs.find(k => k.id === kbId.value);
         if (kb) kbName.value = kb.name;
     } catch (e) {
@@ -610,7 +653,7 @@ const loadDocumentData = async () => {
 
 const loadHistory = async () => {
     try {
-        const res = await request.get(`/knowledge/documents/${docId.value}/history`);
+        const res = await getDocumentHistory(docId.value);
         history.value = res || [];
     } catch (error) {
         console.warn('Failed to load history', error);
@@ -633,7 +676,7 @@ const loadOriginalContent = async () => {
     }
 
     try {
-        const res = await request.get(`/knowledge/documents/${docId.value}/content`);
+        const res = await getDocumentContent(docId.value);
         originalContentInfo.text = res.text || '';
         originalContentInfo.mediaType = res.mediaType || 'text';
         originalContentInfo.fileName = res.fileName || '';
@@ -657,7 +700,7 @@ const loadOriginalContent = async () => {
 const loadSegments = async () => {
     loading.value = true;
     try {
-        const res = await request.get(`/knowledge/documents/${docId.value}/chunks`);
+        const res = await getDocumentChunks(docId.value);
         if (Array.isArray(res)) {
             segments.value = res.map((chunk, idx) => ({
                 id: chunk.id || `chunk-${idx}`,
@@ -682,7 +725,7 @@ const loadSegments = async () => {
 
 const loadChunkStats = async () => {
     try {
-        const res = await request.get(`/knowledge/documents/${docId.value}/chunks/stats`);
+        const res = await getChunkStats(docId.value);
         if (res) {
             chunkStats.value = res;
         }
@@ -697,7 +740,7 @@ const loadChunkVector = async (chunkId) => {
     vectorData.value = null;
     vectorDialogVisible.value = true;
     try {
-        const res = await request.get(`/knowledge/chunks/${chunkId}/vector`);
+        const res = await getChunkVector(chunkId);
         if (res && res.success) {
             vectorData.value = res.data;
         } else {
@@ -718,7 +761,7 @@ const loadChunkVector = async (chunkId) => {
 const loadRetrievalInfo = async () => {
     retrievalLoading.value = true;
     try {
-        const res = await request.get(`/knowledge/documents/${docId.value}/retrieval-info`);
+        const res = await getDocumentRetrievalInfo(docId.value);
         if (res) {
             retrievalInfo.value = res;
         }
@@ -733,7 +776,7 @@ const loadRetrievalInfo = async () => {
 const handleParse = async () => {
     parsing.value = true;
     try {
-        await request.post(`/knowledge/documents/${docId.value}/parse`);
+        await triggerParsing(docId.value);
         ElMessage.success('已提交解析任务，请稍后刷新');
         // 轮询检查状态
         setTimeout(() => {
@@ -749,7 +792,7 @@ const handleParse = async () => {
 const handleVectorize = async () => {
     vectorizing.value = true;
     try {
-        await request.post(`/knowledge/documents/${docId.value}/vectorize`);
+        await triggerVectorization(docId.value);
         // 检查当前状态来决定提示文案
         if (retrievalInfo.value?.parseStatus === 'PARSED') {
             ElMessage.success('已提交向量化任务，请稍后刷新');
@@ -774,21 +817,7 @@ const loadImageAsBlob = async () => {
     imageError.value = false;
 
     try {
-        // 使用 fetch 配合认证来获取图片
-        const userStore = useUserStore();
-        const token = userStore.token;
-
-        const response = await fetch(`/api/v1/knowledge/documents/${docId.value}/download`, {
-            headers: {
-                'Authorization': token ? `Bearer ${token}` : ''
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const blob = await response.blob();
+        const blob = await downloadDocument(docId.value);
         // 创建 Blob URL
         imageBlobUrl.value = URL.createObjectURL(blob);
     } catch (error) {
@@ -810,20 +839,7 @@ const onImageError = () => {
 // 将音频/视频加载为 Blob URL
 const loadMediaAsBlob = async () => {
     try {
-        const userStore = useUserStore();
-        const token = userStore.token;
-
-        const response = await fetch(`/api/v1/knowledge/documents/${docId.value}/download`, {
-            headers: {
-                'Authorization': token ? `Bearer ${token}` : ''
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const blob = await response.blob();
+        const blob = await downloadDocument(docId.value);
         mediaBlobUrl.value = URL.createObjectURL(blob);
     } catch (error) {
         console.error('Failed to load media:', error);
@@ -876,8 +892,7 @@ const editSegment = (segment) => {
 
 const saveSegment = async () => {
   try {
-    const payload = { content: editingSegment.content };
-    await request.put(`/knowledge/documents/chunks/${editingSegment.id}`, payload);
+    await updateChunk(editingSegment.id, editingSegment.content);
     ElMessage.success('分段已更新');
     editDialogVisible.value = false;
     loadSegments(); // reload to get exact changes including charCount updates
@@ -892,7 +907,7 @@ const deleteSegment = (segment) => {
     confirmButtonClass: 'el-button--danger'
   }).then(async () => {
     try {
-      await request.delete(`/knowledge/documents/chunks/${segment.id}`);
+      await deleteChunk(segment.id);
       ElMessage.success('已删除');
       loadSegments(); // refresh segments list
     } catch (err) {
@@ -911,7 +926,7 @@ const onSubmit = async () => {
         chunkSize: form.chunkSize,
         chunkOverlap: form.chunkOverlap
     };
-    await request.put(`/knowledge/documents/${docId.value}`, payload);
+    await updateDocument(docId.value, payload);
     documentData.value.name = form.name;
     documentData.value.enabled = form.enabled;
     ElMessage.success('保存成功');
@@ -927,7 +942,7 @@ const handleDelete = () => {
     type: 'warning',
     confirmButtonClass: 'el-button--danger'
   }).then(async () => {
-    await request.delete(`/knowledge/documents/${docId.value}`);
+    await deleteDocument(docId.value);
     ElMessage.success('已删除');
     router.push({
       path: `/dashboard/resources/knowledge/detail/${kbId.value}`,

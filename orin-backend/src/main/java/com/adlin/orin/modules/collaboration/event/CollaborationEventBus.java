@@ -168,6 +168,24 @@ public class CollaborationEventBus {
     }
 
     /**
+     * 发布子任务重试事件
+     */
+    public void publishSubtaskRetry(String packageId, String subTaskId, int attempt, String reason, String traceId) {
+        CollaborationEvent event = CollaborationEvent.builder()
+                .eventType(CollaborationEvent.CollaborationEventType.SUBTASK_RETRY)
+                .packageId(packageId)
+                .subTaskId(subTaskId)
+                .eventData(Map.of(
+                        "attempt", attempt,
+                        "reason", reason != null ? reason : "fallback retry"
+                ))
+                .traceId(traceId)
+                .source("fallback")
+                .build();
+        publish(event);
+    }
+
+    /**
      * 发布共识达成事件
      */
     public void publishConsensusReached(String packageId, Object consensusResult, String traceId) {

@@ -94,7 +94,7 @@
       </el-tab-pane>
 
       <el-tab-pane v-if="showLoggersTab" label="日志控制台" name="loggers">
-        <el-card shadow="never">
+        <OrinDataTable>
           <template #header>
             <div class="card-head with-actions">
               <span>运行时 Logger 级别</span>
@@ -159,7 +159,7 @@
               </template>
             </el-table-column>
           </el-table>
-        </el-card>
+        </OrinDataTable>
       </el-tab-pane>
     </el-tabs>
   </div>
@@ -170,7 +170,17 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Refresh, RefreshLeft } from '@element-plus/icons-vue'
-import request from '@/utils/request'
+import {
+  cleanupLogConfig,
+  getGatewayAuditLogs,
+  getLogConfig,
+  getLogConfigStats,
+  getLoggerLevels,
+  resetAllLoggerLevels,
+  resetLoggerLevel,
+  updateLogConfig,
+  updateLoggerLevel
+} from '@/api/audit'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinAuditTable from '@/components/orin/OrinAuditTable.vue'
@@ -283,7 +293,7 @@ const toAuditRows = (payload) => {
 const loadLogs = async () => {
   markLoading(logsState)
   try {
-    const response = await request.get('/audit/logs', { params: { page: 0, size: 20 } })
+    const response = await getGatewayAuditLogs({ page: 0, size: 20 })
     auditRows.value = toAuditRows(response)
     if (auditRows.value.length === 0) markEmpty(logsState)
     else markSuccess(logsState)
@@ -294,7 +304,7 @@ const loadLogs = async () => {
 
 const loadConfig = async () => {
   try {
-    const response = await request.get('/system/log-config')
+    const response = await getLogConfig()
     if (!Array.isArray(response)) return
     for (const item of response) {
       if (item.configKey === CONFIG_KEYS.AUDIT_ENABLED) config.auditEnabled = item.configValue === 'true'
@@ -310,9 +320,9 @@ const saveConfig = async () => {
   saving.value = true
   try {
     await Promise.all([
-      request.put(`/system/log-config/${CONFIG_KEYS.AUDIT_ENABLED}`, { value: String(config.auditEnabled) }),
-      request.put(`/system/log-config/${CONFIG_KEYS.LOG_LEVEL}`, { value: config.logLevel }),
-      request.put(`/system/log-config/${CONFIG_KEYS.RETENTION}`, { value: String(config.retentionDays) })
+      updateLogConfig(CONFIG_KEYS.AUDIT_ENABLED, String(config.auditEnabled)),
+      updateLogConfig(CONFIG_KEYS.LOG_LEVEL, config.logLevel),
+      updateLogConfig(CONFIG_KEYS.RETENTION, String(config.retentionDays))
     ])
     ElMessage.success('审计配置已保存')
   } finally {
@@ -323,7 +333,7 @@ const saveConfig = async () => {
 const loadStats = async () => {
   markLoading(statsState)
   try {
-    const response = await request.get('/system/log-config/stats')
+    const response = await getLogConfigStats()
     stats.totalCount = Number(response?.totalCount || 0)
     stats.estimatedSizeMb = Number(response?.estimatedSizeMb || 0)
     stats.oldestLog = response?.oldestLog || null
@@ -336,7 +346,7 @@ const loadStats = async () => {
 const cleanupLogs = async () => {
   cleaning.value = true
   try {
-    await request.post('/system/log-config/cleanup', null, { params: { days: cleanupDays.value } })
+    await cleanupLogConfig(cleanupDays.value)
     ElMessage.success('日志清理任务已提交')
     await loadStats()
     await loadLogs()
@@ -348,7 +358,7 @@ const cleanupLogs = async () => {
 const loadLoggers = async () => {
   loadingLoggers.value = true
   try {
-    const response = await request.get('/system/log-config/loggers')
+    const response = await getLoggerLevels()
     loggers.value = Object.entries(response || {}).map(([name, level]) => ({
       name,
       level,
@@ -376,7 +386,7 @@ const getLevelTagType = (level) => {
 
 const applyLoggerLevel = async (row) => {
   try {
-    await request.put(`/system/log-config/loggers/${row.name}`, { level: row.newLevel })
+    await updateLoggerLevel(row.name, row.newLevel)
     row.level = row.newLevel
     ElMessage.success(`Logger ${row.name} 已更新为 ${row.newLevel}`)
   } catch (error) {
@@ -387,7 +397,7 @@ const applyLoggerLevel = async (row) => {
 
 const resetLogger = async (row) => {
   try {
-    await request.delete(`/system/log-config/loggers/${row.name}`)
+    await resetLoggerLevel(row.name)
     ElMessage.success(`Logger ${row.name} 已重置`)
     await loadLoggers()
   } catch (error) {
@@ -398,7 +408,7 @@ const resetLogger = async (row) => {
 const resetAllLoggers = async () => {
   try {
     await ElMessageBox.confirm('确认将所有 Logger 重置为默认级别？', '重置确认', { type: 'warning' })
-    await request.post('/system/log-config/loggers/reset-all')
+    await resetAllLoggerLevels()
     ElMessage.success('全部 Logger 已重置')
     await loadLoggers()
   } catch (error) {

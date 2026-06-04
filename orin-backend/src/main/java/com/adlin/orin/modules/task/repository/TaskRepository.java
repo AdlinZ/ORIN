@@ -30,6 +30,8 @@ public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
 
     Page<TaskEntity> findByPriority(TaskPriority priority, Pageable pageable);
 
+    Page<TaskEntity> findByStatusOrderByUpdatedAtDesc(TaskStatus status, Pageable pageable);
+
     /**
      * 查询待执行的任务（队列中等待的）
      */

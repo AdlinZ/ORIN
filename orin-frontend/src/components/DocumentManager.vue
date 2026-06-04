@@ -30,7 +30,7 @@
     </el-row>
 
     <!-- 文档列表 -->
-    <el-card class="premium-card">
+    <OrinDataTable compact class="premium-card">
       <el-table
         v-loading="loading"
         border
@@ -101,7 +101,7 @@
       </el-table>
 
       <el-empty v-if="!loading && documents.length === 0" description="暂无文档" />
-    </el-card>
+    </OrinDataTable>
 
     <!-- 上传对话框 -->
     <el-dialog v-model="uploadDialog" title="上传文档" width="500px">
@@ -177,10 +177,17 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/utils/request'
+import {
+  deleteDocument as deleteKnowledgeDocument,
+  getDocuments,
+  getKnowledgeBaseStats,
+  triggerVectorization,
+  uploadDocument as uploadKnowledgeDocument
+} from '@/api/knowledge'
 import {
   Upload, Document, View, Connection, Delete, UploadFilled
 } from '@element-plus/icons-vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 import { useUserStore } from '@/stores/user'
 
@@ -209,8 +216,8 @@ const uploadRef = ref(null)
 const loadDocuments = async () => {
   loading.value = true
   try {
-    const res = await request.get(`/knowledge/${props.knowledgeBaseId}/documents`)
-    documents.value = res.data || []
+    const res = await getDocuments(props.knowledgeBaseId)
+    documents.value = res?.data || res || []
   } catch (error) {
     ElMessage.error('加载文档列表失败')
   } finally {
@@ -220,8 +227,8 @@ const loadDocuments = async () => {
 
 const loadStats = async () => {
   try {
-    const res = await request.get(`/knowledge/${props.knowledgeBaseId}/stats`)
-    stats.value = res.data || { documentCount: 0, totalCharCount: 0 }
+    const res = await getKnowledgeBaseStats(props.knowledgeBaseId)
+    stats.value = res?.data || res || { documentCount: 0, totalCharCount: 0 }
   } catch (error) {
     console.error('加载统计信息失败', error)
   }
@@ -238,18 +245,8 @@ const uploadDocument = async () => {
   }
 
   uploading.value = true
-  const formData = new FormData()
-  formData.append('file', selectedFile.value)
-  formData.append('uploadedBy', userStore.username || 'unknown')
-
   try {
-    await request.post(
-      `/knowledge/${props.knowledgeBaseId}/documents/upload`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      }
-    )
+    await uploadKnowledgeDocument(props.knowledgeBaseId, selectedFile.value, userStore.username || 'unknown')
     ElMessage.success('文档上传成功')
     uploadDialog.value = false
     selectedFile.value = null
@@ -270,7 +267,7 @@ const viewDocument = (doc) => {
 
 const vectorizeDocument = async (doc) => {
   try {
-    await request.post(`/knowledge/documents/${doc.id}/vectorize`)
+    await triggerVectorization(doc.id)
     ElMessage.success('已触发向量化，请稍后查看状态')
     await loadDocuments()
   } catch (error) {
@@ -290,7 +287,7 @@ const deleteDocument = async (doc) => {
       }
     )
 
-    await request.delete(`/knowledge/documents/${doc.id}`)
+    await deleteKnowledgeDocument(doc.id)
     ElMessage.success('文档删除成功')
     await loadDocuments()
     await loadStats()

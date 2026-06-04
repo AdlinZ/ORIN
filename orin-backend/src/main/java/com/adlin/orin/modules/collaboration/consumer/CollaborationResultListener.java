@@ -10,6 +10,7 @@ import com.adlin.orin.modules.collaboration.service.CollaborationRedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -29,6 +30,9 @@ public class CollaborationResultListener {
     private final CollaborationMetricsService metricsService;
     private final CollaborationMQProducer mqProducer;
     private final CollaborationRedisService redisService;
+
+    @Value("${orin.collaboration.result.queue:collaboration-task-result-queue}")
+    private String collaborationResultQueueName = "collaboration-task-result-queue";
 
     /**
      * 注册回调
@@ -200,6 +204,17 @@ public class CollaborationResultListener {
         payload.put("result", result.getResult());
         payload.put("status", result.getStatus());
         payload.put("attempt", result.getAttempt() != null ? result.getAttempt() : 0);
+        if (result.getExecutedBy() != null && !result.getExecutedBy().isBlank()) {
+            payload.put("executedBy", result.getExecutedBy());
+            payload.put("agentId", result.getExecutedBy());
+        }
+        if (result.getSelectionMeta() != null && !result.getSelectionMeta().isEmpty()) {
+            payload.put("selectionMeta", result.getSelectionMeta());
+            Object selectedAgentId = result.getSelectionMeta().get("selectedAgentId");
+            if (selectedAgentId != null) {
+                payload.put("selectedAgentId", selectedAgentId);
+            }
+        }
         appendToolTrace(result, payload);
         return payload;
     }
@@ -316,7 +331,7 @@ public class CollaborationResultListener {
                                             .maxRetries(getMaxRetriesFromContext(result))
                                             .timeoutMillis(300000L)
                                             .executionStrategy((String) taskData.getOrDefault("executionStrategy", "AGENT"))
-                                            .replyTo("collaboration-task-result-queue")
+                                            .replyTo(collaborationResultQueueName)
                                             .correlationId(packageId + ":" + subTaskId)
                                             .contextSnapshot((Map<String, Object>) taskData.get("contextSnapshot"))
                                             .enqueuedAt(System.currentTimeMillis())

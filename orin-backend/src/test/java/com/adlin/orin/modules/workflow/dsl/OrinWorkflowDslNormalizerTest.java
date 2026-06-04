@@ -191,4 +191,81 @@ class OrinWorkflowDslNormalizerTest {
         assertThat(validator.validateForPublish(missingReplySource))
                 .contains("Answer node must configure reply source: answer");
     }
+
+    @Test
+    void publishValidationRejectsCyclicGraph() {
+        Map<String, Object> cyclic = normalizer.normalize(Map.of(
+                "nodes", List.of(
+                        Map.of("id", "start", "type", "start"),
+                        Map.of("id", "code_a", "type", "code"),
+                        Map.of("id", "code_b", "type", "code"),
+                        Map.of("id", "end", "type", "end", "data", Map.of(
+                                "outputs", List.of(Map.of("name", "answer", "value", "{{ code_b.result }}"))))),
+                "edges", List.of(
+                        Map.of("source", "start", "target", "code_a"),
+                        Map.of("source", "code_a", "target", "code_b"),
+                        Map.of("source", "code_b", "target", "code_a"),
+                        Map.of("source", "code_b", "target", "end"))));
+
+        assertThat(validator.validateForPublish(cyclic))
+                .contains("Workflow graph must be acyclic");
+    }
+
+    @Test
+    void publishValidationRejectsIsolatedAndUnreachableNodes() {
+        Map<String, Object> invalid = normalizer.normalize(Map.of(
+                "nodes", List.of(
+                        Map.of("id", "start", "type", "start"),
+                        Map.of("id", "agent", "type", "agent"),
+                        Map.of("id", "orphan", "type", "code"),
+                        Map.of("id", "end", "type", "end", "data", Map.of(
+                                "outputs", List.of(Map.of("name", "answer", "value", "{{ agent.output }}"))))),
+                "edges", List.of(
+                        Map.of("source", "start", "target", "agent"),
+                        Map.of("source", "agent", "target", "end"))));
+
+        assertThat(validator.validateForPublish(invalid))
+                .contains(
+                        "Workflow node is isolated: orphan",
+                        "Workflow node is unreachable from start: orphan",
+                        "Workflow node cannot reach terminal node: orphan");
+    }
+
+    @Test
+    void publishValidationRejectsBranchWithoutTerminalPath() {
+        Map<String, Object> invalid = normalizer.normalize(Map.of(
+                "nodes", List.of(
+                        Map.of("id", "start", "type", "start"),
+                        Map.of("id", "router", "type", "if_else"),
+                        Map.of("id", "dead_branch", "type", "code"),
+                        Map.of("id", "end", "type", "end", "data", Map.of(
+                                "outputs", List.of(Map.of("name", "answer", "value", "{{ router.result }}"))))),
+                "edges", List.of(
+                        Map.of("source", "start", "target", "router"),
+                        Map.of("source", "router", "target", "end"),
+                        Map.of("source", "router", "target", "dead_branch"))));
+
+        assertThat(validator.validateForPublish(invalid))
+                .contains("Workflow node cannot reach terminal node: dead_branch");
+    }
+
+    @Test
+    void publishValidationKeepsIllegalEdgeReferenceErrors() {
+        Map<String, Object> invalid = normalizer.normalize(Map.of(
+                "nodes", List.of(
+                        Map.of("id", "start", "type", "start"),
+                        Map.of("id", "agent", "type", "agent"),
+                        Map.of("id", "end", "type", "end", "data", Map.of(
+                                "outputs", List.of(Map.of("name", "answer", "value", "{{ agent.output }}"))))),
+                "edges", List.of(
+                        Map.of("source", "start", "target", "agent"),
+                        Map.of("source", "agent", "target", "end"),
+                        Map.of("source", "missing", "target", "end"),
+                        Map.of("source", "agent", "target", "missing_target"))));
+
+        assertThat(validator.validateForPublish(invalid))
+                .contains(
+                        "Workflow edge source not found: missing",
+                        "Workflow edge target not found: missing_target");
+    }
 }
