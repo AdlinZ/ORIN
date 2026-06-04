@@ -443,14 +443,16 @@
           </ol>
 
           <OrinDetailPanel title="目标实例" class="block-gap">
-            <el-table :data="effectiveConfig.allInstances || []" size="small">
-              <el-table-column prop="host" label="主机" />
-              <el-table-column prop="port" label="端口" width="80" />
-              <el-table-column prop="status" label="状态" width="90" />
-              <template #empty>
-                <OrinEmptyState description="此入口由后台处理或直连目标承接，没有服务实例" />
-              </template>
-            </el-table>
+            <OrinDataTable compact>
+              <el-table :data="effectiveConfig.allInstances || []" size="small">
+                <el-table-column prop="host" label="主机" />
+                <el-table-column prop="port" label="端口" width="80" />
+                <el-table-column prop="status" label="状态" width="90" />
+                <template #empty>
+                  <OrinEmptyState description="此入口由后台处理或直连目标承接，没有服务实例" />
+                </template>
+              </el-table>
+            </OrinDataTable>
           </OrinDetailPanel>
         </template>
       </OrinAsyncState>
@@ -878,9 +880,7 @@ const coverageStatusType = (status) => {
 .gateway-hero {
   padding: 18px 20px 16px;
   border-bottom: 1px solid var(--orin-border, #e2e8f0);
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.8), rgba(255, 255, 255, 0.96) 48%),
-    var(--neutral-white, #ffffff);
+  background: var(--neutral-white, #ffffff);
 }
 
 .gateway-hero-row {
@@ -1682,16 +1682,12 @@ const coverageStatusType = (status) => {
 }
 
 html.dark .gateway-console {
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.94)),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
   box-shadow: none;
 }
 
 html.dark .gateway-hero {
-  background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(15, 23, 42, 0.94) 52%),
-    var(--neutral-gray-900, #0f172a);
+  background: var(--neutral-gray-900, #0f172a);
 }
 
 html.dark .gateway-title-block h1,

@@ -31,6 +31,55 @@ let refreshSubscribers = [];
 // 延迟函数
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const withTraceId = (message, traceId) => {
+    if (!traceId) {
+        return message;
+    }
+    if (message.includes(traceId)) {
+        return message;
+    }
+    return `${message}（Trace ID: ${traceId}）`;
+};
+
+export const buildErrorMessage = (error) => {
+    let message = '请求失败，请稍后重试';
+    const data = error?.response?.data;
+    const traceId = data?.traceId;
+
+    if (error?.response) {
+        const status = error.response.status;
+        if (data && data.message) {
+            message = data.message;
+        } else {
+            switch (status) {
+                case 400:
+                    message = '请求参数错误';
+                    break;
+                case 401:
+                    message = '登录已过期，请重新登录';
+                    break;
+                case 403:
+                    message = '权限不足，拒绝访问';
+                    break;
+                case 404:
+                    message = '请求资源不存在';
+                    break;
+                case 500:
+                    message = '服务器内部错误';
+                    break;
+                default:
+                    message = `请求失败 (${status})`;
+            }
+        }
+    } else if (error?.message?.includes('timeout')) {
+        message = '请求超时，请检查网络连接';
+    } else if (error?.message?.includes('Network Error')) {
+        message = '网络连接失败，请检查网络后重试';
+    }
+
+    return withTraceId(message, traceId);
+};
+
 // 订阅 Token 刷新完成
 function subscribeTokenRefresh(callback) {
     refreshSubscribers.push(callback);
@@ -128,7 +177,7 @@ service.interceptors.response.use(
         }
 
         // 处理 401 错误 - 尝试刷新 Token
-        if (error.response && error.response.status === 401 && !config._retry) {
+        if (error.response && error.response.status === 401 && !config._retry && !config.skipAuthRefresh) {
             config._retry = true;
 
             if (!isRefreshing) {
@@ -186,7 +235,6 @@ service.interceptors.response.use(
 
         if (shouldRetry) {
             config.retryCount += 1;
-            console.log(`重试请求 (${config.retryCount}/${MAX_RETRIES}): ${config.url}`);
 
             // 等待后重试
             await delay(RETRY_DELAY * config.retryCount);
@@ -196,39 +244,7 @@ service.interceptors.response.use(
         }
 
         // 如果重试失败或不需要重试，显示错误消息
-        let message = '请求失败，请稍后重试';
-
-        if (error.response) {
-            const status = error.response.status;
-            // 优先使用服务器返回的错误消息
-            if (error.response.data && error.response.data.message) {
-                message = error.response.data.message;
-            } else {
-                switch (status) {
-                    case 400:
-                        message = '请求参数错误';
-                        break;
-                    case 401:
-                        message = '登录已过期，请重新登录';
-                        break;
-                    case 403:
-                        message = '权限不足，拒绝访问';
-                        break;
-                    case 404:
-                        message = '请求资源不存在';
-                        break;
-                    case 500:
-                        message = '服务器内部错误';
-                        break;
-                    default:
-                        message = `请求失败 (${status})`;
-                }
-            }
-        } else if (error.message.includes('timeout')) {
-            message = '请求超时，请检查网络连接';
-        } else if (error.message.includes('Network Error')) {
-            message = '网络连接失败，请检查网络后重试';
-        }
+        const message = buildErrorMessage(error);
 
 
         // 只在最后一次重试失败后才显示错误消息

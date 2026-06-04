@@ -37,6 +37,8 @@
 
 <script setup>
 import { computed } from 'vue'
+import ATable from '@arco-design/web-vue/es/table'
+import '@arco-design/web-vue/es/table/style/css'
 
 const props = defineProps({
   columns: { type: Array, required: true },

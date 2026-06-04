@@ -64,5 +64,4 @@ Restart Claude Desktop after editing its config.
 
 - `403` or `Origin not allowed`: ensure ORIN Backend was started with `ORIN_MCP_ALLOWED_ORIGINS` containing the same origin as `ORIN_BASE_URL`.
 - `ORIN_API_KEY is required`: set a valid ORIN gateway API key in the Claude Desktop config.
-- No tools appear: confirm the API key user owns at least one Agent with `mcpExposed=true`.
-
+- No tools appear: confirm the API key user owns at least one Agent or published Workflow with `mcpExposed=true`.

@@ -27,6 +27,10 @@
 
 <script setup>
 import { ref } from 'vue'
+import AForm from '@arco-design/web-vue/es/form'
+import AModal from '@arco-design/web-vue/es/modal'
+import '@arco-design/web-vue/es/form/style/css'
+import '@arco-design/web-vue/es/modal/style/css'
 
 defineProps({
   modelValue: { type: Boolean, default: false },

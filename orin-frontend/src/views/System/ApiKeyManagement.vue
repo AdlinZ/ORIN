@@ -1,11 +1,12 @@
 <template>
   <div class="page-container">
     <div class="tab-wrapper-card">
-      <OrinEntityHeader
+      <OrinPageShell
         v-if="!embedded"
-        title="API 密钥"
-        description="管理平台访问密钥、供应商凭据、调用额度与限流策略"
-        domain="组织权限"
+        :title="selfService ? 'API Key 自助' : 'API 密钥'"
+        :description="selfService ? '创建和管理你自己的平台访问密钥，用于调用 ORIN MCP 与开放网关能力' : '管理平台访问密钥、供应商凭据、调用额度与限流策略'"
+        :domain="selfService ? '个人访问' : '系统控制'"
+        icon="Key"
       >
         <template #actions>
           <el-button
@@ -17,7 +18,7 @@
             创建平台密钥
           </el-button>
           <el-button
-            v-else
+            v-else-if="!selfService"
             type="primary"
             :icon="Plus"
             @click="showExternalCreate"
@@ -25,13 +26,13 @@
             添加供应商密钥
           </el-button>
         </template>
-      </OrinEntityHeader>
+      </OrinPageShell>
 
       <div v-else class="embedded-access-toolbar">
         <div>
           <span class="command-eyebrow">访问凭据</span>
-          <h3>API Key 与供应商凭据</h3>
-          <p>管理调用方访问密钥、上游供应商凭据和配额状态。</p>
+          <h3>{{ selfService ? 'API Key 自助' : 'API Key 与供应商凭据' }}</h3>
+          <p>{{ selfService ? '管理你的个人平台访问密钥和调用历史。' : '管理调用方访问密钥、上游供应商凭据和配额状态。' }}</p>
         </div>
         <div class="embedded-access-actions">
           <el-button
@@ -43,7 +44,7 @@
             创建平台密钥
           </el-button>
           <el-button
-            v-else
+            v-else-if="!selfService"
             type="primary"
             :icon="Plus"
             @click="showExternalCreate"
@@ -86,8 +87,8 @@
                         {{ formatDateTime(row.expiresAt) || '永不过期' }}
                       </el-descriptions-item>
                       <el-descriptions-item label="状态">
-                        <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-                          {{ row.enabled ? '启用' : '禁用' }}
+                        <el-tag :type="getKeyStatusType(row)" size="small">
+                          {{ getKeyStatusLabel(row) }}
                         </el-tag>
                       </el-descriptions-item>
                       <el-descriptions-item label="速率限制">
@@ -125,8 +126,8 @@
                 align="center"
               >
                 <template #default="{ row }">
-                  <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-                    {{ row.enabled ? '启用' : '禁用' }}
+                  <el-tag :type="getKeyStatusType(row)" size="small">
+                    {{ getKeyStatusLabel(row) }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -157,7 +158,7 @@
                 </template>
               </el-table-column>
 
-              <el-table-column label="操作" width="270" fixed="right">
+              <el-table-column label="操作" width="380" fixed="right">
                 <template #default="{ row }">
                   <el-button 
                     size="small" 
@@ -168,7 +169,7 @@
                     {{ row.enabled ? '禁用' : '启用' }}
                   </el-button>
                   <el-button
-                    v-if="row.canRevealSecret"
+                    v-if="!selfService && row.canRevealSecret"
                     size="small"
                     type="info"
                     link
@@ -178,6 +179,31 @@
                     查看明文
                   </el-button>
                   <el-button
+                    size="small"
+                    type="primary"
+                    link
+                    @click="handleRotate(row)"
+                  >
+                    轮换
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    link
+                    @click="handleShowUsage(row)"
+                  >
+                    历史
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    link
+                    @click="copyMcpConfig(row)"
+                  >
+                    配置
+                  </el-button>
+                  <el-button
+                    v-if="!selfService"
                     size="small"
                     type="primary"
                     link
@@ -206,7 +232,7 @@
           </OrinDataTable>
         </el-tab-pane>
 
-        <el-tab-pane label="外部供应商密钥 (Credentials)" name="provider">
+        <el-tab-pane v-if="!selfService" label="外部供应商密钥 (Credentials)" name="provider">
           <OrinDataTable class="table-card">
             <el-table
               v-loading="loading"
@@ -361,19 +387,22 @@
             placeholder="密钥用途描述"
           />
         </el-form-item>
-        <el-form-item label="速率限制(分钟)">
+        <el-form-item v-if="!selfService" label="速率限制(分钟)">
           <el-input-number v-model="formData.rateLimitPerMinute" :min="1" :max="10000" />
         </el-form-item>
-        <el-form-item label="速率限制(天)">
+        <el-form-item v-if="!selfService" label="速率限制(天)">
           <el-input-number v-model="formData.rateLimitPerDay" :min="1" :max="1000000" />
         </el-form-item>
-        <el-form-item label="月度Token配额">
+        <el-form-item v-if="!selfService" label="月度Token配额">
           <el-input-number
             v-model="formData.monthlyTokenQuota"
             :min="1000"
             :max="100000000"
             :step="10000"
           />
+        </el-form-item>
+        <el-form-item v-else label="配额与限流">
+          <span class="readonly-form-note">按平台默认策略生效</span>
         </el-form-item>
         <el-form-item label="过期时间">
           <el-date-picker
@@ -424,11 +453,88 @@
           >
             复制
           </el-button>
+          <el-button
+            size="small"
+            :icon="CopyDocument"
+            @click="copyMcpConfig({ secretKey: createdSecretKey })"
+          >
+            复制 MCP 配置
+          </el-button>
         </div>
       </div>
       <template #footer>
         <el-button type="primary" @click="secretDialogVisible = false">
           我已处理
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="usageDialogVisible"
+      :title="usageDialogTitle"
+      width="860px"
+    >
+      <div v-loading="usageLoading" class="usage-dialog">
+        <el-descriptions v-if="usageData" :column="3" border>
+          <el-descriptions-item label="30天调用">
+            {{ formatNumber(usageData.totalCalls) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="失败率">
+            {{ formatPercent(usageData.failureRate) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="平均耗时">
+            {{ formatLatency(usageData.averageLatencyMs) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="成功">
+            {{ formatNumber(usageData.successCalls) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="失败">
+            {{ formatNumber(usageData.failedCalls) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="窗口 Token">
+            {{ formatNumber(usageData.tokensInWindow) }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <OrinDataTable v-if="usageData" compact class="usage-events-table">
+          <el-table
+            :data="usageData.recentEvents || []"
+            border
+            stripe
+            max-height="320"
+          >
+            <el-table-column prop="createdAt" label="时间" width="170">
+              <template #default="{ row }">
+                {{ formatDateTime(row.createdAt) || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="source" label="来源" width="90" />
+            <el-table-column prop="method" label="方法" width="80" />
+            <el-table-column prop="path" label="路径" min-width="190" show-overflow-tooltip />
+            <el-table-column prop="statusCode" label="状态码" width="90" />
+            <el-table-column label="结果" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.success ? 'success' : 'danger'" size="small">
+                  {{ row.success ? '成功' : '失败' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="耗时" width="90">
+              <template #default="{ row }">
+                {{ formatLatency(row.latencyMs) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="traceId" label="Trace ID" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="errorSummary" label="错误摘要" min-width="180" show-overflow-tooltip />
+            <template #empty>
+              <OrinEmptyState description="暂无调用历史" />
+            </template>
+          </el-table>
+        </OrinDataTable>
+      </div>
+      <template #footer>
+        <el-button @click="usageDialogVisible = false">
+          关闭
         </el-button>
       </template>
     </el-dialog>
@@ -438,7 +544,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Plus, CopyDocument } from '@element-plus/icons-vue';
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue';
 import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue';
@@ -451,7 +557,9 @@ import {
   disableApiKey,
   deleteApiKey,
   resetQuota,
+  rotateApiKey,
   getApiKeySecret,
+  getApiKeyUsage,
   getExternalKeys,
   saveExternalKey,
   deleteExternalKey,
@@ -459,12 +567,18 @@ import {
 } from '@/api/apiKey';
 import { View, Hide } from '@element-plus/icons-vue';
 
-defineProps({
+const props = defineProps({
   embedded: {
+    type: Boolean,
+    default: false
+  },
+  selfService: {
     type: Boolean,
     default: false
   }
 });
+
+const selfService = computed(() => props.selfService);
 
 const activeTab = ref('platform');
 const externalKeys = ref([]);
@@ -483,32 +597,50 @@ const submitting = ref(false);
 const formRef = ref(null);
 const createdSecretKey = ref('');
 const revealLoadingKeys = ref(new Set());
+const usageDialogVisible = ref(false);
+const usageLoading = ref(false);
+const usageData = ref(null);
+const usageKey = ref(null);
 let secretAutoHideTimer = null;
 
-const apiKeyStatusItems = computed(() => [
-  {
-    label: '平台密钥',
-    value: apiKeys.value.length,
-    meta: '面向业务系统的访问凭据'
-  },
-  {
-    label: '启用中',
-    value: apiKeys.value.filter(key => key.enabled).length,
-    meta: '当前可调用平台网关',
-    intent: 'success'
-  },
-  {
-    label: '供应商凭据',
-    value: externalKeys.value.length,
-    meta: '上游模型服务访问凭据'
-  },
-  {
+const usageDialogTitle = computed(() => {
+  if (!usageKey.value) return 'API Key 调用历史';
+  return `调用历史 - ${usageKey.value.name || usageKey.value.id}`;
+});
+
+const apiKeyStatusItems = computed(() => {
+  const items = [
+    {
+      label: '平台密钥',
+      value: apiKeys.value.length,
+      meta: selfService.value ? '你创建的访问凭据' : '面向业务系统的访问凭据'
+    },
+    {
+      label: '启用中',
+      value: apiKeys.value.filter(key => key.enabled).length,
+      meta: '当前可调用平台网关',
+      intent: 'success'
+    }
+  ];
+
+  if (!selfService.value) {
+    items.push({
+      label: '供应商凭据',
+      value: externalKeys.value.length,
+      meta: '上游模型服务访问凭据'
+    });
+  }
+
+  items.push({
     label: '停用凭据',
-    value: apiKeys.value.filter(key => !key.enabled).length + externalKeys.value.filter(key => !key.enabled).length,
+    value: apiKeys.value.filter(key => !key.enabled).length
+      + (selfService.value ? 0 : externalKeys.value.filter(key => !key.enabled).length),
     meta: '已从调用链路移除',
     intent: 'warning'
-  }
-]);
+  });
+
+  return items;
+});
 
 const formData = ref({
   name: '',
@@ -544,7 +676,7 @@ const fetchApiKeys = async () => {
   try {
     const [platformRes, externalRes] = await Promise.all([
       getAllApiKeys(),
-      getExternalKeys()
+      selfService.value ? Promise.resolve([]) : getExternalKeys()
     ]);
     apiKeys.value = platformRes;
     externalKeys.value = externalRes;
@@ -558,6 +690,7 @@ const fetchApiKeys = async () => {
 
 // 获取供应商列表
 const fetchProviders = async () => {
+  if (selfService.value) return;
   try {
     const res = await getProviderList();
     providerList.value = res || [];
@@ -578,13 +711,25 @@ const showCreateDialog = () => {
   dialogVisible.value = true;
 };
 
+const buildCreatePayload = () => {
+  if (selfService.value) {
+    return {
+      name: formData.value.name,
+      description: formData.value.description,
+      expiresAt: formData.value.expiresAt
+    };
+  }
+
+  return { ...formData.value };
+};
+
 const handleCreate = async () => {
   const valid = await formRef.value.validate();
   if (!valid) return;
 
   submitting.value = true;
   try {
-    const res = await createApiKey(formData.value);
+    const res = await createApiKey(buildCreatePayload());
     createdSecretKey.value = res.secretKey;
     secretDialogTitle.value = '密钥创建成功';
     secretDialogDescription.value = '请妥善保存此密钥,它只会显示一次!关闭此对话框后将无法再次查看。';
@@ -648,8 +793,42 @@ const handleDelete = async (row) => {
   }
 };
 
+const handleRotate = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `轮换后旧密钥会立即失效。请确认已准备更新所有使用 ${row.name || row.id} 的客户端配置。`,
+      '轮换平台密钥',
+      {
+        confirmButtonText: '确认轮换',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+    const res = await rotateApiKey(row.id);
+    createdSecretKey.value = res.secretKey;
+    secretDialogTitle.value = '密钥轮换成功';
+    secretDialogDescription.value = '旧密钥已失效。请立即更新客户端配置；新密钥关闭后不再显示。';
+    secretDialogVisible.value = true;
+    ElMessage.success('轮换成功');
+    fetchApiKeys();
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('轮换失败');
+    }
+  }
+};
+
 const handleRevealSecret = async (row) => {
   try {
+    await ElMessageBox.confirm(
+      '该操作会短暂展示完整平台访问密钥，并写入审计日志。请确认当前环境安全，且仅用于受控运维。',
+      '敏感操作二次确认',
+      {
+        confirmButtonText: '继续',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
     const passwordPrompt = await ElMessageBox.prompt(
       '请输入当前登录密码以继续查看明文（本次操作会被审计记录）',
       '管理员密钥回显确认',
@@ -663,7 +842,8 @@ const handleRevealSecret = async (row) => {
     );
     revealLoadingKeys.value.add(row.id);
     const res = await getApiKeySecret(row.id, {
-      currentPassword: passwordPrompt.value
+      currentPassword: passwordPrompt.value,
+      confirmReveal: 'REVEAL_API_KEY'
     });
     createdSecretKey.value = res.secretKey;
     secretDialogTitle.value = '管理员密钥回显';
@@ -691,6 +871,20 @@ const handleRevealSecret = async (row) => {
   }
 };
 
+const handleShowUsage = async (row) => {
+  usageKey.value = row;
+  usageData.value = null;
+  usageDialogVisible.value = true;
+  usageLoading.value = true;
+  try {
+    usageData.value = await getApiKeyUsage(row.id, { limit: 20 });
+  } catch (error) {
+    ElMessage.error('获取调用历史失败');
+  } finally {
+    usageLoading.value = false;
+  }
+};
+
 const handleSecretDialogClosed = () => {
   if (secretAutoHideTimer) {
     clearTimeout(secretAutoHideTimer);
@@ -707,6 +901,21 @@ const copyToClipboard = (text) => {
   });
 };
 
+const buildMcpConfig = (secretKey) => JSON.stringify({
+  mcpServers: {
+    orin: {
+      url: `${window.location.origin.replace(/\/$/, '')}/v1/mcp`,
+      headers: {
+        Authorization: `Bearer ${secretKey}`
+      }
+    }
+  }
+}, null, 2);
+
+const copyMcpConfig = (row) => {
+  copyToClipboard(buildMcpConfig(row?.secretKey || '<paste-sk-orin-key-here>'));
+};
+
 const formatDateTime = (val) => {
   if (!val) return '';
   return new Date(val).toLocaleString();
@@ -716,10 +925,32 @@ const formatNumber = (num) => {
   return num ? num.toLocaleString() : 0;
 };
 
+const formatPercent = (num) => {
+  const value = Number(num || 0);
+  return `${value.toFixed(1)}%`;
+};
+
+const formatLatency = (num) => {
+  if (num === null || num === undefined || Number.isNaN(Number(num))) return '-';
+  return `${Math.round(Number(num))} ms`;
+};
+
 const getQuotaColor = (percentage) => {
   if (percentage >= 90) return 'var(--error-500)';
   if (percentage >= 70) return 'var(--warning-500)';
   return 'var(--success-500)';
+};
+
+const getKeyStatusLabel = (row) => {
+  if (row.status === 'EXPIRED') return '过期';
+  if (row.status === 'DISABLED' || !row.enabled) return '禁用';
+  return '启用';
+};
+
+const getKeyStatusType = (row) => {
+  if (row.status === 'EXPIRED') return 'danger';
+  if (row.status === 'DISABLED' || !row.enabled) return 'info';
+  return 'success';
 };
 
 // --- External Key Handlers ---
@@ -914,5 +1145,18 @@ onUnmounted(() => {
   font-family: 'Monaco', 'Courier New', monospace;
   font-size: 14px;
   word-break: break-all;
+}
+
+.usage-dialog {
+  min-height: 180px;
+}
+
+.usage-events-table {
+  margin-top: 16px;
+}
+
+.readonly-form-note {
+  color: #64748b;
+  font-size: 13px;
 }
 </style>

@@ -102,6 +102,21 @@ public class CollaborationRedisService {
                 .map(ctx -> ctx.get(field));
     }
 
+    /**
+     * 删除统一上下文字段，并将分支计数器修正为剩余 branch_result 数量。
+     */
+    public void removeContextFields(String packageId, List<String> fields) {
+        if (fields == null || fields.isEmpty()) {
+            return;
+        }
+        Map<String, Object> ctx = loadContext(packageId).orElse(new HashMap<>());
+        fields.forEach(ctx::remove);
+        saveContext(packageId, ctx);
+        long branchCount = ctx.keySet().stream().filter(key -> key.startsWith("branch_result:")).count();
+        String counterKey = String.format(BRANCH_COUNTER_PREFIX, packageId);
+        redisTemplate.opsForValue().set(counterKey, String.valueOf(branchCount), CTX_TTL);
+    }
+
     // ========== 分布式锁 ==========
 
     /**

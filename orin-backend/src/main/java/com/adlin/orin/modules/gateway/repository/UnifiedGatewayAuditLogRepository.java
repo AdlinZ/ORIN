@@ -20,6 +20,8 @@ public interface UnifiedGatewayAuditLogRepository extends JpaRepository<UnifiedG
 
     Page<UnifiedGatewayAuditLog> findByResultOrderByCreatedAtDesc(String result, Pageable pageable);
 
+    Page<UnifiedGatewayAuditLog> findByApiKeyIdOrderByCreatedAtDesc(String apiKeyId, Pageable pageable);
+
     @Query("SELECT a FROM UnifiedGatewayAuditLog a WHERE " +
            "(:routeId IS NULL OR a.routeId = :routeId) AND " +
            "(:result IS NULL OR a.result = :result) AND " +
@@ -41,4 +43,11 @@ public interface UnifiedGatewayAuditLogRepository extends JpaRepository<UnifiedG
     long countByResultSince(String result, LocalDateTime since);
 
     long countByCreatedAtAfter(LocalDateTime since);
+
+    long countByApiKeyIdAndCreatedAtAfter(String apiKeyId, LocalDateTime since);
+
+    long countByApiKeyIdAndResultAndCreatedAtAfter(String apiKeyId, String result, LocalDateTime since);
+
+    @Query("SELECT AVG(a.latencyMs) FROM UnifiedGatewayAuditLog a WHERE a.apiKeyId = :apiKeyId AND a.createdAt > :since")
+    Double findAverageLatencyByApiKeySince(String apiKeyId, LocalDateTime since);
 }

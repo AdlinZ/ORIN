@@ -6,6 +6,7 @@ import {
   getTraceByInstance,
   getTraceLink,
   getTraceStats,
+  getTraceSummary,
   searchTraces
 } from '@/api/trace'
 
@@ -23,6 +24,7 @@ describe('trace api', () => {
   it('uses /traces paths so global /api/v1 baseURL is preserved', () => {
     getTrace('trace-1')
     getTraceStats('trace-1')
+    getTraceSummary('trace-1')
     getTraceByInstance(8)
     searchTraces('trace-1')
     getRecentTraces(20)
@@ -30,13 +32,14 @@ describe('trace api', () => {
 
     expect(request.get).toHaveBeenNthCalledWith(1, '/traces/trace-1')
     expect(request.get).toHaveBeenNthCalledWith(2, '/traces/trace-1/stats')
-    expect(request.get).toHaveBeenNthCalledWith(3, '/traces/instance/8')
-    expect(request.get).toHaveBeenNthCalledWith(4, '/traces/search', {
+    expect(request.get).toHaveBeenNthCalledWith(3, '/traces/trace-1/summary')
+    expect(request.get).toHaveBeenNthCalledWith(4, '/traces/instance/8')
+    expect(request.get).toHaveBeenNthCalledWith(5, '/traces/search', {
       params: { traceId: 'trace-1' }
     })
-    expect(request.get).toHaveBeenNthCalledWith(5, '/traces/recent', {
+    expect(request.get).toHaveBeenNthCalledWith(6, '/traces/recent', {
       params: { size: 20 }
     })
-    expect(request.get).toHaveBeenNthCalledWith(6, '/traces/trace-1/link')
+    expect(request.get).toHaveBeenNthCalledWith(7, '/traces/trace-1/link')
   })
 })

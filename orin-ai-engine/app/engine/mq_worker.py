@@ -294,7 +294,7 @@ class CollabMQWorker:
                 result = await self._execute_task(task)
 
                 # Write result back
-                await self._write_result(result)
+                await self._write_result(result, task)
 
             except json.JSONDecodeError as e:
                 logger.error("Invalid message format: %s", e)
@@ -451,7 +451,7 @@ class CollabMQWorker:
             context=context,
         )
 
-    async def _write_result(self, result: CollabTaskResult):
+    async def _write_result(self, result: CollabTaskResult, task: Optional[CollabTaskMessage] = None):
         """Write task result back to result queue"""
         if not self.channel:
             logger.error("No channel available for writing result")
@@ -468,11 +468,17 @@ class CollabMQWorker:
                 correlation_id=result.correlation_id
             )
 
-            reply_exchange = await self.channel.get_exchange(self.reply_exchange_name)
-            await reply_exchange.publish(
-                message,
-                routing_key=self.reply_routing_key
-            )
+            if task and task.reply_to:
+                await self.channel.default_exchange.publish(
+                    message,
+                    routing_key=task.reply_to
+                )
+            else:
+                reply_exchange = await self.channel.get_exchange(self.reply_exchange_name)
+                await reply_exchange.publish(
+                    message,
+                    routing_key=self.reply_routing_key
+                )
 
             logger.info(
                 "Result written: %s/%s -> %s",

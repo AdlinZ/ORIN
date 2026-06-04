@@ -1,5 +1,13 @@
 <template>
   <div class="visual-workflow-editor">
+    <el-alert
+      v-if="visualLoadError"
+      class="visual-shell-alert"
+      type="error"
+      :closable="false"
+      show-icon
+      :title="visualLoadError"
+    />
     <!-- Sub Header (Workflow Logic Toolbar) -->
     <div class="dify-sub-header">
       <div class="sub-left">
@@ -57,6 +65,13 @@
 
           <!-- Main Actions (Preview, etc) -->
           <div class="dify-action-bar">
+            <div class="dify-bar-item return-btn" @click="goToWorkflowList">
+              <el-icon>
+                <Right />
+              </el-icon>
+              <span>返回列表</span>
+            </div>
+
             <div class="dify-bar-item save-btn" :class="{ disabled: saving }" @click="!saving && handleSave()">
               <svg
                 viewBox="0 0 24 24"
@@ -1368,6 +1383,7 @@ const activeTab = ref('orchestrate');
 const isEdit = ref(false);
 const saving = ref(false);
 const hasUnsavedChanges = ref(false);
+const visualLoadError = ref('');
 const elements = ref([]);
 const selectedNode = ref(null);
 const showPalette = ref(false); // 默认隐藏节点库
@@ -1925,6 +1941,10 @@ const onDeleteWorkflow = () => {
     }).catch(() => {});
 };
 
+const goToWorkflowList = () => {
+    router.push(ROUTES.AGENTS.WORKFLOWS);
+};
+
 const getDifyWorkflowData = () => {
     ensureTerminalOutputDefaults();
     const nodes = elements.value.filter(el => !el.source).map(n => {
@@ -2125,7 +2145,6 @@ onMounted(async () => {
     if (!document.hidden && hasUnsavedChanges.value && !saving.value && route.params.id && elements.value.length > 0) {
       try {
         await handleSave(true); // true 表示自动保存，不显示成功提示
-        console.log('工作流已自动保存');
       } catch (e) {
         console.error('自动保存失败:', e);
       }
@@ -2210,6 +2229,7 @@ const fetchWorkflowCapabilities = async () => {
 };
 
 const loadWorkflow = async (id) => {
+  visualLoadError.value = '';
   try {
     const res = await getWorkflow(id);
     const workflow = res?.data || res;
@@ -2289,7 +2309,8 @@ const loadWorkflow = async (id) => {
     hasUnsavedChanges.value = false;
   } catch (e) { 
       console.error('加载工作流失败:', e);
-      ElMessage.error('加载失败: ' + (e.message || '未知错误'));
+      visualLoadError.value = '加载失败: ' + (e.response?.data?.message || e.message || '未知错误');
+      ElMessage.error(visualLoadError.value);
       // Set default empty workflow on error
       elements.value = [
         { id: 'start_1', type: 'start', position: { x: 160, y: 220 }, data: { id: 'start_1' } },
@@ -2998,6 +3019,11 @@ const runWorkflow = async () => {
   color: #334155;
   font-family: 'Inter', -apple-system, sans-serif;
   overflow: hidden;
+}
+
+.visual-shell-alert {
+  flex: 0 0 auto;
+  margin: 10px 16px 0;
 }
 
 /* --- Dify Sub Header --- */

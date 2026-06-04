@@ -73,6 +73,14 @@ export function getRuntimeStatus(packageId) {
   })
 }
 
+// 获取协作包诊断摘要
+export function getDiagnostics(packageId) {
+  return request({
+    url: `/collaboration/packages/${packageId}/diagnostics`,
+    method: 'get'
+  })
+}
+
 // 获取 Agent 指标
 export function getAgentMetrics(agentId) {
   return request({

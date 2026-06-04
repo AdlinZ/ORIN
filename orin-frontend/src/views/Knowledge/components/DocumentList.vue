@@ -165,7 +165,12 @@
 import { ref, watch } from 'vue'
 import { UploadFilled, Document, Refresh, Picture, Headset, VideoCamera } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/utils/request'
+import {
+  deleteDocument,
+  getDocumentContent,
+  getDocuments,
+  uploadDocument
+} from '@/api/knowledge'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -202,7 +207,7 @@ const loadDocuments = async () => {
   if (!props.kbId) return
   loading.value = true
   try {
-    const res = await request.get(`/knowledge/${props.kbId}/documents`)
+    const res = await getDocuments(props.kbId)
     documents.value = res || []
   } catch (error) {
     console.error(error)
@@ -224,25 +229,18 @@ const handleUpload = async (options) => {
   uploadProgress.value = 0
   uploadStatus.value = ''
 
-  const formData = new FormData()
-  formData.append('file', file)
-
   uploading.value = true
   try {
-    // 模拟上传进度
-    const progressInterval = setInterval(() => {
-      if (uploadProgress.value < 90) {
-        uploadProgress.value += 10
-      }
-    }, 200)
-
-    await request.post(`/knowledge/${props.kbId}/documents/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    await uploadDocument(props.kbId, file, undefined, {
+      onUploadProgress: (event) => {
+        if (!event.total) {
+          uploadProgress.value = Math.max(uploadProgress.value, 5)
+          return
+        }
+        uploadProgress.value = Math.min(99, Math.round((event.loaded / event.total) * 100))
       }
     })
 
-    clearInterval(progressInterval)
     uploadProgress.value = 100
     uploadStatus.value = 'success'
 
@@ -299,7 +297,7 @@ const handleDelete = (doc) => {
   )
     .then(async () => {
       try {
-        await request.delete(`/knowledge/documents/${doc.id}`)
+        await deleteDocument(doc.id)
         ElMessage.success('删除成功')
         loadDocuments()
         emit('change')
@@ -314,7 +312,7 @@ const handleDelete = (doc) => {
 const viewParsedContent = async (doc) => {
   try {
     // 尝试获取解析后的文本内容
-    const res = await request.get(`/knowledge/documents/${doc.id}/content`)
+    const res = await getDocumentContent(doc.id)
     currentParsedContent.value = {
       fileName: doc.fileName,
       text: res?.content || res?.text || '无法获取内容',

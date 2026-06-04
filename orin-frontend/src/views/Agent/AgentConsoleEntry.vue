@@ -318,10 +318,7 @@ onMounted(() => {
   position: relative;
   height: 100%;
   min-height: 0;
-  background:
-    radial-gradient(circle at top left, rgba(20, 184, 166, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(14, 165, 233, 0.14), transparent 24%),
-    linear-gradient(180deg, #f4fbfb 0%, #f7f9fc 52%, #f3f5f8 100%);
+  background: #f7f9fc;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -427,12 +424,12 @@ onMounted(() => {
 .stat-card {
   border-radius: 22px;
   padding: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(243, 247, 249, 0.96));
+  background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .stat-card.accent {
-  background: linear-gradient(135deg, #0f766e, #0f766e 18%, #155e75 100%);
+  background: #0f766e;
   color: #f8fafc;
 }
 
@@ -514,7 +511,7 @@ onMounted(() => {
 .agent-card {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), #f8fafc);
+  background: #ffffff;
   cursor: pointer;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   text-align: left;
@@ -655,7 +652,7 @@ onMounted(() => {
 .skeleton-card {
   height: 230px;
   border-radius: 22px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #ffffff 37%, #f1f5f9 63%);
+  background: #f1f5f9;
   background-size: 400% 100%;
   animation: shimmer 1.8s infinite linear;
 }

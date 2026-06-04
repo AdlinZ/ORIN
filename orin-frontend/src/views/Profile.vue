@@ -1,6 +1,7 @@
 <template>
   <div class="page-container">
-    <PageHeader
+    <OrinPageShell
+      domain="个人工作台"
       title="个人中心"
       description="查看与管理个人资料、账户安全和近期活动"
       icon="User"
@@ -230,7 +231,7 @@ import {
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
 import { getUserProfile, updateUserProfile, uploadAvatar, updateUserAvatar, getUserDashboard } from '@/api/user';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 const userStore = useUserStore();
 const activeTab = ref('settings');

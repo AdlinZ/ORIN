@@ -19,7 +19,7 @@ import {
   updateWorkflow,
   runWorkflowStream,
   runWorkflow,
-} from "./api"
+} from "@/api/playground"
 import { useWorkflowRunner } from "./composables/useWorkflowRunner"
 import { I18N_KEY, createUiI18n } from "./i18n"
 import AgentsPage from "./pages/AgentsPage.vue"

@@ -5,15 +5,45 @@ import CollaborationDashboardV2 from '@/views/revamp/collaboration/Collaboration
 const getCollaborationStatsMock = vi.fn()
 const getAllPackagesMock = vi.fn()
 const getEventHistoryMock = vi.fn()
+const getSubtasksMock = vi.fn()
 const createCollaborationPackageMock = vi.fn()
+const manualCompletePackageMock = vi.fn()
+const manualCompleteSubtaskMock = vi.fn()
+const retrySubtaskMock = vi.fn()
+const skipSubtaskMock = vi.fn()
+const getRuntimeStatusMock = vi.fn()
+const getDiagnosticsMock = vi.fn()
+const pauseCollaborationMock = vi.fn()
+const resumeCollaborationMock = vi.fn()
+const cancelCollaborationMock = vi.fn()
 const warningMock = vi.fn()
 const successMock = vi.fn()
+const confirmMock = vi.fn()
+const promptMock = vi.fn()
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useRoute: () => ({ query: {} })
+}))
 
 vi.mock('@/api/collaboration', () => ({
   getCollaborationStats: (...args) => getCollaborationStatsMock(...args),
   getAllPackages: (...args) => getAllPackagesMock(...args),
   getEventHistory: (...args) => getEventHistoryMock(...args),
+  getSubtasks: (...args) => getSubtasksMock(...args),
+  manualCompletePackage: (...args) => manualCompletePackageMock(...args),
+  manualCompleteSubtask: (...args) => manualCompleteSubtaskMock(...args),
+  retrySubtask: (...args) => retrySubtaskMock(...args),
+  skipSubtask: (...args) => skipSubtaskMock(...args),
   createCollaborationPackage: (...args) => createCollaborationPackageMock(...args)
+}))
+
+vi.mock('@/api/collaborationRuntime', () => ({
+  getRuntimeStatus: (...args) => getRuntimeStatusMock(...args),
+  getDiagnostics: (...args) => getDiagnosticsMock(...args),
+  pauseCollaboration: (...args) => pauseCollaborationMock(...args),
+  resumeCollaboration: (...args) => resumeCollaborationMock(...args),
+  cancelCollaboration: (...args) => cancelCollaborationMock(...args)
 }))
 
 vi.mock('element-plus', async (importOriginal) => {
@@ -23,6 +53,10 @@ vi.mock('element-plus', async (importOriginal) => {
     ElMessage: {
       warning: (...args) => warningMock(...args),
       success: (...args) => successMock(...args)
+    },
+    ElMessageBox: {
+      confirm: (...args) => confirmMock(...args),
+      prompt: (...args) => promptMock(...args)
     }
   }
 })
@@ -33,7 +67,7 @@ const createWrapper = () => mount(CollaborationDashboardV2, {
       OrinPageShell: { template: '<div><slot /><slot name="actions" /><slot name="filters" /></div>' },
       OrinFilterBar: { template: '<div><slot /></div>' },
       OrinAsyncState: { template: '<div><slot /></div>' },
-      OrinTaskTimeline: { template: '<div class="timeline-stub" />' },
+      OrinTaskTimeline: { props: ['items'], template: '<div class="timeline-stub">{{ JSON.stringify(items) }}</div>' },
       StatCard: { template: '<div class="stat-card" />' },
       'el-row': { template: '<div><slot /></div>' },
       'el-col': { template: '<div><slot /></div>' },
@@ -44,6 +78,9 @@ const createWrapper = () => mount(CollaborationDashboardV2, {
       'el-option': { template: '<option><slot /></option>' },
       'el-tag': { template: '<span><slot /></span>' },
       'el-dialog': { template: '<div><slot /><slot name="footer" /></div>' },
+      'el-drawer': { template: '<div><slot /></div>' },
+      'el-descriptions': { template: '<div><slot /></div>' },
+      'el-descriptions-item': { template: '<div><slot /></div>' },
       'el-form': { template: '<form><slot /></form>' },
       'el-form-item': { template: '<div><slot /></div>' },
       'el-table': {
@@ -62,9 +99,26 @@ describe('CollaborationDashboardV2', () => {
     getCollaborationStatsMock.mockReset()
     getAllPackagesMock.mockReset()
     getEventHistoryMock.mockReset()
+    getSubtasksMock.mockReset()
     createCollaborationPackageMock.mockReset()
+    manualCompletePackageMock.mockReset()
+    manualCompleteSubtaskMock.mockReset()
+    retrySubtaskMock.mockReset()
+    skipSubtaskMock.mockReset()
+    getRuntimeStatusMock.mockReset()
+    getDiagnosticsMock.mockReset()
+    pauseCollaborationMock.mockReset()
+    resumeCollaborationMock.mockReset()
+    cancelCollaborationMock.mockReset()
     warningMock.mockReset()
     successMock.mockReset()
+    confirmMock.mockReset()
+    promptMock.mockReset()
+    confirmMock.mockResolvedValue()
+    promptMock.mockResolvedValue({ value: 'done manually' })
+    getSubtasksMock.mockResolvedValue([])
+    getRuntimeStatusMock.mockResolvedValue({})
+    getDiagnosticsMock.mockResolvedValue({})
   })
 
   it('loads stats and packages on mounted', async () => {
@@ -110,5 +164,65 @@ describe('CollaborationDashboardV2', () => {
     expect(timelineBtn).toBeTruthy()
     await timelineBtn.trigger('click')
     expect(getEventHistoryMock).toHaveBeenCalledWith('pkg-1')
+  })
+
+  it('pauses an executing package from the detail drawer and refreshes runtime state', async () => {
+    getCollaborationStatsMock.mockResolvedValue({})
+    getAllPackagesMock.mockResolvedValue([{ packageId: 'pkg-1', intent: 'intent A', status: 'EXECUTING' }])
+    getEventHistoryMock.mockResolvedValue([])
+    pauseCollaborationMock.mockResolvedValue({})
+
+    const wrapper = createWrapper()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const detailBtn = wrapper.findAll('button').find((btn) => btn.text().includes('详情'))
+    expect(detailBtn).toBeTruthy()
+    await detailBtn.trigger('click')
+    await Promise.resolve()
+
+    const pauseBtn = wrapper.findAll('button').find((btn) => btn.text().trim() === '暂停')
+    expect(pauseBtn).toBeTruthy()
+    await pauseBtn.trigger('click')
+    await Promise.resolve()
+
+    expect(confirmMock).toHaveBeenCalledWith('确认暂停该协作任务包？', '暂停协作包', { type: 'warning' })
+    expect(pauseCollaborationMock).toHaveBeenCalledWith('pkg-1')
+    expect(successMock).toHaveBeenCalledWith('协作包已暂停')
+  })
+
+  it('shows fallback attempts in runtime and event history', async () => {
+    getCollaborationStatsMock.mockResolvedValue({})
+    getAllPackagesMock.mockResolvedValue([{ packageId: 'pkg-1', intent: 'intent A', status: 'EXECUTING' }])
+    getEventHistoryMock.mockResolvedValue([
+      { eventType: 'FALLBACK_TRIGGERED', timestamp: '2026-04-09T01:00:00Z', eventData: { attempt: 1 } },
+      { eventType: 'SUBTASK_RETRY', timestamp: '2026-04-09T01:00:01Z', eventData: { subTaskId: 'sub-1' } }
+    ])
+    getRuntimeStatusMock.mockResolvedValue({
+      packageId: 'pkg-1',
+      fallbackAttempts: 1,
+      fallbackTrail: [{ attempt: 1, reason: 'critic rejected result', resetSubTaskIds: ['sub-1'] }]
+    })
+    getDiagnosticsMock.mockResolvedValue({
+      runtime: {
+        fallbackAttempts: 1,
+        fallbackTrail: [{ attempt: 1, reason: 'critic rejected result' }]
+      }
+    })
+
+    const wrapper = createWrapper()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const detailBtn = wrapper.findAll('button').find((btn) => btn.text().includes('详情'))
+    expect(detailBtn).toBeTruthy()
+    await detailBtn.trigger('click')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(wrapper.text()).toContain('fallbackAttempts')
+    expect(wrapper.text()).toContain('critic rejected result')
+    expect(wrapper.text()).toContain('FALLBACK_TRIGGERED')
+    expect(wrapper.text()).toContain('SUBTASK_RETRY')
   })
 })

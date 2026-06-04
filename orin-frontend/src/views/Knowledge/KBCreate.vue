@@ -1,10 +1,22 @@
 <template>
   <div class="kb-create-page">
-    <PageHeader
+    <OrinPageShell
       title="创建知识库"
       description="按步骤完成数据源接入、解析与分段配置"
       icon="Reading"
-    />
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="$router.back()">返回</el-button>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag type="primary" effect="plain">步骤 {{ currentStep }} / 4</el-tag>
+          <el-tag effect="plain">{{ selectedSourceLabel }}</el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
     <!-- Header with Steps -->
     <div class="create-header">
       <div class="header-left" @click="$router.back()">
@@ -1192,9 +1204,27 @@ import {
   Monitor, Cloudy, Refresh
 } from '@element-plus/icons-vue';
 import { ElMessage, ElNotification } from 'element-plus';
-import request from '@/utils/request';
 import { getModelList } from '@/api/model';
-import PageHeader from '@/components/PageHeader.vue';
+import {
+   addKnowledge,
+   connectDatabase,
+   deleteDocument,
+   generateDescription as generateKnowledgeDescription,
+   getDocument,
+   getDocumentContent,
+   getDocuments,
+   listNotionDatabases,
+   syncFromNotion,
+   syncFromWeb,
+   testDatabaseConnection as testKnowledgeDatabaseConnection,
+   testNotionConnection as testKnowledgeNotionConnection,
+   testWebUrl as testKnowledgeWebUrl,
+   triggerVectorization,
+   updateKnowledge,
+   uploadDocument
+} from '@/api/knowledge';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 const router = useRouter();
 const currentStep = ref(1);
@@ -1245,6 +1275,15 @@ const displayChunks = computed(() => {
 
 // Source selection
 const selectedSource = ref('file');
+const selectedSourceLabel = computed(() => {
+   const labels = {
+      file: '导入已有文本',
+      web: '同步 Web 站点',
+      notion: '同步 Notion',
+      database: '连接数据库'
+   };
+   return labels[selectedSource.value] || '选择数据源';
+});
 
 // Web source config
 const webConfig = reactive({
@@ -1402,12 +1441,8 @@ const canProceed = computed(() => {
 
 onMounted(async () => {
    try {
-      console.log('Loading models...');
       const res = await getModelList();
-      console.log('Models response:', res);
       allModels.value = res || [];
-      console.log('All models:', allModels.value);
-      console.log('Embedding options:', embeddingOptions.value);
 
       if (!form.embeddingModel && embeddingOptions.value.length > 0) {
          const preferred = embeddingOptions.value.find(o => o.value.includes('text-embedding-3-large'));
@@ -1509,32 +1544,26 @@ const generateName = async () => {
             enableRerank: form.enableRerank || null,
             rerankModel: form.rerankModel || null
          };
-         const kb = await request.post('/knowledge', payload);
+         const kb = await addKnowledge(payload);
          newKbId = kb.id;
          createdKbId.value = newKbId;
 
          // 上传文档
          if (fileList.value.length > 0 && selectedSource.value === 'file') {
             for (const f of fileList.value) {
-               const formData = new FormData();
-               formData.append('file', f.rawFile || f.raw);
-               await request.post(`/knowledge/${newKbId}/documents/upload`, formData);
+               await uploadDocument(newKbId, f.rawFile || f.raw);
                uploadedFiles.value.add(f.name);
             }
          }
       }
 
       // 调用AI生成描述（会同时返回 title 和 description）
-      const res = await request.post(`/knowledge/${newKbId}/generate-description`, {
-         model: descModel.value
-      });
-
-      console.log('Generate name response:', res);
+      const res = await generateKnowledgeDescription(newKbId, descModel.value);
 
       if (res.title) {
          kbName.value = res.title;
          // 更新知识库名称
-         await request.put(`/knowledge/${newKbId}`, {
+         await updateKnowledge(newKbId, {
             name: res.title,
             description: kbDescription.value || ''
          });
@@ -1581,16 +1610,14 @@ const generateDescription = async () => {
             enableRerank: form.enableRerank || null,
             rerankModel: form.rerankModel || null
          };
-         const kb = await request.post('/knowledge', payload);
+         const kb = await addKnowledge(payload);
          newKbId = kb.id;
          createdKbId.value = newKbId;
 
          // 上传文档
          if (fileList.value.length > 0 && selectedSource.value === 'file') {
             for (const f of fileList.value) {
-               const formData = new FormData();
-               formData.append('file', f.rawFile || f.raw);
-               await request.post(`/knowledge/${newKbId}/documents/upload`, formData);
+               await uploadDocument(newKbId, f.rawFile || f.raw);
                // 标记已上传
                uploadedFiles.value.add(f.name);
             }
@@ -1598,11 +1625,7 @@ const generateDescription = async () => {
       }
 
       // 调用AI生成描述
-      const res = await request.post(`/knowledge/${newKbId}/generate-description`, {
-         model: descModel.value
-      });
-
-      console.log('Generate description response:', res);
+      const res = await generateKnowledgeDescription(newKbId, descModel.value);
 
       if (res.description || res.title) {
          // 同时更新名称和描述
@@ -1613,11 +1636,10 @@ const generateDescription = async () => {
             kbDescription.value = res.description;
          }
          // 更新知识库名称和描述
-         const updateRes = await request.put(`/knowledge/${newKbId}`, {
+         await updateKnowledge(newKbId, {
             name: kbName.value || '未命名知识库',
             description: res.description || ''
          });
-         console.log('Update KB response:', updateRes);
          ElMessage.success(res.title ? '名称和描述生成成功' : '描述生成成功');
       } else {
          ElMessage.warning('AI未返回内容');
@@ -1637,7 +1659,7 @@ const testWebUrl = async () => {
    try {
       const urls = webConfig.urlsText.split('\n').filter(u => u.trim());
       const firstUrl = urls[0];
-      const res = await request.get('/knowledge/sync/web/test', { params: { url: firstUrl } });
+      const res = await testKnowledgeWebUrl(firstUrl);
       if (res.success) {
          ElMessage.success('连接成功: ' + res.title);
       } else {
@@ -1655,7 +1677,7 @@ const testNotionConnection = async () => {
    if (!notionConfig.integrationToken) return ElMessage.warning('请输入 Integration Token');
    testingNotion.value = true;
    try {
-      const res = await request.post('/knowledge/sync/notion/test', {
+      const res = await testKnowledgeNotionConnection({
          integrationToken: notionConfig.integrationToken
       });
       if (res.success) {
@@ -1674,7 +1696,7 @@ const loadNotionDatabases = async () => {
    if (!notionConfig.integrationToken) return ElMessage.warning('请输入 Integration Token');
    loadingNotionDatabases.value = true;
    try {
-      const res = await request.post('/knowledge/sync/notion/databases', {
+      const res = await listNotionDatabases({
          integrationToken: notionConfig.integrationToken
       });
       notionDatabases.value = res || [];
@@ -1691,7 +1713,7 @@ const testDatabaseConnection = async () => {
    if (!dbConfig.connectionUrl) return ElMessage.warning('请输入连接 URL');
    testingDb.value = true;
    try {
-      const res = await request.post('/knowledge/sync/database/test', dbConfig);
+      const res = await testKnowledgeDatabaseConnection(dbConfig);
       if (res.success) {
          ElMessage.success('连接成功: ' + res.databaseProductName);
       } else {
@@ -1803,15 +1825,6 @@ const chunkText = (text, maxLength, overlap, separator) => {
    return finalChunks;
 };
 
-const getMockText = (i) => {
-    const texts = [
-      "提及起是本事，放得下是格局。年轻时别人总觉得两手空空是输了。你得先把手里的烂泥甩干净，才能腾出手去接那一盏热茶。",
-      "昨天的雨湿不了今天的衣，明天的风吹不散昨天的云。你总在深夜里反复咀嚼那些过去的事，除了让自己更苦，没别的用。",
-      "赢了名利若丢了清欢，也是惨胜；输了世界若赢了自在，也是大成。别被那些花里胡哨的标准给困住了。"
-   ];
-   return texts[i-1] || texts[0];
-}
-
 const handlePreview = async () => {
    if (fileList.value.length === 0) return;
    previewLoading.value = true;
@@ -1824,17 +1837,16 @@ const handlePreview = async () => {
          const parsed = parsedContent.value.find(p => p.fileName === targetFile.name);
          if (parsed && parsed.text) {
             text = parsed.text;
-            console.log('Using pre-parsed content:', text.length, 'chars');
          }
       }
 
       // Step 2: If no pre-parsed content, try to get from document
       if (!text && createdKbId.value) {
          try {
-            const docs = await request.get(`/knowledge/${createdKbId.value}/documents`);
+            const docs = await getDocuments(createdKbId.value);
             const uploadedDoc = docs.find(d => d.fileName === targetFile.name);
             if (uploadedDoc && uploadedDoc.id) {
-               const contentRes = await request.get(`/knowledge/documents/${uploadedDoc.id}/content`);
+               const contentRes = await getDocumentContent(uploadedDoc.id);
                if (contentRes.text && contentRes.text.length > 0) {
                   text = contentRes.text;
                }
@@ -1844,12 +1856,16 @@ const handlePreview = async () => {
          }
       }
 
-      // Step 3: Fallback to local file reading or mock
+      // Step 3: Fallback to local text reading only; binary files must be parsed by backend first.
       if (!text || text.startsWith('Error:') || text.startsWith('Failed')) {
          if (targetFile.type.startsWith('text/') || targetFile.name.endsWith('.md') || targetFile.name.endsWith('.json')) {
             text = await readFileAsText(targetFile.rawFile);
          } else {
-            text = "（注意：此处显示示例文本。）\n\n" + getMockText(1) + "\n\n" + getMockText(2) + "\n\n" + getMockText(3);
+            previewChunks.value = [];
+            collapsedChunks.value = new Set();
+            showPreview.value = false;
+            ElMessage.warning('当前文件尚未获得真实解析文本，请先完成上传解析，或使用 TXT/MD/JSON 样本文本预览分段。');
+            return;
          }
       }
 
@@ -1858,12 +1874,12 @@ const handlePreview = async () => {
 
       let chunks = [];
       if (form.segmentMode === 'parent_child') {
-        // Simulate Parent-Child chunking preview
-        // First split into parent chunks (~1000 chars)
+        // Preview Parent-Child chunking from available text.
+        // First split into parent chunks (~1000 chars).
         const parentChunks = chunkText(text, 1000, 0, '\\n\\n');
         chunks = [];
         parentChunks.forEach((parent, idx) => {
-          // Each parent can have multiple children (~200 chars)
+          // Each parent can have multiple children (~200 chars).
           const childChunks = chunkText(parent, 200, 0, '\\n');
           childChunks.forEach((child, cIdx) => {
             chunks.push({
@@ -1931,7 +1947,7 @@ const processFilesAndParse = async () => {
         // 1. Create knowledge base (needed for file storage)
         let newKbId = createdKbId.value;
         if (!newKbId) {
-            const kb = await request.post('/knowledge', {
+            const kb = await addKnowledge({
                 name: kbName.value || '未命名知识库',
                 description: kbDescription.value || '',
                 status: 'ENABLED',
@@ -1965,13 +1981,8 @@ const processFilesAndParse = async () => {
                 continue;
             }
 
-            const formData = new FormData();
-            formData.append('file', f.rawFile);
-
             try {
-                const doc = await request.post(`/knowledge/${newKbId}/documents/upload`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                const doc = await uploadDocument(newKbId, f.rawFile);
                 uploadedFiles.value.add(f.name);
                 uploadedDocIds.value.push(doc.id);
                 docIdToIndex.value.set(doc.id, i); // 记录 docId 到文件索引的映射
@@ -2020,12 +2031,12 @@ const reparseFiles = async () => {
     if (createdKbId.value) {
         try {
             // 获取知识库中的所有文档
-            const docs = await request.get(`/knowledge/${createdKbId.value}/documents`);
+            const docs = await getDocuments(createdKbId.value);
             if (docs && docs.length > 0) {
                 // 删除所有文档
                 for (const doc of docs) {
                     try {
-                        await request.delete(`/knowledge/documents/${doc.id}`);
+                        await deleteDocument(doc.id);
                     } catch (e) {
                         console.error(`Failed to delete document ${doc.id}:`, e);
                     }
@@ -2055,7 +2066,7 @@ const waitForParsingComplete = async (docIds) => {
             let allComplete = true;
             let hasFailed = false;
             for (const docId of docIds) {
-                const doc = await request.get(`/knowledge/documents/${docId}`);
+                const doc = await getDocument(docId);
                 const status = doc.parseStatus || doc.vectorStatus;
                 // 使用 docIdToIndex 映射获取文件索引
                 const idx = docIdToIndex.value.get(docId);
@@ -2114,13 +2125,10 @@ const parsedContent = ref([]); // Array of { fileName, text }
 const fetchParsedContent = async (kbId) => {
     const content = [];
     try {
-        const docs = await request.get(`/knowledge/${kbId}/documents`);
-        console.log('[Debug] Fetched documents:', docs);
+        const docs = await getDocuments(kbId);
         for (const doc of docs) {
             try {
-                const contentRes = await request.get(`/knowledge/documents/${doc.id}/content`);
-                console.log(`[Debug] Content for ${doc.fileName}:`, JSON.stringify(contentRes));
-                console.log(`[Debug] Has text property:`, 'text' in contentRes, 'keys:', Object.keys(contentRes));
+                const contentRes = await getDocumentContent(doc.id);
                 if (contentRes.text) {
                     content.push({
                         docId: doc.id,
@@ -2128,7 +2136,6 @@ const fetchParsedContent = async (kbId) => {
                         text: contentRes.text
                     });
                 } else if (contentRes.contentPreview) {
-                    console.log(`[Debug] Using contentPreview for ${doc.fileName}`);
                     content.push({
                         docId: doc.id,
                         fileName: doc.fileName,
@@ -2144,7 +2151,6 @@ const fetchParsedContent = async (kbId) => {
     } catch (err) {
         console.error('Failed to fetch parsed content:', err);
     }
-    console.log('[Debug] Final parsed content:', content);
     return content;
 };
 
@@ -2179,18 +2185,6 @@ const saveKB = async () => {
         // Prepare creating status for UI
         isFinished.value = false;
 
-        // Debug: log OCR model selection
-        console.log('[Debug] OCR Provider:', form.ocrProvider);
-        console.log('[Debug] OCR Model:', form.ocrModel);
-        console.log('[Debug] OCR Model Options:', ocrModelOptions.value);
-        console.log('[Debug] All Models:', allModels.value.filter(m => {
-            const type = m.type?.toUpperCase();
-            const isOCR = type === 'OCR';
-            const isVision = type === 'VISION' || type === 'VLM' || type === 'MULTIMODAL' || type === 'VISUAL';
-            const hasVisionKeywords = (m.modelId + m.name + (m.description || '')).toLowerCase().match(/ocr|vision|vl|multimodal|图片|文字|识别/);
-            return (isOCR || isVision || hasVisionKeywords) && m.status === 'ENABLED';
-        }));
-
         const payload = {
             name: kbName.value || '未命名知识库',
             description: kbDescription.value || (form.indexType === 'high_quality' ? 'High Quality Index' : 'Economy Index'),
@@ -2211,12 +2205,10 @@ const saveKB = async () => {
             rerankModel: form.rerankModel || null
         };
 
-        console.log('[Debug] Saving KB with payload:', payload);
-
         // 1. Create Knowledge Base via API (avoid duplicate if already created)
         let newKbId = createdKbId.value;
         if (!newKbId) {
-            const kb = await request.post('/knowledge', payload);
+            const kb = await addKnowledge(payload);
             newKbId = kb.id;
             createdKbId.value = newKbId;
         }
@@ -2233,16 +2225,11 @@ const saveKB = async () => {
                     continue;
                 }
 
-                const formData = new FormData();
-                formData.append('file', f.rawFile);
-
                 try {
-                    const doc = await request.post(`/knowledge/${newKbId}/documents/upload`, formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
+                    const doc = await uploadDocument(newKbId, f.rawFile);
 
                     // Trigger vectorization right away
-                    await request.post(`/knowledge/documents/${doc.id}/vectorize`);
+                    await triggerVectorization(doc.id);
 
                     creatingFiles.value[i].progress = 100;
                 } catch (uploadErr) {
@@ -2260,7 +2247,7 @@ const saveKB = async () => {
             creatingFiles.value = urls.map(u => ({ name: u, progress: 0 }));
 
             try {
-                const res = await request.post(`/knowledge/${newKbId}/sync/web`, {
+                const res = await syncFromWeb(newKbId, {
                     urls: urls,
                     maxDepth: webConfig.maxDepth
                 });
@@ -2284,7 +2271,7 @@ const saveKB = async () => {
             creatingFiles.value = [{ name: 'Notion Database', progress: 0 }];
 
             try {
-                const res = await request.post(`/knowledge/${newKbId}/sync/notion`, {
+                const res = await syncFromNotion(newKbId, {
                     integrationToken: notionConfig.integrationToken,
                     databaseId: notionConfig.databaseId
                 });
@@ -2308,7 +2295,7 @@ const saveKB = async () => {
             creatingFiles.value = [{ name: 'Database Connection', progress: 0 }];
 
             try {
-                const res = await request.post(`/knowledge/${newKbId}/sync/database/connect`, dbConfig);
+                const res = await connectDatabase(newKbId, dbConfig);
 
                 if (res.success) {
                     creatingFiles.value[0].progress = 100;
@@ -2602,7 +2589,7 @@ const handleGoToDocument = () => {
 .success-icon-wrap {
    width: 56px;
    height: 56px;
-   background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+   background: #10b981;
    border-radius: 16px;
    display: flex;
    align-items: center;

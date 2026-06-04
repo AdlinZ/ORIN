@@ -110,7 +110,10 @@ public class GatewaySecretController {
                 ? GatewaySecret.SecretStatus.ACTIVE
                 : GatewaySecret.SecretStatus.DISABLED;
         boolean success = gatewaySecretService.updateStatus(secretId, status, userId);
-        return Map.of("success", success);
+        auditHelper.log(userId, "GATEWAY_SECRET_STATUS", "/api/v1/gateway/secrets/" + secretId + "/status",
+                "action=status;secretId=" + secretId + ";status=" + status.name(),
+                success, success ? null : "STATUS_UPDATE_FAILED");
+        return Map.of("success", success, "status", status.name());
     }
 
     @DeleteMapping("/{secretId}")
@@ -119,6 +122,9 @@ public class GatewaySecretController {
     public Map<String, Object> delete(@PathVariable String secretId,
                                       @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
         boolean success = gatewaySecretService.deleteBySecretId(secretId, userId);
+        auditHelper.log(userId, "GATEWAY_SECRET_DELETE", "/api/v1/gateway/secrets/" + secretId,
+                "action=delete;secretId=" + secretId,
+                success, success ? null : "DELETE_FAILED");
         return Map.of("success", success);
     }
 
@@ -131,18 +137,27 @@ public class GatewaySecretController {
         Map<String, Object> response = new HashMap<>();
         if (request.getSecret() != null && !request.getSecret().isBlank()) {
             boolean success = gatewaySecretService.rotateProviderCredential(secretId, request.getSecret(), userId).isPresent();
+            auditHelper.log(userId, "GATEWAY_SECRET_ROTATE", "/api/v1/gateway/secrets/" + secretId + "/rotate",
+                    "action=rotate;secretId=" + secretId + ";type=PROVIDER_CREDENTIAL",
+                    success, success ? null : "ROTATE_FAILED");
             response.put("success", success);
             return ResponseEntity.ok(response);
         }
 
         return gatewaySecretService.rotateClientAccessSecret(secretId, userId)
                 .map(rotated -> {
+                    auditHelper.log(userId, "GATEWAY_SECRET_ROTATE", "/api/v1/gateway/secrets/" + secretId + "/rotate",
+                            "action=rotate;secretId=" + secretId + ";type=CLIENT_ACCESS",
+                            true, null);
                     response.put("success", true);
                     response.put("secret", toView(rotated.getSecret()));
                     response.put("secretKey", rotated.getSecretValue());
                     return ResponseEntity.ok(response);
                 })
                 .orElseGet(() -> {
+                    auditHelper.log(userId, "GATEWAY_SECRET_ROTATE", "/api/v1/gateway/secrets/" + secretId + "/rotate",
+                            "action=rotate;secretId=" + secretId,
+                            false, "ROTATE_FAILED");
                     Map<String, Object> fail = new HashMap<>();
                     fail.put("success", false);
                     fail.put("message", "rotate failed");
@@ -156,12 +171,20 @@ public class GatewaySecretController {
     public ResponseEntity<Map<String, Object>> reveal(@PathVariable String secretId) {
         return gatewaySecretService.revealSecret(secretId)
                 .map(secret -> {
+                    auditHelper.log("SYSTEM", "GATEWAY_SECRET_REVEAL", "/api/v1/gateway/secrets/" + secretId + "/reveal",
+                            "action=reveal;secretId=" + secretId,
+                            true, null);
                     Map<String, Object> body = new HashMap<>();
                     body.put("secretId", secretId);
                     body.put("secret", secret);
                     return ResponseEntity.ok(body);
                 })
-                .orElseGet(() -> ResponseEntity.status(404).<Map<String, Object>>build());
+                .orElseGet(() -> {
+                    auditHelper.log("SYSTEM", "GATEWAY_SECRET_REVEAL", "/api/v1/gateway/secrets/" + secretId + "/reveal",
+                            "action=reveal;secretId=" + secretId,
+                            false, "SECRET_NOT_FOUND");
+                    return ResponseEntity.status(404).<Map<String, Object>>build();
+                });
     }
 
     @PostMapping("/provider-credentials/test")
@@ -194,6 +217,7 @@ public class GatewaySecretController {
                 .type(secret.getSecretType().name())
                 .provider(secret.getProvider())
                 .status(secret.getStatus().name())
+                .enabled(secret.getStatus() == GatewaySecret.SecretStatus.ACTIVE)
                 .maskedSecret(mask(secret.getKeyPrefix(), secret.getLast4()))
                 .last4(secret.getLast4())
                 .baseUrl(secret.getBaseUrl())
@@ -265,6 +289,7 @@ public class GatewaySecretController {
         private String type;
         private String provider;
         private String status;
+        private Boolean enabled;
         private String maskedSecret;
         private String last4;
         private String baseUrl;

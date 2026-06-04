@@ -143,7 +143,12 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="协作任务包详情" size="720px">
+    <el-drawer
+      v-model="detailVisible"
+      title="协作任务包详情"
+      size="720px"
+      :close-on-click-modal="false"
+    >
       <div v-if="activePackage" class="detail-drawer">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="任务包ID">
@@ -160,10 +165,71 @@
           <el-descriptions-item label="协作模式">
             {{ activePackage.collaborationMode }}
           </el-descriptions-item>
+          <el-descriptions-item label="Trace ID">
+            <el-button v-if="activePackage.traceId" link type="primary" @click="openTrace(activePackage.traceId)">
+              {{ activePackage.traceId }}
+            </el-button>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="更新时间">
+            {{ formatTime(activePackage.updatedAt) }}
+          </el-descriptions-item>
           <el-descriptions-item label="任务意图" :span="2">
             {{ activePackage.intent }}
           </el-descriptions-item>
         </el-descriptions>
+
+        <div class="package-actions">
+          <el-button
+            v-if="canPausePackage(activePackage)"
+            type="warning"
+            :disabled="Boolean(operatingPackageId)"
+            @click="handlePausePackage"
+          >
+            暂停
+          </el-button>
+          <el-button
+            v-if="canResumePackage(activePackage)"
+            type="primary"
+            :disabled="Boolean(operatingPackageId)"
+            @click="handleResumePackage"
+          >
+            恢复
+          </el-button>
+          <el-button
+            v-if="canCancelPackage(activePackage)"
+            type="danger"
+            :disabled="Boolean(operatingPackageId)"
+            @click="handleCancelPackage"
+          >
+            取消
+          </el-button>
+          <el-button
+            v-if="canManualCompletePackage(activePackage)"
+            type="success"
+            :disabled="Boolean(operatingPackageId)"
+            @click="handleManualCompletePackage"
+          >
+            手动完成
+          </el-button>
+        </div>
+
+        <div class="drawer-section-header">
+          <strong>运行时</strong>
+          <el-button link type="primary" :icon="Refresh" @click="loadRuntimeForActive">
+            刷新
+          </el-button>
+        </div>
+        <div class="runtime-grid">
+          <div class="runtime-panel">
+            <strong>Runtime</strong>
+            <pre>{{ formatJson(runtimeStatus) }}</pre>
+          </div>
+          <div class="runtime-panel">
+            <strong>Diagnostics</strong>
+            <pre>{{ formatJson(diagnostics) }}</pre>
+          </div>
+        </div>
 
         <div class="drawer-section-header">
           <strong>子任务</strong>
@@ -173,51 +239,63 @@
         </div>
 
         <OrinAsyncState :status="subtasksState.status" empty-text="暂无子任务">
-          <el-table :data="subtasks" border stripe>
-            <el-table-column prop="subTaskId" label="子任务ID" width="120" show-overflow-tooltip />
-            <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
-            <el-table-column prop="expectedRole" label="角色" width="110" />
-            <el-table-column prop="status" label="状态" width="130">
-              <template #default="{ row }">
-                <el-tag :type="subtaskStatusTag(row.status)" size="small">
-                  {{ row.status }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="retryCount" label="重试" width="70" align="center" />
-            <el-table-column label="操作" width="190" fixed="right">
-              <template #default="{ row }">
-                <el-button
-                  v-if="canSkip(row)"
-                  link
-                  type="warning"
-                  :disabled="Boolean(operatingSubtaskId)"
-                  @click="handleSkipSubtask(row)"
-                >
-                  跳过
-                </el-button>
-                <el-button
-                  v-if="canManualComplete(row)"
-                  link
-                  type="success"
-                  :disabled="Boolean(operatingSubtaskId)"
-                  @click="handleManualCompleteSubtask(row)"
-                >
-                  手动完成
-                </el-button>
-                <el-button
-                  v-if="canRetry(row)"
-                  link
-                  type="primary"
-                  :disabled="Boolean(operatingSubtaskId)"
-                  @click="handleRetrySubtask(row)"
-                >
-                  重试
-                </el-button>
-                <span v-if="!hasSubtaskAction(row)" class="muted-action">-</span>
-              </template>
-            </el-table-column>
-          </el-table>
+          <OrinDataTable compact>
+            <el-table :data="subtasks" border stripe>
+              <el-table-column prop="subTaskId" label="子任务ID" width="120" show-overflow-tooltip />
+              <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
+              <el-table-column prop="expectedRole" label="角色" width="110" />
+              <el-table-column prop="status" label="状态" width="130">
+                <template #default="{ row }">
+                  <el-tag :type="subtaskStatusTag(row.status)" size="small">
+                    {{ row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="retryCount" label="重试" width="70" align="center" />
+              <el-table-column label="操作" width="190" fixed="right">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="canSkip(row)"
+                    link
+                    type="warning"
+                    :disabled="Boolean(operatingSubtaskId)"
+                    @click="handleSkipSubtask(row)"
+                  >
+                    跳过
+                  </el-button>
+                  <el-button
+                    v-if="canManualComplete(row)"
+                    link
+                    type="success"
+                    :disabled="Boolean(operatingSubtaskId)"
+                    @click="handleManualCompleteSubtask(row)"
+                  >
+                    手动完成
+                  </el-button>
+                  <el-button
+                    v-if="canRetry(row)"
+                    link
+                    type="primary"
+                    :disabled="Boolean(operatingSubtaskId)"
+                    @click="handleRetrySubtask(row)"
+                  >
+                    重试
+                  </el-button>
+                  <span v-if="!hasSubtaskAction(row)" class="muted-action">-</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
+        </OrinAsyncState>
+
+        <div class="drawer-section-header">
+          <strong>事件历史</strong>
+          <el-button link type="primary" :icon="Refresh" @click="showTimeline(activePackage)">
+            刷新
+          </el-button>
+        </div>
+        <OrinAsyncState :status="timelineState.status" empty-text="暂无事件历史">
+          <OrinTaskTimeline :items="timeline" />
         </OrinAsyncState>
       </div>
     </el-drawer>
@@ -229,7 +307,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
@@ -244,10 +322,18 @@ import {
   getCollaborationStats,
   getEventHistory,
   getSubtasks,
+  manualCompletePackage,
   manualCompleteSubtask,
   retrySubtask,
   skipSubtask
 } from '@/api/collaboration'
+import {
+  cancelCollaboration,
+  getDiagnostics,
+  getRuntimeStatus,
+  pauseCollaboration,
+  resumeCollaboration
+} from '@/api/collaborationRuntime'
 import {
   createAsyncState,
   markEmpty,
@@ -260,8 +346,9 @@ import {
   toTimelineViewModel
 } from '@/viewmodels'
 
-const statuses = ['PLANNING', 'DECOMPOSING', 'EXECUTING', 'CONSENSUS', 'COMPLETED', 'FAILED', 'FALLBACK']
+const statuses = ['PLANNING', 'DECOMPOSING', 'EXECUTING', 'CONSENSUS', 'PAUSED', 'COMPLETED', 'FAILED', 'FALLBACK', 'CANCELLED']
 const router = useRouter()
+const route = useRoute()
 
 const packagesState = reactive(createAsyncState())
 const timelineState = reactive(createAsyncState({ status: 'empty' }))
@@ -272,10 +359,13 @@ const statusFilter = ref('')
 const packages = ref([])
 const timeline = ref([])
 const subtasks = ref([])
+const runtimeStatus = ref({})
+const diagnostics = ref({})
 const activePackage = ref(null)
 const chatIntent = ref('')
 const detailVisible = ref(false)
 const operatingSubtaskId = ref('')
+const operatingPackageId = ref('')
 
 const showCreate = ref(false)
 const creating = ref(false)
@@ -361,10 +451,27 @@ const loadSubtasksForActive = async () => {
   await loadSubtasks(activePackage.value)
 }
 
+const loadRuntimeForActive = async () => {
+  const packageId = activePackage.value?.packageId
+  if (!packageId) return
+  try {
+    const [runtimeResponse, diagnosticsResponse] = await Promise.all([
+      getRuntimeStatus(packageId),
+      getDiagnostics(packageId)
+    ])
+    runtimeStatus.value = runtimeResponse?.data ?? runtimeResponse ?? {}
+    diagnostics.value = diagnosticsResponse?.data ?? diagnosticsResponse ?? {}
+  } catch (error) {
+    runtimeStatus.value = {}
+    diagnostics.value = {}
+    ElMessage.warning('运行时诊断加载失败')
+  }
+}
+
 const openDetail = async (row) => {
   activePackage.value = row
   detailVisible.value = true
-  await Promise.all([loadSubtasks(row), showTimeline(row)])
+  await Promise.all([loadSubtasks(row), showTimeline(row), loadRuntimeForActive()])
 }
 
 const refreshActiveDetails = async () => {
@@ -373,13 +480,58 @@ const refreshActiveDetails = async () => {
   if (!packageId) return
   const nextPackage = packages.value.find((item) => item.packageId === packageId) || activePackage.value
   activePackage.value = nextPackage
-  await Promise.all([loadSubtasks(nextPackage), showTimeline(nextPackage)])
+  await Promise.all([loadSubtasks(nextPackage), showTimeline(nextPackage), loadRuntimeForActive()])
 }
 
 const canRetry = (row) => row.status === 'FAILED'
 const canSkip = (row) => ['PENDING', 'FAILED'].includes(row.status)
 const canManualComplete = (row) => ['PENDING', 'RUNNING', 'FAILED', 'AWAITING_HUMAN_INPUT', 'MANUAL_HANDLING'].includes(row.status)
 const hasSubtaskAction = (row) => canRetry(row) || canSkip(row) || canManualComplete(row)
+
+const terminalPackageStatuses = ['COMPLETED', 'FAILED', 'CANCELLED']
+const canPausePackage = (pkg) => ['PLANNING', 'DECOMPOSING', 'EXECUTING', 'CONSENSUS'].includes(pkg?.status)
+const canResumePackage = (pkg) => pkg?.status === 'PAUSED'
+const canCancelPackage = (pkg) => pkg?.status && !terminalPackageStatuses.includes(pkg.status)
+const canManualCompletePackage = (pkg) => pkg?.status && !terminalPackageStatuses.includes(pkg.status)
+
+const handlePackageOperation = async (operation, successMessage) => {
+  const packageId = activePackage.value?.packageId
+  if (!packageId) return
+  operatingPackageId.value = packageId
+  try {
+    await operation(packageId)
+    ElMessage.success(successMessage)
+    await refreshActiveDetails()
+  } finally {
+    operatingPackageId.value = ''
+  }
+}
+
+const handlePausePackage = async () => {
+  await ElMessageBox.confirm('确认暂停该协作任务包？', '暂停协作包', { type: 'warning' })
+  await handlePackageOperation(pauseCollaboration, '协作包已暂停')
+}
+
+const handleResumePackage = async () => {
+  await ElMessageBox.confirm('确认恢复该协作任务包？', '恢复协作包', { type: 'warning' })
+  await handlePackageOperation(resumeCollaboration, '协作包已恢复')
+}
+
+const handleCancelPackage = async () => {
+  await ElMessageBox.confirm('确认取消该协作任务包？取消后将进入终态。', '取消协作包', { type: 'warning' })
+  await handlePackageOperation(cancelCollaboration, '协作包已取消')
+}
+
+const handleManualCompletePackage = async () => {
+  const { value } = await ElMessageBox.prompt('请输入简短完成结果', '手动完成协作包', {
+    confirmButtonText: '提交',
+    cancelButtonText: '取消',
+    inputType: 'textarea',
+    inputPattern: /.+/,
+    inputErrorMessage: '结果不能为空'
+  })
+  await handlePackageOperation((packageId) => manualCompletePackage(packageId, value), '协作包已手动完成')
+}
 
 const handleSkipSubtask = async (row) => {
   await ElMessageBox.confirm('确认跳过该子任务并继续调度后续任务？', '跳过子任务', { type: 'warning' })
@@ -394,10 +546,16 @@ const handleSkipSubtask = async (row) => {
 }
 
 const handleManualCompleteSubtask = async (row) => {
-  await ElMessageBox.confirm('确认将该子任务标记为手动完成？本阶段会提交空产出。', '手动完成子任务', { type: 'warning' })
+  const { value } = await ElMessageBox.prompt('请输入简短处理结果', '手动完成子任务', {
+    confirmButtonText: '提交',
+    cancelButtonText: '取消',
+    inputType: 'textarea',
+    inputPattern: /.+/,
+    inputErrorMessage: '结果不能为空'
+  })
   operatingSubtaskId.value = row.subTaskId
   try {
-    await manualCompleteSubtask(activePackage.value.packageId, row.subTaskId, '')
+    await manualCompleteSubtask(activePackage.value.packageId, row.subTaskId, value)
     ElMessage.success('已手动完成子任务')
     await refreshActiveDetails()
   } finally {
@@ -447,6 +605,15 @@ const goToWorkspace = () => {
 
 const formatTime = (value) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-'
 
+const formatJson = (value) => {
+  if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) return '暂无数据'
+  return JSON.stringify(value, null, 2)
+}
+
+const openTrace = (traceId) => {
+  router.push(ROUTES.MONITOR.TRACE_DETAIL.replace(':traceId', traceId))
+}
+
 const statusTag = (status) => {
   switch (status) {
     case 'COMPLETED': return 'success'
@@ -470,7 +637,16 @@ const subtaskStatusTag = (status) => {
   }
 }
 
-onMounted(loadAll)
+onMounted(async () => {
+  await loadAll()
+  const packageId = route.query.packageId
+  if (typeof packageId === 'string' && packageId) {
+    const matched = packages.value.find((item) => item.packageId === packageId)
+    if (matched) {
+      await openDetail(matched)
+    }
+  }
+})
 </script>
 
 <style scoped>
@@ -517,11 +693,50 @@ onMounted(loadAll)
   gap: 12px;
 }
 
+.package-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.runtime-panel {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+  background: var(--el-fill-color-extra-light);
+}
+
+.runtime-panel strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.runtime-panel pre {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .muted-action {
   color: var(--text-tertiary);
 }
 
 @media (max-width: 992px) {
+  .runtime-grid {
+    grid-template-columns: 1fr;
+  }
+
   .side-header {
     margin-top: 8px;
   }

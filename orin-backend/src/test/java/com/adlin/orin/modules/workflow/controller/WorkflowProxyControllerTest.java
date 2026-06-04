@@ -1,78 +1,145 @@
 package com.adlin.orin.modules.workflow.controller;
 
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
+import com.adlin.orin.modules.audit.service.AuditLogService;
+import com.adlin.orin.modules.model.service.ModelConfigService;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Tag("integration")
-public class WorkflowProxyControllerTest {
+/**
+ * Pure unit tests for {@link WorkflowProxyController}.
+ *
+ * No Spring context, no external services (Milvus / RabbitMQ / Neo4j).
+ * Only the HTTP call to the Python AI Engine is faked via MockWebServer.
+ */
+class WorkflowProxyControllerTest {
 
-    public static MockWebServer mockBackEnd;
+    private static MockWebServer mockAiEngine;
+    private static String mockBaseUrl;
 
-    @Autowired
     private WorkflowProxyController controller;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // We can't use WebTestClient against the controller directly easily because it
-    // returns Mono<ResponseEntity>
-    // and relies on an injected WebClient.
-    // Instead, let's test the controller method logic by calling it directly
-    // or use a real WebClient to call the controller (via local server port).
-    // Actually, since we want to verifying the Proxying, testing the Controller
-    // method is enough.
+    private ModelConfigService modelConfigService;
+    private AuditLogService auditLogService;
+    private GatewaySecretService gatewaySecretService;
+
+    @TempDir
+    Path tempDir;
 
     @BeforeAll
-    static void setUp() throws IOException {
-        mockBackEnd = new MockWebServer();
-        mockBackEnd.start();
+    static void startServer() throws IOException {
+        mockAiEngine = new MockWebServer();
+        mockAiEngine.start();
+        mockBaseUrl = "http://localhost:" + mockAiEngine.getPort();
     }
 
     @AfterAll
-    static void tearDown() throws IOException {
-        mockBackEnd.shutdown();
+    static void stopServer() throws IOException {
+        mockAiEngine.shutdown();
     }
 
-    @DynamicPropertySource
-    static void dynamicProperties(DynamicPropertyRegistry registry) {
-        registry.add("orin.ai-engine.url", () -> "http://localhost:" + mockBackEnd.getPort());
+    @BeforeEach
+    void setUp() {
+        WebClient webClient = WebClient.builder()
+                .baseUrl(mockBaseUrl)
+                .build();
+
+        // Pure mocks — no real service-layer logic exercised here
+        modelConfigService = mock(ModelConfigService.class);
+        auditLogService = mock(AuditLogService.class);
+        gatewaySecretService = mock(GatewaySecretService.class);
+
+        controller = new WorkflowProxyController(
+                webClient,
+                modelConfigService,
+                auditLogService,
+                gatewaySecretService
+        );
+    }
+
+    private ObjectNode emptyDsl() {
+        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode dsl = objectMapper.createObjectNode();
+        dsl.set("nodes", objectMapper.createArrayNode());
+        root.set("dsl", dsl);
+        return root;
     }
 
     @Test
-    void testRunWorkflowProxy_Success() throws Exception {
-        // Prepare Mock Response from Python Engine
-        String mockPythonResponse = "{\"success\": true, \"outputs\": {\"1\": \"result\"}}";
-        mockBackEnd.enqueue(new MockResponse()
-                .setBody(mockPythonResponse)
+    void runWorkflowProxy_returnsSuccessAndSetsDslVersion() throws Exception {
+        mockAiEngine.enqueue(new MockResponse()
+                .setBody("{\"success\": true, \"status\": \"success\"}")
                 .addHeader("Content-Type", "application/json"));
 
-        // Prepare Input DSL
-        ObjectMapper mapper = new ObjectMapper();
-        var dsl = mapper.readTree("{\"nodes\": [], \"edges\": []}");
+        ObjectNode root = emptyDsl();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
 
-        // Execute Controller Method
-        var responseEntity = controller.runWorkflowProxy(dsl,
-                new org.springframework.mock.web.MockHttpServletRequest());
+        ResponseEntity<JsonNode> response = controller.runWorkflowProxy(root, request);
 
-        // Verify
-        assertThat(responseEntity).isNotNull();
-        assertThat(responseEntity.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(responseEntity.getBody().get("success").asBoolean()).isTrue();
+        assertThat(response).isNotNull();
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("success").asBoolean()).isTrue();
+        // DSL version must be injected by the controller
+        assertThat(root.get("dsl").get("version").asText()).isEqualTo("1.0");
+        // Audit must have been called
+        verify(auditLogService, atLeastOnce()).logApiCall(
+                any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), anyInt(), anyLong(), anyInt(), anyInt(), anyDouble(),
+                anyBoolean(), any(), any(), any(), any(), any());
+    }
 
-        // Construct request check
-        var recordedRequest = mockBackEnd.takeRequest();
-        assertThat(recordedRequest.getMethod()).isEqualTo("POST");
-        assertThat(recordedRequest.getPath()).isEqualTo("/api/v1/run");
+    @Test
+    void runWorkflowProxy_returns500OnEngineFailure() throws Exception {
+        mockAiEngine.enqueue(new MockResponse()
+                .setResponseCode(500)
+                .setBody("{\"error\": \"AI Engine failed\"}")
+                .addHeader("Content-Type", "application/json"));
+
+        ObjectNode root = emptyDsl();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
+
+        ResponseEntity<JsonNode> response = controller.runWorkflowProxy(root, request);
+
+        // Error path must return 500
+        assertThat(response).isNotNull();
+        assertThat(response.getStatusCode().value()).isEqualTo(500);
+    }
+
+    @Test
+    void runWorkflowProxy_acceptsAuthorizationHeader() throws Exception {
+        mockAiEngine.enqueue(new MockResponse()
+                .setBody("{\"success\": true, \"status\": \"success\"}")
+                .addHeader("Content-Type", "application/json"));
+
+        ObjectNode root = emptyDsl();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
+        request.addHeader("Authorization", "Bearer test-token");
+
+        ResponseEntity<JsonNode> response = controller.runWorkflowProxy(root, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
     }
 }

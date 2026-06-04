@@ -1,10 +1,12 @@
 <template>
   <div :class="['skill-management', { 'is-embedded': embedded }]">
-    <PageHeader
+    <OrinPageShell
       v-if="!embedded"
       title="技能绑定"
       description="管理 Agent 的扩展能力，支持 API、知识库、Shell 和复合工作流"
       icon="MagicStick"
+      domain="应用域"
+      maturity="available"
     >
       <template #actions>
         <el-button type="success" @click="showImportDialog">
@@ -18,44 +20,47 @@
       </template>
 
       <template #filters>
-        <el-form :inline="true" class="skill-filter-form">
-          <el-form-item>
-            <el-select
-              v-model="filterType"
-              placeholder="技能类型"
-              clearable
-              class="filter-select"
-              @change="loadSkills"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="API 调用" value="API" />
-              <el-option label="知识库检索" value="KNOWLEDGE" />
-              <el-option label="Shell 命令" value="SHELL" />
-              <el-option label="复合工作流" value="COMPOSITE" />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-select
-              v-model="filterStatus"
-              placeholder="状态"
-              clearable
-              class="filter-select"
-              @change="loadSkills"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="活跃" value="ACTIVE" />
-              <el-option label="未激活" value="INACTIVE" />
-              <el-option label="已废弃" value="DEPRECATED" />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="loadSkills">
-              查询
-            </el-button>
-          </el-form-item>
-        </el-form>
+        <OrinFilterBar class="skill-filter-form">
+          <el-input
+            v-model="skillKeyword"
+            class="skill-search-input"
+            placeholder="搜索技能名称 / 描述"
+            clearable
+            :prefix-icon="Search"
+          />
+          <el-select
+            v-model="filterType"
+            placeholder="技能类型"
+            clearable
+            class="filter-select"
+            @change="loadSkills"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="API 调用" value="API" />
+            <el-option label="知识库检索" value="KNOWLEDGE" />
+            <el-option label="Shell 命令" value="SHELL" />
+            <el-option label="复合工作流" value="COMPOSITE" />
+          </el-select>
+          <el-select
+            v-model="filterStatus"
+            placeholder="状态"
+            clearable
+            class="filter-select"
+            @change="loadSkills"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="活跃" value="ACTIVE" />
+            <el-option label="未激活" value="INACTIVE" />
+            <el-option label="已废弃" value="DEPRECATED" />
+          </el-select>
+          <el-button type="primary" @click="loadSkills">
+            查询
+          </el-button>
+        </OrinFilterBar>
       </template>
-    </PageHeader>
+    </OrinPageShell>
+
+    <OrinMetricStrip v-if="!embedded" :metrics="skillMetricItems" class="skill-metric-strip" />
 
     <div v-else class="embedded-toolbar">
       <div class="embedded-toolbar-main">
@@ -220,21 +225,22 @@
       />
     </div>
 
-    <el-card v-else class="table-card">
-      <el-alert
-        v-if="loadError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="load-error"
-        :title="loadError"
+    <OrinDataTable
+      v-else
+      class="table-card"
+      title="技能清单"
+      description="统一维护可供智能体使用的 API、知识库、Shell 与复合技能"
+      compact
+    >
+      <OrinAsyncState
+        :status="skillTableState"
+        empty-text="暂无技能，点击右上角“创建技能”开始添加"
+        :error-text="loadError"
+        empty-action-label="创建技能"
+        @retry="loadSkills"
+        @empty-action="showCreateDialog"
       >
-        <template #default>
-          <el-button type="primary" text @click="loadSkills">重试</el-button>
-        </template>
-      </el-alert>
       <el-table
-        v-loading="loading"
         :data="displayedSkills"
         empty-text="暂无技能，点击右上角“创建技能”开始添加"
         stripe
@@ -302,7 +308,8 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+      </OrinAsyncState>
+    </OrinDataTable>
 
     <!-- 创建/编辑对话框 -->
     <el-dialog
@@ -502,7 +509,12 @@ import {
 } from '@/api/skill'
 import { marked } from 'marked'
 import dayjs from 'dayjs'
-import PageHeader from '@/components/PageHeader.vue'
+import { toSkillListViewModel } from '@/viewmodels'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 defineProps({
   embedded: {
@@ -545,6 +557,39 @@ const quickFilters = computed(() => [
   { key: 'api', label: 'API', count: skillStats.value.api, type: 'API', status: '' },
   { key: 'shell', label: 'Shell', count: skillStats.value.shell, type: 'SHELL', status: '' }
 ])
+
+const skillMetricItems = computed(() => [
+  {
+    key: 'total',
+    label: '技能总数',
+    value: skillStats.value.total,
+    meta: '当前可管理技能能力'
+  },
+  {
+    key: 'active',
+    label: '活跃技能',
+    value: skillStats.value.active,
+    meta: '可被智能体调用'
+  },
+  {
+    key: 'api',
+    label: 'API 技能',
+    value: skillStats.value.api,
+    meta: '外部服务集成能力'
+  },
+  {
+    key: 'shell',
+    label: 'Shell 技能',
+    value: skillStats.value.shell,
+    meta: '本地命令执行能力'
+  }
+])
+
+const skillTableState = computed(() => {
+  if (loading.value) return 'loading'
+  if (loadError.value) return 'error'
+  return displayedSkills.value.length ? 'success' : 'empty'
+})
 
 const activeAdvancedFilterCount = computed(() => [filterType.value, filterStatus.value].filter(Boolean).length)
 
@@ -639,7 +684,7 @@ const loadSkillStats = async () => {
 }
 
 const normalizeSkillRows = (data) => {
-  return Array.isArray(data) ? data : []
+  return toSkillListViewModel(data)
 }
 
 const applyQuickFilter = (quickFilter) => {

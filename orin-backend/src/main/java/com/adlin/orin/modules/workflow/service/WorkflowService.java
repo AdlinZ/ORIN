@@ -281,6 +281,17 @@ public class WorkflowService {
     }
 
     /**
+     * 带优先级和外部 traceId 的工作流触发。
+     */
+    public WorkflowExecutionSubmissionResponse triggerWorkflowWithPriority(Long workflowId, Map<String, Object> inputs,
+                                                                           TaskPriority priority, String triggeredBy,
+                                                                           String traceId) {
+        log.info("Triggering workflow: {}, priority: {}, traceIdProvided={}",
+                workflowId, priority, traceId != null && !traceId.isBlank());
+        return submitWorkflowExecution(workflowId, inputs, priority, triggeredBy, "API", traceId);
+    }
+
+    /**
      * 触发工作流（异步队列执行）
      */
     public Map<String, Object> triggerWorkflowAsync(Long workflowId, Map<String, Object> inputs,
@@ -307,6 +318,13 @@ public class WorkflowService {
     public WorkflowExecutionSubmissionResponse submitWorkflowExecution(Long workflowId, Map<String, Object> inputs,
                                                                        TaskPriority priority, String triggeredBy,
                                                                        String triggerSource) {
+        return submitWorkflowExecution(workflowId, inputs, priority, triggeredBy, triggerSource, null);
+    }
+
+    @Transactional
+    public WorkflowExecutionSubmissionResponse submitWorkflowExecution(Long workflowId, Map<String, Object> inputs,
+                                                                       TaskPriority priority, String triggeredBy,
+                                                                       String triggerSource, String traceId) {
         WorkflowEntity workflow = workflowRepository.findById(workflowId)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowId));
         if (workflow.getStatus() == WorkflowEntity.WorkflowStatus.ARCHIVED) {
@@ -323,17 +341,27 @@ public class WorkflowService {
             throw new IllegalStateException("Workflow validation failed: " + workflowId);
         }
 
-        WorkflowInstanceEntity instance = workflowEngine.createInstance(
-                workflowId,
-                inputs != null ? inputs : new HashMap<>(),
-                triggeredBy);
-        TaskEntity task = taskService.createAndEnqueueTask(
-                workflowId,
-                instance.getId(),
-                inputs != null ? inputs : new HashMap<>(),
-                priority,
-                triggeredBy,
-                triggerSource);
+        Map<String, Object> executionInputs = inputs != null ? inputs : new HashMap<>();
+        WorkflowInstanceEntity instance = traceId == null || traceId.isBlank()
+                ? workflowEngine.createInstance(workflowId, executionInputs, triggeredBy)
+                : workflowEngine.createInstance(workflowId, executionInputs, triggeredBy, traceId);
+        Integer maxRetriesOverride = resolveTaskMaxRetries(workflow);
+        TaskEntity task = maxRetriesOverride == null
+                ? taskService.createAndEnqueueTask(
+                        workflowId,
+                        instance.getId(),
+                        executionInputs,
+                        priority,
+                        triggeredBy,
+                        triggerSource)
+                : taskService.createAndEnqueueTask(
+                        workflowId,
+                        instance.getId(),
+                        executionInputs,
+                        priority,
+                        triggeredBy,
+                        triggerSource,
+                        maxRetriesOverride);
         if (task.getStatus() == TaskEntity.TaskStatus.FAILED) {
             instance.setStatus(WorkflowInstanceEntity.InstanceStatus.FAILED);
             instance.setErrorMessage(task.getErrorMessage());
@@ -349,6 +377,53 @@ public class WorkflowService {
                 task.getTaskId(), workflowId, instance.getId());
 
         return WorkflowExecutionSubmissionResponse.from(task, instance);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Integer resolveTaskMaxRetries(WorkflowEntity workflow) {
+        if (workflow == null) {
+            return null;
+        }
+        Integer retryPolicyMaxRetries = resolveMaxRetriesValue(workflow.getRetryPolicy());
+        if (retryPolicyMaxRetries != null) {
+            return retryPolicyMaxRetries;
+        }
+        Map<String, Object> workflowDefinition = workflow.getWorkflowDefinition();
+        if (workflowDefinition == null) {
+            return null;
+        }
+        Map<String, Object> metadata = workflowDefinition.get("metadata") instanceof Map<?, ?> rawMetadata
+                ? (Map<String, Object>) rawMetadata
+                : Map.of();
+        Map<String, Object> execution = metadata.get("execution") instanceof Map<?, ?> rawExecution
+                ? (Map<String, Object>) rawExecution
+                : Map.of();
+        Object value = execution.getOrDefault("maxRetries", metadata.get("maxRetries"));
+        return resolveMaxRetriesValue(value);
+    }
+
+    private Integer resolveMaxRetriesValue(Map<String, Object> retryPolicy) {
+        if (retryPolicy == null) {
+            return null;
+        }
+        Object value = retryPolicy.getOrDefault("maxRetries", retryPolicy.get("max_retries"));
+        return resolveMaxRetriesValue(value);
+    }
+
+    private Integer resolveMaxRetriesValue(Object value) {
+        if (value instanceof Number number) {
+            int retries = number.intValue();
+            return retries >= 0 ? retries : null;
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                int retries = Integer.parseInt(text.trim());
+                return retries >= 0 ? retries : null;
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     public List<WorkflowResponse> getAllWorkflows() {

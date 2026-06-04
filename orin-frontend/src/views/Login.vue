@@ -99,7 +99,7 @@ import BrandingLogo from '@/components/BrandingLogo.vue';
 import { useUserStore } from '@/stores/user';
 import { useAppStore } from '@/stores/app';
 import { ADMIN_MENU_ROLES, getDefaultHomeByRoles } from '@/router/topMenuConfig';
-import { login } from '../api/auth';
+import { login } from '@/api/auth';
 
 const router = useRouter();
 const userStore = useUserStore();

@@ -12,57 +12,61 @@
         </el-button>
       </div>
 
-      <el-table v-loading="loading" :data="services" stripe style="border-radius:0">
-        <el-table-column type="expand">
-          <template #default="{ row }">
-            <div style="padding: 10px 50px;">
-              <el-table :data="row.instances || []" size="small" border>
-                <el-table-column prop="host" label="主机" />
-                <el-table-column prop="port" label="端口" width="80" />
-                <el-table-column prop="weight" label="权重" width="80" />
-                <el-table-column prop="status" label="状态" width="100">
-                  <template #default="{ row: instance }">
-                    <el-tag :type="instance.status === 'UP' ? 'success' : 'danger'" size="small">
-                      {{ instance.status }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="lastHeartbeat" label="心跳" width="160">
-                  <template #default="{ row: col }">{{ formatTime(col.lastHeartbeat) }}</template>
-                </el-table-column>
-                <el-table-column label="操作" width="200">
-                  <template #default="{ row: col }">
-                    <el-button type="primary" link size="small" @click="openInstanceDialog(row, col)">编辑</el-button>
-                    <el-button type="warning" link size="small" @click="healthCheck(row.id, col.id)">健康检查</el-button>
-                    <el-button type="danger" link size="small" @click="deleteInstance(row.id, col.id)">删除</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <el-button type="primary" size="small" style="margin-top: 10px;" @click="openInstanceDialog(row, null)">
-                添加实例
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="serviceName" label="服务名称" />
-        <el-table-column prop="serviceKey" label="服务Key" />
-        <el-table-column prop="protocol" label="协议" width="80" />
-        <el-table-column prop="basePath" label="基础路径" show-overflow-tooltip />
-        <el-table-column prop="instanceCount" label="实例数" width="80" />
-        <el-table-column prop="status" label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'HEALTHY' ? 'success' : row.status === 'DEGRADED' ? 'warning' : 'danger'" size="small">
-              {{ row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openServiceDialog(row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteService(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact>
+        <el-table v-loading="loading" :data="services" stripe style="border-radius:0">
+          <el-table-column type="expand">
+            <template #default="{ row }">
+              <div style="padding: 10px 50px;">
+                <OrinDataTable compact>
+                  <el-table :data="row.instances || []" size="small" border>
+                    <el-table-column prop="host" label="主机" />
+                    <el-table-column prop="port" label="端口" width="80" />
+                    <el-table-column prop="weight" label="权重" width="80" />
+                    <el-table-column prop="status" label="状态" width="100">
+                      <template #default="{ row: instance }">
+                        <el-tag :type="instance.status === 'UP' ? 'success' : 'danger'" size="small">
+                          {{ instance.status }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="lastHeartbeat" label="心跳" width="160">
+                      <template #default="{ row: col }">{{ formatTime(col.lastHeartbeat) }}</template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="200">
+                      <template #default="{ row: col }">
+                        <el-button type="primary" link size="small" @click="openInstanceDialog(row, col)">编辑</el-button>
+                        <el-button type="warning" link size="small" @click="healthCheck(row.id, col.id)">健康检查</el-button>
+                        <el-button type="danger" link size="small" @click="deleteInstance(row.id, col.id)">删除</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </OrinDataTable>
+                <el-button type="primary" size="small" style="margin-top: 10px;" @click="openInstanceDialog(row, null)">
+                  添加实例
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="serviceName" label="服务名称" />
+          <el-table-column prop="serviceKey" label="服务Key" />
+          <el-table-column prop="protocol" label="协议" width="80" />
+          <el-table-column prop="basePath" label="基础路径" show-overflow-tooltip />
+          <el-table-column prop="instanceCount" label="实例数" width="80" />
+          <el-table-column prop="status" label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'HEALTHY' ? 'success' : row.status === 'DEGRADED' ? 'warning' : 'danger'" size="small">
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="openServiceDialog(row)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="deleteService(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </div>
 
     <!-- Service Dialog -->
@@ -123,6 +127,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { SetUp, Plus } from '@element-plus/icons-vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import { getServices, createService, updateService, deleteService as deleteServiceApi,
          getServiceInstances, createServiceInstance, updateServiceInstance,
          deleteServiceInstance, triggerHealthCheck } from '@/api/gateway'

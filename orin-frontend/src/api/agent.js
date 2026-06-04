@@ -69,6 +69,24 @@ export const getAgentMetadata = (agentId) => {
     return request.get(`/agents/${agentId}/metadata`);
 };
 
+export const getAgentVersions = (agentId) => {
+    return request.get(`/agents/${agentId}/versions`);
+};
+
+export const createAgentVersion = (agentId, data) => {
+    return request.post(`/agents/${agentId}/versions`, data);
+};
+
+export const rollbackAgentVersion = (agentId, versionId) => {
+    return request.post(`/agents/${agentId}/versions/${versionId}/rollback`);
+};
+
+export const compareAgentVersions = (agentId, version1, version2) => {
+    return request.get(`/agents/${agentId}/versions/compare`, {
+        params: { version1, version2 }
+    });
+};
+
 export const deleteAgent = (agentId) => {
     return request.delete(`/agents/${agentId}`);
 };
