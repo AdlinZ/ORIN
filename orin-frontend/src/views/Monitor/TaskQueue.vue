@@ -1,12 +1,17 @@
 <template>
   <div class="page-container">
-    <PageHeader title="任务队列管理" icon="Tickets">
+    <OrinPageShell
+      title="任务队列管理"
+      description="查看排队、执行、失败、死信和取消任务，并执行重放或取消操作"
+      icon="Tickets"
+      domain="运行监控"
+    >
       <template #actions>
         <el-button :icon="Refresh" :loading="loading" @click="fetchData">
           刷新
         </el-button>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
     <!-- 任务统计概览 -->
     <el-row :gutter="20" class="stats-row">
@@ -68,11 +73,19 @@
             <el-radio-button label="dead">
               死信
             </el-radio-button>
+            <el-radio-button label="cancelled">
+              已取消
+            </el-radio-button>
           </el-radio-group>
         </div>
       </template>
 
-      <el-table v-loading="loading" :data="taskList" stripe>
+      <OrinAsyncState
+        :status="loading ? 'loading' : (taskList.length ? 'success' : 'empty')"
+        empty-text="当前状态下暂无任务"
+      >
+      <OrinDataTable compact>
+      <el-table v-loading="loading" :data="taskList" :row-class-name="taskRowClassName" stripe>
         <el-table-column
           prop="taskId"
           label="任务ID"
@@ -148,6 +161,8 @@
           </template>
         </el-table-column>
       </el-table>
+      </OrinDataTable>
+      </OrinAsyncState>
 
       <div class="pagination-wrapper">
         <el-pagination
@@ -217,11 +232,19 @@
         <el-descriptions-item label="死信原因" :span="2">
           {{ currentTask.deadLetterReason || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="输入数据" :span="2">
-          <pre class="json-content">{{ JSON.stringify(currentTask.inputData, null, 2) || '-' }}</pre>
+        <el-descriptions-item label="输入摘要" :span="2">
+          <el-collapse class="json-collapse">
+            <el-collapse-item :title="jsonSummary(currentTask.inputData)" name="input">
+              <pre class="json-content">{{ formatJson(currentTask.inputData) }}</pre>
+            </el-collapse-item>
+          </el-collapse>
         </el-descriptions-item>
-        <el-descriptions-item label="输出数据" :span="2">
-          <pre class="json-content">{{ JSON.stringify(currentTask.outputData, null, 2) || '-' }}</pre>
+        <el-descriptions-item label="输出摘要" :span="2">
+          <el-collapse class="json-collapse">
+            <el-collapse-item :title="jsonSummary(currentTask.outputData)" name="output">
+              <pre class="json-content">{{ formatJson(currentTask.outputData) }}</pre>
+            </el-collapse-item>
+          </el-collapse>
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -229,10 +252,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh, Tickets, CircleCheck, Loading, Warning, CircleClose } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import {
   getTaskStatistics,
   getPendingPriorityStatistics,
@@ -240,12 +266,14 @@ import {
   getRunningTasks,
   getFailedTasks,
   getDeadTasks,
+  getCancelledTasks,
   getTaskById,
   replayTask,
   cancelTask
 } from '@/api/task';
 
 const loading = ref(false);
+const route = useRoute();
 const activeTab = ref('queued');
 const currentPage = ref(1);
 const pageSize = ref(20);
@@ -255,6 +283,7 @@ const taskStats = ref({});
 const priorityStats = ref([]);
 const showDetailDialog = ref(false);
 const currentTask = ref(null);
+const highlightedTaskId = ref('');
 
 const statusMap = {
   QUEUED:    { label: '排队中', icon: Tickets,      color: 'var(--neutral-gray-400)',  bgColor: 'var(--neutral-gray-100)',          class: 'stat-queued'    },
@@ -262,7 +291,8 @@ const statusMap = {
   RETRYING:  { label: '重试中', icon: Refresh,      color: 'var(--info-500)',          bgColor: 'var(--info-light)',                class: 'stat-retrying'  },
   COMPLETED: { label: '已完成', icon: CircleCheck,  color: 'var(--success-500)',       bgColor: 'var(--success-light)',             class: 'stat-completed' },
   FAILED:    { label: '失败',   icon: Warning,      color: 'var(--error-500)',         bgColor: 'var(--error-light)',               class: 'stat-failed'    },
-  DEAD: { label: '死信', icon: CircleClose, color: '#C0C4CC', bgColor: 'rgba(192, 196, 204, 0.1)', class: 'stat-dead' }
+  DEAD: { label: '死信', icon: CircleClose, color: '#C0C4CC', bgColor: 'rgba(192, 196, 204, 0.1)', class: 'stat-dead' },
+  CANCELLED: { label: '已取消', icon: CircleClose, color: 'var(--neutral-gray-500)', bgColor: 'var(--neutral-gray-100)', class: 'stat-cancelled' }
 };
 
 const priorityMap = {
@@ -282,9 +312,21 @@ const getStatusType = (status) => {
     RETRYING: 'primary',
     COMPLETED: 'success',
     FAILED: 'danger',
-    DEAD: 'info'
+    DEAD: 'info',
+    CANCELLED: 'info'
   };
   return map[status] || 'info';
+};
+
+const formatJson = (value) => {
+  if (value === null || value === undefined || value === '') return '-';
+  return JSON.stringify(value, null, 2);
+};
+
+const jsonSummary = (value) => {
+  if (value === null || value === undefined || value === '') return '暂无数据';
+  const text = JSON.stringify(value);
+  return text.length > 120 ? `${text.slice(0, 120)}...` : text;
 };
 
 const formatTime = (time) => {
@@ -298,8 +340,8 @@ const formatTime = (time) => {
 const fetchStatistics = async () => {
   try {
     const statsRes = await getTaskStatistics();
-    const stats = statsRes.data || statsRes;
-    taskStats.value = stats;
+    const payload = statsRes.data || statsRes;
+    const stats = payload.statusStatistics || payload;
 
     taskStats.value = [
       { label: '排队中', value: stats.QUEUED || 0, ...statusMap.QUEUED },
@@ -307,7 +349,8 @@ const fetchStatistics = async () => {
       { label: '重试中', value: stats.RETRYING || 0, ...statusMap.RETRYING },
       { label: '已完成', value: stats.COMPLETED || 0, ...statusMap.COMPLETED },
       { label: '失败', value: stats.FAILED || 0, ...statusMap.FAILED },
-      { label: '死信', value: stats.DEAD || 0, ...statusMap.DEAD }
+      { label: '死信', value: stats.DEAD || 0, ...statusMap.DEAD },
+      { label: '已取消', value: stats.CANCELLED || 0, ...statusMap.CANCELLED }
     ];
   } catch (e) {
     console.error('获取任务统计失败:', e);
@@ -348,6 +391,9 @@ const fetchTasks = async () => {
       case 'dead':
         res = await getDeadTasks(params);
         break;
+      case 'cancelled':
+        res = await getCancelledTasks(params);
+        break;
     }
 
     const data = res.data || res;
@@ -366,15 +412,32 @@ const fetchData = async () => {
 
 const handleReplay = async (task) => {
   try {
-    await ElMessageBox.confirm(`确定要重放任务 ${task.taskId} 吗?`, '确认重放', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    });
+    await ElMessageBox.confirm(
+      [
+        `原任务: ${task.taskId}`,
+        `状态: ${task.status || '-'}`,
+        `失败原因: ${task.errorMessage || '-'}`,
+        `死信原因: ${task.deadLetterReason || '-'}`,
+        `重试次数: ${task.retryCount || 0} / ${task.maxRetries || 0}`,
+        `Trace ID: ${task.traceId || '-'}`,
+        '确认后将创建一个新的排队任务，原任务终态保持不变。'
+      ].join('\n'),
+      '确认重放失败任务',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
 
-    await replayTask(task.taskId);
-    ElMessage.success('任务已重放');
-    fetchData();
+    const res = await replayTask(task.taskId);
+    const payload = res.data || res;
+    highlightedTaskId.value = payload.newTaskId || payload.taskId || '';
+    if (highlightedTaskId.value) {
+      activeTab.value = 'queued';
+    }
+    ElMessage.success(`任务已重放，原任务 ${payload.originalTaskId || task.taskId}，新任务 ${highlightedTaskId.value || '-'}`);
+    await fetchData();
   } catch (e) {
     if (e !== 'cancel') {
       ElMessage.error('重放失败: ' + (e.message || '未知错误'));
@@ -395,15 +458,26 @@ const handleViewDetail = async (task) => {
 
 const handleCancel = async (task) => {
   try {
-    await ElMessageBox.confirm(`确定要取消任务 ${task.taskId} 吗?`, '确认取消', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    });
+    await ElMessageBox.confirm(
+      [
+        `任务: ${task.taskId}`,
+        `状态: ${task.status || '-'}`,
+        `Trace ID: ${task.traceId || '-'}`,
+        '只允许取消仍在排队中的任务，确认后任务将进入 CANCELLED 终态。'
+      ].join('\n'),
+      '确认取消排队任务',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
 
-    await cancelTask(task.taskId);
-    ElMessage.success('任务已取消');
-    fetchData();
+    const res = await cancelTask(task.taskId);
+    const payload = res.data || res;
+    highlightedTaskId.value = task.taskId;
+    ElMessage.success(`任务已取消，当前状态 ${payload.status || 'CANCELLED'}`);
+    await fetchData();
   } catch (e) {
     if (e !== 'cancel') {
       ElMessage.error('取消失败: ' + (e.message || '未知错误'));
@@ -420,13 +494,22 @@ const handlePageChange = () => {
   fetchTasks();
 };
 
+const taskRowClassName = ({ row }) => {
+  return row?.taskId && row.taskId === highlightedTaskId.value ? 'highlight-task-row' : '';
+};
+
 watch(activeTab, () => {
   currentPage.value = 1;
   fetchTasks();
 });
 
-onMounted(() => {
-  fetchData();
+onMounted(async () => {
+  await fetchData();
+  const taskId = route.query.taskId;
+  if (typeof taskId === 'string' && taskId) {
+    highlightedTaskId.value = taskId;
+    await handleViewDetail({ taskId });
+  }
 });
 </script>
 
@@ -516,5 +599,19 @@ onMounted(() => {
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.json-collapse {
+  width: 100%;
+}
+
+.json-collapse :deep(.el-collapse-item__header) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.highlight-task-row) {
+  --el-table-tr-bg-color: rgba(20, 184, 166, 0.12);
 }
 </style>

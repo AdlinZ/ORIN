@@ -1,11 +1,11 @@
 <template>
   <div class="department-management fade-in">
-    <section class="department-shell">
-      <OrinEntityHeader
-        domain="组织权限"
-        title="部门管理"
-        description="维护组织架构、部门负责人和上下级关系。"
-      >
+    <OrinPageShell
+      domain="系统控制"
+      title="部门管理"
+      description="维护组织架构、部门负责人和上下级关系。"
+      icon="OfficeBuilding"
+    >
         <template #actions>
           <el-button :icon="Refresh" @click="loadDepartments">
             刷新
@@ -38,8 +38,9 @@
             </el-button-group>
           </div>
         </template>
-      </OrinEntityHeader>
+    </OrinPageShell>
 
+    <section class="department-shell">
       <OrinStatusSummary :items="departmentStatusItems" class="governance-summary" />
 
       <section class="department-workspace">
@@ -57,79 +58,74 @@
             />
           </div>
 
-          <div v-loading="loading" class="directory-tree">
-            <el-tree
-              ref="treeRef"
-              :data="filteredTreeData"
-              :props="treeProps"
-              node-key="departmentId"
-              :default-expanded-keys="expandedKeys"
-              :expand-on-click-node="false"
-              :filter-node-method="filterNode"
-              @node-click="handleNodeClick"
-            >
-              <template #default="{ node, data }">
-                <div class="tree-node" :class="{ 'is-selected': selectedDepartment?.departmentId === data.departmentId }">
-                  <div class="node-main">
-                    <span class="status-dot" :class="data.status === 'ENABLED' ? 'enabled' : 'disabled'" />
-                    <span class="node-name">{{ data.departmentName }}</span>
-                    <span v-if="data.children && data.children.length > 0" class="node-count">
-                      {{ data.children.length }}
-                    </span>
+          <OrinAsyncState
+            :status="loading ? 'loading' : filteredTreeData.length > 0 ? 'success' : 'empty'"
+            empty-text="暂无部门数据"
+            empty-action-label="创建第一个部门"
+            @retry="loadDepartments"
+            @empty-action="handleCreateRoot"
+          >
+            <div class="directory-tree">
+              <el-tree
+                ref="treeRef"
+                :data="filteredTreeData"
+                :props="treeProps"
+                node-key="departmentId"
+                :default-expanded-keys="expandedKeys"
+                :expand-on-click-node="false"
+                :filter-node-method="filterNode"
+                @node-click="handleNodeClick"
+              >
+                <template #default="{ node, data }">
+                  <div class="tree-node" :class="{ 'is-selected': selectedDepartment?.departmentId === data.departmentId }">
+                    <div class="node-main">
+                      <span class="status-dot" :class="data.status === 'ENABLED' ? 'enabled' : 'disabled'" />
+                      <span class="node-name">{{ data.departmentName }}</span>
+                      <span v-if="data.children && data.children.length > 0" class="node-count">
+                        {{ data.children.length }}
+                      </span>
+                    </div>
+                    <div class="node-actions">
+                      <el-tooltip content="新增子部门" placement="top">
+                        <el-button
+                          link
+                          type="primary"
+                          size="small"
+                          @click.stop="handleAddChild(data)"
+                        >
+                          <el-icon><Plus /></el-icon>
+                        </el-button>
+                      </el-tooltip>
+                      <el-tooltip content="编辑" placement="top">
+                        <el-button
+                          link
+                          type="primary"
+                          size="small"
+                          @click.stop="handleEdit(data)"
+                        >
+                          <el-icon><Edit /></el-icon>
+                        </el-button>
+                      </el-tooltip>
+                      <el-tooltip
+                        :content="data.children && data.children.length > 0 ? '存在子部门，无法删除' : '删除'"
+                        placement="top"
+                      >
+                        <el-button
+                          link
+                          type="danger"
+                          size="small"
+                          :disabled="data.children && data.children.length > 0"
+                          @click.stop="handleDelete(data)"
+                        >
+                          <el-icon><Delete /></el-icon>
+                        </el-button>
+                      </el-tooltip>
+                    </div>
                   </div>
-                  <div class="node-actions">
-                    <el-tooltip content="新增子部门" placement="top">
-                      <el-button
-                        link
-                        type="primary"
-                        size="small"
-                        @click.stop="handleAddChild(data)"
-                      >
-                        <el-icon><Plus /></el-icon>
-                      </el-button>
-                    </el-tooltip>
-                    <el-tooltip content="编辑" placement="top">
-                      <el-button
-                        link
-                        type="primary"
-                        size="small"
-                        @click.stop="handleEdit(data)"
-                      >
-                        <el-icon><Edit /></el-icon>
-                      </el-button>
-                    </el-tooltip>
-                    <el-tooltip
-                      :content="data.children && data.children.length > 0 ? '存在子部门，无法删除' : '删除'"
-                      placement="top"
-                    >
-                      <el-button
-                        link
-                        type="danger"
-                        size="small"
-                        :disabled="data.children && data.children.length > 0"
-                        @click.stop="handleDelete(data)"
-                      >
-                        <el-icon><Delete /></el-icon>
-                      </el-button>
-                    </el-tooltip>
-                  </div>
-                </div>
-              </template>
-            </el-tree>
-
-            <div v-if="!loading && (!treeData || treeData.length === 0)" class="empty-directory">
-              <el-empty description="暂无部门数据" :image-size="72">
-                <el-button
-                  type="primary"
-                  size="small"
-                  :icon="Plus"
-                  @click="handleCreateRoot"
-                >
-                  创建第一个部门
-                </el-button>
-              </el-empty>
+                </template>
+              </el-tree>
             </div>
-          </div>
+          </OrinAsyncState>
         </aside>
 
         <template v-if="selectedDepartment">
@@ -338,7 +334,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown, ArrowUp, OfficeBuilding } from '@element-plus/icons-vue'
 import { getDepartmentList, getAllDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/department'
 import { getUserList } from '@/api/userManage'
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 // 数据状态

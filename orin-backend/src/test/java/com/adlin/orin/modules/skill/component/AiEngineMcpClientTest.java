@@ -24,8 +24,8 @@ class AiEngineMcpClientTest {
 
     @BeforeEach
     void setUp() {
-        client = new AiEngineMcpClient(new ObjectMapper());
-        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(client, "restTemplate");
+        RestTemplate restTemplate = new RestTemplate();
+        client = new AiEngineMcpClient(new ObjectMapper(), restTemplate);
         mockServer = MockRestServiceServer.bindTo(restTemplate).build();
         ReflectionTestUtils.setField(client, "aiEngineUrl", "http://ai-engine:8000");
     }

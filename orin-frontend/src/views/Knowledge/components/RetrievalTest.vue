@@ -78,8 +78,8 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
-import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
+import { testRetrieval } from '@/api/knowledge'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -117,7 +117,7 @@ const handleSearch = async () => {
   results.value = []
   
   try {
-    const res = await request.post('/knowledge/retrieve/test', {
+    const res = await testRetrieval({
         kbId: props.kbId,
         query: query.value,
         topK: topK.value

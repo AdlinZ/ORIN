@@ -207,7 +207,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/utils/request'
+import {
+  deleteMultimodalFile,
+  getMultimodalFiles,
+  getMultimodalFilesByType,
+  getMultimodalStats,
+  uploadMultimodalFile
+} from '@/api/multimodal'
 import {
   Upload, Picture, Headset, VideoCamera, Document,
   Download, Delete, UploadFilled
@@ -240,11 +246,10 @@ const uploadRef = ref(null)
 const loadFiles = async () => {
   loading.value = true
   try {
-    const url = filterType.value
-      ? `/multimodal/files/type/${filterType.value}`
-      : '/multimodal/files'
-    const res = await request.get(url)
-    files.value = res.data || []
+    const res = filterType.value
+      ? await getMultimodalFilesByType(filterType.value)
+      : await getMultimodalFiles()
+    files.value = res?.data || res || []
   } catch (error) {
     ElMessage.error('加载文件列表失败')
   } finally {
@@ -254,8 +259,8 @@ const loadFiles = async () => {
 
 const loadStats = async () => {
   try {
-    const res = await request.get('/multimodal/stats')
-    stats.value = res.data || {}
+    const res = await getMultimodalStats()
+    stats.value = res?.data || res || {}
   } catch (error) {
     console.error('加载统计信息失败', error)
   }
@@ -272,14 +277,8 @@ const uploadFile = async () => {
   }
 
   uploading.value = true
-  const formData = new FormData()
-  formData.append('file', selectedFile.value)
-  formData.append('uploadedBy', 'admin')
-
   try {
-    await request.post('/multimodal/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    await uploadMultimodalFile(selectedFile.value, { uploadedBy: 'admin' })
     ElMessage.success('文件上传成功')
     uploadDialog.value = false
     selectedFile.value = null
@@ -314,7 +313,7 @@ const deleteFile = async (file) => {
       }
     )
 
-    await request.delete(`/multimodal/files/${file.id}`)
+    await deleteMultimodalFile(file.id)
     ElMessage.success('文件删除成功')
     await loadFiles()
     await loadStats()

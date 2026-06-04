@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.Map;
@@ -139,6 +140,7 @@ class CollaborationMqIsolationTest {
                 mqProducer,
                 redisService
         );
+        ReflectionTestUtils.setField(listener, "collaborationResultQueueName", "isolated-result-queue");
 
         CompletableFuture<String> future = new CompletableFuture<>();
         listener.registerCallback("pkg-iso-002:sub-2", future);
@@ -175,5 +177,6 @@ class CollaborationMqIsolationTest {
         assertEquals("sub-2", messageCaptor.getValue().getSubTaskId());
         assertEquals("parallel branch B", messageCaptor.getValue().getDescription());
         assertEquals("{\"branch\":\"B\"}", messageCaptor.getValue().getInputData());
+        assertEquals("isolated-result-queue", messageCaptor.getValue().getReplyTo());
     }
 }

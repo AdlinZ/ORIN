@@ -354,7 +354,7 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue';
 import { Cpu, Monitor, RefreshRight, Download, Coin, Timer, Money, ChatDotRound, TrendCharts } from '@element-plus/icons-vue';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { getTokenByDayOfWeek, getTokenByHour, getTokenByType, getSessions, getTokenStats, getDailyTokenTrend, getLatencyStats, getCostDistribution, getAgentList } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
 
@@ -880,9 +880,7 @@ onUnmounted(() => {
 
 .metrics-dashboard {
   padding: 20px;
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
+  background: transparent;
   min-height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -1154,7 +1152,7 @@ onUnmounted(() => {
   width: 24px;
   height: 8px;
   border-radius: 4px;
-  background: linear-gradient(to right, var(--orin-primary-soft), var(--orin-primary));
+  background: var(--orin-primary);
 }
 
 .chart-card .card-header-flex {
@@ -1421,9 +1419,7 @@ onUnmounted(() => {
 
 /* 黑夜模式适配 */
 html.dark .metrics-dashboard {
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.1), transparent 32%),
-    #0f172a;
+  background: #0f172a;
 }
 
 html.dark .stat-card {

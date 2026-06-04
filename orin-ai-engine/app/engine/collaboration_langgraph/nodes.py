@@ -534,6 +534,77 @@ async def memory_write_node(state: CollaborationState) -> Dict[str, Any]:
     return {"status": CollaborationStatus.COMPLETED.value}
 
 
+# ==================== FALLBACK 重派准备节点 ====================
+
+async def fallback_prepare_node(state: CollaborationState) -> Dict[str, Any]:
+    """
+    FALLBACK 重派准备节点。
+
+    Critic 驳回后由后端重置子任务和 Redis branch_result，本节点只负责调用治理接口
+    并清空 LangGraph 本地状态，随后回到既有子任务执行链。
+    """
+    package_id = state.get("package_id", "")
+    fallback_attempt = int(state.get("fallback_attempts", 0) or 0)
+    shared_context = dict(state.get("shared_context", {}) or {})
+    review = str(shared_context.get("__review", "") or "")
+    reason = "critic rejected result"
+
+    logger.info("[FallbackPrepare] 准备重派: package=%s attempt=%s", package_id, fallback_attempt)
+
+    from app.core.config import settings
+    import httpx
+
+    retry_url = (
+        f"{settings.ORIN_BACKEND_URL or 'http://localhost:8080'}"
+        f"/api/v1/collaboration/packages/{package_id}/fallback/retry"
+    )
+    payload = {
+        "reason": reason,
+        "review": review,
+        "attempt": fallback_attempt,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                retry_url,
+                json=payload,
+                headers={"X-Orchestrator-Mode": "LANGGRAPH"},
+            )
+            if resp.status_code >= 400:
+                logger.error("[FallbackPrepare] 后端重派准备失败 %s: %s", resp.status_code, resp.text[:200])
+                return {
+                    "status": CollaborationStatus.FAILED.value,
+                    "error_message": f"fallback retry prepare failed: HTTP {resp.status_code}",
+                }
+            retry_result = resp.json()
+    except Exception as e:
+        logger.error("[FallbackPrepare] 后端重派准备异常: %s", e)
+        return {
+            "status": CollaborationStatus.FAILED.value,
+            "error_message": f"fallback retry prepare failed: {str(e)}",
+        }
+
+    cleaned_context = {
+        key: value
+        for key, value in shared_context.items()
+        if not (key.startswith("task_") and key.endswith("_result"))
+    }
+    cleaned_context.pop("__consensus_summary", None)
+    cleaned_context["__fallback_review"] = review
+    cleaned_context["__fallback_attempt"] = fallback_attempt
+    cleaned_context["__fallback_retry"] = retry_result
+
+    return {
+        "completed_subtasks": [],
+        "branch_results": {},
+        "shared_context": cleaned_context,
+        "final_result": None,
+        "current_task_index": 0,
+        "status": CollaborationStatus.EXECUTING.value,
+    }
+
+
 # ==================== 路由函数 ====================
 
 def should_continue_delegate(state: CollaborationState) -> str:
@@ -567,6 +638,15 @@ def should_continue_critic(state: CollaborationState) -> str:
         fallback_attempts = int(state.get("fallback_attempts", 0) or 0)
         if fallback_attempts >= collaboration_state.MAX_FALLBACK_ATTEMPTS:
             return "end_failed"
-        return "delegate"  # 驳回，重新执行
+        return "fallback_prepare"  # 驳回，先重置后重新执行
 
     return "memory_write"
+
+
+def should_continue_fallback_prepare(state: CollaborationState) -> str:
+    """FALLBACK 重派准备后的路由决策"""
+    if state.get("status") == CollaborationStatus.FAILED.value:
+        return "end_failed"
+    if state.get("collaboration_mode") == "PARALLEL":
+        return "parallel_fork"
+    return "delegate"

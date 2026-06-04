@@ -105,6 +105,7 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+              <el-dropdown-item command="apiKeys">API Key 自助</el-dropdown-item>
               <el-dropdown-item command="settings">设置与帮助</el-dropdown-item>
               <el-dropdown-item v-if="userStore.isAdmin" command="dashboard">管理端</el-dropdown-item>
               <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
@@ -1356,6 +1357,10 @@ const handleUserCommand = (command) => {
     router.push('/dashboard/profile');
     return;
   }
+  if (command === 'apiKeys') {
+    router.push(ROUTES.PORTAL_API_KEYS);
+    return;
+  }
   if (command === 'dashboard') {
     router.push('/dashboard');
     return;
@@ -1397,9 +1402,7 @@ onMounted(async () => {
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  background:
-    radial-gradient(circle at 52% 12%, rgba(0, 191, 165, 0.12), transparent 32%),
-    linear-gradient(180deg, #f7fffd 0%, #f8fafc 44%, #ffffff 100%);
+  background: #f8fafc;
   color: var(--portal-ink);
 }
 
@@ -1478,7 +1481,7 @@ onMounted(async () => {
 .portal-user-avatar {
   flex-shrink: 0;
   border: 2px solid #eef2f6;
-  background: linear-gradient(135deg, var(--portal-primary), var(--portal-primary-dark));
+  background: var(--portal-primary);
   box-shadow: 0 2px 8px rgba(15, 118, 110, 0.12);
 }
 
@@ -1787,9 +1790,7 @@ onMounted(async () => {
   overflow: hidden;
   padding: 24px 28px;
   box-sizing: border-box;
-  background:
-    radial-gradient(circle at 50% 12%, rgba(0, 191, 165, 0.1), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(248, 250, 252, 0.94));
+  background: #f8fafc;
 }
 
 .creation-workspace {
@@ -2172,38 +2173,23 @@ onMounted(async () => {
 }
 
 .action-preview.cutout {
-  background:
-    radial-gradient(circle at 55% 58%, #f7c9a5 0 22%, transparent 23%),
-    radial-gradient(circle at 48% 38%, #111827 0 9%, transparent 10%),
-    linear-gradient(135deg, #f7fafc 0 45%, #dbeafe 45% 100%);
+  background: #dbeafe;
 }
 
 .action-preview.erase {
-  background:
-    linear-gradient(135deg, transparent 0 36%, rgba(255, 255, 255, 0.88) 36% 54%, transparent 54%),
-    radial-gradient(circle at 55% 42%, #4f46e5 0 18%, transparent 19%),
-    linear-gradient(135deg, #fde68a, #f9a8d4);
+  background: #fde68a;
 }
 
 .action-preview.redraw {
-  background:
-    radial-gradient(circle at 62% 58%, #a16207 0 18%, transparent 19%),
-    radial-gradient(circle at 42% 44%, #fbbf24 0 14%, transparent 15%),
-    linear-gradient(135deg, #bae6fd, #fef3c7);
+  background: #bae6fd;
 }
 
 .action-preview.expand {
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.62) 0 20%, transparent 20% 80%, rgba(255, 255, 255, 0.62) 80%),
-    radial-gradient(circle at 50% 54%, #60a5fa 0 22%, transparent 23%),
-    linear-gradient(135deg, #dcfce7, #dbeafe);
+  background: #dcfce7;
 }
 
 .action-preview.enhance {
-  background:
-    linear-gradient(90deg, rgba(15, 23, 42, 0.3) 0 44%, transparent 44%),
-    radial-gradient(circle at 63% 40%, #93c5fd 0 26%, transparent 27%),
-    linear-gradient(135deg, #e0f2fe, #f8fafc);
+  background: #e0f2fe;
 }
 
 .creation-gallery {
@@ -2237,7 +2223,7 @@ onMounted(async () => {
   position: absolute;
   inset: auto 0 0;
   height: 48%;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.58));
+  background: rgba(0, 0, 0, 0.42);
 }
 
 .creation-showcase strong,
@@ -2259,34 +2245,19 @@ onMounted(async () => {
 }
 
 .poster-cat::before {
-  background:
-    radial-gradient(circle at 48% 54%, #fed7aa 0 18%, transparent 19%),
-    radial-gradient(circle at 54% 48%, #fff7ed 0 28%, transparent 29%),
-    repeating-linear-gradient(45deg, transparent 0 26px, rgba(0, 0, 0, 0.18) 26px 30px),
-    linear-gradient(135deg, #fb923c, #ea580c 56%, #111827 57%);
+  background: #fb923c;
 }
 
 .poster-industrial::before {
-  background:
-    radial-gradient(circle at 62% 31%, #a16207 0 18%, transparent 19%),
-    radial-gradient(circle at 38% 64%, #bef264 0 15%, transparent 16%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.12) 0 12%, transparent 12% 100%),
-    linear-gradient(135deg, #fb5a14, #f97316 44%, #22d3ee 45% 64%, #84cc16 65%);
+  background: #f97316;
 }
 
 .poster-party::before {
-  background:
-    radial-gradient(circle at 56% 58%, #f9a8d4 0 24%, transparent 25%),
-    radial-gradient(circle at 70% 34%, #fbbf24 0 12%, transparent 13%),
-    linear-gradient(135deg, #fde68a, #f9a8d4 62%, #f59e0b);
+  background: #f9a8d4;
 }
 
 .poster-spring::before {
-  background:
-    radial-gradient(circle at 55% 50%, rgba(34, 197, 94, 0.55) 0 22%, transparent 23%),
-    radial-gradient(circle at 62% 34%, rgba(255, 255, 255, 0.85) 0 8%, transparent 9%),
-    radial-gradient(circle at 42% 68%, rgba(255, 255, 255, 0.7) 0 10%, transparent 11%),
-    linear-gradient(135deg, #ecfccb, #86efac 52%, #f7fee7);
+  background: #86efac;
 }
 
 .chat-stage {
@@ -2299,9 +2270,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at 50% 28%, rgba(0, 191, 165, 0.12), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(248, 250, 252, 0.78));
+  background: #f8fafc;
 }
 
 .home-center {

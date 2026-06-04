@@ -448,6 +448,7 @@ import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { getAgentList } from '@/api/agent'
+import { getDashboardSummary } from '@/api/dashboard'
 import {
   getGlobalSummary,
   getTokenHistory,
@@ -464,6 +465,7 @@ import {
 } from '@/api/monitor'
 import { getIntegrationStatus } from '@/api/integrations'
 import { UI_TEXT } from '@/constants/uiText'
+import { toDashboardSummaryViewModel } from '@/viewmodels'
 
 const loading = ref(false)
 const isRefreshing = ref(false)
@@ -1126,7 +1128,8 @@ const loadDashboardData = async () => {
   loading.value = true
   isRefreshing.value = true
   try {
-    const [summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes, integrationStatusRes] = await Promise.all([
+    const [dashboardSummaryRes, summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes, integrationStatusRes] = await Promise.all([
+      getDashboardSummary({ silentError: true }).catch(() => ({})),
       getGlobalSummary(),
       getAgentList(),
       getTokenHistory({ size: 200 }),
@@ -1138,6 +1141,7 @@ const loadDashboardData = async () => {
       getIntegrationStatus().catch(() => ({})),
     ])
 
+    const dashboardSummary = toDashboardSummaryViewModel(unwrapResponse(dashboardSummaryRes, {}) || {})
     const summary = unwrapResponse(summaryRes, {}) || {}
     const agents = unwrapResponse(agentsRes, []) || []
     const tokenHistoryPayload = unwrapResponse(tokenHistoryRes, {}) || {}
@@ -1154,16 +1158,16 @@ const loadDashboardData = async () => {
     const nodesData = unwrapResponse(nodesRes, []) || []
     const integrationStatus = unwrapResponse(integrationStatusRes, {}) || {}
 
-    const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length
+    const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length || dashboardSummary.metrics.agents
     const todayCalls = safeNumber(summary.daily_requests, historyList.filter((item) => dayjs(item.createdAt || item.timestamp).isSame(dayjs(), 'day')).length)
     const avgLatencyValue = readLatencyStatValue(summary, latencyData)
-    const alertCount = safeNumber(summary.alertCount, safeNumber(summary.highLoadAgents))
+    const alertCount = safeNumber(summary.alertCount, safeNumber(summary.highLoadAgents, dashboardSummary.metrics.failedTasks))
 
     summaryData.value = summary
     serverNodes.value = Array.isArray(nodesData) ? nodesData : []
     await hydrateHardwareSnapshot(hardware)
 
-    const healthRaw = String(health?.status || health?.code || '').toUpperCase()
+    const healthRaw = String(health?.status || health?.code || dashboardSummary.systemHealth.aiEngine.status || '').toUpperCase()
     if (healthRaw.includes('UP') || healthRaw.includes('OK') || healthRaw.includes('SUCCESS')) {
       healthStatusText.value = '运行正常'
       healthStatusClass.value = 'status-ok'
@@ -1243,9 +1247,9 @@ const loadDashboardData = async () => {
     }
 
     queueStats.value = {
-      pending: safeNumber(summary.pendingTasks, safeNumber(summary.queuePending)),
-      running: safeNumber(summary.runningTasks, safeNumber(summary.queueRunning)),
-      failed: safeNumber(summary.failedTasks, safeNumber(summary.queueFailed)),
+      pending: safeNumber(summary.pendingTasks, safeNumber(summary.queuePending, dashboardSummary.metrics.tasks.QUEUED)),
+      running: safeNumber(summary.runningTasks, safeNumber(summary.queueRunning, dashboardSummary.metrics.tasks.RUNNING)),
+      failed: safeNumber(summary.failedTasks, safeNumber(summary.queueFailed, dashboardSummary.metrics.failedTasks)),
     }
   } catch (error) {
     ElMessage.error('加载首页数据失败，请稍后重试')
@@ -1329,9 +1333,7 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 20px;
   min-height: calc(100vh - 76px);
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
+  background: transparent;
 }
 
 .cc-header-glass {
@@ -1341,9 +1343,7 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 16px 18px;
   border-radius: var(--monitor-radius);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9)),
-    linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(59, 130, 246, 0.06));
+  background: #ffffff;
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(203, 213, 225, 0.72);
@@ -2304,15 +2304,11 @@ onBeforeUnmount(() => {
 
 /* Dark mode */
 html.dark .command-center-root {
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.1), transparent 32%),
-    #0f172a;
+  background: #0f172a;
 }
 
 html.dark .cc-header-glass {
-  background:
-    linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.88)),
-    linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(59, 130, 246, 0.08));
+  background: #0f172a;
   border-color: rgba(100, 116, 139, 0.46);
   box-shadow: 0 14px 32px rgba(2, 6, 23, 0.32);
 }

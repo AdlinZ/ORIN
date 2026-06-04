@@ -39,7 +39,29 @@ describe('dead file guardrails', () => {
       'src/services/api.ts',
       'src/stores/app.ts',
       'src/stores/loading.ts',
-      'src/types/api.d.ts'
+      'src/types/api.d.ts',
+      'scripts/revamp-flag-snapshot.mjs',
+      'src/views/System/ExternalFrameworks.vue',
+      'src/views/System/RateLimitConfig.vue',
+      'src/views/System/KnowledgeConfig.vue',
+      'src/views/System/MailCenter.vue',
+      'src/views/Mail/MailCompose.vue',
+      'src/views/Mail/MailTracking.vue',
+      'src/views/SystemSettings/BaseSettings.vue',
+      'src/views/SystemSettings/MailSettings.vue',
+      'src/views/SystemSettings/ModelDefaultSettings.vue',
+      'src/views/SystemSettings/NotificationSettings.vue',
+      'src/views/SystemSettings/SystemSettingsLayout.vue',
+      'src/views/SystemSettings/components/ModelSchedulingPanel.vue',
+      'src/views/SystemSettings/components/SystemEnvKnowledgeTab.vue',
+      'src/views/Home/widgets/ActiveAgentsWidget.vue',
+      'src/views/Home/widgets/AlertsWidget.vue',
+      'src/views/Home/widgets/LatencyChartWidget.vue',
+      'src/views/Home/widgets/QuickAccessWidget.vue',
+      'src/views/Home/widgets/RecentCallsWidget.vue',
+      'src/views/Home/widgets/StatsOverviewWidget.vue',
+      'src/views/Home/widgets/SystemHealthWidget.vue',
+      'src/views/Home/widgets/TokenUsageChartWidget.vue'
     ]
 
     for (const file of removed) {
@@ -50,6 +72,8 @@ describe('dead file guardrails', () => {
   it('keeps removed directories absent', () => {
     expect(exists('src/services')).toBe(false)
     expect(exists('src/types')).toBe(false)
+    expect(exists('src/views/SystemSettings')).toBe(false)
+    expect(exists('src/views/Home/widgets')).toBe(false)
   })
 
   it('blocks backup files under views', () => {

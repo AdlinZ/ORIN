@@ -1,6 +1,6 @@
 # 本地基础设施 Compose
 
-这个目录用于本地服务器部署 ORIN 的外部依赖。
+这个目录用于本地服务器部署 ORIN 的增强外部依赖。根目录 `docker-compose.yml` 已默认包含 MySQL、Redis、RabbitMQ 和三端服务；本目录主要用于 Milvus、Prometheus、Grafana、Langfuse、Neo4j、MinIO 等可选增强栈。
 
 ## 默认启动
 
@@ -31,6 +31,8 @@ docker compose --profile queue up -d
 会额外启动：
 
 - `RabbitMQ`
+
+根目录 Docker quickstart 已默认启动 RabbitMQ；这里的 queue profile 主要用于单独验证本地基础设施或协作 MQ 灰度链路。
 
 如果要验证协作模块的 MQ 灰度链路，可以在仓库根目录执行：
 

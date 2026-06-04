@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AgentMetadataRepository extends JpaRepository<AgentMetadata, String> {
     List<AgentMetadata> findByOwnerUserIdAndMcpExposedTrue(Long ownerUserId);
+    List<AgentMetadata> findByOwnerUserId(Long ownerUserId);
 }

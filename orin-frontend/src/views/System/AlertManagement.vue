@@ -1,10 +1,11 @@
 <template>
   <div class="alert-manager" :class="{ embedded: !props.showHeader }">
-    <PageHeader
+    <OrinPageShell
       v-if="props.showHeader"
       title="异常告警"
       description="集中管理告警规则、历史记录与处理状态"
       icon="Bell"
+      domain="运行监控"
     />
     <el-tabs v-model="activeTab" class="config-tabs" :class="{ 'single-tab': singleTabMode }">
       <!-- 告警规则 Tab -->
@@ -44,86 +45,96 @@
             </div>
           </div>
 
-          <el-table
-            v-loading="loading"
-            class="alert-table"
-            border
-            :data="rules"
-            stripe
-          >
-            <el-table-column prop="ruleName" label="规则名称" min-width="150" />
-            <el-table-column prop="ruleType" label="类型" width="120">
-              <template #default="{ row }">
-                <el-tag size="small">
-                  {{ getRuleTypeText(row.ruleType) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column
-              prop="conditionExpr"
-              label="触发条件"
-              min-width="180"
-              show-overflow-tooltip
+          <OrinDataTable compact>
+            <OrinAsyncState
+              :status="rulesState"
+              :error-text="rulesErrorText"
+              empty-text="暂无告警规则"
+              empty-action-label="创建规则"
+              @retry="loadRules"
+              @empty-action="showCreateDialog"
             >
-              <template #default="{ row }">
-                {{ getRuleConditionSummary(row) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="severity" label="严重程度" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getSeverityType(row.severity)" size="small">
-                  {{ row.severity }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="notificationChannels" label="通知渠道" min-width="150">
-              <template #default="{ row }">
-                <div class="channel-list">
-                  <template v-if="getRuleChannels(row).length">
-                    <el-tag
-                      v-for="channel in getRuleChannels(row)"
-                      :key="channel"
-                      size="small"
-                      effect="plain"
-                    >
-                      {{ getChannelText(channel) }}
+              <el-table
+                class="alert-table"
+                border
+                :data="rules"
+                stripe
+              >
+                <el-table-column prop="ruleName" label="规则名称" min-width="150" />
+                <el-table-column prop="ruleType" label="类型" width="120">
+                  <template #default="{ row }">
+                    <el-tag size="small">
+                      {{ getRuleTypeText(row.ruleType) }}
                     </el-tag>
                   </template>
-                  <el-tag v-else size="small" type="info" effect="plain">
-                    未配置
-                  </el-tag>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column prop="enabled" label="状态" width="80">
-              <template #default="{ row }">
-                <el-switch
-                  v-model="row.enabled"
-                  @change="toggleRule(row)"
-                />
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="250" fixed="right">
-              <template #default="{ row }">
-                <div class="rule-actions">
-                  <el-button size="small" :icon="View" @click="viewRule(row)">
-                    编辑
-                  </el-button>
-                  <el-button size="small" :icon="Notification" @click="testRule(row)">
-                    测试
-                  </el-button>
-                  <el-button
-                    size="small"
-                    type="danger"
-                    :icon="Delete"
-                    @click="deleteRule(row)"
-                  >
-                    删除
-                  </el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
+                </el-table-column>
+                <el-table-column
+                  prop="conditionExpr"
+                  label="触发条件"
+                  min-width="180"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    {{ getRuleConditionSummary(row) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="severity" label="严重程度" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="getSeverityType(row.severity)" size="small">
+                      {{ row.severity }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="notificationChannels" label="通知渠道" min-width="150">
+                  <template #default="{ row }">
+                    <div class="channel-list">
+                      <template v-if="getRuleChannels(row).length">
+                        <el-tag
+                          v-for="channel in getRuleChannels(row)"
+                          :key="channel"
+                          size="small"
+                          effect="plain"
+                        >
+                          {{ getChannelText(channel) }}
+                        </el-tag>
+                      </template>
+                      <el-tag v-else size="small" type="info" effect="plain">
+                        未配置
+                      </el-tag>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="enabled" label="状态" width="80">
+                  <template #default="{ row }">
+                    <el-switch
+                      v-model="row.enabled"
+                      @change="toggleRule(row)"
+                    />
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="250" fixed="right">
+                  <template #default="{ row }">
+                    <div class="rule-actions">
+                      <el-button size="small" :icon="View" @click="viewRule(row)">
+                        编辑
+                      </el-button>
+                      <el-button size="small" :icon="Notification" @click="testRule(row)">
+                        测试
+                      </el-button>
+                      <el-button
+                        size="small"
+                        type="danger"
+                        :icon="Delete"
+                        @click="deleteRule(row)"
+                      >
+                        删除
+                      </el-button>
+                    </div>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinAsyncState>
+          </OrinDataTable>
         </el-card>
       </el-tab-pane>
 
@@ -161,79 +172,87 @@
             说明：这里只展示由当前告警规则触发的记录；未配置规则时不会生成新的告警历史。
           </div>
 
-          <el-table
-            v-loading="loadingHistory"
-            class="alert-table"
-            border
-            :data="history"
-            stripe
-          >
-            <el-table-column label="规则名称" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }">
-                {{ historyRuleName(row) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="alertMessage" label="告警消息" min-width="200" />
-            <el-table-column prop="severity" label="严重程度" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getSeverityType(row.severity)" size="small">
-                  {{ row.severity }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="agentId" label="智能体" width="150" />
-            <el-table-column prop="triggeredAt" label="触发时间" width="180">
-              <template #default="{ row }">
-                {{ formatTime(row.triggeredAt) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag
-                  v-if="row.status === 'RESOLVED'"
-                  type="success"
-                  size="small"
-                >
-                  已解决
-                </el-tag>
-                <el-tag
-                  v-else-if="row.status === 'SUPPRESSED'"
-                  type="info"
-                  size="small"
-                >
-                  已抑制
-                </el-tag>
-                <el-tag
-                  v-else
-                  type="warning"
-                  size="small"
-                >
-                  待处理
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button
-                  v-if="row.status === 'TRIGGERED'"
-                  size="small"
-                  type="success"
-                  @click="resolveAlert(row)"
-                >
-                  解决
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :total="totalHistory"
-            layout="total, prev, pager, next"
-            class="mt-4"
-            @current-change="loadHistory"
-          />
+          <OrinDataTable compact>
+            <OrinAsyncState
+              :status="historyState"
+              :error-text="historyErrorText"
+              empty-text="暂无告警历史"
+              @retry="loadHistory"
+            >
+              <el-table
+                class="alert-table"
+                border
+                :data="history"
+                stripe
+              >
+                <el-table-column label="规则名称" min-width="180" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    {{ historyRuleName(row) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="alertMessage" label="告警消息" min-width="200" />
+                <el-table-column prop="severity" label="严重程度" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="getSeverityType(row.severity)" size="small">
+                      {{ row.severity }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="agentId" label="智能体" width="150" />
+                <el-table-column prop="triggeredAt" label="触发时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatTime(row.triggeredAt) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag
+                      v-if="row.status === 'RESOLVED'"
+                      type="success"
+                      size="small"
+                    >
+                      已解决
+                    </el-tag>
+                    <el-tag
+                      v-else-if="row.status === 'SUPPRESSED'"
+                      type="info"
+                      size="small"
+                    >
+                      已抑制
+                    </el-tag>
+                    <el-tag
+                      v-else
+                      type="warning"
+                      size="small"
+                    >
+                      待处理
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="120">
+                  <template #default="{ row }">
+                    <el-button
+                      v-if="row.status === 'TRIGGERED'"
+                      size="small"
+                      type="success"
+                      @click="resolveAlertRecord(row)"
+                    >
+                      解决
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinAsyncState>
+            <template v-if="historyState === 'success'" #footer>
+              <el-pagination
+                v-model:current-page="currentPage"
+                v-model:page-size="pageSize"
+                :total="totalHistory"
+                layout="total, prev, pager, next"
+                @current-change="loadHistory"
+              />
+            </template>
+          </OrinDataTable>
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -244,9 +263,19 @@
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/utils/request'
 import dayjs from 'dayjs'
-import PageHeader from '@/components/PageHeader.vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
+import {
+  deleteAlertRule,
+  getAlertHistory,
+  getAlertRules,
+  getAlertStats,
+  resolveAlert as resolveAlertApi,
+  testAlertRule,
+  updateAlertRule
+} from '@/api/alert'
 import {
   Bell, Plus, View, Notification, Delete, Clock
 } from '@element-plus/icons-vue'
@@ -273,6 +302,8 @@ const singleTabMode = computed(() => Number(showRulesTab.value) + Number(showHis
 const activeTab = ref(props.initialTab)
 const loading = ref(false)
 const loadingHistory = ref(false)
+const rulesErrorText = ref('')
+const historyErrorText = ref('')
 const rules = ref([])
 const history = ref([])
 const stats = ref({
@@ -496,6 +527,18 @@ const totalHistory = ref(0)
 
 const enabledRuleCount = computed(() => rules.value.filter(rule => rule.enabled).length)
 const disabledRuleCount = computed(() => Math.max(rules.value.length - enabledRuleCount.value, 0))
+const rulesState = computed(() => {
+  if (loading.value) return 'loading'
+  if (rulesErrorText.value) return 'error'
+  if (!rules.value.length) return 'empty'
+  return 'success'
+})
+const historyState = computed(() => {
+  if (loadingHistory.value) return 'loading'
+  if (historyErrorText.value) return 'error'
+  if (!history.value.length) return 'empty'
+  return 'success'
+})
 const channelCount = computed(() => {
   const channels = new Set()
   rules.value.forEach(rule => {
@@ -523,10 +566,12 @@ const getChannelText = (channel) => {
 
 const loadRules = async () => {
   loading.value = true
+  rulesErrorText.value = ''
   try {
-    const res = await request.get('/alerts/rules')
+    const res = await getAlertRules()
     rules.value = res || []
   } catch (error) {
+    rulesErrorText.value = formatErrorText(error, '加载告警规则失败')
     ElMessage.error('加载告警规则失败')
   } finally {
     loading.value = false
@@ -535,16 +580,16 @@ const loadRules = async () => {
 
 const loadHistory = async () => {
   loadingHistory.value = true
+  historyErrorText.value = ''
   try {
-    const res = await request.get('/alerts/history', {
-      params: {
-        page: currentPage.value - 1,
-        size: pageSize.value
-      }
+    const res = await getAlertHistory({
+      page: currentPage.value - 1,
+      size: pageSize.value
     })
     history.value = res.content || []
     totalHistory.value = res.totalElements || 0
   } catch (error) {
+    historyErrorText.value = formatErrorText(error, '加载告警历史失败')
     ElMessage.error('加载告警历史失败')
   } finally {
     loadingHistory.value = false
@@ -553,7 +598,7 @@ const loadHistory = async () => {
 
 const loadStats = async () => {
   try {
-    const res = await request.get('/alerts/stats')
+    const res = await getAlertStats()
     stats.value = res || {}
   } catch (error) {
     console.error('加载统计信息失败', error)
@@ -655,7 +700,7 @@ const getRuleConditionSummary = (rule) => {
 
 const toggleRule = async (rule) => {
   try {
-    await request.put(`/alerts/rules/${rule.id}`, rule)
+    await updateAlertRule(rule.id, rule)
     ElMessage.success(rule.enabled ? '规则已启用' : '规则已禁用')
   } catch (error) {
     ElMessage.error('更新规则状态失败')
@@ -665,7 +710,7 @@ const toggleRule = async (rule) => {
 
 const testRule = async (rule) => {
   try {
-    await request.post(`/alerts/rules/${rule.id}/test`)
+    await testAlertRule(rule.id)
     ElMessage.success('测试通知已发送')
   } catch (error) {
     ElMessage.error('发送测试通知失败')
@@ -684,7 +729,7 @@ const deleteRule = async (rule) => {
       }
     )
 
-    await request.delete(`/alerts/rules/${rule.id}`)
+    await deleteAlertRule(rule.id)
     ElMessage.success('规则删除成功')
     await loadRules()
     await loadStats()
@@ -695,15 +740,21 @@ const deleteRule = async (rule) => {
   }
 }
 
-const resolveAlert = async (alert) => {
+const resolveAlertRecord = async (alert) => {
   try {
-    await request.post(`/alerts/history/${alert.id}/resolve`)
+    await resolveAlertApi(alert.id)
     ElMessage.success('告警已解决')
     await loadHistory()
     await loadStats()
   } catch (error) {
     ElMessage.error('解决告警失败')
   }
+}
+
+const formatErrorText = (error, fallback) => {
+  const message = error?.response?.data?.message || error?.message || fallback
+  const traceId = error?.response?.data?.traceId
+  return traceId ? `${message}（traceId: ${traceId}）` : message
 }
 
 const getRuleTypeText = (type) => {

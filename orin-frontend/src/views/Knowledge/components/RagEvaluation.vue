@@ -7,9 +7,9 @@
         <el-select v-model="selectedKbId" placeholder="选择知识库" size="small" style="width: 200px">
           <el-option
             v-for="kb in knowledgeBases"
-            :key="kb.kbId"
+            :key="kb.id"
             :label="kb.name"
-            :value="kb.kbId"
+            :value="kb.id"
           />
         </el-select>
       </div>
@@ -55,57 +55,59 @@
         </el-button>
       </div>
 
-      <el-table :data="benchmarks" stripe size="small">
-        <el-table-column prop="name" label="基准名称" />
-        <el-table-column prop="description" label="描述" show-overflow-tooltip />
-        <el-table-column prop="avgScore" label="平均得分" width="100">
-          <template #default="{ row }">
-            <span :class="getScoreClass(row.avgScore / 100)">
-              {{ row.avgScore.toFixed(1) }}%
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="testCount" label="测试次数" width="100" />
-        <el-table-column prop="lastRun" label="上次运行" width="160">
-          <template #default="{ row }">
-            {{ formatTime(row.lastRun) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="runBenchmark(row)">
-              运行
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact>
+        <el-table :data="benchmarks" stripe size="small">
+          <el-table-column prop="name" label="基准名称" />
+          <el-table-column prop="description" label="描述" show-overflow-tooltip />
+          <el-table-column prop="score" label="平均得分" width="100">
+            <template #default="{ row }">
+              <span :class="getBenchmarkScoreClass(row.score)">
+                {{ formatBenchmarkScore(row.score) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="testCount" label="测试次数" width="100" />
+          <el-table-column prop="lastRun" label="上次运行" width="160">
+            <template #default="{ row }">
+              {{ formatBenchmarkTime(row.lastRun) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120">
+            <template #default="{ row }">
+              <el-button type="primary" text size="small" @click="runBenchmark(row)">
+                运行
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </div>
 
-    <!-- Evaluation Metrics -->
+    <!-- Retrieval Summary -->
     <div class="metrics-section">
       <div class="section-header">
-        <h4>评估指标</h4>
+        <h4>检索摘要</h4>
       </div>
       <div class="metrics-grid">
         <div class="metric-card">
-          <div class="metric-title">Precision@K</div>
-          <div class="metric-value">{{ metrics.precisionAtK.toFixed(3) }}</div>
-          <div class="metric-desc">前K个结果的准确率</div>
+          <div class="metric-title">命中数量</div>
+          <div class="metric-value">{{ metrics.hitCount }}</div>
+          <div class="metric-desc">当前查询返回的结果数</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">Recall@K</div>
-          <div class="metric-value">{{ metrics.recallAtK.toFixed(3) }}</div>
-          <div class="metric-desc">前K个结果的召回率</div>
+          <div class="metric-title">平均相关度</div>
+          <div class="metric-value">{{ formatMetric(metrics.averageScore) }}</div>
+          <div class="metric-desc">返回结果 score 的平均值</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">MRR</div>
-          <div class="metric-value">{{ metrics.mrr.toFixed(3) }}</div>
-          <div class="metric-desc">平均倒数排名</div>
+          <div class="metric-title">最高相关度</div>
+          <div class="metric-value">{{ formatMetric(metrics.maxScore) }}</div>
+          <div class="metric-desc">当前结果中的最高 score</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">NDCG@K</div>
-          <div class="metric-value">{{ metrics.ndcgAtK.toFixed(3) }}</div>
-          <div class="metric-desc">归一化折损累积增益</div>
+          <div class="metric-title">最低相关度</div>
+          <div class="metric-value">{{ formatMetric(metrics.minScore) }}</div>
+          <div class="metric-desc">当前结果中的最低 score</div>
         </div>
       </div>
     </div>
@@ -116,7 +118,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import request from '@/utils/request'
+import { getEvaluationBenchmarks, getKnowledgeKbList, testRetrieval } from '@/api/knowledge'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import { toKnowledgeListViewModel, toRetrievalResultViewModel } from '@/viewmodels'
 
 const selectedKbId = ref('')
 const knowledgeBases = ref([])
@@ -125,10 +129,10 @@ const testing = ref(false)
 const testResults = ref([])
 const benchmarks = ref([])
 const metrics = reactive({
-  precisionAtK: 0.0,
-  recallAtK: 0.0,
-  mrr: 0.0,
-  ndcgAtK: 0.0
+  hitCount: 0,
+  averageScore: 0,
+  maxScore: 0,
+  minScore: 0
 })
 
 onMounted(async () => {
@@ -138,11 +142,12 @@ onMounted(async () => {
 
 const loadKnowledgeBases = async () => {
   try {
-    const res = await request.get('/knowledge/kb/list')
-    if (res && Array.isArray(res)) {
-      knowledgeBases.value = res
-      if (res.length > 0) {
-        selectedKbId.value = res[0].kbId
+    const res = await getKnowledgeKbList()
+    const rows = toKnowledgeListViewModel(res)
+    if (rows.length > 0) {
+      knowledgeBases.value = rows
+      if (!selectedKbId.value) {
+        selectedKbId.value = rows[0].id
       }
     }
   } catch (error) {
@@ -152,16 +157,11 @@ const loadKnowledgeBases = async () => {
 
 const loadBenchmarks = async () => {
   try {
-    const res = await request.get('/knowledge/eval/benchmarks')
-    benchmarks.value = res || []
+    const res = await getEvaluationBenchmarks()
+    benchmarks.value = normalizeBenchmarks(res)
   } catch (error) {
     console.error('Failed to load benchmarks:', error)
-    // Use mock data if API doesn't exist
-    benchmarks.value = [
-      { id: 1, name: 'Dify接入测试', description: '测试Dify相关配置和接入流程的检索', avgScore: 85.5, testCount: 12, lastRun: Date.now() - 86400000 },
-      { id: 2, name: 'Milvus检索测试', description: '测试Milvus向量数据库相关问题', avgScore: 78.2, testCount: 8, lastRun: Date.now() - 172800000 },
-      { id: 3, name: '通用问答测试', description: '覆盖多个知识领域的综合测试集', avgScore: 82.0, testCount: 20, lastRun: Date.now() - 3600000 }
-    ]
+    benchmarks.value = []
   }
 }
 
@@ -177,12 +177,12 @@ const runTest = async () => {
 
   testing.value = true
   try {
-    const res = await request.post('/knowledge/retrieve/test', {
+    const res = await testRetrieval({
       kbId: selectedKbId.value,
       query: testQuery.value,
       topK: 5
     })
-    testResults.value = unwrapRetrievalResults(res)
+    testResults.value = toRetrievalResultViewModel(res)
     calculateMetrics()
   } catch (error) {
     console.error('Test failed:', error)
@@ -193,35 +193,64 @@ const runTest = async () => {
 }
 
 const runBenchmark = async (benchmark) => {
-  ElMessage.info(`开始运行基准: ${benchmark.name}`)
-  // In a real implementation, this would trigger an evaluation pipeline
+  ElMessage.warning(`当前仅展示基准「${benchmark.name}」的后端结果；运行基准需要后端提供执行接口。`)
   await loadBenchmarks()
-  ElMessage.success('基准运行完成')
+}
+
+const normalizeBenchmarks = (payload) => {
+  const list = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.records)
+      ? payload.records
+      : Array.isArray(payload)
+        ? payload
+        : []
+
+  return list.map((item, index) => ({
+    id: item.id ?? item.benchmarkId ?? `benchmark-${index}`,
+    name: item.name || item.benchmarkName || `评估基准-${index + 1}`,
+    description: item.description || item.remark || '-',
+    score: item.score ?? item.avgScore ?? item.averageScore ?? null,
+    testCount: Number(item.testCount ?? item.runCount ?? item.executionCount ?? 0),
+    lastRun: item.lastRun || item.lastRunAt || item.updatedAt || item.executedAt || null,
+    raw: item
+  }))
 }
 
 const calculateMetrics = () => {
-  if (testResults.value.length === 0) return
+  if (testResults.value.length === 0) {
+    resetMetrics()
+    return
+  }
 
-  // Calculate simple metrics based on score distribution
-  const scores = testResults.value.map(r => r.score)
+  const scores = testResults.value
+    .map(result => Number(result.score))
+    .filter(score => Number.isFinite(score))
+  if (scores.length === 0) {
+    resetMetrics()
+    return
+  }
   const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length
 
-  // Mock metrics calculation
-  metrics.precisionAtK = avgScore
-  metrics.recallAtK = Math.min(avgScore * 1.2, 1.0)
-  metrics.mrr = avgScore * 0.9
-  metrics.ndcgAtK = avgScore * 0.95
+  metrics.hitCount = testResults.value.length
+  metrics.averageScore = avgScore
+  metrics.maxScore = Math.max(...scores)
+  metrics.minScore = Math.min(...scores)
 }
 
-const unwrapRetrievalResults = (response) => {
-  if (Array.isArray(response)) return response
-  if (Array.isArray(response?.results)) return response.results
-  if (Array.isArray(response?.data)) return response.data
-  return []
+const resetMetrics = () => {
+  metrics.hitCount = 0
+  metrics.averageScore = 0
+  metrics.maxScore = 0
+  metrics.minScore = 0
 }
 
 const formatScore = (score) => {
   return (score * 100).toFixed(1) + '%'
+}
+
+const formatMetric = (score) => {
+  return Number(score || 0).toFixed(3)
 }
 
 const getScoreClass = (score) => {
@@ -230,7 +259,20 @@ const getScoreClass = (score) => {
   return 'score-low'
 }
 
-const formatTime = (time) => {
+const getBenchmarkScoreClass = (score) => {
+  const value = Number(score)
+  if (!Number.isFinite(value)) return ''
+  return getScoreClass(value <= 1 ? value : value / 100)
+}
+
+const formatBenchmarkScore = (score) => {
+  if (score === null || score === undefined || score === '') return '-'
+  const value = Number(score)
+  if (!Number.isFinite(value)) return '-'
+  return value <= 1 ? `${(value * 100).toFixed(1)}%` : `${value.toFixed(1)}%`
+}
+
+const formatBenchmarkTime = (time) => {
   if (!time) return '-'
   return new Date(time).toLocaleString()
 }
@@ -339,7 +381,7 @@ const formatTime = (time) => {
 }
 
 .metrics-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #667eea;
   border-radius: 8px;
   padding: 20px;
   color: #fff;

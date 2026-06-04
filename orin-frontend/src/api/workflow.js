@@ -93,6 +93,39 @@ export function getWorkflowInstances(id) {
     })
 }
 
+export function getWorkflowTaskHistory(workflowId, params = {}) {
+    return request({
+        baseURL: '',
+        url: `/api/v1/workflow-tasks/workflow/${workflowId}`,
+        method: 'get',
+        params
+    })
+}
+
+export function getWorkflowTask(taskId) {
+    return request({
+        baseURL: '',
+        url: `/api/v1/workflow-tasks/${taskId}`,
+        method: 'get'
+    })
+}
+
+export function replayWorkflowTask(taskId) {
+    return request({
+        baseURL: '',
+        url: `/api/v1/workflow-tasks/${taskId}/replay`,
+        method: 'post'
+    })
+}
+
+export function cancelWorkflowTask(taskId) {
+    return request({
+        baseURL: '',
+        url: `/api/v1/workflow-tasks/${taskId}/cancel`,
+        method: 'post'
+    })
+}
+
 export function importWorkflow(formData) {
     return request({
         baseURL: '',

@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --coverage.reporter=json",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "test:revamp": "vitest run tests/unit/revamp*.test.js",
-    "flags:revamp:snapshot": "node scripts/revamp-flag-snapshot.mjs",
     "smoke:revamp": "node scripts/revamp-smoke.mjs",
     "acceptance:revamp": "node scripts/revamp-acceptance-checklist.mjs",
     "rollback:revamp:drill": "node scripts/revamp-rollback-drill.mjs",
@@ -41,6 +42,7 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@typescript-eslint/parser": "^8.57.2",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vitest/coverage-v8": "4.0.16",

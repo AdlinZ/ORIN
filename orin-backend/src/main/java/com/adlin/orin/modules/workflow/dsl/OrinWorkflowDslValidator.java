@@ -87,6 +87,12 @@ public class OrinWorkflowDslValidator {
         validateTerminalOutputs(nodeList, nodeIds, errors);
 
         Object rawEdges = graph.get("edges");
+        Map<String, List<String>> adjacency = new HashMap<>();
+        Map<String, List<String>> reverseAdjacency = new HashMap<>();
+        for (String nodeId : nodeIds) {
+            adjacency.put(nodeId, new ArrayList<>());
+            reverseAdjacency.put(nodeId, new ArrayList<>());
+        }
         if (rawEdges instanceof List<?> edgeList) {
             for (Object rawEdge : edgeList) {
                 if (!(rawEdge instanceof Map<?, ?> edge)) {
@@ -109,8 +115,13 @@ public class OrinWorkflowDslValidator {
                 } else if ("start".equals(nodeTypesById.get(target))) {
                     errors.add("Start node cannot have upstream node: " + target);
                 }
+                if (nodeIds.contains(source) && nodeIds.contains(target)) {
+                    adjacency.get(source).add(target);
+                    reverseAdjacency.get(target).add(source);
+                }
             }
         }
+        validateGraphShape(nodeIds, nodeTypesById, adjacency, reverseAdjacency, errors);
 
         Map<String, Object> metadata = definition.get("metadata") instanceof Map<?, ?> rawMetadata
                 ? (Map<String, Object>) rawMetadata
@@ -135,6 +146,101 @@ public class OrinWorkflowDslValidator {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private void validateGraphShape(
+            Set<String> nodeIds,
+            Map<String, String> nodeTypesById,
+            Map<String, List<String>> adjacency,
+            Map<String, List<String>> reverseAdjacency,
+            List<String> errors) {
+        if (nodeIds.isEmpty()) {
+            return;
+        }
+
+        Set<String> startNodes = new HashSet<>();
+        Set<String> terminalNodes = new HashSet<>();
+        for (String nodeId : nodeIds) {
+            String type = nodeTypesById.get(nodeId);
+            if ("start".equals(type)) {
+                startNodes.add(nodeId);
+            }
+            if ("end".equals(type) || "answer".equals(type)) {
+                terminalNodes.add(nodeId);
+            }
+            boolean hasIncoming = !reverseAdjacency.getOrDefault(nodeId, List.of()).isEmpty();
+            boolean hasOutgoing = !adjacency.getOrDefault(nodeId, List.of()).isEmpty();
+            if (!hasIncoming && !hasOutgoing) {
+                errors.add("Workflow node is isolated: " + nodeId);
+            }
+        }
+
+        if (!startNodes.isEmpty()) {
+            Set<String> reachableFromStart = traverse(startNodes, adjacency);
+            for (String nodeId : nodeIds) {
+                if (!reachableFromStart.contains(nodeId)) {
+                    errors.add("Workflow node is unreachable from start: " + nodeId);
+                }
+            }
+        }
+
+        if (!terminalNodes.isEmpty()) {
+            Set<String> canReachTerminal = traverse(terminalNodes, reverseAdjacency);
+            for (String nodeId : nodeIds) {
+                if (!terminalNodes.contains(nodeId) && !canReachTerminal.contains(nodeId)) {
+                    errors.add("Workflow node cannot reach terminal node: " + nodeId);
+                }
+            }
+        }
+
+        if (containsCycle(nodeIds, adjacency)) {
+            errors.add("Workflow graph must be acyclic");
+        }
+    }
+
+    private Set<String> traverse(Set<String> roots, Map<String, List<String>> adjacency) {
+        Set<String> visited = new HashSet<>();
+        List<String> stack = new ArrayList<>(roots);
+        while (!stack.isEmpty()) {
+            String nodeId = stack.remove(stack.size() - 1);
+            if (!visited.add(nodeId)) {
+                continue;
+            }
+            stack.addAll(adjacency.getOrDefault(nodeId, List.of()));
+        }
+        return visited;
+    }
+
+    private boolean containsCycle(Set<String> nodeIds, Map<String, List<String>> adjacency) {
+        Set<String> visiting = new HashSet<>();
+        Set<String> visited = new HashSet<>();
+        for (String nodeId : nodeIds) {
+            if (visitForCycle(nodeId, adjacency, visiting, visited)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean visitForCycle(
+            String nodeId,
+            Map<String, List<String>> adjacency,
+            Set<String> visiting,
+            Set<String> visited) {
+        if (visited.contains(nodeId)) {
+            return false;
+        }
+        if (!visiting.add(nodeId)) {
+            return true;
+        }
+        for (String next : adjacency.getOrDefault(nodeId, List.of())) {
+            if (visitForCycle(next, adjacency, visiting, visited)) {
+                return true;
+            }
+        }
+        visiting.remove(nodeId);
+        visited.add(nodeId);
+        return false;
     }
 
     @SuppressWarnings("unchecked")

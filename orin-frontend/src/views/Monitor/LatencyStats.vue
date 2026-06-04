@@ -151,6 +151,11 @@
         />
       </div>
 
+      <OrinAsyncState
+        :status="historyLoading ? 'loading' : (historyData.length ? 'success' : 'empty')"
+        empty-text="暂无慢请求样本"
+      >
+      <OrinDataTable compact>
       <el-table
         v-loading="historyLoading"
         border
@@ -210,6 +215,8 @@
           </template>
         </el-table-column>
       </el-table>
+      </OrinDataTable>
+      </OrinAsyncState>
 
       <div class="pagination-container">
         <el-pagination
@@ -230,8 +237,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { Download, Refresh, Timer } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { getLatencyStats, getLatencyHistory, getLatencyTrend } from '@/api/monitor';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 
 const defaultLatencyStats = {
   avg: 0,
@@ -575,9 +584,7 @@ onUnmounted(() => {
   --monitor-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
   min-height: 100%;
   padding: 20px;
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
+  background: transparent;
 }
 
 .runtime-command-panel {
@@ -588,9 +595,7 @@ onUnmounted(() => {
   padding: 16px 18px;
   border-radius: var(--monitor-radius);
   border: 1px solid rgba(203, 213, 225, 0.72);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9)),
-    linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(59, 130, 246, 0.06));
+  background: #ffffff;
   box-shadow: var(--monitor-shadow);
 }
 
@@ -777,17 +782,26 @@ onUnmounted(() => {
 
 .health-ring {
   --health: 0%;
+  position: relative;
   width: 56px;
   height: 56px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at center, #ffffff 0 58%, transparent 60%),
-    conic-gradient(var(--monitor-accent) var(--health), #e2e8f0 0);
+  background: conic-gradient(var(--monitor-accent) var(--health), #e2e8f0 0);
+}
+
+.health-ring::after {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  content: "";
 }
 
 .health-ring span {
+  position: relative;
+  z-index: 1;
   font-size: 14px;
   font-weight: 750;
   color: var(--monitor-text-main);

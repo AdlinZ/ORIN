@@ -1,10 +1,10 @@
 <template>
   <div class="page-container">
-    <OrinEntityHeader
+    <OrinPageShell
       domain="系统设置"
       title="环境配置"
       description="维护数据库、缓存、队列、向量引擎与知识服务等运行环境参数"
-      :summary="systemHeaderSummary"
+      icon="Tools"
     />
 
     <div class="layout">
@@ -234,15 +234,17 @@
               <el-descriptions-item label="文档总数">{{ collectionDetail.totalDocs || 0 }}</el-descriptions-item>
               <el-descriptions-item label="分区数">{{ collectionDetail.partitionCount || 0 }}</el-descriptions-item>
             </el-descriptions>
-            <el-table v-if="collectionDetail.knowledgeBases?.length" :data="collectionDetail.knowledgeBases" size="small" border stripe style="margin-top:16px">
-              <el-table-column prop="name" label="知识库名称">
-                <template #default="{ row }">
-                  <el-button type="primary" link @click="viewKnowledgeBaseVectors(row)">{{ row.name }}</el-button>
-                </template>
-              </el-table-column>
-              <el-table-column prop="docCount" label="文档数" width="100" />
-              <el-table-column prop="vectorCount" label="向量数" width="100" />
-            </el-table>
+            <OrinDataTable v-if="collectionDetail.knowledgeBases?.length" compact class="collection-table">
+              <el-table :data="collectionDetail.knowledgeBases" size="small" border stripe>
+                <el-table-column prop="name" label="知识库名称">
+                  <template #default="{ row }">
+                    <el-button type="primary" link @click="viewKnowledgeBaseVectors(row)">{{ row.name }}</el-button>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="docCount" label="文档数" width="100" />
+                <el-table-column prop="vectorCount" label="向量数" width="100" />
+              </el-table>
+            </OrinDataTable>
           </div>
           <el-empty v-else description="Collection 不存在或未连接" :image-size="60" />
         </OrinArcoConfigSection>
@@ -731,14 +733,16 @@
     <el-dialog v-model="vectorDialogVisible" :title="`向量详情 — ${vectorDialogData.kb?.name || ''}`" width="900px" destroy-on-close>
       <div v-loading="vectorDialogData.loading">
         <el-alert :title="`共 ${vectorDialogData.totalChunks} 个向量，${vectorDialogData.totalDocs} 个文档`" type="info" :closable="false" show-icon style="margin-bottom:16px" />
-        <el-table :data="vectorDialogData.chunks" size="small" border max-height="500">
-          <el-table-column prop="fileName" label="文件名" width="180" show-overflow-tooltip />
-          <el-table-column prop="chunkIndex" label="索引" width="60" />
-          <el-table-column prop="title" label="标题" width="150" show-overflow-tooltip />
-          <el-table-column prop="content" label="内容" min-width="250" show-overflow-tooltip />
-          <el-table-column prop="charCount" label="字符数" width="80" />
-          <el-table-column prop="vectorId" label="Vector ID" width="100" show-overflow-tooltip />
-        </el-table>
+        <OrinDataTable compact>
+          <el-table :data="vectorDialogData.chunks" size="small" border max-height="500">
+            <el-table-column prop="fileName" label="文件名" width="180" show-overflow-tooltip />
+            <el-table-column prop="chunkIndex" label="索引" width="60" />
+            <el-table-column prop="title" label="标题" width="150" show-overflow-tooltip />
+            <el-table-column prop="content" label="内容" min-width="250" show-overflow-tooltip />
+            <el-table-column prop="charCount" label="字符数" width="80" />
+            <el-table-column prop="vectorId" label="Vector ID" width="100" show-overflow-tooltip />
+          </el-table>
+        </OrinDataTable>
         <div style="margin-top:16px; text-align:center">
           <el-button v-if="vectorDialogData.chunks.length < vectorDialogData.totalChunks" type="primary" link :loading="vectorDialogData.loading" @click="loadMoreVectors">加载更多</el-button>
           <span v-else-if="vectorDialogData.chunks.length > 0" style="color:#999; font-size:13px">已加载全部</span>
@@ -751,11 +755,29 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, markRaw } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import request from '@/utils/request';
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinArcoConfigSection from '@/ui/arco/OrinArcoConfigSection.vue';
 import { Check, Connection, Reading, Share } from '@element-plus/icons-vue';
-import { diagnoseMilvus } from '@/api/knowledge';
+import {
+  diagnoseMilvus,
+  generateDescription as generateKnowledgeDescription,
+  getCollectionDetail,
+  getCollectionInfo,
+  getKnowledgeBaseVectors,
+  getKnowledgeList,
+  recreateCollection as recreateKnowledgeCollection,
+  updateKnowledge
+} from '@/api/knowledge';
+import {
+  getSystemProperties,
+  updateSystemProperties,
+  testMilvusConnection as testMilvusConnectionApi,
+  testMinioConnection as testMinioConnectionApi
+} from '@/api/monitor';
+import { getModelConfig, updateModelConfig } from '@/api/modelConfig';
+import { getExternalKeys } from '@/api/apiKey';
+import { getModelList } from '@/api/model';
 import {
   getDifyConfig, saveDifyConfig, testDifyConnection,
   getRagflowConfig, saveRagflowConfig, testRagflowConnection,
@@ -797,13 +819,6 @@ const tocSections = [
       { id: 'kb-retrieval', label: '检索参数',     anchor: 'blk-kb-retrieval' },
     ],
   },
-];
-
-const systemHeaderSummary = [
-  { label: '存储层', value: '7 项' },
-  { label: 'AI 能力', value: '1 组' },
-  { label: '外部集成', value: '3 项' },
-  { label: '检索策略', value: '1 组' }
 ];
 
 const tocEntries = tocSections.flatMap(s => [s, ...s.children]);
@@ -908,10 +923,10 @@ const SYSTEM_PROPERTY_FALLBACKS = {
 };
 
 const loadSystemProperties = async () => {
-  try { return await request.get('/monitor/system/properties'); } catch (e) { return null; }
+  try { return await getSystemProperties(); } catch (e) { return null; }
 };
 
-const saveSystemProperties = payload => request.post('/monitor/system/properties', payload);
+const saveSystemProperties = payload => updateSystemProperties(payload);
 
 const applySystemProperties = (props = {}) => {
   dbConfig.value = { ...SYSTEM_PROPERTY_FALLBACKS.db, ...props };
@@ -1032,7 +1047,7 @@ const testMilvusConnection = async () => {
   milvusStatus.value.online = false;
   const t = setTimeout(() => { testingMilvus.value = false; ElMessage.warning('连接超时'); }, 10000);
   try {
-    const res = await request.get('/monitor/milvus/test', { params: { host: milvusConfig.host, port: milvusConfig.port, token: milvusConfig.token } });
+    const res = await testMilvusConnectionApi(milvusConfig.host, milvusConfig.port, milvusConfig.token);
     clearTimeout(t);
     milvusStatus.value.online = res.online;
     if (res.online) {
@@ -1046,7 +1061,7 @@ const testMilvusConnection = async () => {
 
 const loadCollectionInfo = async () => {
   loadingCollection.value = true;
-  try { const res = await request.get('/knowledge/collection/info'); if (res) collectionInfo.value = res; }
+  try { const res = await getCollectionInfo(); if (res) collectionInfo.value = res; }
   catch (e) { collectionInfo.value = { exists: false }; }
   finally { loadingCollection.value = false; }
 };
@@ -1057,7 +1072,7 @@ const recreateCollection = async () => {
       confirmButtonText: '确认重建', cancelButtonText: '取消', type: 'warning'
     });
     recreating.value = true;
-    await request.post('/knowledge/collection/recreate');
+    await recreateKnowledgeCollection();
     ElMessage.success('Collection 重建成功');
     await loadCollectionInfo();
   } catch (e) { if (e !== 'cancel') ElMessage.error('重建失败: ' + e.message); }
@@ -1155,7 +1170,7 @@ const testMinioConnection = async () => {
   if (testingMinio.value) return;
   testingMinio.value = true;
   try {
-    const candidate = await request.post('/storage/health/minio/test', {
+    const candidate = await testMinioConnectionApi({
       endpoint: minioConfig.endpoint,
       accessKey: minioConfig.accessKey,
       secretKey: minioConfig.secretKey,
@@ -1193,7 +1208,7 @@ const jinaSaving = ref(false);
 
 const loadAiConfig = async () => {
   try {
-    const mc = await request.get('/model-config');
+    const mc = await getModelConfig();
     if (mc) {
       aiConfig.siliconFlowApiKey  = mc.siliconFlowApiKey || '';
       aiConfig.siliconFlowEndpoint = mc.siliconFlowEndpoint || 'https://api.siliconflow.cn/v1';
@@ -1201,7 +1216,7 @@ const loadAiConfig = async () => {
   } catch (e) { /* ignore */ }
 };
 
-const persistExternalAiConfig = () => request.put('/model-config', {
+const persistExternalAiConfig = () => updateModelConfig({
   siliconFlowApiKey: aiConfig.siliconFlowApiKey,
   siliconFlowEndpoint: aiConfig.siliconFlowEndpoint
 });
@@ -1250,7 +1265,7 @@ const ocrModelOptions = [
 
 const loadEmbeddingConfig = async () => {
   try {
-    const mc = await request.get('/model-config');
+    const mc = await getModelConfig();
     if (mc) {
       embeddingConfig.provider = mc.embeddingProvider || 'SiliconFlow';
       embeddingConfig.model = mc.embeddingModel || 'Qwen/Qwen3-Embedding-8B';
@@ -1261,7 +1276,7 @@ const loadEmbeddingConfig = async () => {
 };
 
 const persistEmbeddingConfig = () => Promise.all([
-  request.put('/model-config', {
+  updateModelConfig({
     embeddingProvider:   embeddingConfig.provider,
     embeddingModel:      embeddingConfig.model,
     embeddingApiKeyId:   embeddingConfig.apiKeyId || null,
@@ -1325,14 +1340,14 @@ const saveJinaReaderCard = async () => { if (await saveJinaReaderConfig()) finis
 const onProviderChange = () => { embeddingConfig.model = ''; };
 
 const loadApiKeys = async () => {
-  try { const res = await request.get('/api-keys/external'); apiKeys.value = res || []; } catch (e) { /* ignore */ }
+  try { const res = await getExternalKeys(); apiKeys.value = res || []; } catch (e) { /* ignore */ }
 };
 
 const loadEmbeddingModels = async () => {
   if (loadingModels.value) return;
   loadingModels.value = true;
   try {
-    const res = await request.get('/models');
+    const res = await getModelList();
     if (res) embeddingModels.value = res.filter(m => m.type === 'EMBEDDING').map(m => ({ id: m.modelName || m.name || m.modelId }));
   } catch (e) { /* ignore */ }
   finally { loadingModels.value = false; }
@@ -1341,7 +1356,7 @@ const loadEmbeddingModels = async () => {
 const loadRerankModels = async () => {
   if (rerankModels.value.length) return;
   try {
-    const res = await request.get('/models');
+    const res = await getModelList();
     if (res) {
       const filtered = res.filter(m => ['RERANK', 'RERANKER'].includes(m.type?.toUpperCase()));
       rerankModels.value = filtered.length
@@ -1491,18 +1506,18 @@ const saveKbRetrievalCard = async () => { if (await saveKbParams()) finishCardEd
 
 const loadCollectionDetail = async () => {
   loadingDetail.value = true;
-  try { const res = await request.get('/knowledge/collection/detail'); if (res) collectionDetail.value = res; }
+  try { const res = await getCollectionDetail(); if (res) collectionDetail.value = res; }
   catch (e) { collectionDetail.value = { exists: false }; }
   finally { loadingDetail.value = false; }
 };
 
 const loadKnowledgeBases = async () => {
-  try { const res = await request.get('/knowledge/list'); knowledgeBases.value = res || []; } catch (e) { /* ignore */ }
+  try { const res = await getKnowledgeList(); knowledgeBases.value = res || []; } catch (e) { /* ignore */ }
 };
 
 const loadKBModels = async () => {
   try {
-    const res = await request.get('/models');
+    const res = await getModelList();
     if (res) {
       kbModels.value = res
         .filter(m => ['CHAT', 'LLM', 'chat', 'llm'].includes(m.type) || !m.type)
@@ -1522,9 +1537,9 @@ const generateKBDescription = async () => {
   if (!selectedKB.value || !selectedKBModel.value) return;
   generatingDesc.value = true;
   try {
-    const res = await request.post(`/knowledge/${selectedKB.value}/generate-description`, { model: selectedKBModel.value });
+    const res = await generateKnowledgeDescription(selectedKB.value, selectedKBModel.value);
     if (res.title || res.description) {
-      await request.put(`/knowledge/${selectedKB.value}`, {
+      await updateKnowledge(selectedKB.value, {
         name: res.title || knowledgeBases.value.find(kb => kb.kbId === selectedKB.value)?.name,
         description: res.description || ''
       });
@@ -1539,7 +1554,7 @@ const viewKnowledgeBaseVectors = async (kb) => {
   vectorDialogData.value = { kb, chunks: [], totalChunks: 0, totalDocs: 0, page: 0, size: 20, loading: true };
   vectorDialogVisible.value = true;
   try {
-    const res = await request.get(`/knowledge/kb/${kb.id}/vectors`, { params: { page: 0, size: 20 } });
+    const res = await getKnowledgeBaseVectors(kb.id, 0, 20);
     vectorDialogData.value.chunks = res.chunks || [];
     vectorDialogData.value.totalChunks = res.totalChunks || 0;
     vectorDialogData.value.totalDocs = res.totalDocs || 0;
@@ -1552,7 +1567,7 @@ const loadMoreVectors = async () => {
   vectorDialogData.value.loading = true;
   try {
     const nextPage = vectorDialogData.value.page + 1;
-    const res = await request.get(`/knowledge/kb/${vectorDialogData.value.kb.id}/vectors`, { params: { page: nextPage, size: vectorDialogData.value.size } });
+    const res = await getKnowledgeBaseVectors(vectorDialogData.value.kb.id, nextPage, vectorDialogData.value.size);
     vectorDialogData.value.chunks = [...vectorDialogData.value.chunks, ...(res.chunks || [])];
     vectorDialogData.value.page = nextPage;
   } catch (e) { ElMessage.error('加载更多失败: ' + e.message); }
@@ -1623,6 +1638,10 @@ const setupObserver = () => {
 .config-section {
   margin-bottom: 20px;
   scroll-margin-top: 12px;
+}
+
+.collection-table {
+  margin-top: 16px;
 }
 
 .page-container :deep(.orin-config-section + .orin-config-section) {

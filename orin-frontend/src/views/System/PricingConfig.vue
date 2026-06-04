@@ -113,36 +113,43 @@
 
       <el-card shadow="never" class="tab-wrapper-card">
         <div class="pane-subtitle">当前仅按供应商聚合</div>
-        <el-table
-          v-loading="loading"
-          :data="distributionData"
-          border
-          stripe
-          style="width: 100%"
+        <OrinAsyncState
+          :status="loading ? 'loading' : distributionData.length > 0 ? 'success' : 'empty'"
+          empty-text="暂无成本分布数据"
+          @retry="fetchCostData"
         >
-          <el-table-column
-            type="index"
-            label="#"
-            width="60"
-            align="center"
-          />
-          <el-table-column
-            prop="name"
-            label="供应商"
-            min-width="220"
-            show-overflow-tooltip
-          />
-          <el-table-column label="成本" min-width="160" align="right">
-            <template #default="{ row }">
-              {{ formatCurrency(row.value) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="占比" min-width="120" align="right">
-            <template #default="{ row }">
-              {{ formatPercent(row.share) }}
-            </template>
-          </el-table-column>
-        </el-table>
+          <OrinDataTable compact>
+            <el-table
+              :data="distributionData"
+              border
+              stripe
+              style="width: 100%"
+            >
+              <el-table-column
+                type="index"
+                label="#"
+                width="60"
+                align="center"
+              />
+              <el-table-column
+                prop="name"
+                label="供应商"
+                min-width="220"
+                show-overflow-tooltip
+              />
+              <el-table-column label="成本" min-width="160" align="right">
+                <template #default="{ row }">
+                  {{ formatCurrency(row.value) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="占比" min-width="120" align="right">
+                <template #default="{ row }">
+                  {{ formatPercent(row.share) }}
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
+        </OrinAsyncState>
       </el-card>
     </template>
 
@@ -178,13 +185,20 @@
             </el-button>
           </div>
 
-          <el-table
-            v-loading="pricingLoading"
-            border
-            :data="filteredData"
-            style="width: 100%"
+          <OrinAsyncState
+            :status="pricingLoading ? 'loading' : filteredData.length > 0 ? 'success' : 'empty'"
+            empty-text="暂无定价规则"
+            empty-action-label="新增规则"
+            @retry="fetchPricingData"
+            @empty-action="handleAdd"
           >
-            <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
+            <OrinDataTable compact>
+              <el-table
+                border
+                :data="filteredData"
+                style="width: 100%"
+              >
+                <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
 
             <el-table-column prop="tenantGroup" label="租户分组" width="120">
               <template #default="{ row }">
@@ -236,13 +250,15 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="130" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-                <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+                <el-table-column label="操作" width="130" fixed="right">
+                  <template #default="{ row }">
+                    <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+                    <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinDataTable>
+          </OrinAsyncState>
     </el-card>
 
     <!-- 编辑/新增 Dialog -->
@@ -257,8 +273,10 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { Money, Monitor, RefreshRight, Plus, Search, Download } from '@element-plus/icons-vue';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
 import PricingEditDialog from '@/components/PricingEditDialog.vue';
