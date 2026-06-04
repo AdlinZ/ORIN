@@ -83,7 +83,7 @@ ORIN/
 ## 快速开始
 
 ```bash
-# 前置：JDK 17+ · Node 18+ · Python 3.11+ · MySQL 8 · Redis
+# 前置：JDK 17+ · Node 18+ · Python 3.11-3.14 · MySQL 8 · Redis
 # 本机开发一键启动（macOS / 本地 MySQL 环境）
 ./manage.sh start
 
